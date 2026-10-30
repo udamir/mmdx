@@ -17,7 +17,7 @@ import { buildMerged, REMOVED, type Merged } from './merge.js';
 import { Morph, STATE_NAMES } from './morph.js';
 import { Ink, INK_COLORS, INK_FADES, INK_SIZES } from './ink.js';
 import { hunks, lineDiff } from './textdiff.js';
-import { I_expand, I_hand, I_minus, I_pen, I_plus, I_shrink } from '../../../src/ui/icons.js';
+import { I_hand, I_pen } from '../../../src/ui/icons.js';
 import { icon } from '../../../src/ui/h.js';
 import type { ItemKind } from '../../../src/core/types.js';
 
@@ -295,7 +295,7 @@ function renderStage(): void {
   }
   if (state.mode === 'side' || state.mode === 'overlay' || (state.mode === 'morph' && !D.rm))
     for (const s of Object.values(svgs)) view.attach(s, s.parentElement!);
-  stage.append(toolPanel(), legend());
+  stage.append(toolPanel(), zoomBar(), legend());
   for (const svg of stage.querySelectorAll<SVGSVGElement>('.pane svg, .layer svg')) ink.attach(svg);
   requestAnimationFrame(() => {
     view?.fit();
@@ -446,6 +446,17 @@ function onionControl(p: HTMLElement, la: HTMLElement): void {
   input.addEventListener('input', set);
   set();
   p.append(h('div', { class: 'onion no-pan' }, h('span', {}, 'Before'), input, h('span', {}, 'After')));
+}
+
+function zoomBar(): HTMLElement {
+  const b = (label: string, title: string, fn: () => void) => h('button', { title, onclick: fn }, label);
+  return h(
+    'div',
+    { class: 'zoombar no-pan' },
+    b('−', 'Zoom out', () => view?.zoom(1 / 1.25)),
+    b('+', 'Zoom in', () => view?.zoom(1.25)),
+    b('Fit', 'Fit (F)', () => view?.fit()),
+  );
 }
 
 /** The legend doubles as the filter: each entry switches its kind of change on or off. */
@@ -640,7 +651,7 @@ function renderToolbar(): void {
   $('#mode-help').textContent = MODES.find((m) => m.id === state.mode)!.help + (state.ignore.style ? ' Both versions are drawn without styling.' : '') + (D.layoutAligned ? ' The old version is drawn on the new layout.' : '');
 }
 
-// ---- tool panel (the viewer's bar: zoom, pan, magic pen, full screen) -------------------------------------------
+// ---- tool panel: pan and magic pen, in the viewer's bar style ----------------------------------------------------
 
 let tools: HTMLElement | null = null;
 
@@ -655,10 +666,6 @@ function setTool(t: 'pan' | 'draw'): void {
 function toolPanel(): HTMLElement {
   tools = h('div', { class: 'vbar ds-float no-pan', role: 'toolbar', 'aria-label': 'View tools', 'aria-orientation': 'vertical' });
   renderTools();
-  if (view) view.onChange = () => {
-    const pct = tools?.querySelector('.pct');
-    if (pct && view) pct.textContent = `${Math.round(view.k * 100)}%`;
-  };
   return h('div', { class: 'vbar-wrap no-pan' }, tools);
 }
 
@@ -666,16 +673,9 @@ function renderTools(): void {
   if (!tools) return;
   const btn = (label: string, ic: string, onclick: () => void, extra: Record<string, unknown> = {}) =>
     h('button', { type: 'button', title: label, 'aria-label': label, onclick, ...extra }, icon(ic));
-  const fs = document.fullscreenElement === $('#stage');
   tools.replaceChildren(
-    btn('Zoom in', I_plus, () => view?.zoom(1.2)),
-    h('span', { class: 'pct', 'aria-live': 'off' }, `${Math.round((view?.k ?? 1) * 100)}%`),
-    btn('Zoom out', I_minus, () => view?.zoom(1 / 1.2)),
-    h('button', { type: 'button', title: 'Fit to view (F)', onclick: () => view?.fit() }, 'Fit'),
-    h('span', { class: 'sep' }),
     btn('Pan (H)', I_hand, () => setTool('pan'), { class: state.tool === 'pan' ? 'on' : '', 'aria-pressed': String(state.tool === 'pan') }),
     btn('Magic pen (P)', I_pen, () => setTool(state.tool === 'draw' ? 'pan' : 'draw'), { class: state.tool === 'draw' ? 'on' : '', 'aria-pressed': String(state.tool === 'draw') }),
-    ...(document.fullscreenEnabled ? [btn(fs ? 'Exit full screen' : 'Full screen', fs ? I_shrink : I_expand, () => void toggleFullscreen())] : []),
   );
   tools.parentElement?.querySelector('.pen-opts')?.remove();
   if (state.tool === 'draw') tools.after(penOptions());
@@ -691,16 +691,6 @@ function penOptions(): HTMLElement {
     h('button', { type: 'button', class: 'erase', disabled: !ink.strokes.length, onclick: () => ink.clear() }, 'Erase all strokes'),
   );
 }
-
-async function toggleFullscreen(): Promise<void> {
-  const stage = $('#stage');
-  if (document.fullscreenElement === stage) await document.exitFullscreen();
-  else await stage.requestFullscreen().catch(() => undefined);
-}
-document.addEventListener('fullscreenchange', () => {
-  renderTools();
-  requestAnimationFrame(() => view?.fit());
-});
 
 function setMode(m: Mode): void {
   state.mode = m;
