@@ -5,5 +5,5 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["src", "tests", "apps", "tools/*.ts", "*.config.ts"]
+  "include": ["src", "tests", "apps", "stories", ".storybook", "tools/*.ts", "*.config.ts"]
 }

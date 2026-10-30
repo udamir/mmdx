@@ -20,7 +20,7 @@
   <p>Inline source, a fetched <code>.mmdx</code> file, a fixed-height <code>contain</code> box, an unsupported type and a broken diagram.</p>
 
   <h2>Inline</h2>
-  <mmdx-viewer controls="zoom layers pen list export fullscreen">
+  <mmdx-viewer controls="zoom layers pen code export fullscreen">
     <script type="text/mermaid">
       flowchart LR
         a([Start]) --> b{Valid?}
@@ -34,7 +34,7 @@
   <mmdx-viewer src="/examples/production-microservices.mmd" controls="zoom layers pen fullscreen export"></mmdx-viewer>
 
   <h2>Sequence, contain in 360px</h2>
-  <mmdx-viewer class="fixed" fit="contain" src="/examples/docker-deploy-sequence.mmd" controls="zoom layers list"></mmdx-viewer>
+  <mmdx-viewer class="fixed" fit="contain" src="/examples/docker-deploy-sequence.mmd" controls="zoom layers code"></mmdx-viewer>
 
   <h2>ER, non-interactive</h2>
   <mmdx-viewer interactive="false" controls="none" src="/examples/atom-schema-er.mmd"></mmdx-viewer>

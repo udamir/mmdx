@@ -3,6 +3,8 @@
 // Ported from prototype/editor.js without innerHTML: highlighting produces tokens that become text nodes and spans.
 // The design names CodeMirror; v1 keeps this dependency-free editor behind a small API so it can be swapped later.
 
+import { CODE_TOKENS_CSS } from './styles/code-tokens.js';
+
 /** One highlighted piece of a line: a `t-*` class (null = plain text) and its text. */
 export type Token = readonly [cls: string | null, text: string];
 export type LineHighlighter = (line: string) => Token[];
@@ -348,7 +350,7 @@ export function createCodeEditor(opts: CodeEditorOptions = {}): CodeEditor {
 }
 
 /** Code editor CSS (scoped to the component that hosts it). Syntax colours follow the host's `data-ui` scheme. */
-export const CODE_EDITOR_CSS = /* css */ `
+const EDITOR_CSS = /* css */ `
 .cm { position: relative; flex: 1; min-height: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); overflow: hidden; }
 .cm:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-2); }
 .cm-hl, .cm-ta { margin: 0; padding: 8px 10px; font: 12.5px/1.55 var(--ds-mono); white-space: pre; tab-size: 2; letter-spacing: 0; word-wrap: normal; }
@@ -372,26 +374,7 @@ export const CODE_EDITOR_CSS = /* css */ `
   font: 800 9px/13px system-ui, sans-serif; text-align: center; pointer-events: auto; cursor: pointer; }
 .cm-tip { position: absolute; z-index: var(--ds-z-popover); max-width: 320px; padding: 6px 9px; border-radius: 6px; background: var(--float); color: var(--ink);
   border: 1px solid var(--danger); box-shadow: 0 4px 14px rgba(0,0,0,.18); font-size: 12px; line-height: 1.4; white-space: pre-wrap; pointer-events: none; }
-.t-kw { color: #7c3aed; font-weight: 600; }
-.t-arrow, .t-card { color: #db2777; font-weight: 600; }
-.t-str { color: #15803d; }
-.t-label { color: #0369a1; }
-.t-text { color: #0f766e; }
-.t-cls { color: #c2410c; }
-.t-dir, .t-pos { color: #9333ea; }
-.t-key { color: #b45309; font-weight: 600; }
-.t-punct { color: #64748b; }
-.t-comment { color: #8a93a6; font-style: italic; }
-.t-meta { color: #b5bac6; }
-.t-fold { color: var(--warn-ink); background: var(--warn-bg); border-radius: 3px; font-style: italic; }
-:host([data-ui="dark"]) .t-kw { color: #c4a5ff; }
-:host([data-ui="dark"]) .t-arrow, :host([data-ui="dark"]) .t-card { color: #ff7eb6; }
-:host([data-ui="dark"]) .t-str { color: #7ee0a1; }
-:host([data-ui="dark"]) .t-label { color: #6cc4ff; }
-:host([data-ui="dark"]) .t-text { color: #5fd8c9; }
-:host([data-ui="dark"]) .t-cls { color: #ffa26b; }
-:host([data-ui="dark"]) .t-dir, :host([data-ui="dark"]) .t-pos { color: #d29bff; }
-:host([data-ui="dark"]) .t-punct { color: #8d97a8; }
-:host([data-ui="dark"]) .t-comment { color: #7d8597; }
-:host([data-ui="dark"]) .t-meta { color: #5b6272; }
 `;
+
+/** The editor's styles, highlight colours included. */
+export const CODE_EDITOR_CSS = EDITOR_CSS + CODE_TOKENS_CSS;

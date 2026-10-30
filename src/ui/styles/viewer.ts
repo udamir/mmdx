@@ -47,8 +47,6 @@ svg.scene { position: absolute; inset: 0; width: 100%; height: 100%; display: bl
 .error pre span::before { counter-increment: ln; content: counter(ln); display: inline-block; width: 2.5em; color: var(--ds-faint); text-align: right; margin-right: 1em; user-select: none; }
 .error pre span.bad { background: var(--ds-danger-bg); }
 .error .actions { margin-top: 8px; }
-.alt { padding: 10px 14px; font-size: 13px; }
-.alt ul { margin: 4px 0; padding-left: 20px; }
 .loading { display: grid; place-items: center; color: var(--ds-muted); min-height: 80px; height: 100%; }
 .fallback { width: 100%; overflow: auto; }
 .fallback svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }

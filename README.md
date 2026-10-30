@@ -124,7 +124,7 @@ const viewer = new DiagramViewer(hostElement, { source, controls: ['zoom', 'full
 | `theme` | the diagram's own | Forces a theme over the diagram's `canvas.theme` |
 | `theme-dark` | — | Theme used on dark pages; `auto` picks the dark theme linked to the diagram's theme |
 | `fit` | `width` | `width` (height follows), `contain` (fit a fixed box) or `none` (natural size) |
-| `controls` | `zoom fullscreen` | Any of `zoom layers pen fullscreen export list`, or `none` |
+| `controls` | `zoom fullscreen` | Any of `zoom layers pen code export fullscreen`, or `none` |
 | `interactive` | `true` | `false` turns off pan and zoom (thumbnails, print) |
 | `lazy` | `true` | Render when scrolled near; the box keeps the diagram's aspect ratio meanwhile |
 | `wheel` | `ctrl` | `ctrl`: only ⌘/Ctrl+wheel zooms, so page scroll is never trapped; `always`; `never` |
@@ -136,7 +136,7 @@ const viewer = new DiagramViewer(hostElement, { source, controls: ['zoom', 'full
 
 Events (bubbling, composed): `ds-render` `{ bounds, type, durationMs }`, `ds-error` `{ diagnostics }`, `ds-link` `{ href, id }` (cancelable, to route links through your router), `ds-fullscreen` `{ active }`. Methods: `fit()`, `zoomTo(k)`, `reload()`, `toSvg()`, `toPng({ scale })`, `setLayers(ids)`.
 
-Keyboard, while the viewer has focus: `+` / `-` zoom, `F` or `0` fits, arrows pan, `P` toggles the pen, `Esc` stops it. `controls="list"` adds a text outline of the diagram for screen readers and copying.
+Keyboard, while the viewer has focus: `+` / `-` zoom, `F` or `0` fits, arrows pan, `P` toggles the pen, `Esc` stops it. `controls="code"` adds a code view: the diagram's Mermaid code without the layout metadata and styles, highlighted, with a Copy button.
 
 Each diagram type's parser and renderer load on first use, and diagrams over 300 lines render in a module worker (`setWorkerUrl(url)` lets a strict-CSP host serve the worker file).
 
@@ -332,9 +332,11 @@ Current Chrome, Edge and Firefox, and Safari 16.4 or newer (the components need 
 ```bash
 pnpm install        # the repository uses pnpm (corepack enable picks the pinned version)
 pnpm dev            # the studio and one demo page per component at http://localhost:8790
+pnpm storybook      # every component and feature as stories at http://localhost:6006
 pnpm test           # unit, geometry and golden SVG snapshots, security and DOM tests (Vitest + jsdom)
 pnpm typecheck      # strict TypeScript, plus a DOM-free check of src/core
 pnpm build          # library (dist/), type declarations (dist/types) and the demo site
+pnpm build:storybook  # static Storybook in storybook-static/
 pnpm size           # gzip size budgets per entry point
 ```
 
@@ -349,6 +351,7 @@ pnpm size           # gzip size budgets per entry point
 | `themes/` | Built-in theme files (`node tools/build-themes.mjs` regenerates the generated ones) |
 | `examples/` | Example diagrams used by the studio and the golden tests |
 | `apps/studio-site/` | The demo site deployed to GitHub Pages |
+| `stories/`, `.storybook/` | Storybook: the elements, the UI pieces with mock APIs, core rendering and the diagram diff |
 | `brand/` | Logo files |
 
 Pull requests are welcome. Please run `pnpm typecheck` and `pnpm test` before opening one; CI also checks the build and the size budgets.

@@ -8,7 +8,6 @@ import { BASE_THEME_ID, BUILTIN_IDS } from '../core/theme/builtin-ids.js';
 import { counterpartTheme, HOUSE } from '../core/theme/pairs.js';
 import type { CoreContext } from '../core/context.js';
 import { splitSource } from '../core/meta/index.js';
-import type { OutlineItem } from '../core/outline.js';
 import { summarize } from '../core/summary.js';
 import { detectType } from '../core/parse/dispatch.js';
 import { renderSourceWith, standaloneSvg, type PipelineOptions, type Rendered } from '../core/pipeline-core.js';
@@ -23,14 +22,14 @@ import type { MagicPen } from '../dom/pen.js';
 import { Viewport, type WheelMode } from '../dom/viewport.js';
 import { h, icon } from '../ui/h.js';
 import type { I18n } from '../ui/i18n.js';
-import { I_download, I_expand, I_layers, I_list, I_minus, I_pen, I_plus, I_shrink } from '../ui/icons.js';
+import { I_code, I_download, I_expand, I_layers, I_minus, I_pen, I_plus, I_shrink } from '../ui/icons.js';
 import { PopoverManager, Toaster } from '../ui/popover.js';
 import { adoptStyles, BASE, resolveUiScheme, TOKENS, watchUiScheme } from '../ui/styles/base.js';
 import { VIEWER_CSS } from '../ui/styles/viewer.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
-export type ViewerControl = 'zoom' | 'layers' | 'pen' | 'fullscreen' | 'export' | 'list';
+export type ViewerControl = 'zoom' | 'layers' | 'pen' | 'fullscreen' | 'export' | 'code';
 export type FitMode = 'contain' | 'width' | 'none';
 export type FallbackMode = 'mermaid' | 'source' | 'error';
 
@@ -95,7 +94,9 @@ export class DiagramViewer {
   private penMod: typeof import('../dom/pen.js') | null = null;
   private rendered: Rendered | null = null;
   private text: string | null = null;
-  private showList = false;
+  private showCode = false;
+  /** Code view module (with its styles adopted), loaded when the view is first shown. */
+  private codeMod: typeof import('./viewer-code.js') | null = null;
   private hoverKey = '';
   private visible = false;
   private io: IntersectionObserver | null = null;
@@ -359,8 +360,7 @@ export class DiagramViewer {
       return;
     }
     this.msg.replaceChildren();
-    this.stage.hidden = this.showList;
-    if (this.showList) this.renderList();
+    if (this.showCode) this.renderCode();
     const res = r.result;
     patchChildren(this.defsEl, res.defs);
     patchChildren(this.pageEl, pageScene(res, r.rctx));
@@ -458,15 +458,23 @@ export class DiagramViewer {
     emit(this.host, 'ds-error', { diagnostics: [...diags] });
   }
 
-  private renderList(): void {
+  /** Code view over the diagram: its Mermaid code without the layout metadata and without styling. */
+  private renderCode(): void {
     const r = this.rendered;
     if (!r) return;
-    const list = (items: OutlineItem[]): HTMLElement => h('ul', null, ...items.map((i) => h('li', null, i.text, i.children ? list(i.children) : null)));
-    // the outline code loads when the list view is first shown
-    void import('../core/outline.js').then(({ outline }) => {
-      if (this.destroyed || !this.showList || this.rendered !== r) return;
-      this.msg.replaceChildren(h('div', { class: 'alt', role: 'document', 'aria-label': this.rootEl.getAttribute('aria-label') ?? '' }, list(outline(r.model))));
-    });
+    void (async () => {
+      if (!this.codeMod) {
+        const mod = await import('./viewer-code.js');
+        if ('adoptedStyleSheets' in this.shadow && typeof CSSStyleSheet !== 'undefined' && 'replaceSync' in CSSStyleSheet.prototype) {
+          const sheet = new CSSStyleSheet();
+          sheet.replaceSync(mod.CODE_VIEW_CSS);
+          this.shadow.adoptedStyleSheets = [...this.shadow.adoptedStyleSheets, sheet];
+        } else this.shadow.append(h('style', null, mod.CODE_VIEW_CSS));
+        this.codeMod = mod;
+      }
+      if (this.destroyed || !this.showCode || this.rendered !== r) return;
+      this.msg.replaceChildren(this.codeMod.codeView(r.doc.code, this.i18n));
+    })();
   }
 
   /** Server-rendered SVG (build plugin, §11.4): shown immediately; interaction attaches on first render. */
@@ -603,7 +611,7 @@ export class DiagramViewer {
     const extra: HTMLElement[] = [];
     if (c.includes('layers')) extra.push(btn(t('layers.title'), I_layers, (ev) => this.openLayers(ev.currentTarget as HTMLElement), { 'aria-haspopup': 'true', 'aria-expanded': 'false' }));
     if (c.includes('pen') && this.viewport) extra.push(btn(t('pen.title'), I_pen, () => this.togglePen(), { class: this.pen?.active ? 'on' : '', 'aria-pressed': String(!!this.pen?.active) }));
-    if (c.includes('list')) extra.push(btn(this.showList ? t('alt.hide') : t('alt.show'), I_list, () => this.toggleList(), { 'aria-pressed': String(this.showList) }));
+    if (c.includes('code')) extra.push(btn(this.showCode ? t('codeView.hide') : t('codeView.show'), I_code, () => this.toggleCode(), { class: this.showCode ? 'on' : '', 'aria-pressed': String(this.showCode) }));
     if (c.includes('export')) extra.push(btn(t('export.title'), I_download, (ev) => this.openExport(ev.currentTarget as HTMLElement), { 'aria-haspopup': 'menu', 'aria-expanded': 'false' }));
     if (c.includes('fullscreen') && document.fullscreenEnabled) {
       const active = document.fullscreenElement === this.host;
@@ -614,9 +622,11 @@ export class DiagramViewer {
     this.bar.hidden = !this.bar.childElementCount;
   }
 
-  private toggleList(): void {
-    this.showList = !this.showList;
-    if (!this.showList) this.msg.replaceChildren();
+  private toggleCode(): void {
+    this.showCode = !this.showCode;
+    if (!this.showCode) this.msg.replaceChildren();
+    // a picture while the diagram shows; the code view inside must stay readable for screen readers
+    this.rootEl.setAttribute('role', this.showCode ? 'group' : 'img');
     this.renderNow();
   }
 
@@ -740,7 +750,8 @@ export class MmdxViewerElement extends ElementBase {
     set('themeDark', a('theme-dark'));
     set('fit', (a('fit') as FitMode | null) ?? 'width');
     const controls = a('controls');
-    if (controls !== null) o.controls = controls === 'none' ? [] : (controls.split(/\s+/).filter(Boolean) as ViewerControl[]);
+    // `list` (the former text outline) now opens the code view
+    if (controls !== null) o.controls = controls === 'none' ? [] : (controls.split(/\s+/).filter(Boolean).map((c) => (c === 'list' ? 'code' : c)) as ViewerControl[]);
     set('wheel', a('wheel') as WheelMode | null);
     set('fallback', a('fallback') as FallbackMode | null);
     set('label', a('label'));

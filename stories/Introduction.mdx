@@ -1,0 +1,31 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Introduction" />
+
+# mmdx components
+
+Styled Mermaid as framework-agnostic web components. Every story here uses the real components from `src/`, with the
+shipped examples (`examples/`) and themes (`themes/`).
+
+## Elements
+
+- **`<mmdx-viewer>`** (`mmdx/viewer`): read-only diagram with pan and zoom, layers, pen, code view, export, fullscreen and fallbacks.
+- **`<mmdx-editor>`** (`mmdx/editor`): visual editor with the Mermaid code and layout metadata side by side; every feature can be switched off.
+- **`<mmdx-theme-editor>`** (`mmdx/theme-editor`): edits themes (palette, fonts, item and page presets) with live previews.
+- **`<mmdx-studio>`** (`mmdx/studio`): the standalone app, with editor, examples, share, export, theme editor and Plain Mermaid.
+- **Markdown** (`mmdx/markdown`): build-time HTML with server-rendered SVG, and the run-time upgrade of Mermaid code blocks.
+
+## UI
+
+The chrome the elements are built from, shown on their own with mock APIs: the code editor, the style toolbar, the
+page toolbar, item previews and presets, icons, shapes, the logo, design tokens, dialogs and toasts.
+
+## Core
+
+`renderToSvg()` (DOM-free rendering for SSR and exports) and the semantic diagram diff.
+
+## Conventions
+
+- Every element takes `ui="light|dark|auto"` for its chrome; diagrams take any theme id (`theme`).
+- Events are `ds-*` `CustomEvent`s; the stories log them to the browser console.
+- Documents and themes are in memory here: nothing is saved.

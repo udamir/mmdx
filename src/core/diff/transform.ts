@@ -2,14 +2,10 @@
 // pictures differ only where the remaining changes are.
 import { joinSource, splitSource } from '../meta/index.js';
 import { COLLECTIONS, type DiagramMeta, type ItemMeta } from '../meta/types.js';
+import { stripMermaidStyles } from '../strip-styles.js';
 
 const LAYOUT_KEYS = ['x', 'y', 'w', 'h', 'points', 'fromSide', 'toSide', 'fromAt', 'toAt', 'labelDx', 'labelDy', 'dy'] as const;
 const KEEP_WITHOUT_STYLE = new Set<string>([...LAYOUT_KEYS, 'layer', 'link', 'locked']);
-
-/** Mermaid style statements (`classDef`, `class`, `style`, `linkStyle`). */
-const STYLE_LINE = /^\s*(classDef|class|style|linkStyle)\s/;
-/** `A:::cls` class shorthand (kept out of quoted labels by requiring an id-like character before it). */
-const CLASS_SHORTHAND = /([\w\])}>])(:::[\w-]+)/g;
 
 /**
  * The source without styling: no Mermaid classes or style statements, no presets, colours or fonts in the
@@ -17,11 +13,7 @@ const CLASS_SHORTHAND = /([\w\])}>])(:::[\w-]+)/g;
  */
 export function withoutStyle(source: string): string {
   const { doc } = splitSource(source);
-  const code = doc.code
-    .split('\n')
-    .filter((l) => !STYLE_LINE.test(l))
-    .map((l) => l.replace(CLASS_SHORTHAND, '$1'))
-    .join('\n');
+  const code = stripMermaidStyles(doc.code);
   const meta: DiagramMeta = { canvas: {}, styles: {} };
   const { routing } = doc.meta.canvas;
   if (routing !== undefined) meta.canvas.routing = routing;

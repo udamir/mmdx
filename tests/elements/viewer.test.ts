@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DiagramViewer, dedent } from '../../src/elements/viewer.js';
 import { hasKind, loadKind } from '../../src/elements/kinds.js';
 
@@ -106,5 +106,36 @@ afterEach(() => {
 
   it('dedents inline sources', () => {
     expect(dedent('\n    flowchart LR\n      a --> b\n  ')).toBe('flowchart LR\n  a --> b');
+  });
+});
+
+describe('code view (controls="code")', () => {
+  beforeAll(() => loadKind('flowchart'));
+
+  it('shows the Mermaid code without metadata and styles, and toggles back to the diagram', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const source = [
+      'flowchart LR',
+      '  a[Start]:::hot --> b[End]',
+      '  classDef hot fill:#f00',
+      '  style b stroke:#00f',
+      '%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----',
+      '%%@ node a {"x":10,"y":10,"w":80,"h":40}',
+    ].join('\n');
+    new DiagramViewer(host, { lazy: false, source, controls: ['code'] });
+    const sr = host.shadowRoot!;
+    const btn = (): HTMLButtonElement => sr.querySelector<HTMLButtonElement>('.bar button[aria-label="Show Mermaid code"], .bar button[aria-label="Show diagram"]')!;
+    expect(btn().getAttribute('aria-label')).toBe('Show Mermaid code');
+    btn().click();
+    await vi.waitFor(() => expect(sr.querySelector('.code-view')).not.toBeNull());
+    const text = sr.querySelector('.code-view pre')!.textContent!;
+    expect(text).toBe('flowchart LR\n  a[Start] --> b[End]\n');
+    expect(sr.querySelector('.root')!.getAttribute('role')).toBe('group');
+    expect(btn().getAttribute('aria-label')).toBe('Show diagram');
+    btn().click();
+    expect(sr.querySelector('.code-view')).toBeNull();
+    expect(sr.querySelector('.root')!.getAttribute('role')).toBe('img');
+    host.remove();
   });
 });
