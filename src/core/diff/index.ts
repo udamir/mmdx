@@ -421,12 +421,12 @@ export function diffDiagrams(before: string, after: string): DiagramDiff {
 
 /**
  * The same diff with some facets ignored: their field changes are dropped, and an item whose every change was
- * ignored becomes unchanged. Added and removed items always stay (unless content itself is ignored).
+ * ignored becomes unchanged. Facets describe how a kept item changed, so added and removed items always stay.
  */
 export function ignoreFacets(diff: DiagramDiff, ignore: DiffIgnore): DiagramDiff {
   const keep = (f: FieldChange) => !ignore[f.facet];
   const items = diff.items.map((it): ItemChange => {
-    if (it.status === 'added' || it.status === 'removed') return ignore.content ? { ...it, status: 'unchanged' } : it;
+    if (it.status === 'added' || it.status === 'removed') return it;
     const fields = it.fields.filter(keep);
     const facets = it.facets.filter((f) => !ignore[f]);
     return { ...it, fields, facets, status: facets.length ? 'changed' : 'unchanged' };
