@@ -761,7 +761,14 @@ function renderHistoryPane(): void {
           h('code', { class: 'vid' }, v.id ?? `v${v.n}`),
           i === last ? h('span', { class: 'vtag current' }, 'current') : null,
           h('span', {}, ` ${v.author} ${ago(v.date)}`),
-          h('span', { class: 'vcount' }, ` — ${c ? `${n} change${n === 1 ? '' : 's'}` : 'initial'}`))),
+          h('span', { class: 'vcount' }, ' — '),
+          c
+            ? h('span', { class: 'vstats' },
+                c.added ? h('span', { class: 'add' }, `+${c.added}`) : null,
+                c.removed ? h('span', { class: 'del' }, `−${c.removed}`) : null,
+                c.changed ? h('span', { class: 'chg' }, `~${c.changed}`) : null,
+                n ? null : h('span', {}, 'no changes'))
+            : h('span', { class: 'vcount' }, 'initial'))),
       compare ? h('span', { class: 'vpick' }, pick('before'), pick('after')) : null,
     );
   });
