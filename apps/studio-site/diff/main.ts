@@ -760,10 +760,10 @@ function renderHistoryPane(): void {
       h('button', { class: 'version-main', title: compare ? `Compare v${v.n} with the version before it` : `View v${v.n}`, onclick: () => (compare ? compareWithPrevious(i) : viewVersion(i)) },
         h('span', { class: 'vmsg' }, v.message),
         h('span', { class: 'vmeta' },
-          h('code', { class: 'vid' }, v.id ?? `v${v.n}`),
-          i === last ? h('span', { class: 'vtag current' }, 'current') : null,
-          h('span', {}, ` ${v.author} ${ago(v.date)}`),
-          h('span', { class: 'vcount' }, ' — '),
+          h('span', { class: 'vwho' },
+            h('code', { class: 'vid' }, v.id ?? `v${v.n}`),
+            i === last ? h('span', { class: 'vtag current' }, 'current') : null,
+            ` ${v.author} ${ago(v.date)}`),
           c
             ? h('span', { class: 'vstats' },
                 c.added ? h('span', { class: 'add' }, `+${c.added}`) : null,
@@ -775,12 +775,7 @@ function renderHistoryPane(): void {
     );
   });
   for (const t of document.querySelectorAll<HTMLElement>('#history-pane [role=tab]')) t.setAttribute('aria-selected', String(t.dataset['mode'] === state.historyMode));
-  body.replaceChildren(
-    ...(compare
-      ? [h('div', { class: 'history-top' }, h('div', { class: 'history-cmp' }, h('span', { class: 'vtag before' }, 'Before'), ` ${versionLabel(state.base)}  `, h('span', { class: 'vtag after' }, 'After'), ` ${versionLabel(state.at)}`))]
-      : []),
-    h('div', { class: 'versions', role: 'list' }, ...rows),
-  );
+  body.replaceChildren(h('div', { class: 'versions', role: 'list' }, ...rows));
 }
 
 const versionLabel = (i: number): string => {

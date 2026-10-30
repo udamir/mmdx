@@ -60,9 +60,6 @@
     #main:not([data-left="code"]) #code-pane, #main:not([data-left="history"]) #history-pane { transform: translateX(calc(-100% - 24px)); opacity: .4; pointer-events: none; }
 
     /* history */
-    .history-top { position: sticky; top: 0; z-index: 1; display: grid; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--ds-border); background: var(--ds-surface); }
-    .history-cmp { font-size: 12px; color: var(--ds-muted); white-space: pre; overflow: hidden; text-overflow: ellipsis; }
-    .history-cmp b { color: var(--ds-text); font-weight: 600; }
     .versions { display: flex; flex-direction: column; padding: 6px; gap: 2px; }
     .version { position: relative; display: flex; align-items: center; border-radius: 8px; }
     .version:hover { background: var(--ds-surface-2); }
@@ -71,7 +68,9 @@
     .version.before { background: #fff6f5; }
     .version-main { flex: 1; min-width: 0; display: grid; gap: 2px; text-align: left; border: 0; background: none; padding: 7px 8px 7px 14px; border-radius: 8px; }
     .vmsg { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .vmeta { color: var(--ds-muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .vmeta { display: flex; align-items: baseline; gap: 8px; color: var(--ds-muted); font-size: 11.5px; white-space: nowrap; min-width: 0; }
+    .vwho { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .vmeta > .vstats, .vmeta > .vcount { margin-left: auto; flex: none; }
     .vid { font: 11px ui-monospace, Menlo, monospace; color: var(--ds-text); }
     .vcount { color: var(--ds-muted); }
     .vstats { display: inline-flex; gap: 5px; font-variant-numeric: tabular-nums; font-weight: 600; }
