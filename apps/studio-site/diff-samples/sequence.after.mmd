@@ -1,0 +1,124 @@
+sequenceDiagram
+  box Microservice Management Provider
+    participant init as Initializer
+    participant env as Environment initializer
+    participant net as Network initializer
+    participant vol as Volume initializer
+    participant svc as Service initializer
+    participant repo as Repository
+    participant rdc as Remote Docker Client
+  end
+  box Edge Computing Platform
+    participant docker as Docker Engine
+  end
+
+  activate init
+  init->>init: Read microservices description file
+  init->>repo: Load previous deployment state
+  activate env
+  init-)-env: Parsing environment
+  env->>env: Parsing environment from description file
+  env->>repo: Save environment to Repository
+  deactivate env
+
+  loop Networks
+    activate net
+    init-)net: Parsing network
+    net->>net: Parsing network from description file
+    net->>repo: Save network to Repository
+    activate rdc
+    net->>rdc: Invoke create network function by name
+    activate docker
+    deactivate net
+    rdc-)docker: GET /networks/{name}
+    docker--)rdc: Response with json
+    deactivate docker
+    opt response code > 200
+      activate docker
+      rdc->>docker: POST Request to create a network
+      docker--)rdc: Response with json
+      deactivate docker
+    end
+    deactivate rdc
+  end
+
+  loop Volumes
+    activate vol
+    init-)vol: Parsing volume
+    vol->>repo: Save volume to Repository
+    activate rdc
+    vol->>rdc: Invoke create volume function by name
+    deactivate vol
+    activate docker
+    rdc-)docker: GET Request to inspect volume by name
+    docker--)rdc: Response with json
+    deactivate docker
+    opt response code > 200
+      activate docker
+      rdc->>docker: POST Request to create a volume
+      docker--)rdc: Response with json
+      deactivate docker
+      deactivate rdc
+    end
+  end
+
+  loop Services
+    activate svc
+    init-)svc: Parsing service
+    svc->>svc: Parsing service from description file
+    svc->>repo: Save service to Repository
+    activate rdc
+    svc->>rdc: Invoke create service function by name
+    activate docker
+    deactivate svc
+    rdc-)docker: GET Request to inspect container by name
+    docker--)rdc: Response with json
+    deactivate docker
+    opt response code > 200
+      rdc->>+docker: POST Request to create a container
+      docker--)rdc: Response with json
+      deactivate docker
+      deactivate rdc
+    end
+  end
+
+%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----
+%%@ canvas {"v":1,"blockSpan":"touched"}
+%%@ participant init {"h":90,"w":250,"wrap":true}
+%%@ participant env {"h":90,"x":436,"w":250,"wrap":true}
+%%@ participant net {"w":250,"h":90,"x":721,"wrap":true}
+%%@ participant vol {"w":250,"h":90,"x":1006,"wrap":true}
+%%@ participant svc {"w":250,"h":90,"x":1290,"wrap":true}
+%%@ participant repo {"w":250,"h":90,"x":1575,"wrap":true}
+%%@ participant rdc {"w":250,"h":90,"wrap":true,"x":1860}
+%%@ participant docker {"w":250,"h":90,"wrap":true,"x":2320}
+%%@ message m1 {"labelSize":22}
+%%@ message m3 {"labelSize":22}
+%%@ message m4 {"labelSize":22}
+%%@ message m5 {"labelSize":22}
+%%@ message m6 {"labelSize":22}
+%%@ message m7 {"labelSize":22}
+%%@ message m8 {"labelSize":22}
+%%@ message m9 {"labelSize":22,"dy":-13}
+%%@ message m10 {"labelSize":22}
+%%@ message m11 {"labelSize":22,"dy":-10}
+%%@ message m12 {"labelSize":22}
+%%@ message m13 {"labelSize":22,"dy":-9}
+%%@ message m14 {"labelSize":22,"dy":-8}
+%%@ message m15 {"labelSize":22,"dy":-9}
+%%@ message m16 {"labelSize":22,"dy":-15}
+%%@ message m17 {"labelSize":22,"dy":-40}
+%%@ message m18 {"labelSize":22}
+%%@ message m19 {"labelSize":22}
+%%@ message m20 {"labelSize":22}
+%%@ message m21 {"labelSize":22}
+%%@ message m22 {"labelSize":22}
+%%@ message m23 {"labelSize":22}
+%%@ message m24 {"labelSize":22,"dy":-3}
+%%@ message m25 {"labelSize":22}
+%%@ message m26 {"labelSize":22,"dy":-7}
+%%@ message m27 {"labelSize":22}
+%%@ message m28 {"labelSize":22,"dy":-6}
+%%@ block b1 {"labelSize":32,"dy":-28}
+%%@ block b3 {"labelSize":32,"dy":15}
+%%@ block b5 {"labelSize":32}

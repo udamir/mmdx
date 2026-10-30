@@ -1,0 +1,94 @@
+flowchart LR
+  subgraph fusion ["Fusion Services"]
+    gw["API Gateway"]:::gateway
+    subgraph query ["Querying Services"]
+      qp{{"Query Pipelines"}}:::api
+      primary[("primary collection")]:::db
+      qrw[("query_rewrite collection")]:::db
+      sigAggr[("signals_aggr collection")]:::db
+    end
+    subgraph mon ["Monitoring Services"]
+      promg["Prometheus / Grafana"]:::metrics
+    end
+    subgraph index ["Indexing Services"]
+      jl{{"Job Launcher"}}:::api
+      jrs{{"Job Rest Server"}}:::api
+      conn{{"Connectors"}}:::api
+      spark{{"Spark"}}:::api
+      ip{{"Index Pipelines"}}:::api
+      kafka["Kafka"]:::event-bus
+      signals[("signals collection")]:::db
+      jobRep[("job reports collection")]:::db
+      qrwStaging[("query_rewrite_staging collection")]:::db
+    end
+    subgraph util ["Utility Services"]
+      adminSvc{{"Admin Service"}}:::core
+      zk{{"Zookeeper"}}:::core
+      cfg{{"ConfigSync"}}:::core
+      blobs[("system_blobs collection")]:::db
+      ui{{"UI Services"}}:::ui
+      ml{{"ML Service"}}:::analytics
+      adminUi["Admin UI"]:::ui
+      pmUi["PM UI"]:::ui
+      rulesUi["Rules UI"]:::ui
+    end
+  end
+  subgraph ext ["External"]
+    git["Git repository"]:::external
+  end
+
+  gw -->|"Routes requests from Ingress"| qp
+  gw --> ip
+  qp -->|"Solr queries"| primary
+  qp --> qrw
+  qp --> sigAggr
+  query --> mon
+  index --> mon
+  jl --> jrs
+  jrs --> conn
+  jrs --> spark
+  conn --> ip
+  spark --> ip
+  ip --> kafka
+  kafka -->|"Signals"| signals
+  adminSvc --> zk
+  zk --> cfg
+  cfg -->|"Config updates"| git
+  ui --> adminUi
+  ui --> pmUi
+  ui --> rulesUi
+
+%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----
+%%@ node gw {"x":110,"y":250,"w":150,"h":64}
+%%@ node qp {"x":600,"y":240,"w":180,"h":70}
+%%@ node primary {"x":990,"y":100,"w":180,"h":76}
+%%@ node qrw {"x":1110,"y":230,"w":200,"h":76}
+%%@ node sigAggr {"x":1180,"y":360,"w":200,"h":76}
+%%@ node promg {"x":1560,"y":240,"w":200,"h":70}
+%%@ node jl {"x":140,"y":660,"w":170,"h":64}
+%%@ node jrs {"x":150,"y":820,"w":180,"h":64}
+%%@ node conn {"x":350,"y":820,"w":160,"h":64}
+%%@ node spark {"x":350,"y":960,"w":140,"h":64}
+%%@ node ip {"x":500,"y":720,"w":170,"h":64}
+%%@ node kafka {"x":680,"y":720,"w":130,"h":64,"fontSize":15}
+%%@ node signals {"x":950,"y":520,"w":180,"h":76}
+%%@ node jobRep {"x":950,"y":680,"w":180,"h":76}
+%%@ node qrwStaging {"x":950,"y":850,"w":240,"h":76}
+%%@ node adminSvc {"x":1260,"y":650,"w":170,"h":64}
+%%@ node zk {"x":1450,"y":650,"w":150,"h":64}
+%%@ node cfg {"x":1630,"y":650,"w":150,"h":64}
+%%@ node blobs {"x":1250,"y":830,"w":200,"h":76}
+%%@ node ui {"x":1460,"y":830,"w":160,"h":64}
+%%@ node ml {"x":1650,"y":830,"w":150,"h":64}
+%%@ node adminUi {"x":1290,"y":1010,"w":140,"h":56}
+%%@ node pmUi {"x":1460,"y":1010,"w":130,"h":56}
+%%@ node rulesUi {"x":1630,"y":1010,"w":130,"h":56}
+%%@ node git {"x":1920,"y":480,"w":170,"h":64}
+%%@ edge kafka->signals {"preset":"event"}
+%%@ edge ip->kafka {"preset":"stream"}
+%%@ edge query->mon {"preset":"write"}
+%%@ edge index->mon {"preset":"write"}
+%%@ edge qp->primary {"preset":"read"}
+%%@ edge qp->qrw {"preset":"read"}
+%%@ edge qp->sigAggr {"preset":"read"}
+%%@ edge cfg->git {"preset":"sync"}

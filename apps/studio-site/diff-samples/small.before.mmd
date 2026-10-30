@@ -1,0 +1,13 @@
+flowchart LR
+  subgraph edge ["Edge"]
+    user(["User"]) --> web["Web app"]
+  end
+  subgraph core ["Core services"]
+    api["API gateway"]:::core --> auth["Auth"]:::analytics
+    api --> orders["Orders"]:::domain
+    orders --> db[("Orders DB")]
+    orders -.->|"events"| bus[("Kafka")]:::event-bus
+  end
+  web -->|"HTTPS"| api
+  bus -.-> notify["Notifier"]:::service
+  notify --> mail{{"Mail"}}

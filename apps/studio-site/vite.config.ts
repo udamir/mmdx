@@ -53,6 +53,7 @@ export default defineConfig({
         viewer: resolve(here, 'viewer.html'),
         editor: resolve(here, 'editor.html'),
         'theme-editor': resolve(here, 'theme-editor.html'),
+        diff: resolve(here, 'diff.html'),
       },
     },
   },
