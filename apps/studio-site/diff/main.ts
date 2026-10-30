@@ -752,7 +752,9 @@ function renderHistoryPane(): void {
     const viewing = !compare && i === state.viewing;
     const pick = (role: 'before' | 'after') => {
       const on = role === 'after' ? i === state.at : i === state.base;
-      return h('button', { class: `pick pick-${role}${on ? ' on' : ''}`, 'aria-pressed': String(on), title: `Use v${v.n} as ${role}`, onclick: () => pickVersion(role, i) }, role === 'after' ? 'After' : 'Before');
+      // one version cannot be both sides
+      const taken = role === 'after' ? i === state.base : i === state.at;
+      return h('button', { class: `pick pick-${role}${on ? ' on' : ''}`, 'aria-pressed': String(on), disabled: taken, title: taken ? `v${v.n} is already the ${role === 'after' ? 'before' : 'after'} version` : `Use v${v.n} as ${role}`, onclick: () => pickVersion(role, i) }, role === 'after' ? 'After' : 'Before');
     };
     return h('div', { class: `version${viewing ? ' viewing' : ''}${isAfter ? ' after' : ''}${isBefore ? ' before' : ''}`, role: 'listitem' },
       h('button', { class: 'version-main', title: compare ? `Compare v${v.n} with the version before it` : `View v${v.n}`, onclick: () => (compare ? compareWithPrevious(i) : viewVersion(i)) },
@@ -772,14 +774,11 @@ function renderHistoryPane(): void {
       compare ? h('span', { class: 'vpick' }, pick('before'), pick('after')) : null,
     );
   });
-  const mode = (m: 'view' | 'compare', label: string) =>
-    h('button', { class: state.historyMode === m ? 'on' : '', 'aria-pressed': String(state.historyMode === m), onclick: () => setHistoryMode(m) }, label);
+  for (const t of document.querySelectorAll<HTMLElement>('#history-pane [role=tab]')) t.setAttribute('aria-selected', String(t.dataset['mode'] === state.historyMode));
   body.replaceChildren(
-    h('div', { class: 'history-top' },
-      h('div', { class: 'seg history-mode', role: 'group', 'aria-label': 'History mode' }, mode('view', 'View'), mode('compare', 'Compare')),
-      compare
-        ? h('div', { class: 'history-cmp' }, h('span', { class: 'vtag before' }, 'Before'), ` ${versionLabel(state.base)}  `, h('span', { class: 'vtag after' }, 'After'), ` ${versionLabel(state.at)}`)
-        : h('div', { class: 'history-cmp' }, 'Viewing ', h('b', {}, versionLabel(state.viewing)))),
+    ...(compare
+      ? [h('div', { class: 'history-top' }, h('div', { class: 'history-cmp' }, h('span', { class: 'vtag before' }, 'Before'), ` ${versionLabel(state.base)}  `, h('span', { class: 'vtag after' }, 'After'), ` ${versionLabel(state.at)}`))]
+      : []),
     h('div', { class: 'versions', role: 'list' }, ...rows),
   );
 }
@@ -808,13 +807,16 @@ function viewVersion(i: number): void {
 
 /** Compare mode: version `i` as after, the one before it as before. */
 function compareWithPrevious(i: number): void {
+  // the first version has nothing before it: it becomes the before side instead
+  if (i === 0) return pickVersion('before', 0);
   state.at = i;
-  state.base = Math.max(0, i - 1);
+  state.base = i - 1;
   applyVersions();
 }
 
 /** Compare mode: picks the before or the after version. */
 function pickVersion(role: 'before' | 'after', i: number): void {
+  if (i === (role === 'after' ? state.base : state.at)) return;
   if (role === 'after') state.at = i;
   else state.base = i;
   applyVersions();
@@ -936,8 +938,10 @@ function pasteDialog(): void {
     h('div', { class: 'tabs', role: 'tablist' }, tab('code', 'Code'), tab('meta', 'Metadata'), h('span', { class: 'tabs-spacer' }),
       h('button', { class: 'collapse-btn', title: 'Hide the code diff (C)', 'aria-label': 'Hide the code diff', onclick: () => togglePanel('code', false) }, '‹')),
     h('div', { id: 'code-body', class: 'tab-body' }));
+  const htab = (m: 'view' | 'compare', label: string) =>
+    h('button', { role: 'tab', 'data-mode': m, 'aria-selected': String(state.historyMode === m), onclick: () => setHistoryMode(m) }, label);
   const historyPane = h('section', { id: 'history-pane', class: 'pane-side left', 'aria-label': 'History' },
-    h('div', { class: 'rp-head' }, h('b', { role: 'heading', 'aria-level': '2' }, 'History'),
+    h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'History mode' }, htab('view', 'View'), htab('compare', 'Compare'), h('span', { class: 'tabs-spacer' }),
       h('button', { class: 'collapse-btn', title: 'Hide the history (V)', 'aria-label': 'Hide the history', onclick: () => togglePanel('history', false) }, '‹')),
     h('div', { id: 'history-body', class: 'rp-body' }));
   const changesPane = h('aside', { id: 'changes-pane', class: 'pane-side right', 'aria-label': 'Changes' },

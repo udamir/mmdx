@@ -60,17 +60,15 @@
     #main:not([data-left="code"]) #code-pane, #main:not([data-left="history"]) #history-pane { transform: translateX(calc(-100% - 24px)); opacity: .4; pointer-events: none; }
 
     /* history */
-    .history-top { position: sticky; top: 0; z-index: 1; display: grid; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--ds-border); background: var(--ds-surface); }
-    .history-mode { width: 100%; }
-    .history-mode button { flex: 1; }
+    .history-top { position: sticky; top: 0; z-index: 1; display: grid; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--ds-border); background: var(--ds-surface); }
     .history-cmp { font-size: 12px; color: var(--ds-muted); white-space: pre; overflow: hidden; text-overflow: ellipsis; }
     .history-cmp b { color: var(--ds-text); font-weight: 600; }
     .versions { display: flex; flex-direction: column; padding: 6px; gap: 2px; }
     .version { position: relative; display: flex; align-items: center; border-radius: 8px; }
     .version:hover { background: var(--ds-surface-2); }
-    .version.viewing, .version.after { background: var(--ds-accent-2); box-shadow: inset 3px 0 0 var(--ds-accent); }
-    .version.after { background: #effaf1; box-shadow: inset 3px 0 0 var(--add); }
-    .version.before { background: #fff6f5; box-shadow: inset 3px 0 0 var(--del); }
+    .version.viewing { background: var(--ds-accent-2); }
+    .version.after { background: #effaf1; }
+    .version.before { background: #fff6f5; }
     .version-main { flex: 1; min-width: 0; display: grid; gap: 2px; text-align: left; border: 0; background: none; padding: 7px 8px 7px 14px; border-radius: 8px; }
     .vmsg { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .vmeta { color: var(--ds-muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -84,7 +82,8 @@
     .vtag.before { background: var(--del-bg); color: var(--del); margin: 0; }
     .vpick { display: flex; gap: 3px; padding-right: 8px; flex: none; }
     .pick { border: 1px solid var(--ds-border); background: var(--ds-surface); border-radius: 6px; padding: 1px 6px; font-size: 11px; color: var(--ds-muted); }
-    .pick:hover { border-color: var(--ds-faint); color: var(--ds-text); }
+    .pick:hover:not(:disabled) { border-color: var(--ds-faint); color: var(--ds-text); }
+    .pick:disabled { opacity: .35; cursor: default; }
     .pick-before.on { background: var(--del-bg); border-color: var(--del); color: var(--del); font-weight: 600; }
     .pick-after.on { background: var(--add-bg); border-color: var(--add); color: var(--add); font-weight: 600; }
     /* view mode: a plain viewer, no diff controls */
