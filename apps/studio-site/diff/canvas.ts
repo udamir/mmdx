@@ -173,6 +173,8 @@ export class SharedView {
   private ro = new ResizeObserver(() => this.apply());
   private ac = new AbortController();
   onChange?: () => void;
+  /** While true, a drag does not pan (another tool, e.g. the pen, owns it). Wheel zoom still works. */
+  blockPan?: () => boolean;
 
   constructor(public bounds: Rect) {}
 
@@ -183,7 +185,7 @@ export class SharedView {
     const signal = this.ac.signal;
     let drag: { x: number; y: number; cx: number; cy: number; moved: boolean } | null = null;
     host.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0 || (e.target as Element).closest('.no-pan')) return;
+      if (e.button !== 0 || (e.target as Element).closest('.no-pan') || this.blockPan?.()) return;
       // no text selection while dragging the canvas
       e.preventDefault();
       window.getSelection()?.removeAllRanges();
