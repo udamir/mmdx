@@ -941,7 +941,7 @@ function pasteDialog(): void {
   const htab = (m: 'view' | 'compare', label: string) =>
     h('button', { role: 'tab', 'data-mode': m, 'aria-selected': String(state.historyMode === m), onclick: () => setHistoryMode(m) }, label);
   const historyPane = h('section', { id: 'history-pane', class: 'pane-side left', 'aria-label': 'History' },
-    h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'History mode' }, htab('view', 'View'), htab('compare', 'Compare'), h('span', { class: 'tabs-spacer' }),
+    h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'History mode' }, htab('view', 'History'), htab('compare', 'Compare'), h('span', { class: 'tabs-spacer' }),
       h('button', { class: 'collapse-btn', title: 'Hide the history (V)', 'aria-label': 'Hide the history', onclick: () => togglePanel('history', false) }, '‹')),
     h('div', { id: 'history-body', class: 'rp-body' }));
   const changesPane = h('aside', { id: 'changes-pane', class: 'pane-side right', 'aria-label': 'Changes' },
