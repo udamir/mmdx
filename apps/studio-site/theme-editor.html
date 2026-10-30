@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>mmdx-theme-editor playground</title>
+  <link rel="icon" href="./favicon.ico" sizes="48x48" />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+  <link rel="manifest" href="./site.webmanifest" />
+  <meta name="theme-color" content="#061958" />
+  <style>
+    body { font: 15px/1.6 system-ui, sans-serif; margin: 0; padding: 16px 20px 24px; color: #1d2330; background: #f6f7f9; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    p { margin: 0 0 12px; color: #4a5160; }
+    mmdx-theme-editor { height: calc(100vh - 140px); min-height: 560px; }
+    .bar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; font-size: 13px; }
+    #log { font: 12px/1.4 ui-monospace, Menlo, monospace; color: #6b7385; }
+  </style>
+</head>
+<body>
+  <h1>mmdx-theme-editor playground</h1>
+  <p>Themes in memory (built-ins), with the shipped theme files as read-only bases. Edit, save (⌘S), undo (⌘Z), import / export.</p>
+  <div class="bar">
+    <label><input type="checkbox" id="canEdit" checked /> can-edit</label>
+    <label><input type="checkbox" id="canDelete" checked /> can-delete</label>
+    <label><input type="checkbox" id="dark" /> dark UI</label>
+    <span id="log"></span>
+  </div>
+  <mmdx-theme-editor theme="default-light" can-delete></mmdx-theme-editor>
+  <script type="module">
+    import { memoryThemeStore, BUILTIN_THEMES } from '../../src/theme-editor.ts';
+    const te = document.querySelector('mmdx-theme-editor');
+    te.store = memoryThemeStore(BUILTIN_THEMES);
+    const log = document.getElementById('log');
+    for (const type of ['ds-theme-save', 'ds-theme-saved', 'ds-theme-dirty', 'ds-theme-select']) {
+      te.addEventListener(type, (e) => {
+        log.textContent = `${type} ${JSON.stringify(e.detail.id ?? e.detail.theme?.id ?? '')}${'dirty' in e.detail ? ` dirty=${e.detail.dirty}` : ''}`;
+        console.info(type, e.detail);
+      });
+    }
+    document.getElementById('canEdit').onchange = (e) => te.setAttribute('can-edit', String(e.target.checked));
+    document.getElementById('canDelete').onchange = (e) => te.setAttribute('can-delete', String(e.target.checked));
+    document.getElementById('dark').onchange = (e) => te.setAttribute('ui', e.target.checked ? 'dark' : 'light');
+  </script>
+</body>
+</html>

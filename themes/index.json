@@ -1,0 +1,12 @@
+{
+  "themes": [
+    "default-light.theme.json",
+    "default-dark.theme.json",
+    "github-light.theme.json",
+    "github-dark.theme.json",
+    "catppuccin-latte.theme.json",
+    "catppuccin-mocha.theme.json",
+    "rose-pine-dawn.theme.json",
+    "dracula.theme.json"
+  ]
+}

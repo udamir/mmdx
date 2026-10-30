@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>mmdx-editor playground</title>
+  <link rel="icon" href="./favicon.ico" sizes="48x48" />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+  <link rel="manifest" href="./site.webmanifest" />
+  <meta name="theme-color" content="#061958" />
+  <style>
+    html, body { margin: 0; height: 100%; font: 14px system-ui, sans-serif; }
+    body { display: flex; flex-direction: column; }
+    header { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid #dde1e7; }
+    mmdx-editor { flex: 1; }
+  </style>
+</head>
+<body>
+  <header>
+    <b>mmdx-editor playground</b>
+    <select id="ex"></select>
+    <button id="save">Save</button>
+    <label><input type="checkbox" id="ro" /> read-only</label>
+    <span id="status"></span>
+  </header>
+  <mmdx-editor id="ed"></mmdx-editor>
+  <script type="module">
+    import '../../src/editor.ts';
+    import { memoryDocumentAdapter } from '../../src/adapters/documents.ts';
+    const ed = document.getElementById('ed');
+    const sel = document.getElementById('ex');
+    const manifest = await (await fetch('/examples/index.json')).json();
+    for (const e of manifest.examples) sel.append(new Option(e.title, e.file));
+    const open = async (file) => {
+      const src = await (await fetch(`/examples/${file}`)).text();
+      ed.adapter = memoryDocumentAdapter(src, file);
+    };
+    sel.onchange = () => open(sel.value);
+    await open(manifest.examples[0].file);
+    document.getElementById('save').onclick = () => ed.save().then((r) => (status.textContent = r));
+    document.getElementById('ro').onchange = (e) => (ed.readOnly = e.target.checked);
+    const status = document.getElementById('status');
+    ed.addEventListener('ds-dirty', (e) => (status.textContent = e.detail.dirty ? 'unsaved' : 'saved'));
+    window.ed = ed;
+  </script>
+</body>
+</html>

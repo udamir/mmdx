@@ -1,0 +1,706 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`style fields > field definitions 1`] = `
+{
+  "align": {
+    "label": "Text align",
+    "options": [
+      "left",
+      "center",
+      "right",
+    ],
+    "type": "select",
+  },
+  "arrow": {
+    "label": "Arrow head",
+    "options": [
+      "open",
+      "filled",
+      "arrow",
+      "none",
+    ],
+    "type": "select",
+  },
+  "attrColor": {
+    "label": "Attr colour",
+    "type": "color",
+  },
+  "attrSize": {
+    "label": "Attr size",
+    "type": "number",
+  },
+  "background": {
+    "label": "Background",
+    "type": "color",
+  },
+  "barW": {
+    "key": "w",
+    "label": "Bar width",
+    "type": "number",
+  },
+  "blockSpan": {
+    "label": "Block width",
+    "options": [
+      "full",
+      "touched",
+    ],
+    "type": "select",
+  },
+  "border": {
+    "label": "Border",
+    "type": "color",
+  },
+  "color": {
+    "label": "Colour",
+    "type": "color",
+  },
+  "curve": {
+    "label": "Curvature",
+    "max": 2,
+    "min": 0,
+    "step": 0.05,
+    "type": "range",
+  },
+  "dash": {
+    "label": "Line",
+    "options": [
+      [
+        "none",
+        "solid",
+      ],
+      [
+        "6 4",
+        "dashed",
+      ],
+      [
+        "1.5 4",
+        "dotted",
+      ],
+      [
+        "10 4 2 4",
+        "dash-dot",
+      ],
+      [
+        "8 5",
+        "long dash",
+      ],
+    ],
+    "type": "select",
+  },
+  "dy": {
+    "label": "Extra space above",
+    "type": "number",
+  },
+  "fill": {
+    "label": "Fill",
+    "type": "color",
+  },
+  "fontSize": {
+    "label": "Font size",
+    "type": "number",
+  },
+  "fontWeight": {
+    "label": "Font weight",
+    "options": [
+      "400",
+      "600",
+      "700",
+    ],
+    "type": "select",
+  },
+  "fromAt": {
+    "label": "From offset",
+    "max": 0.98,
+    "min": 0.02,
+    "step": 0.01,
+    "type": "range",
+  },
+  "fromSide": {
+    "label": "From side",
+    "options": [
+      [
+        "",
+        "auto",
+      ],
+      [
+        "t",
+        "top",
+      ],
+      [
+        "b",
+        "bottom",
+      ],
+      [
+        "l",
+        "left",
+      ],
+      [
+        "r",
+        "right",
+      ],
+    ],
+    "type": "select",
+  },
+  "gap": {
+    "label": "Participant gap",
+    "type": "number",
+  },
+  "h": {
+    "label": "Height",
+    "type": "number",
+  },
+  "labelAt": {
+    "label": "Label position",
+    "max": 0.98,
+    "min": 0.02,
+    "step": 0.01,
+    "type": "range",
+  },
+  "labelColor": {
+    "label": "Label colour",
+    "type": "color",
+  },
+  "labelOnLine": {
+    "label": "Label on line",
+    "type": "bool",
+  },
+  "labelSize": {
+    "label": "Label size",
+    "type": "number",
+  },
+  "maxW": {
+    "label": "Max width",
+    "type": "number",
+  },
+  "mirror": {
+    "label": "Participants at the bottom",
+    "type": "toggle",
+  },
+  "mode": {
+    "label": "Layout",
+    "options": [
+      "compact",
+      "table",
+    ],
+    "type": "select",
+  },
+  "pad": {
+    "label": "Padding",
+    "type": "number",
+  },
+  "padTop": {
+    "label": "Top padding",
+    "type": "number",
+  },
+  "pkUnderline": {
+    "label": "Underline PK",
+    "type": "bool",
+  },
+  "pshape": {
+    "key": "shape",
+    "label": "Shape",
+    "options": [
+      "box",
+      "rounded",
+      "stadium",
+      "actor",
+      "database",
+      "hcyl",
+    ],
+    "type": "select",
+  },
+  "radius": {
+    "label": "Corner radius",
+    "type": "number",
+  },
+  "routing": {
+    "label": "Routing",
+    "options": [
+      "curved",
+      "orthogonal",
+      "straight",
+    ],
+    "type": "select",
+  },
+  "rowH": {
+    "label": "Row height",
+    "type": "number",
+  },
+  "shape": {
+    "label": "Shape",
+    "options": [
+      "rect",
+      "rounded",
+      "stadium",
+      "circle",
+      "doublecircle",
+      "diamond",
+      "hexagon",
+      "cylinder",
+      "hcyl",
+      "subroutine",
+      "parallelogram",
+      "parallelogram-alt",
+      "trapezoid",
+      "trapezoid-alt",
+      "asymmetric",
+      "document",
+      "card",
+    ],
+    "type": "select",
+  },
+  "showComments": {
+    "label": "Show comments",
+    "type": "bool",
+  },
+  "showTag": {
+    "label": "Show block tag",
+    "type": "bool",
+  },
+  "showTypes": {
+    "label": "Show types",
+    "type": "bool",
+  },
+  "stack": {
+    "label": "Stacked look",
+    "options": [
+      [
+        "false",
+        "single",
+      ],
+      [
+        "true",
+        "stacked",
+      ],
+      [
+        "2",
+        "double",
+      ],
+    ],
+    "type": "select",
+  },
+  "stroke": {
+    "label": "Border",
+    "type": "color",
+  },
+  "strokeWidth": {
+    "label": "Border width",
+    "step": 0.1,
+    "type": "number",
+  },
+  "text": {
+    "label": "Text colour",
+    "type": "color",
+  },
+  "titleAlign": {
+    "label": "Title align",
+    "options": [
+      "center",
+      "left",
+    ],
+    "type": "select",
+  },
+  "titleColor": {
+    "label": "Title colour",
+    "type": "color",
+  },
+  "titleSize": {
+    "label": "Title size",
+    "type": "number",
+  },
+  "titleWeight": {
+    "label": "Title weight",
+    "options": [
+      "400",
+      "600",
+      "700",
+    ],
+    "type": "select",
+  },
+  "toAt": {
+    "label": "To offset",
+    "max": 0.98,
+    "min": 0.02,
+    "step": 0.01,
+    "type": "range",
+  },
+  "toSide": {
+    "label": "To side",
+    "options": [
+      [
+        "",
+        "auto",
+      ],
+      [
+        "t",
+        "top",
+      ],
+      [
+        "b",
+        "bottom",
+      ],
+      [
+        "l",
+        "left",
+      ],
+      [
+        "r",
+        "right",
+      ],
+    ],
+    "type": "select",
+  },
+  "valign": {
+    "label": "Vertical",
+    "options": [
+      "top",
+      "middle",
+      "bottom",
+    ],
+    "type": "select",
+  },
+  "w": {
+    "label": "Width",
+    "type": "number",
+  },
+  "width": {
+    "label": "Width",
+    "step": 0.1,
+    "type": "number",
+  },
+  "wrap": {
+    "label": "Word wrap",
+    "type": "bool",
+  },
+  "x": {
+    "label": "X",
+    "type": "number",
+  },
+  "y": {
+    "label": "Y",
+    "type": "number",
+  },
+}
+`;
+
+exports[`style fields > fields of each item kind 1`] = `
+{
+  "activation": [
+    "fill",
+    "stroke",
+    "strokeWidth",
+    "dash",
+    "barW",
+  ],
+  "block": [
+    "fill",
+    "stroke",
+    "strokeWidth",
+    "labelSize",
+    "labelColor",
+    "showTag",
+    "radius",
+  ],
+  "box": [
+    "fill",
+    "stroke",
+    "strokeWidth",
+    "dash",
+    "text",
+    "labelSize",
+  ],
+  "edge": [
+    "color",
+    "width",
+    "dash",
+    "arrow",
+    "labelColor",
+    "labelSize",
+    "curve",
+  ],
+  "entity": [
+    "fill",
+    "stroke",
+    "text",
+    "strokeWidth",
+    "radius",
+    "stack",
+    "titleSize",
+    "attrSize",
+    "attrColor",
+    "mode",
+    "showTypes",
+    "showComments",
+    "pkUnderline",
+    "maxW",
+  ],
+  "group": [
+    "fill",
+    "stroke",
+    "strokeWidth",
+    "radius",
+    "stack",
+    "titleSize",
+    "titleColor",
+    "titleWeight",
+    "titleAlign",
+    "pad",
+    "padTop",
+  ],
+  "message": [
+    "color",
+    "width",
+    "dash",
+    "arrow",
+    "labelSize",
+    "labelColor",
+    "labelOnLine",
+  ],
+  "node": [
+    "fill",
+    "stroke",
+    "text",
+    "strokeWidth",
+    "fontSize",
+    "fontWeight",
+    "align",
+    "valign",
+    "wrap",
+    "radius",
+    "stack",
+    "shape",
+    "dash",
+  ],
+  "note": [
+    "fill",
+    "stroke",
+    "strokeWidth",
+    "dash",
+    "text",
+    "fontSize",
+  ],
+  "participant": [
+    "fill",
+    "stroke",
+    "text",
+    "strokeWidth",
+    "fontSize",
+    "wrap",
+    "radius",
+    "stack",
+    "pshape",
+  ],
+  "rel": [
+    "color",
+    "width",
+    "dash",
+    "labelSize",
+    "labelColor",
+    "curve",
+    "routing",
+    "labelAt",
+  ],
+}
+`;
+
+exports[`style fields > theme editor sections 1`] = `
+[
+  {
+    "items": [
+      {
+        "fields": [
+          "fill",
+          "stroke",
+          "text",
+          "strokeWidth",
+          "fontSize",
+          "fontWeight",
+          "align",
+          "valign",
+          "wrap",
+          "radius",
+          "stack",
+          "shape",
+          "dash",
+        ],
+        "key": "node",
+        "label": "Node",
+        "presets": "nodePresets",
+      },
+      {
+        "fields": [
+          "fill",
+          "stroke",
+          "strokeWidth",
+          "radius",
+          "stack",
+          "titleSize",
+          "titleColor",
+          "titleWeight",
+          "titleAlign",
+          "pad",
+          "padTop",
+        ],
+        "key": "group",
+        "label": "Group (subgraph)",
+        "presets": "groupPresets",
+      },
+      {
+        "fields": [
+          "color",
+          "width",
+          "dash",
+          "arrow",
+          "labelColor",
+          "labelSize",
+          "curve",
+        ],
+        "key": "edge",
+        "label": "Connector",
+        "presets": "edgePresets",
+      },
+    ],
+    "title": "Flowchart",
+    "type": "flowchart",
+  },
+  {
+    "items": [
+      {
+        "fields": [
+          "fill",
+          "stroke",
+          "text",
+          "strokeWidth",
+          "fontSize",
+          "wrap",
+          "radius",
+          "stack",
+          "pshape",
+        ],
+        "key": "participant",
+        "label": "Participant",
+        "presets": "participantPresets",
+      },
+      {
+        "fields": [
+          "color",
+          "width",
+          "dash",
+          "arrow",
+          "labelSize",
+          "labelColor",
+          "labelOnLine",
+        ],
+        "key": "message",
+        "label": "Message",
+        "presets": "messagePresets",
+      },
+      {
+        "fields": [
+          "fill",
+          "stroke",
+          "strokeWidth",
+          "dash",
+          "text",
+          "fontSize",
+        ],
+        "key": "note",
+        "label": "Note",
+        "presets": "notePresets",
+      },
+      {
+        "fields": [
+          "fill",
+          "stroke",
+          "strokeWidth",
+          "labelSize",
+          "labelColor",
+          "showTag",
+          "radius",
+        ],
+        "key": "block",
+        "label": "Block (loop / alt / opt)",
+        "presets": "blockPresets",
+      },
+      {
+        "fields": [
+          "fill",
+          "stroke",
+          "strokeWidth",
+          "dash",
+          "text",
+          "labelSize",
+        ],
+        "key": "box",
+        "label": "Box (participant group)",
+        "presets": "boxPresets",
+      },
+      {
+        "fields": [
+          "color",
+          "width",
+          "dash",
+        ],
+        "key": "lifeline",
+        "label": "Lifeline",
+      },
+      {
+        "fields": [
+          "fill",
+          "stroke",
+          "strokeWidth",
+          "dash",
+          "barW",
+        ],
+        "key": "activation",
+        "label": "Activation (process)",
+        "presets": "activationPresets",
+      },
+    ],
+    "title": "Sequence",
+    "type": "sequence",
+  },
+  {
+    "items": [
+      {
+        "fields": [
+          "fill",
+          "stroke",
+          "text",
+          "strokeWidth",
+          "radius",
+          "stack",
+          "titleSize",
+          "attrSize",
+          "attrColor",
+          "mode",
+          "showTypes",
+          "showComments",
+          "pkUnderline",
+          "maxW",
+        ],
+        "key": "entity",
+        "label": "Table",
+        "presets": "entityPresets",
+      },
+      {
+        "fields": [
+          "color",
+          "width",
+          "dash",
+          "labelSize",
+          "labelColor",
+          "curve",
+          "routing",
+          "labelAt",
+        ],
+        "key": "rel",
+        "label": "Relationship",
+        "presets": "relPresets",
+      },
+    ],
+    "title": "ER diagram",
+    "type": "er",
+  },
+]
+`;

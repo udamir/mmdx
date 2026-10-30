@@ -1,0 +1,108 @@
+{
+  "name": "mmdx",
+  "version": "0.1.0",
+  "description": "Styled Mermaid viewer, editor and theme editor as framework-agnostic web components",
+  "license": "MIT",
+  "author": "Damir Yusipov",
+  "homepage": "https://udamir.github.io/mmdx/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/udamir/mmdx.git"
+  },
+  "bugs": {
+    "url": "https://github.com/udamir/mmdx/issues"
+  },
+  "keywords": [
+    "mermaid",
+    "diagram",
+    "editor",
+    "viewer",
+    "flowchart",
+    "sequence-diagram",
+    "er-diagram",
+    "web-components",
+    "svg",
+    "themes"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "./dist/viewer.js",
+    "./dist/editor.js",
+    "./dist/theme-editor.js",
+    "./dist/studio.js",
+    "./src/viewer.ts",
+    "./src/editor.ts",
+    "./src/theme-editor.ts",
+    "./src/studio.ts"
+  ],
+  "exports": {
+    "./core": {
+      "types": "./dist/types/core.d.ts",
+      "default": "./dist/core.js"
+    },
+    "./viewer": {
+      "types": "./dist/types/viewer.d.ts",
+      "default": "./dist/viewer.js"
+    },
+    "./editor": {
+      "types": "./dist/types/editor.d.ts",
+      "default": "./dist/editor.js"
+    },
+    "./theme-editor": {
+      "types": "./dist/types/theme-editor.d.ts",
+      "default": "./dist/theme-editor.js"
+    },
+    "./studio": {
+      "types": "./dist/types/studio.d.ts",
+      "default": "./dist/studio.js"
+    },
+    "./adapters": {
+      "types": "./dist/types/adapters.d.ts",
+      "default": "./dist/adapters.js"
+    },
+    "./markdown": {
+      "types": "./dist/types/markdown.d.ts",
+      "default": "./dist/markdown.js"
+    },
+    "./react": {
+      "types": "./dist/types/react.d.ts",
+      "default": "./dist/react.js"
+    },
+    "./themes/*": "./themes/*"
+  },
+  "files": [
+    "dist",
+    "themes",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "vite --config apps/studio-site/vite.config.ts",
+    "build": "npm run build:lib && npm run build:types && npm run build:site",
+    "build:lib": "vite build --config vite.lib.config.ts",
+    "build:types": "tsc -p tsconfig.build.json",
+    "build:site": "vite build --config apps/studio-site/vite.config.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.core.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "size": "node tools/size.mjs"
+  },
+  "peerDependencies": {
+    "mermaid": ">=10"
+  },
+  "peerDependenciesMeta": {
+    "mermaid": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "esbuild": "^0.28.2",
+    "jsdom": "^26.1.0",
+    "mermaid": "^11.17.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.7",
+    "vitest": "^3.2.7"
+  },
+  "packageManager": "pnpm@12.16.1+sha512.091d1dee7927575661b25dab3c2ae31cafc1c54d6b71ed6a6600cf0c1cb10434a447eae14015f1b23e2e6bedeed79df94a932e2164d2832280dce3fb32f656d1"
+}

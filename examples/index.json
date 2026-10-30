@@ -1,0 +1,10 @@
+{
+  "examples": [
+    {"id": "production-microservices", "title": "Flowchart: Production microservice app", "file": "production-microservices.mmd", "tags": ["flowchart"]},
+    {"id": "docker-deploy-sequence", "title": "Sequence: Deploying microservices to Docker", "file": "docker-deploy-sequence.mmd", "tags": ["sequence"]},
+    {"id": "atom-schema-er", "title": "ERD: AtoM archive database", "file": "atom-schema-er.mmd", "tags": ["er"]},
+    {"id": "microservice-patterns", "title": "Flowchart: Microservice pattern language", "file": "microservice-patterns.mmd", "tags": ["flowchart"]},
+    {"id": "fusion-services", "title": "Flowchart: Fusion services", "file": "fusion-services.mmd", "tags": ["flowchart"]},
+    {"id": "simple-flow", "title": "Flowchart: auto layout", "file": "simple-flow.mmd", "tags": ["flowchart"]}
+  ]
+}

@@ -1,0 +1,6 @@
+node_modules/
+.data/
+.env
+dist/
+apps/studio-site/dist/
+.claude

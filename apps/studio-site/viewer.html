@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>mmdx-viewer playground</title>
+  <link rel="icon" href="./favicon.ico" sizes="48x48" />
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+  <link rel="manifest" href="./site.webmanifest" />
+  <meta name="theme-color" content="#061958" />
+  <style>
+    body { font: 15px/1.6 system-ui, sans-serif; max-width: 980px; margin: 32px auto; padding: 0 20px; color: #1d2330; }
+    mmdx-viewer { margin: 16px 0 36px; border: 1px solid #dde1e7; border-radius: 10px; }
+    .fixed { height: 360px; }
+  </style>
+</head>
+<body>
+  <h1>mmdx-viewer playground</h1>
+  <p>Inline source, a fetched <code>.mmdx</code> file, a fixed-height <code>contain</code> box, an unsupported type and a broken diagram.</p>
+
+  <h2>Inline</h2>
+  <mmdx-viewer controls="zoom layers pen list export fullscreen">
+    <script type="text/mermaid">
+      flowchart LR
+        a([Start]) --> b{Valid?}
+        b -->|yes| c[Process]
+        b -->|no| d[Reject]
+        click c href "https://mermaid.js.org"
+    </script>
+  </mmdx-viewer>
+
+  <h2>Fetched architecture (src)</h2>
+  <mmdx-viewer src="/examples/production-microservices.mmd" controls="zoom layers pen fullscreen export"></mmdx-viewer>
+
+  <h2>Sequence, contain in 360px</h2>
+  <mmdx-viewer class="fixed" fit="contain" src="/examples/docker-deploy-sequence.mmd" controls="zoom layers list"></mmdx-viewer>
+
+  <h2>ER, non-interactive</h2>
+  <mmdx-viewer interactive="false" controls="none" src="/examples/atom-schema-er.mmd"></mmdx-viewer>
+
+  <h2>Unsupported type (source fallback)</h2>
+  <mmdx-viewer fallback="source">
+    <script type="text/mermaid">
+      pie title Pets
+        "Dogs" : 386
+        "Cats" : 85
+    </script>
+  </mmdx-viewer>
+
+  <h2>XSS attempt</h2>
+  <mmdx-viewer>
+    <script type="text/mermaid">
+      flowchart LR
+        A["<img src=x onerror=alert(1)>"] --> B
+        style A fill:red" onmouseover="alert(2)
+        click B href "javascript:alert(3)"
+    </script>
+  </mmdx-viewer>
+  <script type="module">
+    import '../../src/viewer.ts';
+    for (const v of document.querySelectorAll('mmdx-viewer')) {
+      v.addEventListener('ds-error', (e) => console.info('ds-error', e.detail.diagnostics.map((d) => d.message)));
+      v.addEventListener('ds-render', (e) => console.info('ds-render', e.detail));
+    }
+  </script>
+</body>
+</html>
