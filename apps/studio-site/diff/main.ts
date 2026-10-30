@@ -15,9 +15,10 @@ import {
 import { decorateText, highlightRuns, withLayout } from './decorate.js';
 import { buildMerged, REMOVED, type Merged } from './merge.js';
 import { Morph, STATE_NAMES } from './morph.js';
-import { Ink, INK_COLORS, INK_SIZES } from './ink.js';
+import { Ink, INK_COLORS, INK_FADES, INK_SIZES } from './ink.js';
 import { hunks, lineDiff } from './textdiff.js';
-import { I_hand, I_pen, I_trash, I_undo } from '../../../src/ui/icons.js';
+import { I_expand, I_hand, I_minus, I_pen, I_plus, I_shrink } from '../../../src/ui/icons.js';
+import { icon } from '../../../src/ui/h.js';
 import type { ItemKind } from '../../../src/core/types.js';
 
 // ---- setup ------------------------------------------------------------------------------------------------------
@@ -83,12 +84,14 @@ const state = {
   tool: 'pan' as 'pan' | 'draw',
   inkColor: INK_COLORS[0] as string,
   inkSize: INK_SIZES[1] as number,
+  inkFade: INK_FADES[0] as number,
 };
 
 const ink = new Ink([], {
   active: () => state.tool === 'draw',
   color: () => state.inkColor,
   size: () => state.inkSize,
+  fade: () => state.inkFade,
   onChange: () => renderTools(),
 });
 
@@ -229,6 +232,7 @@ let view: SharedView | null = null;
 let svgs: { before?: SVGSVGElement; after?: SVGSVGElement } = {};
 
 function renderStage(): void {
+  tools = null;
   morph?.dispose();
   morph = null;
   morphSync = null;
@@ -243,7 +247,6 @@ function renderStage(): void {
   const stage = $('#stage');
   stage.replaceChildren();
   stage.className = `stage mode-${state.mode} tool-${state.tool}`;
-  renderTools();
   if (state.mode === 'code') {
     renderCode(stage);
     stage.append(legend());
@@ -292,7 +295,7 @@ function renderStage(): void {
   }
   if (state.mode === 'side' || state.mode === 'overlay' || (state.mode === 'morph' && !D.rm))
     for (const s of Object.values(svgs)) view.attach(s, s.parentElement!);
-  stage.append(zoomBar(), legend());
+  stage.append(toolPanel(), legend());
   for (const svg of stage.querySelectorAll<SVGSVGElement>('.pane svg, .layer svg')) ink.attach(svg);
   requestAnimationFrame(() => {
     view?.fit();
@@ -445,17 +448,6 @@ function onionControl(p: HTMLElement, la: HTMLElement): void {
   p.append(h('div', { class: 'onion no-pan' }, h('span', {}, 'Before'), input, h('span', {}, 'After')));
 }
 
-function zoomBar(): HTMLElement {
-  const b = (label: string, title: string, fn: () => void) => h('button', { title, onclick: fn }, label);
-  return h(
-    'div',
-    { class: 'zoombar no-pan' },
-    b('−', 'Zoom out', () => view?.zoom(1 / 1.25)),
-    b('+', 'Zoom in', () => view?.zoom(1.25)),
-    b('Fit', 'Fit (F)', () => view?.fit()),
-  );
-}
-
 /** The legend doubles as the filter: each entry switches its kind of change on or off. */
 function legend(): HTMLElement {
   const raw = D.raw.counts;
@@ -601,7 +593,7 @@ function renderPanel(): void {
     ),
     ...(docChanges.length ? [h('details', { class: 'doc-changes', open: true }, h('summary', {}, `Diagram-wide (${docChanges.length})`), ...docChanges.map(fieldRow))] : []),
     shown.length ? list : h('div', { class: 'empty' }, D.changes.length ? 'Nothing in this filter.' : 'No changes with the current filters.'),
-    h('div', { class: 'kbd-hint' }, h('kbd', {}, 'J'), ' / ', h('kbd', {}, 'K'), ' next / previous change · ', h('kbd', {}, '1'), '–', h('kbd', {}, '6'), ' views · ', h('kbd', {}, 'H'), ' pan · ', h('kbd', {}, 'P'), ' draw · ', h('kbd', {}, 'F'), ' fit'),
+    h('div', { class: 'kbd-hint' }, h('kbd', {}, 'J'), ' / ', h('kbd', {}, 'K'), ' next / previous change · ', h('kbd', {}, '1'), '–', h('kbd', {}, '6'), ' views · ', h('kbd', {}, 'H'), ' pan · ', h('kbd', {}, 'P'), ' pen · ', h('kbd', {}, 'F'), ' fit'),
   );
 }
 
@@ -648,17 +640,9 @@ function renderToolbar(): void {
   $('#mode-help').textContent = MODES.find((m) => m.id === state.mode)!.help + (state.ignore.style ? ' Both versions are drawn without styling.' : '') + (D.layoutAligned ? ' The old version is drawn on the new layout.' : '');
 }
 
-// ---- left tool bar ---------------------------------------------------------------------------------------------
+// ---- tool panel (the viewer's bar: zoom, pan, magic pen, full screen) -------------------------------------------
 
-function icon(d: string): SVGSVGElement {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('aria-hidden', 'true');
-  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  p.setAttribute('d', d);
-  svg.append(p);
-  return svg;
-}
+let tools: HTMLElement | null = null;
 
 function setTool(t: 'pan' | 'draw'): void {
   state.tool = t;
@@ -668,31 +652,55 @@ function setTool(t: 'pan' | 'draw'): void {
   renderTools();
 }
 
+function toolPanel(): HTMLElement {
+  tools = h('div', { class: 'vbar ds-float no-pan', role: 'toolbar', 'aria-label': 'View tools', 'aria-orientation': 'vertical' });
+  renderTools();
+  if (view) view.onChange = () => {
+    const pct = tools?.querySelector('.pct');
+    if (pct && view) pct.textContent = `${Math.round(view.k * 100)}%`;
+  };
+  return h('div', { class: 'vbar-wrap no-pan' }, tools);
+}
+
 function renderTools(): void {
-  const off = state.mode === 'code';
-  const tool = (t: 'pan' | 'draw', d: string, label: string, key: string) =>
-    h('button', { class: `tool${state.tool === t ? ' on' : ''}`, title: `${label} (${key})`, 'aria-label': label, 'aria-pressed': String(state.tool === t), disabled: off, onclick: () => setTool(t) }, icon(d));
-  const pen = state.tool === 'draw' && !off;
-  $('#tools').replaceChildren(
-    tool('pan', I_hand, 'Pan — drag to move, click a change to select it', 'H'),
-    tool('draw', I_pen, 'Draw — mark up the diagram for review', 'P'),
-    ...(pen
-      ? [
-          h('span', { class: 'tools-sep' }),
-          ...INK_COLORS.map((c) =>
-            h('button', { class: `swatch-btn${state.inkColor === c ? ' on' : ''}`, title: 'Pen colour', 'aria-label': `Pen colour ${c}`, style: `--sw:${c}`, onclick: () => ((state.inkColor = c), renderTools()) }),
-          ),
-          h('span', { class: 'tools-sep' }),
-          ...INK_SIZES.map((sz) =>
-            h('button', { class: `size-btn${state.inkSize === sz ? ' on' : ''}`, title: `Pen size ${sz}`, 'aria-label': `Pen size ${sz}`, onclick: () => ((state.inkSize = sz), renderTools()) }, h('i', { style: `width:${sz + 3}px;height:${sz + 3}px;background:${state.inkColor}` })),
-          ),
-        ]
-      : []),
-    h('span', { class: 'tools-sep' }),
-    h('button', { class: 'tool', title: 'Undo last stroke (⌘Z)', 'aria-label': 'Undo last stroke', disabled: off || !ink.strokes.length, onclick: () => ink.undo() }, icon(I_undo)),
-    h('button', { class: 'tool', title: 'Clear drawing', 'aria-label': 'Clear drawing', disabled: off || !ink.strokes.length, onclick: () => ink.clear() }, icon(I_trash)),
+  if (!tools) return;
+  const btn = (label: string, ic: string, onclick: () => void, extra: Record<string, unknown> = {}) =>
+    h('button', { type: 'button', title: label, 'aria-label': label, onclick, ...extra }, icon(ic));
+  const fs = document.fullscreenElement === $('#stage');
+  tools.replaceChildren(
+    btn('Zoom in', I_plus, () => view?.zoom(1.2)),
+    h('span', { class: 'pct', 'aria-live': 'off' }, `${Math.round((view?.k ?? 1) * 100)}%`),
+    btn('Zoom out', I_minus, () => view?.zoom(1 / 1.2)),
+    h('button', { type: 'button', title: 'Fit to view (F)', onclick: () => view?.fit() }, 'Fit'),
+    h('span', { class: 'sep' }),
+    btn('Pan (H)', I_hand, () => setTool('pan'), { class: state.tool === 'pan' ? 'on' : '', 'aria-pressed': String(state.tool === 'pan') }),
+    btn('Magic pen (P)', I_pen, () => setTool(state.tool === 'draw' ? 'pan' : 'draw'), { class: state.tool === 'draw' ? 'on' : '', 'aria-pressed': String(state.tool === 'draw') }),
+    ...(document.fullscreenEnabled ? [btn(fs ? 'Exit full screen' : 'Full screen', fs ? I_shrink : I_expand, () => void toggleFullscreen())] : []),
+  );
+  tools.parentElement?.querySelector('.pen-opts')?.remove();
+  if (state.tool === 'draw') tools.after(penOptions());
+}
+
+/** The viewer's pen options: colours, sizes, auto erase and Erase all. */
+function penOptions(): HTMLElement {
+  return h('div', { class: 'pop pen-opts ds-float', role: 'dialog', 'aria-label': 'Magic pen' },
+    h('div', { class: 'line' }, ...INK_COLORS.map((c) => h('button', { type: 'button', class: 'swatch', style: `background:${c}`, 'aria-label': c, 'aria-pressed': String(state.inkColor === c), onclick: () => ((state.inkColor = c), renderTools()) }))),
+    h('div', { class: 'line' }, ...INK_SIZES.map((sz) => h('button', { type: 'button', class: 'size', 'aria-label': `${sz}px`, 'aria-pressed': String(state.inkSize === sz), onclick: () => ((state.inkSize = sz), renderTools()) }, h('i', { style: `width:${sz + 2}px;height:${sz + 2}px` })))),
+    h('div', { class: 'line' }, h('span', { class: 'ds-sect' }, 'Auto erase'),
+      ...INK_FADES.map((f) => h('button', { type: 'button', class: 'fade', 'aria-pressed': String(state.inkFade === f), onclick: () => ((state.inkFade = f), renderTools()) }, f ? `${f / 1000}s` : '∞'))),
+    h('button', { type: 'button', class: 'erase', disabled: !ink.strokes.length, onclick: () => ink.clear() }, 'Erase all strokes'),
   );
 }
+
+async function toggleFullscreen(): Promise<void> {
+  const stage = $('#stage');
+  if (document.fullscreenElement === stage) await document.exitFullscreen();
+  else await stage.requestFullscreen().catch(() => undefined);
+}
+document.addEventListener('fullscreenchange', () => {
+  renderTools();
+  requestAnimationFrame(() => view?.fit());
+});
 
 function setMode(m: Mode): void {
   state.mode = m;
@@ -791,7 +799,7 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'j') step(1);
   else if (e.key === 'k') step(-1);
   else if (e.key === 'h') setTool('pan');
-  else if (e.key === 'p') setTool('draw');
+  else if (e.key === 'p') setTool(state.tool === 'draw' ? 'pan' : 'draw');
   else if (e.key === 'f') view?.fit();
   else if (e.key === 'Escape') (state.tool === 'draw' ? setTool('pan') : select(null, false));
   else return;
