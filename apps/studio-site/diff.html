@@ -44,7 +44,7 @@
       --left-w: 460px; --right-w: 360px;
       --inset-l: calc(var(--left-w) + 24px); --inset-r: calc(var(--right-w) + 24px);
     }
-    #main.no-code { --inset-l: 0px; }
+    #main[data-left=""] { --inset-l: 0px; }
     #main.no-changes { --inset-r: 0px; }
     #stage { position: absolute; top: 0; bottom: 0; left: var(--inset-l); right: var(--inset-r); transition: left .24s cubic-bezier(.2,.8,.2,1), right .24s cubic-bezier(.2,.8,.2,1); }
     #main.resizing-panes #stage { transition: none; }
@@ -57,7 +57,30 @@
     }
     .pane-side.left { left: 12px; width: var(--left-w); }
     .pane-side.right { right: 12px; bottom: 60px; width: var(--right-w); }
-    #main.no-code .pane-side.left { transform: translateX(calc(-100% - 24px)); opacity: .4; pointer-events: none; }
+    #main:not([data-left="code"]) #code-pane, #main:not([data-left="history"]) #history-pane { transform: translateX(calc(-100% - 24px)); opacity: .4; pointer-events: none; }
+
+    /* history */
+    .history-cmp { padding: 8px 14px; font-size: 12px; color: var(--ds-muted); border-bottom: 1px solid var(--ds-border); background: var(--ds-surface-2); position: sticky; top: 0; z-index: 1; }
+    .history-cmp b { color: var(--ds-text); font-weight: 600; }
+    .versions { display: flex; flex-direction: column; padding: 6px; gap: 2px; }
+    .version { position: relative; border-radius: 8px; }
+    .version:hover { background: var(--ds-surface-2); }
+    .version.viewing { background: var(--ds-accent-2); box-shadow: inset 3px 0 0 var(--ds-accent); }
+    .version.base { box-shadow: inset 3px 0 0 var(--del); background: #fff6f5; }
+    .version-main { display: grid; gap: 3px; width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px 8px 14px; border-radius: 8px; }
+    .vhead { display: flex; gap: 6px; align-items: center; }
+    .vnum { font-size: 12px; font-variant-numeric: tabular-nums; }
+    .vtag { font-size: 10.5px; font-weight: 600; border-radius: 4px; padding: 0 5px; line-height: 16px; }
+    .vtag.current { background: var(--ds-surface-2); color: var(--ds-text); box-shadow: inset 0 0 0 1px var(--ds-border); }
+    .vtag.after { background: var(--add-bg); color: var(--add); }
+    .vtag.before { background: var(--del-bg); color: var(--del); }
+    .vmsg { font-weight: 500; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .vmeta { display: flex; justify-content: space-between; gap: 8px; color: var(--ds-muted); font-size: 11.5px; }
+    .vstats { display: flex; gap: 6px; font-variant-numeric: tabular-nums; font-weight: 600; }
+    .vstats .add { color: var(--add); } .vstats .del { color: var(--del); } .vstats .chg { color: var(--content); }
+    .vbase { position: absolute; right: 8px; top: 7px; display: none; border: 1px solid var(--ds-border); background: var(--ds-surface); border-radius: 6px; padding: 1px 8px; font-size: 11.5px; }
+    .version:hover .vbase, .vbase:focus-visible { display: block; }
+    .vbase:hover { border-color: var(--ds-accent); color: var(--ds-accent); }
     #main.no-changes .pane-side.right { transform: translateX(calc(100% + 24px)); opacity: .4; pointer-events: none; }
     @media (prefers-reduced-motion: reduce) { .pane-side, #stage { transition: none !important; } }
     .pane-resizer { position: absolute; top: 14px; bottom: 14px; width: 7px; z-index: 31; cursor: col-resize; touch-action: none; }
@@ -167,6 +190,7 @@
     .pane-title span { color: var(--muted); font-size: 12px; }
     .pane.before .pane-title b { color: var(--del); }
     .pane.after .pane-title b, .pane.single .pane-title b { color: var(--add); }
+    .pane-title b.cmp { color: var(--ds-text); font-weight: 600; }
 
     .swipe-handle { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); cursor: ew-resize; z-index: 3; }
     .swipe-handle span { position: absolute; top: 50%; left: -15px; width: 30px; height: 30px; margin-top: -15px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 15px; box-shadow: 0 2px 6px #0003; }

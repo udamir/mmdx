@@ -2,8 +2,8 @@ sequenceDiagram
   box Microservice Management Provider
     participant init as Initializer
     participant env as Environment initializer
-    participant net as Network initializer
-    participant vol as Streaming Volume initializer
+    participant net as Network initializer Streaming
+    participant vol as Volume initializer
     participant svc as Service initializer
     participant repo as Repository
     participant rdc as Remote Docker Client
@@ -13,11 +13,11 @@ sequenceDiagram
   end
 
   activate init
-  init->>init: Read microservices description file
+  init->>init: Read-only Read microservices description file
   activate env
   init-)-env: Parsing environment
   env->>env: Parsing environment from description file
-  env->>repo: Save environment to Repository
+  env->>repo: Save Regional to Repository
   deactivate env
 
   loop Networks
@@ -25,19 +25,16 @@ sequenceDiagram
     init-)net: Parsing network
     net->>net: Parsing network from description file
     net->>repo: Save network to Repository
-    init->>rdc: Retry request
-  Note over init: idempotent
-    init->>vol: Acknowledge
     activate rdc
-    net->>rdc: Invoke create network function by name
     activate docker
     deactivate net
+  Note over rdc: TODO: batch this
     docker--)rdc: Response with json
     deactivate docker
     opt response code > 200
       activate docker
       rdc->>docker: POST Request to create a network
-      docker--)rdc: Response with json
+      docker--)rdc: with json
       deactivate docker
     end
     deactivate rdc
@@ -45,19 +42,22 @@ sequenceDiagram
 
   loop Volumes
     activate vol
-    init-)vol: Batch Parsing volume
+    init-)vol: Parsing volume
+    env->>rdc: Write audit record
+  Note over init: TODO: batch this
+    vol->>vol: Parsing volume from description file
     vol->>repo: Save volume to Repository
     activate rdc
     vol->>rdc: Invoke create volume function by name
     deactivate vol
     activate docker
     rdc-)docker: GET Request to inspect volume by name
-    docker--)rdc: Response Primary json
+    docker--)rdc: Response with json
     deactivate docker
     opt response code > 200
       activate docker
       rdc->>docker: POST Request to create a volume
-      docker--)rdc: Read-only Response with json
+      docker--)rdc: Response with json
       deactivate docker
       deactivate rdc
     end
@@ -66,16 +66,16 @@ sequenceDiagram
   loop Services
     activate svc
     init-)svc: Parsing service
-    svc->>svc: Read-only service from description file
+    svc->>svc: Shared Parsing service from description file
     svc->>repo: Save service to Repository
+    svc->>init: Acknowledge
     activate rdc
     svc->>rdc: Invoke create service function by name
     activate docker
     deactivate svc
     rdc-)docker: GET Request to inspect container by name
-  Note over rdc: times out after 30 s
+    svc->>rdc: Write audit record
     docker--)rdc: Response with json
-    net->>rdc: Write audit record
     deactivate docker
     opt response code > 200
       rdc->>+docker: POST Request to create a container
@@ -88,13 +88,13 @@ sequenceDiagram
 %% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----
 %%@ canvas {"v":1,"blockSpan":"touched"}
 %%@ participant init {"h":90,"w":250,"wrap":true}
-%%@ participant env {"h":90,"x":436,"w":250,"wrap":true,"fill":"@pale-rose"}
-%%@ participant net {"w":250,"h":90,"x":721,"wrap":true}
-%%@ participant vol {"w":250,"h":90,"x":924,"wrap":true}
+%%@ participant env {"h":90,"x":436,"w":250,"wrap":true,"fill":"@ice"}
+%%@ participant net {"w":250,"h":90,"x":663,"wrap":true}
+%%@ participant vol {"w":250,"h":90,"x":1006,"wrap":true}
 %%@ participant svc {"w":250,"h":90,"x":1290,"wrap":true}
 %%@ participant repo {"w":250,"h":90,"x":1575,"wrap":true}
-%%@ participant rdc {"w":250,"h":90,"wrap":true,"x":1921,"fill":"@pale-rose"}
-%%@ participant docker {"w":250,"h":90,"wrap":true,"x":2320}
+%%@ participant rdc {"w":250,"h":90,"wrap":true,"x":1860,"fill":"@peach"}
+%%@ participant docker {"w":250,"h":90,"wrap":true,"x":2285}
 %%@ message m1 {"labelSize":22}
 %%@ message m2 {"labelSize":22}
 %%@ message m3 {"labelSize":22}
@@ -102,23 +102,24 @@ sequenceDiagram
 %%@ message m5 {"labelSize":22}
 %%@ message m6 {"labelSize":22}
 %%@ message m7 {"labelSize":22}
-%%@ message m10 {"labelSize":22,"dy":-13}
-%%@ message m11 {"labelSize":22,"dy":-10}
-%%@ message m12 {"labelSize":22}
-%%@ message m13 {"labelSize":22,"dy":-9}
-%%@ message m14 {"labelSize":22,"dy":-8}
-%%@ message m15 {"labelSize":22,"dy":-9}
-%%@ message m16 {"labelSize":22,"dy":-15}
-%%@ message m17 {"labelSize":22,"dy":-40}
+%%@ message m8 {"labelSize":22,"dy":-10}
+%%@ message m9 {"labelSize":22}
+%%@ message m17 {"labelSize":22,"dy":-9}
+%%@ message m11 {"labelSize":22,"dy":-8}
+%%@ message m13 {"labelSize":22}
+%%@ message m14 {"labelSize":22,"dy":-9}
+%%@ message m15 {"labelSize":22,"dy":-15}
+%%@ message m16 {"labelSize":22,"dy":-40}
 %%@ message m19 {"labelSize":22}
+%%@ message m18 {"labelSize":22}
+%%@ message m27 {"labelSize":22}
+%%@ message m20 {"labelSize":22}
 %%@ message m21 {"labelSize":22}
 %%@ message m22 {"labelSize":22}
-%%@ message m23 {"labelSize":22}
 %%@ message m24 {"labelSize":22,"dy":-3}
 %%@ message m25 {"labelSize":22}
-%%@ message m26 {"labelSize":22}
+%%@ message m29 {"labelSize":22,"dy":-7}
 %%@ message m28 {"labelSize":22}
-%%@ message m29 {"labelSize":22}
 %%@ block b5 {"labelSize":32}
 %%@ block b3 {"labelSize":32,"dy":15}
 %%@ block b1 {"labelSize":32,"dy":-28}

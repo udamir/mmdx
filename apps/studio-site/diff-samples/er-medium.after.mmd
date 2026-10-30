@@ -17,7 +17,7 @@ erDiagram
   }
   acl_permission {
     INT(11) id PK
-    BIGINT user_id FK
+    INT(11) user_id FK
     INT(11) group_id FK
     INT(11) object_id FK
     VARCHAR(255) action
@@ -30,7 +30,7 @@ erDiagram
   }
   acl_user_group {
     INT(11) id PK
-    INT(11) user_id FK
+    BIGINT user_id FK
     INT(11) group_id FK
     INT(11) serial_number
   }
@@ -39,7 +39,7 @@ erDiagram
     VARCHAR(255) username
     VARCHAR(255) email
     VARCHAR(255) sha1_password
-    VARCHAR(255) legacy_salt
+    VARCHAR(255) salt
   }
   other_name {
     INT(11) object_id FK
@@ -187,7 +187,6 @@ erDiagram
     INT(11) lft
     INT(11) rgt
     VARCHAR(7) source_culture
-    TEXT notes
   }
   actor_i18n {
     VARCHAR(255) authorized_form_of_name
@@ -250,7 +249,7 @@ erDiagram
     TIME start_time
     DATE end_date
     TIME end_time
-    BIGINT type_id FK
+    INT(11) type_id FK
     INT(11) information_object_id FK
     INT(11) actor_id FK
     VARCHAR(7) source_culture
@@ -263,13 +262,12 @@ erDiagram
     VARCHAR(7) culture PK
   }
   status {
-    INT(11) legacy_object_id FK
+    INT(11) object_id FK
     INT(11) type_id FK
     INT(11) status_id FK
     DATETIME created_at
     DATETIME updated_at
     INT(11) id PK
-    INT(11) serial_number
   }
   information_object {
     INT(11) id PK
@@ -305,11 +303,29 @@ erDiagram
     TEXT location_of_originals
     TEXT location_of_copies
     TEXT related_units_of_description
+    VARCHAR(255) institution_responsible_identifier
     TEXT rules
     TEXT sources
     TEXT revision_history
     INT(11) id PK
     VARCHAR(7) culture PK
+    BOOLEAN is_public
+  }
+  digital_object {
+    INT(11) id PK
+    INT(11) information_object_id FK
+    INT(11) usage_id FK
+    VARCHAR(50) mime_type
+    INT(11) media_type_id FK
+    VARCHAR(255) name
+    VARCHAR(1000) path
+    INT(11) sequence
+    INT(11) byte_size
+    VARCHAR(255) checksum
+    INT(11) checksum_type_id FK
+    INT(11) parent_id FK
+    INT(11) lft
+    INT(11) rgt
   }
   note {
     INT(11) object_id FK
@@ -340,7 +356,7 @@ erDiagram
     INT(11) id PK
     VARCHAR(255) class_name
     DATETIME created_at
-    DATETIME updated_at
+    DATETIME updated_at_utc
     INT(11) serial_number
   }
   relation {
@@ -368,18 +384,12 @@ erDiagram
     INT(11) id PK
     INT(11) serial_number
   }
-  property_i18n {
-    VARCHAR(255) value
-    INT(11) id PK
-    VARCHAR(7) culture PK
-  }
   static_page {
     INT(11) id PK
-    VARCHAR(16) source_culture
-    INT(11) tenant_id FK
+    VARCHAR(7) source_culture
   }
   static_page_i18n {
-    VARCHAR(255) title
+    VARCHAR(255) title_v2
     TEXT content
     INT(11) id PK
     VARCHAR(7) culture PK
@@ -400,12 +410,12 @@ erDiagram
   }
   historical_event {
     INT(11) id PK
-    INT(11) type_id FK
+    BIGINT type_id FK
     DATE start_date
     TIME start_time
     DATE end_date
     TIME end_time
-    DATETIME published_at
+    VARCHAR(32) status
   }
   rights_actor_relation {
     INT(11) id PK
@@ -457,6 +467,7 @@ erDiagram
     INT(11) lft
     INT(11) rgt
     VARCHAR(7) source_culture
+    TEXT notes
   }
   physical_object_i18n {
     VARCHAR(255) name
@@ -482,7 +493,7 @@ erDiagram
     VARCHAR(7) culture PK
   }
   setting {
-    VARCHAR(255) name
+    VARCHAR(512) name
     VARCHAR(255) scope
     TINYINT(4) editable
     TINYINT(4) deleteable
@@ -508,7 +519,6 @@ erDiagram
   event ||--|{ event_i18n : "translations"
   information_object ||--|{ information_object_i18n : "translations"
   note ||--|{ note_i18n : "translations"
-  property ||--|{ property_i18n : "translations"
   static_page ||--|{ static_page_i18n : "translations"
   term ||--|{ term_i18n : "translations"
   rights ||--|{ rights_i18n : "translations"
@@ -523,8 +533,9 @@ erDiagram
   object ||--o| function : "is a"
   object ||--o| place : "is a"
   object ||--o| physical_object : "is a"
+  object ||--o| digital_object : "is a"
   object ||--o| relation : "is a"
-  object ||--o| object_term_relation : "is a Shared"
+  object ||--o| object_term_relation : "is a"
   object ||--o| static_page : "is a"
   object ||--o| place_map_relation : "is a"
   object ||--o| rights_actor_relation : "is a"
@@ -532,7 +543,7 @@ erDiagram
   actor ||--o| user : "is a"
   term ||--o| historical_event : "is a"
   acl_group ||--o{ acl_permission : "group"
-  acl_group ||--o{ acl_user_group : "members"
+  acl_group ||--o{ acl_user_group : "members HA"
   user ||--o{ acl_permission : "user"
   user ||--o{ acl_user_group : "groups"
   object ||--o{ acl_permission : "object"
@@ -548,6 +559,7 @@ erDiagram
   actor ||--o{ contact_information : "contacts"
   actor ||--o{ event : "actor"
   information_object ||--o{ event : "events"
+  information_object ||--o{ digital_object : "digital objects"
   repository ||--o{ information_object : "holds"
   taxonomy ||--o{ term : "terms"
   term ||--o{ object_term_relation : "term"
@@ -562,12 +574,12 @@ erDiagram
   term ||--o{ rights_term_relation : "term"
   term ||--o{ other_name : "type"
   term ||--o{ status : "status"
-  comment {
+  webhook {
     INT(11) id PK
-    INT(11) acl_group_id FK
+    INT(11) term_i18n_id FK
     DATETIME created_at
   }
-  acl_group ||--o{ comment : ""
+  term_i18n ||--o{ webhook : ""
 
 %% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----
 %%@ canvas {"v":1,"routing":"orthogonal"}
@@ -575,7 +587,7 @@ erDiagram
 %%@ entity acl_group_i18n {"preset":"workbench","x":580,"y":540,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@brown"}
 %%@ entity acl_group {"preset":"workbench","x":575,"y":690,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@brown"}
 %%@ entity acl_permission {"preset":"workbench","x":735,"y":865,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@brown"}
-%%@ entity acl_user_group {"preset":"workbench","x":425,"y":860,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@brown"}
+%%@ entity acl_user_group {"preset":"workbench","x":300,"y":918,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@brown"}
 %%@ entity user {"preset":"workbench","x":565,"y":1090,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@blue"}
 %%@ entity other_name_i18n {"preset":"workbench","x":2475,"y":2165,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
 %%@ entity other_name {"preset":"workbench","x":2475,"y":2015,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
@@ -591,24 +603,24 @@ erDiagram
 %%@ entity oai_harvest {"preset":"workbench","x":806,"y":1975,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
 %%@ entity actor_i18n {"preset":"workbench","x":905,"y":475,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
 %%@ entity actor {"preset":"workbench","x":1060,"y":1095,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@violet"}
-%%@ entity place_map_relation {"preset":"workbench","x":2510,"y":823,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@lavender"}
+%%@ entity place_map_relation {"preset":"workbench","x":2470,"y":890,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@lavender"}
 %%@ entity map {"preset":"workbench","x":2730,"y":890,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@lavender"}
 %%@ entity map_i18n {"preset":"workbench","x":2725,"y":745,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
-%%@ entity place {"preset":"workbench","x":2470,"y":1045,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@violet"}
+%%@ entity place {"preset":"workbench","x":2470,"y":1045,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
 %%@ entity place_i18n {"preset":"workbench","x":2470,"y":1185,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
 %%@ entity event {"preset":"workbench","x":1390,"y":1005,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@green"}
-%%@ entity event_i18n {"preset":"workbench","x":1395,"y":860,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
-%%@ entity status {"preset":"workbench","x":1660,"y":1830,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@brown"}
+%%@ entity event_i18n {"preset":"workbench","x":1395,"y":860,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@peach"}
+%%@ entity status {"preset":"workbench","x":1660,"y":1830,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@apricot"}
 %%@ entity information_object_i18n {"preset":"workbench","x":2005,"y":595,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
 %%@ entity information_object {"preset":"workbench","x":1845,"y":965,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@green"}
+%%@ entity digital_object {"preset":"workbench","x":1405,"y":999,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@green"}
 %%@ entity note {"preset":"workbench","x":450,"y":1540,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
-%%@ entity note_i18n {"preset":"workbench","x":355,"y":1817,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
-%%@ entity slug {"preset":"workbench","x":2335,"y":1275,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
+%%@ entity note_i18n {"preset":"workbench","x":455,"y":1700,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
+%%@ entity slug {"preset":"workbench","x":2335,"y":1275,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@brown"}
 %%@ entity object {"preset":"workbench","x":1490,"y":1520,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@lime"}
 %%@ entity relation {"preset":"workbench","x":2340,"y":1375,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
 %%@ entity object_term_relation {"preset":"workbench","x":1375,"y":1795,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
 %%@ entity property {"preset":"workbench","x":2340,"y":1715,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
-%%@ entity property_i18n {"preset":"workbench","x":2345,"y":1855,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
 %%@ entity static_page {"preset":"workbench","x":2420,"y":1555,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
 %%@ entity static_page_i18n {"preset":"workbench","x":2730,"y":1565,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
 %%@ entity term {"preset":"workbench","x":1515,"y":2015,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
@@ -617,7 +629,7 @@ erDiagram
 %%@ entity rights {"preset":"workbench","x":1125,"y":1785,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
 %%@ entity physical_object_i18n {"preset":"workbench","x":2670,"y":1300,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
 %%@ entity physical_object {"preset":"workbench","x":2675,"y":1445,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@green"}
-%%@ entity taxonomy {"preset":"workbench","x":2059,"y":1912,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
+%%@ entity taxonomy {"preset":"workbench","x":2010,"y":1928,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
 %%@ entity taxonomy_i18n {"preset":"workbench","x":1995,"y":1960,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
 %%@ entity term_i18n {"preset":"workbench","x":1430,"y":2205,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
 %%@ entity setting {"preset":"workbench","x":2715,"y":1745,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
@@ -637,7 +649,6 @@ erDiagram
 %%@ rel event--event_i18n {"routing":"curved","curve":1}
 %%@ rel information_object--information_object_i18n {"routing":"curved","curve":1}
 %%@ rel note--note_i18n {"routing":"curved","curve":1}
-%%@ rel property--property_i18n {"routing":"curved","curve":1}
 %%@ rel static_page--static_page_i18n {"routing":"curved","curve":1}
 %%@ rel term--term_i18n {"routing":"curved","curve":1}
 %%@ rel rights--rights_i18n {"routing":"curved","curve":1}
@@ -652,6 +663,7 @@ erDiagram
 %%@ rel object--function {"routing":"curved","curve":1}
 %%@ rel object--place {"routing":"curved","curve":1}
 %%@ rel object--physical_object {"routing":"curved","curve":1}
+%%@ rel object--digital_object {"routing":"curved","curve":1}
 %%@ rel object--relation {"routing":"curved","curve":1}
 %%@ rel object--object_term_relation {"routing":"curved","curve":1}
 %%@ rel object--static_page {"routing":"curved","curve":1}
@@ -677,6 +689,7 @@ erDiagram
 %%@ rel actor--contact_information {"routing":"curved","curve":1}
 %%@ rel actor--event {"routing":"curved","curve":1}
 %%@ rel information_object--event {"routing":"curved","curve":1}
+%%@ rel information_object--digital_object {"routing":"curved","curve":1}
 %%@ rel repository--information_object {"routing":"curved","curve":1}
 %%@ rel taxonomy--term {"routing":"curved","curve":1,"fromSide":"b","fromAt":0.167}
 %%@ rel term--object_term_relation {"routing":"curved","curve":1}

@@ -14,10 +14,10 @@ flowchart TB
   lb["Load Balancer"]
   cache[("⑥ Distributed Cache")]:::security
   subgraph db ["⑤ Database Layer"]
-    db1[("Primary Core")]:::infra
+    db1[("Primary")]:::infra
     db2[("Replica")]:::infra
-    db3[("Replica")]:::infra
-    n1["Reports store"]
+    db3[("Replica HA")]:::infra
+    n1(["Rate limiter worker"])
   end
   msg["⑦ Distributed Messaging"]:::event-bus
   queue["Queue Management Interface"]:::service
@@ -69,7 +69,7 @@ flowchart TB
 %%@ node web {"x":420,"y":110,"w":150,"h":60}
 %%@ node desktop {"x":665,"y":110,"w":150,"h":60}
 %%@ node mobile {"x":910,"y":110,"w":150,"h":60}
-%%@ node gw {"x":665,"y":330,"w":230,"h":80}
+%%@ node gw {"x":586,"y":285,"w":230,"h":80}
 %%@ node reg {"x":300,"y":330,"w":220,"h":64}
 %%@ node svcA {"x":390,"y":610,"w":220,"h":64}
 %%@ node svcB {"x":665,"y":610,"w":220,"h":64}
@@ -77,7 +77,7 @@ flowchart TB
 %%@ node admin {"x":1440,"y":330,"w":130,"h":130}
 %%@ node auth {"x":1440,"y":610,"w":290,"h":80}
 %%@ node msg {"x":420,"y":960,"w":290,"h":80,"fontSize":15}
-%%@ node queue {"x":519,"y":1282,"w":290,"h":64}
+%%@ node queue {"x":420,"y":1200,"w":290,"h":64}
 %%@ node lb {"x":790,"y":960,"w":180,"h":64}
 %%@ node cache {"x":1090,"y":960,"w":200,"h":90}
 %%@ node db1 {"x":940,"y":1250,"w":130,"h":80}
@@ -106,4 +106,4 @@ flowchart TB
 %%@ edge es->kibana {"preset":"logs"}
 %%@ edge lviz->kibana {"preset":"logs"}
 %%@ edge lb->cache {"preset":"read"}
-%%@ edge gw->svcA {"preset":"rest"}
+%%@ edge mobile->gw {"preset":"alert"}
