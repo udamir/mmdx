@@ -77,7 +77,6 @@ const state = {
   swipe: 50,
   onion: 50,
   morph: 1,
-  playing: false,
   /** Left bar tool: drag pans the canvas, or draws review ink. */
   tool: 'pan' as 'pan' | 'draw',
   inkColor: INK_COLORS[0] as string,
@@ -234,10 +233,6 @@ function renderStage(): void {
   morph?.dispose();
   morph = null;
   morphSync = null;
-  if (state.mode !== 'morph' && state.playing) {
-    state.playing = false;
-    clearInterval(playTimer);
-  }
   view?.dispose();
   view = null;
   svgs = {};
@@ -298,7 +293,6 @@ function clickSelect(e: MouseEvent, side: 'before' | 'after' | 'merged'): void {
 // ---- morph ------------------------------------------------------------------------------------------------------
 
 let morph: Morph | null = null;
-let playTimer = 0;
 
 /** Canonical keys (`data-ck`) on the item groups of one state, so the three states can be paired. */
 function tagItems(svg: SVGSVGElement, side: 'before' | 'after' | 'merged'): void {
@@ -322,20 +316,8 @@ function morphStage(p: HTMLElement, v: SharedView): void {
   morph.svg.addEventListener('click', (e) => clickSelect(e, state.morph === 0 ? 'before' : state.morph === 1 ? 'merged' : 'after'));
   svgs.after = morph.svg;
   const steps = STATE_NAMES.map((name, i) => h('button', { class: i === state.morph ? 'on' : '', onclick: () => morphTo(i) }, name));
-  const play = h('button', { class: 'play', title: 'Play (Space)', onclick: () => togglePlay() }, state.playing ? '❚❚' : '▶');
-  p.append(
-    h('div', { class: 'morph-bar no-pan' },
-      h('button', { title: 'Previous (←)', onclick: () => morphTo(state.morph - 1) }, '◀'),
-      h('div', { class: 'seg morph-steps' }, ...steps),
-      h('button', { title: 'Next (→)', onclick: () => morphTo(state.morph + 1) }, '▶'),
-      play,
-    ),
-  );
-  const sync = () => {
-    steps.forEach((b, i) => b.classList.toggle('on', i === state.morph));
-    play.textContent = state.playing ? '❚❚' : '▶';
-  };
-  morphSync = sync;
+  p.append(h('div', { class: 'morph-bar no-pan' }, h('div', { class: 'seg morph-steps' }, ...steps)));
+  morphSync = () => steps.forEach((b, i) => b.classList.toggle('on', i === state.morph));
 }
 
 let morphSync: (() => void) | null = null;
@@ -347,21 +329,6 @@ function morphTo(i: number): void {
   ink.paint(morph.svg);
   morphSync?.();
   applySelection(false);
-}
-
-function togglePlay(): void {
-  state.playing = !state.playing;
-  clearInterval(playTimer);
-  if (state.playing) {
-    let dir = state.morph === 2 ? -1 : 1;
-    const tick = () => {
-      if (state.morph + dir < 0 || state.morph + dir > 2) dir = -dir as 1 | -1;
-      morphTo(state.morph + dir);
-    };
-    tick();
-    playTimer = window.setInterval(tick, 2200);
-  }
-  morphSync?.();
 }
 
 function zoomBar(): HTMLElement {
@@ -396,7 +363,6 @@ function toggleHelp(force?: boolean): void {
       ...section('Views', MODES.map((m) => row([m.key], `${m.label}: ${m.help}`))),
       ...section('Morph', [
         row(['←', '→'], 'Step between Before, Merged and After'),
-        row(['Space'], 'Play / pause the transitions'),
       ]),
       ...section('Change filters (left panel)', [
         row(['Added'], 'Items only in the new version (green, +)'),
@@ -797,7 +763,6 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === '?') toggleHelp();
   else if (state.mode === 'morph' && e.key === 'ArrowLeft') morphTo(state.morph - 1);
   else if (state.mode === 'morph' && e.key === 'ArrowRight') morphTo(state.morph + 1);
-  else if (state.mode === 'morph' && e.key === ' ') togglePlay();
   else if (e.key === 'j') step(1);
   else if (e.key === 'k') step(-1);
   else if (e.key === 'h') setTool('pan');
