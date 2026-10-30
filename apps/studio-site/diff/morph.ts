@@ -179,11 +179,11 @@ export class Morph {
       outLayer.append(ghost);
       fade(ghost, 1, 0, () => ghost.remove());
     }
-    // annotation layers (highlights, highlighter runs) fade with their state
+    // annotation layers (highlights, highlighter runs) cross-fade with their state
     for (const cls of ['dx-layer', 'dx-runs']) {
       const a = fromSvg.querySelector(`:scope > g.${cls}`), b = svg.querySelector(`:scope > g.${cls}`);
-      if (b && !a) fade(b, 0, 1);
-      if (a && !b) {
+      if (b) fade(b, a ? 0.2 : 0, 1);
+      if (a) {
         const ghost = a.cloneNode(true) as Element;
         svg.append(ghost);
         fade(ghost, 1, 0, () => ghost.remove());

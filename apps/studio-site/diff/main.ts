@@ -14,7 +14,7 @@ import {
 } from './canvas.js';
 import { decorateText, highlightRuns, withLayout } from './decorate.js';
 import { buildMerged, REMOVED, type Merged } from './merge.js';
-import { Morph, STATE_NAMES } from './morph.js';
+import { Morph } from './morph.js';
 import { Ink, INK_COLORS, INK_FADES, INK_SIZES } from './ink.js';
 import { hunks, lineDiff } from './textdiff.js';
 import { I_code, I_hand, I_list, I_palette, I_pen } from '../../../src/ui/icons.js';
@@ -46,12 +46,17 @@ const SAMPLES: { id: string; group: string; title: string; note: string }[] = [
   { id: 'er-many', group: 'ER', title: 'Many changes (50+)', note: 'A big schema migration across the 60-table archive database.' },
 ];
 
-type Mode = 'side' | 'morph';
+/** Views: one canvas stepping through the three states (animated), or the two versions side by side. */
+type Mode = 'before' | 'merged' | 'after' | 'side';
 
-const MODES: { id: Mode; label: string; key: string; icon: string; help: string }[] = [
-  { id: 'side', label: 'Side by side', key: '1', icon: 'M3 5h7v14H3zM14 5h7v14h-7z', help: 'Before and after next to each other, panned and zoomed together. Removed items are marked on the left, added on the right, changed on both.' },
-  { id: 'morph', label: 'Morph', key: '2', icon: 'M4 7h8v10H4zM15 9l3 3-3 3M12 12h6', help: 'One canvas stepping Before → Merged → After. Merged keeps removed items in place and marks text changes word by word; moved items glide, colours blend and changed text flips between states.' },
+const MODES: { id: Mode; label: string; key: string; help: string }[] = [
+  { id: 'before', label: 'Before', key: '1', help: 'The target branch, with its removed and changed items highlighted.' },
+  { id: 'merged', label: 'Merged', key: '2', help: 'One overlay: the new version with removed items kept in place, text changes marked word by word and an arrow from the old place of every moved item.' },
+  { id: 'after', label: 'After', key: '3', help: 'The merge request, with its added and changed items highlighted.' },
+  { id: 'side', label: 'Side by side', key: '4', help: 'Before and after next to each other, panned and zoomed together.' },
 ];
+/** Index of a single-canvas view among the morph states. */
+const STATE_OF: Partial<Record<Mode, number>> = { before: 0, merged: 1, after: 2 };
 
 const FACET_INFO: Record<ChangeFacet, { label: string; help: string }> = {
   content: { label: 'Content', help: 'Items, labels, shapes, connections, attributes, message text' },
@@ -63,7 +68,7 @@ const state = {
   sample: 'architecture',
   before: sample('architecture', 'before'),
   after: sample('architecture', 'after'),
-  mode: 'side' as Mode,
+  mode: 'merged' as Mode,
   /** Editor-like side panels: code diff (left) and the change list (right). */
   panels: { code: false, changes: true },
   ignore: {} as DiffIgnore,
@@ -76,7 +81,6 @@ const state = {
   open: new Set<string>(),
   swipe: 50,
   onion: 50,
-  morph: 1,
   /** Left bar tool: drag pans the canvas, or draws review ink. */
   tool: 'pan' as 'pan' | 'draw',
   inkColor: INK_COLORS[0] as string,
@@ -232,7 +236,6 @@ function renderStage(): void {
   tools = null;
   morph?.dispose();
   morph = null;
-  morphSync = null;
   view?.dispose();
   view = null;
   svgs = {};
@@ -247,18 +250,20 @@ function renderStage(): void {
   const pane = (title: string, sub: string, cls: string) =>
     h('div', { class: `pane ${cls}` }, h('div', { class: 'pane-title no-pan' }, h('b', {}, title), h('span', {}, sub)));
 
-  if (state.mode === 'morph' && D.rm) {
-    const p = h('div', { class: 'pane stack' });
-    stage.append(p);
-    morphStage(p, view);
-  } else {
+  if (state.mode === 'side') {
     const pb = pane('Before', 'target branch', 'before'), pa = pane('After', 'merge request', 'after');
     stage.append(pb, pa);
     svgs.before = mount(pb, D.rb, 'before');
     svgs.after = mount(pa, D.ra, 'after');
     for (const s of Object.values(svgs)) view.attach(s, s.parentElement!);
+  } else {
+    const p = h('div', { class: 'pane stack' });
+    stage.append(p);
+    morphStage(p, view);
   }
-  stage.append(toolPanel());
+  diffBar = h('div', { class: 'dbar ds-float no-pan', role: 'toolbar', 'aria-label': 'Diff' });
+  stage.append(toolPanel(), diffBar);
+  renderDiffBar();
   for (const svg of stage.querySelectorAll<SVGSVGElement>('.pane svg')) ink.attach(svg);
   requestAnimationFrame(() => {
     view?.fit();
@@ -302,33 +307,79 @@ function tagItems(svg: SVGSVGElement, side: 'before' | 'after' | 'merged'): void
   }
 }
 
-function morphStage(p: HTMLElement, v: SharedView): void {
-  const before = toSvgElement(D.rb), after = toSvgElement(D.ra), merged = mergedSvg();
-  if (state.dim) {
-    dimOthers(before, keepSet('before'));
-    dimOthers(after, keepSet('after'));
-  }
-  tagItems(before, 'before');
-  tagItems(after, 'after');
-  tagItems(merged, 'merged');
-  withLayout(merged, () => highlightRuns(merged));
-  morph = new Morph(p, [before, merged, after], v, state.morph);
-  morph.svg.addEventListener('click', (e) => clickSelect(e, state.morph === 0 ? 'before' : state.morph === 1 ? 'merged' : 'after'));
-  svgs.after = morph.svg;
-  const steps = STATE_NAMES.map((name, i) => h('button', { class: i === state.morph ? 'on' : '', onclick: () => morphTo(i) }, name));
-  p.append(h('div', { class: 'morph-bar no-pan' }, h('div', { class: 'seg morph-steps' }, ...steps)));
-  morphSync = () => steps.forEach((b, i) => b.classList.toggle('on', i === state.morph));
+/** A version drawn with its own changes highlighted (removed / changed on before, added / changed on after). */
+function highlighted(r: Rendered, side: 'before' | 'after'): SVGSVGElement {
+  const svg = toSvgElement(r);
+  drawHighlights(svg, highlightsFor(side));
+  dimOthers(svg, state.dim ? keepSet(side) : null);
+  return svg;
 }
 
-let morphSync: (() => void) | null = null;
+function morphStage(p: HTMLElement, v: SharedView): void {
+  const before = highlighted(D.rb, 'before'), after = highlighted(D.ra, 'after');
+  const merged = D.rm ? mergedSvg() : highlighted(D.ra, 'after');
+  tagItems(before, 'before');
+  tagItems(after, 'after');
+  tagItems(merged, D.rm ? 'merged' : 'after');
+  withLayout(merged, () => highlightRuns(merged));
+  morph = new Morph(p, [before, merged, after], v, STATE_OF[state.mode] ?? 1);
+  morph.svg.addEventListener('click', (e) => clickSelect(e, state.mode === 'before' ? 'before' : state.mode === 'after' ? 'after' : 'merged'));
+  svgs.after = morph.svg;
+}
 
-function morphTo(i: number): void {
-  if (!morph || i < 0 || i > 2) return;
-  state.morph = i;
-  morph.go(i);
-  ink.paint(morph.svg);
-  morphSync?.();
-  applySelection(false);
+/** Switches the view: between the single-canvas states it animates, otherwise the stage is rebuilt. */
+function setMode(m: Mode): void {
+  if (m === state.mode) return;
+  const to = STATE_OF[m];
+  state.mode = m;
+  if (morph && to !== undefined) {
+    morph.go(to);
+    ink.paint(morph.svg);
+    $('#stage').className = `stage mode-${m} tool-${state.tool}`;
+    renderDiffBar();
+    applySelection(false);
+  } else renderStage();
+}
+
+function stepState(d: 1 | -1): void {
+  const i = STATE_OF[state.mode];
+  if (i === undefined) return;
+  const next = MODES.find((m) => STATE_OF[m.id] === i + d);
+  if (next) setMode(next.id);
+}
+
+// ---- bottom panel: views, change filters, dim ---------------------------------------------------------------------
+
+let diffBar: HTMLElement | null = null;
+
+/** Icons of the change filters (the colour of each is its highlight colour). */
+const FILTER_ICONS: Record<Mark | 'dim', string> = {
+  added: 'M5 5h14v14H5zM12 8.5v7M8.5 12h7',
+  removed: 'M5 5h14v14H5zM8.5 12h7',
+  content: 'M5 6h14M12 6v13M9 19h6',
+  layout: 'M12 4v16M4 12h16M9.5 6.5L12 4l2.5 2.5M9.5 17.5L12 20l2.5-2.5M6.5 9.5L4 12l2.5 2.5M17.5 9.5L20 12l-2.5 2.5',
+  style: I_palette,
+  dim: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 3v18M12 7h6M12 11h8.5M12 15h7.5',
+};
+
+function renderDiffBar(): void {
+  if (!diffBar) return;
+  const raw = D.raw.counts;
+  const filter = (m: Mark, label: string, n: number, on: boolean, toggle: () => void) =>
+    h('button', { type: 'button', class: `flt flt-${m}${on ? ' on' : ' off'}`, 'data-tip': `${label} · ${n} — click to ${on ? 'hide' : 'show'}`, 'aria-label': `${label} (${n})`, 'aria-pressed': String(on), onclick: toggle },
+      icon(FILTER_ICONS[m]), n ? h('span', { class: 'cnt' }, String(n)) : null);
+  const facet = (f: ChangeFacet) => filter(f, FACET_INFO[f].label, raw[f], !state.ignore[f], () => setIgnore({ ...state.ignore, [f]: !state.ignore[f] }));
+  diffBar.replaceChildren(
+    ...MODES.map((m) => h('button', { type: 'button', class: `view${state.mode === m.id ? ' on' : ''}`, 'data-tip': `${m.help} (${m.key})`, 'aria-pressed': String(state.mode === m.id), onclick: () => setMode(m.id) }, m.label)),
+    h('span', { class: 'sep' }),
+    filter('added', 'Added', raw.added, !state.hide.added, () => setHide('added')),
+    filter('removed', 'Removed', raw.removed, !state.hide.removed, () => setHide('removed')),
+    facet('content'),
+    facet('layout'),
+    facet('style'),
+    h('span', { class: 'sep' }),
+    h('button', { type: 'button', class: state.dim ? 'on' : '', 'data-tip': 'Dim unchanged items', 'aria-label': 'Dim unchanged items', 'aria-pressed': String(state.dim), onclick: () => ((state.dim = !state.dim), renderStage()) }, icon(FILTER_ICONS.dim)),
+  );
 }
 
 function zoomBar(): HTMLElement {
@@ -360,11 +411,11 @@ function toggleHelp(force?: boolean): void {
   helpEl = h('div', { class: 'help-pop ds-pop', role: 'dialog', 'aria-label': 'Help' },
     h('div', { class: 'help-head' }, h('b', {}, 'Diagram diff — help'), close),
     h('div', { class: 'help-body' },
-      ...section('Views', MODES.map((m) => row([m.key], `${m.label}: ${m.help}`))),
-      ...section('Morph', [
-        row(['←', '→'], 'Step between Before, Merged and After'),
+      ...section('Views (bottom panel)', [
+        ...MODES.map((m) => row([m.key], `${m.label}: ${m.help}`)),
+        row(['←', '→'], 'Step between Before, Merged and After: moved items glide, colours blend and changed text flips'),
       ]),
-      ...section('Change filters (left panel)', [
+      ...section('Change filters (bottom panel)', [
         row(['Added'], 'Items only in the new version (green, +)'),
         row(['Removed'], 'Items only in the old version (red, dashed, −)'),
         row(['Content'], `${FACET_INFO.content.help} (amber, C)`),
@@ -539,16 +590,6 @@ function step(d: 1 | -1): void {
 
 let tools: HTMLElement | null = null;
 
-/** Icons of the change filters (the colour of each is its highlight colour). */
-const FILTER_ICONS: Record<Mark | 'dim', string> = {
-  added: 'M5 5h14v14H5zM12 8.5v7M8.5 12h7',
-  removed: 'M5 5h14v14H5zM8.5 12h7',
-  content: 'M5 6h14M12 6v13M9 19h6',
-  layout: 'M12 4v16M4 12h16M9.5 6.5L12 4l2.5 2.5M9.5 17.5L12 20l2.5-2.5M6.5 9.5L4 12l2.5 2.5M17.5 9.5L20 12l-2.5 2.5',
-  style: I_palette,
-  dim: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 3v18M12 7h6M12 11h8.5M12 15h7.5',
-};
-
 function setTool(t: 'pan' | 'draw'): void {
   state.tool = t;
   const stage = $('#stage');
@@ -558,7 +599,7 @@ function setTool(t: 'pan' | 'draw'): void {
 }
 
 function toolPanel(): HTMLElement {
-  tools = h('div', { class: 'vbar ds-float no-pan', role: 'toolbar', 'aria-label': 'Diff tools', 'aria-orientation': 'vertical' });
+  tools = h('div', { class: 'vbar ds-float no-pan', role: 'toolbar', 'aria-label': 'Tools', 'aria-orientation': 'vertical' });
   renderTools();
   return h('div', { class: 'vbar-wrap no-pan' }, tools);
 }
@@ -566,28 +607,15 @@ function toolPanel(): HTMLElement {
 function renderTools(): void {
   if (!tools) return;
   /** Icon button with a hover tooltip (`data-tip`). */
-  const btn = (tip: string, ic: string, onclick: () => void, on: boolean | null, extra: Record<string, unknown> = {}, ...more: Child[]) =>
-    h('button', { type: 'button', 'data-tip': tip, 'aria-label': tip, onclick, ...(on === null ? {} : { class: on ? 'on' : '', 'aria-pressed': String(on) }), ...extra }, icon(ic), ...more);
+  const btn = (tip: string, ic: string, onclick: () => void, on: boolean) =>
+    h('button', { type: 'button', 'data-tip': tip, 'aria-label': tip, onclick, class: on ? 'on' : '', 'aria-pressed': String(on) }, icon(ic));
   const sep = () => h('span', { class: 'sep' });
-  const raw = D.raw.counts;
-  const filter = (m: Mark, label: string, n: number, on: boolean, toggle: () => void) =>
-    btn(`${label} · ${n} — click to ${on ? 'hide' : 'show'}`, FILTER_ICONS[m], toggle, null, { class: `flt flt-${m}${on ? ' on' : ' off'}`, 'aria-pressed': String(on) }, n ? h('span', { class: 'cnt' }, String(n)) : null);
-  const facet = (f: ChangeFacet) => filter(f, FACET_INFO[f].label, raw[f], !state.ignore[f], () => setIgnore({ ...state.ignore, [f]: !state.ignore[f] }));
   tools.replaceChildren(
     btn('Pan (H)', I_hand, () => setTool('pan'), state.tool === 'pan'),
     btn('Magic pen (P)', I_pen, () => setTool(state.tool === 'draw' ? 'pan' : 'draw'), state.tool === 'draw'),
     sep(),
     btn('Code diff (C)', I_code, () => togglePanel('code'), state.panels.code),
     btn('Change list (L)', I_list, () => togglePanel('changes'), state.panels.changes),
-    sep(),
-    ...MODES.map((m) => btn(`${m.label} (${m.key})`, m.icon, () => setMode(m.id), state.mode === m.id)),
-    sep(),
-    filter('added', 'Added', raw.added, !state.hide.added, () => setHide('added')),
-    filter('removed', 'Removed', raw.removed, !state.hide.removed, () => setHide('removed')),
-    facet('content'),
-    facet('layout'),
-    facet('style'),
-    btn('Dim unchanged', FILTER_ICONS.dim, () => ((state.dim = !state.dim), renderStage()), state.dim),
   );
   tools.parentElement?.querySelector('.pen-opts')?.remove();
   if (state.tool === 'draw') tools.after(penOptions());
@@ -644,11 +672,6 @@ function attachResizer(pane: HTMLElement, side: 'left' | 'right', v: '--left-w' 
     grip.addEventListener('pointerup', up);
   });
   grip.addEventListener('dblclick', () => main.style.removeProperty(v));
-}
-
-function setMode(m: Mode): void {
-  state.mode = m;
-  renderStage();
 }
 
 function setIgnore(ignore: DiffIgnore): void {
@@ -761,8 +784,8 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'c') togglePanel('code');
   else if (e.key === 'l') togglePanel('changes');
   else if (e.key === '?') toggleHelp();
-  else if (state.mode === 'morph' && e.key === 'ArrowLeft') morphTo(state.morph - 1);
-  else if (state.mode === 'morph' && e.key === 'ArrowRight') morphTo(state.morph + 1);
+  else if (e.key === 'ArrowLeft') stepState(-1);
+  else if (e.key === 'ArrowRight') stepState(1);
   else if (e.key === 'j') step(1);
   else if (e.key === 'k') step(-1);
   else if (e.key === 'h') setTool('pan');

@@ -109,18 +109,32 @@
       box-shadow: var(--ds-shadow); pointer-events: none;
     }
     .vbar-wrap:has(.pen-opts) [data-tip]:hover::after { display: none; }
+    /* bottom panel: views, change filters, dim (the same bar style, horizontal) */
+    .dbar { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 4; display: flex; gap: 2px; align-items: center; padding: 3px; white-space: nowrap; }
+    .dbar button { position: relative; border: 0; background: transparent; padding: 4px 7px; border-radius: 5px; min-width: 28px; min-height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--ds-text); font-size: 13px; }
+    .dbar button:hover:not(:disabled) { background: var(--ds-float-2); }
+    .dbar button.on { background: var(--ds-accent-2); color: var(--ds-accent); }
+    .dbar button.view { padding: 4px 10px; }
+    .dbar button.view.on { font-weight: 600; }
+    .dbar button:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ds-accent); }
+    .dbar .sep { width: 1px; align-self: stretch; margin: 3px 4px; background: var(--ds-border); }
+    .dbar [data-tip]:hover::after {
+      content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translateX(-50%); z-index: 60;
+      width: max-content; max-width: 280px; white-space: normal; text-align: left; background: #1d2330; color: #fff; font-size: 12px; font-weight: 500; line-height: 1.4; padding: 5px 9px; border-radius: 6px;
+      box-shadow: var(--ds-shadow); pointer-events: none;
+    }
     /* change filters: coloured like their highlights; off = struck through */
-    .vbar .flt { color: var(--c); }
-    .vbar .flt.on { background: var(--c-bg); color: var(--c); }
-    .vbar .flt.off { color: var(--ds-faint); }
-    .vbar .flt.off::before { content: ''; position: absolute; left: 6px; right: 6px; top: 50%; height: 1.5px; background: var(--ds-faint); transform: rotate(-45deg); }
-    .vbar .flt-added { --c: var(--add); --c-bg: var(--add-bg); }
-    .vbar .flt-removed { --c: var(--del); --c-bg: var(--del-bg); }
-    .vbar .flt-content { --c: var(--content); --c-bg: var(--content-bg); }
-    .vbar .flt-layout { --c: var(--layout); --c-bg: var(--layout-bg); }
-    .vbar .flt-style { --c: var(--style); --c-bg: var(--style-bg); }
-    .vbar .cnt { position: absolute; right: -3px; bottom: -2px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; background: var(--c, var(--ds-muted)); color: #fff; font-size: 9px; font-weight: 700; line-height: 14px; text-align: center; }
-    .vbar .flt.off .cnt { background: var(--ds-faint); }
+    .dbar .flt { color: var(--c); }
+    .dbar .flt.on { background: var(--c-bg); color: var(--c); }
+    .dbar .flt.off { color: var(--ds-faint); }
+    .dbar .flt.off::before { content: ''; position: absolute; left: 6px; right: 6px; top: 50%; height: 1.5px; background: var(--ds-faint); transform: rotate(-45deg); }
+    .dbar .flt-added { --c: var(--add); --c-bg: var(--add-bg); }
+    .dbar .flt-removed { --c: var(--del); --c-bg: var(--del-bg); }
+    .dbar .flt-content { --c: var(--content); --c-bg: var(--content-bg); }
+    .dbar .flt-layout { --c: var(--layout); --c-bg: var(--layout-bg); }
+    .dbar .flt-style { --c: var(--style); --c-bg: var(--style-bg); }
+    .dbar .cnt { position: absolute; right: -3px; bottom: -2px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; background: var(--c, var(--ds-muted)); color: #fff; font-size: 9px; font-weight: 700; line-height: 14px; text-align: center; }
+    .dbar .flt.off .cnt { background: var(--ds-faint); }
     .vbar button:focus-visible, .pen-opts button:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ds-accent); }
     .ds-float { background: var(--ds-float); border: 1px solid var(--ds-float-line); border-radius: var(--ds-radius); box-shadow: var(--ds-shadow); }
     .ds-icon { display: block; flex-shrink: 0; }
@@ -165,7 +179,6 @@
     .zoombar button:last-child { border-right: 0; }
 
     /* morph */
-    .morph-bar { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; background: var(--surface); border-radius: 8px; box-shadow: 0 2px 8px #0002; z-index: 3; }
     .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; background: var(--surface-2); }
     .seg button { border: 0; background: none; padding: 5px 11px; border-right: 1px solid var(--border); }
     .seg button:last-child { border-right: 0; }
