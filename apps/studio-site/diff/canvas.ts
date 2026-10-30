@@ -1,6 +1,6 @@
 // Diagram canvases for the diff prototype: render a source to an SVG element, draw change highlights over it,
 // and pan / zoom one or more canvases together.
-import { serializeNode, standaloneSvg, type Rendered, type SceneNode } from '../../../src/core.js';
+import { standaloneSvg, type Rendered } from '../../../src/core.js';
 import type { GeometryIndex } from '../../../src/core/render/types.js';
 import type { ItemKind, Rect } from '../../../src/core/types.js';
 
@@ -60,32 +60,6 @@ export function shapeOf(geom: GeometryIndex, kind: ItemKind, id: string): ItemSh
 }
 
 export const centreOf = (s: ItemShape): { x: number; y: number } => (s.t === 'rect' ? { x: s.r.x + s.r.w / 2, y: s.r.y + s.r.h / 2 } : s.mid);
-
-/** Scene groups that draw one item (an item can have several parts, e.g. a connector and its label). */
-export function sceneOf(r: Rendered, kind: ItemKind, id: string): SceneNode[] {
-  const out: SceneNode[] = [];
-  const walk = (ns: readonly SceneNode[]) => {
-    for (const n of ns) {
-      if (n.t === 'g' && n.item?.kind === kind && n.item.id === id) out.push(n);
-      else if (n.t === 'g' || n.t === 'a') walk(n.children);
-    }
-  };
-  walk(r.result.body);
-  return out;
-}
-
-/** Copies the given scene nodes (from another render) into `svg` as a ghost layer, with any markers they need. */
-export function addGhost(svg: SVGSVGElement, from: Rendered, nodes: SceneNode[], parent: SVGGElement): void {
-  if (!nodes.length) return;
-  const markup = `<svg xmlns="${SVG_NS}"><g>${nodes.map(serializeNode).join('')}</g></svg>`;
-  const g = new DOMParser().parseFromString(markup, 'image/svg+xml').documentElement.firstElementChild;
-  if (g) parent.append(document.importNode(g, true));
-  // the other render's markers (same id prefix: one context renders both versions)
-  const defs = svg.querySelector('defs');
-  const ids = new Set([...svg.querySelectorAll('defs [id]')].map((e) => e.id));
-  const fromDefs = new DOMParser().parseFromString(standaloneSvg(from), 'image/svg+xml').querySelector('defs');
-  for (const d of fromDefs ? [...fromDefs.children] : []) if (!ids.has(d.id)) defs?.append(document.importNode(d, true));
-}
 
 export interface Highlight {
   key: string;

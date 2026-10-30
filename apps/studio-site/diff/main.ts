@@ -9,7 +9,7 @@ import {
 } from '../../../src/core/diff/index.js';
 import { createCanvasMeasurer } from '../../../src/dom/measure.js';
 import {
-  addGhost, centreOf, dimOthers, drawHighlights, drawMoves, sceneOf, shapeOf, SharedView, svgEl, toSvgElement, union,
+  centreOf, dimOthers, drawHighlights, drawMoves, shapeOf, SharedView, svgEl, toSvgElement, union,
   type Highlight, type ItemShape, type Mark,
 } from './canvas.js';
 import { decorateText, highlightRuns, withLayout } from './decorate.js';
@@ -17,7 +17,7 @@ import { buildMerged, REMOVED, type Merged } from './merge.js';
 import { Morph, STATE_NAMES } from './morph.js';
 import { Ink, INK_COLORS, INK_FADES, INK_SIZES } from './ink.js';
 import { hunks, lineDiff } from './textdiff.js';
-import { I_hand, I_pen } from '../../../src/ui/icons.js';
+import { I_code, I_hand, I_list, I_palette, I_pen } from '../../../src/ui/icons.js';
 import { icon } from '../../../src/ui/h.js';
 import type { ItemKind } from '../../../src/core/types.js';
 
@@ -36,7 +36,7 @@ const SAMPLES: { id: string; group: string; title: string; note: string }[] = [
   { id: 'flow-few', group: 'Flowchart', title: 'Few changes', note: 'A new service, one relabel, one move and an edge preset.' },
   { id: 'architecture', group: 'Flowchart', title: 'Medium: architecture change', note: 'Added and removed services, a renamed node, relabels, moves and restyles mixed together.' },
   { id: 'flow-many', group: 'Flowchart', title: 'Many changes (60+)', note: 'A large refactor of the microservice pattern map: relabels, new and deleted nodes and edges, moves and restyles.' },
-  { id: 'restyle', group: 'Flowchart', title: 'Restyle with one hidden edit', note: 'Theme switch and class changes everywhere — switch Style off in the legend to find the one real edit.' },
+  { id: 'restyle', group: 'Flowchart', title: 'Restyle with one hidden edit', note: 'Theme switch and class changes everywhere — switch the Style filter off in the left panel to find the one real edit.' },
   { id: 'small', group: 'Flowchart', title: 'Pure Mermaid, auto layout', note: 'No layout metadata: new nodes make the auto layout move things around.' },
   { id: 'sequence', group: 'Sequence', title: 'Few changes', note: 'One inserted and one removed message shift every message id; the text diff of the metadata is all noise.' },
   { id: 'seq-medium', group: 'Sequence', title: 'Medium', note: 'Edited, inserted and removed messages, new notes, a renamed and restyled participant.' },
@@ -46,15 +46,11 @@ const SAMPLES: { id: string; group: string; title: string; note: string }[] = [
   { id: 'er-many', group: 'ER', title: 'Many changes (50+)', note: 'A big schema migration across the 60-table archive database.' },
 ];
 
-type Mode = 'side' | 'overlay' | 'swipe' | 'onion' | 'morph' | 'code';
+type Mode = 'side' | 'morph';
 
-const MODES: { id: Mode; label: string; key: string; help: string }[] = [
-  { id: 'side', label: 'Side by side', key: '1', help: 'Before and after next to each other, panned and zoomed together. Removed items are marked on the left, added on the right, changed on both.' },
-  { id: 'overlay', label: 'Overlay', key: '2', help: 'One merged picture: the new version with removed items kept in place, text changes marked word by word (removed struck out, added highlighted) and moved items shown with an arrow from their old place.' },
-  { id: 'swipe', label: 'Swipe', key: '3', help: 'Both versions on top of each other; drag the divider to wipe between them. Best for spotting visual and style changes.' },
-  { id: 'onion', label: 'Onion skin', key: '4', help: 'Both versions blended; the slider fades from before to after. Small shifts and resizes stand out.' },
-  { id: 'morph', label: 'Morph', key: '5', help: 'Step through Before → Merged → After (← / →, Space plays): moved items glide to their new place, colours blend and changed text flips.' },
-  { id: 'code', label: 'Code', key: '6', help: 'The Mermaid text diff, without the facets you ignore: style lines and %%@ metadata can be left out so only meaningful lines remain.' },
+const MODES: { id: Mode; label: string; key: string; icon: string; help: string }[] = [
+  { id: 'side', label: 'Side by side', key: '1', icon: 'M3 5h7v14H3zM14 5h7v14h-7z', help: 'Before and after next to each other, panned and zoomed together. Removed items are marked on the left, added on the right, changed on both.' },
+  { id: 'morph', label: 'Morph', key: '2', icon: 'M4 7h8v10H4zM15 9l3 3-3 3M12 12h6', help: 'One canvas stepping Before → Merged → After. Merged keeps removed items in place and marks text changes word by word; moved items glide, colours blend and changed text flips between states.' },
 ];
 
 const FACET_INFO: Record<ChangeFacet, { label: string; help: string }> = {
@@ -68,11 +64,13 @@ const state = {
   before: sample('architecture', 'before'),
   after: sample('architecture', 'after'),
   mode: 'side' as Mode,
+  /** Editor-like side panels: code diff (left) and the change list (right). */
+  panels: { code: false, changes: true },
   ignore: {} as DiffIgnore,
-  /** Added / removed items switched off in the legend. */
+  /** Added / removed items switched off in the left panel filters. */
   hide: {} as { added?: boolean; removed?: boolean },
   dim: true,
-  showMeta: false,
+  codeTab: 'code' as 'code' | 'meta',
   filter: 'all' as 'all' | 'added' | 'removed' | 'changed',
   selected: null as string | null,
   open: new Set<string>(),
@@ -247,11 +245,6 @@ function renderStage(): void {
   const stage = $('#stage');
   stage.replaceChildren();
   stage.className = `stage mode-${state.mode} tool-${state.tool}`;
-  if (state.mode === 'code') {
-    renderCode(stage);
-    stage.append(legend());
-    return;
-  }
 
   const bounds = union(D.rb.result.bounds, D.ra.result.bounds);
   view = new SharedView(bounds);
@@ -259,44 +252,19 @@ function renderStage(): void {
   const pane = (title: string, sub: string, cls: string) =>
     h('div', { class: `pane ${cls}` }, h('div', { class: 'pane-title no-pan' }, h('b', {}, title), h('span', {}, sub)));
 
-  if (state.mode === 'side') {
-    const pb = pane('Before', 'target branch', 'before'), pa = pane('After', 'merge request', 'after');
-    stage.append(pb, pa);
-    svgs.before = mount(pb, D.rb, 'before');
-    svgs.after = mount(pa, D.ra, 'after');
-  } else if (state.mode === 'overlay' && D.rm) {
-    const p = pane('Merged', 'after + removed items, text changes word by word, old positions', 'single');
-    stage.append(p);
-    const svg = mergedSvg();
-    p.append(svg);
-    svg.addEventListener('click', (e) => clickSelect(e, 'merged'));
-    svgs.after = svg;
-    requestAnimationFrame(() => highlightRuns(svg));
-  } else if (state.mode === 'overlay') {
-    const p = pane('After', 'with removed items and old positions', 'single');
-    stage.append(p);
-    svgs.after = mount(p, D.ra, 'after');
-    overlayExtras(svgs.after);
-  } else if (state.mode === 'morph' && D.rm) {
+  if (state.mode === 'morph' && D.rm) {
     const p = h('div', { class: 'pane stack' });
     stage.append(p);
     morphStage(p, view);
   } else {
-    const p = h('div', { class: 'pane stack' });
-    stage.append(p);
-    const lb = h('div', { class: 'layer layer-before' }), la = h('div', { class: 'layer layer-after' });
-    p.append(lb, la, h('div', { class: 'pane-title no-pan' }, h('b', {}, 'Before'), h('span', { class: 'grow' }), h('b', {}, 'After')));
-    svgs.before = mount(lb, D.rb, 'before');
-    svgs.after = mount(la, D.ra, 'after');
-    view.attach(svgs.before, p);
-    view.attach(svgs.after, p);
-    if (state.mode === 'swipe') swipeControl(p, la);
-    else onionControl(p, la);
-  }
-  if (state.mode === 'side' || state.mode === 'overlay' || (state.mode === 'morph' && !D.rm))
+    const pb = pane('Before', 'target branch', 'before'), pa = pane('After', 'merge request', 'after');
+    stage.append(pb, pa);
+    svgs.before = mount(pb, D.rb, 'before');
+    svgs.after = mount(pa, D.ra, 'after');
     for (const s of Object.values(svgs)) view.attach(s, s.parentElement!);
-  stage.append(toolPanel(), zoomBar(), legend());
-  for (const svg of stage.querySelectorAll<SVGSVGElement>('.pane svg, .layer svg')) ink.attach(svg);
+  }
+  stage.append(toolPanel());
+  for (const svg of stage.querySelectorAll<SVGSVGElement>('.pane svg')) ink.attach(svg);
   requestAnimationFrame(() => {
     view?.fit();
     applySelection(false);
@@ -396,58 +364,6 @@ function togglePlay(): void {
   morphSync?.();
 }
 
-/** Overlay: ghosts of removed items from the old version, and old → new arrows for moved items. */
-function overlayExtras(svg: SVGSVGElement): void {
-  const layer = svg.querySelector<SVGGElement>('g.dx-layer')!;
-  const ghosts = svgEl('g', { class: 'dx-ghosts' });
-  layer.before(ghosts);
-  const moves: { key: string; from: ItemShape; to: ItemShape }[] = [];
-  const hs: Highlight[] = [];
-  for (const c of D.changes) {
-    if (c.status === 'removed') {
-      addGhost(svg, D.rb, sceneOf(D.rb, c.kind, c.beforeId ?? c.id), ghosts);
-      const s = shapeOf(D.rb.result.geom, c.kind, c.beforeId ?? c.id);
-      if (s) hs.push({ key: keyOf(c), shape: s, mark: 'removed', badge: '−', dashed: true });
-    } else if (c.status === 'changed' && c.fields.some((f) => f.field === 'position')) {
-      const from = shapeOf(D.rb.result.geom, c.kind, c.beforeId ?? c.id), to = shapeOf(D.ra.result.geom, c.kind, c.id);
-      if (from && to && from.t === 'rect' && to.t === 'rect') moves.push({ key: keyOf(c), from, to });
-    }
-  }
-  const all = drawHighlights(svg, [...highlightsFor('after'), ...hs]);
-  drawMoves(all, moves);
-}
-
-function swipeControl(p: HTMLElement, la: HTMLElement): void {
-  const handle = h('div', { class: 'swipe-handle no-pan', title: 'Drag to compare' }, h('span', {}, '⟷'));
-  p.append(handle);
-  const set = (pct: number) => {
-    state.swipe = Math.min(100, Math.max(0, pct));
-    la.style.clipPath = `inset(0 0 0 ${state.swipe}%)`;
-    handle.style.left = `${state.swipe}%`;
-  };
-  set(state.swipe);
-  handle.addEventListener('pointerdown', (e) => {
-    handle.setPointerCapture(e.pointerId);
-    const move = (ev: PointerEvent) => {
-      const r = p.getBoundingClientRect();
-      set(((ev.clientX - r.left) / r.width) * 100);
-    };
-    handle.addEventListener('pointermove', move);
-    handle.addEventListener('pointerup', () => handle.removeEventListener('pointermove', move), { once: true });
-  });
-}
-
-function onionControl(p: HTMLElement, la: HTMLElement): void {
-  const input = h('input', { type: 'range', min: 0, max: 100, value: String(state.onion), 'aria-label': 'Blend before and after' });
-  const set = () => {
-    state.onion = Number(input.value);
-    la.style.opacity = String(state.onion / 100);
-  };
-  input.addEventListener('input', set);
-  set();
-  p.append(h('div', { class: 'onion no-pan' }, h('span', {}, 'Before'), input, h('span', {}, 'After')));
-}
-
 function zoomBar(): HTMLElement {
   const b = (label: string, title: string, fn: () => void) => h('button', { title, onclick: fn }, label);
   return h(
@@ -456,27 +372,56 @@ function zoomBar(): HTMLElement {
     b('−', 'Zoom out', () => view?.zoom(1 / 1.25)),
     b('+', 'Zoom in', () => view?.zoom(1.25)),
     b('Fit', 'Fit (F)', () => view?.fit()),
+    h('button', { class: 'help-btn', title: 'Help (?)', 'aria-haspopup': 'dialog', 'aria-expanded': 'false', onclick: () => toggleHelp() }, '?'),
   );
 }
 
-/** The legend doubles as the filter: each entry switches its kind of change on or off. */
-function legend(): HTMLElement {
-  const raw = D.raw.counts;
-  const item = (m: Mark, text: string, n: number, on: boolean, help: string, toggle: () => void) =>
-    h('button', { class: `lg lg-${m}${on ? '' : ' off'}`, 'aria-pressed': String(on), title: `${help} — click to ${on ? 'hide' : 'show'}`, onclick: toggle }, h('i', {}), text, h('b', {}, String(n)));
-  const facet = (f: ChangeFacet, letter: string) =>
-    item(f, `${FACET_INFO[f].label} (${letter})`, raw[f], !state.ignore[f], FACET_INFO[f].help + (f === 'style' ? '. Off: both versions are drawn unstyled' : f === 'layout' ? '. Off: the old version is drawn on the new layout' : ''), () => setIgnore({ ...state.ignore, [f]: !state.ignore[f] }));
-  return h(
-    'div',
-    { class: 'legend no-pan', role: 'group', 'aria-label': 'Show changes' },
-    item('added', 'Added', raw.added, !state.hide.added, 'Items only in the new version', () => setHide('added')),
-    item('removed', 'Removed', raw.removed, !state.hide.removed, 'Items only in the old version', () => setHide('removed')),
-    facet('content', 'C'),
-    facet('layout', 'L'),
-    facet('style', 'S'),
-    h('span', { class: 'lg-sep' }),
-    h('button', { class: `lg lg-dim${state.dim ? '' : ' off'}`, 'aria-pressed': String(state.dim), title: 'Fade everything that did not change', onclick: () => ((state.dim = !state.dim), renderStage()) }, 'Dim unchanged'),
+// ---- help (the editor's help popup: every hint and shortcut in one place) ----------------------------------------
+
+let helpEl: HTMLElement | null = null;
+
+function toggleHelp(force?: boolean): void {
+  const open = force ?? !helpEl;
+  helpEl?.remove();
+  helpEl = null;
+  $('.zoombar .help-btn').setAttribute('aria-expanded', String(open));
+  if (!open) return;
+  const row = (keys: string[], label: string) =>
+    h('div', { class: 'help-row' }, h('span', { class: 'help-keys' }, ...keys.flatMap((k, i) => [i ? ' · ' : '', /\s/.test(k) && k.length > 3 ? h('span', { class: 'help-gesture' }, k) : h('kbd', {}, k)])), h('span', {}, label));
+  const section = (title: string, rows: HTMLElement[]) => [h('div', { class: 'help-title', role: 'heading', 'aria-level': '3' }, title), ...rows];
+  const close = h('button', { title: 'Close (Esc)', 'aria-label': 'Close', onclick: () => toggleHelp(false) }, '×');
+  helpEl = h('div', { class: 'help-pop ds-pop', role: 'dialog', 'aria-label': 'Help' },
+    h('div', { class: 'help-head' }, h('b', {}, 'Diagram diff — help'), close),
+    h('div', { class: 'help-body' },
+      ...section('Views', MODES.map((m) => row([m.key], `${m.label}: ${m.help}`))),
+      ...section('Morph', [
+        row(['←', '→'], 'Step between Before, Merged and After'),
+        row(['Space'], 'Play / pause the transitions'),
+      ]),
+      ...section('Change filters (left panel)', [
+        row(['Added'], 'Items only in the new version (green, +)'),
+        row(['Removed'], 'Items only in the old version (red, dashed, −)'),
+        row(['Content'], `${FACET_INFO.content.help} (amber, C)`),
+        row(['Layout'], `${FACET_INFO.layout.help} (blue, L). Off: the old version is drawn on the new layout`),
+        row(['Style'], `${FACET_INFO.style.help} (purple, S). Off: both versions are drawn unstyled`),
+        row(['Dim'], 'Fade everything that did not change'),
+      ]),
+      ...section('Panels', [
+        row(['C'], 'Code diff (left): Mermaid code and %%@ metadata, without the facets you switched off'),
+        row(['L'], 'Change list (right): every change with its before → after values; click one to zoom to it'),
+        row(['J', 'K'], 'Next / previous change'),
+        row(['Esc'], 'Clear the selection, stop drawing, close this help'),
+      ]),
+      ...section('Canvas', [
+        row(['H'], 'Pan: drag to move, wheel or ⌘ wheel to zoom, click a change to select it'),
+        row(['P'], 'Magic pen: mark up the diagram; strokes show in every view'),
+        row(['⌘Z'], 'Undo the last stroke'),
+        row(['F'], 'Fit the diagram'),
+        row(['?'], 'This help'),
+      ]),
+    ),
   );
+  $('#main').append(helpEl);
 }
 
 function setHide(k: 'added' | 'removed'): void {
@@ -484,21 +429,20 @@ function setHide(k: 'added' | 'removed'): void {
   refresh();
 }
 
-// ---- code view --------------------------------------------------------------------------------------------------
+// ---- code panel (left, like the editor's code panel) --------------------------------------------------------------
 
-function renderCode(stage: HTMLElement): void {
-  const normalize = (s: string) => {
-    const { doc } = splitSource(s);
-    return state.showMeta ? joinSource(doc) : doc.code + '\n';
+function renderCodePane(): void {
+  const body = $('#code-body');
+  for (const t of document.querySelectorAll<HTMLElement>('#code-pane [role=tab]')) t.setAttribute('aria-selected', String(t.dataset['tab'] === state.codeTab));
+  if (!state.panels.code) return;
+  const part = (src: string) => {
+    const { doc } = splitSource(src);
+    return state.codeTab === 'code' ? doc.code : joinSource({ code: '', meta: doc.meta }).replace(/^\s+/, '');
   };
-  const transformed = state.ignore.style || D.layoutAligned;
-  const a = (state.showMeta && !transformed ? state.before : normalize(D.srcBefore)).replace(/\n$/, '').split('\n');
-  const b = (state.showMeta && !transformed ? state.after : normalize(D.srcAfter)).replace(/\n$/, '').split('\n');
+  const a = part(D.srcBefore).replace(/\n$/, '').split('\n');
+  const b = part(D.srcAfter).replace(/\n$/, '').split('\n');
   const ops = lineDiff(a, b);
   const adds = ops.filter((o) => o.op === 'add').length, dels = ops.filter((o) => o.op === 'del').length;
-  const rawOps = lineDiff(state.before.split('\n'), state.after.split('\n'));
-  const rawCount = rawOps.filter((o) => o.op !== 'same').length;
-
   const table = h('table', { class: 'code' });
   const row = (o: { op: string; text: string; a?: number; b?: number }) =>
     h('tr', { class: `ln-${o.op}` }, h('td', { class: 'num' }, o.a ? String(o.a) : ''), h('td', { class: 'num' }, o.b ? String(o.b) : ''), h('td', { class: 'sign' }, o.op === 'add' ? '+' : o.op === 'del' ? '−' : ''), h('td', { class: 'txt' }, o.text || ' '));
@@ -510,25 +454,12 @@ function renderCode(stage: HTMLElement): void {
     } else for (const o of hk.ops) table.append(row(o));
   }
   const notes: string[] = [];
-  if (state.ignore.style) notes.push('style lines, classes and style metadata removed');
-  if (D.layoutAligned) notes.push('layout metadata of the old version replaced by the new layout');
-  if (!state.showMeta) notes.push('%%@ metadata lines hidden');
-  stage.append(
-    h(
-      'div',
-      { class: 'code-wrap' },
-      h(
-        'div',
-        { class: 'code-head' },
-        h('span', { class: 'stat add' }, `+${adds}`),
-        h('span', { class: 'stat del' }, `−${dels}`),
-        h('span', { class: 'muted' }, `lines · plain git diff: ${rawCount} changed lines`),
-        h('span', { class: 'grow' }),
-        h('label', {}, h('input', { type: 'checkbox', checked: state.showMeta, onchange: (e: Event) => ((state.showMeta = (e.target as HTMLInputElement).checked), renderStage()) }), ' Show %%@ metadata'),
-      ),
-      notes.length ? h('div', { class: 'code-note' }, `Normalized: ${notes.join('; ')}.`) : null,
-      ops.length && adds + dels === 0 ? h('div', { class: 'empty' }, 'No differences left with the current filters.') : table,
-    ),
+  if (state.ignore.style) notes.push('style removed');
+  if (D.layoutAligned) notes.push('old layout replaced by the new one');
+  body.replaceChildren(
+    h('div', { class: 'code-head' }, h('span', { class: 'stat add' }, `+${adds}`), h('span', { class: 'stat del' }, `−${dels}`), h('span', { class: 'muted' }, 'lines'),
+      notes.length ? h('span', { class: 'code-note', title: 'Switched-off facets are left out of the diff' }, notes.join(' · ')) : null),
+    adds + dels === 0 ? h('div', { class: 'empty' }, 'No differences with the current filters.') : h('div', { class: 'code-scroll' }, table),
   );
 }
 
@@ -604,7 +535,6 @@ function renderPanel(): void {
     ),
     ...(docChanges.length ? [h('details', { class: 'doc-changes', open: true }, h('summary', {}, `Diagram-wide (${docChanges.length})`), ...docChanges.map(fieldRow))] : []),
     shown.length ? list : h('div', { class: 'empty' }, D.changes.length ? 'Nothing in this filter.' : 'No changes with the current filters.'),
-    h('div', { class: 'kbd-hint' }, h('kbd', {}, 'J'), ' / ', h('kbd', {}, 'K'), ' next / previous change · ', h('kbd', {}, '1'), '–', h('kbd', {}, '6'), ' views · ', h('kbd', {}, 'H'), ' pan · ', h('kbd', {}, 'P'), ' pen · ', h('kbd', {}, 'F'), ' fit'),
   );
 }
 
@@ -639,21 +569,19 @@ function step(d: 1 | -1): void {
   select(keyOf(next), true);
 }
 
-// ---- toolbar ----------------------------------------------------------------------------------------------------
-
-function renderToolbar(): void {
-  const modes = h(
-    'div',
-    { class: 'seg', role: 'tablist', 'aria-label': 'View' },
-    ...MODES.map((m) => h('button', { role: 'tab', 'aria-selected': String(state.mode === m.id), class: state.mode === m.id ? 'on' : '', title: `${m.help} (${m.key})`, onclick: () => setMode(m.id) }, m.label)),
-  );
-  $('#toolbar').replaceChildren(modes);
-  $('#mode-help').textContent = MODES.find((m) => m.id === state.mode)!.help + (state.ignore.style ? ' Both versions are drawn without styling.' : '') + (D.layoutAligned ? ' The old version is drawn on the new layout.' : '');
-}
-
-// ---- tool panel: pan and magic pen, in the viewer's bar style ----------------------------------------------------
+// ---- left panel: tools, panels, diff mode and change filters, in the viewer's bar style ---------------------------
 
 let tools: HTMLElement | null = null;
+
+/** Icons of the change filters (the colour of each is its highlight colour). */
+const FILTER_ICONS: Record<Mark | 'dim', string> = {
+  added: 'M5 5h14v14H5zM12 8.5v7M8.5 12h7',
+  removed: 'M5 5h14v14H5zM8.5 12h7',
+  content: 'M5 6h14M12 6v13M9 19h6',
+  layout: 'M12 4v16M4 12h16M9.5 6.5L12 4l2.5 2.5M9.5 17.5L12 20l2.5-2.5M6.5 9.5L4 12l2.5 2.5M17.5 9.5L20 12l-2.5 2.5',
+  style: I_palette,
+  dim: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 3v18M12 7h6M12 11h8.5M12 15h7.5',
+};
 
 function setTool(t: 'pan' | 'draw'): void {
   state.tool = t;
@@ -664,18 +592,36 @@ function setTool(t: 'pan' | 'draw'): void {
 }
 
 function toolPanel(): HTMLElement {
-  tools = h('div', { class: 'vbar ds-float no-pan', role: 'toolbar', 'aria-label': 'View tools', 'aria-orientation': 'vertical' });
+  tools = h('div', { class: 'vbar ds-float no-pan', role: 'toolbar', 'aria-label': 'Diff tools', 'aria-orientation': 'vertical' });
   renderTools();
   return h('div', { class: 'vbar-wrap no-pan' }, tools);
 }
 
 function renderTools(): void {
   if (!tools) return;
-  const btn = (label: string, ic: string, onclick: () => void, extra: Record<string, unknown> = {}) =>
-    h('button', { type: 'button', title: label, 'aria-label': label, onclick, ...extra }, icon(ic));
+  /** Icon button with a hover tooltip (`data-tip`). */
+  const btn = (tip: string, ic: string, onclick: () => void, on: boolean | null, extra: Record<string, unknown> = {}, ...more: Child[]) =>
+    h('button', { type: 'button', 'data-tip': tip, 'aria-label': tip, onclick, ...(on === null ? {} : { class: on ? 'on' : '', 'aria-pressed': String(on) }), ...extra }, icon(ic), ...more);
+  const sep = () => h('span', { class: 'sep' });
+  const raw = D.raw.counts;
+  const filter = (m: Mark, label: string, n: number, on: boolean, toggle: () => void) =>
+    btn(`${label} · ${n} — click to ${on ? 'hide' : 'show'}`, FILTER_ICONS[m], toggle, null, { class: `flt flt-${m}${on ? ' on' : ' off'}`, 'aria-pressed': String(on) }, n ? h('span', { class: 'cnt' }, String(n)) : null);
+  const facet = (f: ChangeFacet) => filter(f, FACET_INFO[f].label, raw[f], !state.ignore[f], () => setIgnore({ ...state.ignore, [f]: !state.ignore[f] }));
   tools.replaceChildren(
-    btn('Pan (H)', I_hand, () => setTool('pan'), { class: state.tool === 'pan' ? 'on' : '', 'aria-pressed': String(state.tool === 'pan') }),
-    btn('Magic pen (P)', I_pen, () => setTool(state.tool === 'draw' ? 'pan' : 'draw'), { class: state.tool === 'draw' ? 'on' : '', 'aria-pressed': String(state.tool === 'draw') }),
+    btn('Pan (H)', I_hand, () => setTool('pan'), state.tool === 'pan'),
+    btn('Magic pen (P)', I_pen, () => setTool(state.tool === 'draw' ? 'pan' : 'draw'), state.tool === 'draw'),
+    sep(),
+    btn('Code diff (C)', I_code, () => togglePanel('code'), state.panels.code),
+    btn('Change list (L)', I_list, () => togglePanel('changes'), state.panels.changes),
+    sep(),
+    ...MODES.map((m) => btn(`${m.label} (${m.key})`, m.icon, () => setMode(m.id), state.mode === m.id)),
+    sep(),
+    filter('added', 'Added', raw.added, !state.hide.added, () => setHide('added')),
+    filter('removed', 'Removed', raw.removed, !state.hide.removed, () => setHide('removed')),
+    facet('content'),
+    facet('layout'),
+    facet('style'),
+    btn('Dim unchanged', FILTER_ICONS.dim, () => ((state.dim = !state.dim), renderStage()), state.dim),
   );
   tools.parentElement?.querySelector('.pen-opts')?.remove();
   if (state.tool === 'draw') tools.after(penOptions());
@@ -692,9 +638,50 @@ function penOptions(): HTMLElement {
   );
 }
 
+// ---- side panels (the editor's floating panes: slide in / out, resize by the inner edge) --------------------------
+
+function applyPanels(): void {
+  const main = $('#main');
+  main.classList.toggle('no-code', !state.panels.code);
+  main.classList.toggle('no-changes', !state.panels.changes);
+}
+
+function togglePanel(name: 'code' | 'changes', open = !state.panels[name]): void {
+  state.panels = { ...state.panels, [name]: open };
+  applyPanels();
+  if (name === 'code') renderCodePane();
+  renderTools();
+}
+
+function attachResizer(pane: HTMLElement, side: 'left' | 'right', v: '--left-w' | '--right-w', [lo, hi]: [number, number]): void {
+  const grip = h('div', { class: 'pane-resizer', title: 'Drag to resize · double-click to reset', role: 'separator', 'aria-orientation': 'vertical' });
+  pane.append(grip);
+  const main = $('#main');
+  grip.addEventListener('pointerdown', (ev) => {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+    grip.setPointerCapture(ev.pointerId);
+    const x0 = ev.clientX, w0 = pane.getBoundingClientRect().width;
+    grip.classList.add('dragging');
+    main.classList.add('resizing-panes');
+    const move = (e: PointerEvent) => {
+      const w = side === 'left' ? w0 + (e.clientX - x0) : w0 - (e.clientX - x0);
+      main.style.setProperty(v, `${Math.round(Math.max(lo, Math.min(hi, w)))}px`);
+    };
+    const up = () => {
+      grip.classList.remove('dragging');
+      main.classList.remove('resizing-panes');
+      grip.removeEventListener('pointermove', move);
+      grip.removeEventListener('pointerup', up);
+    };
+    grip.addEventListener('pointermove', move);
+    grip.addEventListener('pointerup', up);
+  });
+  grip.addEventListener('dblclick', () => main.style.removeProperty(v));
+}
+
 function setMode(m: Mode): void {
   state.mode = m;
-  renderToolbar();
   renderStage();
 }
 
@@ -706,8 +693,8 @@ function setIgnore(ignore: DiffIgnore): void {
 function refresh(): void {
   D = derive();
   if (state.selected && !D.changes.some((c) => keyOf(c) === state.selected)) state.selected = null;
-  renderToolbar();
   renderPanel();
+  renderCodePane();
   renderStage();
 }
 
@@ -762,6 +749,28 @@ function pasteDialog(): void {
 
 // ---- boot -------------------------------------------------------------------------------------------------------
 
+// the editor's floating panels and the zoom bar live outside the stage, which is re-rendered
+{
+  const main = $('#main');
+  const tab = (id: 'code' | 'meta', label: string) =>
+    h('button', { role: 'tab', 'data-tab': id, 'aria-selected': String(state.codeTab === id), onclick: () => ((state.codeTab = id), renderCodePane()) }, label);
+  const codePane = h('section', { id: 'code-pane', class: 'pane-side left', 'aria-label': 'Code diff' },
+    h('div', { class: 'tabs', role: 'tablist' }, tab('code', 'Code'), tab('meta', 'Metadata'), h('span', { class: 'tabs-spacer' }),
+      h('button', { class: 'collapse-btn', title: 'Hide the code diff (C)', 'aria-label': 'Hide the code diff', onclick: () => togglePanel('code', false) }, '‹')),
+    h('div', { id: 'code-body', class: 'tab-body' }));
+  const changesPane = h('aside', { id: 'changes-pane', class: 'pane-side right', 'aria-label': 'Changes' },
+    h('div', { class: 'rp-head' }, h('b', { role: 'heading', 'aria-level': '2' }, 'Changes'),
+      h('button', { class: 'collapse-btn', title: 'Hide the change list (L)', 'aria-label': 'Hide the change list', onclick: () => togglePanel('changes', false) }, '×')),
+    h('div', { id: 'panel', class: 'rp-body' }));
+  main.append(codePane, changesPane, zoomBar());
+  attachResizer(codePane, 'left', '--left-w', [280, 900]);
+  attachResizer(changesPane, 'right', '--right-w', [260, 640]);
+  applyPanels();
+  document.addEventListener('pointerdown', (e) => {
+    if (helpEl && !(e.target as Element).closest('.help-pop, .help-btn')) toggleHelp(false);
+  });
+}
+
 const sel = $('#sample') as HTMLSelectElement;
 for (const group of new Set(SAMPLES.map((x) => x.group))) {
   const og = document.createElement('optgroup');
@@ -783,6 +792,9 @@ document.addEventListener('keydown', (e) => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const m = MODES.find((x) => x.key === e.key);
   if (m) setMode(m.id);
+  else if (e.key === 'c') togglePanel('code');
+  else if (e.key === 'l') togglePanel('changes');
+  else if (e.key === '?') toggleHelp();
   else if (state.mode === 'morph' && e.key === 'ArrowLeft') morphTo(state.morph - 1);
   else if (state.mode === 'morph' && e.key === 'ArrowRight') morphTo(state.morph + 1);
   else if (state.mode === 'morph' && e.key === ' ') togglePlay();
@@ -791,7 +803,7 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'h') setTool('pan');
   else if (e.key === 'p') setTool(state.tool === 'draw' ? 'pan' : 'draw');
   else if (e.key === 'f') view?.fit();
-  else if (e.key === 'Escape') (state.tool === 'draw' ? setTool('pan') : select(null, false));
+  else if (e.key === 'Escape') (helpEl ? toggleHelp(false) : state.tool === 'draw' ? setTool('pan') : select(null, false));
   else return;
   e.preventDefault();
 });
