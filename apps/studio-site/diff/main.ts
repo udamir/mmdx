@@ -15,7 +15,9 @@ import {
 import { decorateText, highlightRuns, withLayout } from './decorate.js';
 import { buildMerged, REMOVED, type Merged } from './merge.js';
 import { Morph, STATE_NAMES } from './morph.js';
+import { Ink, INK_COLORS, INK_SIZES } from './ink.js';
 import { hunks, lineDiff } from './textdiff.js';
+import { I_hand, I_pen, I_trash, I_undo } from '../../../src/ui/icons.js';
 import type { ItemKind } from '../../../src/core/types.js';
 
 // ---- setup ------------------------------------------------------------------------------------------------------
@@ -77,7 +79,18 @@ const state = {
   onion: 50,
   morph: 1,
   playing: false,
+  /** Left bar tool: drag pans the canvas, or draws review ink. */
+  tool: 'pan' as 'pan' | 'draw',
+  inkColor: INK_COLORS[0] as string,
+  inkSize: INK_SIZES[1] as number,
 };
+
+const ink = new Ink([], {
+  active: () => state.tool === 'draw',
+  color: () => state.inkColor,
+  size: () => state.inkSize,
+  onChange: () => renderTools(),
+});
 
 // ---- tiny DOM helper --------------------------------------------------------------------------------------------
 
@@ -226,9 +239,11 @@ function renderStage(): void {
   view?.dispose();
   view = null;
   svgs = {};
+  ink.reset();
   const stage = $('#stage');
   stage.replaceChildren();
-  stage.className = `stage mode-${state.mode}`;
+  stage.className = `stage mode-${state.mode} tool-${state.tool}`;
+  renderTools();
   if (state.mode === 'code') {
     renderCode(stage);
     stage.append(legend());
@@ -237,6 +252,7 @@ function renderStage(): void {
 
   const bounds = union(D.rb.result.bounds, D.ra.result.bounds);
   view = new SharedView(bounds);
+  view.blockPan = () => state.tool === 'draw';
   const pane = (title: string, sub: string, cls: string) =>
     h('div', { class: `pane ${cls}` }, h('div', { class: 'pane-title no-pan' }, h('b', {}, title), h('span', {}, sub)));
 
@@ -277,6 +293,7 @@ function renderStage(): void {
   if (state.mode === 'side' || state.mode === 'overlay' || (state.mode === 'morph' && !D.rm))
     for (const s of Object.values(svgs)) view.attach(s, s.parentElement!);
   stage.append(zoomBar(), legend());
+  for (const svg of stage.querySelectorAll<SVGSVGElement>('.pane svg, .layer svg')) ink.attach(svg);
   requestAnimationFrame(() => {
     view?.fit();
     applySelection(false);
@@ -293,6 +310,7 @@ function mount(host: HTMLElement, r: Rendered, side: 'before' | 'after'): SVGSVG
 }
 
 function clickSelect(e: MouseEvent, side: 'before' | 'after' | 'merged'): void {
+  if (state.tool === 'draw') return;
   const t = e.target as Element;
   const hl = t.closest<SVGGElement>('[data-key]');
   let key = hl?.dataset['key'] ?? null;
@@ -355,6 +373,7 @@ function morphTo(i: number): void {
   if (!morph || i < 0 || i > 2) return;
   state.morph = i;
   morph.go(i);
+  ink.paint(morph.svg);
   morphSync?.();
   applySelection(false);
 }
@@ -582,7 +601,7 @@ function renderPanel(): void {
     ),
     ...(docChanges.length ? [h('details', { class: 'doc-changes', open: true }, h('summary', {}, `Diagram-wide (${docChanges.length})`), ...docChanges.map(fieldRow))] : []),
     shown.length ? list : h('div', { class: 'empty' }, D.changes.length ? 'Nothing in this filter.' : 'No changes with the current filters.'),
-    h('div', { class: 'kbd-hint' }, h('kbd', {}, 'J'), ' / ', h('kbd', {}, 'K'), ' next / previous change · ', h('kbd', {}, '1'), '–', h('kbd', {}, '6'), ' views · ', h('kbd', {}, 'F'), ' fit'),
+    h('div', { class: 'kbd-hint' }, h('kbd', {}, 'J'), ' / ', h('kbd', {}, 'K'), ' next / previous change · ', h('kbd', {}, '1'), '–', h('kbd', {}, '6'), ' views · ', h('kbd', {}, 'H'), ' pan · ', h('kbd', {}, 'P'), ' draw · ', h('kbd', {}, 'F'), ' fit'),
   );
 }
 
@@ -629,6 +648,52 @@ function renderToolbar(): void {
   $('#mode-help').textContent = MODES.find((m) => m.id === state.mode)!.help + (state.ignore.style ? ' Both versions are drawn without styling.' : '') + (D.layoutAligned ? ' The old version is drawn on the new layout.' : '');
 }
 
+// ---- left tool bar ---------------------------------------------------------------------------------------------
+
+function icon(d: string): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  p.setAttribute('d', d);
+  svg.append(p);
+  return svg;
+}
+
+function setTool(t: 'pan' | 'draw'): void {
+  state.tool = t;
+  const stage = $('#stage');
+  stage.classList.toggle('tool-draw', t === 'draw');
+  stage.classList.toggle('tool-pan', t === 'pan');
+  renderTools();
+}
+
+function renderTools(): void {
+  const off = state.mode === 'code';
+  const tool = (t: 'pan' | 'draw', d: string, label: string, key: string) =>
+    h('button', { class: `tool${state.tool === t ? ' on' : ''}`, title: `${label} (${key})`, 'aria-label': label, 'aria-pressed': String(state.tool === t), disabled: off, onclick: () => setTool(t) }, icon(d));
+  const pen = state.tool === 'draw' && !off;
+  $('#tools').replaceChildren(
+    tool('pan', I_hand, 'Pan — drag to move, click a change to select it', 'H'),
+    tool('draw', I_pen, 'Draw — mark up the diagram for review', 'P'),
+    ...(pen
+      ? [
+          h('span', { class: 'tools-sep' }),
+          ...INK_COLORS.map((c) =>
+            h('button', { class: `swatch-btn${state.inkColor === c ? ' on' : ''}`, title: 'Pen colour', 'aria-label': `Pen colour ${c}`, style: `--sw:${c}`, onclick: () => ((state.inkColor = c), renderTools()) }),
+          ),
+          h('span', { class: 'tools-sep' }),
+          ...INK_SIZES.map((sz) =>
+            h('button', { class: `size-btn${state.inkSize === sz ? ' on' : ''}`, title: `Pen size ${sz}`, 'aria-label': `Pen size ${sz}`, onclick: () => ((state.inkSize = sz), renderTools()) }, h('i', { style: `width:${sz + 3}px;height:${sz + 3}px;background:${state.inkColor}` })),
+          ),
+        ]
+      : []),
+    h('span', { class: 'tools-sep' }),
+    h('button', { class: 'tool', title: 'Undo last stroke (⌘Z)', 'aria-label': 'Undo last stroke', disabled: off || !ink.strokes.length, onclick: () => ink.undo() }, icon(I_undo)),
+    h('button', { class: 'tool', title: 'Clear drawing', 'aria-label': 'Clear drawing', disabled: off || !ink.strokes.length, onclick: () => ink.clear() }, icon(I_trash)),
+  );
+}
+
 function setMode(m: Mode): void {
   state.mode = m;
   renderToolbar();
@@ -652,10 +717,12 @@ function refresh(): void {
 
 function loadSample(id: string): void {
   state.sample = id;
+  ($('#sample') as HTMLSelectElement).value = id;
   state.before = sample(id, 'before');
   state.after = sample(id, 'after');
   state.selected = null;
   state.open.clear();
+  ink.strokes.length = 0;
   $('#sample-note').textContent = SAMPLES.find((s) => s.id === id)?.note ?? '';
   refresh();
 }
@@ -684,6 +751,7 @@ function pasteDialog(): void {
       state.before = before.value;
       state.after = after.value;
       state.sample = '';
+      ink.strokes.length = 0;
       ($('#sample') as HTMLSelectElement).value = '';
       $('#sample-note').textContent = 'Your diagrams.';
       state.selected = null;
@@ -708,16 +776,24 @@ sel.addEventListener('change', () => (sel.value ? loadSample(sel.value) : pasteD
 $('#paste').addEventListener('click', pasteDialog);
 
 document.addEventListener('keydown', (e) => {
-  if (e.metaKey || e.ctrlKey || e.altKey || (e.target as Element).closest('input, textarea, select, dialog')) return;
+  if ((e.target as Element).closest('input, textarea, select, dialog')) return;
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey && ink.strokes.length) {
+    e.preventDefault();
+    ink.undo();
+    return;
+  }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
   const m = MODES.find((x) => x.key === e.key);
   if (m) setMode(m.id);
   else if (state.mode === 'morph' && e.key === 'ArrowLeft') morphTo(state.morph - 1);
   else if (state.mode === 'morph' && e.key === 'ArrowRight') morphTo(state.morph + 1);
   else if (state.mode === 'morph' && e.key === ' ') togglePlay();
-  else if (e.key === 'j' || e.key === 'n') step(1);
-  else if (e.key === 'k' || e.key === 'p') step(-1);
+  else if (e.key === 'j') step(1);
+  else if (e.key === 'k') step(-1);
+  else if (e.key === 'h') setTool('pan');
+  else if (e.key === 'p') setTool('draw');
   else if (e.key === 'f') view?.fit();
-  else if (e.key === 'Escape') select(null, false);
+  else if (e.key === 'Escape') (state.tool === 'draw' ? setTool('pan') : select(null, false));
   else return;
   e.preventDefault();
 });

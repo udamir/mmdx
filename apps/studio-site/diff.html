@@ -37,8 +37,26 @@
     .seg button.on { background: var(--surface); box-shadow: inset 0 -2px 0 var(--accent); font-weight: 600; }
     #mode-help { padding: 6px 16px; color: var(--muted); background: var(--surface-2); border-bottom: 1px solid var(--border); }
 
-    main { display: grid; grid-template-columns: 1fr 380px; min-height: 0; }
-    @media (max-width: 900px) { main { grid-template-columns: 1fr; grid-template-rows: 60vh auto; } body { height: auto; } }
+    main { display: grid; grid-template-columns: 48px 1fr 380px; min-height: 0; }
+    @media (max-width: 900px) { main { grid-template-columns: 48px 1fr; grid-template-rows: 60vh auto; } #panel { grid-column: 1 / -1; } body { height: auto; } }
+
+    /* left tool bar */
+    #tools { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; }
+    #tools button { border: 0; background: none; display: grid; place-items: center; }
+    #tools .tool { width: 36px; height: 36px; border-radius: 8px; color: var(--text); }
+    #tools .tool:hover:not(:disabled) { background: var(--surface-2); }
+    #tools .tool.on { background: #e8eefc; color: var(--accent); box-shadow: inset 0 0 0 1px #c7d5f7; }
+    #tools .tool:disabled { opacity: .35; cursor: default; }
+    #tools svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .tools-sep { width: 24px; height: 1px; background: var(--border); margin: 4px 0; flex: none; }
+    #tools .swatch-btn { width: 22px; height: 22px; border-radius: 50%; background: var(--sw); box-shadow: inset 0 0 0 2px #fff, 0 0 0 1px var(--border); }
+    #tools .swatch-btn.on { box-shadow: inset 0 0 0 2px #fff, 0 0 0 2px var(--sw); }
+    #tools .size-btn { width: 30px; height: 26px; border-radius: 6px; }
+    #tools .size-btn.on { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); }
+    #tools .size-btn i { display: block; border-radius: 50%; }
+    .stage.tool-draw .pane { cursor: crosshair; }
+    .ink { pointer-events: none; }
+    .ink-stroke { fill: none; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; opacity: .9; }
 
     /* ---- stage ---- */
     .stage { position: relative; display: flex; gap: 1px; background: var(--border); min-height: 0; min-width: 0; }
@@ -206,6 +224,7 @@
   <div id="toolbar"></div>
   <div id="mode-help"></div>
   <main>
+    <nav id="tools" aria-label="Tools"></nav>
     <section id="stage" class="stage" aria-label="Diagram comparison"></section>
     <aside id="panel" aria-label="Changes"></aside>
   </main>
