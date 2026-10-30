@@ -293,20 +293,63 @@ const ER_OPS: Record<string, (d: Doc) => boolean> = {
 
 // ---- samples ----------------------------------------------------------------------------------------------------
 
-function generate(name: string, example: string, seed: number, ops: Record<string, (d: Doc) => boolean>, plan: Record<string, number>): void {
+/** What one op does, for commit messages. */
+const VERBS: Record<string, string> = {
+  relabelNode: 'rename node', relabelEdge: 'relabel connection', removeNode: 'remove node', removeEdge: 'remove connection', addNode: 'add service',
+  addEdge: 'connect nodes', moveNode: 'move node', restyleNode: 'recolour node', restyleEdge: 'restyle connection',
+  relabelMessage: 'reword message', removeMessage: 'drop message', addMessage: 'add message', addNote: 'add note', relabelParticipant: 'rename participant',
+  moveParticipant: 'move participant', restyleParticipant: 'recolour participant',
+  changeType: 'change column type', renameAttr: 'rename column', addAttr: 'add column', removeAttr: 'drop column', removeEntity: 'drop table',
+  addEntity: 'add table', relabelRel: 'relabel relation', moveEntity: 'move table', restyleEntity: 'recolour table',
+};
+const AUTHORS = ['Damir', 'Alex', 'Maria', 'Chen', 'Priya'];
+
+export interface HistoryEntry {
+  message: string;
+  author: string;
+  /** ISO date. */
+  date: string;
+  /** Diagram source; absent for the first and the last version (they are the .before / .after files). */
+  source?: string;
+}
+
+/**
+ * Applies the plan's ops in a random order, split into `commits` commits, and writes the first version
+ * (.before.mmd), the last one (.after.mmd) and every version with its message (.history.json, oldest first).
+ */
+function generate(name: string, example: string, seed: number, ops: Record<string, (d: Doc) => boolean>, plan: Record<string, number>, commits: number): void {
   const before = readFileSync(`examples/${example}`, 'utf8');
   const d = new Doc(before, rng(seed));
-  for (const [op, n] of Object.entries(plan)) {
-    let done = 0;
-    for (let tries = 0; done < n && tries < n * 20; tries++) if (ops[op]!(d)) done++;
+  const queue = Object.entries(plan).flatMap(([op, n]) => Array.from({ length: n }, () => op));
+  for (let i = queue.length - 1; i > 0; i--) {
+    const j = Math.floor(d.r() * (i + 1));
+    [queue[i], queue[j]] = [queue[j]!, queue[i]!];
+  }
+  const day = (n: number) => new Date(Date.UTC(2026, 9, 30, 9 + (n % 7), 15 * n) - (commits - n) * 86400000).toISOString();
+  const history: HistoryEntry[] = [{ message: 'Initial version', author: AUTHORS[0]!, date: day(0) }];
+  const per = Math.ceil(queue.length / commits);
+  for (let c = 0; c < commits; c++) {
+    const done = new Map<string, number>();
+    for (const op of queue.slice(c * per, (c + 1) * per)) {
+      for (let tries = 0; tries < 20; tries++)
+        if (ops[op]!(d)) {
+          done.set(op, (done.get(op) ?? 0) + 1);
+          break;
+        }
+    }
+    const parts = [...done].map(([op, n]) => `${VERBS[op] ?? op}${n > 1 ? ` ×${n}` : ''}`);
+    const message = parts.length ? parts.join(', ').replace(/^./, (x) => x.toUpperCase()) : 'Tidy up';
+    const last = c === commits - 1;
+    history.push({ message, author: AUTHORS[(c + 1) % AUTHORS.length]!, date: day(c + 1), ...(last ? {} : { source: d.source() }) });
   }
   writeFileSync(`${OUT}${name}.before.mmd`, before);
   writeFileSync(`${OUT}${name}.after.mmd`, d.source());
+  writeFileSync(`${OUT}${name}.history.json`, JSON.stringify(history));
 }
 
-generate('flow-few', 'production-microservices.mmd', 11, FLOW_OPS, { relabelNode: 1, addNode: 1, moveNode: 1, restyleEdge: 1 });
-generate('flow-many', 'microservice-patterns.mmd', 7, FLOW_OPS, { relabelNode: 12, relabelEdge: 5, removeNode: 5, removeEdge: 3, addNode: 7, addEdge: 4, moveNode: 16, restyleNode: 10, restyleEdge: 6 });
-generate('seq-medium', 'docker-deploy-sequence.mmd', 5, SEQ_OPS, { relabelMessage: 4, removeMessage: 2, addMessage: 3, addNote: 2, relabelParticipant: 1, moveParticipant: 2, restyleParticipant: 2 });
-generate('seq-many', 'docker-deploy-sequence.mmd', 9, SEQ_OPS, { relabelMessage: 12, removeMessage: 6, addMessage: 8, addNote: 5, relabelParticipant: 3, moveParticipant: 5, restyleParticipant: 5 });
-generate('er-medium', 'atom-schema-er.mmd', 3, ER_OPS, { changeType: 3, renameAttr: 3, addAttr: 3, removeAttr: 2, removeEntity: 1, addEntity: 1, relabelRel: 1, moveEntity: 3, restyleEntity: 2 });
-generate('er-many', 'atom-schema-er.mmd', 13, ER_OPS, { changeType: 10, renameAttr: 10, addAttr: 10, removeAttr: 8, removeEntity: 4, addEntity: 4, relabelRel: 5, moveEntity: 15, restyleEntity: 8 });
+generate('flow-few', 'production-microservices.mmd', 11, FLOW_OPS, { relabelNode: 1, addNode: 1, moveNode: 1, restyleEdge: 1 }, 2);
+generate('flow-many', 'microservice-patterns.mmd', 7, FLOW_OPS, { relabelNode: 12, relabelEdge: 5, removeNode: 5, removeEdge: 3, addNode: 7, addEdge: 4, moveNode: 16, restyleNode: 10, restyleEdge: 6 }, 6);
+generate('seq-medium', 'docker-deploy-sequence.mmd', 5, SEQ_OPS, { relabelMessage: 4, removeMessage: 2, addMessage: 3, addNote: 2, relabelParticipant: 1, moveParticipant: 2, restyleParticipant: 2 }, 4);
+generate('seq-many', 'docker-deploy-sequence.mmd', 9, SEQ_OPS, { relabelMessage: 12, removeMessage: 6, addMessage: 8, addNote: 5, relabelParticipant: 3, moveParticipant: 5, restyleParticipant: 5 }, 6);
+generate('er-medium', 'atom-schema-er.mmd', 3, ER_OPS, { changeType: 3, renameAttr: 3, addAttr: 3, removeAttr: 2, removeEntity: 1, addEntity: 1, relabelRel: 1, moveEntity: 3, restyleEntity: 2 }, 4);
+generate('er-many', 'atom-schema-er.mmd', 13, ER_OPS, { changeType: 10, renameAttr: 10, addAttr: 10, removeAttr: 8, removeEntity: 4, addEntity: 4, relabelRel: 5, moveEntity: 15, restyleEntity: 8 }, 6);

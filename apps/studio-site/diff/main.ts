@@ -31,6 +31,39 @@ for (const f of Object.values(themeFiles)) ctx.themes.register(f);
 
 const samples = import.meta.glob<string>('../diff-samples/*.mmd', { eager: true, query: '?raw', import: 'default' });
 const sample = (name: string, side: 'before' | 'after') => samples[`../diff-samples/${name}.${side}.mmd`] ?? '';
+const histories = import.meta.glob<{ message: string; author: string; date: string; source?: string }[]>('../diff-samples/*.history.json', { eager: true, import: 'default' });
+
+/** One version of the diagram in its history (oldest first in `state.versions`). */
+interface Version {
+  /** 1-based number, oldest = v1. */
+  n: number;
+  message: string;
+  author: string;
+  date: string;
+  source: string;
+  /** Changes against the previous version, computed when the history is loaded. */
+  counts?: DiagramDiff['counts'];
+}
+
+const I_history = 'M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3 4.5V9h4.5M12 7.5V12l3 2';
+
+/** The sample's history: generated versions when there are some, else its two sides. */
+function historyOf(id: string): Version[] {
+  const before = sample(id, 'before'), after = sample(id, 'after');
+  const h = histories[`../diff-samples/${id}.history.json`];
+  const day = (d: number) => new Date(Date.now() - d * 86400000).toISOString();
+  const list = h
+    ? h.map((e, i) => ({ n: i + 1, message: e.message, author: e.author, date: e.date, source: e.source ?? (i === 0 ? before : after) }))
+    : [
+        { n: 1, message: 'Target branch', author: 'Damir', date: day(3), source: before },
+        { n: 2, message: SAMPLES.find((x) => x.id === id)?.note ?? 'Merge request', author: 'Alex', date: day(0), source: after },
+      ];
+  return withCounts(list);
+}
+
+function withCounts(list: Version[]): Version[] {
+  return list.map((v, i) => (i ? { ...v, counts: diffDiagrams(list[i - 1]!.source, v.source).counts } : v));
+}
 
 const SAMPLES: { id: string; group: string; title: string; note: string }[] = [
   { id: 'flow-few', group: 'Flowchart', title: 'Few changes', note: 'A new service, one relabel, one move and an edge preset.' },
@@ -69,8 +102,12 @@ const state = {
   before: sample('architecture', 'before'),
   after: sample('architecture', 'after'),
   mode: 'merged' as Mode,
-  /** Editor-like side panels: code diff (left) and the change list (right). */
-  panels: { code: false, changes: true },
+  /** Editor-like side panels: code diff or history (left, one at a time) and the change list (right). */
+  panels: { left: null as 'code' | 'history' | null, changes: true },
+  /** History of the diagram, oldest first; `at` is the version shown (after), `base` the one it is compared with (before). */
+  versions: [] as Version[],
+  at: 0,
+  base: 0,
   ignore: {} as DiffIgnore,
   /** Added / removed items switched off in the left panel filters. */
   hide: {} as { added?: boolean; removed?: boolean },
@@ -251,7 +288,8 @@ function renderStage(): void {
     h('div', { class: `pane ${cls}` }, h('div', { class: 'pane-title no-pan' }, h('b', {}, title), h('span', {}, sub)));
 
   if (state.mode === 'side') {
-    const pb = pane('Before', 'target branch', 'before'), pa = pane('After', 'merge request', 'after');
+    const who = (i: number) => (state.versions[i] ? `${versionName(i)} · ${state.versions[i]!.author}, ${ago(state.versions[i]!.date)}` : '');
+    const pb = pane('Before', who(state.base), 'before'), pa = pane('After', who(state.at), 'after');
     stage.append(pb, pa);
     svgs.before = mount(pb, D.rb, 'before');
     svgs.after = mount(pa, D.ra, 'after');
@@ -260,6 +298,7 @@ function renderStage(): void {
     const p = h('div', { class: 'pane stack' });
     stage.append(p);
     morphStage(p, view);
+    if (state.versions.length) p.append(h('div', { class: 'pane-title no-pan' }, h('b', { class: 'cmp' }, `${versionName(state.base)} → ${versionName(state.at)}`)));
   }
   diffBar = h('div', { class: 'dbar ds-float no-pan', role: 'toolbar', 'aria-label': 'Diff' });
   stage.append(toolPanel(), diffBar);
@@ -424,6 +463,7 @@ function toggleHelp(force?: boolean): void {
         row(['Dim'], 'Fade everything that did not change'),
       ]),
       ...section('Panels', [
+        row(['V'], 'History (left): every version, newest first. Click one to view it compared with the version before it; Compare picks an older version as the base'),
         row(['C'], 'Code diff (left): Mermaid code and %%@ metadata, without the facets you switched off'),
         row(['L'], 'Change list (right): every change with its before → after values; click one to zoom to it'),
         row(['J', 'K'], 'Next / previous change'),
@@ -451,7 +491,7 @@ function setHide(k: 'added' | 'removed'): void {
 function renderCodePane(): void {
   const body = $('#code-body');
   for (const t of document.querySelectorAll<HTMLElement>('#code-pane [role=tab]')) t.setAttribute('aria-selected', String(t.dataset['tab'] === state.codeTab));
-  if (!state.panels.code) return;
+  if (state.panels.left !== 'code') return;
   const part = (src: string) => {
     const { doc } = splitSource(src);
     return state.codeTab === 'code' ? doc.code : joinSource({ code: '', meta: doc.meta }).replace(/^\s+/, '');
@@ -614,7 +654,8 @@ function renderTools(): void {
     btn('Pan (H)', I_hand, () => setTool('pan'), state.tool === 'pan'),
     btn('Magic pen (P)', I_pen, () => setTool(state.tool === 'draw' ? 'pan' : 'draw'), state.tool === 'draw'),
     sep(),
-    btn('Code diff (C)', I_code, () => togglePanel('code'), state.panels.code),
+    btn('History (V)', I_history, () => togglePanel('history'), state.panels.left === 'history'),
+    btn('Code diff (C)', I_code, () => togglePanel('code'), state.panels.left === 'code'),
     btn('Change list (L)', I_list, () => togglePanel('changes'), state.panels.changes),
   );
   tools.parentElement?.querySelector('.pen-opts')?.remove();
@@ -636,15 +677,85 @@ function penOptions(): HTMLElement {
 
 function applyPanels(): void {
   const main = $('#main');
-  main.classList.toggle('no-code', !state.panels.code);
+  main.dataset['left'] = state.panels.left ?? '';
   main.classList.toggle('no-changes', !state.panels.changes);
 }
 
-function togglePanel(name: 'code' | 'changes', open = !state.panels[name]): void {
-  state.panels = { ...state.panels, [name]: open };
+function togglePanel(name: 'code' | 'history' | 'changes', open?: boolean): void {
+  if (name === 'changes') state.panels = { ...state.panels, changes: open ?? !state.panels.changes };
+  else {
+    const on = open ?? state.panels.left !== name;
+    state.panels = { ...state.panels, left: on ? name : state.panels.left === name ? null : state.panels.left };
+  }
   applyPanels();
-  if (name === 'code') renderCodePane();
+  renderCodePane();
+  renderHistoryPane();
   renderTools();
+}
+
+// ---- history (left panel): every version, newest first; pick one to view, any older one as the base ---------------
+
+const ago = (iso: string): string => {
+  const s = (Date.now() - Date.parse(iso)) / 1000;
+  const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+  if (s < 3600) return rtf.format(-Math.max(1, Math.round(s / 60)), 'minute');
+  if (s < 86400) return rtf.format(-Math.round(s / 3600), 'hour');
+  return rtf.format(-Math.round(s / 86400), 'day');
+};
+
+const versionName = (i: number): string => `v${state.versions[i]?.n ?? i + 1}${i === state.versions.length - 1 ? ' (current)' : ''}`;
+
+function renderHistoryPane(): void {
+  const body = $('#history-body');
+  if (state.panels.left !== 'history') return;
+  const last = state.versions.length - 1;
+  const rows = [...state.versions].map((v, i) => ({ v, i })).reverse().map(({ v, i }) => {
+    const viewing = i === state.at, base = i === state.base && i !== state.at;
+    const c = v.counts;
+    const stats = c
+      ? h('span', { class: 'vstats' },
+          c.added ? h('span', { class: 'add' }, `+${c.added}`) : null,
+          c.removed ? h('span', { class: 'del' }, `−${c.removed}`) : null,
+          c.changed ? h('span', { class: 'chg' }, `~${c.changed}`) : null)
+      : h('span', { class: 'vstats muted' }, 'first version');
+    return h('div', { class: `version${viewing ? ' viewing' : ''}${base ? ' base' : ''}`, role: 'listitem' },
+      h('button', { class: 'version-main', title: i ? `View v${v.n}, compared with the version before it` : `View v${v.n}`, onclick: () => viewVersion(i) },
+        h('span', { class: 'vhead' },
+          h('b', { class: 'vnum' }, `v${v.n}`),
+          i === last ? h('span', { class: 'vtag current' }, 'Current') : null,
+          viewing ? h('span', { class: 'vtag after' }, 'After') : null,
+          base ? h('span', { class: 'vtag before' }, 'Before') : null),
+        h('span', { class: 'vmsg' }, v.message),
+        h('span', { class: 'vmeta' }, h('span', {}, `${v.author} · ${ago(v.date)}`), stats)),
+      i < state.at && !base ? h('button', { class: 'vbase', title: `Compare v${state.versions[state.at]!.n} with v${v.n}`, onclick: () => setBase(i) }, 'Compare') : null,
+    );
+  });
+  body.replaceChildren(
+    h('div', { class: 'history-cmp' }, 'Comparing ', h('b', {}, versionName(state.base)), ' → ', h('b', {}, versionName(state.at))),
+    h('div', { class: 'versions', role: 'list' }, ...rows),
+  );
+}
+
+/** Shows version `i` (after) compared with the one before it (before). */
+function viewVersion(i: number): void {
+  state.at = i;
+  state.base = Math.max(0, i - 1);
+  applyVersions();
+}
+
+/** Compares the version shown with an older one. */
+function setBase(i: number): void {
+  state.base = i;
+  applyVersions();
+}
+
+function applyVersions(): void {
+  state.before = state.versions[state.base]!.source;
+  state.after = state.versions[state.at]!.source;
+  state.selected = null;
+  state.open.clear();
+  refresh();
+  renderHistoryPane();
 }
 
 function attachResizer(pane: HTMLElement, side: 'left' | 'right', v: '--left-w' | '--right-w', [lo, hi]: [number, number]): void {
@@ -692,13 +803,12 @@ function refresh(): void {
 function loadSample(id: string): void {
   state.sample = id;
   ($('#sample') as HTMLSelectElement).value = id;
-  state.before = sample(id, 'before');
-  state.after = sample(id, 'after');
-  state.selected = null;
-  state.open.clear();
+  state.versions = historyOf(id);
+  state.at = state.versions.length - 1;
+  state.base = Math.max(0, state.at - 1);
   ink.strokes.length = 0;
   $('#sample-note').textContent = SAMPLES.find((s) => s.id === id)?.note ?? '';
-  refresh();
+  applyVersions();
 }
 
 function pasteDialog(): void {
@@ -722,9 +832,17 @@ function pasteDialog(): void {
   document.body.append(dlg);
   dlg.addEventListener('close', () => {
     if (dlg.returnValue === 'ok') {
+      const now = Date.now();
+      state.versions = withCounts([
+        { n: 1, message: 'Pasted: before', author: 'You', date: new Date(now - 60000).toISOString(), source: before.value },
+        { n: 2, message: 'Pasted: after', author: 'You', date: new Date(now).toISOString(), source: after.value },
+      ]);
+      state.at = 1;
+      state.base = 0;
       state.before = before.value;
       state.after = after.value;
       state.sample = '';
+      renderHistoryPane();
       ink.strokes.length = 0;
       ($('#sample') as HTMLSelectElement).value = '';
       $('#sample-note').textContent = 'Your diagrams.';
@@ -747,12 +865,17 @@ function pasteDialog(): void {
     h('div', { class: 'tabs', role: 'tablist' }, tab('code', 'Code'), tab('meta', 'Metadata'), h('span', { class: 'tabs-spacer' }),
       h('button', { class: 'collapse-btn', title: 'Hide the code diff (C)', 'aria-label': 'Hide the code diff', onclick: () => togglePanel('code', false) }, '‹')),
     h('div', { id: 'code-body', class: 'tab-body' }));
+  const historyPane = h('section', { id: 'history-pane', class: 'pane-side left', 'aria-label': 'History' },
+    h('div', { class: 'rp-head' }, h('b', { role: 'heading', 'aria-level': '2' }, 'History'),
+      h('button', { class: 'collapse-btn', title: 'Hide the history (V)', 'aria-label': 'Hide the history', onclick: () => togglePanel('history', false) }, '‹')),
+    h('div', { id: 'history-body', class: 'rp-body' }));
   const changesPane = h('aside', { id: 'changes-pane', class: 'pane-side right', 'aria-label': 'Changes' },
     h('div', { class: 'rp-head' }, h('b', { role: 'heading', 'aria-level': '2' }, 'Changes'),
       h('button', { class: 'collapse-btn', title: 'Hide the change list (L)', 'aria-label': 'Hide the change list', onclick: () => togglePanel('changes', false) }, '×')),
     h('div', { id: 'panel', class: 'rp-body' }));
-  main.append(codePane, changesPane, zoomBar());
+  main.append(codePane, historyPane, changesPane, zoomBar());
   attachResizer(codePane, 'left', '--left-w', [280, 900]);
+  attachResizer(historyPane, 'left', '--left-w', [280, 900]);
   attachResizer(changesPane, 'right', '--right-w', [260, 640]);
   applyPanels();
   document.addEventListener('pointerdown', (e) => {
@@ -783,6 +906,7 @@ document.addEventListener('keydown', (e) => {
   if (m) setMode(m.id);
   else if (e.key === 'c') togglePanel('code');
   else if (e.key === 'l') togglePanel('changes');
+  else if (e.key === 'v') togglePanel('history');
   else if (e.key === '?') toggleHelp();
   else if (e.key === 'ArrowLeft') stepState(-1);
   else if (e.key === 'ArrowRight') stepState(1);

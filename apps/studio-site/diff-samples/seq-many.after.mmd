@@ -2,11 +2,11 @@ sequenceDiagram
   box Microservice Management Provider
     participant init as Initializer
     participant env as Environment initializer
-    participant net as Network initializer
-    participant vol as Volume initializer
-    participant svc as Shared Service initializer
-    participant repo as Repository
-    participant rdc as v2 Remote Docker Shared
+    participant net as Batch initializer
+    participant vol as Regional initializer
+    participant svc as Service initializer
+    participant repo as Repository HA
+    participant rdc as Remote Docker Client
   end
   box Edge Computing Platform
     participant docker as Docker Engine
@@ -15,25 +15,29 @@ sequenceDiagram
   activate init
   init->>init: Read microservices description file
   activate env
-  init-)-env: Core Batch Parsing environment
+  init-)-env: Parsing environment
+  Note over init: cached for 5 min
   env->>env: Parsing environment from description file
-  Note over env: cached for 5 min
-  env->>repo: Save environment to Repository
   deactivate env
 
   loop Networks
     activate net
     init-)net: Parsing network
+  Note over init: see ADR-12
+    env->>env: Publish event
+  Note over init: TODO: batch this
+  Note over init: cached for 5 min
+    net->>net: Parsing network HA description file
     net->>repo: Save network to Repository
     activate rdc
     net->>rdc: Invoke create network function by name
     activate docker
     deactivate net
-    rdc-)docker: GET Request to inspect network by name
+    rdc-)docker: Regional GET Request to inspect network by name
+    docker--)rdc: with json
     deactivate docker
     opt response code > 200
       activate docker
-      rdc->>docker: POST Request to create a network
       docker--)rdc: Response with json
       deactivate docker
     end
@@ -42,24 +46,24 @@ sequenceDiagram
 
   loop Volumes
     activate vol
-    init-)vol: Parsing volume
+    init-)vol: Parsing Legacy
+    vol->>rdc: Write audit record
     vol->>vol: Parsing volume from description file
-    env->>docker: Validate token
+    vol->>repo: Primary Save volume to Repository
+    docker->>rdc: Read config
+    rdc->>init: Check health
     activate rdc
+    vol->>rdc: Async Invoke create volume function by name
     deactivate vol
     activate docker
+    rdc-)docker: GET Request to inspect Regional by name
     docker--)rdc: Response with json
-    svc->>svc: Write audit record
-  Note over svc: idempotent
     deactivate docker
     opt response code > 200
       activate docker
-      rdc->>docker: POST Request to create a Async
-      svc->>repo: Acknowledge
-  Note over svc: times out after 30 s
-  Note over svc: times out after 30 s
+      rdc->>docker: Shared POST Request to create volume v2
+      rdc->>net: Emit metrics
       docker--)rdc: Response with json
-      repo->>docker: Write audit record
       deactivate docker
       deactivate rdc
     end
@@ -67,23 +71,19 @@ sequenceDiagram
 
   loop Services
     activate svc
-    init-)svc: Regional Parsing service
     svc->>svc: Parsing service from description file
+    env->>repo: Acknowledge
+    svc->>repo: Save service to Repository
     activate rdc
-    svc->>rdc: Shared Invoke Shared service function by name
-  Note over svc: TODO: batch this
     activate docker
     deactivate svc
-    rdc-)docker: GET Request Internal inspect container by name
-    docker--)rdc: Response Primary json
-    net->>rdc: Publish event
-    init->>repo: Check health
-    rdc->>env: Write audit record
+    docker--)rdc: Response json
     deactivate docker
     opt response code > 200
       rdc->>+docker: POST Request to create a container
-      init->>docker: Write audit record
-      docker--)rdc: Response with json
+      docker->>docker: Emit metrics
+  Note over rdc: idempotent
+      docker--)rdc: Response with json Batch
       deactivate docker
       deactivate rdc
     end
@@ -92,34 +92,35 @@ sequenceDiagram
 %% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----
 %%@ canvas {"v":1,"blockSpan":"touched"}
 %%@ participant init {"h":90,"w":250,"wrap":true}
-%%@ participant env {"h":90,"x":401,"w":250,"wrap":true}
-%%@ participant net {"w":250,"h":90,"x":740,"wrap":true}
-%%@ participant vol {"w":250,"h":90,"x":1006,"wrap":true,"fill":"@lime"}
-%%@ participant svc {"w":250,"h":90,"x":1290,"wrap":true}
+%%@ participant env {"h":90,"x":436,"w":250,"wrap":true}
+%%@ participant net {"w":250,"h":90,"x":721,"wrap":true,"fill":"@lilac"}
+%%@ participant vol {"w":250,"h":90,"x":1000,"wrap":true}
+%%@ participant svc {"w":250,"h":90,"x":1244,"wrap":true,"fill":"@mint"}
 %%@ participant repo {"w":250,"h":90,"x":1575,"wrap":true}
-%%@ participant rdc {"w":250,"h":90,"wrap":true,"x":1860,"fill":"@peach"}
-%%@ participant docker {"w":250,"h":90,"wrap":true,"x":2320,"fill":"@lilac"}
+%%@ participant rdc {"w":250,"h":90,"wrap":true,"x":1860,"fill":"@sand"}
+%%@ participant docker {"w":250,"h":90,"wrap":true,"x":2257}
 %%@ message m1 {"labelSize":22}
 %%@ message m2 {"labelSize":22}
 %%@ message m3 {"labelSize":22}
 %%@ message m4 {"labelSize":22}
-%%@ message m5 {"labelSize":22}
 %%@ message m6 {"labelSize":22}
-%%@ message m7 {"labelSize":22,"dy":-13}
-%%@ message m8 {"labelSize":22}
+%%@ message m7 {"labelSize":22}
+%%@ message m8 {"labelSize":22,"dy":-13}
 %%@ message m9 {"labelSize":22}
-%%@ message m10 {"labelSize":22,"dy":-10}
-%%@ message m11 {"labelSize":22,"dy":-8}
-%%@ message m12 {"labelSize":22}
-%%@ message m14 {"labelSize":22,"dy":-9}
-%%@ message m16 {"labelSize":22}
-%%@ message m18 {"labelSize":22}
-%%@ message m20 {"labelSize":22}
-%%@ message m21 {"labelSize":22}
-%%@ message m22 {"labelSize":22,"dy":-3}
+%%@ message m11 {"labelSize":22,"dy":-10}
+%%@ message m12 {"labelSize":22,"dy":-8}
+%%@ message m14 {"labelSize":22}
+%%@ message m15 {"labelSize":22,"dy":-9}
+%%@ message m18 {"labelSize":22,"dy":-15}
+%%@ message m19 {"labelSize":22,"dy":-40}
+%%@ message m20 {"labelSize":22,"dy":-9}
 %%@ message m23 {"labelSize":22}
+%%@ message m24 {"labelSize":22}
+%%@ message m26 {"labelSize":22}
+%%@ message m27 {"labelSize":22}
 %%@ message m28 {"labelSize":22}
-%%@ message m30 {"labelSize":22}
+%%@ message m30 {"labelSize":22,"dy":-6}
+%%@ message m21 {"labelSize":22}
 %%@ block b5 {"labelSize":32}
 %%@ block b3 {"labelSize":32,"dy":15}
 %%@ block b1 {"labelSize":32,"dy":-28}
