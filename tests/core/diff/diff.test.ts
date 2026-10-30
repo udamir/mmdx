@@ -79,5 +79,7 @@ describe('diff transforms', () => {
     const d = diffDiagrams(withLayoutOf(a, b), b);
     expect(find(d, 'node', 'cache')?.status).toBe('unchanged');
     expect(find(d, 'node', 'lb')?.facets).toEqual(['content']);
+    // an item only the old version has keeps its own place
+    expect(splitSource(withLayoutOf(a, b)).doc.meta.nodes?.['desktop']).toEqual({ x: 665, y: 110, w: 150, h: 60 });
   });
 });

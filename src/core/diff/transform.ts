@@ -53,9 +53,11 @@ export function withLayoutOf(before: string, after: string): string {
     const out: Record<string, ItemMeta> = {};
     for (const [id, m] of Object.entries(A)) {
       const next: Record<string, unknown> = { ...m };
-      for (const k of LAYOUT_KEYS) delete next[k];
       const from = B[id];
-      if (from) for (const k of LAYOUT_KEYS) if (from[k] !== undefined) next[k] = from[k];
+      if (from) {
+        for (const k of LAYOUT_KEYS) delete next[k];
+        for (const k of LAYOUT_KEYS) if (from[k] !== undefined) next[k] = from[k];
+      }
       out[id] = next;
     }
     // items placed only in `after` that also exist (unplaced) in `before`

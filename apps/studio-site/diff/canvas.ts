@@ -184,6 +184,9 @@ export class SharedView {
     let drag: { x: number; y: number; cx: number; cy: number; moved: boolean } | null = null;
     host.addEventListener('pointerdown', (e) => {
       if (e.button !== 0 || (e.target as Element).closest('.no-pan')) return;
+      // no text selection while dragging the canvas
+      e.preventDefault();
+      window.getSelection()?.removeAllRanges();
       drag = { x: e.clientX, y: e.clientY, cx: this.cx, cy: this.cy, moved: false };
     }, { signal });
     window.addEventListener('pointermove', (e) => {

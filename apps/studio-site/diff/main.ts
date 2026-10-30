@@ -2,7 +2,7 @@
 // Five ways to look at one semantic diff (src/core/diff), with content / layout / style changes that can each be
 // ignored. Everything here is prototype UI on top of the core API.
 /// <reference types="vite/client" />
-import { createContext, joinSource, renderSource, splitSource, type Rendered } from '../../../src/core.js';
+import { createContext, isSupported, joinSource, renderDocument, renderSource, splitSource, type Rendered } from '../../../src/core.js';
 import {
   diffDiagrams, ignoreFacets, withLayoutOf, withoutStyle, type ChangeFacet, type DiagramDiff, type DiffIgnore, type FieldChange,
   type ItemChange,
@@ -12,7 +12,11 @@ import {
   addGhost, centreOf, dimOthers, drawHighlights, drawMoves, sceneOf, shapeOf, SharedView, svgEl, toSvgElement, union,
   type Highlight, type ItemShape, type Mark,
 } from './canvas.js';
+import { decorateText, highlightRuns, withLayout } from './decorate.js';
+import { buildMerged, REMOVED, type Merged } from './merge.js';
+import { Morph, STATE_NAMES } from './morph.js';
 import { hunks, lineDiff } from './textdiff.js';
+import type { ItemKind } from '../../../src/core/types.js';
 
 // ---- setup ------------------------------------------------------------------------------------------------------
 
@@ -25,28 +29,29 @@ for (const f of Object.values(themeFiles)) ctx.themes.register(f);
 const samples = import.meta.glob<string>('../diff-samples/*.mmd', { eager: true, query: '?raw', import: 'default' });
 const sample = (name: string, side: 'before' | 'after') => samples[`../diff-samples/${name}.${side}.mmd`] ?? '';
 
-const SAMPLES: { id: string; title: string; note: string }[] = [
-  { id: 'architecture', title: 'Architecture change (flowchart)', note: 'Added and removed services, a renamed node, relabels, moves and restyles mixed together.' },
-  { id: 'restyle', title: 'Restyle with one hidden edit (flowchart)', note: 'Theme switch and class changes everywhere — turn on “Ignore style” to find the one real edit.' },
-  { id: 'sequence', title: 'Inserted step (sequence)', note: 'One inserted and one removed message shift every message id; the text diff of the metadata is all noise.' },
-  { id: 'schema', title: 'Schema migration (ER, 60 tables)', note: 'Renamed columns, a widened type, a moved table and a recoloured table.' },
-  { id: 'small', title: 'Pure Mermaid, auto layout', note: 'No layout metadata: new nodes make the auto layout move things around.' },
+const SAMPLES: { id: string; group: string; title: string; note: string }[] = [
+  { id: 'flow-few', group: 'Flowchart', title: 'Few changes', note: 'A new service, one relabel, one move and an edge preset.' },
+  { id: 'architecture', group: 'Flowchart', title: 'Medium: architecture change', note: 'Added and removed services, a renamed node, relabels, moves and restyles mixed together.' },
+  { id: 'flow-many', group: 'Flowchart', title: 'Many changes (60+)', note: 'A large refactor of the microservice pattern map: relabels, new and deleted nodes and edges, moves and restyles.' },
+  { id: 'restyle', group: 'Flowchart', title: 'Restyle with one hidden edit', note: 'Theme switch and class changes everywhere — switch Style off in the legend to find the one real edit.' },
+  { id: 'small', group: 'Flowchart', title: 'Pure Mermaid, auto layout', note: 'No layout metadata: new nodes make the auto layout move things around.' },
+  { id: 'sequence', group: 'Sequence', title: 'Few changes', note: 'One inserted and one removed message shift every message id; the text diff of the metadata is all noise.' },
+  { id: 'seq-medium', group: 'Sequence', title: 'Medium', note: 'Edited, inserted and removed messages, new notes, a renamed and restyled participant.' },
+  { id: 'seq-many', group: 'Sequence', title: 'Many changes', note: 'A reworked deployment flow: dozens of message edits, inserts, removals and notes.' },
+  { id: 'schema', group: 'ER', title: 'Few changes', note: 'Renamed columns, a widened type, a moved table and a recoloured table.' },
+  { id: 'er-medium', group: 'ER', title: 'Medium', note: 'Type changes, renamed, added and removed columns, a new and a dropped table.' },
+  { id: 'er-many', group: 'ER', title: 'Many changes (50+)', note: 'A big schema migration across the 60-table archive database.' },
 ];
 
-type Mode = 'side' | 'overlay' | 'swipe' | 'onion' | 'code';
+type Mode = 'side' | 'overlay' | 'swipe' | 'onion' | 'morph' | 'code';
 
 const MODES: { id: Mode; label: string; key: string; help: string }[] = [
   { id: 'side', label: 'Side by side', key: '1', help: 'Before and after next to each other, panned and zoomed together. Removed items are marked on the left, added on the right, changed on both.' },
-  { id: 'overlay', label: 'Overlay', key: '2', help: 'One picture: the new version, with removed items as red ghosts and moved items as an arrow from their old place.' },
+  { id: 'overlay', label: 'Overlay', key: '2', help: 'One merged picture: the new version with removed items kept in place, text changes marked word by word (removed struck out, added highlighted) and moved items shown with an arrow from their old place.' },
   { id: 'swipe', label: 'Swipe', key: '3', help: 'Both versions on top of each other; drag the divider to wipe between them. Best for spotting visual and style changes.' },
   { id: 'onion', label: 'Onion skin', key: '4', help: 'Both versions blended; the slider fades from before to after. Small shifts and resizes stand out.' },
-  { id: 'code', label: 'Code', key: '5', help: 'The Mermaid text diff, without the facets you ignore: style lines and %%@ metadata can be left out so only meaningful lines remain.' },
-];
-
-const PRESETS: { id: string; label: string; ignore: DiffIgnore; help: string }[] = [
-  { id: 'all', label: 'All changes', ignore: {}, help: 'Everything that differs' },
-  { id: 'nostyle', label: 'Ignore style', ignore: { style: true }, help: 'Hide colour, font, preset and class changes; draw both versions unstyled' },
-  { id: 'structure', label: 'Structure only', ignore: { style: true, layout: true }, help: 'Only what the diagram says: items, labels and connections' },
+  { id: 'morph', label: 'Morph', key: '5', help: 'Step through Before → Merged → After (← / →, Space plays): moved items glide to their new place, colours blend and changed text flips.' },
+  { id: 'code', label: 'Code', key: '6', help: 'The Mermaid text diff, without the facets you ignore: style lines and %%@ metadata can be left out so only meaningful lines remain.' },
 ];
 
 const FACET_INFO: Record<ChangeFacet, { label: string; help: string }> = {
@@ -61,6 +66,8 @@ const state = {
   after: sample('architecture', 'after'),
   mode: 'side' as Mode,
   ignore: {} as DiffIgnore,
+  /** Added / removed items switched off in the legend. */
+  hide: {} as { added?: boolean; removed?: boolean },
   dim: true,
   showMeta: false,
   filter: 'all' as 'all' | 'added' | 'removed' | 'changed',
@@ -68,6 +75,8 @@ const state = {
   open: new Set<string>(),
   swipe: 50,
   onion: 50,
+  morph: 1,
+  playing: false,
 };
 
 // ---- tiny DOM helper --------------------------------------------------------------------------------------------
@@ -101,15 +110,22 @@ interface Derived {
   /** before-side element key → change key */
   fromBefore: Map<string, string>;
   layoutAligned: boolean;
+  /** The merged diagram (after + removed items, text changes marked), null when the types differ. */
+  merged: Merged | null;
+  rm: Rendered | null;
 }
 
 let D: Derived;
-const keyOf = (c: Pick<ItemChange, 'kind' | 'id'>) => `${c.kind}:${c.id}`;
+/** Change key = the item's key in the merged diagram (removed items get a suffix there, except participants). */
+const removedId = (kind: string, id: string) => (kind === 'participant' ? id : id + REMOVED);
+const keyOf = (c: Pick<ItemChange, 'kind' | 'id' | 'status'>) => `${c.kind}:${c.status === 'removed' ? removedId(c.kind, c.id) : c.id}`;
 const beforeKeyOf = (c: ItemChange) => `${c.kind}:${c.beforeId ?? c.id}`;
 
 function derive(): Derived {
   const raw = diffDiagrams(state.before, state.after);
-  const diff = ignoreFacets(raw, state.ignore);
+  const ignored = ignoreFacets(raw, state.ignore);
+  const items = ignored.items.map((c) => (state.hide[c.status as 'added' | 'removed'] ? { ...c, status: 'unchanged' as const } : c));
+  const diff: DiagramDiff = { ...ignored, items, counts: { ...ignored.counts, added: state.hide.added ? 0 : ignored.counts.added, removed: state.hide.removed ? 0 : ignored.counts.removed } };
   let srcBefore = state.before, srcAfter = state.after;
   if (state.ignore.style) {
     srcBefore = withoutStyle(srcBefore);
@@ -129,7 +145,13 @@ function derive(): Derived {
     .sort((a, b) => a.p.y - b.p.y || a.p.x - b.p.x)
     .map((x) => x.c);
   const fromBefore = new Map(diff.items.map((c) => [beforeKeyOf(c), keyOf(c)]));
-  return { raw, diff, rb, ra, srcBefore, srcAfter, changes, fromBefore, layoutAligned };
+  const merged = isSupported(rb.model) && isSupported(ra.model) ? buildMerged(diff, rb.model, ra.model, rb.doc.meta, ra.doc.meta) : null;
+  let rm: Rendered | null = null;
+  if (merged) {
+    const doc = { code: '', meta: merged.meta };
+    rm = { ...renderDocument(doc, merged.model, ctx, state.ignore.style ? { theme: ra.themeId } : {}), doc, model: merged.model, tooLarge: false, diagnostics: [] };
+  }
+  return { raw, diff, rb, ra, srcBefore, srcAfter, changes, fromBefore, layoutAligned, merged, rm };
 }
 
 const markOf = (c: ItemChange): Mark => (c.status === 'added' ? 'added' : c.status === 'removed' ? 'removed' : c.facets[0] ?? 'content');
@@ -146,6 +168,45 @@ function highlightsFor(side: 'before' | 'after'): Highlight[] {
   return out;
 }
 
+function mergedHighlights(): Highlight[] {
+  const out: Highlight[] = [];
+  if (!D.rm) return out;
+  for (const c of D.changes) {
+    const key = keyOf(c);
+    const [kind, ...rest] = key.split(':');
+    const shape = shapeOf(D.rm.result.geom, kind as ItemKind, rest.join(':'));
+    if (shape) out.push({ key, shape, mark: markOf(c), badge: badgeOf(c), dashed: c.status === 'removed' });
+  }
+  return out;
+}
+
+/** Old → new place of every moved item, for the merged picture. */
+function mergedMoves(): { key: string; from: ItemShape; to: ItemShape }[] {
+  const out: { key: string; from: ItemShape; to: ItemShape }[] = [];
+  if (!D.rm) return out;
+  for (const c of D.changes) {
+    if (c.status !== 'changed' || !c.fields.some((f) => f.field === 'position')) continue;
+    const from = shapeOf(D.rb.result.geom, c.kind, c.beforeId ?? c.id), to = shapeOf(D.rm.result.geom, c.kind, c.id);
+    if (from?.t === 'rect' && to?.t === 'rect') out.push({ key: keyOf(c), from, to });
+  }
+  return out;
+}
+
+/** The merged diagram as an SVG: marked text, removed items faded, highlights and move arrows. */
+function mergedSvg(): SVGSVGElement {
+  const svg = toSvgElement(D.rm!);
+  decorateText(svg);
+  for (const c of D.changes) {
+    if (c.status !== 'removed') continue;
+    const [kind, ...rest] = keyOf(c).split(':');
+    for (const e of svg.querySelectorAll<SVGGElement>(`g.el[data-kind="${kind}"][data-id="${CSS.escape(rest.join(':'))}"]`)) e.classList.add('dx-gone');
+  }
+  const layer = drawHighlights(svg, mergedHighlights());
+  drawMoves(layer, mergedMoves());
+  dimOthers(svg, state.dim ? new Set(D.changes.map(keyOf)) : null);
+  return svg;
+}
+
 const keepSet = (side: 'before' | 'after'): Set<string> =>
   new Set(D.changes.filter((c) => (side === 'before' ? c.status !== 'added' : c.status !== 'removed')).map((c) => (side === 'before' ? beforeKeyOf(c) : keyOf(c))));
 
@@ -155,13 +216,24 @@ let view: SharedView | null = null;
 let svgs: { before?: SVGSVGElement; after?: SVGSVGElement } = {};
 
 function renderStage(): void {
+  morph?.dispose();
+  morph = null;
+  morphSync = null;
+  if (state.mode !== 'morph' && state.playing) {
+    state.playing = false;
+    clearInterval(playTimer);
+  }
   view?.dispose();
   view = null;
   svgs = {};
   const stage = $('#stage');
   stage.replaceChildren();
   stage.className = `stage mode-${state.mode}`;
-  if (state.mode === 'code') return renderCode(stage);
+  if (state.mode === 'code') {
+    renderCode(stage);
+    stage.append(legend());
+    return;
+  }
 
   const bounds = union(D.rb.result.bounds, D.ra.result.bounds);
   view = new SharedView(bounds);
@@ -173,11 +245,23 @@ function renderStage(): void {
     stage.append(pb, pa);
     svgs.before = mount(pb, D.rb, 'before');
     svgs.after = mount(pa, D.ra, 'after');
+  } else if (state.mode === 'overlay' && D.rm) {
+    const p = pane('Merged', 'after + removed items, text changes word by word, old positions', 'single');
+    stage.append(p);
+    const svg = mergedSvg();
+    p.append(svg);
+    svg.addEventListener('click', (e) => clickSelect(e, 'merged'));
+    svgs.after = svg;
+    requestAnimationFrame(() => highlightRuns(svg));
   } else if (state.mode === 'overlay') {
     const p = pane('After', 'with removed items and old positions', 'single');
     stage.append(p);
     svgs.after = mount(p, D.ra, 'after');
     overlayExtras(svgs.after);
+  } else if (state.mode === 'morph' && D.rm) {
+    const p = h('div', { class: 'pane stack' });
+    stage.append(p);
+    morphStage(p, view);
   } else {
     const p = h('div', { class: 'pane stack' });
     stage.append(p);
@@ -190,7 +274,7 @@ function renderStage(): void {
     if (state.mode === 'swipe') swipeControl(p, la);
     else onionControl(p, la);
   }
-  if (state.mode === 'side' || state.mode === 'overlay')
+  if (state.mode === 'side' || state.mode === 'overlay' || (state.mode === 'morph' && !D.rm))
     for (const s of Object.values(svgs)) view.attach(s, s.parentElement!);
   stage.append(zoomBar(), legend());
   requestAnimationFrame(() => {
@@ -204,20 +288,90 @@ function mount(host: HTMLElement, r: Rendered, side: 'before' | 'after'): SVGSVG
   host.append(svg);
   drawHighlights(svg, highlightsFor(side));
   dimOthers(svg, state.dim ? keepSet(side) : null);
-  svg.addEventListener('click', (e) => {
-    const t = e.target as Element;
-    const hl = t.closest<SVGGElement>('[data-key]');
-    let key = hl?.dataset['key'] ?? null;
-    if (!key) {
-      const el = t.closest<SVGGElement>('g.el[data-kind][data-id]');
-      if (el) {
-        const k = `${el.dataset['kind']}:${el.dataset['id']}`;
-        key = side === 'before' ? D.fromBefore.get(k) ?? k : k;
-      }
-    }
-    select(key && D.changes.some((c) => keyOf(c) === key) ? key : null, false);
-  });
+  svg.addEventListener('click', (e) => clickSelect(e, side));
   return svg;
+}
+
+function clickSelect(e: MouseEvent, side: 'before' | 'after' | 'merged'): void {
+  const t = e.target as Element;
+  const hl = t.closest<SVGGElement>('[data-key]');
+  let key = hl?.dataset['key'] ?? null;
+  if (!key) {
+    const el = t.closest<SVGGElement>('g.el[data-kind][data-id]');
+    if (el) {
+      const k = `${el.dataset['kind']}:${el.dataset['id']}`;
+      key = side === 'before' ? D.fromBefore.get(k) ?? k : k;
+    }
+  }
+  select(key && D.changes.some((c) => keyOf(c) === key) ? key : null, false);
+}
+
+// ---- morph ------------------------------------------------------------------------------------------------------
+
+let morph: Morph | null = null;
+let playTimer = 0;
+
+/** Canonical keys (`data-ck`) on the item groups of one state, so the three states can be paired. */
+function tagItems(svg: SVGSVGElement, side: 'before' | 'after' | 'merged'): void {
+  for (const e of svg.querySelectorAll<SVGGElement>('g.el[data-kind][data-id]')) {
+    const k = `${e.dataset['kind']}:${e.dataset['id']}`;
+    e.dataset['ck'] = side === 'before' ? D.fromBefore.get(k) ?? k : k;
+  }
+}
+
+function morphStage(p: HTMLElement, v: SharedView): void {
+  const before = toSvgElement(D.rb), after = toSvgElement(D.ra), merged = mergedSvg();
+  if (state.dim) {
+    dimOthers(before, keepSet('before'));
+    dimOthers(after, keepSet('after'));
+  }
+  tagItems(before, 'before');
+  tagItems(after, 'after');
+  tagItems(merged, 'merged');
+  withLayout(merged, () => highlightRuns(merged));
+  morph = new Morph(p, [before, merged, after], v, state.morph);
+  morph.svg.addEventListener('click', (e) => clickSelect(e, state.morph === 0 ? 'before' : state.morph === 1 ? 'merged' : 'after'));
+  svgs.after = morph.svg;
+  const steps = STATE_NAMES.map((name, i) => h('button', { class: i === state.morph ? 'on' : '', onclick: () => morphTo(i) }, name));
+  const play = h('button', { class: 'play', title: 'Play (Space)', onclick: () => togglePlay() }, state.playing ? '❚❚' : '▶');
+  p.append(
+    h('div', { class: 'morph-bar no-pan' },
+      h('button', { title: 'Previous (←)', onclick: () => morphTo(state.morph - 1) }, '◀'),
+      h('div', { class: 'seg morph-steps' }, ...steps),
+      h('button', { title: 'Next (→)', onclick: () => morphTo(state.morph + 1) }, '▶'),
+      play,
+    ),
+  );
+  const sync = () => {
+    steps.forEach((b, i) => b.classList.toggle('on', i === state.morph));
+    play.textContent = state.playing ? '❚❚' : '▶';
+  };
+  morphSync = sync;
+}
+
+let morphSync: (() => void) | null = null;
+
+function morphTo(i: number): void {
+  if (!morph || i < 0 || i > 2) return;
+  state.morph = i;
+  morph.go(i);
+  morphSync?.();
+  applySelection(false);
+}
+
+function togglePlay(): void {
+  state.playing = !state.playing;
+  clearInterval(playTimer);
+  if (state.playing) {
+    let dir = state.morph === 2 ? -1 : 1;
+    const tick = () => {
+      if (state.morph + dir < 0 || state.morph + dir > 2) dir = -dir as 1 | -1;
+      morphTo(state.morph + dir);
+    };
+    tick();
+    playTimer = window.setInterval(tick, 2200);
+  }
+  morphSync?.();
 }
 
 /** Overlay: ghosts of removed items from the old version, and old → new arrows for moved items. */
@@ -283,17 +437,29 @@ function zoomBar(): HTMLElement {
   );
 }
 
+/** The legend doubles as the filter: each entry switches its kind of change on or off. */
 function legend(): HTMLElement {
-  const item = (m: Mark, text: string) => h('span', { class: `lg lg-${m}` }, h('i', {}), text);
+  const raw = D.raw.counts;
+  const item = (m: Mark, text: string, n: number, on: boolean, help: string, toggle: () => void) =>
+    h('button', { class: `lg lg-${m}${on ? '' : ' off'}`, 'aria-pressed': String(on), title: `${help} — click to ${on ? 'hide' : 'show'}`, onclick: toggle }, h('i', {}), text, h('b', {}, String(n)));
+  const facet = (f: ChangeFacet, letter: string) =>
+    item(f, `${FACET_INFO[f].label} (${letter})`, raw[f], !state.ignore[f], FACET_INFO[f].help + (f === 'style' ? '. Off: both versions are drawn unstyled' : f === 'layout' ? '. Off: the old version is drawn on the new layout' : ''), () => setIgnore({ ...state.ignore, [f]: !state.ignore[f] }));
   return h(
     'div',
-    { class: 'legend no-pan' },
-    item('added', 'Added'),
-    item('removed', 'Removed'),
-    !state.ignore.content && item('content', 'Content (C)'),
-    !state.ignore.layout && item('layout', 'Layout (L)'),
-    !state.ignore.style && item('style', 'Style (S)'),
+    { class: 'legend no-pan', role: 'group', 'aria-label': 'Show changes' },
+    item('added', 'Added', raw.added, !state.hide.added, 'Items only in the new version', () => setHide('added')),
+    item('removed', 'Removed', raw.removed, !state.hide.removed, 'Items only in the old version', () => setHide('removed')),
+    facet('content', 'C'),
+    facet('layout', 'L'),
+    facet('style', 'S'),
+    h('span', { class: 'lg-sep' }),
+    h('button', { class: `lg lg-dim${state.dim ? '' : ' off'}`, 'aria-pressed': String(state.dim), title: 'Fade everything that did not change', onclick: () => ((state.dim = !state.dim), renderStage()) }, 'Dim unchanged'),
   );
+}
+
+function setHide(k: 'added' | 'removed'): void {
+  state.hide = { ...state.hide, [k]: !state.hide[k] };
+  refresh();
 }
 
 // ---- code view --------------------------------------------------------------------------------------------------
@@ -416,7 +582,7 @@ function renderPanel(): void {
     ),
     ...(docChanges.length ? [h('details', { class: 'doc-changes', open: true }, h('summary', {}, `Diagram-wide (${docChanges.length})`), ...docChanges.map(fieldRow))] : []),
     shown.length ? list : h('div', { class: 'empty' }, D.changes.length ? 'Nothing in this filter.' : 'No changes with the current filters.'),
-    h('div', { class: 'kbd-hint' }, h('kbd', {}, 'J'), ' / ', h('kbd', {}, 'K'), ' next / previous change · ', h('kbd', {}, '1'), '–', h('kbd', {}, '5'), ' views · ', h('kbd', {}, 'F'), ' fit'),
+    h('div', { class: 'kbd-hint' }, h('kbd', {}, 'J'), ' / ', h('kbd', {}, 'K'), ' next / previous change · ', h('kbd', {}, '1'), '–', h('kbd', {}, '6'), ' views · ', h('kbd', {}, 'F'), ' fit'),
   );
 }
 
@@ -459,27 +625,7 @@ function renderToolbar(): void {
     { class: 'seg', role: 'tablist', 'aria-label': 'View' },
     ...MODES.map((m) => h('button', { role: 'tab', 'aria-selected': String(state.mode === m.id), class: state.mode === m.id ? 'on' : '', title: `${m.help} (${m.key})`, onclick: () => setMode(m.id) }, m.label)),
   );
-  const presetOn = PRESETS.find((p) => (['content', 'layout', 'style'] as const).every((f) => !!p.ignore[f] === !!state.ignore[f]));
-  const presets = h(
-    'div',
-    { class: 'seg presets', 'aria-label': 'Review preset' },
-    ...PRESETS.map((p) => h('button', { class: presetOn?.id === p.id ? 'on' : '', title: p.help, onclick: () => setIgnore({ ...p.ignore }) }, p.label)),
-  );
-  const facetToggles = h(
-    'div',
-    { class: 'facet-toggles' },
-    h('span', { class: 'muted' }, 'Show'),
-    ...(['content', 'layout', 'style'] as const).map((f) =>
-      h(
-        'label',
-        { class: `toggle f-${f}`, title: FACET_INFO[f].help },
-        h('input', { type: 'checkbox', checked: !state.ignore[f], onchange: (e: Event) => setIgnore({ ...state.ignore, [f]: !(e.target as HTMLInputElement).checked }) }),
-        FACET_INFO[f].label,
-      ),
-    ),
-    h('label', { class: 'toggle', title: 'Fade everything that did not change' }, h('input', { type: 'checkbox', checked: state.dim, onchange: (e: Event) => ((state.dim = (e.target as HTMLInputElement).checked), renderStage()) }), 'Dim unchanged'),
-  );
-  $('#toolbar').replaceChildren(modes, h('span', { class: 'grow' }), presets, facetToggles);
+  $('#toolbar').replaceChildren(modes);
   $('#mode-help').textContent = MODES.find((m) => m.id === state.mode)!.help + (state.ignore.style ? ' Both versions are drawn without styling.' : '') + (D.layoutAligned ? ' The old version is drawn on the new layout.' : '');
 }
 
@@ -551,7 +697,13 @@ function pasteDialog(): void {
 // ---- boot -------------------------------------------------------------------------------------------------------
 
 const sel = $('#sample') as HTMLSelectElement;
-sel.append(...SAMPLES.map((s) => new Option(s.title, s.id)), new Option('Your own…', ''));
+for (const group of new Set(SAMPLES.map((x) => x.group))) {
+  const og = document.createElement('optgroup');
+  og.label = group;
+  og.append(...SAMPLES.filter((x) => x.group === group).map((x) => new Option(`${group} · ${x.title}`, x.id)));
+  sel.append(og);
+}
+sel.append(new Option('Your own…', ''));
 sel.addEventListener('change', () => (sel.value ? loadSample(sel.value) : pasteDialog()));
 $('#paste').addEventListener('click', pasteDialog);
 
@@ -559,6 +711,9 @@ document.addEventListener('keydown', (e) => {
   if (e.metaKey || e.ctrlKey || e.altKey || (e.target as Element).closest('input, textarea, select, dialog')) return;
   const m = MODES.find((x) => x.key === e.key);
   if (m) setMode(m.id);
+  else if (state.mode === 'morph' && e.key === 'ArrowLeft') morphTo(state.morph - 1);
+  else if (state.mode === 'morph' && e.key === 'ArrowRight') morphTo(state.morph + 1);
+  else if (state.mode === 'morph' && e.key === ' ') togglePlay();
   else if (e.key === 'j' || e.key === 'n') step(1);
   else if (e.key === 'k' || e.key === 'p') step(-1);
   else if (e.key === 'f') view?.fit();
