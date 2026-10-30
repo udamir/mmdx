@@ -1,0 +1,109 @@
+flowchart TB
+  web["Web"]:::client
+  desktop["Desktop"]:::client
+  mobile["Mobile"]:::client
+  gw["① API Gateway"]:::gateway
+  reg["② Service Registry"]:::core
+  subgraph svc ["③ Service Layer"]
+    svcA["Service A"]:::api
+    svcB["Service B"]:::api
+    svcC["Service C"]:::api
+  end
+  admin(("Admin Access"))
+  auth["④ Authorization Server"]:::ui
+  lb["Load Balancer"]
+  cache[("⑥ Distributed Cache")]:::security
+  subgraph db ["⑤ Database Layer"]
+    db1[("Primary Core")]:::infra
+    db2[("Replica")]:::infra
+    db3[("Replica")]:::infra
+    n1["Reports store"]
+  end
+  msg["⑦ Distributed Messaging"]:::event-bus
+  queue["Queue Management Interface"]:::service
+  subgraph mon ["⑧ Monitoring"]
+    prom["Prometheus"]:::metrics
+    grafana["Grafana"]:::metrics
+  end
+  mviz(["Metrics Visualization"]):::storage
+  subgraph elk ["⑨ Logging — ELK"]
+    logstash["Logstash"]:::analytics
+    es["Elasticsearch"]:::analytics
+    kibana["Kibana"]:::analytics
+  end
+  lviz(["Logs Visualization"]):::storage
+
+  web --> gw
+  desktop --> gw
+  mobile --> gw
+  gw --> reg
+  gw --> svcA
+  gw --> svcB
+  gw --> svcC
+  admin --> auth
+  auth --> svc
+  svcA -.-> msg
+  svcB -.-> msg
+  svcC -.-> msg
+  queue --> msg
+  svcA --> lb
+  svcB --> lb
+  svcC --> lb
+  lb --> cache
+  lb --> db1
+  db1 ---|"replication"| db2
+  db1 --- db3
+  db2 --- db3
+  svc -->|"metrics"| prom
+  prom --> grafana
+  mviz --> grafana
+  svc -->|"logs"| logstash
+  auth --> logstash
+  logstash --> es
+  es --> kibana
+  lviz --> kibana
+  db3 --> n1
+
+%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----
+%%@ canvas {"v":1}
+%%@ node web {"x":420,"y":110,"w":150,"h":60}
+%%@ node desktop {"x":665,"y":110,"w":150,"h":60}
+%%@ node mobile {"x":910,"y":110,"w":150,"h":60}
+%%@ node gw {"x":665,"y":330,"w":230,"h":80}
+%%@ node reg {"x":300,"y":330,"w":220,"h":64}
+%%@ node svcA {"x":390,"y":610,"w":220,"h":64}
+%%@ node svcB {"x":665,"y":610,"w":220,"h":64}
+%%@ node svcC {"x":940,"y":610,"w":220,"h":64}
+%%@ node admin {"x":1440,"y":330,"w":130,"h":130}
+%%@ node auth {"x":1440,"y":610,"w":290,"h":80}
+%%@ node msg {"x":420,"y":960,"w":290,"h":80,"fontSize":15}
+%%@ node queue {"x":519,"y":1282,"w":290,"h":64}
+%%@ node lb {"x":790,"y":960,"w":180,"h":64}
+%%@ node cache {"x":1090,"y":960,"w":200,"h":90}
+%%@ node db1 {"x":940,"y":1250,"w":130,"h":80}
+%%@ node db2 {"x":790,"y":1410,"w":130,"h":80}
+%%@ node db3 {"x":1090,"y":1410,"w":130,"h":80}
+%%@ node prom {"x":110,"y":960,"w":180,"h":64}
+%%@ node grafana {"x":110,"y":1180,"w":180,"h":64}
+%%@ node mviz {"x":110,"y":1420,"w":200,"h":60}
+%%@ node logstash {"x":1440,"y":900,"w":220,"h":64}
+%%@ node es {"x":1440,"y":1060,"w":220,"h":64}
+%%@ node kibana {"x":1440,"y":1220,"w":220,"h":64}
+%%@ node lviz {"x":1440,"y":1420,"w":220,"h":60}
+%%@ edge svcA->msg {"preset":"event"}
+%%@ edge svcB->msg {"preset":"event"}
+%%@ edge svcC->msg {"preset":"event"}
+%%@ edge queue->msg {"preset":"event"}
+%%@ edge db1->db2 {"preset":"sync"}
+%%@ edge db1->db3 {"preset":"sync"}
+%%@ edge db2->db3 {"preset":"sync"}
+%%@ edge svc->prom {"preset":"write"}
+%%@ edge prom->grafana {"preset":"write"}
+%%@ edge mviz->grafana {"preset":"write"}
+%%@ edge svc->logstash {"preset":"logs"}
+%%@ edge auth->logstash {"preset":"logs"}
+%%@ edge logstash->es {"preset":"logs"}
+%%@ edge es->kibana {"preset":"logs"}
+%%@ edge lviz->kibana {"preset":"logs"}
+%%@ edge lb->cache {"preset":"read"}
+%%@ edge gw->svcA {"preset":"rest"}

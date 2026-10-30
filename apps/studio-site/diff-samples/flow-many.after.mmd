@@ -1,0 +1,196 @@
+flowchart TB
+  subgraph appArch ["Application architecture"]
+    mono["Monolithic<br>architecture v2"]:::pattern
+    micro["Microservice<br/>architecture"]:::pattern
+    n6[("Backup API")]
+  end
+  subgraph decomp ["Decomposition"]
+    dbc["Internal Decompose by<br>business capability"]:::pattern
+    dsd["Decompose<br/>by subdomain"]:::pattern
+    scs["Self-contained<br/>Service"]:::pattern
+    spt["Service per team"]:::pattern
+  end
+  subgraph data ["Data patterns"]
+    subgraph dbArch ["Database architecture"]
+    end
+    subgraph querying ["Querying"]
+      apic["API Composition"]:::pattern
+      cqrs["CQRS"]:::pattern
+    end
+    subgraph consistency ["Maintaining data consistency"]
+      aggregate["Aggregate Internal"]:::pattern
+      saga["Saga"]:::pattern
+      evsrc["Event sourcing"]:::pattern
+      devent["Domain event"]:::pattern
+    end
+  end
+  subgraph testing ["Testing"]
+    cdct["Consumer-driven<br/>contract test"]:::pattern
+    csct["Legacy test"]:::pattern
+    sct["Service<br/>Component Test"]:::pattern
+  end
+  subgraph uiPat ["UI"]
+    csuc["Client-side<br/>UI composition"]:::pattern
+    n4(["Notifications store"])
+  end
+  subgraph cross ["Cross-cutting concerns"]
+    chassis["Microservice<br/>Chassis"]:::pattern
+    extcfg["Externalized<br/>configuration"]:::pattern
+    n1(["Audit store"])
+  end
+  subgraph security ["Security"]
+    token["Access Token"]:::pattern
+  end
+  subgraph comm ["Communication patterns"]
+    subgraph commStyle ["Communication style"]
+      rpi["Remote Procedure<br/>Invocation"]:::pattern
+      messaging["Messaging Public"]:::pattern
+      dsp["Domain-specific"]:::pattern
+      n5[("Scheduler store")]
+    end
+    subgraph txMsg ["Transactional messaging"]
+      outbox["Transactional<br/>Outbox"]:::pattern
+      tlt["Transaction<br/>log tailing"]:::pattern
+      pp["Polling<br/>publisher"]:::pattern
+    end
+    subgraph reliability ["Reliability"]
+      cb["Circuit Breaker"]:::pattern
+    end
+    subgraph msgGroup ["Messaging "]
+      idem["Idempotent<br/>Consumer"]:::pattern
+    end
+    subgraph extApi ["External API"]
+      apigw["API gateway"]:::pattern
+      bff["Backends for<br/>frontends"]:::pattern
+      n3[("Backup API")]
+    end
+    subgraph discovery ["Discovery"]
+      csd["Client-side<br/>discovery"]:::pattern
+      selfreg["Self<br/>registration"]:::pattern
+      registry["Service registry"]:::pattern
+      ssd["Server-side<br/>discovery"]:::pattern
+      tpr["Core 3rd party<br>registration"]:::pattern
+    end
+  end
+  subgraph observability ["Observability"]
+    audit["Audit logging Public"]:::pattern
+    appMetrics["Application<br/>metrics"]:::pattern
+    dtracing["Distributed<br>tracing Core"]:::pattern
+    health["Health check API"]:::pattern
+    excTrack["Exception<br/>tracking"]:::pattern
+    logAgg["Log aggregation"]:::pattern
+    logDeploy["Log deployments<br/>and changes"]:::pattern
+    n7(["Backup worker"])
+  end
+  subgraph deploy ["Deployment"]
+    serverless["Serverless<br/>deployment"]:::pattern
+    ssph["Single Service<br/>per Host"]:::pattern
+    msph["Multiple<br/>Services per host"]:::pattern
+    spc["Service-per-Container"]:::pattern
+    spvm["Service-per-VM"]:::pattern
+    sidecar["Sidecar"]:::pattern
+    mesh["Service mesh"]:::pattern
+    n2[("Billing store")]
+  end
+
+  mono <-.-> micro
+  micro --> decomp
+  dbc <-.-> dsd
+  apic <-.-> cqrs
+  cqrs --> devent
+  saga --> aggregate
+  devent --> aggregate
+  evsrc --> aggregate
+  devent --> evsrc
+  saga --> messaging
+  devent --> messaging
+  devent -->|"HTTPS"| outbox
+  evsrc <-.-> outbox
+  rpi <-.->|"sync"| messaging
+  rpi <-.-> dsp
+  messaging <-.-> dsp
+  messaging --> outbox
+  outbox --> tlt
+  outbox --> pp
+  rpi --> cb
+  apigw <-.-> bff
+  csd <-.-> ssd
+  selfreg <-.->|"writes"| tpr
+  csd --> registry
+  registry --> selfreg
+  ssd --> registry
+  registry --> tpr
+  ssph -.-> serverless
+  ssph <-.-> msph
+  spc --> ssph
+  spvm --> ssph
+  spc <-.-> spvm
+  chassis --> n1
+  spc --> n2
+  bff --> n3
+  csuc --> n4
+  messaging --> n5
+  micro --> n6
+  audit --> n7
+  logDeploy --> apic
+  n2 --> tlt
+  apigw --> cqrs
+  token --> evsrc
+
+%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----
+%%@ canvas {"v":1,"routing":"straight"}
+%%@ style.node pattern {"fill":"@paper","stroke":"@ink","strokeWidth":1.2,"fontSize":13,"radius":2,"stack":true,"minW":100,"minH":36,"padX":8,"padY":4}
+%%@ node mono {"x":169,"y":451,"w":130,"h":44}
+%%@ node micro {"x":169,"y":610,"w":130,"h":44}
+%%@ node dbc {"x":340,"y":145,"w":163,"h":44}
+%%@ node dsd {"x":184,"y":311,"w":120,"h":44}
+%%@ node scs {"x":340,"y":270,"w":126,"h":44}
+%%@ node spt {"x":518,"y":298,"w":140,"h":34}
+%%@ node apic {"x":599,"y":263,"w":133,"h":34,"strokeWidth":2}
+%%@ node cqrs {"x":737,"y":263,"w":90,"h":34}
+%%@ node aggregate {"x":1034,"y":115,"w":90,"h":34}
+%%@ node saga {"x":907,"y":190,"w":90,"h":34}
+%%@ node evsrc {"x":1157,"y":193,"w":126,"h":34}
+%%@ node devent {"x":1035,"y":268,"w":111,"h":34}
+%%@ node cdct {"x":1380,"y":116,"w":133,"h":44}
+%%@ node csct {"x":1380,"y":175,"w":120,"h":44,"fill":"@butter","strokeWidth":2}
+%%@ node sct {"x":1380,"y":231,"w":126,"h":44,"fill":"@peach"}
+%%@ node csuc {"x":1590,"y":181,"w":126,"h":44,"fill":"@pale-rose"}
+%%@ node chassis {"x":380,"y":611,"w":111,"h":44}
+%%@ node extcfg {"x":520,"y":611,"w":118,"h":44}
+%%@ node token {"x":580,"y":421,"w":111,"h":34}
+%%@ node rpi {"x":730,"y":505,"w":140,"h":44}
+%%@ node messaging {"x":665,"y":306,"w":120,"h":34}
+%%@ node dsp {"x":870,"y":528,"w":133,"h":34}
+%%@ node outbox {"x":1227,"y":470,"w":118,"h":44}
+%%@ node tlt {"x":1260,"y":443,"w":103,"h":44}
+%%@ node pp {"x":1260,"y":499,"w":90,"h":44}
+%%@ node cb {"x":804,"y":631,"w":133,"h":34}
+%%@ node idem {"x":997,"y":631,"w":120,"h":44}
+%%@ node apigw {"x":1375,"y":630,"w":120,"h":34}
+%%@ node bff {"x":1377,"y":679,"w":120,"h":44}
+%%@ node csd {"x":982,"y":718,"w":120,"h":44}
+%%@ node selfreg {"x":1007,"y":746,"w":120,"h":44}
+%%@ node registry {"x":893,"y":903,"w":140,"h":34}
+%%@ node ssd {"x":808,"y":996,"w":120,"h":44}
+%%@ node tpr {"x":1000,"y":1061,"w":120,"h":44}
+%%@ node audit {"x":1443,"y":361,"w":118,"h":34,"strokeWidth":3,"fill":"@mint"}
+%%@ node appMetrics {"x":1593,"y":425,"w":103,"h":44,"strokeWidth":2}
+%%@ node dtracing {"x":1443,"y":473,"w":103,"h":44}
+%%@ node health {"x":1745,"y":569,"w":140,"h":34}
+%%@ node excTrack {"x":1443,"y":536,"w":90,"h":44}
+%%@ node logAgg {"x":1736,"y":655,"w":133,"h":34}
+%%@ node logDeploy {"x":1518,"y":604,"w":190,"h":44}
+%%@ node serverless {"x":533,"y":741,"w":130,"h":44}
+%%@ node ssph {"x":415,"y":845,"w":130,"h":44}
+%%@ node msph {"x":288,"y":940,"w":148,"h":44}
+%%@ node spc {"x":338,"y":1008,"w":177,"h":34,"strokeWidth":3}
+%%@ node spvm {"x":539,"y":1003,"w":130,"h":34}
+%%@ node sidecar {"x":539,"y":1064,"w":130,"h":34,"fill":"@lilac"}
+%%@ node mesh {"x":451,"y":1116,"w":130,"h":34}
+%%@ edge registry->selfreg {"preset":"alert"}
+%%@ edge audit->n7 {"preset":"strong"}
+%%@ edge devent->aggregate {"preset":"sync"}
+%%@ edge evsrc->outbox {"preset":"alert"}
+%%@ edge messaging->outbox {"preset":"strong"}
+%%@ edge messaging->n5 {"preset":"alert"}

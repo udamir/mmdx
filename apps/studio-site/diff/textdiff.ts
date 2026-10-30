@@ -1,16 +1,17 @@
-// Line diff for the Code view: LCS over lines, grouped into hunks with context.
-import { lcs } from '../../../src/core/diff/index.js';
+// Line diff for the Code view (jsdiff over lines), grouped into hunks with context.
+import { diffArrays } from 'diff';
 
 export type LineOp = { op: 'same' | 'add' | 'del'; text: string; a?: number; b?: number };
 
 export function lineDiff(a: readonly string[], b: readonly string[]): LineOp[] {
-  const pairs = lcs(a, b);
   const out: LineOp[] = [];
   let i = 0, j = 0;
-  for (const [pi, pj] of [...pairs, [a.length, b.length] as [number, number]]) {
-    while (i < pi) out.push({ op: 'del', text: a[i]!, a: ++i });
-    while (j < pj) out.push({ op: 'add', text: b[j]!, b: ++j });
-    if (i < a.length && j < b.length) out.push({ op: 'same', text: a[i]!, a: ++i, b: ++j });
+  for (const c of diffArrays([...a], [...b])) {
+    for (const text of c.value) {
+      if (c.removed) out.push({ op: 'del', text, a: ++i });
+      else if (c.added) out.push({ op: 'add', text, b: ++j });
+      else out.push({ op: 'same', text, a: ++i, b: ++j });
+    }
   }
   return out;
 }

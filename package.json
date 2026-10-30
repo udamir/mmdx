@@ -102,6 +102,7 @@
     "@storybook/addon-docs": "^10.6.5",
     "@storybook/web-components-vite": "^10.6.5",
     "@types/node": "^24.19.2",
+    "diff": "^9.0.0",
     "esbuild": "^0.28.2",
     "jsdom": "^26.1.0",
     "lit": "^3.3.3",
