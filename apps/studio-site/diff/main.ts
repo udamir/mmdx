@@ -2,7 +2,8 @@
 // Five ways to look at one semantic diff (src/core/diff), with content / layout / style changes that can each be
 // ignored. Everything here is prototype UI on top of the core API.
 /// <reference types="vite/client" />
-import { createContext, isSupported, joinSource, renderDocument, renderSource, splitSource, type Rendered } from '../../../src/core.js';
+import { createContext, isSupported, joinSource, renderDocument, renderSource, splitSource, type DiagramModel, type Rendered } from '../../../src/core.js';
+import { encodeId } from '../../../src/core/meta/index.js';
 import {
   diffDiagrams, ignoreFacets, withLayoutOf, withoutStyle, type ChangeFacet, type DiagramDiff, type DiffIgnore, type FieldChange,
   type ItemChange,
@@ -126,7 +127,8 @@ const state = {
   hide: {} as { added?: boolean; removed?: boolean },
   dim: true,
   codeTab: 'code' as 'code' | 'meta',
-  filter: 'all' as 'all' | 'added' | 'removed' | 'changed',
+  /** Code panel shows every line even while an item is selected. */
+  codeAll: false,
   selected: null as string | null,
   open: new Set<string>(),
   swipe: 50,
@@ -516,6 +518,57 @@ function setHide(k: 'added' | 'removed'): void {
 
 // ---- code panel (left, like the editor's code panel) --------------------------------------------------------------
 
+/** 0-based code lines that define or mention an item (a node's lines include its edges). */
+function relatedLines(m: DiagramModel, kind: ItemKind, id: string): Set<number> {
+  const out = new Set<number>();
+  const add = (n: number | null | undefined) => {
+    if (n !== null && n !== undefined) out.add(n);
+  };
+  if (m.type === 'flowchart') {
+    if (kind === 'node') m.nodes.get(id)?.lines.forEach(add);
+    else if (kind === 'group') {
+      const g = m.groups.get(id);
+      g?.lines.forEach(add);
+      add(g?.line);
+      add(g?.endLine);
+    } else if (kind === 'edge') add(m.edges.find((e) => e.id === id)?.src);
+  } else if (m.type === 'er') {
+    if (kind === 'entity') {
+      const e = m.entities.get(id);
+      e?.lines.forEach(add);
+      if (e?.defLine != null) for (let i = e.defLine; i <= (e.endLine ?? e.defLine); i++) add(i);
+    } else if (kind === 'rel') add(m.rels.find((r) => r.id === id)?.src);
+  } else if (m.type === 'sequence') {
+    if (kind === 'participant') m.participants.find((p) => p.id === id)?.lines.forEach(add);
+    else
+      for (const it of m.items) {
+        if (it.kind === 'message' && kind === 'message' && it.id === id) add(it.src);
+        else if (it.kind === 'note' && kind === 'note' && it.id === id) add(it.src);
+        else if (it.kind === 'blockStart' && kind === 'block' && it.id === id) it.lines.forEach(add);
+      }
+  }
+  return out;
+}
+
+/** Which lines of each side belong to the selected change (code tab: by source line; metadata tab: its %%@ line). */
+function selectedLines(a: readonly string[], b: readonly string[]): { a: Set<number>; b: Set<number>; label: string } | null {
+  const c = state.selected ? D.changes.find((x) => keyOf(x) === state.selected) : undefined;
+  if (!c || state.codeAll || viewOnly()) return null;
+  const beforeId = c.status === 'added' ? null : c.beforeId ?? c.id;
+  const afterId = c.status === 'removed' ? null : c.id;
+  if (state.codeTab === 'code')
+    return {
+      a: beforeId === null ? new Set() : relatedLines(D.rb.model, c.kind, beforeId),
+      b: afterId === null ? new Set() : relatedLines(D.ra.model, c.kind, afterId),
+      label: c.label,
+    };
+  const meta = (lines: readonly string[], id: string | null) => {
+    const prefix = id === null ? null : `%%@ ${c.kind} ${encodeId(id)} `;
+    return new Set(prefix ? lines.flatMap((l, i) => (l.startsWith(prefix) ? [i] : [])) : []);
+  };
+  return { a: meta(a, beforeId), b: meta(b, afterId), label: c.label };
+}
+
 function renderCodePane(): void {
   const body = $('#code-body');
   for (const t of document.querySelectorAll<HTMLElement>('#code-pane [role=tab]')) t.setAttribute('aria-selected', String(t.dataset['tab'] === state.codeTab));
@@ -527,12 +580,24 @@ function renderCodePane(): void {
   const shown = viewOnly() ? state.versions[state.viewing]!.source : null;
   const a = part(shown ?? D.srcBefore).replace(/\n$/, '').split('\n');
   const b = part(shown ?? D.srcAfter).replace(/\n$/, '').split('\n');
-  const ops = lineDiff(a, b);
+  const all = lineDiff(a, b);
+  // a selected item narrows the diff to its own lines
+  const sel = selectedLines(a, b);
+  const ops = sel ? all.filter((o) => (o.a !== undefined && sel.a.has(o.a - 1)) || (o.b !== undefined && sel.b.has(o.b - 1))) : all;
   const adds = ops.filter((o) => o.op === 'add').length, dels = ops.filter((o) => o.op === 'del').length;
   const table = h('table', { class: 'code' });
   const row = (o: { op: string; text: string; a?: number; b?: number }) =>
     h('tr', { class: `ln-${o.op}` }, h('td', { class: 'num' }, o.a ? String(o.a) : ''), h('td', { class: 'num' }, o.b ? String(o.b) : ''), h('td', { class: 'sign' }, o.op === 'add' ? '+' : o.op === 'del' ? '−' : ''), h('td', { class: 'txt' }, o.text || ' '));
-  for (const hk of hunks(ops)) {
+  if (sel) {
+    // separate runs that are not next to each other in the file
+    let prev: (typeof ops)[number] | null = null;
+    for (const o of ops) {
+      if (prev && !((o.a !== undefined && prev.a !== undefined && o.a === prev.a + 1) || (o.b !== undefined && prev.b !== undefined && o.b === prev.b + 1) || (o.a === undefined && prev.a !== undefined && o.b !== undefined) || (prev.a === undefined && o.a !== undefined)))
+        table.append(h('tr', { class: 'gap' }, h('td', { colSpan: 4 }, '⋯')));
+      table.append(row(o));
+      prev = o;
+    }
+  } else for (const hk of hunks(ops)) {
     if ('skip' in hk) {
       const tr = h('tr', { class: 'skip' }, h('td', { colSpan: 4 }, h('button', {}, `⋯ ${hk.skip} unchanged lines`)));
       tr.querySelector('button')!.addEventListener('click', () => tr.replaceWith(...hk.ops.map(row)));
@@ -545,7 +610,15 @@ function renderCodePane(): void {
   body.replaceChildren(
     h('div', { class: 'code-head' }, h('span', { class: 'stat add' }, `+${adds}`), h('span', { class: 'stat del' }, `−${dels}`), h('span', { class: 'muted' }, 'lines'),
       notes.length ? h('span', { class: 'code-note', title: 'Switched-off facets are left out of the diff' }, notes.join(' · ')) : null),
-    adds + dels === 0 ? h('div', { class: 'empty' }, 'No differences with the current filters.') : h('div', { class: 'code-scroll' }, table),
+    ...(sel
+      ? [h('div', { class: 'code-filter' }, h('span', {}, 'Lines of ', h('b', {}, sel.label)),
+          h('button', { title: 'Show the whole file', onclick: () => ((state.codeAll = true), renderCodePane()) }, 'Show all'))]
+      : []),
+    sel && !ops.length
+      ? h('div', { class: 'empty' }, state.codeTab === 'code' ? 'No code lines for this item (it lives in the metadata).' : 'No metadata lines for this item.')
+      : !sel && adds + dels === 0
+        ? h('div', { class: 'empty' }, 'No differences with the current filters.')
+        : h('div', { class: 'code-scroll' }, table),
   );
 }
 
@@ -577,50 +650,26 @@ const KIND_LABEL: Record<string, string> = {
   node: 'node', group: 'group', edge: 'edge', participant: 'participant', message: 'message', note: 'note', block: 'block', box: 'box', entity: 'table', rel: 'relation',
 };
 
+/** Filter icons of a change: its status, or every facet it changed in. */
+const iconsOf = (c: ItemChange): Mark[] => (c.status === 'added' ? ['added'] : c.status === 'removed' ? ['removed'] : c.facets.length ? c.facets : ['content']);
+
 function renderPanel(): void {
   const panel = $('#panel');
-  const c = D.diff.counts;
-  const hidden = D.raw.items.filter((i) => i.status === 'changed').length - D.diff.items.filter((i) => i.status === 'changed').length;
-  const chip = (id: typeof state.filter, label: string, n: number) =>
-    h('button', { class: `chip st-${id}${state.filter === id ? ' on' : ''}`, onclick: () => ((state.filter = id), renderPanel()) }, label, h('b', {}, String(n)));
   const list = h('div', { class: 'changes', role: 'list' });
-  const shown = D.changes.filter((x) => state.filter === 'all' || x.status === state.filter);
-  for (const ch of shown) {
+  for (const ch of D.changes) {
     const key = keyOf(ch);
-    const open = state.open.has(key) || state.selected === key;
-    const item = h(
-      'div',
-      { class: `change st-${ch.status}${state.selected === key ? ' selected' : ''}`, role: 'listitem', dataset: { key } },
-      h(
-        'button',
-        { class: 'change-head', onclick: () => select(state.selected === key ? null : key, true) },
-        h('span', { class: `sbadge m-${markOf(ch)}` }, ch.status === 'added' ? '+' : ch.status === 'removed' ? '−' : '~'),
-        h('span', { class: 'kind' }, KIND_LABEL[ch.kind] ?? ch.kind),
-        h('span', { class: 'label' }, ch.label),
-        h('span', { class: 'facets' }, ...ch.facets.map((f) => h('span', { class: `facet f-${f}` }, FACET_INFO[f].label))),
-      ),
-      open && ch.fields.length ? h('div', { class: 'fields' }, ...ch.fields.map(fieldRow)) : null,
-      open && ch.beforeId && ch.status === 'changed' && !ch.fields.some((f) => f.field === 'id') ? h('div', { class: 'hint' }, `was ${ch.beforeId} (matched by content)`) : null,
+    list.append(
+      h('div', { class: `change st-${ch.status}${state.selected === key ? ' selected' : ''}`, role: 'listitem', dataset: { key } },
+        h('button', { class: 'change-head', title: ch.status === 'changed' ? ch.fields.map((f) => f.field).join(', ') : ch.status, onclick: () => select(state.selected === key ? null : key, true) },
+          h('span', { class: 'cicons' }, ...iconsOf(ch).map((m) => h('span', { class: `cicon flt-${m}`, 'aria-label': m }, icon(FILTER_ICONS[m])))),
+          h('span', { class: 'kind' }, KIND_LABEL[ch.kind] ?? ch.kind),
+          h('span', { class: 'label' }, ch.label))),
     );
-    list.append(item);
   }
   const docChanges = D.diff.doc;
   panel.replaceChildren(
-    h(
-      'div',
-      { class: 'summary' },
-      h('div', { class: 'chips' }, chip('all', 'All', D.changes.length), chip('added', 'Added', c.added), chip('removed', 'Removed', c.removed), chip('changed', 'Changed', c.changed)),
-      h(
-        'div',
-        { class: 'facet-counts' },
-        ...(['content', 'layout', 'style'] as const).map((f) =>
-          state.ignore[f] ? h('span', { class: 'facet ignored', title: 'Ignored' }, FACET_INFO[f].label, ' ignored') : h('span', { class: `facet f-${f}` }, `${FACET_INFO[f].label} ${c[f]}`),
-        ),
-      ),
-      hidden > 0 ? h('div', { class: 'hint' }, `${hidden} item${hidden > 1 ? 's' : ''} changed only in ignored facets — hidden.`) : null,
-    ),
     ...(docChanges.length ? [h('details', { class: 'doc-changes', open: true }, h('summary', {}, `Diagram-wide (${docChanges.length})`), ...docChanges.map(fieldRow))] : []),
-    shown.length ? list : h('div', { class: 'empty' }, D.changes.length ? 'Nothing in this filter.' : 'No changes with the current filters.'),
+    D.changes.length ? list : h('div', { class: 'empty' }, 'No changes with the current filters.'),
   );
 }
 
@@ -628,7 +677,9 @@ function renderPanel(): void {
 
 function select(key: string | null, focus: boolean): void {
   state.selected = key;
+  state.codeAll = false;
   renderPanel();
+  renderCodePane();
   applySelection(focus);
   if (key) $('#panel').querySelector(`[data-key="${CSS.escape(key)}"]`)?.scrollIntoView({ block: 'nearest' });
 }
@@ -648,7 +699,7 @@ function applySelection(focus: boolean): void {
 }
 
 function step(d: 1 | -1): void {
-  const list = D.changes.filter((x) => state.filter === 'all' || x.status === state.filter);
+  const list = D.changes;
   if (!list.length) return;
   const i = list.findIndex((x) => keyOf(x) === state.selected);
   const next = list[(i + d + list.length) % list.length]!;

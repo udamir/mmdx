@@ -251,6 +251,18 @@
     /* ---- code diff panel ---- */
     .code-head { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--ds-border); flex: none; }
     .code-scroll { flex: 1; overflow: auto; min-height: 0; }
+    .code-filter { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--ds-border); background: var(--ds-accent-2); font-size: 12px; color: var(--ds-text); flex: none; }
+    .code-filter span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .code-filter button { border: 1px solid var(--ds-border); background: var(--ds-surface); border-radius: 6px; padding: 1px 8px; font-size: 11.5px; }
+    tr.gap td { color: var(--ds-faint); background: var(--ds-surface-2); text-align: center; padding: 0; line-height: 1.2; }
+    /* change list icons: the filter icons */
+    .cicons { display: inline-flex; gap: 2px; grid-row: span 1; }
+    .cicon { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 5px; color: var(--c); background: var(--c-bg); }
+    .cicon.flt-added { --c: var(--add); --c-bg: var(--add-bg); }
+    .cicon.flt-removed { --c: var(--del); --c-bg: var(--del-bg); }
+    .cicon.flt-content { --c: var(--content); --c-bg: var(--content-bg); }
+    .cicon.flt-layout { --c: var(--layout); --c-bg: var(--layout-bg); }
+    .cicon.flt-style { --c: var(--style); --c-bg: var(--style-bg); }
     .stat { font-weight: 700; }
     .stat.add { color: var(--add); } .stat.del { color: var(--del); }
     .code-note { margin-left: auto; font-size: 11px; padding: 1px 8px; border-radius: 10px; background: var(--layout-bg); color: #0a3069; }
@@ -265,14 +277,6 @@
     tr.skip button { border: 0; background: none; color: var(--accent); width: 100%; text-align: left; padding: 3px 12px; font: 12px system-ui, sans-serif; }
 
     /* ---- side panel ---- */
-    .summary { padding: 12px; border-bottom: 1px solid var(--border); display: grid; gap: 8px; position: sticky; top: 0; background: var(--surface); z-index: 1; }
-    .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-    .chip { border: 1px solid var(--border); background: var(--surface); border-radius: 14px; padding: 2px 10px; display: inline-flex; gap: 6px; align-items: center; }
-    .chip b { font-weight: 700; }
-    .chip.on { background: var(--text); color: #fff; border-color: var(--text); }
-    .chip.st-added b { color: var(--add); } .chip.st-removed b { color: var(--del); } .chip.st-changed b { color: var(--content); }
-    .chip.on b { color: #fff; }
-    .facet-counts { display: flex; gap: 6px; flex-wrap: wrap; }
     .facet { font-size: 11px; border-radius: 4px; padding: 0 6px; font-weight: 600; white-space: nowrap; }
     .facet.f-content { color: var(--content); background: var(--content-bg); }
     .facet.f-layout { color: var(--layout); background: var(--layout-bg); }
@@ -285,12 +289,8 @@
     .changes { display: flex; flex-direction: column; }
     .change { border-bottom: 1px solid var(--border); }
     .change.selected { background: #f3f6fd; box-shadow: inset 3px 0 0 var(--accent); }
-    .change-head { width: 100%; border: 0; background: none; text-align: left; padding: 7px 12px; display: grid; grid-template-columns: auto auto 1fr; gap: 2px 8px; align-items: center; }
+    .change-head { width: 100%; border: 0; background: none; text-align: left; padding: 6px 12px; display: grid; grid-template-columns: auto auto 1fr; gap: 8px; align-items: center; }
     .change-head:hover { background: var(--surface-2); }
-    .change-head .facets { grid-column: 3; display: flex; gap: 4px; }
-    .change-head .facets:empty { display: none; }
-    .sbadge { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 13px; grid-row: span 2; }
-    .m-added { background: var(--add); } .m-removed { background: var(--del); } .m-content { background: var(--content); } .m-layout { background: var(--layout); } .m-style { background: var(--style); }
     .kind { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
     .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
     .st-removed .label { text-decoration: line-through; color: var(--muted); }
