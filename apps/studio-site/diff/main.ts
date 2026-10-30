@@ -37,6 +37,8 @@ const histories = import.meta.glob<{ message: string; author: string; date: stri
 interface Version {
   /** 1-based number, oldest = v1. */
   n: number;
+  /** Short content hash, like a commit id. */
+  id?: string;
   message: string;
   author: string;
   date: string;
@@ -61,8 +63,15 @@ function historyOf(id: string): Version[] {
   return withCounts(list);
 }
 
+/** FNV-1a of the source as 7 hex digits. */
+function shortId(src: string): string {
+  let x = 0x811c9dc5;
+  for (let i = 0; i < src.length; i++) x = Math.imul(x ^ src.charCodeAt(i), 0x01000193) >>> 0;
+  return x.toString(16).padStart(8, '0').slice(0, 7);
+}
+
 function withCounts(list: Version[]): Version[] {
-  return list.map((v, i) => (i ? { ...v, counts: diffDiagrams(list[i - 1]!.source, v.source).counts } : v));
+  return list.map((v, i) => ({ ...v, id: shortId(`${i}\n${v.source}`), ...(i ? { counts: diffDiagrams(list[i - 1]!.source, v.source).counts } : {}) }));
 }
 
 const SAMPLES: { id: string; group: string; title: string; note: string }[] = [
@@ -108,6 +117,10 @@ const state = {
   versions: [] as Version[],
   at: 0,
   base: 0,
+  /** History panel: view one version as it is, or compare two. */
+  historyMode: 'compare' as 'view' | 'compare',
+  /** The version shown in view mode. */
+  viewing: 0,
   ignore: {} as DiffIgnore,
   /** Added / removed items switched off in the left panel filters. */
   hide: {} as { added?: boolean; removed?: boolean },
@@ -287,8 +300,23 @@ function renderStage(): void {
   const pane = (title: string, sub: string, cls: string) =>
     h('div', { class: `pane ${cls}` }, h('div', { class: 'pane-title no-pan' }, h('b', {}, title), h('span', {}, sub)));
 
+  if (viewOnly()) {
+    // the standard viewer: the chosen version as it is, no diff
+    const v = state.versions[state.viewing]!;
+    const r = renderSource(v.source, ctx);
+    view.bounds = r.result.bounds;
+    const p = pane(versionLabel(state.viewing), `${v.message} · ${v.author}, ${ago(v.date)}`, 'single');
+    stage.append(p);
+    const svg = toSvgElement(r);
+    p.append(svg);
+    view.attach(svg, p);
+    stage.append(toolPanel());
+    ink.attach(svg);
+    requestAnimationFrame(() => view?.fit());
+    return;
+  }
   if (state.mode === 'side') {
-    const who = (i: number) => (state.versions[i] ? `${versionName(i)} · ${state.versions[i]!.author}, ${ago(state.versions[i]!.date)}` : '');
+    const who = (i: number) => (state.versions[i] ? `${versionLabel(i)} · ${state.versions[i]!.author}, ${ago(state.versions[i]!.date)}` : '');
     const pb = pane('Before', who(state.base), 'before'), pa = pane('After', who(state.at), 'after');
     stage.append(pb, pa);
     svgs.before = mount(pb, D.rb, 'before');
@@ -298,7 +326,7 @@ function renderStage(): void {
     const p = h('div', { class: 'pane stack' });
     stage.append(p);
     morphStage(p, view);
-    if (state.versions.length) p.append(h('div', { class: 'pane-title no-pan' }, h('b', { class: 'cmp' }, `${versionName(state.base)} → ${versionName(state.at)}`)));
+    if (state.versions.length) p.append(h('div', { class: 'pane-title no-pan' }, h('b', { class: 'cmp' }, `${versionLabel(state.base)} → ${versionLabel(state.at)}`)));
   }
   diffBar = h('div', { class: 'dbar ds-float no-pan', role: 'toolbar', 'aria-label': 'Diff' });
   stage.append(toolPanel(), diffBar);
@@ -496,8 +524,9 @@ function renderCodePane(): void {
     const { doc } = splitSource(src);
     return state.codeTab === 'code' ? doc.code : joinSource({ code: '', meta: doc.meta }).replace(/^\s+/, '');
   };
-  const a = part(D.srcBefore).replace(/\n$/, '').split('\n');
-  const b = part(D.srcAfter).replace(/\n$/, '').split('\n');
+  const shown = viewOnly() ? state.versions[state.viewing]!.source : null;
+  const a = part(shown ?? D.srcBefore).replace(/\n$/, '').split('\n');
+  const b = part(shown ?? D.srcAfter).replace(/\n$/, '').split('\n');
   const ops = lineDiff(a, b);
   const adds = ops.filter((o) => o.op === 'add').length, dels = ops.filter((o) => o.op === 'del').length;
   const table = h('table', { class: 'code' });
@@ -678,6 +707,7 @@ function penOptions(): HTMLElement {
 function applyPanels(): void {
   const main = $('#main');
   main.dataset['left'] = state.panels.left ?? '';
+  main.classList.toggle('view-only', viewOnly());
   main.classList.toggle('no-changes', !state.panels.changes);
 }
 
@@ -687,10 +717,12 @@ function togglePanel(name: 'code' | 'history' | 'changes', open?: boolean): void
     const on = open ?? state.panels.left !== name;
     state.panels = { ...state.panels, left: on ? name : state.panels.left === name ? null : state.panels.left };
   }
+  const wasViewing = $('#main').classList.contains('view-only');
   applyPanels();
   renderCodePane();
   renderHistoryPane();
   renderTools();
+  if (wasViewing !== viewOnly()) renderStage();
 }
 
 // ---- history (left panel): every version, newest first; pick one to view, any older one as the base ---------------
@@ -703,49 +735,81 @@ const ago = (iso: string): string => {
   return rtf.format(-Math.round(s / 86400), 'day');
 };
 
-const versionName = (i: number): string => `v${state.versions[i]?.n ?? i + 1}${i === state.versions.length - 1 ? ' (current)' : ''}`;
+
+
+/** True while the history panel shows one version as it is (no diff). */
+const viewOnly = (): boolean => state.panels.left === 'history' && state.historyMode === 'view';
 
 function renderHistoryPane(): void {
   const body = $('#history-body');
   if (state.panels.left !== 'history') return;
   const last = state.versions.length - 1;
+  const compare = state.historyMode === 'compare';
   const rows = [...state.versions].map((v, i) => ({ v, i })).reverse().map(({ v, i }) => {
-    const viewing = i === state.at, base = i === state.base && i !== state.at;
     const c = v.counts;
-    const stats = c
-      ? h('span', { class: 'vstats' },
-          c.added ? h('span', { class: 'add' }, `+${c.added}`) : null,
-          c.removed ? h('span', { class: 'del' }, `−${c.removed}`) : null,
-          c.changed ? h('span', { class: 'chg' }, `~${c.changed}`) : null)
-      : h('span', { class: 'vstats muted' }, 'first version');
-    return h('div', { class: `version${viewing ? ' viewing' : ''}${base ? ' base' : ''}`, role: 'listitem' },
-      h('button', { class: 'version-main', title: i ? `View v${v.n}, compared with the version before it` : `View v${v.n}`, onclick: () => viewVersion(i) },
-        h('span', { class: 'vhead' },
-          h('b', { class: 'vnum' }, `v${v.n}`),
-          i === last ? h('span', { class: 'vtag current' }, 'Current') : null,
-          viewing ? h('span', { class: 'vtag after' }, 'After') : null,
-          base ? h('span', { class: 'vtag before' }, 'Before') : null),
+    const n = c ? c.added + c.removed + c.changed : 0;
+    const isAfter = compare && i === state.at, isBefore = compare && i === state.base && i !== state.at;
+    const viewing = !compare && i === state.viewing;
+    const pick = (role: 'before' | 'after') => {
+      const on = role === 'after' ? i === state.at : i === state.base;
+      return h('button', { class: `pick pick-${role}${on ? ' on' : ''}`, 'aria-pressed': String(on), title: `Use v${v.n} as ${role}`, onclick: () => pickVersion(role, i) }, role === 'after' ? 'After' : 'Before');
+    };
+    return h('div', { class: `version${viewing ? ' viewing' : ''}${isAfter ? ' after' : ''}${isBefore ? ' before' : ''}`, role: 'listitem' },
+      h('button', { class: 'version-main', title: compare ? `Compare v${v.n} with the version before it` : `View v${v.n}`, onclick: () => (compare ? compareWithPrevious(i) : viewVersion(i)) },
         h('span', { class: 'vmsg' }, v.message),
-        h('span', { class: 'vmeta' }, h('span', {}, `${v.author} · ${ago(v.date)}`), stats)),
-      i < state.at && !base ? h('button', { class: 'vbase', title: `Compare v${state.versions[state.at]!.n} with v${v.n}`, onclick: () => setBase(i) }, 'Compare') : null,
+        h('span', { class: 'vmeta' },
+          h('code', { class: 'vid' }, v.id ?? `v${v.n}`),
+          i === last ? h('span', { class: 'vtag current' }, 'current') : null,
+          h('span', {}, ` ${v.author} ${ago(v.date)}`),
+          h('span', { class: 'vcount' }, ` — ${c ? `${n} change${n === 1 ? '' : 's'}` : 'initial'}`))),
+      compare ? h('span', { class: 'vpick' }, pick('before'), pick('after')) : null,
     );
   });
+  const mode = (m: 'view' | 'compare', label: string) =>
+    h('button', { class: state.historyMode === m ? 'on' : '', 'aria-pressed': String(state.historyMode === m), onclick: () => setHistoryMode(m) }, label);
   body.replaceChildren(
-    h('div', { class: 'history-cmp' }, 'Comparing ', h('b', {}, versionName(state.base)), ' → ', h('b', {}, versionName(state.at))),
+    h('div', { class: 'history-top' },
+      h('div', { class: 'seg history-mode', role: 'group', 'aria-label': 'History mode' }, mode('view', 'View'), mode('compare', 'Compare')),
+      compare
+        ? h('div', { class: 'history-cmp' }, h('span', { class: 'vtag before' }, 'Before'), ` ${versionLabel(state.base)}  `, h('span', { class: 'vtag after' }, 'After'), ` ${versionLabel(state.at)}`)
+        : h('div', { class: 'history-cmp' }, 'Viewing ', h('b', {}, versionLabel(state.viewing)))),
     h('div', { class: 'versions', role: 'list' }, ...rows),
   );
 }
 
-/** Shows version `i` (after) compared with the one before it (before). */
+const versionLabel = (i: number): string => {
+  const v = state.versions[i];
+  return v ? `${v.id ?? `v${v.n}`}${i === state.versions.length - 1 ? ' (current)' : ''}` : '';
+};
+
+function setHistoryMode(m: 'view' | 'compare'): void {
+  state.historyMode = m;
+  if (m === 'view') state.viewing = state.at;
+  applyPanels();
+  renderHistoryPane();
+  renderCodePane();
+  renderStage();
+}
+
+/** View mode: shows version `i` as it is. */
 function viewVersion(i: number): void {
+  state.viewing = i;
+  renderHistoryPane();
+  renderCodePane();
+  renderStage();
+}
+
+/** Compare mode: version `i` as after, the one before it as before. */
+function compareWithPrevious(i: number): void {
   state.at = i;
   state.base = Math.max(0, i - 1);
   applyVersions();
 }
 
-/** Compares the version shown with an older one. */
-function setBase(i: number): void {
-  state.base = i;
+/** Compare mode: picks the before or the after version. */
+function pickVersion(role: 'before' | 'after', i: number): void {
+  if (role === 'after') state.at = i;
+  else state.base = i;
   applyVersions();
 }
 
