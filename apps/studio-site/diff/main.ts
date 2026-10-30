@@ -92,7 +92,7 @@ const MODES: { id: Mode; label: string; key: string; help: string }[] = [
 const STATE_OF: Partial<Record<Mode, number>> = { before: 0, merged: 1, after: 2 };
 
 const FACET_INFO: Record<ChangeFacet, { label: string; help: string }> = {
-  content: { label: 'Content', help: 'Items, labels, shapes, connections, attributes, message text' },
+  content: { label: 'Content', help: 'Changed content of kept items: labels, shapes, connections, attributes, message text' },
   layout: { label: 'Layout', help: 'Position, size, bend points, ports, layers' },
   style: { label: 'Style', help: 'Colours, fonts, presets, classes, theme' },
 };

@@ -44,6 +44,13 @@ describe('diffDiagrams', () => {
     expect(f.doc).toEqual([]);
   });
 
+  it('ignoring content keeps added and removed items (they have their own filters)', () => {
+    const f = ignoreFacets(diffDiagrams(...sample('architecture')), { content: true });
+    expect(find(f, 'node', 'tracing')?.status).toBe('added');
+    expect(find(f, 'node', 'desktop')?.status).toBe('removed');
+    expect(find(f, 'node', 'lb')?.status).toBe('unchanged');
+  });
+
   it('aligns sequence messages by content, not position', () => {
     const d = diffDiagrams(...sample('sequence'));
     const changed = d.items.filter((i) => i.kind === 'message' && i.status !== 'unchanged');
