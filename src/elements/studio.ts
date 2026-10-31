@@ -10,7 +10,10 @@ import { mergeLegacySidecar, joinSource } from '../core/meta/index.js';
 import { defineEditor, type DiagramEditor, type MmdxEditorElement } from '../editor/editor.js';
 import { download } from '../dom/export.js';
 import { contentId, type HistoryAdapter, type StaticVersion } from '../adapters/history.js';
+import { createSegmented } from '../ui/blocks/segmented.js';
+import { MENU_CSS, openMenu } from '../ui/blocks/menu.js';
 import { h, icon } from '../ui/h.js';
+import { signal } from '../ui/signal.js';
 import { ICONS } from '../ui/icons.js';
 import { logoMark } from '../ui/logo.js';
 import { PopoverManager, Toaster } from '../ui/popover.js';
@@ -64,7 +67,6 @@ const STUDIO_CSS = /* css */ `
 .seg button[aria-pressed=true] { background: var(--mmdx-accent); color: var(--mmdx-on-accent); }
 .main { flex: 1; min-height: 0; position: relative; }
 mmdx-editor { position: absolute; inset: 0; height: auto; min-height: 0; }
-.menu-pop { top: 40px; left: 0; }
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; max-height: 60vh; overflow: auto; padding: 2px; }
 .card { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 8px; border-radius: 10px; }
 .card .thumb { height: 120px; border-radius: 6px; background: var(--mmdx-surface-2); display: grid; place-items: center; overflow: hidden; }
@@ -105,7 +107,7 @@ export class DiagramStudio {
     this.o = { ...opts };
     this.storage = opts.storage ?? (typeof localStorage !== 'undefined' ? localStorageAdapter() : memoryStorage());
     this.shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
-    adoptStyles(this.shadow, [TOKENS, ALIASES, BASE, DIALOG_CSS, STUDIO_CSS]);
+    adoptStyles(this.shadow, [TOKENS, ALIASES, BASE, DIALOG_CSS, MENU_CSS, STUDIO_CSS]);
     defineEditor();
     this.ui = this.storage.get<'light' | 'dark'>('ui') ?? 'auto';
 
@@ -116,8 +118,10 @@ export class DiagramStudio {
     const newBtn = h('button', { type: 'button', class: 'primary', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: () => this.openNewMenu(newBtn) }, '＋ New ▾');
     const exBtn = h('button', { type: 'button', onclick: () => void this.openGallery() }, 'Examples');
     const openBtn = h('button', { type: 'button', title: 'Open .mmdx / .mmd / .md / .layout.json', onclick: () => this.pickFiles() }, icon(ICONS.folder), 'Open');
-    const modeEdit = h('button', { type: 'button', 'aria-pressed': 'true', onclick: () => this.setMode('edit') }, 'Edit');
-    const modeView = h('button', { type: 'button', 'aria-pressed': 'false', onclick: () => this.setMode('view') }, 'View');
+    const modeSwitch = createSegmented<'edit' | 'view'>({
+      label: 'Mode', options: [{ value: 'edit', label: 'Edit' }, { value: 'view', label: 'View' }], value: this.mode, buttonClass: 'mode', f: 'mode',
+      onChange: (m) => this.setMode(m),
+    });
     const saveVersion = h('button', { type: 'button', title: 'Record the current diagram as a version in its history (see History in the tool dock)', onclick: () => void this.saveVersion() }, icon(ICONS.save), 'Save version');
     const share = h('button', { type: 'button', title: 'Copy a link with the diagram in it', onclick: () => void this.share() }, icon(ICONS.link), 'Share');
     const themesBtn = h('button', { type: 'button', title: 'Edit the diagram themes', onclick: () => void this.openThemeEditor() }, icon(ICONS.palette), 'Theme editor');
@@ -127,7 +131,7 @@ export class DiagramStudio {
       h('div', { class: 'grp' }, newBtn, exBtn, openBtn),
       this.nameEl,
       h('div', { class: 'spacer' }),
-      h('div', { class: 'grp seg', role: 'group', 'aria-label': 'Mode' }, modeEdit, modeView),
+      h('div', { class: 'grp seg' }, modeSwitch.el),
       h('div', { class: 'grp' }, saveVersion, themesBtn, plainBtn, share));
     const main = h('div', { class: 'main' }, this.editorEl, h('div', { class: 'drop' }, 'Drop a .mmdx / .mmd / .md file'));
     const root = h('div', { class: 'studio' }, top, main);
@@ -135,7 +139,6 @@ export class DiagramStudio {
     this.pops = new PopoverManager(this.shadow);
     this.toaster = new Toaster(root);
     this.dialogs = new Dialogs(this.shadow);
-    this.modeButtons = [modeEdit, modeView];
     this.history = this.historyAdapter();
     // the editor's History shows <mmdx-diff>: the studio loads it in the background
     void import('./diff.js').then((m) => m.defineDiff());
@@ -178,7 +181,8 @@ export class DiagramStudio {
     void this.boot();
   }
 
-  private readonly modeButtons: HTMLButtonElement[];
+  /** Edit / View of the editor (the mode switch in the top bar follows it). */
+  private readonly mode = signal<'edit' | 'view'>('edit');
 
   get editor(): DiagramEditor | undefined {
     return this.editorEl.instance;
@@ -331,17 +335,18 @@ export class DiagramStudio {
   }
 
   private openNewMenu(opener: HTMLElement): void {
-    const item = (label: string, type: keyof typeof START): HTMLElement =>
-      h('button', { type: 'button', role: 'menuitem', onclick: async () => {
-        this.pops.close();
+    const item = (label: string, type: keyof typeof START) => ({
+      label,
+      run: async (): Promise<void> => {
         if (this.editorEl.dirty && !(await this.dialogs.confirm('Discard changes?', 'The current diagram has unsaved changes.', { ok: 'Discard', danger: true }))) return;
         this.open(START[type], `untitled-${type}`);
         this.toaster.show('New diagram — add shapes from the Shapes menu on the left');
-      } }, label);
-    const pop = h('div', { class: 'mmdx-menu menu-pop', role: 'menu' },
-      item('Flowchart', 'flowchart'), item('Sequence diagram', 'sequence'), item('Entity–relationship (ER) diagram', 'er'));
-    opener.parentElement?.append(pop);
-    this.pops.open(pop, opener);
+      },
+    });
+    openMenu({
+      popovers: this.pops, opener, label: 'New diagram', align: 'left', within: this.host,
+      entries: [item('Flowchart', 'flowchart'), item('Sequence diagram', 'sequence'), item('Entity–relationship (ER) diagram', 'er')].map((e) => ({ label: e.label, run: () => void e.run() })),
+    });
   }
 
   private async openGallery(): Promise<void> {
@@ -395,8 +400,7 @@ export class DiagramStudio {
 
   private setMode(m: 'edit' | 'view'): void {
     this.editorEl.readOnly = m === 'view';
-    this.modeButtons[0]?.setAttribute('aria-pressed', String(m === 'edit'));
-    this.modeButtons[1]?.setAttribute('aria-pressed', String(m === 'view'));
+    this.mode.set(m);
   }
 
   // ---- history ------------------------------------------------------------------------------------------------------
