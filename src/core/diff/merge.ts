@@ -1,42 +1,28 @@
-// The merged diagram of a diff: the after version plus every removed item (kept where it was), with changed text
-// carrying word-level change marks. The renderer lays it out like any diagram, so removed items, removed ER
+// The merged diagram of a diff (§7.3): the after version plus every removed item (kept where it was), with changed
+// text carrying word-level change marks. The renderer lays it out like any diagram, so removed items, removed ER
 // attributes and removed sequence messages get real room instead of being drawn on top of the new version.
-//
-// Text marks are zero-width characters around the removed / added words (jsdiff `diffArrays` over words). They are measured
-// as nothing by the canvas measurer and survive wrapping; `decorateText` turns them into styled <tspan>s.
-import { diffArrays } from 'diff';
-import type { DiagramMeta, ItemMeta } from '../../../src/core/meta/types.js';
+import type { DiagramMeta, ItemMeta } from '../meta/types.js';
 import type {
-  DiagramModel, ErAttribute, ErModel, FlowEdge, FlowGroup, FlowNode, FlowchartModel, SeqItem, SeqMessage, SeqNote,
-  SequenceModel, SupportedModel,
-} from '../../../src/core/model.js';
-import type { DiagramDiff, ItemChange } from '../../../src/core/diff/index.js';
-import type { ItemKind } from '../../../src/core/types.js';
-
-export const DEL_OPEN = '​', DEL_CLOSE = '‌', INS_OPEN = '‍', INS_CLOSE = '⁠';
-const MARKS = /[​‌‍⁠]/;
-export const hasMarks = (s: string): boolean => MARKS.test(s);
-export const stripMarks = (s: string): string => s.replace(/[​‌‍⁠]/g, '');
-
-export const deleted = (s: string): string => (s ? DEL_OPEN + s + DEL_CLOSE : s);
-export const inserted = (s: string): string => (s ? INS_OPEN + s + INS_CLOSE : s);
-
-/** Words (whitespace-separated, punctuation kept with its word) and line breaks. */
-const words = (s: string): string[] => s.split(/(\n)|[ \t]+/).filter((w): w is string => !!w);
-
-/** `before` → `after` as one string with removed and added words marked (jsdiff over whole words). */
-export function mergeText(before: string, after: string): string {
-  if (before === after) return after;
-  const out: string[] = [];
-  for (const c of diffArrays(words(before), words(after))) {
-    const run = c.value.join(' ').replace(/ ?\n ?/g, '\n');
-    out.push(c.removed ? deleted(run) : c.added ? inserted(run) : run);
-  }
-  return out.join(' ').replace(/ ?\n ?/g, '\n');
-}
+  ErAttribute, ErModel, FlowEdge, FlowGroup, FlowNode, FlowchartModel, SeqItem, SeqMessage, SeqNote, SequenceModel,
+  SupportedModel,
+} from '../model.js';
+import { deleted, inserted, stripMarks } from '../text/marks.js';
+import type { ItemKind } from '../types.js';
+import type { DiagramDiff, ItemChange } from './index.js';
+import { mergeText } from './text.js';
 
 /** Suffix of a removed item's id in the merged diagram (sequence ids are positions, so they would clash). */
 export const REMOVED = '~del';
+
+/**
+ * The key of a change everywhere in the UI: the item's key in the merged diagram (`kind:id`; removed items carry the
+ * `~del` suffix, except participants, which keep their id because removed messages still refer to them).
+ */
+export const changeKey = (c: Pick<ItemChange, 'kind' | 'id' | 'status'>): string =>
+  `${c.kind}:${c.status === 'removed' && c.kind !== 'participant' ? c.id + REMOVED : c.id}`;
+
+/** The item's key in the before version. */
+export const beforeKey = (c: Pick<ItemChange, 'kind' | 'id' | 'beforeId'>): string => `${c.kind}:${c.beforeId ?? c.id}`;
 
 export interface Merged {
   model: SupportedModel;
@@ -69,7 +55,11 @@ function carryMeta(meta: DiagramMeta, before: DiagramMeta, kind: ItemKind, fromI
 
 const changedField = (c: ItemChange | undefined, name: string) => c?.status === 'changed' && c.fields.some((f) => f.facet === 'content' && f.field === name);
 
-export function buildMerged(diff: DiagramDiff, a: SupportedModel, b: SupportedModel, ma: DiagramMeta, mb: DiagramMeta): Merged | null {
+/**
+ * Builds the merged model, or null when the diagram type changed (the views then fall back to before / after).
+ * `status` maps the merged keys (`kind:id`, removed items with the `~del` suffix except participants) to changes.
+ */
+export function mergeDiagrams(diff: DiagramDiff, a: SupportedModel, b: SupportedModel, ma: DiagramMeta, mb: DiagramMeta): Merged | null {
   if (diff.typeChanged || a.type !== b.type) return null;
   const meta = mergeMeta(ma, mb);
   const status = new Map<string, ItemChange>();
@@ -238,4 +228,3 @@ function mergeAttrs(before: readonly ErAttribute[], after: readonly ErAttribute[
   return out;
 }
 
-export type { DiagramModel };

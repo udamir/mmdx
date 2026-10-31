@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { buildMerged, DEL_CLOSE, DEL_OPEN, INS_CLOSE, INS_OPEN, mergeText, stripMarks } from '../../../apps/studio-site/diff/merge.js';
-import { diffModels } from '../../../src/core/diff/index.js';
+import { diffModels, mergeDiagrams, mergeText, MARK, stripMarks } from '../../../src/core/diff/index.js';
+
+const { DEL_OPEN, DEL_CLOSE, INS_OPEN, INS_CLOSE } = MARK;
 import { splitSource } from '../../../src/core/meta/index.js';
 import type { ErModel, FlowchartModel, SequenceModel, SupportedModel } from '../../../src/core/model.js';
 import { parse } from '../../../src/core/parse/index.js';
@@ -9,7 +10,7 @@ import { parse } from '../../../src/core/parse/index.js';
 const load = (name: string) => {
   const [a, b] = ['before', 'after'].map((s) => splitSource(readFileSync(`apps/studio-site/diff-samples/${name}.${s}.mmd`, 'utf8')).doc);
   const ma = parse(a!.code) as SupportedModel, mb = parse(b!.code) as SupportedModel;
-  return buildMerged(diffModels(ma, mb, a!.meta, b!.meta), ma, mb, a!.meta, b!.meta)!;
+  return mergeDiagrams(diffModels(ma, mb, a!.meta, b!.meta), ma, mb, a!.meta, b!.meta)!;
 };
 
 describe('mergeText', () => {
@@ -22,7 +23,7 @@ describe('mergeText', () => {
   });
 });
 
-describe('buildMerged', () => {
+describe('mergeDiagrams', () => {
   it('flowchart: keeps removed nodes and edges, marks relabels', () => {
     const m = load('architecture');
     const f = m.model as FlowchartModel;

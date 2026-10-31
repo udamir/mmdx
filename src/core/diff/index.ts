@@ -436,3 +436,11 @@ export function ignoreFacets(diff: DiagramDiff, ignore: DiffIgnore): DiagramDiff
 }
 
 export { withoutStyle, withLayoutOf } from './transform.js';
+export { diffArrays, diffWords, diffLines, mergeText, hunks, words, MARK, hasMarks, stripMarks, markRuns, type DiffRun, type DiffOp, type TextOp, type LineOp, type Hunk, type MarkedRun } from './text.js';
+export { mergeDiagrams, changeKey, beforeKey, REMOVED, type Merged } from './merge.js';
+export {
+  annotate, shapeOf, centreOf, focusRect, markOf, marksOf, badgeOf, DIFF_COLORS, MARKS,
+  type Mark, type DiffView, type DiffColors, type ItemShape, type AnnotateInput, type AnnotateOptions, type Annotated,
+} from './annotate.js';
+export { renderDiff, renderDiffToSvg, diffSvg, renderedOf, type DiffRendered, type DiffRenderOptions, type DiffSvgOptions, type DiffHide } from './render.js';
+export { diffReport, unifiedDiff, sourcePart, REPORT_VERSION, type VersionInfo, type ReportOptions, type UnifiedDiffOptions } from './report.js';

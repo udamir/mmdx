@@ -57,7 +57,10 @@ const ADV: readonly number[] = [
 ];
 const MONO = /mono|courier|consolas|menlo/i;
 
-/** Advance-width estimate; deterministic across machines. Bold adds ~6 %; non-ASCII uses an average glyph. */
+/**
+ * Advance-width estimate; deterministic across machines. Bold adds ~6 %; non-ASCII uses an average glyph; the
+ * zero-width diff marks (text/marks.ts) count as nothing.
+ */
 export function createStaticMeasurer(): TextMeasurer {
   const cache = new Lru<string, number>(5000);
   return {
@@ -67,10 +70,11 @@ export function createStaticMeasurer(): TextMeasurer {
       const hit = cache.get(key);
       if (hit !== undefined) return hit;
       let em = 0;
-      if (MONO.test(font.family)) em = text.length * 0.6;
+      if (MONO.test(font.family)) em = text.replace(/[\u200b\u200c\u200d\u2060]/g, '').length * 0.6;
       else
         for (const ch of text) {
           const c = ch.codePointAt(0) ?? 32;
+          if ((c >= 0x200b && c <= 0x200d) || c === 0x2060) continue;
           em += c >= 32 && c <= 126 ? (ADV[c - 32] ?? 0.55) : c >= 0x0400 && c <= 0x04ff ? 0.6 : c > 0x2e80 ? 1 : 0.58;
         }
       const w = Number(font.weight ?? 400) >= 600 ? em * 1.06 : em;

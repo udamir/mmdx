@@ -19,3 +19,9 @@ export { createStaticMeasurer, type TextMeasurer, type FontSpec } from './core/t
 export { safeUrl, DEFAULT_LINK_POLICY, type LinkPolicy, type SafeUrl } from './core/validate.js';
 export { layerDefs, hiddenByLayers, DEFAULT_LAYER } from './core/layers.js';
 export { outline, summarize } from './core/outline.js';
+export {
+  diffDiagrams, diffModels, ignoreFacets, withoutStyle, withLayoutOf, mergeDiagrams, renderDiff, renderDiffToSvg, diffSvg, diffReport, unifiedDiff,
+  diffWords, diffLines, mergeText, annotate, changeKey, FACETS, DIFF_COLORS,
+  type DiagramDiff, type ItemChange, type FieldChange, type ChangeFacet, type ChangeStatus, type DiffIgnore, type DiffHide, type DiffRendered,
+  type DiffRenderOptions, type DiffSvgOptions, type DiffView, type VersionInfo, type ReportOptions, type UnifiedDiffOptions, type Merged,
+} from './core/diff/index.js';
