@@ -10,7 +10,7 @@ import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
 import { signal, untracked } from '../signal.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
 import { keepFocus } from './focus.js';
-import { createGrip } from './side-panel.js';
+import { createGrip } from './grip.js';
 
 /** What the stack remembers sizes in (the kernel's storage adapter fits). */
 export interface StackStorage {
@@ -136,7 +136,7 @@ export function createPanelStack(props: PanelStackProps): PanelStackHandle {
   /** The splitter above panel `i`: drag sets that panel's height. */
   const makeSplit = (i: number, s: Scope): HTMLElement => {
     const t = p.t;
-    const split = h('div', { class: 'mmdx-split', role: 'separator', 'aria-orientation': 'horizontal', tabindex: '0', title: t('panes.split'), 'aria-label': t('panes.split') });
+    const split = h('div', { class: 'mmdx-split', role: 'separator', 'aria-orientation': 'horizontal', tabindex: '0', title: t('panes.resize'), 'aria-label': t('panes.resize') });
     const lower = (): StackPanel | undefined => p.panels[i];
     const setH = (px: number | null): void => {
       const x = lower();
