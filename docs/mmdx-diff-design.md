@@ -264,7 +264,7 @@ All bubble and are composed, like the other components.
 
 | Event | Detail | Notes |
 |---|---|---|
-| `mmdx-diff` | `{ counts, typeChanged, base, head }` | After every (re)computation. |
+| `mmdx-compare` | `{ counts, typeChanged, base, head }` | After every (re)computation (not `mmdx-diff`, which is the element name). |
 | `mmdx-select` | `{ key, change \| null }` | Change list / canvas selection. |
 | `mmdx-view` | `{ view, mode }` | View or history mode switched. |
 | `mmdx-filters` | `{ filters, dim }` | Filter change. |
@@ -276,7 +276,11 @@ All bubble and are composed, like the other components.
 
 `compare(before, after)`, `setHistory(adapterOrList)`, `setPair(baseId, headId)`, `viewVersion(id)`, `setView(view)`, `setFilters(filters)`, `select(key | null)`, `next()`, `prev()`, `fit()`, `zoomTo(k)`, `getDiff()` (the filtered `DiagramDiff`), `exportAs(kind, options)`, `toSvg(options)`, `toPng(options)`, `destroy()`.
 
-### 8.5 History adapter
+### 8.5 Naming
+
+Every public name uses the library prefix `mmdx`, the same as the other components: elements `<mmdx-*>`, DOM events `mmdx-*` (bubbling, composed), CSS custom properties `--mmdx-*` (diff colours `--mmdx-diff-*`), shared chrome classes `mmdx-*`, data attributes `data-mmdx-*`, UI-preference keys in storage under `mmdx.`, SVG `<defs>` ids prefixed `mmdx<n>-`, and React wrapper props `onMmdx*` (`onMmdxSelect` → `mmdx-select`). An event never has the same name as an element: the "comparison ready" event is `mmdx-compare`, not `mmdx-diff`.
+
+### 8.6 History adapter
 
 ```ts
 export interface VersionInfo { id: string; message: string; author?: string; date?: string; url?: string }
