@@ -51,15 +51,18 @@ export function applyDoc(core: EditorCore, label: string, doc: { code: string; m
  */
 export class LiveEdit {
   private open = false;
+  /** The transaction the run is in (a cancel — undo, a load, a stage switch — may have ended it). */
+  private tx = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private label = '';
   constructor(private readonly core: EditorCore, private readonly idle = 400) {}
 
   /** Runs `f` (which mutates `core.meta` in place) inside the open transaction and redraws. */
   run(label: string, f: () => void): void {
-    if (!this.open) {
+    if (!this.open || this.core.store.txId !== this.tx) {
       this.core.begin();
       this.open = true;
+      this.tx = this.core.store.txId;
     }
     this.label = label;
     try {
@@ -76,11 +79,11 @@ export class LiveEdit {
     clearTimeout(this.timer);
     if (!this.open) return;
     this.open = false;
-    this.core.commit(this.label);
+    if (this.core.store.txId === this.tx) this.core.commit(this.label);
   }
 
   get pending(): boolean {
-    return this.open;
+    return this.open && this.core.store.txId === this.tx;
   }
 }
 

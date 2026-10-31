@@ -484,12 +484,14 @@ export const canvasSelectModule: EditorModule = {
     // ---- keyboard: nudge (one history step per burst of key presses) -------------------------------------------
 
     let nudgeOpen = false;
+    // the transaction the nudges run in (a cancel — undo, a load, a stage switch — may have ended it)
+    let nudgeTx = 0;
     let nudgeTimer: ReturnType<typeof setTimeout> | undefined;
     const flushNudge = (): void => {
       clearTimeout(nudgeTimer);
       if (!nudgeOpen) return;
       nudgeOpen = false;
-      core.commit('Nudge');
+      if (core.store.txId === nudgeTx) core.commit('Nudge');
     };
     const nudge = (ux: number, uy: number, step: number): boolean => {
       const sel = core.selection();
@@ -507,9 +509,10 @@ export const canvasSelectModule: EditorModule = {
         if (core.getM(kind, id).locked && !part) return true;
         next = moveItem(model, meta, geom, { kind, id }, ux * step, uy * step, part ? { part, snap: 0 } : { snap: 0 }).meta; // no snapping
       }
-      if (!nudgeOpen) {
+      if (!nudgeOpen || core.store.txId !== nudgeTx) {
         core.begin();
         nudgeOpen = true;
+        nudgeTx = core.store.txId;
       }
       core.store.meta.set(next);
       core.draw();

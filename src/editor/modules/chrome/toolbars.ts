@@ -141,6 +141,7 @@ export const toolbarsModule: EditorModule = {
     // ---- order slider: every position the item can reach in the code, previewed live, committed once
     let ord: (OrderPositions & { key: string; base: { code: string; meta: DiagramMeta; model: typeof core.model; participants: ReadonlyMap<string, { x: number }> | null }; shown: number | null }) | null = null;
     let ordering = false;
+    let orderTx = 0;
     const orderInfo = (): typeof ord => {
       const sel = core.selection();
       if (sel.length !== 1) return null;
@@ -155,9 +156,10 @@ export const toolbarsModule: EditorModule = {
       const o = ord;
       const st = o?.states[i];
       if (!o || !st) return;
-      if (!ordering) {
+      if (!ordering || core.store.txId !== orderTx) {
         core.begin();
         ordering = true;
+        orderTx = core.store.txId;
       }
       const doc = applyOrderState(o.base, st);
       core.store.meta.set(doc.meta);
@@ -170,6 +172,11 @@ export const toolbarsModule: EditorModule = {
       const o = ord;
       if (!ordering) return;
       ordering = false;
+      if (core.store.txId !== orderTx) {
+        // cancelled meanwhile (undo, a load, a stage switch): the base is stale
+        ord = null;
+        return;
+      }
       if (!o || o.shown == null || core.code === o.base.code) {
         core.rollback();
         return;

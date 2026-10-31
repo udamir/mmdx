@@ -59,8 +59,8 @@ export const editorToolsModule: EditorModule = {
     if (propsBtn) scope.contribute(core.dockItems, { id: 'properties', section: 'panels', order: 20, el: propsBtn.el });
     if (layersBtn) scope.contribute(core.dockItems, { id: 'layers', section: 'panels', order: 30, el: layersBtn.el });
 
-    const undoBtn = dockButton({ icon: ICONS.undo, label: t('tools.undo'), keys: 'mod+z', f: 'undo', onClick: () => { core.store.undo(); core.afterChange(); } });
-    const redoBtn = dockButton({ icon: ICONS.redo, label: t('tools.redo'), keys: 'mod+shift+z', f: 'redo', onClick: () => { core.store.redo(); core.afterChange(); } });
+    const undoBtn = dockButton({ icon: ICONS.undo, label: t('tools.undo'), keys: 'mod+z', f: 'undo', onClick: () => core.undo() });
+    const redoBtn = dockButton({ icon: ICONS.redo, label: t('tools.redo'), keys: 'mod+shift+z', f: 'redo', onClick: () => core.redo() });
     scope.contribute(core.dockItems, { id: 'undo', section: 'edit', order: 10, el: undoBtn.el });
     scope.contribute(core.dockItems, { id: 'redo', section: 'edit', order: 20, el: redoBtn.el });
 

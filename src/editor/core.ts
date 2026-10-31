@@ -228,6 +228,8 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   hover: Sel | null = null;
   /** A gesture is running. */
   dragging = false;
+  /** Cancels the running pointer gesture, if any (set by the editor's pointer wiring). */
+  cancelPointer: (() => void) | null = null;
   /** Space is held: drag pans. */
   spaceDown = false;
   /** Last pointer position (client coordinates), for paste-at-pointer and menus. */
@@ -658,6 +660,29 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   rollback(): void {
     this.store.rollback();
+    this.afterChange();
+  }
+
+  /**
+   * Ends whatever edit is in flight, like Esc: the running pointer gesture is cancelled and an open transaction
+   * (a drag, coalesced nudges, a live field edit) is rolled back. Called before undo / redo, a load, and when the
+   * stage or the mode changes, so nothing keeps writing the store from a state captured before.
+   */
+  cancelGesture(): void {
+    this.cancelPointer?.();
+    if (this.store.inTransaction) this.rollback();
+  }
+
+  /** Undo, after cancelling the edit in flight (its later commit would record a stale start and drop the redo steps). */
+  undo(): void {
+    this.cancelGesture();
+    this.store.undo();
+    this.afterChange();
+  }
+
+  redo(): void {
+    this.cancelGesture();
+    this.store.redo();
     this.afterChange();
   }
 

@@ -11,7 +11,7 @@ import type { ThemeSource } from '../adapters/themes.js';
 import { ensureBuiltinThemes } from '../config.js';
 import type { CoreContext } from '../core/context.js';
 import { h } from '../ui/h.js';
-import { effect } from '../ui/signal.js';
+import { effect, untracked } from '../ui/signal.js';
 import { DEFAULT_FEATURES, EditorCore, type EditorFeatures, type Gesture, type Mode } from './core.js';
 import type { EditorModule } from './module.js';
 import { DEFAULT_MODULES } from './modules/index.js';
@@ -60,6 +60,10 @@ export class DiagramEditor {
   private saving: Promise<SaveOutcome> | null = null;
   private autosaveTimer: ReturnType<typeof setTimeout> | undefined;
   private remoteBar: HTMLElement | null = null;
+  /** The adapter's subscription to remote changes (one at a time; replaced when the adapter changes). */
+  private unsubscribe: (() => void) | null = null;
+  /** The latest remote update that arrived during a gesture or a transaction; applied when it ends. */
+  private pendingRemote: { src: string; version: string } | null = null;
   private gesture: { g: Gesture; x: number; y: number; p0: { x: number; y: number }; moved: boolean; id: number } | null = null;
   private destroyed = false;
   name: string;
@@ -71,7 +75,11 @@ export class DiagramEditor {
     this.name = options.name ?? 'diagram';
     const features: EditorFeatures = { ...DEFAULT_FEATURES, ...(options.features ?? {}) };
     if (options.toolbar === 'none') features.styleToolbar = false;
-    this.store = new DocStore({ onChange: (src, reason) => this.onStoreChange(src, reason) });
+    this.store = new DocStore({
+      onChange: (src, reason) => this.onStoreChange(src, reason),
+      // a remote update waits for the transaction to end (after the caller of commit / rollback is done)
+      onIdle: () => queueMicrotask(() => this.applyPendingRemote()),
+    });
     this.core = new EditorCore(host, {
       store: this.store,
       features,
@@ -103,6 +111,23 @@ export class DiagramEditor {
       root.classList.toggle('mode-edit', m === 'edit');
       root.classList.toggle('mode-view', m === 'view');
     }));
+    // switching the stage (History) or the mode ends the edit in flight: nothing keeps writing the store from a state
+    // captured before, and a gesture's release never commits while History is open (§8.2)
+    let firstSwitch = true;
+    this.cleanups.push(effect(() => {
+      core.stage();
+      core.mode();
+      if (firstSwitch) {
+        firstSwitch = false;
+        return;
+      }
+      untracked(() => core.cancelGesture());
+    }));
+    // the remote-change bar waits while History is open
+    this.cleanups.push(effect(() => {
+      const history = core.stage() === 'history';
+      if (this.remoteBar) this.remoteBar.hidden = history;
+    }));
     this.cleanups.push(effect(() => {
       const t = core.tool();
       for (const c of Array.from(root.classList)) if (c.startsWith('tool-')) root.classList.remove(c);
@@ -118,6 +143,7 @@ export class DiagramEditor {
     core.provide('documentName', () => core.fileName || 'diagram');
     core.provide('setClipboard', (data) => void (core.clipboard = data as typeof core.clipboard));
     core.provide('restoreVersion', (source, v) => {
+      core.cancelGesture();
       core.store.load(source, { history: 'push', reason: 'remote', markSaved: false });
       core.draw();
       core.viewport.setBounds(core.result.result.bounds, { fit: true });
@@ -155,7 +181,13 @@ export class DiagramEditor {
     return this.store.source();
   }
 
+  /**
+   * Replaces the document. A gesture or transaction in flight is cancelled first (rolled back, like Esc): the call is
+   * synchronous, so the new source is what `getSource()` returns right after it, and the gesture cannot write state
+   * captured before the load over it. (Remote updates from the adapter wait for the gesture to end instead.)
+   */
   setSource(src: string, opts: { history?: 'reset' | 'push'; fit?: boolean; markSaved?: boolean } = {}): void {
+    this.core.cancelGesture();
     const before = this.store.model.peek().type;
     this.store.load(src, { history: opts.history ?? 'reset', reason: opts.history === 'push' ? 'remote' : 'load', markSaved: opts.markSaved !== false });
     if (opts.history !== 'push') {
@@ -173,6 +205,13 @@ export class DiagramEditor {
     return this.o.adapter;
   }
   set adapter(a: DocumentAdapter | undefined) {
+    if (a === this.o.adapter) return;
+    // the old adapter stops reporting remote changes, and what it reported is dropped
+    this.unsubscribe?.();
+    this.unsubscribe = null;
+    this.pendingRemote = null;
+    this.hideRemoteBar();
+    this.version = undefined;
     if (a) this.o.adapter = a;
     else delete this.o.adapter;
     if (a) void this.loadFromAdapter();
@@ -207,14 +246,26 @@ export class DiagramEditor {
     this.core.setMode(m);
   }
 
+  /** Undo; a gesture or transaction in flight is cancelled first. */
   undo(): void {
-    this.store.undo();
-    this.core.afterChange();
+    this.core.undo();
   }
 
   redo(): void {
-    this.store.redo();
-    this.core.afterChange();
+    this.core.redo();
+  }
+
+  /** Marks the current source (or `source`) as saved: `dirty` is false until the document changes again. */
+  markSaved(source?: string): void {
+    this.store.markSaved(source);
+  }
+
+  /** The base name of exports (no extension). */
+  get fileName(): string {
+    return this.core.fileName;
+  }
+  set fileName(v: string) {
+    this.name = this.core.fileName = v;
   }
 
   select(items: ItemRef[]): void {
@@ -255,6 +306,9 @@ export class DiagramEditor {
     if (this.destroyed) return;
     this.destroyed = true;
     clearTimeout(this.autosaveTimer);
+    this.unsubscribe?.();
+    this.unsubscribe = null;
+    this.pendingRemote = null;
     this.ac.abort();
     for (const c of this.cleanups.reverse()) {
       try {
@@ -277,10 +331,10 @@ export class DiagramEditor {
       this.version = r.version;
       if (r.name) this.name = this.core.fileName = r.name.replace(/\.(mmdx|mmd|md|txt)$/i, '');
       this.setSource(r.source, { history: 'reset' });
-      if (a.subscribe) {
-        const off = a.subscribe((src, version) => this.onRemote(src, version));
-        this.cleanups.push(off);
-      }
+      this.unsubscribe?.();
+      this.unsubscribe = a.subscribe?.((src, version) => {
+        if (!this.destroyed && this.o.adapter === a) this.onRemote(src, version);
+      }) ?? null;
     } catch (e) {
       this.core.toast(`Could not load the diagram: ${e instanceof Error ? e.message : String(e)}`, { error: true });
       this.core.emit('mmdx-error', { diagnostics: [{ severity: 'error', code: 'load.failed', message: String(e) }] });
@@ -350,8 +404,28 @@ export class DiagramEditor {
     return 'conflict';
   }
 
-  /** Remote update (§8.2): applied when clean (undoable), otherwise a non-blocking bar offers Reload / Keep mine. */
+  /** A gesture is running or a transaction is open: the store holds an uncommitted state. */
+  private get busy(): boolean {
+    return !!this.gesture || this.store.inTransaction;
+  }
+
+  private applyPendingRemote(): void {
+    const r = this.pendingRemote;
+    if (!r || this.busy || this.destroyed) return;
+    this.pendingRemote = null;
+    this.onRemote(r.src, r.version);
+  }
+
+  /**
+   * Remote update (§8.2): applied when clean (undoable), otherwise a non-blocking bar offers Reload / Keep mine. During
+   * a gesture or a transaction it waits (the latest one wins) and is handled when the edit ends — committed (the
+   * document is then dirty: the bar) or rolled back (clean again: applied).
+   */
   private onRemote(src: string, version: string): void {
+    if (this.busy) {
+      this.pendingRemote = { src, version };
+      return;
+    }
     if (src === this.getSource()) {
       this.version = version;
       return;
@@ -366,6 +440,7 @@ export class DiagramEditor {
       h('span', null, 'Changed by someone else'),
       h('button', { type: 'button', onclick: () => { this.version = version; this.setSource(src, { history: 'push', fit: false }); this.hideRemoteBar(); } }, 'Reload'),
       h('button', { type: 'button', class: 'primary', onclick: () => this.hideRemoteBar() }, 'Keep mine'));
+    bar.hidden = this.core.stage.peek() === 'history';
     this.remoteBar = bar;
     this.core.dom.root.append(bar);
   }
@@ -380,9 +455,19 @@ export class DiagramEditor {
     this.core.emit('mmdx-change', { source, reason });
     this.core.emit('mmdx-dirty', { dirty: this.store.dirty.peek() });
     if (this.o.autosave && this.o.adapter && reason !== 'load' && reason !== 'remote' && this.store.dirty.peek()) {
-      clearTimeout(this.autosaveTimer);
-      this.autosaveTimer = setTimeout(() => void this.save(), this.o.autosave);
+      this.scheduleAutosave();
     }
+  }
+
+  /** Debounced save; while a gesture or transaction is open it waits (the source would be uncommitted). */
+  private scheduleAutosave(): void {
+    clearTimeout(this.autosaveTimer);
+    if (!this.o.autosave) return;
+    this.autosaveTimer = setTimeout(() => {
+      if (this.destroyed) return;
+      if (this.busy) this.scheduleAutosave();
+      else void this.save();
+    }, this.o.autosave);
   }
 
   // ---- input ------------------------------------------------------------------------------------------------------
@@ -441,7 +526,21 @@ export class DiagramEditor {
         d.g.click?.(ev);
       }
       core.drawOverlay();
+      this.applyPendingRemote();
     };
+    /** Cancels the running gesture (Esc, undo, a load, a stage or mode switch); true when there was one. */
+    const cancel = (): boolean => {
+      const d = this.gesture;
+      if (!d) return false;
+      this.gesture = null;
+      core.dragging = false;
+      core.dom.root.classList.remove('dragging');
+      d.g.cancel?.();
+      core.drawOverlay();
+      return true;
+    };
+    core.cancelPointer = () => void cancel();
+    this.cleanups.push(() => (core.cancelPointer = null));
     svg.addEventListener('pointerup', (ev) => finish(ev, false), sig);
     svg.addEventListener('pointercancel', (ev) => finish(ev, true), sig);
     svg.addEventListener('lostpointercapture', (ev) => {
@@ -449,13 +548,8 @@ export class DiagramEditor {
     }, sig);
     // Esc during a gesture cancels it (one level of the Esc chain, A.11)
     core.dom.root.addEventListener('keydown', (ev) => {
-      if (ev.key !== 'Escape' || !this.gesture) return;
-      const g = this.gesture.g;
-      this.gesture = null;
-      core.dragging = false;
-      core.dom.root.classList.remove('dragging');
-      g.cancel?.();
-      core.drawOverlay();
+      if (ev.key !== 'Escape' || !cancel()) return;
+      this.applyPendingRemote();
       ev.stopPropagation();
       ev.preventDefault();
     }, { capture: true, signal: this.ac.signal });
