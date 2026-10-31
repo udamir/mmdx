@@ -7,6 +7,9 @@ import type { Messages } from '../i18n.js';
 export const BLOCK_MESSAGES_CHROME: Messages = {
   'pen.options': 'Pen options',
   'pen.color': 'Pen colour',
+  'pen.colorNamed': 'Pen colour: {name}',
+  'pen.colors.red': 'red', 'pen.colors.orange': 'orange', 'pen.colors.yellow': 'yellow', 'pen.colors.green': 'green',
+  'pen.colors.blue': 'blue', 'pen.colors.purple': 'purple', 'pen.colors.black': 'black',
   'pen.size': 'Thickness {n}px',
   'pen.fadeAfter': 'Auto erase strokes {s} seconds after drawing',
   'zoom.bar': 'Zoom',
