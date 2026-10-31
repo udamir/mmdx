@@ -33,7 +33,8 @@ svg.scene { position: absolute; inset: 0; width: 100%; height: 100%; display: bl
 .fallback { width: 100%; overflow: auto; }
 .fallback svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
 /* History (§8.2): a docs-page viewer grows to room for the panels */
-.root[data-stage=history] .stage { aspect-ratio: auto; height: max(560px, 100%); }
+.root[data-stage=history] .stage { min-height: 560px; }
+:host([fit="contain"]) .root[data-stage=history] .stage { height: 100%; }
 :host(:fullscreen), .root:fullscreen { background: var(--mmdx-bg); }
 :host(:fullscreen) .stage { height: 100vh; aspect-ratio: auto; }
 @media print {
