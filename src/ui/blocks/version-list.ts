@@ -84,14 +84,15 @@ export const VERSION_LIST_CSS = /* css */ `
 .mmdx-version-list .pick-before.on { background: var(--mmdx-diff-del-bg); border-color: var(--mmdx-diff-del); color: var(--mmdx-diff-del); font-weight: 600; }
 .mmdx-version-list .pick-after.on { background: var(--mmdx-diff-add-bg); border-color: var(--mmdx-diff-add); color: var(--mmdx-diff-add); font-weight: 600; }
 .mmdx-version-list .more { margin: 6px; }
-.mmdx-version-list .pick.icon { width: 32px; height: 28px; padding: 0; display: grid; place-items: center; border-color: transparent; background: transparent; color: var(--mmdx-muted); }
-.mmdx-version-list .pick.icon:hover:not(:disabled) { background: var(--mmdx-surface); border-color: var(--mmdx-border); }
-.mmdx-version-list .pick.icon svg { width: 22px; height: 22px; }
-.mmdx-version-list .pick.icon .dx-fb, .mmdx-version-list .pick.icon .dx-fa { fill: currentColor; fill-opacity: .18; }
-.mmdx-version-list .pick-before.icon.on { color: var(--mmdx-diff-del); background: var(--mmdx-surface); border-color: var(--mmdx-diff-del); }
-.mmdx-version-list .pick-after.icon.on { color: var(--mmdx-diff-add); background: var(--mmdx-surface); border-color: var(--mmdx-diff-add); }
-.mmdx-version-list .pick-before.icon.on .dx-fb { fill: var(--mmdx-diff-del); fill-opacity: .5; }
-.mmdx-version-list .pick-after.icon.on .dx-fa { fill: var(--mmdx-diff-add); fill-opacity: .5; }
+.mmdx-version-list .vpick.icons { gap: 1px; padding: 2px; margin-right: 4px; border-radius: 7px; background: color-mix(in srgb, var(--mmdx-text) 7%, transparent); }
+.mmdx-version-list .pick.icon { width: 26px; height: 22px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 5px; background: transparent; color: var(--mmdx-muted); }
+.mmdx-version-list .pick.icon:hover:not(:disabled) { color: var(--mmdx-text); background: color-mix(in srgb, var(--mmdx-text) 7%, transparent); }
+.mmdx-version-list .pick.icon svg { width: 18px; height: 18px; }
+.mmdx-version-list .pick.icon .dx-fb, .mmdx-version-list .pick.icon .dx-fa { fill: currentColor; fill-opacity: .15; }
+.mmdx-version-list .pick-before.icon.on { color: var(--mmdx-diff-del); background: var(--mmdx-surface); }
+.mmdx-version-list .pick-after.icon.on { color: var(--mmdx-diff-add); background: var(--mmdx-surface); }
+.mmdx-version-list .pick-before.icon.on .dx-fb { fill: var(--mmdx-diff-del); fill-opacity: .55; }
+.mmdx-version-list .pick-after.icon.on .dx-fa { fill: var(--mmdx-diff-add); fill-opacity: .55; }
 .mmdx-version-list .pick.icon:disabled { opacity: .3; }
 .mmdx-version-list .vmenu { flex: none; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; margin-right: 6px; border: 0; border-radius: 7px; background: transparent; color: var(--mmdx-muted); }
 .mmdx-version-list .vmenu:hover:not(:disabled), .mmdx-version-list .vmenu[aria-expanded=true] { background: var(--mmdx-float-2, var(--mmdx-surface-2)); color: var(--mmdx-text); }
@@ -179,7 +180,7 @@ export function createVersionList(props: VersionListProps): BlockHandle<VersionL
       }
       return h('div', { class: `version${viewing ? ' viewing' : ''}${isAfter ? ' after' : ''}${isBefore ? ' before' : ''}`, role: compare ? 'listitem' : 'option', 'aria-selected': compare ? undefined : String(viewing), 'data-id': v.id },
         main,
-        compare ? h('span', { class: 'vpick' }, pick('before'), pick('after')) : null,
+        compare ? h('span', { class: `vpick${p.pickIcons ? ' icons' : ''}` }, pick('before'), pick('after')) : null,
         dots);
     });
     let more: HTMLElement | null = null;
