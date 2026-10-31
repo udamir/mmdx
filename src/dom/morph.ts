@@ -1,9 +1,10 @@
 // Morph (diff §9.2): three states of one diagram (before → merged → after) shown in one canvas, with animated
 // transitions. Items are paired by their change key (`data-ck`); paired items with the same structure tween their
 // geometry, path data and colours, changed text flips, items only one side has fade, and the highlight layers
-// cross-fade. With reduced motion the switch is instant.
+// cross-fade. `replace` animates the same way from what is shown to new states (another version or pair). With
+// reduced motion the switch is instant.
+import { ease, TRANSITION_MS as DURATION } from './motion.js';
 
-const DURATION = 900;
 const NS = 'http://www.w3.org/2000/svg';
 const NUMERIC = new Set(['x', 'y', 'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'rx', 'ry', 'width', 'height', 'font-size', 'stroke-width', 'opacity', 'fill-opacity', 'stroke-opacity']);
 const LISTS = new Set(['d', 'points', 'transform', 'viewBox']);
@@ -14,7 +15,6 @@ type Tween = (t: number) => void;
 
 const NUM = /-?\d*\.?\d+(?:e[-+]?\d+)?/gi;
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
-const ease = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
 let colorCtx: CanvasRenderingContext2D | null | undefined;
 /** Any CSS colour → [r, g, b, a], or null (none, url(#…), invalid, or no canvas). */
@@ -131,12 +131,17 @@ export class Morph {
     this.show(start);
   }
 
-  /** Replaces the states (new data): shows state `i` without animation. */
-  reset(states: MorphState[], i: number): void {
+  /**
+   * Replaces the states (new data) and shows state `i`. `animate`: items move from what is shown now to their new
+   * places, new ones fade in and gone ones fade out (switching to another version); otherwise the switch is instant.
+   */
+  replace(states: MorphState[], i: number, animate: boolean): void {
     this.running?.finish();
+    const from: MorphState = { defs: [...this.defs.children].map((n) => n.cloneNode(true) as Element), content: this.content.cloneNode(true) as Element };
     this.states = states;
     this.current = i;
     this.show(i);
+    if (animate && from.content.childElementCount && !this.reducedMotion() && typeof requestAnimationFrame !== 'undefined') this.running = this.transition(from);
   }
 
   go(i: number, animate = true): void {
@@ -232,8 +237,8 @@ export class Morph {
     }
 
     for (const tw of tweens) tw(0);
-    const t0 = performance.now();
-    let raf = 0, done = false;
+    // the clock starts at the first frame (its timestamp, not performance.now(): a frame's time can be earlier)
+    let t0 = -1, raf = 0, done = false;
     const end = (): void => {
       if (done) return;
       done = true;
@@ -245,6 +250,7 @@ export class Morph {
       this.running = null;
     };
     const step = (now: number): void => {
+      if (t0 < 0) t0 = now;
       const p = Math.min(1, (now - t0) / DURATION);
       const e = ease(p);
       for (const tw of tweens) tw(e);

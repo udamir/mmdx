@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { TRANSITION_MS } from '../../src/dom/motion.js';
 import { DiagramDiff, defineDiff } from '../../src/elements/diff.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import type { StaticVersion } from '../../src/adapters/history.js';
@@ -239,6 +240,8 @@ describe('DiagramDiff: history', () => {
     const { d, root } = await mount({ history: versions, panels: ['history'] });
     d.viewVersion(versions[3]!.id);
     await settle();
+    // the comparison's highlights fade out while the picture animates to the version
+    await new Promise((r) => setTimeout(r, TRANSITION_MS + 200));
     expect(d.pair.viewing).toBe(versions[3]!.id);
     expect(root.querySelector('.dbar')!.hasAttribute('hidden')).toBe(true);
     expect(root.querySelector('.dx-hl')).toBeNull();

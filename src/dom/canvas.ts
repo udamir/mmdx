@@ -216,8 +216,8 @@ export class DiagramCanvas {
 
   // ---- view -------------------------------------------------------------------------------------------------------
 
-  /** Sets the content box; fits when asked, on the first content, or while the view follows the content. */
-  setBounds(b: Rect, opts: { fit?: boolean } = {}): void {
+  /** Sets the content box; fits when asked, on the first content, or while the view follows the content (`animate`: glides). */
+  setBounds(b: Rect, opts: { fit?: boolean; animate?: boolean } = {}): void {
     this.bounds = b;
     if (this.vpt) this.vpt.setBounds(b, opts);
     else this.applyStatic();

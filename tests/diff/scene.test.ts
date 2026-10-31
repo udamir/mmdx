@@ -8,6 +8,7 @@ import { changeKey } from '../../src/core/diff/merge.js';
 import { DiffScene } from '../../src/diff/scene.js';
 import { DiffSession } from '../../src/diff/session.js';
 import { DiagramCanvas } from '../../src/dom/canvas.js';
+import { Morph } from '../../src/dom/morph.js';
 import { StrokeStore } from '../../src/dom/pen.js';
 import { ViewCore } from '../../src/view/core.js';
 import { BaseScene } from '../../src/view/scene.js';
@@ -124,7 +125,39 @@ describe('DiffScene', () => {
     await session.refresh();
     expect(core.area.querySelector('.pane-title b')!.textContent).toBe(versions[2].id);
     expect(core.canvas.content.querySelector('.dx-hl')).toBeNull();
-    expect(core.canvas.body.childElementCount).toBeGreaterThan(0);
+    expect(core.canvas.content.querySelector(':scope > .body-layer')!.childElementCount).toBeGreaterThan(0);
+    core.destroy();
+    session.destroy();
+  });
+
+  it('animates a switch to another version or pair; a repaint of the same one (a filter change) does not', async () => {
+    const versions = JSON.parse(readFileSync('examples/history/docker-deploy-sequence.json', 'utf8')).versions;
+    const { core, session, scene } = mount();
+    const replace = vi.spyOn(Morph.prototype, 'replace');
+    const animated = (): boolean | undefined => replace.mock.calls.at(-1)?.[2];
+    core.pushScene(scene);
+    await session.load({ history: versions });
+    await session.refresh();
+    expect(core.canvas.content.querySelector('.dx-layer')).not.toBeNull();
+    // the first picture has nothing to move from
+    expect(replace).not.toHaveBeenCalled();
+    session.setVersionsShown(true);
+    session.viewVersion(versions[2].id);
+    await session.refresh();
+    expect(animated()).toBe(true);
+    session.viewVersion(versions[3].id);
+    await session.refresh();
+    expect(animated()).toBe(true);
+    expect(core.area.querySelector('.pane-title b')!.textContent).toBe(versions[3].id);
+    // back to a comparison: it animates; the same pair repainted does not
+    session.setPair(versions[1].id, versions[0].id);
+    await session.refresh();
+    expect(animated()).toBe(true);
+    const calls = replace.mock.calls.length;
+    session.setDim(!session.dim.peek());
+    await session.refresh();
+    expect(replace.mock.calls.length).toBe(calls + 1);
+    expect(animated()).toBe(false);
     core.destroy();
     session.destroy();
   });

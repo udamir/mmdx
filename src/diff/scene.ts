@@ -159,7 +159,7 @@ export class DiffScene extends BaseScene {
     // the picture: a new render, a view switch, History mode, the dim setting
     this.offs.push(effect(() => {
       const viewOnly = s.viewOnly(), D = s.rendered(), plain = s.plain(), view = s.view(), dim = s.dim(), status = s.status();
-      untracked(() => this.draw(viewOnly, D, plain, view, dim, status?.kind === 'empty'));
+      untracked(() => this.draw(viewOnly, D, plain, view, dim, status?.kind ?? null));
     }));
     // the selection: marked in every canvas, brought into view
     this.offs.push(effect(() => {
@@ -184,14 +184,15 @@ export class DiffScene extends BaseScene {
 
   // ---- painting ---------------------------------------------------------------------------------------------------
 
-  private draw(viewOnly: boolean, D: DiffRendered | null, plain: Rendered | null, view: DiffViewName, dim: boolean, empty: boolean): void {
+  private draw(viewOnly: boolean, D: DiffRendered | null, plain: Rendered | null, view: DiffViewName, dim: boolean, status: string | null): void {
     if (!this.area) return;
     this.syncInk();
     const p = this.painted;
     if (viewOnly) {
-      // the viewed version is loading: no other version's picture under its name
+      // the viewed version is loading: the shown picture stays, under its own title, and animates to the new one once
+      // it is rendered; a failed load clears it (no other version's picture under the viewed one's name)
       if (!plain) {
-        if (!p.kind) return;
+        if (!p.kind || status !== 'error') return;
         this.clearStage();
       } else if (p.kind === 'plain' && p.plain === plain) return;
       else this.paintPlain(plain);
@@ -206,26 +207,24 @@ export class DiffScene extends BaseScene {
         }
         return;
       }
-      // a new pair or another layout of the stage fits again; a filter change keeps the pan and zoom
-      this.paintDiff(D, kind, view as DiffView, dim, p.kind !== kind || p.pair !== pair);
-      p.pair = pair;
-    } else if (empty && p.kind) this.clearStage();
+      // a new pair or another layout of the stage fits again (a new pair animates); a filter change keeps the pan and zoom
+      const switched = p.pair !== pair;
+      this.paintDiff(D, kind, view as DiffView, dim, pair, p.kind !== kind || switched, switched);
+    } else if (status === 'empty' && p.kind) this.clearStage();
     else return;
     this.core.fire('draw');
   }
 
-  private paintDiff(D: DiffRendered, kind: 'single' | 'side', view: DiffView, dim: boolean, refit: boolean): void {
+  /** `switched`: another pair than the one shown (or a version shown alone before): the picture animates to it. */
+  private paintDiff(D: DiffRendered, kind: 'single' | 'side', view: DiffView, dim: boolean, pair: string, refit: boolean, switched: boolean): void {
     const area = this.area!;
     const main = area.main;
     const keep = refit ? null : main.saveView();
+    const animate = switched && kind === 'single' && this.morph !== null;
     if (kind === 'single') {
       const states = (['before', 'merged', 'after'] as const).map((v) => this.state(D, v, dim));
-      if (this.painted.kind === 'single' && this.morph) this.morph.reset(states, STATE_OF[view]);
-      else {
-        this.layout('single');
-        this.morph = new Morph(main.defs, main.content, states, STATE_OF[view], this.o.reducedMotion);
-        main.setMorph(this.morph);
-      }
+      if (this.painted.kind !== 'single') this.layout('single');
+      this.showStates(states, STATE_OF[view], animate);
       this.panes[0]!.style.background = paneBackground(D.after);
     } else {
       const t = this.core.i18n.t;
@@ -239,26 +238,41 @@ export class DiffScene extends BaseScene {
       this.panes[0]!.style.background = paneBackground(D.before);
       if (this.panes[1]) this.panes[1].style.background = paneBackground(D.after);
     }
-    this.painted = { ...this.painted, kind, D, plain: null, dim, view };
+    this.painted = { ...this.painted, kind, D, plain: null, dim, view, pair };
     for (const c of this.canvases()) {
       if (keep && !keep.auto) c.setBounds(D.bounds);
-      else c.setBounds(D.bounds, { fit: true });
+      else c.setBounds(D.bounds, { fit: true, animate });
     }
     this.bounds.set(D.bounds);
     this.applySelection(false);
   }
 
-  /** History mode: one version as it is, the standard viewer picture. */
+  /**
+   * History mode: one version as it is, the standard viewer picture. Switching from another version (or from a
+   * comparison) animates: the items both show move, the others fade in or out.
+   */
   private paintPlain(r: Rendered): void {
     const area = this.area!;
-    const v = this.session.versions.peek().find((x) => x.id === this.session.viewing.peek());
-    this.morph = null;
+    const id = this.session.viewing.peek();
+    const v = this.session.versions.peek().find((x) => x.id === id);
+    const pair = `v:${id}`;
+    const animate = this.morph !== null && this.painted.pair !== pair;
     this.layout('plain', [{ side: 'single', title: v?.id ?? '', sub: [v?.message, v?.author, ago(v?.date, this.core.i18n.locale)].filter(Boolean).join(' · ') }]);
     this.panes[0]!.style.background = paneBackground(r);
-    area.main.show({ defs: r.result.defs, page: pageScene(r.result, r.rctx), body: r.result.body });
-    this.painted = { ...this.painted, kind: 'plain', D: null, plain: r, view: null };
-    area.main.setBounds(r.result.bounds, { fit: true });
+    this.showStates([this.plainState(r)], 0, animate);
+    this.painted = { ...this.painted, kind: 'plain', D: null, plain: r, view: null, pair };
+    area.main.setBounds(r.result.bounds, { fit: true, animate });
     this.bounds.set(r.result.bounds);
+  }
+
+  /** Shows morph states on the main canvas: a new morph, or the shown one moved to them (animated or not). */
+  private showStates(states: MorphState[], i: number, animate: boolean): void {
+    const main = this.area!.main;
+    if (this.morph) this.morph.replace(states, i, animate);
+    else {
+      this.morph = new Morph(main.defs, main.content, states, i, this.o.reducedMotion);
+      main.setMorph(this.morph);
+    }
   }
 
   /** Nothing to compare: an empty pane. */
@@ -326,7 +340,16 @@ export class DiffScene extends BaseScene {
   private state(D: DiffRendered, view: DiffView, dim: boolean): MorphState {
     const r = renderedOf(D, view);
     const v: DiffView = view === 'merged' && !D.merged ? 'after' : view;
-    const a = annotate({ view: v, result: r.result, before: D.before.result, changes: D.changes, measure: r.rctx.measure }, { dim });
+    return this.layers(r, annotate({ view: v, result: r.result, before: D.before.result, changes: D.changes, measure: r.rctx.measure }, { dim }));
+  }
+
+  /** One version alone as a morph state: its items keyed like the comparisons' (`kind:id`), no highlights. */
+  private plainState(r: Rendered): MorphState {
+    return this.layers(r, annotate({ view: 'after', result: r.result, before: r.result, changes: [], measure: r.rctx.measure }, { highlights: false }));
+  }
+
+  /** Detached layers of a state; the page pairs across states too (it resizes with the diagram). */
+  private layers(r: Rendered, a: ReturnType<typeof annotate>): MorphState {
     const content = document.createElementNS(NS, 'g');
     const layer = (cls: string, nodes: Parameters<typeof patchChildren>[1]): SVGGElement => {
       const g = document.createElementNS(NS, 'g');
@@ -334,7 +357,9 @@ export class DiffScene extends BaseScene {
       patchChildren(g, nodes);
       return g;
     };
-    content.append(layer('page-layer', pageScene(r.result, r.rctx)), layer('body-layer', a.body), layer('dx-runs', a.runs), layer('dx-layer', a.overlay));
+    const page = layer('page-layer', pageScene(r.result, r.rctx));
+    page.setAttribute('data-ck', '~page');
+    content.append(page, layer('body-layer', a.body), layer('dx-runs', a.runs), layer('dx-layer', a.overlay));
     const defs = layer('defs', r.result.defs);
     return { defs: [...defs.children], content };
   }
