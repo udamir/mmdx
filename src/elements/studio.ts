@@ -145,7 +145,7 @@ export class DiagramStudio {
     this.shadow.append(root);
     this.pops = new PopoverManager(this.shadow);
     this.toaster = new Toaster(root);
-    this.dialogs = new Dialogs(this.shadow);
+    this.dialogs = new Dialogs(this.shadow, getShared().i18n.t);
     this.history = this.historyAdapter();
 
     const sig = { signal: this.ac.signal };
