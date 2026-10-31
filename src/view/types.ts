@@ -49,7 +49,7 @@ export interface ViewActions {
   toggleHistory(on?: boolean): void;
   /** Export formats of the installed modules, in menu order. */
   exportFormats(): ExportFormat[];
-  /** The bounds of what the main canvas shows. */
+  /** @deprecated Never run; the kernel's `contentBounds()` is the one answer (kept while a product still provides it). */
   contentBounds(): Rect | null;
   setTool(tool: Tool): void;
   setPanel(name: string, open: boolean): void;

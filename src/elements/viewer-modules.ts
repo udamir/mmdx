@@ -1,9 +1,16 @@
 // The viewer's own module: its export formats (SVG, PNG, the source as .mmdx) for the view-params Export menu.
 import type { ViewCore } from '../view/core.js';
 import type { ViewModule } from '../view/module.js';
-import type { DiagramViewer } from './viewer.js';
 
-export function viewerExportModule(viewer: DiagramViewer): ViewModule<ViewCore> {
+/** What the export formats need from the viewer (not the viewer itself: this chunk does not depend on it). */
+export interface ExportSource {
+  readonly fileName: string;
+  readonly sourceText: string | null;
+  toSvg(): string;
+  toPng(): Promise<Blob>;
+}
+
+export function viewerExportModule(viewer: ExportSource): ViewModule<ViewCore> {
   return {
     id: 'viewer-export',
     enabled: (core) => core.feature('export'),
