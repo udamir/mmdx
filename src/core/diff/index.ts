@@ -14,51 +14,12 @@ import type {
   SeqMessage, SeqNote, SequenceModel,
 } from '../model.js';
 import { parseWith, type ParserSet } from '../parse/dispatch.js';
-import { ALL_PARSERS } from '../parse/index.js';
-import type { DiagramType, ItemKind } from '../types.js';
+import type { ItemKind } from '../types.js';
+import type { ChangeFacet, DiagramDiff, DiffIgnore, FieldChange, ItemChange } from './types.js';
 
-export type ChangeFacet = 'content' | 'layout' | 'style';
-export type ChangeStatus = 'added' | 'removed' | 'changed' | 'unchanged';
+export type { ChangeFacet, ChangeStatus, FieldChange, ItemChange, DiagramDiff, DiffIgnore } from './types.js';
 
 export const FACETS: readonly ChangeFacet[] = ['content', 'layout', 'style'];
-
-export interface FieldChange {
-  facet: ChangeFacet;
-  /** Human-readable field name (`label`, `position`, `fill`, `attribute email`…). */
-  field: string;
-  before?: unknown;
-  after?: unknown;
-}
-
-export interface ItemChange {
-  kind: ItemKind;
-  /** Id in the after version (the before id for removed items). */
-  id: string;
-  /** Id in the before version, when it differs (renamed node, shifted sequence message). */
-  beforeId?: string;
-  /** Short human-readable name of the item. */
-  label: string;
-  status: ChangeStatus;
-  /** Facets with at least one change (empty for added / removed / unchanged). */
-  facets: ChangeFacet[];
-  fields: FieldChange[];
-}
-
-export interface DiagramDiff {
-  type: DiagramType | null;
-  /** The two versions are different diagram types (the item lists are then added / removed wholesale). */
-  typeChanged: boolean;
-  items: ItemChange[];
-  /** Diagram-wide changes: theme, page settings, local presets, `classDef`, direction. */
-  doc: FieldChange[];
-  counts: Record<Exclude<ChangeStatus, 'unchanged'>, number> & Record<ChangeFacet, number>;
-}
-
-export interface DiffIgnore {
-  content?: boolean;
-  layout?: boolean;
-  style?: boolean;
-}
 
 // ---- facet of a metadata key ------------------------------------------------------------------------------------
 
@@ -413,15 +374,7 @@ export function diffModels(a: DiagramModel, b: DiagramModel, ma: DiagramMeta, mb
   return { type: b.type, typeChanged, items, doc, counts: count(items, doc) };
 }
 
-/** Diff of two sources (Mermaid with or without `%%@` lines). Never throws on bad input. */
-export function diffDiagrams(before: string, after: string): DiagramDiff {
-  return diffDiagramsWith({ parsers: ALL_PARSERS }, before, after);
-}
-
-/**
- * The same diff, parsed with the given diagram kinds (component architecture §9.1): a bundle that loads kinds on
- * demand passes the ones it loaded (a type without its parser diffs as unsupported).
- */
+/** Diff of two sources (Mermaid with or without `%%@` lines), parsed with the given diagram kinds (component architecture §9.1): a bundle that loads kinds on demand passes the ones it loaded (a type without its parser diffs as unsupported). Never throws on bad input. `diffDiagrams` (core/diff/all.ts) parses with every kind. */
 export function diffDiagramsWith(kinds: { parsers: ParserSet }, before: string, after: string): DiagramDiff {
   const sa = splitSource(before), sb = splitSource(after);
   return diffModels(parseWith(sa.doc.code, kinds.parsers), parseWith(sb.doc.code, kinds.parsers), sa.doc.meta, sb.doc.meta);
@@ -450,5 +403,4 @@ export {
   annotate, shapeOf, centreOf, focusRect, markOf, marksOf, badgeOf, DIFF_COLORS, MARKS,
   type Mark, type DiffView, type DiffColors, type ItemShape, type AnnotateInput, type AnnotateOptions, type Annotated,
 } from './annotate.js';
-export { renderDiff, renderDiffWith, renderDiffToSvg, renderDiffToSvgWith, diffSvg, renderedOf, type DiffRendered, type DiffRenderOptions, type DiffSvgOptions, type DiffHide } from './render.js';
 export { diffReport, unifiedDiff, sourcePart, REPORT_VERSION, type VersionInfo, type ReportOptions, type UnifiedDiffOptions } from './report.js';

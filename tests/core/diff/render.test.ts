@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createContext } from '../../../src/core/context.js';
-import { diffDiagrams, diffReport, renderDiff, renderDiffToSvg, unifiedDiff } from '../../../src/core/diff/index.js';
+import { diffDiagrams, renderDiff, renderDiffToSvg } from '../../../src/core/diff/all.js';
+import { diffReport, unifiedDiff } from '../../../src/core/diff/index.js';
 import { createStaticMeasurer } from '../../../src/core/text/measure.js';
 
 const sample = (name: string) => [0, 1].map((i) => readFileSync(`apps/studio-site/diff-samples/${name}.${i ? 'after' : 'before'}.mmd`, 'utf8')) as [string, string];

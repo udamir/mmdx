@@ -24,6 +24,7 @@ The viewer, the editor and the diff are rebuilt on one view kernel, with shared 
 - **`EditorModule`** is `ViewModule<EditorCore>`: `install(scope)` (the core is `scope.core`; the cleanup it returns still runs), `enabled(core)`, `css: string[]`, optional `when`, `after` and `load`. No adapter for the old shape.
 - Remembered preferences move to per-component keys (`editor.ui`, `viewer.theme`, `diff.panels`, …); the diff's panel sizes are remembered by its panel stacks.
 - `<mmdx-diff>`: hover highlight starts off; a plain click on a linked item selects the change.
+- **`diffDiagrams` of `mmdx/diff` is asynchronous** (`Promise<DiagramDiff>`): it loads the parsers of both versions first, so the entry ships no parser statically. The synchronous `diffDiagrams` (every parser) stays in `mmdx/core`, with `renderDiff` and `renderDiffToSvg`.
 
 ### Removed
 

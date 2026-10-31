@@ -3,7 +3,8 @@ import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import '../../src/viewer.js';
 import { instanceContext } from '../../src/config.js';
 import { renderToSvg } from '../../src/core/pipeline.js';
-import { diffDiagrams, ignoreFacets, type ItemChange } from '../../src/core/diff/index.js';
+import { diffDiagrams } from '../../src/core/diff/all.js';
+import { ignoreFacets, type ItemChange } from '../../src/core/diff/index.js';
 import { EXAMPLES, SMALL_FLOW, THEME_IDS } from '../support.js';
 
 const diffRaw = import.meta.glob<string>('../../apps/studio-site/diff-samples/*.mmd', { eager: true, query: '?raw', import: 'default' });

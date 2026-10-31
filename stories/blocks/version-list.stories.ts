@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
-import { diffDiagrams } from '../../src/core/diff/index.js';
+import { diffDiagrams } from '../../src/core/diff/all.js';
 import { createVersionList, VERSION_LIST_CSS, type VersionCounts } from '../../src/ui/blocks/version-list.js';
 import { createI18n } from '../../src/ui/i18n.js';
 import { DIFF_TOKENS } from '../../src/ui/styles/diff.js';

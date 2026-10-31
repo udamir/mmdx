@@ -8,7 +8,7 @@ import type {
 } from '../model.js';
 import { deleted, inserted, stripMarks } from '../text/marks.js';
 import type { ItemKind } from '../types.js';
-import type { DiagramDiff, ItemChange } from './index.js';
+import type { DiagramDiff, ItemChange } from './types.js';
 import { mergeText } from './text.js';
 
 /** Suffix of a removed item's id in the merged diagram (sequence ids are positions, so they would clash). */

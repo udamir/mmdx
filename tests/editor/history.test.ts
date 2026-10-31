@@ -58,6 +58,8 @@ describe('History in the editor', () => {
       return selected;
     });
     ed.core.root.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, metaKey: true, bubbles: true, cancelable: true, composed: true }));
+    // the clipboard ops load on the first copy
+    await wait(() => ed.core.clipboard);
     expect(ed.core.clipboard?.items).toEqual([{ kind: 'node', id: 'x' }]);
     // the document was never written
     expect(ed.getSource()).toBe(NOW);
