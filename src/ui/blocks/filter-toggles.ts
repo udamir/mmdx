@@ -98,7 +98,7 @@ export function createFilterToggles(props: FilterTogglesProps): FilterTogglesHan
         type: 'button', class: `mmdx-dim${dim.on ? ' on' : ''}`, 'aria-pressed': String(dim.on), 'aria-label': dim.label, 'data-tip': dim.label, 'data-f': 'dim',
       }, icon(dim.icon));
       fx.on(b, 'click', () => p.onDim?.());
-      if (parts.length) parts.push(h('span', { class: 'mmdx-sep sep', role: 'separator', 'aria-orientation': 'vertical' }));
+      if (parts.length) parts.push(h('span', { class: 'mmdx-sep', role: 'separator', 'aria-orientation': 'vertical' }));
       parts.push(b);
     }
     el.replaceChildren(...parts);

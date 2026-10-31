@@ -128,6 +128,11 @@ export function attachMenu(p: MenuButtonProps): () => void {
   p.button.setAttribute('aria-haspopup', 'menu');
   p.button.setAttribute('aria-expanded', 'false');
   scope.on(p.button, 'click', () => {
+    // a second click closes it (the entries are not built for nothing)
+    if (p.popovers.isOpenFor(p.button)) {
+      p.popovers.close();
+      return;
+    }
     const within = p.within?.();
     openMenu({
       popovers: p.popovers, opener: p.button, label: p.label, entries: p.entries(),

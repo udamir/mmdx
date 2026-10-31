@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../../src/adapters/storage.js';
-import { rovingKeys } from '../../../src/ui/blocks/focus.js';
+import { keepFocus, rovingKeys } from '../../../src/ui/blocks/focus.js';
 import { createPanelStack } from '../../../src/ui/blocks/panel-stack.js';
 import { createSegmented } from '../../../src/ui/blocks/segmented.js';
 import { createSidePanel } from '../../../src/ui/blocks/side-panel.js';
@@ -19,6 +19,16 @@ const key = (el: Element, k: string): KeyboardEvent => {
 const active = (): HTMLElement => document.activeElement as HTMLElement;
 
 afterEach(() => document.body.replaceChildren());
+
+describe('keepFocus', () => {
+  it('restores the focus to the control with the same data-f', () => {
+    const box = h('div', null, h('button', { 'data-f': 'x' }, 'x'));
+    document.body.append(box);
+    (box.firstElementChild as HTMLElement).focus();
+    keepFocus(box, () => box.replaceChildren(h('button', { 'data-f': 'y' }), h('button', { 'data-f': 'x' }, 'x2')));
+    expect(document.activeElement?.textContent).toBe('x2');
+  });
+});
 
 describe('rovingKeys', () => {
   const setup = (o: Partial<Parameters<typeof rovingKeys>[1]> = {}) => {
