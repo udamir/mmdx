@@ -1,6 +1,7 @@
 // The merged diagram of a diff (§7.3): the after version plus every removed item (kept where it was), with changed
 // text carrying word-level change marks. The renderer lays it out like any diagram, so removed items, removed ER
-// attributes and removed sequence messages get real room instead of being drawn on top of the new version.
+// attributes and removed sequence messages get real room instead of being drawn on top of the new version. A removed
+// item keeps its text unmarked (the item itself shows as removed); a removed ER row inside a kept entity is marked.
 import type { DiagramMeta, ItemMeta } from '../meta/types.js';
 import type {
   ErAttribute, ErModel, FlowEdge, FlowGroup, FlowNode, FlowchartModel, SeqItem, SeqMessage, SeqNote, SequenceModel,
@@ -91,7 +92,7 @@ export function mergeDiagrams(diff: DiagramDiff, a: SupportedModel, b: Supported
     for (const c of removed.filter((x) => x.kind === 'group')) {
       const g = a.groups.get(c.id)!;
       const parent = g.parent ? nodeId.get(g.parent) ?? (groups.has(g.parent) ? g.parent : null) : null;
-      groups.set(c.id + REMOVED, { ...g, id: c.id + REMOVED, label: deleted(g.label), parent, children: [] });
+      groups.set(c.id + REMOVED, { ...g, id: c.id + REMOVED, label: g.label, parent, children: [] });
       groups.get(parent ?? '')?.children.push(c.id + REMOVED);
       carryMeta(meta, ma, 'group', c.id, c.id + REMOVED);
       mark(c, c.id + REMOVED);
@@ -99,7 +100,7 @@ export function mergeDiagrams(diff: DiagramDiff, a: SupportedModel, b: Supported
     for (const c of removed.filter((x) => x.kind === 'node')) {
       const n = a.nodes.get(c.id)!;
       const parent = n.parent ? (groups.has(nodeId.get(n.parent) ?? '') ? nodeId.get(n.parent)! : groups.has(n.parent) ? n.parent : null) : null;
-      nodes.set(c.id + REMOVED, { ...n, id: c.id + REMOVED, label: deleted(n.label), parent, lines: new Set() });
+      nodes.set(c.id + REMOVED, { ...n, id: c.id + REMOVED, label: n.label, parent, lines: new Set() });
       groups.get(parent ?? '')?.children.push(c.id + REMOVED);
       carryMeta(meta, ma, 'node', c.id, c.id + REMOVED);
       mark(c, c.id + REMOVED);
@@ -113,7 +114,7 @@ export function mergeDiagrams(diff: DiagramDiff, a: SupportedModel, b: Supported
     for (const c of removed.filter((x) => x.kind === 'edge')) {
       const e = a.edges.find((x) => x.id === c.id)!;
       const from = nodeId.get(e.from) ?? e.from, to = nodeId.get(e.to) ?? e.to;
-      edges.push({ ...e, id: c.id + REMOVED, from, to, label: deleted(e.label), index: index++ });
+      edges.push({ ...e, id: c.id + REMOVED, from, to, label: e.label, index: index++ });
       carryMeta(meta, ma, 'edge', c.id, c.id + REMOVED);
       mark(c, c.id + REMOVED);
     }
@@ -131,7 +132,7 @@ export function mergeDiagrams(diff: DiagramDiff, a: SupportedModel, b: Supported
     }
     for (const c of removed.filter((x) => x.kind === 'entity')) {
       const e = a.entities.get(c.id)!;
-      entities.set(c.id + REMOVED, { ...e, id: c.id + REMOVED, label: deleted(e.label || e.id), attrs: e.attrs.map(delAttr), lines: new Set() });
+      entities.set(c.id + REMOVED, { ...e, id: c.id + REMOVED, attrs: [...e.attrs], lines: new Set() });
       carryMeta(meta, ma, 'entity', c.id, c.id + REMOVED);
       mark(c, c.id + REMOVED);
     }
@@ -143,7 +144,7 @@ export function mergeDiagrams(diff: DiagramDiff, a: SupportedModel, b: Supported
     });
     for (const c of removed.filter((x) => x.kind === 'rel')) {
       const r = a.rels.find((x) => x.id === c.id)!;
-      rels.push({ ...r, id: c.id + REMOVED, from: ent(r.from), to: ent(r.to), label: deleted(r.label) });
+      rels.push({ ...r, id: c.id + REMOVED, from: ent(r.from), to: ent(r.to) });
       carryMeta(meta, ma, 'rel', c.id, c.id + REMOVED);
       mark(c, c.id + REMOVED);
     }
@@ -161,7 +162,7 @@ export function mergeDiagrams(diff: DiagramDiff, a: SupportedModel, b: Supported
     for (const c of removed.filter((x) => x.kind === 'participant')) {
       const p = a.participants.find((x) => x.id === c.id)!;
       const at = Math.min(a.participants.indexOf(p), participants.length);
-      participants.splice(at, 0, { ...p, label: deleted(p.label || p.id), box: null, lines: new Set() });
+      participants.splice(at, 0, { ...p, box: null, lines: new Set() });
       mark(c, p.id);
     }
     const items: SeqItem[] = b.items.map((it) => {
@@ -185,7 +186,7 @@ export function mergeDiagrams(diff: DiagramDiff, a: SupportedModel, b: Supported
       if (x.kind !== 'message' && x.kind !== 'note') continue;
       const k = `${x.kind}:${x.id}`;
       if (gone.has(k)) {
-        const copy: SeqMessage | SeqNote = x.kind === 'message' ? { ...x, id: x.id + REMOVED, text: deleted(x.text), activate: false, deactivate: false } : { ...x, id: x.id + REMOVED, text: deleted(x.text) };
+        const copy: SeqMessage | SeqNote = x.kind === 'message' ? { ...x, id: x.id + REMOVED, activate: false, deactivate: false } : { ...x, id: x.id + REMOVED };
         pending.set(anchor, [...(pending.get(anchor) ?? []), copy]);
         carryMeta(meta, ma, x.kind, x.id, x.id + REMOVED);
         mark(removed.find((c) => `${c.kind}:${c.id}` === k)!, x.id + REMOVED);

@@ -27,7 +27,8 @@ describe('mergeDiagrams', () => {
   it('flowchart: keeps removed nodes and edges, marks relabels', () => {
     const m = load('architecture');
     const f = m.model as FlowchartModel;
-    expect(f.nodes.get('desktop~del')?.label).toBe(`${DEL_OPEN}Desktop${DEL_CLOSE}`);
+    // the removed node shows as removed; its text is not marked as well
+    expect(f.nodes.get('desktop~del')?.label).toBe('Desktop');
     expect(f.edges.find((e) => e.id === 'desktop->gw~del')).toMatchObject({ from: 'desktop~del', to: 'gw' });
     expect(stripMarks(f.nodes.get('lb')!.label)).toBe('Load Balancer (L7)');
     expect(m.meta.nodes?.['desktop~del']).toMatchObject({ x: 665, y: 110 });
@@ -40,6 +41,21 @@ describe('mergeDiagrams', () => {
     const i = texts.indexOf('Parsing volume from description file');
     expect(texts[i - 1]).toBe('Parsing volume');
     expect(texts[i + 1]).toBe('Save volume to Repository');
+  });
+
+  it('a removed item keeps its text unmarked (labels, ER rows, messages, notes)', () => {
+    const marked = (v: string | undefined): boolean => !!v && v !== stripMarks(v);
+    const f = load('architecture').model as FlowchartModel;
+    const gone = [...f.nodes.values(), ...f.groups.values()].filter((x) => x.id.endsWith('~del'));
+    expect(gone.length).toBeGreaterThan(0);
+    for (const x of gone) expect(marked(x.label)).toBe(false);
+    for (const e of f.edges.filter((x) => x.id.endsWith('~del'))) expect(marked(e.label)).toBe(false);
+    const er = load('schema').model as ErModel;
+    for (const [id, e] of er.entities) if (id.endsWith('~del')) for (const a of e.attrs) expect([a.name, a.type, a.comment].some(marked)).toBe(false);
+    const seq = load('sequence').model as SequenceModel;
+    const removed = seq.items.filter((x) => (x.kind === 'message' || x.kind === 'note') && x.id.endsWith('~del'));
+    expect(removed.length).toBeGreaterThan(0);
+    for (const x of removed) expect(marked(x.kind === 'message' || x.kind === 'note' ? x.text : '')).toBe(false);
   });
 
   it('ER: removed attributes return in place, changed types are marked', () => {
