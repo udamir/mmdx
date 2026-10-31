@@ -190,8 +190,12 @@ export class DiffScene extends BaseScene {
     this.syncInk();
     const p = this.painted;
     if (viewOnly) {
-      if (!plain || (p.kind === 'plain' && p.plain === plain)) return;
-      this.paintPlain(plain);
+      // the viewed version is loading: no other version's picture under its name
+      if (!plain) {
+        if (!p.kind) return;
+        this.clearStage();
+      } else if (p.kind === 'plain' && p.plain === plain) return;
+      else this.paintPlain(plain);
     } else if (D) {
       const kind: Kind = view === 'side' ? 'side' : 'single';
       const pair = `${this.session.base.peek()}|${this.session.head.peek()}`;
