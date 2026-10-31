@@ -10,12 +10,11 @@ export const linksModule: ViewModule<ViewCore> = {
   when: { mode: ['view'], stage: ['document'] },
   install(scope) {
     const core = scope.core;
-    const svg = core.canvas.svg;
     let down: { x: number; y: number } | null = null;
-    scope.listen(svg, 'pointerdown', (ev: PointerEvent) => {
+    scope.canvas('pointerdown', (ev) => {
       down = { x: ev.clientX, y: ev.clientY };
     });
-    scope.listen(svg, 'click', (ev: MouseEvent) => {
+    scope.canvas('click', (ev) => {
       const a = (ev.target as Element).closest('a');
       if (!a) return;
       ev.preventDefault();
@@ -39,11 +38,11 @@ export const hoverHighlightModule: ViewModule<ViewCore> = {
   install(scope) {
     const core = scope.core;
     const canvas = core.canvas;
-    scope.listen(canvas.svg, 'pointermove', (ev: PointerEvent) => {
+    scope.canvas('pointermove', (ev) => {
       if (!core.display.peek().hoverHighlight || canvas.viewport?.panning || core.tool.peek() === 'pen') return;
       hoverHighlight(canvas.body, ev.target as Element, core.run('documentModel') ?? null);
     });
-    scope.listen(canvas.svg, 'pointerleave', () => clearHighlight(canvas.body));
+    scope.canvas('pointerleave', () => clearHighlight(canvas.body));
     // switched off or suspended: nothing stays highlighted
     scope.effect(() => {
       if (!core.display().hoverHighlight) clearHighlight(canvas.body);

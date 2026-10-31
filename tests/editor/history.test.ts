@@ -5,7 +5,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { HistoryAdapter } from '../../src/adapters/history.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
-import { loadKind } from '../../src/elements/kinds.js';
+import { loadKind } from '../../src/view/kinds.js';
 import { changeKey } from '../../src/core/diff/merge.js';
 import { WORKING_COPY } from '../../src/diff/history.js';
 
@@ -153,12 +153,12 @@ describe('History: Restore, the working copy, destroy', () => {
     await wait(() => ed.historySession!.getDiff()?.items.some((c) => c.status === 'changed'));
   });
 
-  it('destroying the host with History open closes it without giving the canvas back (no repaint)', async () => {
+  it('destroying the host with History open closes it without giving the canvas back (no repaint, no event)', async () => {
     const { events } = await open(gated(Promise.resolve()));
     await wait(() => ed.historySession?.getDiff());
     const pop = vi.spyOn(ed.core, 'popScene');
     ed.destroy();
     expect(pop).not.toHaveBeenCalled();
-    expect(events).toEqual(['mmdx-history-close']);
+    expect(events).toEqual([]);
   });
 });

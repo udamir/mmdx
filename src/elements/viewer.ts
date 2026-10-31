@@ -14,6 +14,7 @@ import { splitSource } from '../core/meta/index.js';
 import { standaloneSvg } from '../core/pipeline-core.js';
 import { summarize } from '../core/summary.js';
 import type { Diagnostic, Rect } from '../core/types.js';
+import { reducedMotion } from '../dom/motion.js';
 import type { WheelMode } from '../dom/viewport.js';
 import { h } from '../ui/h.js';
 import { VIEWER_CSS } from '../ui/styles/viewer.js';
@@ -46,7 +47,7 @@ export interface ViewerOptions {
   ui?: 'light' | 'dark' | 'auto';
   /** The `compact` preset (§7.6): smaller, icon-only chrome; automatic below a host size by default. */
   compact?: boolean | 'auto';
-  /** `adopt` keeps server-rendered SVG as is (no idle re-measure). */
+  /** @deprecated Ignored (server-rendered SVG is always replaced by the first client render). */
   rehydrate?: 'auto' | 'adopt';
   themeSource?: ThemeSource;
   storage?: StorageAdapter;
@@ -66,8 +67,6 @@ export interface ViewerEventMap {
 }
 
 const DEFAULT_CONTROLS: readonly ViewerControl[] = ['zoom', 'fullscreen'];
-
-const reducedMotion = (): boolean => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export class DiagramViewer {
   readonly core: ViewCore;
@@ -91,6 +90,7 @@ export class DiagramViewer {
       areaClass: 'stage',
       canvas: { interaction: o.interactive === false ? 'static' : 'pan-zoom', wheel: o.wheel ?? 'ctrl', panOnDrag: true, svgClass: 'scene', part: 'canvas', reducedMotion },
       feature: (name) => this.feature(name),
+      loadHistory: () => import('../diff/history.js'),
       ...(o.storage ? { storage: o.storage } : {}),
       ...(o.ctx ? { ctx: o.ctx } : {}),
       ...(o.themeSource ? { themeSource: o.themeSource } : {}),
@@ -125,7 +125,6 @@ export class DiagramViewer {
     core.provide('documentModel', () => this.scene.rendered?.model ?? null);
     core.provide('documentMeta', () => this.scene.rendered?.doc.meta ?? null);
     core.provide('documentCode', () => this.scene.rendered?.doc.code ?? (this.scene.text !== null ? splitSource(this.scene.text).doc.code : null));
-    core.provide('contentBounds', () => this.scene.bounds.peek());
     core.provide('documentSource', () => this.scene.text);
     core.provide('documentName', () => this.fileName);
     if (o.history) core.history.set(o.history);
@@ -156,24 +155,31 @@ export class DiagramViewer {
 
   // ---- public API -------------------------------------------------------------------------------------------------
 
-  /** Updates options; re-renders or re-fetches as needed. */
+  /**
+   * Updates options; only what changed is applied (an option set to `undefined` goes back to its default). Re-renders,
+   * re-fetches or re-evaluates the controls as needed — a change elsewhere keeps History open, the pen's strokes and
+   * the user's light / dark choice.
+   */
   set(patch: Partial<ViewerOptions>): void {
-    const srcChanged = 'src' in patch && patch.src !== this.o.src;
-    const controlsChanged = 'controls' in patch && patch.controls?.join(' ') !== this.o.controls?.join(' ');
+    const prev = { ...this.o };
+    const changed = (k: keyof ViewerOptions): boolean => k in patch && !sameOption(prev[k], patch[k]);
     Object.assign(this.o, patch);
+    for (const k of Object.keys(patch) as (keyof ViewerOptions)[]) if (patch[k] === undefined) delete this.o[k];
     const core = this.core;
-    if ('ui' in patch) core.setUi(patch.ui);
-    if ('theme' in patch) core.themes.attr.set(patch.theme ?? null);
-    if ('themeDark' in patch) core.themes.attrDark.set(patch.themeDark ?? null);
-    if ('compact' in patch) core.setCompact(patch.compact ?? 'auto');
-    if ('interactive' in patch) core.canvas.setInteraction(patch.interactive === false ? 'static' : 'pan-zoom');
-    if ('wheel' in patch) core.canvas.setOptions({ wheel: patch.wheel ?? 'ctrl' });
-    if ('labels' in patch || 'hoverHighlight' in patch) core.display.set({ labels: this.o.labels !== false, hoverHighlight: this.o.hoverHighlight !== false });
-    if ('layers' in patch) core.visibleLayers.set(this.o.layers);
-    if ('history' in patch) core.history.set(patch.history ?? null);
-    if (controlsChanged || 'interactive' in patch) this.installModules();
-    if (srcChanged || ('source' in patch && patch.source !== undefined)) void this.load();
-    else core.invalidate();
+    if (changed('ui')) core.setUi(this.o.ui);
+    if (changed('theme')) core.themes.attr.set(this.o.theme ?? null);
+    if (changed('themeDark')) core.themes.attrDark.set(this.o.themeDark ?? null);
+    if (changed('compact')) core.setCompact(this.o.compact ?? 'auto');
+    if (changed('interactive')) core.canvas.setInteraction(this.o.interactive === false ? 'static' : 'pan-zoom');
+    if (changed('wheel')) core.canvas.setOptions({ wheel: this.o.wheel ?? 'ctrl' });
+    if (changed('labels') || changed('hoverHighlight')) core.display.set({ labels: this.o.labels !== false, hoverHighlight: this.o.hoverHighlight !== false });
+    if (changed('layers')) core.visibleLayers.set(this.o.layers);
+    if (changed('history')) core.history.set(this.o.history ?? null);
+    if (changed('label') && this.o.label && this.scene.rendered) core.root.setAttribute('aria-label', this.o.label);
+    // the modules follow the controls (each one re-evaluates what it shows)
+    if (changed('controls') || changed('interactive')) core.refreshModules();
+    if (changed('src') || changed('source') || changed('loader')) void this.load();
+    else if (changed('labels') || changed('layers') || changed('fit') || changed('fallback')) core.invalidate();
   }
 
   get options(): Readonly<ViewerOptions> {
@@ -289,7 +295,6 @@ export class DiagramViewer {
       ...VIEWER_MODULES,
       lazyModule({ id: 'viewer-export', enabled: (c) => c.feature('export') }, () => import('./viewer-modules.js').then((m) => m.viewerExportModule(this))),
     ];
-    this.core.useModules([]);
     this.core.useModules(list);
   }
 
@@ -329,10 +334,27 @@ export class DiagramViewer {
 
 // ---- custom element ------------------------------------------------------------------------------------------------
 
-const BOOL_ATTRS = ['interactive', 'lazy', 'labels', 'hover-highlight'] as const;
+/** Attributes and the option each one sets. */
+const ATTRS: Readonly<Record<string, keyof ViewerOptions>> = {
+  src: 'src', theme: 'theme', 'theme-dark': 'themeDark', fit: 'fit', controls: 'controls', wheel: 'wheel', fallback: 'fallback', label: 'label',
+  ui: 'ui', compact: 'compact', interactive: 'interactive', lazy: 'lazy', labels: 'labels', 'hover-highlight': 'hoverHighlight',
+};
+const BOOL_ATTRS = new Set(['interactive', 'lazy', 'labels', 'hover-highlight']);
+
+/** An attribute's value as its option (`undefined`: the attribute is absent, the option's default applies). */
+function attrValue(name: string, v: string | null): ViewerOptions[keyof ViewerOptions] | undefined {
+  // the element's default fit is `width`
+  if (name === 'fit') return (v as FitMode | null) ?? 'width';
+  if (v === null) return undefined;
+  if (BOOL_ATTRS.has(name)) return v !== 'false';
+  if (name === 'compact') return v === 'auto' ? 'auto' : v !== 'false';
+  // `list` (the former text outline) now opens the code view
+  if (name === 'controls') return v === 'none' ? [] : (v.split(/\s+/).filter(Boolean).map((c) => (c === 'list' ? 'code' : c)) as ViewerControl[]);
+  return v as ViewerOptions[keyof ViewerOptions];
+}
 
 export class MmdxViewerElement extends ElementBase {
-  static observedAttributes = ['src', 'theme', 'theme-dark', 'fit', 'controls', 'wheel', 'fallback', 'label', 'ui', 'rehydrate', 'compact', ...BOOL_ATTRS];
+  static observedAttributes = Object.keys(ATTRS);
   private viewer: DiagramViewer | null = null;
   private pending: Partial<ViewerOptions> = {};
 
@@ -346,35 +368,19 @@ export class MmdxViewerElement extends ElementBase {
     this.viewer = null;
   }
 
-  attributeChangedCallback(): void {
-    this.viewer?.set(this.attrOptions());
+  /** Only the attribute that changed reaches the viewer (removed: its option goes back to the default). */
+  attributeChangedCallback(name: string, old: string | null, value: string | null): void {
+    const key = ATTRS[name];
+    if (!this.viewer || !key || old === value) return;
+    this.viewer.set({ [key]: attrValue(name, value) });
   }
 
   private attrOptions(): Partial<ViewerOptions> {
     const o: Partial<ViewerOptions> = {};
-    const a = (n: string): string | null => this.getAttribute(n);
-    const bool = (n: string): boolean | undefined => (this.hasAttribute(n) ? a(n) !== 'false' : undefined);
-    const set = <K extends keyof ViewerOptions>(k: K, v: ViewerOptions[K] | undefined | null): void => {
-      if (v !== undefined && v !== null) o[k] = v;
-    };
-    set('src', a('src'));
-    set('theme', a('theme'));
-    set('themeDark', a('theme-dark'));
-    set('fit', (a('fit') as FitMode | null) ?? 'width');
-    const controls = a('controls');
-    // `list` (the former text outline) now opens the code view
-    if (controls !== null) o.controls = controls === 'none' ? [] : (controls.split(/\s+/).filter(Boolean).map((c) => (c === 'list' ? 'code' : c)) as ViewerControl[]);
-    set('wheel', a('wheel') as WheelMode | null);
-    set('fallback', a('fallback') as FallbackMode | null);
-    set('label', a('label'));
-    set('ui', a('ui') as ViewerOptions['ui'] | null);
-    set('rehydrate', a('rehydrate') as ViewerOptions['rehydrate'] | null);
-    const compact = a('compact');
-    if (compact !== null) o.compact = compact === 'auto' ? 'auto' : compact !== 'false';
-    set('interactive', bool('interactive'));
-    set('lazy', bool('lazy'));
-    set('labels', bool('labels'));
-    set('hoverHighlight', bool('hover-highlight'));
+    for (const [name, key] of Object.entries(ATTRS)) {
+      const v = attrValue(name, this.getAttribute(name));
+      if (v !== undefined) Object.assign(o, { [key]: v });
+    }
     return o;
   }
 
@@ -450,6 +456,12 @@ export class MmdxViewerElement extends ElementBase {
 }
 
 // ---- helpers -------------------------------------------------------------------------------------------------------
+
+/** Option values compare by content (lists of controls or layers set again from an attribute are the same). */
+function sameOption(a: unknown, b: unknown): boolean {
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => x === b[i]);
+  return Object.is(a, b);
+}
 
 /** Removes the common indentation of an inline `<script type="text/mermaid">` block. */
 export function dedent(s: string): string {

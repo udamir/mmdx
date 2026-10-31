@@ -1,12 +1,12 @@
 // Diagram kinds of a diff, loaded on demand (component architecture §9.1, §10): both versions may be any type, so a
-// session loads the parser and renderer of each version's type before it renders (through elements/kinds.ts, shared
+// session loads the parser and renderer of each version's type before it renders (through view/kinds.ts, shared
 // with the viewer). `renderDiffToSvg` of `mmdx/diff` does the same, so the entry ships no kind statically.
 import { renderDiffToSvgWith, type DiffRenderOptions, type DiffSvgOptions } from '../core/diff/render.js';
 import { diffDiagramsWith } from '../core/diff/index.js';
 import type { DiagramDiff } from '../core/diff/types.js';
 import type { CoreContext } from '../core/context.js';
 import { detectType } from '../core/parse/dispatch.js';
-import { loadedKinds, loadKind } from '../elements/kinds.js';
+import { loadedKinds, loadKind } from '../view/kinds.js';
 
 /** Loads the kinds of every given source (sources of an unsupported type load nothing). */
 export async function loadKindsOf(...sources: readonly string[]): Promise<void> {

@@ -1,4 +1,6 @@
 // Diagram kinds loaded on demand by the viewer (§R5): a page of flowcharts never downloads the sequence and ER code.
+// The kernel's scenes get kinds through a `KindsProvider` (component architecture §7.1): this lazy one for the viewer
+// and the diff; the editor's renders are synchronous and use every kind bundled.
 import type { Kinds } from '../core/pipeline-core.js';
 import type { DiagramType } from '../core/types.js';
 
@@ -29,3 +31,15 @@ export function loadKind(t: DiagramType): Promise<void> {
   }
   return p;
 }
+
+/** Where a scene gets the parsers and renderers of diagram kinds from. */
+export interface KindsProvider {
+  /** The kinds available now. */
+  kinds(): Kinds;
+  has(t: DiagramType): boolean;
+  /** Makes a kind available (resolves at once when it already is). */
+  load(t: DiagramType): Promise<void>;
+}
+
+/** Kinds loaded on first use, shared by every component on the page. */
+export const lazyKinds: KindsProvider = { kinds: loadedKinds, has: hasKind, load: loadKind };

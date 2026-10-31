@@ -1,8 +1,12 @@
-// Client of the render worker (§6.4, §12): one module worker per page, shared by every viewer; jobs time out after
-// 2 s (the worker is then restarted and the diagram is reported as too large). Falls back to the main thread when
-// workers are unavailable (CSP without worker-src, file://, old engines) — callers check `available()`.
+// Client of the render worker (§6.4, §12): one module worker per page, shared by every viewer. Jobs run one at a
+// time, in order; a job's 2 s timeout starts when the worker takes it (not while it waits behind others), and a
+// viewer's newer job replaces its older one still waiting (the older resolves as superseded, never rendered). A job
+// that times out restarts the worker and is reported as too large; the jobs behind it run in the new worker. Falls
+// back to the main thread when workers are unavailable (CSP without worker-src, file://, old engines) — callers check
+// `workerAvailable()`.
 import type { CoreContext } from '../core/context.js';
 import { renderContext, type PipelineOptions, type Rendered } from '../core/pipeline-core.js';
+import type { ThemeRegistry } from '../core/theme/registry.js';
 import type { ThemeFile } from '../core/theme/types.js';
 import type { WorkerRequest, WorkerResponse } from './worker-protocol.js';
 
@@ -10,10 +14,19 @@ import type { WorkerRequest, WorkerResponse } from './worker-protocol.js';
 export const WORKER_THRESHOLD_LINES = 300;
 const TIMEOUT_MS = 2000;
 
+interface Job {
+  req: WorkerRequest;
+  owner: object | null;
+  resolve(r: WorkerResponse): void;
+}
+
 let worker: Worker | null = null;
 let failed = false;
 let seq = 0;
-const pending = new Map<number, { resolve: (r: WorkerResponse) => void; timer: ReturnType<typeof setTimeout> }>();
+/** Jobs waiting for the worker, in order. */
+const queue: Job[] = [];
+/** The job the worker is on, and its timeout. */
+let running: { job: Job; timer: ReturnType<typeof setTimeout> } | null = null;
 let workerUrl: URL | string | null = null;
 
 /** Hosts with a strict CSP can serve the worker file themselves (`worker-src 'self'`). */
@@ -22,6 +35,8 @@ export function setWorkerUrl(url: URL | string): void {
   worker?.terminate();
   worker = null;
   failed = false;
+  // a job in flight in the old worker renders on the main thread
+  if (running) settle({ id: running.job.req.id, ok: false, error: 'unavailable' });
 }
 
 function getWorker(): Worker | null {
@@ -31,20 +46,22 @@ function getWorker(): Worker | null {
     return null;
   }
   try {
-    worker = workerUrl
+    const w = workerUrl
       ? new Worker(workerUrl, { type: 'module', name: 'mmdx-render' })
       : new Worker(new URL('./render-worker.js', import.meta.url), { type: 'module', name: 'mmdx-render' });
-    worker.addEventListener('message', (ev: MessageEvent<WorkerResponse>) => {
-      const p = pending.get(ev.data.id);
-      if (!p) return;
-      pending.delete(ev.data.id);
-      clearTimeout(p.timer);
-      p.resolve(ev.data);
+    w.addEventListener('message', (ev: MessageEvent<WorkerResponse>) => {
+      if (w !== worker || !running || running.job.req.id !== ev.data.id) return;
+      settle(ev.data);
     });
-    worker.addEventListener('error', () => {
+    w.addEventListener('error', () => {
+      if (w !== worker) return;
+      // the worker cannot run here: every job renders on the main thread
       failed = true;
-      restart('The render worker failed to start');
+      w.terminate();
+      worker = null;
+      if (running) settle({ id: running.job.req.id, ok: false, error: 'unavailable' });
     });
+    worker = w;
   } catch {
     failed = true;
     worker = null;
@@ -52,41 +69,75 @@ function getWorker(): Worker | null {
   return worker;
 }
 
-function restart(reason: string): void {
-  worker?.terminate();
-  worker = null;
-  for (const [id, p] of pending) {
-    clearTimeout(p.timer);
-    p.resolve({ id, ok: false, error: reason });
+/** The running job is done: its result goes out, the next job starts. */
+function settle(res: WorkerResponse): void {
+  const r = running;
+  if (!r) return;
+  clearTimeout(r.timer);
+  running = null;
+  r.job.resolve(res);
+  next();
+}
+
+function next(): void {
+  if (running || !queue.length) return;
+  const w = getWorker();
+  if (!w) {
+    for (const j of queue.splice(0)) j.resolve({ id: j.req.id, ok: false, error: 'unavailable' });
+    return;
   }
-  pending.clear();
+  const job = queue.shift()!;
+  running = {
+    job,
+    timer: setTimeout(() => {
+      // a job that takes too long: the worker is restarted for the jobs behind it
+      worker?.terminate();
+      worker = null;
+      settle({ id: job.req.id, ok: false, error: 'timeout' });
+    }, TIMEOUT_MS),
+  };
+  w.postMessage(job.req);
 }
 
 export const workerAvailable = (): boolean => !failed && typeof Worker !== 'undefined';
 
-const themesKeyOf = (files: readonly ThemeFile[]): string => files.map((f) => `${f.id}:${JSON.stringify(f).length}`).join('|');
+/** Each registry's identity and revision (bumped on every change): the worker rebuilds its registry when it changes. */
+const registryKeys = new WeakMap<ThemeRegistry, { id: number; rev: number }>();
+let registries = 0;
+function themesKeyOf(reg: ThemeRegistry): string {
+  let k = registryKeys.get(reg);
+  if (!k) {
+    const key = (k = { id: ++registries, rev: 0 });
+    registryKeys.set(reg, key);
+    reg.onChange(() => void key.rev++);
+  }
+  return `${k.id}.${k.rev}`;
+}
 
-/** Renders in the worker; resolves null when the worker is unavailable (render on the main thread instead). */
-export async function renderInWorker(src: string, ctx: CoreContext, opts: PipelineOptions = {}): Promise<Rendered | { error: string } | null> {
-  const w = getWorker();
-  if (!w) return null;
+/**
+ * Renders in the worker; resolves null when the worker is unavailable (render on the main thread instead), and
+ * `{ error: 'superseded' }` when a newer job of the same `owner` replaced this one before it started.
+ */
+export async function renderInWorker(src: string, ctx: CoreContext, opts: PipelineOptions = {}, owner: object | null = null): Promise<Rendered | { error: string } | null> {
+  if (!getWorker()) return null;
   const themes = ctx.themes.list().map((t) => ctx.themes.raw(t.id)).filter((t): t is ThemeFile => !!t);
   const o: WorkerRequest['opts'] = {};
   if (opts.theme) o.theme = opts.theme;
   if (opts.visibleLayers) o.visibleLayers = opts.visibleLayers;
   if (opts.hideLabels) o.hideLabels = true;
-  const id = ++seq;
-  const req: WorkerRequest = { id, src, opts: o, themes, themesKey: themesKeyOf(themes), idPrefix: ctx.idPrefix };
+  const req: WorkerRequest = { id: ++seq, src, opts: o, themes, themesKey: themesKeyOf(ctx.themes), idPrefix: ctx.idPrefix };
   const res = await new Promise<WorkerResponse>((resolve) => {
-    const timer = setTimeout(() => {
-      pending.delete(id);
-      restart('Rendering took too long');
-      resolve({ id, ok: false, error: 'timeout' });
-    }, TIMEOUT_MS);
-    pending.set(id, { resolve, timer });
-    w.postMessage(req);
+    if (owner)
+      for (let i = queue.length - 1; i >= 0; i--) {
+        const j = queue[i]!;
+        if (j.owner !== owner) continue;
+        queue.splice(i, 1);
+        j.resolve({ id: j.req.id, ok: false, error: 'superseded' });
+      }
+    queue.push({ req, owner, resolve });
+    next();
   });
-  if (!res.ok) return res.error === 'timeout' ? { error: 'timeout' } : null;
+  if (!res.ok) return res.error === 'timeout' || res.error === 'superseded' ? { error: res.error } : null;
   const theme = ctx.themes.get(res.themeId);
   return {
     doc: res.doc,

@@ -2,7 +2,7 @@
 // panels (`core.panelItems`); a panel shows while `core.panels()[id]` is true (`setPanel`, remembered per product).
 // The stacks are created on first use, keep their widths and splitter heights, collapse when empty, and become
 // drawers (one panel at a time over the canvas) on narrow hosts. The open stacks inset the canvas and the chrome
-// (`--inset-l`, `--inset-r`).
+// (`core.stackInsets`, applied by the kernel as `--inset-l` / `--inset-r`).
 import { createPanelStack, PANEL_STACK_CSS, type PanelStackHandle } from '../../ui/blocks/panel-stack.js';
 import { SIDE_PANEL_CSS } from '../../ui/blocks/side-panel.js';
 import { TABS_CSS } from '../../ui/blocks/tabs.js';
@@ -23,7 +23,7 @@ export const panelStacksModule: ViewModule<ViewCore> = {
     const key = `${core.product}.panels`;
     const saved = core.storage.get<Record<string, boolean>>(key);
     if (saved && typeof saved === 'object') core.panels.set({ ...saved, ...core.panels.peek() });
-    core.provide('setPanel', (name, open) => {
+    scope.provide('setPanel', (name, open) => {
       if (!!core.panels.peek()[name] === open) return;
       core.panels.set({ ...core.panels.peek(), [name]: open });
       core.storage.set(key, core.panels.peek());
@@ -31,19 +31,24 @@ export const panelStacksModule: ViewModule<ViewCore> = {
     });
 
     const stacks: Partial<Record<'left' | 'right', PanelStackHandle>> = {};
+    let gone = false;
     const syncInsets = (): void => {
-      for (const side of ['left', 'right'] as const) {
+      if (gone) return;
+      const inset = (side: 'left' | 'right'): number => {
         const w = stacks[side]?.width() ?? 0;
-        core.root.style.setProperty(side === 'left' ? '--inset-l' : '--inset-r', `${w ? w + 12 : 0}px`);
-      }
+        return w ? w + 12 : 0;
+      };
+      core.stackInsets.set({ left: inset('left'), right: inset('right') });
       core.fire('view');
       if (core.canvas.viewport?.auto) core.run('fitView');
     };
     for (const side of ['left', 'right'] as const) {
-      const items = computed(() => core.panelItems().filter((p) => p.side === side).sort((a, b) => a.order - b.order));
+      const items = scope.computed(() => core.panelItems().filter((p) => p.side === side).sort((a, b) => a.order - b.order));
       scope.effect(() => {
         const list = items();
-        const panels = list.map((p) => ({ id: p.id, panel: p.el, open: computed(() => !!core.panels()[p.id] && (p.visible?.() ?? true)) }));
+        // one open state per panel and run: the next run (or uninstall) disposes this run's
+        const opens = list.map((p) => computed(() => !!core.panels()[p.id] && (p.visible?.() ?? true)));
+        const panels = list.map((p, i) => ({ id: p.id, panel: p.el, open: opens[i]! }));
         untracked(() => {
           let stack = stacks[side];
           if (!stack && !list.length) return;
@@ -57,6 +62,7 @@ export const panelStacksModule: ViewModule<ViewCore> = {
             scope.slot(`${side}-stack`).append(stack.el);
           } else stack.update({ panels });
         });
+        return () => opens.forEach((o) => o.dispose());
       });
     }
     scope.effect(() => {
@@ -65,9 +71,9 @@ export const panelStacksModule: ViewModule<ViewCore> = {
       queueMicrotask(syncInsets);
     });
     return () => {
+      gone = true;
       for (const s of Object.values(stacks)) s?.destroy();
-      core.root.style.removeProperty('--inset-l');
-      core.root.style.removeProperty('--inset-r');
+      core.stackInsets.set(null);
     };
   },
 };

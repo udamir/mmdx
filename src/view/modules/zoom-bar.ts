@@ -24,10 +24,11 @@ export const zoomBarModule: ViewModule<ViewCore> = {
       if (b) canvas.fit(b);
       else canvas.fit();
     };
-    core.provide('fitView', fit);
+    scope.provide('fitView', fit);
 
     // ---- help popup (loads on first use)
     const helpOpen = signal(false);
+    let gone = false;
     let closeHelp: (() => void) | null = null;
     let opening = false;
     const toggleHelp = (on?: boolean): void => {
@@ -38,11 +39,14 @@ export const zoomBarModule: ViewModule<ViewCore> = {
       }
       if (open || opening || !bar.helpButton) return;
       opening = true;
-      void import('../../ui/blocks/help-popup.js').then((m) => {
+      import('../../ui/blocks/help-popup.js').then((m) => {
         opening = false;
-        if (core.isDestroyed || !scope.active || helpOpen.peek()) return;
+        if (gone || !scope.active || helpOpen.peek()) return;
         core.addCss([m.HELP_POPUP_CSS]);
         showHelp(m);
+      }, (e: unknown) => {
+        opening = false;
+        if (!gone) core.toast(e instanceof Error ? e.message : String(e), { error: true });
       });
     };
     const showHelp = ({ createHelpPopup, groupShortcuts }: typeof import('../../ui/blocks/help-popup.js')): void => {
@@ -63,9 +67,10 @@ export const zoomBarModule: ViewModule<ViewCore> = {
         },
       });
     };
-    if (core.feature('help')) core.provide('toggleHelp', toggleHelp);
+    if (core.feature('help')) scope.provide('toggleHelp', toggleHelp);
 
     // ---- full screen: the component's host element
+    let refit: ReturnType<typeof setTimeout> | undefined;
     const fsActive = signal(typeof document !== 'undefined' && document.fullscreenElement === host);
     const toggleFullscreen = (): void => {
       if (document.fullscreenElement === host) void document.exitFullscreen?.();
@@ -75,7 +80,9 @@ export const zoomBarModule: ViewModule<ViewCore> = {
       const on = document.fullscreenElement === host;
       fsActive.set(on);
       core.emit('mmdx-fullscreen', { active: on });
-      setTimeout(() => {
+      // after the layout settled
+      clearTimeout(refit);
+      refit = setTimeout(() => {
         if (canvas.viewport?.auto !== false) fit();
         core.fire('view');
       }, 50);
@@ -119,12 +126,14 @@ export const zoomBarModule: ViewModule<ViewCore> = {
         { id: 'help-close', keys: ['escape'], label: t('help.escClose'), group, run: () => (helpOpen.peek() ? (toggleHelp(false), true) : false) },
       );
     // a double click on the empty canvas fits (the viewer's gesture)
-    scope.listen(canvas.svg, 'dblclick', (ev: MouseEvent) => {
+    scope.canvas('dblclick', (ev) => {
       if (core.mode.peek() !== 'view' || (ev.target as Element).closest?.('[data-kind]')) return;
       fit();
     });
 
     return () => {
+      gone = true;
+      clearTimeout(refit);
       if (helpOpen.peek()) core.popovers.close();
       closeHelp?.();
       bar.destroy();

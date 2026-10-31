@@ -2,6 +2,7 @@
 // return while History is open — the `<mmdx-diff>` methods over the session History shows.
 import type { DiagramDiff as DiffResult } from '../core/diff/types.js';
 import type { DiffExportKind, DiffExportOptions, DiffFilter, DiffPair, DiffViewName } from '../diff/session.js';
+import type { ViewCore } from './core.js';
 
 export interface HistorySession {
   setPair(base: string, head: string): void;
@@ -17,3 +18,9 @@ export interface HistorySession {
   /** Leaves History. */
   close(): void;
 }
+
+/** Opens the `history` stage on a component (src/diff/history.ts); `onClose` runs when it is left. */
+export type HistoryOpener = (core: ViewCore, o: { onClose(): void }) => { close(): void };
+
+/** Loads the History code on first use (`() => import('…/diff/history.js')`): the kernel never imports the diff. */
+export type HistoryLoader = () => Promise<{ openHistory: HistoryOpener }>;

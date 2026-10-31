@@ -81,6 +81,26 @@ describe('DiagramCanvas', () => {
     expect(a.view.peek().k).toBeCloseTo(v.k);
   });
 
+  it('a destroyed linked canvas is unlinked from the other one; onDestroy hooks run once', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const a = new DiagramCanvas(host, { interaction: 'pan-zoom' });
+    const b = new DiagramCanvas(host, { interaction: 'pan-zoom' });
+    sized(a.svg);
+    sized(b.svg);
+    a.link(b);
+    let hooks = 0;
+    b.onDestroy(() => hooks++);
+    b.destroy();
+    b.destroy();
+    expect(hooks).toBe(1);
+    expect((a as unknown as { links: Set<unknown>; unlinks: Set<unknown> }).links.size).toBe(0);
+    expect((a as unknown as { unlinks: Set<unknown> }).unlinks.size).toBe(0);
+    const off = a.link(new DiagramCanvas(host, { interaction: 'pan-zoom' }));
+    off();
+    expect((a as unknown as { unlinks: Set<unknown> }).unlinks.size).toBe(0);
+  });
+
   it('paints one stroke store into every attached canvas; drawing needs the pen to be active', () => {
     const store = new StrokeStore(memoryStorage());
     const a = new DiagramCanvas(null, { interaction: 'pan-zoom' });

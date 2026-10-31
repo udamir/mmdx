@@ -25,7 +25,6 @@ export interface ViewportOptions {
   /** Extra insets (open side panels) that fit() keeps clear, in screen px. */
   insets?: () => { left: number; right: number; top: number; bottom: number };
   onChange?: (v: ViewState) => void;
-  reducedMotion?: boolean;
 }
 
 export class Viewport {
@@ -49,7 +48,6 @@ export class Viewport {
       pad: opts.pad ?? 20,
       wheel: opts.wheel ?? 'ctrl',
       panOnDrag: opts.panOnDrag ?? true,
-      reducedMotion: opts.reducedMotion ?? false,
       insets: opts.insets,
       onChange: opts.onChange,
     };

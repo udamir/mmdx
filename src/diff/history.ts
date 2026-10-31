@@ -267,9 +267,8 @@ export function openHistory(core: ViewCore, o: { onClose(): void }): HistoryCont
     for (const off of offs) off();
     core.historySession.set(null);
     if (core.isDestroyed) {
-      // the host is being destroyed (its modules uninstall): nothing to give back, nothing to repaint
+      // the host is being destroyed (its modules uninstall): nothing to give back, nothing to repaint, no event
       session.destroy();
-      core.emit('mmdx-history-close', {});
       o.onClose();
       return;
     }
