@@ -35,13 +35,8 @@ export function setWorkerUrl(url: URL | string): void {
   worker?.terminate();
   worker = null;
   failed = false;
-  // a job in flight in the old worker is sent again to the new one
-  if (running) {
-    clearTimeout(running.timer);
-    queue.unshift(running.job);
-    running = null;
-  }
-  next();
+  // a job in flight in the old worker renders on the main thread
+  if (running) settle({ id: running.job.req.id, ok: false, error: 'unavailable' });
 }
 
 function getWorker(): Worker | null {
@@ -64,10 +59,7 @@ function getWorker(): Worker | null {
       failed = true;
       w.terminate();
       worker = null;
-      const all = [...(running ? [running.job] : []), ...queue.splice(0)];
-      if (running) clearTimeout(running.timer);
-      running = null;
-      for (const j of all) j.resolve({ id: j.req.id, ok: false, error: 'unavailable' });
+      if (running) settle({ id: running.job.req.id, ok: false, error: 'unavailable' });
     });
     worker = w;
   } catch {
