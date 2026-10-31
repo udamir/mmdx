@@ -142,6 +142,15 @@ describe('VersionList', () => {
     expect(createVersionList(props({ menu: { entries, popovers, modes: ['history'] } })).el.querySelector('.vmenu')).toBeNull();
   });
 
+  it('icon picks: the icon replaces the text, the label stays the accessible name', () => {
+    const svg = (): SVGElement => document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const vl = createVersionList(props({ pickIcons: { before: svg, after: svg } }));
+    const picks = [...vl.el.querySelectorAll<HTMLButtonElement>('.version')[0]!.querySelectorAll<HTMLButtonElement>('.pick')];
+    expect(picks.map((b) => b.getAttribute('aria-label'))).toEqual(['Before', 'After']);
+    expect(picks.every((b) => b.classList.contains('icon') && b.querySelector('svg') && !b.textContent)).toBe(true);
+    expect(picks[1]!.getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('destroy() removes the element and its listeners', () => {
     const onRow = vi.fn();
     const vl = createVersionList(props({ onRow }));

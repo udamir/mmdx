@@ -51,6 +51,8 @@ export interface VersionListProps {
    * the tabs that show it (default both).
    */
   menu?: { entries: (id: string, index: number) => readonly MenuEntry[]; popovers: PopoverManager; within?: () => Element | undefined; modes?: readonly ('compare' | 'history')[] };
+  /** Icons for the Before / After picks (the label stays their accessible name); without them, the picks are text. */
+  pickIcons?: { before: () => SVGElement; after: () => SVGElement };
   t: Translate;
   part?: string;
 }
@@ -82,6 +84,15 @@ export const VERSION_LIST_CSS = /* css */ `
 .mmdx-version-list .pick-before.on { background: var(--mmdx-diff-del-bg); border-color: var(--mmdx-diff-del); color: var(--mmdx-diff-del); font-weight: 600; }
 .mmdx-version-list .pick-after.on { background: var(--mmdx-diff-add-bg); border-color: var(--mmdx-diff-add); color: var(--mmdx-diff-add); font-weight: 600; }
 .mmdx-version-list .more { margin: 6px; }
+.mmdx-version-list .pick.icon { width: 32px; height: 28px; padding: 0; display: grid; place-items: center; border-color: transparent; background: transparent; color: var(--mmdx-muted); }
+.mmdx-version-list .pick.icon:hover:not(:disabled) { background: var(--mmdx-surface); border-color: var(--mmdx-border); }
+.mmdx-version-list .pick.icon svg { width: 22px; height: 22px; }
+.mmdx-version-list .pick.icon .dx-fb, .mmdx-version-list .pick.icon .dx-fa { fill: currentColor; fill-opacity: .18; }
+.mmdx-version-list .pick-before.icon.on { color: var(--mmdx-diff-del); background: var(--mmdx-surface); border-color: var(--mmdx-diff-del); }
+.mmdx-version-list .pick-after.icon.on { color: var(--mmdx-diff-add); background: var(--mmdx-surface); border-color: var(--mmdx-diff-add); }
+.mmdx-version-list .pick-before.icon.on .dx-fb { fill: var(--mmdx-diff-del); fill-opacity: .5; }
+.mmdx-version-list .pick-after.icon.on .dx-fa { fill: var(--mmdx-diff-add); fill-opacity: .5; }
+.mmdx-version-list .pick.icon:disabled { opacity: .3; }
 .mmdx-version-list .vmenu { flex: none; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; margin-right: 6px; border: 0; border-radius: 7px; background: transparent; color: var(--mmdx-muted); }
 .mmdx-version-list .vmenu:hover:not(:disabled), .mmdx-version-list .vmenu[aria-expanded=true] { background: var(--mmdx-float-2, var(--mmdx-surface-2)); color: var(--mmdx-text); }
 .mmdx-version-list .vmenu .mmdx-icon { width: 18px; height: 18px; stroke-width: 3; }
@@ -129,10 +140,12 @@ export function createVersionList(props: VersionListProps): BlockHandle<VersionL
         const taken = side === 'after' ? isBefore : isAfter;
         const other = side === 'after' ? t('diff.history.before') : t('diff.history.after');
         const label = side === 'after' ? t('diff.history.after') : t('diff.history.before');
+        const ic = p.pickIcons?.[side];
         const b = h('button', {
-          type: 'button', class: `pick pick-${side}${on ? ' on' : ''}`, 'aria-pressed': String(on), disabled: taken, 'data-f': `${side}:${v.id}`, 'data-col': side,
+          type: 'button', class: `pick pick-${side}${ic ? ' icon' : ''}${on ? ' on' : ''}`, 'aria-pressed': String(on), disabled: taken, 'data-f': `${side}:${v.id}`, 'data-col': side,
           title: taken ? t('diff.history.sameVersion', { id: v.id, side: other.toLowerCase() }) : t('diff.history.useAs', { id: v.id, side: label.toLowerCase() }),
-        }, label);
+          ...(ic ? { 'aria-label': label } : {}),
+        }, ic ? ic() : label);
         fx.on(b, 'click', () => p.onPick(side, v.id));
         return b;
       };

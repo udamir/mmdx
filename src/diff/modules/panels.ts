@@ -19,6 +19,7 @@ import { computed, signal, untracked } from '../../ui/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import type { ModuleScope, ViewModule } from '../../view/module.js';
 import { metaLines, relatedLines } from '../lines.js';
+import { VIEW_ICONS } from '../view-icons.js';
 import { sourceLines, type DiffMode, type DiffSession } from '../session.js';
 
 export const I_HISTORY = 'M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3 4.5V9h4.5M12 7.5V12l3 2';
@@ -38,8 +39,8 @@ function toggleOf(scope: ModuleScope<ViewCore>, id: string): { open: () => boole
 }
 
 /**
- * `dockButton: false` when the host's History button already stands for the panel (History in place). Each row of the
- * History tab has a "⋮" menu: the host's `rowActions` (History's Restore), then Compare with the previous version.
+ * `dockButton: false` when the host's History button already stands for the panel (History in place). Each row of both
+ * tabs has a "⋮" menu: the host's `rowActions` (History's Restore), then Compare with the previous version.
  */
 export function versionsModule(session: DiffSession, o: { dockButton?: boolean; rowActions?: (id: string) => readonly MenuEntry[] } = {}): ViewModule<ViewCore> {
   return {
@@ -64,9 +65,11 @@ export function versionsModule(session: DiffSession, o: { dockButton?: boolean; 
         onPick: (side, id) => session.setPair(side === 'before' ? id : session.base.peek(), side === 'after' ? id : session.head.peek()),
         onRow: (id) => (session.mode.peek() === 'compare' ? session.compareWithPrevious(id) : session.viewVersion(id)),
         onMore: loadMore, t,
-        // the History tab's rows (one version each); the Compare tab has its Before / After picks
+        // the picks are the views' icons: Before's red half, After's green half
+        pickIcons: { before: VIEW_ICONS.before, after: VIEW_ICONS.after },
+        // on both tabs' rows: in Compare, next to the Before / After picks
         menu: {
-          popovers: core.popovers, within: () => core.root, modes: ['history'],
+          popovers: core.popovers, within: () => core.root,
           entries: (id, i) => [
             ...(o.rowActions?.(id) ?? []),
             {
