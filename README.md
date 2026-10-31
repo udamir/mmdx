@@ -7,7 +7,7 @@
 
 <h1 align="center">Diagram Studio (mmdx)</h1>
 
-<p align="center">Visual editor, viewer and theme editor for Mermaid diagrams, as framework-agnostic web components.<br>Mermaid stays the source of truth — layout and styling live in comment lines every Mermaid renderer ignores.</p>
+<p align="center">Visual editor, viewer, theme editor and visual diff for Mermaid diagrams, as framework-agnostic web components.<br>Mermaid stays the source of truth — layout and styling live in comment lines every Mermaid renderer ignores.</p>
 
 <p align="center">
   <a href="https://github.com/udamir/mmdx/actions/workflows/ci.yml"><img src="https://github.com/udamir/mmdx/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -33,6 +33,7 @@ Mermaid is great for keeping diagrams in docs and repos, but its auto-layout and
 - **Styling:** a floating toolbar and a Properties panel for fill, border, text, font, shape, stacking, arrows, line shape and more; named style presets from the theme or saved per diagram.
 - **Themes:** separate theme files with a colour palette, per-type styles and presets. Colours are stored as palette references, so a diagram follows theme switches. Light and dark themes are linked, so a diagram switches with the page.
 - **Viewer for documentation:** pan, zoom, layers, full screen, export, lazy rendering, a text outline for screen readers, and server-side rendering to SVG.
+- **History and diff:** see how a diagram changed between two versions — Before, Merged (removed items kept in place, text changes marked word by word, arrows for moved items) and After on one animated canvas, or side by side — filter out layout or style noise, step through every change with its source lines, and browse a diagram's version history. Built into the studio, available as `<mmdx-diff>` for merge request reviews, and as `renderDiffToSvg()` / `diffReport()` for CI bots.
 - **Theme editor:** edit the palette and every item type's style with live previews, check text contrast, import and export `.theme.json` files.
 - **Export:** `.mmdx` (Mermaid + layout), portable `.mmd` (`classDef` / `linkStyle` so stock renderers keep the colours), SVG and PNG.
 - **Framework-agnostic:** custom elements in shadow DOM, usable from plain HTML, React, Vue, Angular or Svelte, plus imperative classes where custom elements are not allowed.
@@ -85,12 +86,40 @@ editor.addEventListener('mmdx-dirty', (e) => setUnsaved(e.detail.dirty));
 
 Without an adapter, set `editor.value = source` and read changes from the `mmdx-change` event.
 
+### Review a change
+
+```html
+<script type="module">
+  import 'mmdx/diff';
+</script>
+
+<mmdx-diff before="/api/files/arch.mmdx?ref=main" after="/api/files/arch.mmdx?ref=feature-x" style="height: 720px"></mmdx-diff>
+```
+
+Or give it the whole history of a diagram (newest first) and let the reviewer pick any two versions:
+
+```ts
+import { httpHistoryAdapter } from 'mmdx/diff';
+
+const diff = document.querySelector('mmdx-diff')!;
+diff.history = httpHistoryAdapter('/api/diagrams/arch/versions'); // or a list: [{ id, message, author, date, source }]
+```
+
 ### Render on the server or at build time
 
 ```ts
 import { renderToSvg } from 'mmdx/core';
 
 const svg = await renderToSvg(source, { theme: 'default-dark' }); // a standalone SVG string, no DOM needed
+```
+
+A diff renders the same way, for example in a CI job that comments on merge requests touching `*.mmdx`:
+
+```ts
+import { diffDiagrams, diffReport, renderDiffToSvg } from 'mmdx/core';
+
+const svg = await renderDiffToSvg(before, after, { view: 'merged', ignore: { layout: true } });
+const md = diffReport(diffDiagrams(before, after), { format: 'markdown', before: { id: baseSha }, after: { id: headSha } });
 ```
 
 ## Entry points
@@ -100,9 +129,10 @@ const svg = await renderToSvg(source, { theme: 'default-dark' }); // a standalon
 | `mmdx/viewer` | `<mmdx-viewer>` and `DiagramViewer` — read-only diagrams for docs and portals |
 | `mmdx/editor` | `<mmdx-editor>` and `DiagramEditor` — the visual editor with the code panel |
 | `mmdx/theme-editor` | `<mmdx-theme-editor>` and `ThemeEditor` — manage diagram themes |
+| `mmdx/diff` | `<mmdx-diff>` and `DiagramDiff` — how a diagram changed, and its version history; history adapters |
 | `mmdx/studio` | `<mmdx-studio>` and `DiagramStudio` — the complete standalone app (the live demo) |
-| `mmdx/core` | Pure API without DOM: parse, render to SVG, metadata, themes (Node, workers, browsers) |
-| `mmdx/adapters` | Storage, theme sources and stores, document adapters, share links |
+| `mmdx/core` | Pure API without DOM: parse, render to SVG, metadata, themes, diffs and diff reports (Node, workers, browsers) |
+| `mmdx/adapters` | Storage, theme sources and stores, document adapters, history adapters, share links |
 | `mmdx/markdown` | rehype and markdown-it plugins that turn ` ```mermaid ` blocks into viewers |
 | `mmdx/react` | Optional typed wrappers for React ≤ 18 |
 | `mmdx/themes/*` | The built-in theme files (`default-light.theme.json`, …) |
@@ -183,15 +213,55 @@ te.source = base;
 
 Attributes: `theme`, `can-edit`, `can-publish`, `can-delete`, `presentation="inline | dialog"`, `ui`. Events: `mmdx-theme-save` (cancelable), `mmdx-theme-saved`, `mmdx-theme-dirty`, `mmdx-theme-select`, `mmdx-theme-close`. Saved themes are validated and registered in the shared registry, so open viewers and editors redraw with them.
 
+### `<mmdx-diff>`
+
+How a diagram changed between two versions, item by item (not line by line): nodes, edges, tables, participants and messages are matched across the versions — renamed nodes and shifted sequence messages included — and every change is **added**, **removed** or **changed**, with each change of a kept item classified as **content** (labels, shapes, connections, attributes, message text), **layout** (positions, sizes, bend points) or **style** (colours, presets, classes, theme).
+
+| Attribute / property | Default | Meaning |
+|---|---|---|
+| `before`, `after` / `beforeSource`, `afterSource` (properties) | — | The two versions: URLs fetched through `loader` (property, default `fetch`), or sources |
+| `history` (property) | — | A `HistoryAdapter` or a list of versions `{ id, message, author?, date?, url?, source }`; enables the History panel |
+| `base`, `head` | the newest two | Version ids to compare when a history is set |
+| `mode` | `compare` | History panel tab: `compare` two versions, or `history` (view one version as it is) |
+| `view` | `merged` | `before`, `merged`, `after` or `side` |
+| `filters` | all | Shown change kinds among `added removed content layout style`; a facet left out is ignored (Layout off draws the old version on the new layout, Style off draws both unstyled) |
+| `dim` | `true` | Fade unchanged items |
+| `panels` | `changes` | Open panels: `history` or `code` (left, one at a time) and `changes` (right) |
+| `features` (property) | all on | Turn parts off: `history`, `code`, `changes`, `views`, `filters`, `pen`, `export`, `help`, `fullscreen`, `select` |
+| `theme`, `theme-dark` | the after version's own | Both versions are drawn with one theme; `theme-dark="auto"` picks its dark counterpart on dark pages |
+| `ui` | `auto` | Chrome colour scheme: `light`, `dark` or `auto` |
+| `wheel` | `always` | `always`: the wheel pans and ⌘ / Ctrl + wheel or pinch zooms; `ctrl`: only ⌘ / Ctrl + wheel zooms; `never` |
+| `name` | `diagram` | File name stem of exports |
+| `label` | generated | Accessible name, e.g. "Diagram diff: 2 added, 1 removed, 5 changed" |
+
+The views: **Before** (the old version with its removed and changed items highlighted), **Merged** (the new version plus every removed item kept where it was, removed words struck out and added words in bold, an arrow from the old place of each moved item), **After**, and **Side by side** (two canvases panned and zoomed together). Switching between Before, Merged and After animates: moved items glide, colours blend and changed text flips. The left tool panel has Pan, the magic pen (strokes show in every view), the History and Code panels, the change list and Export; the bottom bar has the views, the five filters with their counts, and Dim. The code panel shows the unified diff of the Mermaid code and of the `%%@` metadata, and narrows to the lines of the selected change.
+
+Events (bubbling, composed): `mmdx-compare` `{ counts, typeChanged, base, head }` after every comparison, `mmdx-select` `{ key, change }`, `mmdx-view` `{ view, mode }`, `mmdx-filters` `{ filters, dim }`, `mmdx-version` `{ base, head, viewing? }` (sync your URL), `mmdx-export` `{ kind, name, data }` (cancelable, to upload instead of downloading), `mmdx-render`, `mmdx-error`, `mmdx-fullscreen`. Methods: `compare(before, after)`, `setHistory(adapterOrList)`, `setPair(baseId, headId)`, `viewVersion(id)`, `setView(view)`, `setFilters(filters, dim?)`, `select(key)`, `next()`, `prev()`, `fit()`, `zoomTo(k)`, `getDiff()`, `exportAs('png' | 'svg' | 'mmdx' | 'mmd' | 'diff' | 'md' | 'json', options)`, `toSvg(options)`, `toPng(options)`.
+
+Exports: a PNG or SVG of the current view (with a legend), either version as `.mmdx` or portable `.mmd`, a unified patch (`.diff`, applies with `git apply`), and a change report in Markdown (for merge request descriptions) or JSON.
+
+Shortcuts, while focus is inside the diff: `1` `2` `3` `4` views, `←` `→` step Before ↔ Merged ↔ After, `J` / `K` next and previous change, `V` `C` `L` the History, Code and change list panels, `H` pan, `P` pen, `⌘Z` undo a stroke, `F` fit, `+` / `-` zoom, `?` help, `Esc` back.
+
+History adapters (`mmdx/diff`, `mmdx/adapters`): `staticHistory(versions)`, and `httpHistoryAdapter(url)` — `GET url` returns `{ versions: [{ id, message, author, date }], next? }` newest first (`next` pages with `?cursor=`), and `GET url/<id>` returns the source of one version. For GitLab or GitHub, write the two calls against their commits and raw file APIs:
+
+```ts
+const adapter: HistoryAdapter = {
+  list: async (cursor) => ({ versions: await commitsOf('docs/arch.mmdx', cursor) }), // [{ id: sha, message, author, date }]
+  load: async (sha) => rawFile('docs/arch.mmdx', sha),
+};
+```
+
 ### `<mmdx-studio>`
 
-The complete app — editor, examples, file open, theme editor and share links — in one element:
+The complete app — editor, examples, file open, theme editor, share links and the diagram's history — in one element:
 
 ```html
 <mmdx-studio examples="./examples/index.json" themes="./themes/index.json" persist="local hash"></mmdx-studio>
 ```
 
 `persist="local"` keeps the last document in browser storage; `persist="hash"` keeps it in the URL, which the Share button copies.
+
+The **History** mode (next to Edit and View) shows the versions of the open diagram in `<mmdx-diff>`: an example's own history (the `history` file of its manifest entry, `{ versions: [{ id, message, author, date, source }] }` newest first), the versions you record with **Save version** or ⌘S (kept in browser storage, per document), and the working copy when it differs from the newest version. Compare any two, view one as it is, and **Restore this version** to open it in the editor (undo brings the previous diagram back). The bundled examples each come with six versions that touch every kind of change.
 
 ## The `.mmdx` format
 
@@ -288,7 +358,7 @@ import React from 'react';
 import 'mmdx/viewer';
 import { createReactWrappers } from 'mmdx/react';
 
-const { MmdxViewer } = createReactWrappers(React);
+const { MmdxViewer } = createReactWrappers(React); // also MmdxEditor, MmdxThemeEditor, MmdxStudio, MmdxDiff
 
 <MmdxViewer source={source} controls="zoom fullscreen" onMmdxRender={(e) => console.log(e.detail)} />;
 ```
@@ -306,7 +376,7 @@ mmdx-editor {
 mmdx-viewer::part(canvas) { background: transparent; }
 ```
 
-Tokens include `--mmdx-font`, `--mmdx-accent`, `--mmdx-surface`, `--mmdx-surface-2`, `--mmdx-border`, `--mmdx-text`, `--mmdx-radius`, `--mmdx-shadow` and `--mmdx-z-popover`; parts include `canvas`, `toolbar` and `zoom-bar`. The `ui` attribute switches the chrome between light and dark, or follows the page and the OS (`auto`).
+Tokens include `--mmdx-font`, `--mmdx-accent`, `--mmdx-surface`, `--mmdx-surface-2`, `--mmdx-border`, `--mmdx-text`, `--mmdx-radius`, `--mmdx-shadow` and `--mmdx-z-popover`; parts include `canvas`, `toolbar` and `zoom-bar`. The diff's highlight colours are tokens too, with light and dark values: `--mmdx-diff-add`, `--mmdx-diff-del`, `--mmdx-diff-content`, `--mmdx-diff-layout`, `--mmdx-diff-style` (each with a `-bg` tint) and `--mmdx-diff-dim`; its parts add `diff-bar`, `panel`, `change-list` and `history`. Colour is never the only signal: removed items are dashed, badges carry `+ − C L S`, and text changes are struck out or bold. The `ui` attribute switches the chrome between light and dark, or follows the page and the OS (`auto`).
 
 ## Security
 
@@ -326,12 +396,13 @@ Current Chrome, Edge and Firefox, and Safari 16.4 or newer (the components need 
 - Connectors are routed between ports (curved, orthogonal or straight) through optional bend points; there is no obstacle avoidance.
 - A sequence diagram's layout follows its message order; metadata can shift participants and add vertical space.
 - PNG export uses fonts installed locally unless they are registered with `configure({ fonts })`.
+- The diff draws flowchart, sequence and ER diagrams; for other types (and a change of diagram type) it shows the code diff. It runs on the main thread, also for large diagrams, and it never writes history: the studio keeps the versions you save in browser storage, and hosts provide history through an adapter.
 
 ## Development
 
 ```bash
 pnpm install        # the repository uses pnpm (corepack enable picks the pinned version)
-pnpm dev            # the studio and one demo page per component at http://localhost:8790
+pnpm dev            # the studio (with History) and one demo page per component at http://localhost:8790
 pnpm storybook      # every component and feature as stories at http://localhost:6006
 pnpm test           # unit, geometry and golden SVG snapshots, security and DOM tests (Vitest + jsdom)
 pnpm typecheck      # strict TypeScript, plus a DOM-free check of src/core
@@ -346,12 +417,13 @@ pnpm size           # gzip size budgets per entry point
 | `src/dom` | DOM patcher, viewport, pen, worker client, export |
 | `src/ui` | Signals, toolbars, dialogs, styles and UI strings |
 | `src/editor` | The editor core and its feature modules |
-| `src/elements` | The four web components |
+| `src/elements` | The five web components |
 | `src/adapters`, `src/markdown`, `src/wrappers` | Host adapters, Markdown plugins, React wrappers |
 | `themes/` | Built-in theme files (`node tools/build-themes.mjs` regenerates the generated ones) |
-| `examples/` | Example diagrams used by the studio and the golden tests |
+| `examples/` | Example diagrams used by the studio and the golden tests, and their version histories (`examples/history`) |
 | `apps/studio-site/` | The demo site deployed to GitHub Pages |
-| `stories/`, `.storybook/` | Storybook: the elements, the UI pieces with mock APIs, core rendering and the diagram diff |
+| `stories/`, `.storybook/` | Storybook: the elements (the diff included), the UI pieces with mock APIs, core rendering and the semantic diff |
+| `docs/` | Design documents and the release notes (`CHANGELOG.md` at the root) |
 | `brand/` | Logo files |
 
 Pull requests are welcome. Please run `pnpm typecheck` and `pnpm test` before opening one; CI also checks the build and the size budgets.
