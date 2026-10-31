@@ -64,8 +64,8 @@ export function versionsModule(session: DiffSession, o: { dockButton?: boolean; 
         onPick: (side, id) => session.setPair(side === 'before' ? id : session.base.peek(), side === 'after' ? id : session.head.peek()),
         onRow: (id) => (session.mode.peek() === 'compare' ? session.compareWithPrevious(id) : session.viewVersion(id)),
         onMore: loadMore, t,
-        // the picks are one split frame, like the views' icons: Before's left half, After's right half
-        splitPicks: true,
+        // Compare as a timeline: the pair is a range on it; After's or Before's own dot swaps them
+        timeline: { onSwap: () => session.setPair(session.head.peek(), session.base.peek()) },
         // on both tabs' rows: in Compare, next to the Before / After picks
         menu: {
           popovers: core.popovers, within: () => core.root,

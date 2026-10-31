@@ -189,7 +189,7 @@ describe('DiagramDiff: the kernel chrome', () => {
 });
 
 describe('DiagramDiff: history', () => {
-  it('compares the newest version with the one before it, and keeps one version from being both sides', async () => {
+  it('compares the newest version with the one before it; the timeline moves the nearer end and swaps the pair', async () => {
     const versions = history('production-microservices');
     const { d, root, events } = await mount({ history: versions, panels: ['history', 'changes'] });
     expect(d.pair).toEqual({ base: versions[1]!.id, head: versions[0]!.id, viewing: null });
@@ -197,13 +197,16 @@ describe('DiagramDiff: history', () => {
     expect(rows.length).toBe(6);
     expect(rows[0]!.classList.contains('after')).toBe(true);
     expect(rows[1]!.classList.contains('before')).toBe(true);
-    // the After version's Before button is disabled
-    expect(rows[0]!.querySelector<HTMLButtonElement>('.pick-before')!.disabled).toBe(true);
-    // pick another base
-    rows[4]!.querySelector<HTMLButtonElement>('.pick-before')!.click();
+    expect([...root.querySelectorAll('.version .vnode')].map((n) => n.textContent)).toEqual(['A', 'B', '', '', '', '']);
+    // a dot below the range moves its bottom end (Before)
+    rows[4]!.querySelector<HTMLButtonElement>('.vnode')!.click();
     await settle();
     expect(d.pair.base).toBe(versions[4]!.id);
     expect(events.filter((e) => e.type === 'mmdx-version').pop()!.detail).toEqual({ base: versions[4]!.id, head: versions[0]!.id });
+    // After's own dot swaps the pair
+    root.querySelector<HTMLButtonElement>('.version .vnode.after')!.click();
+    await settle();
+    expect(d.pair).toMatchObject({ base: versions[0]!.id, head: versions[4]!.id });
   });
 
   it('History and Code stack on the left; the change list toggles from the bottom bar; all three can be open', async () => {

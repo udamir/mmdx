@@ -48,6 +48,7 @@ export const BLOCK_MESSAGES_DIFF: Messages = {
   'diff.history.after': 'After',
   'diff.history.useAs': 'Use {id} as {side}',
   'diff.history.sameVersion': '{id} is already the {side} version',
+  'diff.history.swapSides': '{id} is the {side} version: swap Before and After',
   'diff.history.compareWith': 'Compare {id} with the version before it',
   'diff.history.view': 'View {id}',
   'diff.history.more': 'Load older versions',

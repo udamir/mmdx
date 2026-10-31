@@ -119,7 +119,7 @@ describe('History in the editor (studio)', () => {
     expect(editor.core.stage.peek()).toBe('history');
 
     // each version's ⋮ menu, on both tabs: Restore (not for the working copy) and Compare with the previous version
-    await wait(() => ed.querySelector('.mmdx-stack .version .vpick + .vmenu'));
+    await wait(() => ed.querySelector('.mmdx-stack .version .vrail ~ .vmenu'));
     const historyTab = (): void => ed.querySelector<HTMLButtonElement>('.mmdx-panel.history [role=tab][data-tab=history]')!.click();
     historyTab();
     await wait(() => ed.querySelector('.mmdx-stack .version .vmenu'));

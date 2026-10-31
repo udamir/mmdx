@@ -5,7 +5,7 @@ import { createI18n } from '../../src/ui/i18n.js';
 import { DIFF_TOKENS } from '../../src/ui/styles/diff.js';
 import { chromeHost, exampleHistory } from '../support.js';
 
-type Args = { example: string; mode: 'compare' | 'history'; hasMore: boolean; ui: 'light' | 'dark' };
+type Args = { example: string; mode: 'compare' | 'history'; timeline: boolean; hasMore: boolean; ui: 'light' | 'dark' };
 
 /** An example history; Before / After picks, rows and "Load more" update the list as the diff would. */
 function versionList(a: Args): HTMLElement {
@@ -44,6 +44,14 @@ function versionList(a: Args): HTMLElement {
       shown = all.length;
       vl.update(props());
     },
+    ...(a.timeline ? {
+      timeline: {
+        onSwap: () => {
+          [state.base, state.head] = [state.head, state.base];
+          vl.update(props());
+        },
+      },
+    } : {}),
   });
   setTimeout(() => {
     fill(0);
@@ -65,7 +73,8 @@ const meta: Meta<Args> = {
         component:
           'Version rows of a history: message, id, the "current" tag, author and relative age, change counts against the version ' +
           'before as coloured badges (a skeleton while they are computed). Compare mode adds Before / After picks (one version ' +
-          'cannot be both); History mode marks the viewed version. Arrow keys move between rows, to the same control.',
+          'cannot be both), or a timeline: the pair is a range of dots, a dot moves the nearer end, the pair\'s own dot swaps ' +
+          'them; History mode marks the viewed version. Arrow keys move between rows, to the same control.',
       },
     },
   },
@@ -73,16 +82,18 @@ const meta: Meta<Args> = {
   argTypes: {
     example: { control: 'select', options: ['production-microservices', 'docker-deploy-sequence', 'atom-schema-er', 'fusion-services', 'microservice-patterns', 'simple-flow'] },
     mode: { control: 'inline-radio', options: ['compare', 'history'] },
+    timeline: { control: 'boolean', description: 'Compare mode as a timeline instead of the Before / After picks.' },
     hasMore: { control: 'boolean', description: 'Start with three versions and a "Load older versions" button.' },
     ui: { control: 'inline-radio', options: ['light', 'dark'] },
   },
-  args: { example: 'production-microservices', mode: 'compare', hasMore: false, ui: 'light' },
+  args: { example: 'production-microservices', mode: 'compare', timeline: true, hasMore: false, ui: 'light' },
 };
 export default meta;
 
 type Story = StoryObj<Args>;
 
 export const Compare: Story = {};
+export const Picks: Story = { name: 'Before / After picks', args: { timeline: false } };
 export const History: Story = { args: { mode: 'history' } };
 export const LoadMore: Story = { name: 'Load more', args: { hasMore: true } };
 export const Dark: Story = { args: { ui: 'dark' } };

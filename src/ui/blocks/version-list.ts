@@ -1,6 +1,6 @@
 // VersionList (§5.2): the version rows of a history (message, id, "current" tag, author, relative age, change
-// counts against the version before as small coloured badges), with Before / After picks in compare mode, the row
-// action and "Load older versions". Arrow keys, Home and End move between the rows (to the same control: the row,
+// counts against the version before as small coloured badges), with Before / After picks in compare mode (or a
+// timeline whose range is the pair), the row action and "Load older versions". Arrow keys, Home and End move between the rows (to the same control: the row,
 // Before or After); the focus is kept across `update()`. Replaces `historyRows` and `ago` of
 // elements/diff/panels.ts (same DOM and classes). The pick colours come from the `--mmdx-diff-*` tokens: the host
 // adopts `DIFF_TOKENS` (ui/styles/diff.ts).
@@ -52,10 +52,11 @@ export interface VersionListProps {
    */
   menu?: { entries: (id: string, index: number) => readonly MenuEntry[]; popovers: PopoverManager; within?: () => Element | undefined; modes?: readonly ('compare' | 'history')[] };
   /**
-   * The Before / After picks as one split frame (the diff views' icon): the left half picks Before, the right half After,
-   * each half shows the label's initial (B / A) and only the picked half is coloured; the label stays its accessible name. Without it, the picks are text.
+   * Compare mode as a timeline instead of the Before / After picks: a line down the rows with a dot per version, After
+   * and Before as filled dots with their initials (A green, B red) and the line between them drawn as the range. A dot
+   * moves the nearer end of the range to its version (`onPick`); After's or Before's own dot swaps them (`onSwap`).
    */
-  splitPicks?: boolean;
+  timeline?: { onSwap: () => void };
   t: Translate;
   part?: string;
 }
@@ -87,24 +88,30 @@ export const VERSION_LIST_CSS = /* css */ `
 .mmdx-version-list .pick-before.on { background: var(--mmdx-diff-del-bg); border-color: var(--mmdx-diff-del); color: var(--mmdx-diff-del); font-weight: 600; }
 .mmdx-version-list .pick-after.on { background: var(--mmdx-diff-add-bg); border-color: var(--mmdx-diff-add); color: var(--mmdx-diff-add); font-weight: 600; }
 .mmdx-version-list .more { margin: 6px; }
-.mmdx-version-list .vpick.split { position: relative; gap: 0; padding: 0; margin-right: 6px; width: 50px; height: 26px; box-sizing: border-box; border: 2px solid var(--mmdx-muted); border-radius: 7px; overflow: hidden; }
-.mmdx-version-list .vpick.split::after { content: ''; position: absolute; top: 0; bottom: 0; left: calc(50% - 1px); width: 2px; background: var(--mmdx-muted); pointer-events: none; }
-.mmdx-version-list .pick.half { flex: 1 1 0; min-width: 0; height: 100%; display: grid; place-items: center; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--mmdx-muted); font-size: 11px; font-weight: 700; line-height: 1; }
-.mmdx-version-list .pick-before.half { padding-right: 1px; }
-.mmdx-version-list .pick-after.half { padding-left: 1px; }
-.mmdx-version-list .pick.half .ini { display: block; text-box: trim-both cap alphabetic; }
-.mmdx-version-list .pick.half:hover:not(:disabled) { background: color-mix(in srgb, var(--mmdx-text) 10%, transparent); }
-.mmdx-version-list .pick.half:focus-visible { outline: 2px solid var(--mmdx-accent); outline-offset: -2px; }
-.mmdx-version-list .pick.half:disabled { cursor: default; opacity: 1; }
-.mmdx-version-list .pick.half:hover:not(:disabled) { color: var(--mmdx-text); }
-.mmdx-version-list .pick-before.half.on, .mmdx-version-list .pick-before.half.on:hover { background: var(--mmdx-diff-del); color: #fff; }
-.mmdx-version-list .pick-after.half.on, .mmdx-version-list .pick-after.half.on:hover { background: var(--mmdx-diff-add); color: #fff; }
+.mmdx-version-list .versions.timeline { gap: 0; }
+.mmdx-version-list .vrail { position: relative; flex: none; align-self: stretch; width: 30px; }
+.mmdx-version-list .vrail::before { content: ''; position: absolute; left: 15px; width: 2px; top: 0; bottom: 0; background: var(--mmdx-border-2, var(--mmdx-border)); }
+.mmdx-version-list .vrail.first::before { top: 50%; }
+.mmdx-version-list .vrail.last::before { bottom: 50%; }
+.mmdx-version-list .vrange { position: absolute; left: 14px; width: 4px; top: 0; bottom: 0; background: var(--mmdx-text); }
+.mmdx-version-list .vrange.top { top: 50%; }
+.mmdx-version-list .vrange.bottom { bottom: 50%; }
+.mmdx-version-list .vnode { position: absolute; left: 16px; top: 50%; transform: translate(-50%, -50%); width: 12px; height: 12px; padding: 0; border: 0; border-radius: 50%; background: var(--mmdx-panel, var(--mmdx-surface)); box-shadow: inset 0 0 0 2px var(--mmdx-faint); }
+.mmdx-version-list .vnode.in { box-shadow: inset 0 0 0 2px var(--mmdx-text); }
+.mmdx-version-list .vnode:hover:not(.on) { transform: translate(-50%, -50%) scale(1.25); box-shadow: inset 0 0 0 2px var(--mmdx-text); }
+.mmdx-version-list .vnode.on { width: 20px; height: 20px; color: #fff; font: 700 10px/1 var(--mmdx-font, inherit); display: grid; place-items: center; box-shadow: 0 0 0 3px var(--mmdx-panel, var(--mmdx-surface)); }
+.mmdx-version-list .vnode.on:hover { box-shadow: 0 0 0 3px var(--mmdx-panel, var(--mmdx-surface)), 0 0 0 5px var(--mmdx-faint); }
+.mmdx-version-list .vnode.before { background: var(--mmdx-diff-del); }
+.mmdx-version-list .vnode.after { background: var(--mmdx-diff-add); }
+.mmdx-version-list .vnode .ini { display: block; text-box: trim-both cap alphabetic; }
+.mmdx-version-list .vnode:focus-visible { outline: 2px solid var(--mmdx-accent); outline-offset: 2px; }
+.mmdx-version-list .version.tl .version-main { padding-left: 2px; }
 .mmdx-version-list .vmenu { flex: none; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; margin-right: 6px; border: 0; border-radius: 7px; background: transparent; color: var(--mmdx-muted); }
 .mmdx-version-list .vmenu:hover:not(:disabled), .mmdx-version-list .vmenu[aria-expanded=true] { background: var(--mmdx-float-2, var(--mmdx-surface-2)); color: var(--mmdx-text); }
 .mmdx-version-list .vmenu .mmdx-icon { width: 18px; height: 18px; stroke-width: 3; }
 `;
 
-type Col = 'main' | 'before' | 'after' | 'menu';
+type Col = 'main' | 'before' | 'after' | 'node' | 'menu';
 
 export function createVersionList(props: VersionListProps): BlockHandle<VersionListProps> {
   registerMessages(BLOCK_MESSAGES_DIFF);
@@ -136,6 +143,31 @@ export function createVersionList(props: VersionListProps): BlockHandle<VersionL
     if (p.part) el.setAttribute('part', p.part);
     else el.removeAttribute('part');
     const compare = p.mode === 'compare';
+    const tl = compare ? p.timeline : undefined;
+    // the timeline's range: the rows from the newer of the pair down to the older one
+    const bi = p.versions.findIndex((v) => v.id === p.base), hi = p.versions.findIndex((v) => v.id === p.head);
+    const top = Math.min(bi, hi), bottom = Math.max(bi, hi);
+    const ranged = bi >= 0 && hi >= 0;
+    const rail = (v: VersionInfo, i: number, isBefore: boolean, isAfter: boolean): HTMLElement => {
+      const on = isBefore || isAfter;
+      const inRange = ranged && i >= top && i <= bottom;
+      // the end that a dot moves: the nearer one (above the range: the top one, below: the bottom one)
+      const topSide: 'before' | 'after' = bi === top ? 'before' : 'after';
+      const bottomSide: 'before' | 'after' = topSide === 'before' ? 'after' : 'before';
+      const side: 'before' | 'after' = !ranged ? (bi < 0 ? 'before' : 'after') : i < top ? topSide : i > bottom ? bottomSide : i - top <= bottom - i ? topSide : bottomSide;
+      const sideLabel = isBefore ? t('diff.history.before') : t('diff.history.after');
+      const label = on ? t('diff.history.swapSides', { id: v.id, side: sideLabel.toLowerCase() })
+        : t('diff.history.useAs', { id: v.id, side: (side === 'before' ? t('diff.history.before') : t('diff.history.after')).toLowerCase() });
+      const node = h('button', {
+        type: 'button', class: `vnode${on ? ` on ${isBefore ? 'before' : 'after'}` : inRange ? ' in' : ''}`, 'data-f': `node:${v.id}`, 'data-col': 'node',
+        title: label, 'aria-label': label, ...(on ? { 'aria-pressed': 'true' } : {}),
+      }, on ? h('span', { class: 'ini', 'aria-hidden': 'true' }, sideLabel.charAt(0)) : null);
+      fx.on(node, 'click', () => (on ? tl!.onSwap() : p.onPick(side, v.id)));
+      const last = i === p.versions.length - 1 && !p.hasMore;
+      return h('span', { class: `vrail${i === 0 ? ' first' : ''}${last ? ' last' : ''}`},
+        inRange && top !== bottom ? h('span', { class: `vrange${i === top ? ' top' : ''}${i === bottom ? ' bottom' : ''}` }) : null,
+        node);
+    };
     const rows = p.versions.map((v, i) => {
       const c = p.counts(v.id);
       const n = c ? c.added + c.removed + c.changed : 0;
@@ -146,12 +178,10 @@ export function createVersionList(props: VersionListProps): BlockHandle<VersionL
         const taken = side === 'after' ? isBefore : isAfter;
         const other = side === 'after' ? t('diff.history.before') : t('diff.history.after');
         const label = side === 'after' ? t('diff.history.after') : t('diff.history.before');
-        const half = !!p.splitPicks;
         const b = h('button', {
-          type: 'button', class: `pick pick-${side}${half ? ' half' : ''}${on ? ' on' : ''}`, 'aria-pressed': String(on), disabled: taken, 'data-f': `${side}:${v.id}`, 'data-col': side,
+          type: 'button', class: `pick pick-${side}${on ? ' on' : ''}`, 'aria-pressed': String(on), disabled: taken, 'data-f': `${side}:${v.id}`, 'data-col': side,
           title: taken ? t('diff.history.sameVersion', { id: v.id, side: other.toLowerCase() }) : t('diff.history.useAs', { id: v.id, side: label.toLowerCase() }),
-          ...(half ? { 'aria-label': label } : {}),
-        }, half ? h('span', { class: 'ini', 'aria-hidden': 'true' }, label.charAt(0)) : label);
+        }, label);
         fx.on(b, 'click', () => p.onPick(side, v.id));
         return b;
       };
@@ -183,9 +213,10 @@ export function createVersionList(props: VersionListProps): BlockHandle<VersionL
         });
         dots = b;
       }
-      return h('div', { class: `version${viewing ? ' viewing' : ''}${isAfter ? ' after' : ''}${isBefore ? ' before' : ''}`, role: compare ? 'listitem' : 'option', 'aria-selected': compare ? undefined : String(viewing), 'data-id': v.id },
+      return h('div', { class: `version${viewing ? ' viewing' : ''}${isAfter ? ' after' : ''}${isBefore ? ' before' : ''}${tl ? ' tl' : ''}`, role: compare ? 'listitem' : 'option', 'aria-selected': compare ? undefined : String(viewing), 'data-id': v.id },
+        tl ? rail(v, i, isBefore, isAfter) : null,
         main,
-        compare ? h('span', { class: `vpick${p.splitPicks ? ' split' : ''}` }, pick('before'), pick('after')) : null,
+        compare && !tl ? h('span', { class: 'vpick' }, pick('before'), pick('after')) : null,
         dots);
     });
     let more: HTMLElement | null = null;
@@ -194,7 +225,7 @@ export function createVersionList(props: VersionListProps): BlockHandle<VersionL
       fx.on(more, 'click', () => p.onMore());
     }
     el.replaceChildren(
-      h('div', { class: 'versions', role: compare ? 'list' : 'listbox', 'aria-label': compare ? t('diff.panel.compare') : t('diff.panel.history') }, ...rows),
+      h('div', { class: `versions${tl ? ' timeline' : ''}`, role: compare ? 'list' : 'listbox', 'aria-label': compare ? t('diff.panel.compare') : t('diff.panel.history') }, ...rows),
       ...(more ? [more] : []));
   };
   render();

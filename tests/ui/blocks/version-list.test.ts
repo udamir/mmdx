@@ -142,14 +142,43 @@ describe('VersionList', () => {
     expect(createVersionList(props({ menu: { entries, popovers, modes: ['history'] } })).el.querySelector('.vmenu')).toBeNull();
   });
 
-  it('split picks: one frame of two halves with the initials, the label stays each half\'s accessible name', () => {
-    const vl = createVersionList(props({ splitPicks: true }));
-    expect(vl.el.querySelector('.vpick.split')).not.toBeNull();
-    const picks = [...vl.el.querySelectorAll<HTMLButtonElement>('.version')[0]!.querySelectorAll<HTMLButtonElement>('.pick')];
-    expect(picks.map((b) => b.getAttribute('aria-label'))).toEqual(['Before', 'After']);
-    expect(picks.every((b) => b.classList.contains('half'))).toBe(true);
-    expect(picks.map((b) => b.textContent)).toEqual(['B', 'A']);
-    expect(picks[1]!.getAttribute('aria-pressed')).toBe('true');
+  it('timeline: the pair is a range of dots, a dot moves the nearer end, the pair\'s own dot swaps them', () => {
+    const onPick = vi.fn(), onSwap = vi.fn();
+    const vl = createVersionList(props({ onPick, timeline: { onSwap } }));
+    document.body.append(vl.el);
+    expect(vl.el.querySelector('.versions.timeline')).not.toBeNull();
+    expect(vl.el.querySelector('.pick')).toBeNull();
+    const nodes = (): HTMLButtonElement[] => [...vl.el.querySelectorAll<HTMLButtonElement>('.vnode')];
+    expect(nodes().map((n) => n.textContent)).toEqual(['A', 'B', '']);
+    expect(nodes()[0]!.classList.contains('after')).toBe(true);
+    expect(nodes()[1]!.classList.contains('before')).toBe(true);
+    expect(nodes()[0]!.getAttribute('aria-label')).toBe('c3 is the after version: swap Before and After');
+    // the range runs from After (c3) down to Before (c2); the line ends at the first and the last row
+    const rails = [...vl.el.querySelectorAll('.vrail')];
+    expect(rails.map((r) => r.querySelector('.vrange')?.className ?? null)).toEqual(['vrange top', 'vrange bottom', null]);
+    expect(rails[0]!.classList.contains('first') && rails[2]!.classList.contains('last')).toBe(true);
+    nodes()[0]!.click();
+    expect(onSwap).toHaveBeenCalledOnce();
+    // below the range: its bottom end (Before) moves
+    expect(nodes()[2]!.getAttribute('aria-label')).toBe('Use c1 as before');
+    nodes()[2]!.click();
+    expect(onPick).toHaveBeenLastCalledWith('before', 'c1');
+    // inside the range: the nearer end (a tie: the top one), also when the pair is swapped
+    vl.update({ base: 'c1', head: 'c3' });
+    nodes()[1]!.click();
+    expect(onPick).toHaveBeenLastCalledWith('after', 'c2');
+    expect(nodes()[1]!.classList.contains('in')).toBe(true);
+    vl.update({ base: 'c3', head: 'c1' });
+    expect(nodes().map((n) => n.textContent)).toEqual(['B', '', 'A']);
+    nodes()[1]!.click();
+    expect(onPick).toHaveBeenLastCalledWith('before', 'c2');
+    // more versions to load: the line runs on past the last row
+    vl.update({ hasMore: true });
+    expect(vl.el.querySelectorAll('.vrail')[2]!.classList.contains('last')).toBe(false);
+    // up / down keep to the dots
+    nodes()[0]!.focus();
+    key(nodes()[0]!, 'ArrowDown');
+    expect(document.activeElement).toBe(nodes()[1]);
   });
 
   it('destroy() removes the element and its listeners', () => {
