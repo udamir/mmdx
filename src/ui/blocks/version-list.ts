@@ -106,6 +106,17 @@ export const VERSION_LIST_CSS = /* css */ `
 .mmdx-version-list .vnode .ini { display: block; text-box: trim-both cap alphabetic; }
 .mmdx-version-list .vnode:focus-visible { outline: 2px solid var(--mmdx-accent); outline-offset: 2px; }
 .mmdx-version-list .version.tl .version-main { padding-left: 2px; }
+/* switching tabs: the rail grows in from the left, its dots pop in row by row, the range draws down; back to History,
+   the rows slide back. --vt: the time since the switch, so a re-render mid-way carries on instead of restarting. */
+@keyframes mmdx-vrail-in { from { width: 0; opacity: 0; } }
+@keyframes mmdx-vnode-in { from { transform: translate(-50%, -50%) scale(0); } }
+@keyframes mmdx-vrange-in { from { transform: scaleY(0); } }
+@keyframes mmdx-vrows-back { from { transform: translateX(20px); } }
+.mmdx-version-list .versions.anim .vrail { animation: mmdx-vrail-in .2s ease-out backwards; animation-delay: calc(0ms - var(--vt, 0ms)); }
+.mmdx-version-list .versions.anim .vnode { animation: mmdx-vnode-in .26s cubic-bezier(.3, 1.5, .6, 1) backwards; animation-delay: calc(var(--i, 0) * 30ms + 90ms - var(--vt, 0ms)); }
+.mmdx-version-list .versions.anim .vrange { transform-origin: top; animation: mmdx-vrange-in .3s ease-out backwards; animation-delay: calc(220ms - var(--vt, 0ms)); }
+.mmdx-version-list .versions.anim:not(.timeline) .version-main { animation: mmdx-vrows-back .2s ease-out backwards; animation-delay: calc(0ms - var(--vt, 0ms)); }
+@media (prefers-reduced-motion: reduce) { .mmdx-version-list .versions.anim * { animation: none !important; } }
 .mmdx-version-list .vmenu { flex: none; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; margin-right: 6px; border: 0; border-radius: 7px; background: transparent; color: var(--mmdx-muted); }
 .mmdx-version-list .vmenu:hover:not(:disabled), .mmdx-version-list .vmenu[aria-expanded=true] { background: var(--mmdx-float-2, var(--mmdx-surface-2)); color: var(--mmdx-text); }
 .mmdx-version-list .vmenu .mmdx-icon { width: 18px; height: 18px; stroke-width: 3; }
@@ -119,6 +130,10 @@ export function createVersionList(props: VersionListProps): BlockHandle<VersionL
   let fx = new Scope();
   const scope = new Scope();
   const el = h('div', { class: 'mmdx-version-list' });
+  // the last tab switch: the rows animate for a moment after it (see the CSS)
+  let shownMode = p.mode;
+  let switchedAt = -Infinity;
+  const ANIM_MS = 700;
 
   // up / down: the same control (row, Before, After) in the next row, else the row itself
   scope.on(el, 'keydown', (ev: KeyboardEvent) => {
@@ -144,6 +159,12 @@ export function createVersionList(props: VersionListProps): BlockHandle<VersionL
     else el.removeAttribute('part');
     const compare = p.mode === 'compare';
     const tl = compare ? p.timeline : undefined;
+    if (p.mode !== shownMode) {
+      shownMode = p.mode;
+      switchedAt = performance.now();
+    }
+    const since = performance.now() - switchedAt;
+    const anim = since < ANIM_MS && !!p.timeline;
     // the timeline's range: the rows from the newer of the pair down to the older one
     const bi = p.versions.findIndex((v) => v.id === p.base), hi = p.versions.findIndex((v) => v.id === p.head);
     const top = Math.min(bi, hi), bottom = Math.max(bi, hi);
@@ -164,7 +185,7 @@ export function createVersionList(props: VersionListProps): BlockHandle<VersionL
       }, on ? h('span', { class: 'ini', 'aria-hidden': 'true' }, sideLabel.charAt(0)) : null);
       fx.on(node, 'click', () => (on ? tl!.onSwap() : p.onPick(side, v.id)));
       const last = i === p.versions.length - 1 && !p.hasMore;
-      return h('span', { class: `vrail${i === 0 ? ' first' : ''}${last ? ' last' : ''}`},
+      return h('span', { class: `vrail${i === 0 ? ' first' : ''}${last ? ' last' : ''}`, style: `--i: ${Math.min(i, 12)}` },
         inRange && top !== bottom ? h('span', { class: `vrange${i === top ? ' top' : ''}${i === bottom ? ' bottom' : ''}` }) : null,
         node);
     };
@@ -225,7 +246,7 @@ export function createVersionList(props: VersionListProps): BlockHandle<VersionL
       fx.on(more, 'click', () => p.onMore());
     }
     el.replaceChildren(
-      h('div', { class: `versions${tl ? ' timeline' : ''}`, role: compare ? 'list' : 'listbox', 'aria-label': compare ? t('diff.panel.compare') : t('diff.panel.history') }, ...rows),
+      h('div', { class: `versions${tl ? ' timeline' : ''}${anim ? ' anim' : ''}`, ...(anim ? { style: `--vt: ${Math.round(since)}ms` } : {}), role: compare ? 'list' : 'listbox', 'aria-label': compare ? t('diff.panel.compare') : t('diff.panel.history') }, ...rows),
       ...(more ? [more] : []));
   };
   render();

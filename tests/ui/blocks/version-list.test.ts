@@ -181,6 +181,22 @@ describe('VersionList', () => {
     expect(document.activeElement).toBe(nodes()[1]);
   });
 
+  it('timeline: a tab switch animates the rows for a moment; a re-render carries on from the time since the switch', () => {
+    const vl = createVersionList(props({ mode: 'history', timeline: { onSwap: () => undefined } }));
+    const versionsEl = (): HTMLElement => vl.el.querySelector<HTMLElement>('.versions')!;
+    expect(versionsEl().classList.contains('anim')).toBe(false);
+    vl.update({ mode: 'compare' });
+    expect(versionsEl().classList.contains('anim')).toBe(true);
+    expect(versionsEl().style.getPropertyValue('--vt')).toMatch(/^\d+ms$/);
+    expect(vl.el.querySelectorAll<HTMLElement>('.vrail')[2]!.style.getPropertyValue('--i')).toBe('2');
+    vl.update({ base: 'c1' });
+    expect(versionsEl().classList.contains('anim')).toBe(true);
+    vi.spyOn(performance, 'now').mockReturnValue(performance.now() + 5000);
+    vl.update({ base: 'c2' });
+    expect(versionsEl().classList.contains('anim')).toBe(false);
+    vi.restoreAllMocks();
+  });
+
   it('destroy() removes the element and its listeners', () => {
     const onRow = vi.fn();
     const vl = createVersionList(props({ onRow }));
