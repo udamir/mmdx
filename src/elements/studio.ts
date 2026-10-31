@@ -77,7 +77,7 @@ mmdx-editor { position: absolute; inset: 0; height: auto; min-height: 0; }
 .mmdx-dialog.examples { width: min(600px, calc(100% - 32px)); }
 .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; max-height: 70vh; overflow: auto; padding: 2px; }
 .card { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 8px; border-radius: 10px; }
-.card .thumb { aspect-ratio: 1; border-radius: 6px; background: var(--mmdx-surface-2); display: grid; place-items: center; overflow: hidden; position: relative; }
+.card .thumb { aspect-ratio: 4 / 3; border-radius: 6px; background: var(--mmdx-surface-2); display: grid; place-items: center; overflow: hidden; position: relative; }
 .card .thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 10px; box-sizing: border-box; }
 .card .thumb.loading { opacity: .6; }
 .card .tags { color: var(--mmdx-muted); font-size: 12px; }
