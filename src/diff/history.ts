@@ -7,7 +7,6 @@
 // Session events reach the host as `mmdx-history-*`. Leaving pops the scene, restores the panels and the view, and
 // the host's scene repaints in full. Loaded on first use: the viewer and the editor bundles never contain the diff.
 import { staticHistory, type HistoryAdapter, type StaticVersion, type VersionInfo } from '../adapters/history.js';
-import { copyItems } from '../core/ops/clipboard.js';
 import type { ItemKind } from '../core/types.js';
 import { createPill, PILL_CSS } from '../ui/blocks/pill.js';
 import { h, icon } from '../ui/h.js';
@@ -176,7 +175,8 @@ export function openHistory(core: ViewCore, o: { onClose(): void }): HistoryCont
       return () => pill.destroy();
     },
   };
-  const copySelected = (): void => {
+  // the clipboard ops load on the first copy: they share a chunk with the editor's ops, which a viewer never needs
+  const copySelected = async (): Promise<void> => {
     const D = session.rendered.peek();
     const key = session.selected.peek();
     const ch = key ? session.change(key) : null;
@@ -188,6 +188,8 @@ export function openHistory(core: ViewCore, o: { onClose(): void }): HistoryCont
     const before = v === 'before' || ch.status === 'removed';
     const r = before ? D.before : D.after;
     const id = before ? ch.beforeId ?? ch.id : ch.id;
+    const { copyItems } = await import('../core/ops/clipboard.js');
+    if (closed || session.rendered.peek() !== D) return;
     const data = copyItems(r.model, r.doc.meta, [{ kind: ch.kind as ItemKind, id }], { code: r.doc.code, geom: r.result.geom });
     if (!data) {
       core.toast(t('history.copyNothing'));
