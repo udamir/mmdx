@@ -501,6 +501,23 @@ function multiActions(p: PanelCtx, host: HTMLElement, extra: readonly HTMLElemen
   host.append(br);
 }
 
+/** A geometry box (centre and size) rounded for the position and size fields. */
+const roundedBox = (b: { x: number; y: number; w: number; h: number } | undefined): Record<string, number> =>
+  b ? { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h) } : {};
+
+/** A connector's geometry fields (relationships have no routing of their own). */
+const lineFields = (kind: 'edge' | 'rel'): string[] =>
+  ['routing', 'fromSide', 'toSide', 'fromAt', 'toAt', 'labelAt'].filter((f) => !(kind === 'rel' && f === 'routing'));
+
+/** What a connector's geometry fields show when nothing is set: the page routing and where the theme puts the label. */
+function lineDefaults(core: EditorCore, kind: 'edge' | 'rel'): Record<string, unknown> {
+  const routing = pageEff(core).routing ?? 'curved';
+  const relAt = core.result.theme.er.rel as unknown as Record<string, unknown>;
+  // ER labels are measured from the other end
+  const labelAt = kind === 'rel' ? 1 - (typeof relAt['labelAt'] === 'number' ? relAt['labelAt'] : 0.5) : 0.5;
+  return { routing, labelAt };
+}
+
 /**
  * Several items of one kind: every property that can be set on all of them at once (preset, appearance, the
  * position and geometry fields), each showing the shared value or "mixed".
@@ -520,21 +537,17 @@ function bulkInspector(p: PanelCtx, host: HTMLElement, kind: ItemKind, sel: read
   for (const f of STYLE_FIELDS[kind] ?? []) field(core.i18n, host, f, style);
 
   const g = core.geom;
-  const rounded = (b: { x: number; y: number; w: number; h: number } | undefined): Record<string, number> =>
-    b ? { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h) } : {};
   const geo = (fields: readonly string[], baseOf: (r: ItemRef) => Record<string, unknown>): void => {
     sect(host, t('props.geometry'));
     const target = bulkTarget(p, refs, refs.map(baseOf));
     for (const f of fields) field(core.i18n, host, f, target);
   };
-  if (kind === 'node' && g.type === 'flowchart') geo(['x', 'y', 'w', 'h'], (r) => rounded(g.nodes.get(r.id)));
-  else if (kind === 'entity' && g.type === 'er') geo(['x', 'y', 'w', 'h'], (r) => rounded(g.entities.get(r.id)));
-  else if (kind === 'participant' && g.type === 'sequence') geo(['x', 'w', 'h'], (r) => rounded(g.participants.get(r.id)));
+  if (kind === 'node' && g.type === 'flowchart') geo(['x', 'y', 'w', 'h'], (r) => roundedBox(g.nodes.get(r.id)));
+  else if (kind === 'entity' && g.type === 'er') geo(['x', 'y', 'w', 'h'], (r) => roundedBox(g.entities.get(r.id)));
+  else if (kind === 'participant' && g.type === 'sequence') geo(['x', 'w', 'h'], (r) => roundedBox(g.participants.get(r.id)));
   else if (kind === 'edge' || kind === 'rel') {
-    const routing = pageEff(core).routing ?? 'curved';
-    const relAt = core.result.theme.er.rel as unknown as Record<string, unknown>;
-    const labelAt = kind === 'rel' ? 1 - (typeof relAt['labelAt'] === 'number' ? relAt['labelAt'] : 0.5) : 0.5;
-    geo(['routing', 'fromSide', 'toSide', 'fromAt', 'toAt', 'labelAt'].filter((f) => !(kind === 'rel' && f === 'routing')), () => ({ routing, labelAt }));
+    const defaults = lineDefaults(core, kind);
+    geo(lineFields(kind), () => ({ ...defaults }));
   } else if (kind === 'message' || kind === 'note' || kind === 'block') geo(['dy'], () => ({ dy: 0 }));
 
   const reset = h('button', { type: 'button', class: 'danger' }, t('props.resetAll'));
@@ -708,11 +721,9 @@ export function renderProperties(p: PanelCtx, host: HTMLElement): void {
 
   sect(host, t('props.geometry'));
   const g = core.geom;
-  const rounded = (b: { x: number; y: number; w: number; h: number } | undefined): Record<string, number> =>
-    b ? { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h) } : {};
   if ((kind === 'node' && g.type === 'flowchart') || (kind === 'entity' && g.type === 'er')) {
     const gb = g.type === 'flowchart' ? g.nodes.get(id) : g.type === 'er' ? g.entities.get(id) : undefined;
-    const geo = itemTarget(p, ref, rounded(gb));
+    const geo = itemTarget(p, ref, roundedBox(gb));
     for (const f of ['x', 'y', 'w', 'h']) field(core.i18n, host, f, geo);
   } else if (kind === 'group' && g.type === 'flowchart') {
     const gb = g.groups.get(id);
@@ -738,14 +749,11 @@ export function renderProperties(p: PanelCtx, host: HTMLElement): void {
       for (const f of ['x', 'y', 'w', 'h']) field(core.i18n, host, f, geo);
     }
   } else if (kind === 'edge' || kind === 'rel') {
-    const routing = pageEff(core).routing ?? 'curved';
-    const relAt = core.result.theme.er.rel as unknown as Record<string, unknown>;
-    const labelAt = kind === 'rel' ? 1 - (typeof relAt['labelAt'] === 'number' ? relAt['labelAt'] : 0.5) : 0.5;
-    const geo = itemTarget(p, ref, { routing, labelAt });
-    for (const f of ['routing', 'fromSide', 'toSide', 'fromAt', 'toAt', 'labelAt']) if (!(kind === 'rel' && f === 'routing')) field(core.i18n, host, f, geo);
+    const geo = itemTarget(p, ref, lineDefaults(core, kind));
+    for (const f of lineFields(kind)) field(core.i18n, host, f, geo);
   } else if (kind === 'participant' && g.type === 'sequence') {
     const pb = g.participants.get(id);
-    const geo = itemTarget(p, ref, rounded(pb));
+    const geo = itemTarget(p, ref, roundedBox(pb));
     for (const f of ['x', 'w', 'h']) field(core.i18n, host, f, geo);
   } else if (kind === 'message' || kind === 'note' || kind === 'block') {
     field(core.i18n, host, 'dy', itemTarget(p, ref, { dy: 0 }));
