@@ -90,6 +90,9 @@ export const VERSION_LIST_CSS = /* css */ `
 .mmdx-version-list .vpick.split { position: relative; gap: 0; padding: 0; margin-right: 6px; width: 50px; height: 26px; box-sizing: border-box; border: 2px solid var(--mmdx-muted); border-radius: 7px; overflow: hidden; }
 .mmdx-version-list .vpick.split::after { content: ''; position: absolute; top: 0; bottom: 0; left: calc(50% - 1px); width: 2px; background: var(--mmdx-muted); pointer-events: none; }
 .mmdx-version-list .pick.half { flex: 1 1 0; min-width: 0; height: 100%; display: grid; place-items: center; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--mmdx-muted); font-size: 11px; font-weight: 700; line-height: 1; }
+.mmdx-version-list .pick-before.half { padding-right: 1px; }
+.mmdx-version-list .pick-after.half { padding-left: 1px; }
+.mmdx-version-list .pick.half .ini { display: block; text-box: trim-both cap alphabetic; }
 .mmdx-version-list .pick.half:hover:not(:disabled) { background: color-mix(in srgb, var(--mmdx-text) 10%, transparent); }
 .mmdx-version-list .pick.half:focus-visible { outline: 2px solid var(--mmdx-accent); outline-offset: -2px; }
 .mmdx-version-list .pick.half:disabled { cursor: default; opacity: 1; }
@@ -148,7 +151,7 @@ export function createVersionList(props: VersionListProps): BlockHandle<VersionL
           type: 'button', class: `pick pick-${side}${half ? ' half' : ''}${on ? ' on' : ''}`, 'aria-pressed': String(on), disabled: taken, 'data-f': `${side}:${v.id}`, 'data-col': side,
           title: taken ? t('diff.history.sameVersion', { id: v.id, side: other.toLowerCase() }) : t('diff.history.useAs', { id: v.id, side: label.toLowerCase() }),
           ...(half ? { 'aria-label': label } : {}),
-        }, half ? label.charAt(0) : label);
+        }, half ? h('span', { class: 'ini', 'aria-hidden': 'true' }, label.charAt(0)) : label);
         fx.on(b, 'click', () => p.onPick(side, v.id));
         return b;
       };
