@@ -52,7 +52,9 @@ const meta: Meta<DiffArgs> = {
           'Merged (removed items kept in place, word-level text changes, move arrows) and After on one animated canvas, and ' +
           'Side by side. Filters hide added / removed items and ignore content / layout / style changes. Panels: History ' +
           '(compare two versions, or view one), the code / metadata diff narrowed to the selected change, and the change ' +
-          'list. Pan, the magic pen, export (PNG, SVG, sources, patch, Markdown / JSON report). Import `mmdx/diff`.',
+          'list. Pan, the magic pen, export (PNG, SVG, sources, patch, Markdown / JSON report). Import `mmdx/diff`. The editor ' +
+          'and the viewer show it as their History (Elements/Editor → With history); here it stands alone, as a merge ' +
+          'request review would embed it.',
       },
     },
   },

@@ -32,13 +32,13 @@ export const DIFF_CSS = /* css */ `
 :host { display: block; position: relative; height: 640px; min-height: 360px; contain: content; }
 :host(:fullscreen) { height: 100%; }
 .root {
-  container-type: size;
+  container: diff / size;
   position: absolute; inset: 0; overflow: hidden; background: var(--mmdx-surface); outline: none; border-radius: inherit;
   --left-w: 420px; --right-w: 320px; --inset-l: 0px; --inset-r: 0px;
 }
 .root.left-open { --inset-l: calc(var(--left-w) + 24px); }
 .root.right-open { --inset-r: calc(var(--right-w) + 24px); }
-.area { position: absolute; top: 0; bottom: 0; left: var(--inset-l); right: var(--inset-r); transition: left .24s cubic-bezier(.2,.8,.2,1), right .24s cubic-bezier(.2,.8,.2,1); }
+.area { container: area / size; position: absolute; top: 0; bottom: 0; left: var(--inset-l); right: var(--inset-r); transition: left .24s cubic-bezier(.2,.8,.2,1), right .24s cubic-bezier(.2,.8,.2,1); }
 .root.resizing-panes .area { transition: none; }
 .root.resizing-panes, .root.resizing-panes * { cursor: col-resize !important; user-select: none !important; }
 
@@ -49,7 +49,7 @@ export const DIFF_CSS = /* css */ `
 .pane > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
 .pane > svg.panning { cursor: grabbing; }
 .root.tool-pen .pane > svg { cursor: crosshair; }
-.pane-title { position: absolute; top: 8px; left: 8px; right: 8px; display: flex; gap: 6px; align-items: baseline; pointer-events: none; z-index: 2; min-width: 0; }
+.pane-title { position: absolute; top: 8px; left: 8px; right: 200px; display: flex; gap: 6px; align-items: baseline; pointer-events: none; z-index: 2; min-width: 0; }
 .pane-title b { background: var(--mmdx-surface); border: 1px solid var(--mmdx-border); border-radius: 5px; padding: 1px 8px; font-size: 12px; flex: none; }
 .pane-title span { color: var(--mmdx-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pane.before .pane-title b { color: var(--mmdx-diff-del); }
@@ -58,6 +58,9 @@ export const DIFF_CSS = /* css */ `
 .msg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--mmdx-muted); pointer-events: none; }
 .msg .error { pointer-events: auto; max-width: 560px; padding: 12px 14px; background: var(--mmdx-danger-bg); color: var(--mmdx-text); border: 1px solid var(--mmdx-danger); border-radius: var(--mmdx-radius); }
 .msg .error button { margin-top: 8px; }
+
+.host-actions { position: absolute; top: 10px; right: 12px; z-index: 7; display: flex; gap: 6px; }
+.host-actions button { box-shadow: var(--mmdx-shadow); }
 
 /* ---- tool panel (left, the viewer's bar style, vertical) ---- */
 .vbar-wrap { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); z-index: 6; display: flex; align-items: center; gap: 8px; pointer-events: none; }
@@ -234,13 +237,16 @@ tr.skip button { border: 0; border-radius: 0; background: none; color: var(--mmd
 .ink path.fading { opacity: 0; }
 
 /* ---- small screens (§9.7) ---- */
-@container (max-width: 720px) {
+@container diff (max-width: 720px) {
   .area { left: 0; right: 0; }
   .pane-side.left, .pane-side.right { left: 8px; right: 8px; width: auto; }
+}
+/* a narrow canvas: the views become a select, side by side stacks */
+@container area (max-width: 620px) {
   .dbar button.view { display: none; }
   .dbar select.views { display: block; }
 }
-@container (max-width: 480px) {
+@container area (max-width: 480px) {
   .stage.side { flex-direction: column; }
 }
 @media (prefers-reduced-motion: reduce) { .pane-side, .area { transition: none !important; } }

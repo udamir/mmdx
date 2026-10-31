@@ -4,7 +4,7 @@ All notable changes to `mmdx`. The project follows [semantic versioning](https:/
 
 ## 0.2.0 — History and diff
 
-How a diagram changed, at a glance: a new `<mmdx-diff>` component, a History mode in the studio, and a DOM-free diff API for CI bots.
+How a diagram changed, at a glance: the editor and the viewer get a History of the diagram, the view behind it is a new `<mmdx-diff>` component, and a DOM-free diff API serves CI bots.
 
 ### Added
 
@@ -14,11 +14,14 @@ How a diagram changed, at a glance: a new `<mmdx-diff>` component, a History mod
 - **Review tools**: J / K through the changes, the magic pen with strokes shared by every view, the editor's zoom bar and help popup, full screen, keyboard shortcuts, light and dark chrome with `--mmdx-diff-*` tokens.
 - **Export** from the diff: PNG and SVG of the current view with a legend, either version as `.mmdx` or portable `.mmd`, a unified patch (applies with `git apply`), and a change report in Markdown or JSON. `mmdx-export` is cancelable so hosts can upload instead of downloading.
 - **History adapters** (`mmdx/diff`, `mmdx/adapters`): `staticHistory(versions)` and `httpHistoryAdapter(url)` (paged with `next` / `?cursor=`); write your own `{ list, load }` for GitLab, GitHub or any backend.
-- **Studio History mode**: Edit | View | History in the top bar. The history of the open diagram is its example's bundled history, the versions recorded with **Save version** or ⌘S (browser storage, per document) and the working copy; **Restore this version** opens a version in the editor (undoable).
+- **History in the editor**: give `<mmdx-editor>` a `history` (a `HistoryAdapter` or a list of versions) and its tool dock gets a History button (⇧H): the diff of the document's versions plus the working copy, **Restore this version** (an undoable change, Edit mode) and **Back to the diagram**. Feature flag `history`; `toggleHistory(on?)`.
+- **History in the viewer**: `controls="history"` with a `history` property: the same view over the viewer, without Restore.
+- The History of the editor and the viewer shows `<mmdx-diff>` by its tag: load `mmdx/diff` on the page (the button appears once it is defined), so viewer- and editor-only pages never download the diff.
+- **Studio**: gives the editor the open document's versions — the example's bundled history and the versions recorded with **Save version** or ⌘S (browser storage, per document).
 - **Example histories**: every bundled example ships six versions (`examples/history/*.json`, generated with the editor's own ops by `apps/studio-site/diff-samples/generate.ts`) covering added, removed and changed items across content, layout and style for flowchart, sequence and ER diagrams. Examples with a history open at their newest version.
 - **Core diff API** (`mmdx/core`): `diffDiagrams`, `diffModels`, `ignoreFacets`, `withoutStyle`, `withLayoutOf`, `mergeDiagrams`, `renderDiff`, `renderDiffToSvg` (any view, side by side with titles, SSR-ready), `diffSvg`, `diffReport` (Markdown / JSON), `unifiedDiff`, `diffWords`, `diffLines`, `mergeText`, `annotate`, `DIFF_COLORS`, and their types. A small Myers diff replaces the `diff` package of the prototype, so the library still has no runtime dependencies.
 - React wrapper `MmdxDiff` from `createReactWrappers(React)`.
-- Storybook stories for `<mmdx-diff>` (Elements/Diff).
+- Storybook: Elements/Diff, and "With history" stories for the editor and the viewer.
 
 ### Changed
 
@@ -26,11 +29,11 @@ How a diagram changed, at a glance: a new `<mmdx-diff>` component, a History mod
 - The editor's floating-panel resizer and its zoom bar / help styles moved to `src/ui/panes.ts` and `src/ui/zoom-bar.ts`, shared with the diff; the editor looks and behaves the same.
 - `penOptions()` accepts any object with the pen settings (`PenSettings`), so the diff's shared ink uses the viewer's pen popup.
 - The examples manifest entries may name a `history` file.
-- The `diff.html` prototype page of the demo site was removed: the diff lives in the studio's History mode and in Storybook.
+- The `diff.html` prototype page of the demo site was removed: the diff lives in the History of the editor (studio) and the viewer (viewer demo page), and in Storybook.
 
 ### Size
 
-Gzip budgets checked by `pnpm size`: the viewer stays within 45 kB; `mmdx/core` grows from 40.8 kB to 52.8 kB with the diff engine (budget raised to 55 kB); the new `mmdx/diff` entry is 85.5 kB with every diagram kind loaded statically (budget 90 kB). The studio loads the diff only when History is opened.
+Gzip budgets checked by `pnpm size`: the viewer grows from 44.9 kB to 45.3 kB with its History control (budget raised from 45 to 46 kB) and the editor from 161.9 kB to 162.8 kB (budget 165 kB) — neither bundle contains the diff, which their History uses as `<mmdx-diff>` once the page loads `mmdx/diff`; `mmdx/core` grows from 40.8 kB to 52.8 kB with the diff engine (budget raised to 55 kB); the new `mmdx/diff` entry is 85.8 kB with every diagram kind loaded statically (budget 90 kB). The studio loads `mmdx/diff` in the background after start.
 
 ### Upgrading from 0.1
 
@@ -39,7 +42,7 @@ No breaking changes for the viewer, editor, theme editor or studio. If you impor
 ### Release checklist
 
 1. `pnpm install --frozen-lockfile`, then `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm size` (CI runs the same).
-2. Check the studio (`pnpm dev`): open each example, switch to History, compare versions, view one, restore one, export a PNG and a Markdown report, in light and dark.
+2. Check the studio (`pnpm dev`): open each example, open History from the tool dock, compare versions, view one, restore one (and undo), export a PNG and a Markdown report, in light and dark; check the viewer page's "With history" example.
 3. `pnpm build:storybook` and look through Elements/Diff.
 4. Merge to `master` (CI deploys the demo site to GitHub Pages), tag `v0.2.0`, and `npm publish` from a clean `dist/`.
 5. Create a GitHub release from this section.

@@ -33,7 +33,7 @@ Mermaid is great for keeping diagrams in docs and repos, but its auto-layout and
 - **Styling:** a floating toolbar and a Properties panel for fill, border, text, font, shape, stacking, arrows, line shape and more; named style presets from the theme or saved per diagram.
 - **Themes:** separate theme files with a colour palette, per-type styles and presets. Colours are stored as palette references, so a diagram follows theme switches. Light and dark themes are linked, so a diagram switches with the page.
 - **Viewer for documentation:** pan, zoom, layers, full screen, export, lazy rendering, a text outline for screen readers, and server-side rendering to SVG.
-- **History and diff:** see how a diagram changed between two versions — Before, Merged (removed items kept in place, text changes marked word by word, arrows for moved items) and After on one animated canvas, or side by side — filter out layout or style noise, step through every change with its source lines, and browse a diagram's version history. Built into the studio, available as `<mmdx-diff>` for merge request reviews, and as `renderDiffToSvg()` / `diffReport()` for CI bots.
+- **History and diff:** see how a diagram changed between two versions — Before, Merged (removed items kept in place, text changes marked word by word, arrows for moved items) and After on one animated canvas, or side by side — filter out layout or style noise, step through every change with its source lines, and browse a diagram's version history. Built into the editor and the viewer (their History button over the versions you give them), available on its own as `<mmdx-diff>` for merge request reviews, and as `renderDiffToSvg()` / `diffReport()` for CI bots.
 - **Theme editor:** edit the palette and every item type's style with live previews, check text contrast, import and export `.theme.json` files.
 - **Export:** `.mmdx` (Mermaid + layout), portable `.mmd` (`classDef` / `linkStyle` so stock renderers keep the colours), SVG and PNG.
 - **Framework-agnostic:** custom elements in shadow DOM, usable from plain HTML, React, Vue, Angular or Svelte, plus imperative classes where custom elements are not allowed.
@@ -129,7 +129,7 @@ const md = diffReport(diffDiagrams(before, after), { format: 'markdown', before:
 | `mmdx/viewer` | `<mmdx-viewer>` and `DiagramViewer` — read-only diagrams for docs and portals |
 | `mmdx/editor` | `<mmdx-editor>` and `DiagramEditor` — the visual editor with the code panel |
 | `mmdx/theme-editor` | `<mmdx-theme-editor>` and `ThemeEditor` — manage diagram themes |
-| `mmdx/diff` | `<mmdx-diff>` and `DiagramDiff` — how a diagram changed, and its version history; history adapters |
+| `mmdx/diff` | `<mmdx-diff>` and `DiagramDiff` — how a diagram changed, and its version history (also the History of the editor and the viewer); history adapters |
 | `mmdx/studio` | `<mmdx-studio>` and `DiagramStudio` — the complete standalone app (the live demo) |
 | `mmdx/core` | Pure API without DOM: parse, render to SVG, metadata, themes, diffs and diff reports (Node, workers, browsers) |
 | `mmdx/adapters` | Storage, theme sources and stores, document adapters, history adapters, share links |
@@ -154,7 +154,8 @@ const viewer = new DiagramViewer(hostElement, { source, controls: ['zoom', 'full
 | `theme` | the diagram's own | Forces a theme over the diagram's `canvas.theme` |
 | `theme-dark` | — | Theme used on dark pages; `auto` picks the dark theme linked to the diagram's theme |
 | `fit` | `width` | `width` (height follows), `contain` (fit a fixed box) or `none` (natural size) |
-| `controls` | `zoom fullscreen` | Any of `zoom layers pen code export fullscreen`, or `none` |
+| `controls` | `zoom fullscreen` | Any of `zoom layers pen code history export fullscreen`, or `none` |
+| `history` (property) | — | The diagram's versions (a `HistoryAdapter` or `[{ id, message, author?, date?, source }]`, newest first): with the `history` control, a History button shows how the diagram changed |
 | `interactive` | `true` | `false` turns off pan and zoom (thumbnails, print) |
 | `lazy` | `true` | Render when scrolled near; the box keeps the diagram's aspect ratio meanwhile |
 | `wheel` | `ctrl` | `ctrl`: only ⌘/Ctrl+wheel zooms, so page scroll is never trapped; `always`; `never` |
@@ -164,7 +165,7 @@ const viewer = new DiagramViewer(hostElement, { source, controls: ['zoom', 'full
 | `label` | generated | Accessible name, e.g. "Flowchart: 12 nodes, 14 connections" |
 | `ui` | `auto` | Chrome colour scheme: `light`, `dark` or `auto` |
 
-Events (bubbling, composed): `mmdx-render` `{ bounds, type, durationMs }`, `mmdx-error` `{ diagnostics }`, `mmdx-link` `{ href, id }` (cancelable, to route links through your router), `mmdx-fullscreen` `{ active }`. Methods: `fit()`, `zoomTo(k)`, `reload()`, `toSvg()`, `toPng({ scale })`, `setLayers(ids)`.
+Events (bubbling, composed): `mmdx-render` `{ bounds, type, durationMs }`, `mmdx-error` `{ diagnostics }`, `mmdx-link` `{ href, id }` (cancelable, to route links through your router), `mmdx-fullscreen` `{ active }`. Methods: `fit()`, `zoomTo(k)`, `reload()`, `toSvg()`, `toPng({ scale })`, `setLayers(ids)`, `toggleHistory(on?)`.
 
 Keyboard, while the viewer has focus: `+` / `-` zoom, `F` or `0` fits, arrows pan, `P` toggles the pen, `Esc` stops it. `controls="code"` adds a code view: the diagram's Mermaid code without the layout metadata and styles, highlighted, with a Copy button.
 
@@ -177,14 +178,21 @@ Each diagram type's parser and renderer load on first use, and diagrams over 300
 | `adapter` (property) | — | `DocumentAdapter` `{ load, save, subscribe? }`: Save button, ⌘S, conflict dialog, live updates |
 | `value` (property) | — | The source when there is no adapter |
 | `read-only` | `false` | View mode only |
-| `features` (property) | all on | Turn parts off: `codePanel`, `properties`, `layers`, `pen`, `styleToolbar`, `export`, `themePicker`, `help`, … |
+| `features` (property) | all on | Turn parts off: `codePanel`, `properties`, `layers`, `pen`, `styleToolbar`, `export`, `themePicker`, `help`, `history`, … |
+| `history` (property) | — | The document's versions (a `HistoryAdapter` or `[{ id, message, author?, date?, source }]`, newest first): the tool dock gets a History button |
 | `panels` (property) | remembered | Which side panels are open: `{ code, properties, layers }` |
 | `storage` (property) | `localStorage` (`mmdx.` keys) | Where UI preferences are kept; never the document |
 | `autosave` | off | Debounced save through the adapter, in ms |
 | `guard-unload` | off | Ask before leaving the page with unsaved changes |
 | `name` | `diagram` | File name for exports |
 
-Events: `mmdx-change` `{ source, reason }`, `mmdx-dirty` `{ dirty }`, `mmdx-save` (cancelable, to save yourself), `mmdx-saved`, `mmdx-conflict`, `mmdx-op` (cancelable, every edit), `mmdx-selection`, `mmdx-export` (cancelable), `mmdx-edit-themes`, `mmdx-ui`, `mmdx-error`. Methods: `getSource()`, `setSource(src, { history: 'reset' | 'push' })`, `save()`, `undo()`, `redo()`, `select(items)`, `focusCode(line)`, `exportAs('mmdx' | 'mmd' | 'svg' | 'png')`, `fit()`.
+Events: `mmdx-change` `{ source, reason }`, `mmdx-dirty` `{ dirty }`, `mmdx-save` (cancelable, to save yourself), `mmdx-saved`, `mmdx-conflict`, `mmdx-op` (cancelable, every edit), `mmdx-selection`, `mmdx-export` (cancelable), `mmdx-edit-themes`, `mmdx-ui`, `mmdx-error`. Methods: `getSource()`, `setSource(src, { history: 'reset' | 'push' })`, `save()`, `undo()`, `redo()`, `select(items)`, `focusCode(line)`, `exportAs('mmdx' | 'mmd' | 'svg' | 'png')`, `fit()`, `toggleHistory(on?)`.
+
+**History**: with a `history`, the History button of the tool dock (⇧H) covers the editor with the diff of the document's versions — the ones you give it, plus the working copy when it differs from the newest one. Compare any two versions (Before, Merged, After, Side by side, filters, code diff, change list) or view one as it was; **Restore this version** opens it in the editor as an undoable change (Edit mode), and **Back to the diagram** or Esc returns. The viewer's `history` control does the same, without Restore. The view is `<mmdx-diff>`, so load `mmdx/diff` on the page (any time — the History button appears once it is defined; the editor and viewer bundles never include it). Where the versions come from is up to the host — a Git history, your backend's revisions, or snapshots you keep:
+
+```ts
+editor.history = httpHistoryAdapter('/api/diagrams/arch/versions'); // or a list, or your own { list, load }
+```
 
 Saving: `mmdx-save` → `adapter.save(source, { version })` → `mmdx-saved`; when the adapter reports a conflict, a dialog offers to keep yours, take theirs or compare both. Remote updates from `adapter.subscribe` apply directly (and can be undone) while the editor has no unsaved changes; otherwise a bar offers *Reload* or *Keep mine*.
 
@@ -253,7 +261,7 @@ const adapter: HistoryAdapter = {
 
 ### `<mmdx-studio>`
 
-The complete app — editor, examples, file open, theme editor, share links and the diagram's history — in one element:
+The complete app — editor, examples, file open, theme editor and share links — in one element:
 
 ```html
 <mmdx-studio examples="./examples/index.json" themes="./themes/index.json" persist="local hash"></mmdx-studio>
@@ -261,7 +269,7 @@ The complete app — editor, examples, file open, theme editor, share links and 
 
 `persist="local"` keeps the last document in browser storage; `persist="hash"` keeps it in the URL, which the Share button copies.
 
-The **History** mode (next to Edit and View) shows the versions of the open diagram in `<mmdx-diff>`: an example's own history (the `history` file of its manifest entry, `{ versions: [{ id, message, author, date, source }] }` newest first), the versions you record with **Save version** or ⌘S (kept in browser storage, per document), and the working copy when it differs from the newest version. Compare any two, view one as it is, and **Restore this version** to open it in the editor (undo brings the previous diagram back). The bundled examples each come with six versions that touch every kind of change.
+The studio gives the editor the versions of the open diagram, so its **History** button works in the studio: an example's own history (the `history` file of its manifest entry, `{ versions: [{ id, message, author, date, source }] }` newest first) and the versions you record with **Save version** or ⌘S (kept in browser storage, per document). The bundled examples each come with six versions that touch every kind of change, and open at their newest version.
 
 ## The `.mmdx` format
 
@@ -402,7 +410,7 @@ Current Chrome, Edge and Firefox, and Safari 16.4 or newer (the components need 
 
 ```bash
 pnpm install        # the repository uses pnpm (corepack enable picks the pinned version)
-pnpm dev            # the studio (with History) and one demo page per component at http://localhost:8790
+pnpm dev            # the studio and one demo page per component at http://localhost:8790
 pnpm storybook      # every component and feature as stories at http://localhost:6006
 pnpm test           # unit, geometry and golden SVG snapshots, security and DOM tests (Vitest + jsdom)
 pnpm typecheck      # strict TypeScript, plus a DOM-free check of src/core

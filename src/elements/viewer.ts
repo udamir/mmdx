@@ -2,6 +2,7 @@
 // DiagramViewer class, which can also be mounted into any element without custom elements.
 import { ElementBase } from './base.js';
 import type { ThemeSource } from '../adapters/themes.js';
+import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
 import { ensureBuiltinThemes, getShared, instanceContext, renderWithMermaid } from '../config.js';
 import { BASE_THEME_ID, BUILTIN_IDS } from '../core/theme/builtin-ids.js';
@@ -28,8 +29,11 @@ import { adoptStyles, BASE, resolveUiScheme, TOKENS, watchUiScheme } from '../ui
 import { VIEWER_CSS } from '../ui/styles/viewer.js';
 
 const NS = 'http://www.w3.org/2000/svg';
+const I_HISTORY = 'M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3 4.5V9h4.5M12 7.5V12l3 2';
+/** History shows <mmdx-diff>, which the page loads (`mmdx/diff`); the viewer bundle never contains it. */
+const hasDiff = (): boolean => typeof customElements !== 'undefined' && !!customElements.get('mmdx-diff');
 
-export type ViewerControl = 'zoom' | 'layers' | 'pen' | 'fullscreen' | 'export' | 'code';
+export type ViewerControl = 'zoom' | 'layers' | 'pen' | 'fullscreen' | 'export' | 'code' | 'history';
 export type FitMode = 'contain' | 'width' | 'none';
 export type FallbackMode = 'mermaid' | 'source' | 'error';
 
@@ -56,6 +60,8 @@ export interface ViewerOptions {
   themeSource?: ThemeSource;
   storage?: StorageAdapter;
   ctx?: Partial<CoreContext>;
+  /** The diagram's versions: with `controls` including `history`, a History button shows how it changed. */
+  history?: HistoryAdapter | readonly StaticVersion[];
 }
 
 export interface ViewerEventMap {
@@ -98,6 +104,8 @@ export class DiagramViewer {
   /** Code view module (with its styles adopted), loaded when the view is first shown. */
   private codeMod: typeof import('./viewer-code.js') | null = null;
   private hoverKey = '';
+  /** The open History view (loaded on first use). */
+  private historyView: { close(): void } | null = null;
   private visible = false;
   private io: IntersectionObserver | null = null;
   private renderHandle = 0;
@@ -145,6 +153,7 @@ export class DiagramViewer {
     // a theme registered later (built-ins loaded on demand, a theme saved in the theme editor) re-renders
     this.cleanups.push(this.ctx.themes.onChange(() => this.scheduleRender()));
     this.applyScheme(false);
+    if (typeof customElements !== 'undefined' && !hasDiff()) void customElements.whenDefined('mmdx-diff').then(() => !this.destroyed && this.rendered && this.buildBar());
 
     const ssr = host.querySelector(':scope > svg[data-mmdx-ssr]');
     if (ssr instanceof SVGSVGElement) this.adoptSsr(ssr);
@@ -230,6 +239,7 @@ export class DiagramViewer {
     this.io?.disconnect();
     this.viewport?.destroy();
     this.pen?.destroy();
+    this.historyView?.close();
     this.pops.close();
     this.toaster.destroy();
     for (const c of this.cleanups) c();
@@ -612,6 +622,7 @@ export class DiagramViewer {
     if (c.includes('layers')) extra.push(btn(t('layers.title'), I_layers, (ev) => this.openLayers(ev.currentTarget as HTMLElement), { 'aria-haspopup': 'true', 'aria-expanded': 'false' }));
     if (c.includes('pen') && this.viewport) extra.push(btn(t('pen.title'), I_pen, () => this.togglePen(), { class: this.pen?.active ? 'on' : '', 'aria-pressed': String(!!this.pen?.active) }));
     if (c.includes('code')) extra.push(btn(this.showCode ? t('codeView.hide') : t('codeView.show'), I_code, () => this.toggleCode(), { class: this.showCode ? 'on' : '', 'aria-pressed': String(this.showCode) }));
+    if (c.includes('history') && this.o.history && hasDiff()) extra.push(btn(t('history.open'), I_HISTORY, () => this.toggleHistory(), { class: this.historyView ? 'on' : '', 'aria-pressed': String(!!this.historyView) }));
     if (c.includes('export')) extra.push(btn(t('export.title'), I_download, (ev) => this.openExport(ev.currentTarget as HTMLElement), { 'aria-haspopup': 'menu', 'aria-expanded': 'false' }));
     if (c.includes('fullscreen') && document.fullscreenEnabled) {
       const active = document.fullscreenElement === this.host;
@@ -620,6 +631,24 @@ export class DiagramViewer {
     if (parts.length && extra.length) parts.push(h('span', { class: 'sep' }));
     this.bar.replaceChildren(...parts.filter((p): p is HTMLElement => !!p), ...extra);
     this.bar.hidden = !this.bar.childElementCount;
+  }
+
+  /** Opens or closes the History of the diagram (its versions in a diff view over the viewer). */
+  toggleHistory(on = !this.historyView): void {
+    if (!on) this.historyView?.close();
+    const history = this.o.history;
+    if (!on || this.historyView || !history || !hasDiff()) return;
+    void import('./history-view.js').then((m) => {
+      if (this.destroyed || this.historyView) return;
+      this.historyView = m.openHistoryView({
+        container: this.rootEl, history, current: this.text ?? '', t: this.i18n.t, ui: this.isDark() ? 'dark' : 'light', storage: this.storage, grow: true,
+        onClose: () => {
+          this.historyView = null;
+          this.buildBar();
+        },
+      });
+      this.buildBar();
+    });
   }
 
   private toggleCode(): void {
@@ -793,6 +822,15 @@ export class MmdxViewerElement extends ElementBase {
   }
   set storage(v: StorageAdapter) {
     this.setOpt({ storage: v });
+  }
+  get history(): ViewerOptions['history'] {
+    return this.viewer?.options.history ?? this.pending.history;
+  }
+  set history(v: ViewerOptions['history']) {
+    if (v) this.setOpt({ history: v });
+  }
+  toggleHistory(on?: boolean): void {
+    this.viewer?.toggleHistory(on);
   }
 
   fit(): void {

@@ -5,7 +5,7 @@ import { createMagicPen, PEN_COLORS, PEN_FADES, PEN_SIZES, type MagicPen } from 
 import { h, icon } from '../../../ui/h.js';
 import { ICONS } from '../../../ui/icons.js';
 import { formatKeys } from '../../../ui/shortcuts.js';
-import { effect } from '../../../ui/signal.js';
+import { effect, signal } from '../../../ui/signal.js';
 import type { EditorCore, Tool } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { setPanel } from './panes.js';
@@ -45,6 +45,7 @@ export const TOOL_DOCK_CSS = /* css */ `
 .mode-edit .view-only { display: none !important; }
 `;
 
+const I_HISTORY = 'M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3 4.5V9h4.5M12 7.5V12l3 2';
 const VIEW_SETTINGS_ICON = 'M2.5 11.5C4.6 7.4 8 5.5 12 5.5s7.4 1.9 9.5 6M2.5 11.5c2.1 4.1 5.5 6 9.5 6M12 14.3a2.8 2.8 0 1 0 0-5.6 2.8 2.8 0 0 0 0 5.6zM18.5 20.7a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4z';
 
 const reducedMotion = (): boolean => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -108,9 +109,11 @@ export const toolDockModule: EditorModule = {
         e.classList.add('edit-only');
         return e;
       })()) : null;
+    // History: shown while the host gives the editor a history (both modes)
+    const historyBtn = core.has('toggleHistory') ? btn('vt-history', t('tools.versions'), undefined, I_HISTORY, { 'aria-pressed': 'false', hidden: true }) : null;
     const opts = h('div', { class: 'vt-opts', hidden: true, role: 'toolbar', 'aria-label': t('pen.options') });
     const tools = h('div', { class: 'view-tools', role: 'toolbar', 'aria-orientation': 'vertical', 'aria-label': t('tools.title') },
-      pointer, hand, shapes, penBtn, h('span', { class: 'vt-divider', 'aria-hidden': 'true' }), codeBtn, propsBtn, layersBtn, opts);
+      pointer, hand, shapes, penBtn, h('span', { class: 'vt-divider', 'aria-hidden': 'true' }), codeBtn, propsBtn, layersBtn, historyBtn, opts);
     const undoBtn = h('button', { type: 'button', 'aria-label': t('tools.undo') }, icon(ICONS.undo, 19));
     const redoBtn = h('button', { type: 'button', 'aria-label': t('tools.redo') }, icon(ICONS.redo, 19));
     const undo = h('div', { class: 'vt-undo edit-only', role: 'group', 'aria-label': t('tools.history') }, undoBtn, redoBtn);
@@ -124,6 +127,18 @@ export const toolDockModule: EditorModule = {
     codeBtn?.addEventListener('click', () => setPanel(core, 'code', !core.panels.peek().code), sig);
     propsBtn?.addEventListener('click', () => setPanel(core, 'properties', !core.panels.peek().properties), sig);
     layersBtn?.addEventListener('click', () => setPanel(core, 'layers', !core.panels.peek().layers), sig);
+    historyBtn?.addEventListener('click', () => core.run('toggleHistory'), sig);
+    if (historyBtn) {
+      // History shows <mmdx-diff>, which the page loads (`mmdx/diff`); the editor bundle never contains it
+      const diffReady = signal(typeof customElements !== 'undefined' && !!customElements.get('mmdx-diff'));
+      if (!diffReady.peek() && typeof customElements !== 'undefined') void customElements.whenDefined('mmdx-diff').then(() => diffReady.set(true));
+      cleanups.push(effect(() => {
+        historyBtn.hidden = !core.history() || !diffReady();
+        const on = core.historyOpen();
+        historyBtn.classList.toggle('on', on);
+        historyBtn.setAttribute('aria-pressed', String(on));
+      }));
+    }
     const undoNow = (): void => {
       core.store.undo();
       core.afterChange();
@@ -241,6 +256,7 @@ export const toolDockModule: EditorModule = {
       { id: 'panel-code', keys: ['c'], label: t('help.code'), group: t('help.tools'), editOnly: true, run: () => (f.codePanel ? setPanel(core, 'code', !core.panels.peek().code) : false) },
       { id: 'panel-props', keys: ['i'], label: t('help.props'), group: t('help.tools'), editOnly: true, run: () => (f.properties ? setPanel(core, 'properties', !core.panels.peek().properties) : false) },
       { id: 'panel-layers', keys: ['l'], label: t('help.layers'), group: t('help.tools'), run: () => (f.layers ? setPanel(core, 'layers', !core.panels.peek().layers) : false) },
+      { id: 'history', keys: ['shift+h'], label: t('help.history'), group: t('help.tools'), run: () => (core.history.peek() && historyBtn && !historyBtn.hidden ? core.run('toggleHistory') : false) },
       {
         id: 'tool-default', keys: ['escape'], label: t('help.escTool'), group: t('help.tools'),
         run: () => {

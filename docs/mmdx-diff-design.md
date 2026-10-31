@@ -1,6 +1,6 @@
 # `<mmdx-diff>` — diagram history and diff component
 
-Design document · status: implemented in 0.2.0 (see §20 for what shipped and what is deferred) · the prototype (`apps/studio-site/diff.html`) was replaced by the component and the studio's History mode
+Design document · status: implemented in 0.2.0 (see §20 for what shipped and what is deferred) · the prototype (`apps/studio-site/diff.html`) was replaced by the component and the History of the editor and the viewer
 
 ## 1. Summary
 
@@ -554,13 +554,13 @@ Shipped:
 | Phase 2, element | `src/elements/diff.ts`, `src/dom/morph.ts`, `src/ui/styles/diff.ts`, `src/ui/messages/diff.ts` | Four views, morph with reduced motion, filters with counts, change list, zoom bar and help from the shortcut registry, light / dark tokens, `::part()`s, events and methods of §8. |
 | Phase 3, panels | `src/ui/panes.ts`, `src/ui/zoom-bar.ts` (shared with the editor), `src/elements/diff/{panels,ink}.ts`, `src/adapters/history.ts` | Code / Metadata diff with selection narrowing; History / Compare with lazy per-version counts; the pen with one shared stroke store. |
 | Phase 4, export | `exportAs`, `toSvg`, `toPng` | PNG, SVG, `.mmdx`, `.mmd`, `.diff`, Markdown and JSON, cancelable `mmdx-export`; the menu is a download button in the left tool panel (open question 2). |
-| Phase 5, integrations | `src/elements/studio.ts`, `src/wrappers/react.ts` | The studio's History mode (bundled example histories, versions saved in browser storage, the working copy, Restore) and `MmdxDiff`. |
+| Phase 5, integrations | `src/elements/history-view.ts`, `src/editor/modules/chrome/history.ts`, `src/elements/viewer.ts`, `src/elements/studio.ts`, `src/wrappers/react.ts` | History is part of the editor and the viewer, not a separate view: a `history` property (any `HistoryAdapter` or list — §15's "DocumentAdapter that also implements HistoryAdapter" becomes a separate property) gives the editor's tool dock (⇧H) and the viewer's `history` control a button that covers the component with the diff of the versions plus the working copy, with Restore (editor, undoable) and Back. The view uses `<mmdx-diff>` by tag name, so the editor and viewer bundles never contain the diff (the page loads `mmdx/diff`; the button appears once it is defined): a lazy import from them split the shared diagram-kind code into more chunks and cost ~4 kB gzip on every viewer page. The studio feeds the editor the example histories and the versions saved in browser storage. `MmdxDiff` React wrapper. |
 
 Decisions taken on the open questions: the default view is Merged (not remembered yet); move arrows are drawn only for metadata moves (§12.2); versions without ids get a content hash (`contentId`).
 
 Deferred:
 
 - Diffing and rendering in the render worker for sources over 300 lines (§6.4); large samples stay interactive on the main thread.
-- Lazy diagram kinds and lazy panels in `mmdx/diff`: the entry is 85.5 kB gzip (budget 90 kB) instead of the 60 kB target of §16; `mmdx/core` is 52.8 kB with the engine (budget 55 kB).
-- Virtualised change list, infinite scroll of the history (a "Load older versions" button pages instead), the theme `diff` block and theme editor preview, the editor's conflict dialog, the Markdown `mermaid-diff` fence, rename detection for entities and participants, and the Playwright / axe suites (jsdom tests cover the element and the studio's History mode).
+- Lazy diagram kinds and lazy panels in `mmdx/diff`: the entry is 85.8 kB gzip (budget 90 kB) instead of the 60 kB target of §16; `mmdx/core` is 52.8 kB with the engine (budget 55 kB); the viewer is 45.3 kB with its History control (budget 46 kB).
+- Virtualised change list, infinite scroll of the history (a "Load older versions" button pages instead), the theme `diff` block and theme editor preview, the editor's conflict dialog, the Markdown `mermaid-diff` fence, rename detection for entities and participants, and the Playwright / axe suites (jsdom tests cover the element and the History of the editor, the viewer and the studio).
 

@@ -40,7 +40,8 @@ const v = await bundle('viewer');
 for (const k of ['flowchart', 'sequence', 'er']) {
   const f = Object.keys(v.outs).find((x) => x.includes(`kind-${k}-`) && x.endsWith('.js'));
   const extra = [...v.closure(f)].filter((x) => !v.base.has(x));
-  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), 45 * KB);
+  // 46 kB since 0.2.0: the History control (+0.4 kB; the diff itself is never in the viewer bundle)
+  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), 46 * KB);
 }
 // core includes the diff engine (diffs, merged model, annotations, reports, renderDiffToSvg); the diff entry ships every
 // diagram kind statically (both versions may be any type) — lazy kinds and panels are the next size step

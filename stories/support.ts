@@ -4,6 +4,7 @@
 import { ALIASES, adoptStyles, BASE, TOKENS } from '../src/ui/styles/base.js';
 import { BUILTIN_THEMES } from '../src/core/theme/builtin.js';
 import type { ThemeFile } from '../src/core/theme/types.js';
+import type { VersionInfo } from '../src/core/diff/report.js';
 import themeIndex from '../themes/index.json';
 
 const raw = import.meta.glob<string>('../examples/*.mmd', { eager: true, query: '?raw', import: 'default' });
@@ -17,6 +18,15 @@ export const example = (name: string): string => {
   const src = EXAMPLES[name];
   if (src === undefined) throw new Error(`No example "${name}"`);
   return src;
+};
+
+const histories = import.meta.glob<{ versions: (VersionInfo & { source: string })[] }>('../examples/history/*.json', { eager: true, import: 'default' });
+
+/** An example's version history (newest first, each version with its source), as the editor and viewer take it. */
+export const exampleHistory = (name: string): (VersionInfo & { source: string })[] => {
+  const h = histories[`../examples/history/${name}.json`];
+  if (!h) throw new Error(`No history for "${name}"`);
+  return h.versions;
 };
 
 /** Every shipped theme: the two built-ins plus the theme files (the built-ins' JSON is imported by src already). */

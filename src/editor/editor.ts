@@ -2,6 +2,7 @@
 // its feature modules; the custom element is a thin wrapper around it.
 import { EDITOR_MESSAGES } from '../ui/messages/editor.js';
 import { registerMessages } from '../ui/i18n.js';
+import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import { TOOLBAR_MESSAGES } from '../ui/messages/toolbar.js';
 import { ElementBase } from '../elements/base.js';
 import type { DocumentAdapter } from '../adapters/documents.js';
@@ -44,6 +45,8 @@ export interface EditorOptions {
   name?: string;
   ctx?: Partial<CoreContext>;
   modules?: readonly EditorModule[];
+  /** The document's versions (a HistoryAdapter or a list with sources): shows the History button. */
+  history?: HistoryAdapter | readonly StaticVersion[];
 }
 
 export type SaveOutcome = 'saved' | 'cancelled' | 'conflict' | 'failed' | 'no-adapter';
@@ -188,6 +191,7 @@ export class DiagramEditor {
     if (!options.ui && (hostUi === 'light' || hostUi === 'dark')) this.o.ui = hostUi;
     this.applyScheme();
     if (options.readOnly) core.setMode('view');
+    if (options.history) core.history.set(options.history);
     if (options.guardUnload) {
       const onBeforeUnload = (ev: BeforeUnloadEvent): void => {
         if (this.store.dirty.peek()) ev.preventDefault();
@@ -225,6 +229,19 @@ export class DiagramEditor {
     if (a) this.o.adapter = a;
     else delete this.o.adapter;
     if (a) void this.loadFromAdapter();
+  }
+
+  /** The document's versions; null hides the History button. */
+  get history(): HistoryAdapter | readonly StaticVersion[] | null {
+    return this.core.history.peek();
+  }
+  set history(h: HistoryAdapter | readonly StaticVersion[] | null) {
+    this.core.history.set(h ?? null);
+  }
+
+  /** Opens or closes the History view (when there is a history). */
+  toggleHistory(on?: boolean): void {
+    this.core.run('toggleHistory', on);
   }
 
   get readOnly(): boolean {
@@ -615,6 +632,13 @@ export class MmdxEditorElement extends ElementBase {
   set features(f: Partial<EditorFeatures>) {
     this.opt('features', f);
   }
+  get history(): HistoryAdapter | readonly StaticVersion[] | null {
+    return this.editor?.history ?? this.pending.history ?? null;
+  }
+  set history(h: HistoryAdapter | readonly StaticVersion[] | null) {
+    if (this.editor) this.editor.history = h;
+    else this.opt('history', h ?? undefined);
+  }
   set panels(p: EditorOptions['panels']) {
     this.opt('panels', p);
   }
@@ -658,6 +682,10 @@ export class MmdxEditorElement extends ElementBase {
   }
   plainMermaid(): Promise<void> {
     return this.editor?.plainMermaid() ?? Promise.resolve();
+  }
+  /** Opens or closes the History view (when the editor has a `history`). */
+  toggleHistory(on?: boolean): void {
+    this.editor?.toggleHistory(on);
   }
   get dirty(): boolean {
     return this.editor?.dirty ?? false;

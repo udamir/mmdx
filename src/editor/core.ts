@@ -3,6 +3,7 @@
 // selection helpers). Feature modules (canvas gestures, panels, toolbars) are installed on it and talk to each other
 // only through it: its signals, its events, and its registries for gestures, overlay painters and shortcuts.
 import type { StorageAdapter } from '../adapters/storage.js';
+import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import type { CoreContext } from '../core/context.js';
 import { KIND_TO_COLL, type DiagramMeta, type ItemMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
@@ -46,12 +47,14 @@ export interface EditorFeatures {
   exportFormats: readonly ('mmdx' | 'mmd' | 'svg' | 'png')[];
   help: boolean;
   fullscreen: boolean;
+  /** The History button (shown when the editor has a `history`). */
+  history: boolean;
 }
 
 export const DEFAULT_FEATURES: EditorFeatures = {
   codePanel: true, metadataTab: true, properties: true, layers: true, pen: true, copyStyle: true, styleToolbar: true,
   pageToolbar: true, autoLayout: true, plainMermaid: true, open: false, themePicker: true, export: true,
-  exportFormats: ['mmdx', 'mmd', 'svg', 'png'], help: true, fullscreen: true,
+  exportFormats: ['mmdx', 'mmd', 'svg', 'png'], help: true, fullscreen: true, history: true,
 };
 
 /** A selected item; `foot` marks the mirrored copy of a participant at the bottom of a sequence diagram. */
@@ -148,6 +151,8 @@ export interface EditorActions {
   gotoMetaLine(line: number): void;
   setPanel(name: 'code' | 'properties' | 'layers', open: boolean): void;
   toggleHelp(on?: boolean): void;
+  /** Opens or closes the History of the document (when the editor has a history). */
+  toggleHistory(on?: boolean): void;
   exportAs(kind: 'mmdx' | 'mmd' | 'svg' | 'png'): Promise<void>;
   setTheme(id: string): void;
   openFiles(files: FileList | File[]): Promise<void>;
@@ -213,6 +218,10 @@ export class EditorCore implements CoreServices {
   readonly display = signal({ labels: true, hoverHighlight: true });
   /** The chrome's light / dark scheme. The diagram is shown in the counterpart of its theme that matches it. */
   readonly scheme: Signal<'light' | 'dark'> = signal<'light' | 'dark'>('light');
+  /** The document's versions (host-provided); null = no History button. */
+  readonly history: Signal<HistoryAdapter | readonly StaticVersion[] | null> = signal<HistoryAdapter | readonly StaticVersion[] | null>(null);
+  /** The History view is open. */
+  readonly historyOpen: Signal<boolean> = signal(false);
   /** Problems in the Mermaid code and the metadata (code panel → canvas issue bar, badge on the Code tool). */
   readonly issueCount = signal(0);
   /** Base name for exports (no extension); files opened through `openFiles` set it. */

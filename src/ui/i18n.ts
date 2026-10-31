@@ -43,6 +43,7 @@ const EN: Messages = {
   'label.empty': 'Empty diagram',
   'label.unsupported': 'Diagram',
   'help.title': 'Shortcuts',
+  'history.open': 'History',
   'loading': 'Loading diagram…',
 };
 

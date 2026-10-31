@@ -89,6 +89,19 @@ export interface DiffOptions {
   storage?: StorageAdapter;
   ctx?: Partial<CoreContext>;
   themeSource?: ThemeSource;
+  /** Host actions shown as buttons in the top right corner (e.g. the editor's Restore and Back). */
+  actions?: readonly DiffAction[];
+}
+
+/** A button the host adds to the diff. */
+export interface DiffAction {
+  id: string;
+  label: string;
+  title?: string;
+  primary?: boolean;
+  /** Enabled for the shown versions (default: always). */
+  enabled?: (pair: { base: string | null; head: string | null; viewing: string | null }) => boolean;
+  run: () => void;
 }
 
 export interface DiffEventMap {
@@ -170,6 +183,7 @@ export class DiagramDiff {
   private readonly stage: HTMLElement;
   private readonly msg: HTMLElement;
   private readonly banner: HTMLElement;
+  private readonly actionsBar: HTMLElement;
   private readonly live: HTMLElement;
   private readonly vbarWrap: HTMLElement;
   private readonly vbar: HTMLElement;
@@ -249,6 +263,7 @@ export class DiagramDiff {
     this.stage = h('div', { class: 'stage', part: 'canvas' });
     this.msg = h('div', { class: 'msg' });
     this.banner = h('div', { class: 'banner', role: 'status', hidden: true });
+    this.actionsBar = h('div', { class: 'host-actions', role: 'group', hidden: true });
     this.vbar = h('div', { class: 'vbar mmdx-float', role: 'toolbar', 'aria-label': t('diff.tools'), 'aria-orientation': 'vertical', part: 'toolbar' });
     this.vbarWrap = h('div', { class: 'vbar-wrap' }, this.vbar);
     this.dbar = h('div', { class: 'dbar mmdx-float', role: 'toolbar', 'aria-label': t('diff.views'), part: 'diff-bar' });
@@ -260,7 +275,7 @@ export class DiagramDiff {
       zoomBtn(t('zoom.out'), '−', () => this.zoomBy(1 / 1.2)), this.zoomLabel, zoomBtn(t('zoom.in'), '+', () => this.zoomBy(1.2)),
       h('button', { type: 'button', title: `${t('zoom.fit')} (F)`, onclick: () => this.fit() }, t('zoom.fitShort')), this.helpBtn, this.fsBtn);
     this.live = h('div', { class: 'mmdx-sr', 'aria-live': 'polite' });
-    this.area = h('div', { class: 'area' }, this.stage, this.banner, this.msg, this.vbarWrap, this.dbar);
+    this.area = h('div', { class: 'area' }, this.stage, this.banner, this.msg, this.vbarWrap, this.dbar, this.actionsBar);
 
     this.leftHead = h('div', { class: 'tabs', role: 'tablist' });
     this.leftBody = h('div', { class: 'pane-body' });
@@ -323,6 +338,7 @@ export class DiagramDiff {
       this.applyPanels();
     }
     if ('ui' in patch) this.applyScheme(false);
+    if ('actions' in patch) this.renderActions();
     if ('wheel' in patch) for (const c of this.canvases) c.vp.setOptions({ wheel: this.o.wheel ?? 'always' });
     if (reload) {
       void this.load();
@@ -1201,6 +1217,16 @@ export class DiagramDiff {
 
   private renderTools(): void {
     this.keepFocus(this.vbarWrap, () => this.drawTools());
+    this.renderActions();
+  }
+
+  private renderActions(): void {
+    const list = this.o.actions ?? [];
+    this.actionsBar.hidden = !list.length;
+    this.keepFocus(this.actionsBar, () => this.actionsBar.replaceChildren(...list.map((a) => h('button', {
+      type: 'button', class: a.primary ? 'primary' : '', title: a.title ?? a.label, 'data-f': `act-${a.id}`, 'data-action': a.id,
+      disabled: a.enabled ? !a.enabled(this.pair) : false, onclick: () => a.run(),
+    }, a.label))));
   }
 
   private drawTools(): void {
@@ -1547,6 +1573,13 @@ export class MmdxDiffElement extends ElementBase {
   }
   set themeSource(v: ThemeSource) {
     this.setOpt({ themeSource: v });
+  }
+  /** Host buttons in the top right corner. */
+  get actions(): readonly DiffAction[] | undefined {
+    return this.diff?.options.actions ?? this.pending.actions;
+  }
+  set actions(v: readonly DiffAction[] | undefined) {
+    this.setOpt({ actions: v ?? [] });
   }
 
   compare(before: string, after: string): Promise<void> {
