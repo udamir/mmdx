@@ -257,6 +257,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
         },
       },
       feature: (name) => this.featureOn(name),
+      loadHistory: () => import('../diff/history.js'),
       ...(o.storage ? { storage: o.storage } : {}),
       ...(o.ctx ? { ctx: o.ctx } : {}),
       ...(o.themeSource ? { themeSource: o.themeSource } : {}),

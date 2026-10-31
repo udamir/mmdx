@@ -4,22 +4,16 @@
 // `loadHistory`, which the product passes (the kernel never imports the diff) — no `<mmdx-diff>` on the page needed.
 import { dockButton } from '../../ui/blocks/tool-dock.js';
 import type { ViewCore } from '../core.js';
-import type { HistoryLoader } from '../history.js';
+import { I_HISTORY } from '../icons.js';
 import type { ViewModule } from '../module.js';
-
-const I_HISTORY = 'M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3 4.5V9h4.5M12 7.5V12l3 2';
-
-// TODO(editor): drop once EditorCore passes `loadHistory` (the viewer does); until then this keeps the view layer
-// importing the diff for the editor's History.
-const fallback: HistoryLoader = () => import('../../diff/history.js');
 
 export const historyModule: ViewModule<ViewCore> = {
   id: 'history',
-  enabled: (core) => core.feature('history'),
+  enabled: (core) => !!core.loadHistory && core.feature('history'),
   install(scope) {
     const core = scope.core;
     const t = core.i18n.t;
-    const load = core.loadHistory ?? fallback;
+    const load = core.loadHistory!;
     let ctl: { close(): void } | null = null;
     /** The open in progress (the History chunk loading); replaced or cleared to cancel it. */
     let pending: object | null = null;
