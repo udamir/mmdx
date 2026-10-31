@@ -3,9 +3,10 @@
 // radio is the one in the Tab order; arrow keys switch.
 import { h, icon } from '../h.js';
 import { registerMessages } from '../i18n.js';
-import { ICONS } from '../icons.js';
+import { I_moon, I_sun } from '../icons.js';
 import { BLOCK_MESSAGES_CHROME } from '../messages/blocks.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
+import { rovingKeys } from './focus.js';
 
 export type Scheme = 'light' | 'dark';
 
@@ -33,19 +34,13 @@ export function createSchemeToggle(props: SchemeToggleProps): BlockHandle<Scheme
     });
     return b;
   };
-  const light = radio('light', ICONS.sun);
-  const dark = radio('dark', ICONS.moon);
+  const light = radio('light', I_sun);
+  const dark = radio('dark', I_moon);
   const el = h('div', { class: 'vp-mode', role: 'radiogroup' }, light, dark);
 
   // arrows pick the other scheme (two radios: every arrow toggles) and move the focus with it
-  scope.on(el, 'keydown', (ev: KeyboardEvent) => {
-    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(ev.key) || ev.altKey || ev.metaKey || ev.ctrlKey) return;
-    ev.preventDefault();
-    ev.stopPropagation();
-    const next = (ev.target as HTMLElement).dataset['ui'] === 'dark' ? light : dark;
-    next.focus();
-    next.click();
-  });
+  const keys = rovingKeys(el, { orientation: 'both', selector: '[role=radio]', select: true, homeEnd: false });
+  scope.add(() => keys.destroy());
 
   const render = (): void => {
     const { t } = p;

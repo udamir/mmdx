@@ -7,6 +7,7 @@ import type { Messages } from '../i18n.js';
 export const BLOCK_MESSAGES_DIFF: Messages = {
   // ---- filter toggles
   'diff.filters': 'Change filters',
+  'diff.filter.name': '{label} ({n})',
   'diff.filter.tip': '{label} · {n} — click to {action}',
   'diff.filter.hide': 'hide',
   'diff.filter.show': 'show',

@@ -54,19 +54,19 @@ describe('ZoomBar', () => {
     expect(help.getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('full screen: icon, label and pressed follow the state; hidden when not available', () => {
+  it('full screen: icon and label follow the state (no pressed state as well); hidden when not available', () => {
     const active = signal(false);
     const onToggle = vi.fn();
     const bar = createZoomBar({ view: signal({ k: 1 }), onZoom: () => undefined, onFit: () => undefined, fullscreen: { active, available: true, onToggle }, t });
     const fs = bar.el.querySelector<HTMLButtonElement>('.fs-btn')!;
     expect(fs.hidden).toBe(false);
     expect(fs.getAttribute('aria-label')).toBe('Full screen');
-    expect(fs.getAttribute('aria-pressed')).toBe('false');
+    expect(fs.hasAttribute('aria-pressed')).toBe(false);
     const icon = fs.innerHTML;
     active.set(true);
     expect(fs.getAttribute('aria-label')).toBe('Close full screen');
     expect(fs.title).toBe('Close full screen');
-    expect(fs.getAttribute('aria-pressed')).toBe('true');
+    expect(fs.hasAttribute('aria-pressed')).toBe(false);
     expect(fs.classList.contains('on')).toBe(true);
     expect(fs.innerHTML).not.toBe(icon);
     fs.click();

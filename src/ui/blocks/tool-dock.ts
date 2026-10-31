@@ -4,7 +4,6 @@
 // `editor/modules/chrome/tool-dock.ts` and the diff's `vbar`; the class names are kept so the editor's tests and
 // styles still match. The host builds the buttons (`dockButton`) and owns their state.
 import { h } from '../h.js';
-import { formatKeys } from '../shortcuts.js';
 import { read, Scope, type BlockHandle, type Value } from './block.js';
 import { createIconButton, type IconButtonHandle, type IconButtonProps } from './button.js';
 import { keepFocus } from './focus.js';
@@ -74,7 +73,7 @@ export interface DockButtonProps extends Omit<IconButtonProps, 'icon' | 'iconSiz
 
 /** A tool-dock button (`.vt-tool`): 19 px icon, native tooltip with the shortcut formatted for the platform. */
 export function dockButton(props: DockButtonProps): IconButtonHandle {
-  return createIconButton({ formatKeys, ...props, iconSize: 19, tooltip: 'title', class: ['vt-tool', props.class].filter(Boolean).join(' ') });
+  return createIconButton({ ...props, iconSize: 19, tooltip: 'title', class: ['vt-tool', props.class].filter(Boolean).join(' ') });
 }
 
 /** The problem badge on a dock button (`.has-issues`, count from `data-issues`, capped at 99+). */

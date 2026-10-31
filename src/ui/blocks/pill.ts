@@ -2,8 +2,7 @@
 // History's "v3 → Working copy" with a swap tool and Back (Esc). The text is a status region, so changes are
 // announced; tools are icon buttons between the text and the action.
 import { h, icon } from '../h.js';
-import { ICONS } from '../icons.js';
-import { formatKeys as defaultFormat } from '../shortcuts.js';
+import { I_chevronLeft } from '../icons.js';
 import { ariaKeys, read, Scope, tipText, type BlockHandle, type Translate, type Value } from './block.js';
 
 /** An icon button of the pill, between the text and its action (e.g. swap Before and After). */
@@ -33,6 +32,8 @@ export interface PillProps {
   label?: string;
   /** Formats `keys` for the tooltip (default: the registry's `formatKeys`). */
   formatKeys?: (keys: string) => string;
+  /** `part` of the pill (default none). */
+  part?: string;
 }
 
 export const PILL_CSS = /* css */ `
@@ -53,9 +54,6 @@ export const PILL_CSS = /* css */ `
 .mmdx-pill-btn.icon-only .mmdx-icon { width: 18px; height: 18px; }
 `;
 
-/** `escape` → `Escape` for `aria-keyshortcuts` (named keys are capitalised there). */
-const ariaKey = (keys: string): string => ariaKeys(keys).split('+').map((k) => (k.length > 1 ? k[0]!.toUpperCase() + k.slice(1) : k)).join('+');
-
 export function createPill(props: PillProps): BlockHandle<PillProps> {
   let p = { ...props };
   const scope = new Scope();
@@ -70,7 +68,7 @@ export function createPill(props: PillProps): BlockHandle<PillProps> {
   const render = (): void => {
     const { action } = p;
     el.setAttribute('aria-label', p.label ?? p.t('history.open'));
-    button.replaceChildren(...(action.icon ? [icon(action.icon, 18)] : [icon(ICONS.chevronLeft, 16), h('span', null, action.label)]));
+    button.replaceChildren(...(action.icon ? [icon(action.icon, 18)] : [icon(I_chevronLeft, 16), h('span', null, action.label)]));
     button.classList.toggle('icon-only', !!action.icon);
     if (action.icon) button.setAttribute('aria-label', action.label);
     else button.removeAttribute('aria-label');
@@ -78,17 +76,19 @@ export function createPill(props: PillProps): BlockHandle<PillProps> {
     text.classList.toggle('mmdx-sr', !!p.content);
     content.replaceChildren(...(p.content ? [p.content] : []));
     content.hidden = !p.content;
-    button.title = tipText(action.label, action.keys, p.formatKeys ?? defaultFormat);
-    if (action.keys) button.setAttribute('aria-keyshortcuts', ariaKey(action.keys));
+    if (p.part) el.setAttribute('part', p.part);
+    else el.removeAttribute('part');
+    button.title = tipText(action.label, action.keys, p.formatKeys);
+    if (action.keys) button.setAttribute('aria-keyshortcuts', ariaKeys(action.keys));
     else button.removeAttribute('aria-keyshortcuts');
     fx.dispose();
     fx = new Scope();
     const value = p.text;
     fx.effect(() => void (text.textContent = read(value)));
     tools.replaceChildren(...(p.tools ?? []).map((tool) => {
-      const tip = tipText(tool.label, tool.keys, p.formatKeys ?? defaultFormat);
+      const tip = tipText(tool.label, tool.keys, p.formatKeys);
       const b = h('button', { type: 'button', class: 'mmdx-pill-tool', title: tip, 'aria-label': tool.label, 'data-f': `pill-${tool.id}`, 'data-tool': tool.id }, icon(tool.icon, 18));
-      if (tool.keys) b.setAttribute('aria-keyshortcuts', ariaKey(tool.keys));
+      if (tool.keys) b.setAttribute('aria-keyshortcuts', ariaKeys(tool.keys));
       fx.on(b, 'click', () => tool.onClick());
       const hidden = tool.hidden;
       if (hidden !== undefined) fx.effect(() => void (b.hidden = read(hidden)));

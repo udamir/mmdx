@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ariaKeys, tipText } from '../../../src/ui/blocks/block.js';
 import { createIconButton } from '../../../src/ui/blocks/button.js';
 import { keepFocus } from '../../../src/ui/blocks/focus.js';
 import { createMenu, openMenu } from '../../../src/ui/blocks/menu.js';
@@ -23,7 +24,7 @@ describe('IconButton', () => {
     const onClick = vi.fn();
     const b = createIconButton({ icon: 'M0 0h1', label: 'Hand', keys: 'shift+h', onClick, class: 'vt-tool', f: 'hand' });
     expect(b.el.getAttribute('aria-label')).toBe('Hand');
-    expect(b.el.title).toBe('Hand (shift+H)');
+    expect(b.el.title).toBe('Hand (Shift+H)'); // the registry's formatKeys by default
     expect(b.el.getAttribute('aria-keyshortcuts')).toBe('Shift+h');
     expect(b.el.dataset['f']).toBe('hand');
     expect(b.el.classList.contains('vt-tool')).toBe(true);
@@ -167,5 +168,20 @@ describe('Tabs and Segmented', () => {
     expect(b.textContent).toBe('');
     expect(b.querySelector('svg')).not.toBeNull();
     expect(b.dataset['tip']).toBe('Before (1)');
+  });
+});
+
+describe('ariaKeys and tipText', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('mod is Control elsewhere and Meta on Apple platforms; named keys use their key names; alternatives are spaced', () => {
+    expect(ariaKeys('mod+shift+z')).toBe('Control+Shift+z');
+    expect(ariaKeys('escape')).toBe('Escape');
+    expect(ariaKeys('arrowup')).toBe('ArrowUp');
+    expect(ariaKeys(['delete', 'mod+x'])).toBe('Delete Control+x');
+    expect(tipText('Undo', 'mod+z')).toBe('Undo (Ctrl+Z)');
+    vi.stubGlobal('navigator', { platform: 'MacIntel', userAgent: '' });
+    expect(ariaKeys('mod+z')).toBe('Meta+z');
+    expect(tipText('Undo', 'mod+z')).toBe('Undo (⌘Z)');
   });
 });

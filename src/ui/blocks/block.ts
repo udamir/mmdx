@@ -2,7 +2,8 @@
 // and callbacks, and know nothing about diagrams, editors or the kernel. A block is created by a `createX(props)`
 // function returning a handle; its CSS is a fragment the host adopts (deduplicated by identity), written against the
 // `--mmdx-*` tokens only.
-import type { I18n } from '../i18n.js';
+import { isMac, type I18n } from '../i18n.js';
+import { formatKeys } from '../shortcuts.js';
 import { effect, type ReadSignal } from '../signal.js';
 
 /** The translation function every block takes its strings through. */
@@ -13,8 +14,6 @@ export type Value<T> = T | ReadSignal<T>;
 
 /** Reads a plain value or a signal (tracked inside an effect). */
 export const read = <T>(v: Value<T>): T => (typeof v === 'function' ? (v as ReadSignal<T>)() : v);
-
-export const isSignal = <T>(v: Value<T>): v is ReadSignal<T> => typeof v === 'function';
 
 export interface BlockHandle<P> {
   readonly el: HTMLElement;
@@ -54,9 +53,19 @@ export class Scope {
   }
 }
 
-/** Tooltip text with a shortcut hint: `Hand (H)`. */
-export const tipText = (label: string, keys?: string, format?: (k: string) => string): string => (keys ? `${label} (${format ? format(keys) : keys})` : label);
+/** Tooltip text with a shortcut hint: `Hand (H)`; `format` defaults to the registry's `formatKeys` (platform symbols). */
+export const tipText = (label: string, keys?: string, format: (k: string) => string = formatKeys): string => (keys ? `${label} (${format(keys)})` : label);
 
-/** `aria-keyshortcuts` value from a registry key (`mod+z` → `Control+z`). */
-export const ariaKeys = (keys: string): string =>
-  keys.split('+').map((p) => (p === 'mod' ? 'Control' : p.length > 1 ? p[0]!.toUpperCase() + p.slice(1) : p)).join('+');
+/** Registry key names → `aria-keyshortcuts` names (UI Events `key` values). */
+const ARIA_NAMES: Readonly<Record<string, string>> = {
+  shift: 'Shift', alt: 'Alt', ctrl: 'Control', delete: 'Delete', escape: 'Escape', enter: 'Enter', space: 'Space',
+  arrowup: 'ArrowUp', arrowdown: 'ArrowDown', arrowleft: 'ArrowLeft', arrowright: 'ArrowRight', home: 'Home', end: 'End', tab: 'Tab',
+};
+
+/**
+ * `aria-keyshortcuts` value from a registry key: `mod+z` → `Meta+z` on Apple platforms, `Control+z` elsewhere;
+ * alternatives (`['delete', 'backspace']`) are joined by a space.
+ */
+export const ariaKeys = (keys: string | readonly string[]): string =>
+  (typeof keys === 'string' ? [keys] : keys).map((k) => k.split('+').map((p) =>
+    p === 'mod' ? (isMac() ? 'Meta' : 'Control') : ARIA_NAMES[p] ?? (p.length > 1 ? p[0]!.toUpperCase() + p.slice(1) : p)).join('+')).join(' ');

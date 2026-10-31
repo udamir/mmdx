@@ -10,7 +10,7 @@ export interface IconButtonProps {
   label: string;
   /** Shortcut (registry form, `shift+h`), shown in the tooltip and as `aria-keyshortcuts`. */
   keys?: string;
-  /** Formats `keys` for the tooltip (the registry's `formatKeys`); default: as written, upper-cased letters. */
+  /** Formats `keys` for the tooltip (default: the registry's `formatKeys`, `⇧H` / `Shift+H`). */
   formatKeys?: (keys: string) => string;
   /** Visible text (after the icon, or alone). */
   text?: string;
@@ -34,8 +34,6 @@ export interface IconButtonHandle extends BlockHandle<IconButtonProps> {
   readonly el: HTMLButtonElement;
 }
 
-const defaultFormat = (k: string): string => k.split('+').map((p) => (p.length === 1 ? p.toUpperCase() : p)).join('+');
-
 export function createIconButton(props: IconButtonProps): IconButtonHandle {
   let p = { ...props };
   const scope = new Scope();
@@ -49,7 +47,7 @@ export function createIconButton(props: IconButtonProps): IconButtonHandle {
     el.className = ['mmdx-btn', p.class].filter(Boolean).join(' ');
     el.replaceChildren(...[p.icon ? svgIcon(p.icon, p.iconSize ?? 16) : null, p.text ?? null].filter((x): x is SVGElement | string => x !== null));
     el.setAttribute('aria-label', p.label);
-    const tip = p.tip ?? tipText(p.label, p.keys, p.formatKeys ?? defaultFormat);
+    const tip = p.tip ?? tipText(p.label, p.keys, p.formatKeys);
     el.removeAttribute('title');
     el.removeAttribute('data-tip');
     if ((p.tooltip ?? 'title') === 'title') el.title = tip;
@@ -89,7 +87,7 @@ export function createIconButton(props: IconButtonProps): IconButtonHandle {
   };
 }
 
-/** An IconButton with a pressed state (`aria-pressed`). */
+/** ToggleButton (§5.2): an IconButton whose `pressed` is required (`aria-pressed` and the `on` class follow it). */
 export function createToggleButton(props: IconButtonProps & { pressed: Value<boolean> }): IconButtonHandle {
   return createIconButton(props);
 }
