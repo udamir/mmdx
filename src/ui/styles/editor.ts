@@ -29,5 +29,8 @@ svg.canvas.panning { cursor: grabbing; }
 .overlay [data-handle], .overlay .hit-on { pointer-events: all; }
 .ed.dragging .mtb { opacity: 0; pointer-events: none; }
 .ed:focus-visible { box-shadow: inset var(--mmdx-focus); }
+.mmdx-dialog.compare { width: min(760px, calc(100% - 32px)); }
+.compare-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; min-width: 0; }
+.compare-sides pre { max-height: 260px; overflow: auto; margin: 0; padding: 8px; border-radius: 6px; background: var(--mmdx-surface-2); font: 12px/1.5 var(--mmdx-mono); }
 @media print { .tool-dock, .bottom-bar, .view-params { display: none !important; } }
 `;

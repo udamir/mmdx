@@ -126,10 +126,13 @@ describe('a remote update during a gesture', () => {
     await tick();
     expect(ed.dirty).toBe(true);
     expect(ed.getSource()).not.toContain('Gamma');
-    const bar = ed.core.root.querySelector('[role=status].mmdx-float');
-    expect(bar?.textContent).toContain('Changed by someone else');
-    [...bar!.querySelectorAll('button')].find((b) => b.textContent === 'Reload')!.click();
+    // a pill at the top centre (its block loads on first use)
+    await vi.waitFor(() => expect(ed.core.slots['top-center'].querySelector('.mmdx-pill.remote')).not.toBeNull());
+    const bar = ed.core.slots['top-center'].querySelector('.mmdx-pill.remote')!;
+    expect(bar.querySelector('[role=status]')?.textContent).toBe('Changed by someone else');
+    bar.querySelector<HTMLButtonElement>('[data-tool=reload]')!.click();
     expect(ed.getSource()).toBe(REMOTE);
+    expect(ed.core.slots['top-center'].querySelector('.mmdx-pill')).toBeNull();
   });
 });
 

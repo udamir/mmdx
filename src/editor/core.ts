@@ -608,6 +608,26 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     return true;
   }
 
+  /**
+   * Replaces the document (a host's `setSource`, a remote update, an opened file). A gesture or transaction in flight
+   * is cancelled first (rolled back, like Esc). `reset` clears the history, `push` makes it an undoable step. A load
+   * (not a remote update) leaves group editing and the page selection; the view fits the new document unless `fit` is
+   * false and the diagram type stayed (while History owns the canvas, the document's view is restored on the way back).
+   */
+  loadSource(src: string, opts: { history: 'reset' | 'push'; reason: 'load' | 'remote'; fit?: boolean; markSaved?: boolean }): void {
+    this.cancelGesture();
+    const before = this.store.model.peek().type;
+    this.store.load(src, { history: opts.history, reason: opts.reason, markSaved: opts.markSaved !== false });
+    if (opts.reason === 'load') {
+      this.enteredGroup.set(null);
+      this.pageSelected.set(false);
+    }
+    this.draw();
+    if (this.scene === this.storeScene && (opts.fit !== false || before !== this.store.model.peek().type)) this.viewport.setBounds(this.result.result.bounds, { fit: true });
+    this.fire('model');
+    this.fire('panels');
+  }
+
   /** Replaces the metadata as one history step (`mmdx-op`; a veto rolls it back). */
   setMeta(label: string, meta: DiagramMeta): void {
     this.change(label, () => this.store.meta.set(meta));

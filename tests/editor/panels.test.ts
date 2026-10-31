@@ -353,6 +353,28 @@ describe('export', () => {
   });
 });
 
+describe('open files', () => {
+  test('a file opened replaces the document as one undoable step and names the exports; the view leaves the group and the selection', async () => {
+    vi.useRealTimers();
+    ed = new DiagramEditor(host, { value: FLOW, modules: [documentModule], storage: memoryStorage(), features: { open: true } });
+    const e = ed;
+    e.core.select([{ kind: 'node', id: 'A' }]);
+    e.core.enteredGroup.set('G');
+    const ops: string[] = [];
+    host.addEventListener('mmdx-op', (ev) => ops.push((ev as CustomEvent<{ type: string }>).detail.type));
+    const file = { name: 'other.mmd', text: () => Promise.resolve('flowchart TB\n  X --> Y\n') } as unknown as File; // jsdom's File has no text()
+    await e.core.run('openFiles', [file]);
+    expect(ops).toEqual(['doc.open']);
+    expect(e.getSource()).toContain('X --> Y');
+    expect(e.core.fileName).toBe('other');
+    expect(e.core.selection()).toEqual([]);
+    expect(e.core.enteredGroup.peek()).toBeNull();
+    expect(e.dirty).toBe(true);
+    e.undo();
+    expect(e.getSource()).toBe(FLOW);
+  });
+});
+
 describe('full editor', () => {
   test('mounts with every default module and tears down cleanly', async () => {
     const e = mount(FLOW, DEFAULT_MODULES);
