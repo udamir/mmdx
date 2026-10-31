@@ -417,5 +417,3 @@ export function canGroup(core: EditorCore): { ok: boolean; reason: string } {
   return { ok: false, reason: '' };
 }
 
-/** Dispatches the element's own input event (after setting a value programmatically in tests or helpers). */
-export const isEditable = (core: EditorCore): boolean => core.mode.peek() === 'edit' && core.model.type !== null;

@@ -82,8 +82,6 @@ export interface Gesture {
   click?(ev: PointerEvent): void;
   /** Movement threshold in screen px before move() starts (default 3; 0 = immediately). */
   threshold?: number;
-  /** Label for the history step when the core commits for the gesture (default: the gesture commits itself). */
-  label?: string;
 }
 
 /** What is under the pointer: the closest scene item and/or overlay handle. */
@@ -165,8 +163,6 @@ export interface EditorActions {
   plainMermaid(): Promise<void>;
   refreshToolbar(): void;
 }
-
-export type CoreEvent = 'draw' | 'selection' | 'panels' | 'mode' | 'tool' | 'view' | 'model' | 'theme' | 'overlay' | 'stage';
 
 export interface CoreDom {
   shadow: ShadowRoot;
