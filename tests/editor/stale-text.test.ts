@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // A text edit (inline editor, Properties text field) applies to the document as it is when the edit ends, not to the
 // snapshot taken when it opened: a remote update while typing survives, and an item that is gone is left alone.
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
 import { CANVAS_MODULES } from '../../src/editor/modules/canvas/index.js';
@@ -30,6 +30,8 @@ const mount = (value: string, modules: readonly EditorModule[]): DiagramEditor =
   return ed;
 };
 const flush = async (): Promise<void> => {
+  // the Properties inspectors load the first time the panel shows
+  await vi.dynamicImportSettled();
   await Promise.resolve();
   await Promise.resolve();
 };

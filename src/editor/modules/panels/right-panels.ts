@@ -1,6 +1,6 @@
 // Right column (A.2 row 21, A.7 rows 61–68): Properties and Layers as two SidePanels in the right PanelStack (the
 // stack, its splitter — the Layers height, `layersH` — and its width grip are chrome/panes.ts), each closed with × (or
-// its tool) and remembered. In View mode only Layers shows, as "View settings", and hovering a box highlights its
+// its tool) and remembered. The Properties content (the inspectors) loads the first time it shows. In View mode only Layers shows, as "View settings", and hovering a box highlights its
 // connections (Display → hover highlight). Ported from index.html `#rightPane` and prototype/app.js (~1875–2594,
 // ~3016–3066).
 import { clearHighlight, hoverHighlight } from '../../../dom/highlight.js';
@@ -9,7 +9,7 @@ import { h } from '../../../ui/h.js';
 import type { EditorModule } from '../../module.js';
 import { LiveEdit } from '../../ops/live.js';
 import { LAYERS_CSS, layersCard } from './layers.js';
-import { renderProperties } from './properties.js';
+import type { PanelCtx } from './properties.js';
 
 export const RIGHT_PANELS_CSS = /* css */ `
 ${LAYERS_CSS}
@@ -142,6 +142,20 @@ export const rightPanelsModule: EditorModule = {
       });
     }
 
+    // ---- the inspectors load the first time Properties shows (the panel renders once they are there)
+    let inspect: ((p: PanelCtx, host: HTMLElement) => void) | null = null;
+    let loading = false, gone = false;
+    const renderProps = (host: HTMLElement): void => {
+      if (inspect) return inspect({ core, live }, host);
+      if (loading) return;
+      loading = true;
+      void import('./properties.js').then((m) => {
+        if (gone) return;
+        inspect = m.renderProperties;
+        refresh();
+      });
+    };
+
     // ---- refresh: coalesced; a panel with focus inside waits until focus leaves it (typing is never interrupted)
     const dirty = { props: false, layers: false };
     let queued = false;
@@ -153,7 +167,7 @@ export const rightPanelsModule: EditorModule = {
       queued = false;
       if (dirty.props && propsBody && !focusedIn(propsBody)) {
         dirty.props = false;
-        if (core.mode.peek() === 'edit' && core.panels.peek().properties) renderProperties({ core, live }, propsBody);
+        if (core.mode.peek() === 'edit' && core.panels.peek().properties) renderProps(propsBody);
       }
       if (dirty.layers && layers && !focusedIn(layers.el)) {
         dirty.layers = false;
@@ -199,6 +213,7 @@ export const rightPanelsModule: EditorModule = {
     });
 
     return () => {
+      gone = true;
       live.flush();
       for (const off of offs) off();
     };

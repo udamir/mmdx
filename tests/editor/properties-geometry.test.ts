@@ -2,7 +2,7 @@
 // The geometry fields of Properties, for one item and for several of one kind (one set of helpers for both): boxes
 // show their rounded position and size, connectors their routing and label position (ER relationships: the label
 // counted from the other end).
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import type { ItemRef } from '../../src/core/types.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
@@ -26,6 +26,8 @@ const mount = (value: string): DiagramEditor => {
   return ed;
 };
 const flush = async (): Promise<void> => {
+  // the Properties inspectors load the first time the panel shows
+  await vi.dynamicImportSettled();
   await Promise.resolve();
   await Promise.resolve();
 };

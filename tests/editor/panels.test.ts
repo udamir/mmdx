@@ -30,6 +30,8 @@ const type = (ta: HTMLTextAreaElement, value: string): void => {
   ta.dispatchEvent(new Event('input', { bubbles: true }));
 };
 const flush = async (): Promise<void> => {
+  // the Properties inspectors load the first time the panel shows
+  await vi.dynamicImportSettled();
   await Promise.resolve();
   await Promise.resolve();
 };
