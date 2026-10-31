@@ -47,12 +47,6 @@ export function s(tag: string, props?: Props | null, ...children: Child[]): SVGE
   return el as SVGElement;
 }
 
-export function frag(...children: Child[]): DocumentFragment {
-  const f = document.createDocumentFragment();
-  append(f, children);
-  return f;
-}
-
 /** Inline SVG icon from a fixed, trusted path set (never user input). */
 export function icon(d: string, size = 16): SVGElement {
   return s('svg', { viewBox: '0 0 24 24', width: String(size), height: String(size), 'aria-hidden': 'true', class: 'mmdx-icon' },

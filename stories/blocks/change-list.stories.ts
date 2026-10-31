@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { diffDiagrams } from '../../src/core/diff/all.js';
+import { changeKey } from '../../src/core/diff/merge.js';
 import { CHANGE_LIST_CSS, createChangeList } from '../../src/ui/blocks/change-list.js';
 import { createI18n } from '../../src/ui/i18n.js';
 import { DIFF_TOKENS } from '../../src/ui/styles/diff.js';
@@ -19,7 +20,7 @@ function changeList(a: Args): HTMLElement {
   const log = document.createElement('div');
   log.className = 'log';
   const cl = createChangeList({
-    diff, changes, selected: null, colorBefore: color, colorAfter: color, t: createI18n().t, part: 'change-list',
+    doc: diff.doc, changes, keyOf: changeKey, selected: null, colorBefore: color, colorAfter: color, t: createI18n().t, part: 'change-list',
     onSelect: (key) => {
       cl.select(key);
       log.textContent = `selected: ${key ?? '(none)'}`;

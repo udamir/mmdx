@@ -34,6 +34,15 @@ describe('themeMenuEntries', () => {
     expect(items.at(-1)?.checked).toBeUndefined();
   });
 
+  it('picked can be a signal, read when the entries are built', () => {
+    const picked = signal<string | null>(null);
+    const ticked = (): string[] => (themeMenuEntries({ themes: THEMES, picked, onPick: vi.fn(), onFollow: vi.fn(), t })
+      .filter((e) => typeof e === 'object' && 'label' in e && e.checked) as { label: string }[]).map((x) => x.label);
+    expect(ticked()).toEqual(['Follow light / dark']);
+    picked.set('default-dark');
+    expect(ticked()).toEqual(['Default Dark']);
+  });
+
   it('ticks the picked theme only; no Edit entry without onEdit; empty groups are skipped', () => {
     const entries = themeMenuEntries({ themes: THEMES.slice(0, 2), picked: 'paper', onPick: vi.fn(), onFollow: vi.fn(), t });
     const items = entries.filter((e) => typeof e === 'object' && 'label' in e) as { label: string; checked?: boolean }[];

@@ -18,8 +18,8 @@ export interface ThemeInfo {
 
 export interface ThemeMenuProps {
   themes: readonly ThemeInfo[];
-  /** The user's pick, or null while the theme follows the chrome scheme. */
-  picked: string | null;
+  /** The user's pick, or null while the theme follows the chrome scheme (read when the menu opens). */
+  picked: Value<string | null>;
   onPick: (id: string) => void;
   /** "Follow light / dark": clears the pick. */
   onFollow: () => void;
@@ -38,12 +38,13 @@ export const THEME_MENU_CSS = /* css */ `
 export function themeMenuEntries(p: ThemeMenuProps): MenuEntry[] {
   registerMessages(BLOCK_MESSAGES_PANELS);
   const t = p.t;
-  const out: MenuEntry[] = [{ label: t('theme.follow'), checked: p.picked === null, run: () => p.onFollow() }];
+  const picked = read(p.picked);
+  const out: MenuEntry[] = [{ label: t('theme.follow'), checked: picked === null, run: () => p.onFollow() }];
   for (const [ap, label] of [['light', t('theme.light')], ['dark', t('theme.dark')]] as const) {
     const list = p.themes.filter((x) => x.appearance === ap);
     if (!list.length) continue;
     out.push({ section: label });
-    for (const th of list) out.push({ label: th.name, checked: th.id === p.picked, run: () => p.onPick(th.id) });
+    for (const th of list) out.push({ label: th.name, checked: th.id === picked, run: () => p.onPick(th.id) });
   }
   if (p.onEdit) {
     const edit = p.onEdit;
@@ -69,8 +70,7 @@ export function openThemeMenu(o: OpenThemeMenuOptions): void {
   });
 }
 
-export interface ThemeButtonProps extends Omit<ThemeMenuProps, 'picked'> {
-  picked: Value<string | null>;
+export interface ThemeButtonProps extends ThemeMenuProps {
   /** The theme currently drawn (the pick, or the scheme's default): the button's label names it. */
   shown: Value<string>;
   popovers: PopoverManager;
@@ -94,7 +94,7 @@ export function createThemeButton(props: ThemeButtonProps): ThemeButtonHandle {
   const el = h('button', { type: 'button', class: 'vp-btn mmdx-theme-btn' }, icon(I_palette, 18), caret);
   scope.add(attachMenu({
     button: el, popovers: p.popovers, label: p.t('theme.menu'),
-    entries: () => themeMenuEntries({ ...p, picked: read(p.picked) }),
+    entries: () => themeMenuEntries(p),
     within: () => p.within?.(),
     ...(p.align ? { align: p.align } : {}), ...(p.placement ? { placement: p.placement } : {}),
   }));

@@ -4,7 +4,7 @@
 // History mode (left, C); `changeList` — the changes of the shown pair (right, L; not in History mode). Replace the
 // panel half of elements/diff.ts (`renderHistory`, `renderCode`, `renderChanges`, `applyPanels`) and the DOM
 // builders of elements/diff/panels.ts.
-import type { DiagramDiff as DiffResult } from '../../core/diff/index.js';
+import { changeKey } from '../../core/diff/merge.js';
 import { createChangeList, CHANGE_LIST_CSS } from '../../ui/blocks/change-list.js';
 import { createCodeView, CODE_VIEW_CSS, type CodeSelection } from '../../ui/blocks/code-view.js';
 import { createSidePanel } from '../../ui/blocks/side-panel.js';
@@ -59,7 +59,7 @@ export function versionsModule(session: DiffSession, o: { dockButton?: boolean; 
         session.loadMore().catch((e: unknown) => core.toast(`${t('diff.history.failed')}: ${e instanceof Error ? e.message : String(e)}`, { error: true }));
       };
       const list = createVersionList({
-        versions: [], counts: (id) => session.counts(id), mode: session.mode.peek(), base: null, head: null, viewing: null, locale: core.i18n.locale, hasMore: false,
+        versions: [], counts: (id) => session.counts(id), mode: session.mode, base: session.base, head: session.head, viewing: session.viewing, locale: core.i18n.locale, hasMore: false,
         onPick: (side, id) => session.setPair(side === 'before' ? id : session.base.peek(), side === 'after' ? id : session.head.peek()),
         onRow: (id) => (session.mode.peek() === 'compare' ? session.compareWithPrevious(id) : session.viewVersion(id)),
         onMore: loadMore, t,
@@ -94,14 +94,16 @@ export function versionsModule(session: DiffSession, o: { dockButton?: boolean; 
         scope.onDispose(() => btn.destroy());
       }
       scope.shortcut({ id: 'history', keys: ['v'], label: t('diff.help.history'), group: t('diff.help.panels'), run: () => (session.hasHistory.peek() ? toggle() : false) });
-      // the rows follow the versions, the pair, the tab and the counts while the panel shows
+      // the rows follow the versions while the panel shows (the pair, the tab and the viewed version are signals the
+      // list follows itself); a count that arrives patches only its row's badges
       scope.effect(() => {
         if (!open() || !session.hasHistory()) return;
-        session.countsRev();
-        const props = {
-          versions: session.versions(), mode: session.mode(), base: session.base(), head: session.head(), viewing: session.viewing(), hasMore: session.hasMore(),
-        };
+        const props = { versions: session.versions(), hasMore: session.hasMore() };
         untracked(() => list.update(props));
+      });
+      scope.effect(() => {
+        session.countsRev();
+        if (open()) untracked(() => list.refreshCounts());
       });
       return () => {
         list.destroy();
@@ -191,8 +193,6 @@ export function codeDiffModule(session: DiffSession): ViewModule<ViewCore> {
   };
 }
 
-const NO_DIFF: DiffResult = { type: null, typeChanged: false, items: [], doc: [], counts: { added: 0, removed: 0, changed: 0, content: 0, layout: 0, style: 0 } };
-
 export function changeListModule(session: DiffSession): ViewModule<ViewCore> {
   return {
     id: 'changes',
@@ -203,7 +203,7 @@ export function changeListModule(session: DiffSession): ViewModule<ViewCore> {
       const core = scope.core;
       const t = core.i18n.t;
       const { open, toggle } = toggleOf(scope, 'changes');
-      const list = createChangeList({ diff: NO_DIFF, changes: [], selected: null, colorBefore: () => undefined, colorAfter: () => undefined, onSelect: (key) => session.select(key), t, part: 'change-list' });
+      const list = createChangeList({ doc: [], changes: [], keyOf: changeKey, selected: session.selected, colorBefore: () => undefined, colorAfter: () => undefined, onSelect: (key) => session.select(key), t, part: 'change-list' });
       const panel = createSidePanel({
         side: 'right', title: t('diff.panel.changes'), label: t('diff.panel.changes'), class: 'changes', part: 'panel',
         closeLabel: t('diff.panel.hide'), closeKeys: 'l', onClose: () => void core.run('setPanel', 'changes', false), body: list.el,
@@ -215,11 +215,7 @@ export function changeListModule(session: DiffSession): ViewModule<ViewCore> {
         const D = session.rendered();
         list.el.hidden = !D;
         if (!D || !open()) return;
-        untracked(() => list.update({ diff: D.diff, changes: D.changes, selected: session.selected.peek(), colorBefore: (v) => D.before.rctx.color(v), colorAfter: (v) => D.after.rctx.color(v) }));
-      });
-      scope.effect(() => {
-        const key = session.selected();
-        untracked(() => list.select(key));
+        untracked(() => list.update({ doc: D.diff.doc, changes: D.changes, colorBefore: (v) => D.before.rctx.color(v), colorAfter: (v) => D.after.rctx.color(v) }));
       });
       return () => {
         list.destroy();

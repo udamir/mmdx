@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { VersionInfo } from '../../../src/core/diff/report.js';
+import type { VersionInfo } from '../../../src/adapters/history.js';
+import { signal } from '../../../src/ui/signal.js';
 import { ago, createVersionList, type VersionCounts, type VersionListProps } from '../../../src/ui/blocks/version-list.js';
 import { createI18n } from '../../../src/ui/i18n.js';
 import { PopoverManager } from '../../../src/ui/popover.js';
@@ -56,13 +57,16 @@ describe('VersionList', () => {
     expect(vl.el.querySelector('.more')).toBeNull();
   });
 
-  it('history mode: a listbox of options, the viewed one selected, no picks; "no changes" counts', () => {
+  it('history mode: a list, the viewed version marked current, no picks; "no changes" counts', () => {
     const vl = createVersionList(props({ mode: 'history', viewing: 'c2', counts: () => counts({}) }));
     const list = vl.el.querySelector('.versions')!;
-    expect(list.getAttribute('role')).toBe('listbox');
+    expect(list.getAttribute('role')).toBe('list');
     expect(list.getAttribute('aria-label')).toBe('History');
     const rows = [...vl.el.querySelectorAll<HTMLElement>('.version')];
-    expect(rows.map((r) => r.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false']);
+    // rows hold buttons: list items (not options), the viewed one's button aria-current
+    expect(rows.map((r) => r.getAttribute('role'))).toEqual(['listitem', 'listitem', 'listitem']);
+    expect(rows.map((r) => r.querySelector('.version-main')!.getAttribute('aria-current'))).toEqual([null, 'true', null]);
+    expect(rows.some((r) => r.hasAttribute('aria-selected'))).toBe(false);
     expect(rows[1]!.classList.contains('viewing')).toBe(true);
     expect(rows[0]!.classList.contains('after')).toBe(false);
     expect(vl.el.querySelector('.pick')).toBeNull();
@@ -116,6 +120,38 @@ describe('VersionList', () => {
     vl.el.querySelector<HTMLElement>('.more')!.focus();
     vl.update({ versions: [...versions, { id: 'c0' }], hasMore: false });
     expect((document.activeElement as HTMLElement).dataset['f']).toBe('v:c0');
+  });
+
+  it('signals for the tab, the pair and the viewed version re-render the rows, keeping the focus', () => {
+    const mode = signal<'compare' | 'history'>('compare'), base = signal<string | null>('c2'), head = signal<string | null>('c3'), viewing = signal<string | null>(null);
+    const vl = createVersionList(props({ mode, base, head, viewing }));
+    document.body.append(vl.el);
+    vl.el.querySelectorAll<HTMLElement>('.pick-before')[2]!.focus();
+    base.set('c1');
+    expect(vl.el.querySelectorAll('.version')[2]!.classList.contains('before')).toBe(true);
+    expect((document.activeElement as HTMLElement).dataset['f']).toBe('before:c1');
+    mode.set('history');
+    viewing.set('c3');
+    expect(vl.el.querySelector('.pick')).toBeNull();
+    expect(vl.el.querySelector('.version.viewing')!.getAttribute('data-id')).toBe('c3');
+    vl.destroy();
+    viewing.set('c1');
+    expect(vl.el.querySelector('.version.viewing')!.getAttribute('data-id')).toBe('c3');
+  });
+
+  it('refreshCounts() patches only the badges of rows whose counts changed', () => {
+    const live: Record<string, VersionCounts | null | undefined> = { c3: undefined, c2: undefined, c1: null };
+    const vl = createVersionList(props({ counts: (id) => live[id] }));
+    const rows = [...vl.el.querySelectorAll<HTMLElement>('.version')];
+    const mains = rows.map((r) => r.querySelector('.version-main'));
+    const initial = rows[2]!.querySelector('.vcount');
+    live['c3'] = counts({ added: 1 });
+    vl.refreshCounts();
+    expect(rows[0]!.querySelector('.vstats')!.textContent).toBe('+1');
+    expect(rows[1]!.querySelector('.vstats.skeleton')).not.toBeNull();
+    // nothing else was rebuilt
+    expect([...vl.el.querySelectorAll('.version-main')]).toEqual(mains);
+    expect(rows[2]!.querySelector('.vcount')).toBe(initial);
   });
 
   it('a ⋮ menu on each row opens the entries for that version through the popover manager', () => {

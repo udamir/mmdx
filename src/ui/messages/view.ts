@@ -22,7 +22,6 @@ export const VIEW_MESSAGES: Messages = {
   'help.codeView': 'Mermaid code panel',
   'help.history': 'History of this diagram (when it has one)',
   'viewParams.title': 'View',
-  'export.tip': 'Export the diagram',
   'export.failed': '{kind} export failed: {msg}',
   'panel.close': 'Close',
 };

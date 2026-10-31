@@ -24,7 +24,7 @@ export interface HelpPopupProps {
 export const HELP_POPUP_CSS = /* css */ `
 .help-pop { position: absolute; right: 12px; bottom: 60px; z-index: var(--mmdx-z-popover, 1000); }
 .help-pop, .help-pop.mmdx-pop { width: 380px; max-width: calc(100% - 24px); max-height: min(560px, calc(100% - 120px)); display: flex; flex-direction: column;
-  background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.18); color: var(--mmdx-text); font-size: 12.5px; padding: 0; }
+  background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: 14px; box-shadow: var(--mmdx-shadow-card); color: var(--mmdx-text); font-size: 12.5px; padding: 0; }
 .help-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 10px 6px 14px; }
 .help-head b { font-size: 13px; }
 .help-head button { border: 0; background: none; font-size: 18px; line-height: 1; padding: 2px 8px; border-radius: 6px; color: var(--mmdx-muted); }

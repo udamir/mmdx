@@ -1,24 +1,26 @@
 // ChangeList (§5.2): the diff's change rows (mark icons in their highlight colours, kind, label) as a listbox, with
 // the diagram-wide field changes above them. Selecting a row calls `onSelect(key)` (the selected row again: null);
-// `select(key)` moves the selection in place, without re-rendering, so the keyboard focus stays where it is.
-// Arrow keys, Home and End move along the rows. Replaces `changeList`, `describeChange`, `kindLabel` and `fieldRow`
+// `select(key)` (or a `selected` signal) moves the selection in place, without re-rendering, so the keyboard focus
+// stays where it is. Arrow keys, Home and End move along the rows; the selected row (else the first) is the list's
+// one tab stop. The change keys come from the host (`keyOf`, core/diff's `changeKey`), so the block needs no diff code. Replaces `changeList`, `describeChange`, `kindLabel` and `fieldRow`
 // of elements/diff/panels.ts (same DOM and classes). The change colours come from the `--mmdx-diff-*` tokens: the
 // host adopts `DIFF_TOKENS` (ui/styles/diff.ts).
 import type { Mark } from '../../core/diff/annotate.js';
-import type { DiagramDiff, FieldChange, ItemChange } from '../../core/diff/index.js';
-import { changeKey } from '../../core/diff/merge.js';
+import type { FieldChange, ItemChange } from '../../core/diff/index.js';
 import { h, icon } from '../h.js';
 import { registerMessages } from '../i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
-import { Scope, type BlockHandle, type Translate } from './block.js';
+import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
 import { FILTER_ICONS } from './filter-toggles.js';
-import { keepFocus } from './focus.js';
+import { keepFocus, rovingKeys } from './focus.js';
 
 export const kindLabel = (t: Translate, kind: string): string => t(`diff.kind.${kind}`);
 
 /** One line describing a change, for tooltips and the live region. */
 export function describeChange(t: Translate, c: ItemChange): string {
-  const what = c.status === 'changed' ? t('diff.status.changed', { facets: c.facets.join(', ') }) + (c.fields.length ? ` (${c.fields.map((f) => f.field).join(', ')})` : '') : t(`diff.status.${c.status}`);
+  const facets = c.facets.join(', ');
+  const what = c.status !== 'changed' ? t(`diff.status.${c.status}`)
+    : c.fields.length ? t('diff.status.changedFields', { facets, fields: c.fields.map((f) => f.field).join(', ') }) : t('diff.status.changed', { facets });
   return t('diff.announce', { kind: kindLabel(t, c.kind), name: c.label, what });
 }
 
@@ -46,11 +48,14 @@ export function fieldRow(f: FieldChange, colorBefore: (v: unknown) => string | u
 }
 
 export interface ChangeListProps {
-  diff: DiagramDiff;
+  /** The diagram-wide field changes (the diff's `doc`), listed above the rows. */
+  doc: readonly FieldChange[];
   /** The rows to show (the diff's items after filtering). */
   changes: readonly ItemChange[];
-  /** Key (`kind:id`, core/diff `changeKey`) of the selected change. */
-  selected: string | null;
+  /** The key of a change (core/diff's `changeKey`, `kind:id`): `selected` and `onSelect` use it. */
+  keyOf: (c: ItemChange) => string;
+  /** Key of the selected change; a signal moves the selection in place. */
+  selected: Value<string | null>;
   /** CSS colour of a colour value in the before / after version (palette names resolve per version). */
   colorBefore: (v: unknown) => string | undefined;
   colorAfter: (v: unknown) => string | undefined;
@@ -78,7 +83,7 @@ export const CHANGE_LIST_CSS = /* css */ `
 .mmdx-change-list .fvals .val:last-child { color: var(--mmdx-diff-add); }
 .mmdx-change-list .fvals .val.none { color: var(--mmdx-muted); text-decoration: none; }
 .mmdx-change-list .fvals .arrow { color: var(--mmdx-muted); }
-.mmdx-change-list .val .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; border: 1px solid rgba(0,0,0,.2); margin-right: 3px; vertical-align: -1px; }
+.mmdx-change-list .val .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; border: 1px solid var(--mmdx-swatch-ring); margin-right: 3px; vertical-align: -1px; }
 .mmdx-change-list .changes { display: flex; flex-direction: column; }
 .mmdx-change-list .change {
   width: 100%; border: 0; border-bottom: 1px solid var(--mmdx-border-2); border-radius: 0; background: none; text-align: left; padding: 6px 12px;
@@ -105,37 +110,31 @@ export function createChangeList(props: ChangeListProps): ChangeListHandle {
   const scope = new Scope();
   const el = h('div', { class: 'mmdx-change-list' });
   const rows = (): HTMLElement[] => [...el.querySelectorAll<HTMLElement>('.change')];
+  /** The selected key as last applied (`p.selected` may be a signal). */
+  let selected = read(p.selected);
 
   // one listener for every row: the current selection decides between selecting and clearing
   scope.on(el, 'click', (ev: MouseEvent) => {
     const row = (ev.target as Element).closest<HTMLElement>('.change');
     const key = row && el.contains(row) ? row.dataset['key'] : undefined;
-    if (key !== undefined) p.onSelect(p.selected === key ? null : key);
+    if (key !== undefined) p.onSelect(selected === key ? null : key);
   });
-  scope.on(el, 'keydown', (ev: KeyboardEvent) => {
-    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(ev.key) || ev.altKey || ev.metaKey || ev.ctrlKey) return;
-    const list = rows();
-    const i = list.indexOf(ev.target as HTMLElement);
-    if (i < 0) return;
-    const n = ev.key === 'Home' ? 0 : ev.key === 'End' ? list.length - 1 : Math.max(0, Math.min(list.length - 1, i + (ev.key === 'ArrowDown' ? 1 : -1)));
-    ev.preventDefault();
-    ev.stopPropagation();
-    list[n]?.focus();
-  });
+  const keys = rovingKeys(el, { orientation: 'vertical', selector: '.change', wrap: false, roving: true, current: (list) => list.find((b) => b.getAttribute('aria-selected') === 'true') });
+  scope.add(() => keys.destroy());
 
   const render = (): void => {
     const t = p.t;
     if (p.part) el.setAttribute('part', p.part);
     else el.removeAttribute('part');
     const out: HTMLElement[] = [];
-    if (p.diff.doc.length)
-      out.push(h('details', { class: 'doc-changes', open: true }, h('summary', null, t('diff.panel.docWide', { n: p.diff.doc.length })), ...p.diff.doc.map((f) => fieldRow(f, p.colorBefore, p.colorAfter))));
+    if (p.doc.length)
+      out.push(h('details', { class: 'doc-changes', open: true }, h('summary', null, t('diff.panel.docWide', { n: p.doc.length })), ...p.doc.map((f) => fieldRow(f, p.colorBefore, p.colorAfter))));
     if (!p.changes.length) out.push(h('div', { class: 'empty' }, t('diff.empty.noChanges')));
     else {
       const list = h('div', { class: 'changes', role: 'listbox', 'aria-label': t('diff.panel.changes') });
       for (const c of p.changes) {
-        const key = changeKey(c);
-        list.append(h('button', { type: 'button', class: `change st-${c.status}`, role: 'option', 'aria-selected': String(p.selected === key), 'data-key': key, 'data-f': key, title: describeChange(t, c) },
+        const key = p.keyOf(c);
+        list.append(h('button', { type: 'button', class: `change st-${c.status}`, role: 'option', 'aria-selected': String(selected === key), 'data-key': key, 'data-f': key, title: describeChange(t, c) },
           h('span', { class: 'cicons' }, ...marksOf(c).map((m) => h('span', { class: `cicon m-${m}`, 'aria-hidden': 'true' }, icon(FILTER_ICONS[m], 14)))),
           h('span', { class: 'kind' }, kindLabel(t, c.kind)),
           h('span', { class: 'label' }, c.label)));
@@ -145,24 +144,43 @@ export function createChangeList(props: ChangeListProps): ChangeListHandle {
     el.replaceChildren(...out);
   };
   render();
+  keys.sync();
+
+  const select = (key: string | null): void => {
+    selected = key;
+    let row: HTMLElement | null = null;
+    for (const b of rows()) {
+      const on = b.dataset['key'] === key;
+      b.setAttribute('aria-selected', String(on));
+      if (on) row = b;
+    }
+    keys.sync();
+    row?.scrollIntoView?.({ block: 'nearest' });
+  };
+  // a `selected` signal moves the selection in place
+  let fx = new Scope();
+  const follow = (): void => {
+    fx.dispose();
+    fx = new Scope();
+    const v = p.selected;
+    if (typeof v === 'function') fx.effect(() => select(v()));
+  };
+  follow();
 
   return {
     el,
-    select(key) {
-      p = { ...p, selected: key };
-      let row: HTMLElement | null = null;
-      for (const b of rows()) {
-        const on = b.dataset['key'] === key;
-        b.setAttribute('aria-selected', String(on));
-        if (on) row = b;
-      }
-      row?.scrollIntoView?.({ block: 'nearest' });
-    },
+    select,
     update(next) {
       p = { ...p, ...next };
+      if (next && 'selected' in next) {
+        selected = read(p.selected);
+        follow();
+      }
       keepFocus(el, render);
+      keys.sync();
     },
     destroy() {
+      fx.dispose();
       scope.dispose();
       el.remove();
     },

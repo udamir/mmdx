@@ -3,9 +3,10 @@
 // radio is the one in the Tab order; arrow keys switch.
 import { h, icon } from '../h.js';
 import { registerMessages } from '../i18n.js';
-import { ICONS } from '../icons.js';
+import { I_moon, I_sun } from '../icons.js';
 import { BLOCK_MESSAGES_CHROME } from '../messages/blocks.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
+import { rovingKeys } from './focus.js';
 
 export type Scheme = 'light' | 'dark';
 
@@ -18,7 +19,7 @@ export interface SchemeToggleProps {
 export const SCHEME_TOGGLE_CSS = /* css */ `
 .vp-mode { display: flex; gap: 2px; background: var(--mmdx-float-2); border-radius: 9px; padding: 2px; }
 .vp-mode button { border: 0; background: none; width: 32px; height: 28px; padding: 0; display: grid; place-items: center; border-radius: 7px; color: var(--mmdx-muted); }
-.vp-mode button[aria-checked=true] { background: var(--mmdx-float); color: var(--mmdx-text); box-shadow: 0 1px 3px rgba(0,0,0,.18); }
+.vp-mode button[aria-checked=true] { background: var(--mmdx-float); color: var(--mmdx-text); box-shadow: var(--mmdx-shadow-raised); }
 `;
 
 export function createSchemeToggle(props: SchemeToggleProps): BlockHandle<SchemeToggleProps> {
@@ -33,19 +34,13 @@ export function createSchemeToggle(props: SchemeToggleProps): BlockHandle<Scheme
     });
     return b;
   };
-  const light = radio('light', ICONS.sun);
-  const dark = radio('dark', ICONS.moon);
+  const light = radio('light', I_sun);
+  const dark = radio('dark', I_moon);
   const el = h('div', { class: 'vp-mode', role: 'radiogroup' }, light, dark);
 
   // arrows pick the other scheme (two radios: every arrow toggles) and move the focus with it
-  scope.on(el, 'keydown', (ev: KeyboardEvent) => {
-    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(ev.key) || ev.altKey || ev.metaKey || ev.ctrlKey) return;
-    ev.preventDefault();
-    ev.stopPropagation();
-    const next = (ev.target as HTMLElement).dataset['ui'] === 'dark' ? light : dark;
-    next.focus();
-    next.click();
-  });
+  const keys = rovingKeys(el, { orientation: 'both', selector: '[role=radio]', select: true });
+  scope.add(() => keys.destroy());
 
   const render = (): void => {
     const { t } = p;

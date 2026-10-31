@@ -34,7 +34,7 @@ import { ICONS } from '../ui/icons.js';
 import { drawItemPreview, type PreviewKind } from '../ui/item-preview.js';
 import { PopoverManager, Toaster } from '../ui/popover.js';
 import { formatKeys, ShortcutRegistry } from '../ui/shortcuts.js';
-import { createToolbar, shapePreview, type ToolbarApi, type ToolbarControl, type ToolbarHandle } from '../ui/style-toolbar.js';
+import { createStyleToolbar, shapePreview, type ToolbarApi, type ToolbarControl, type StyleToolbarHandle } from '../ui/style-toolbar.js';
 import { ALIASES, adoptStyles, BASE, resolveUiScheme, TOKENS, watchUiScheme } from '../ui/styles/base.js';
 import { THEME_EDITOR_CSS } from '../ui/styles/theme-editor.js';
 import { TOOLBAR_CSS } from '../ui/styles/toolbar.js';
@@ -238,7 +238,7 @@ export class ThemeEditor {
   private readonly head: HTMLElement;
   private readonly closeBtn: HTMLButtonElement;
   private readonly fileInput: HTMLInputElement;
-  private readonly toolbar: ToolbarHandle;
+  private readonly toolbar: StyleToolbarHandle;
   private readonly dialogs: Dialogs;
   private readonly pops: PopoverManager;
   private readonly toaster: Toaster;
@@ -312,7 +312,7 @@ export class ThemeEditor {
 
     this.layout(); // before the toolbar: it scopes its listeners to the root node of its host
     // the canvas's floating style toolbar, editing the selected tile's style
-    this.toolbar = createToolbar(this.body, this.styleApi(), { exclude: TOOLBAR_EXCLUDE, reset: true, i18n: this.i18n });
+    this.toolbar = createStyleToolbar(this.body, this.styleApi(), { exclude: TOOLBAR_EXCLUDE, reset: true, i18n: this.i18n });
     const sig = { signal: this.ac.signal };
     this.main.addEventListener('scroll', () => this.toolbar.place(), sig);
     this.main.addEventListener('pointerdown', (ev) => {
