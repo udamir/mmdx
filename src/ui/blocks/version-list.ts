@@ -88,7 +88,7 @@ export const VERSION_LIST_CSS = /* css */ `
 .mmdx-version-list .pick-after.on { background: var(--mmdx-diff-add-bg); border-color: var(--mmdx-diff-add); color: var(--mmdx-diff-add); font-weight: 600; }
 .mmdx-version-list .more { margin: 6px; }
 .mmdx-version-list .vpick.split { gap: 0; padding: 0; margin-right: 6px; height: 26px; border: 2px solid var(--mmdx-muted); border-radius: 7px; overflow: hidden; }
-.mmdx-version-list .pick.half { width: 22px; height: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--mmdx-muted); font-size: 11px; font-weight: 700; line-height: 1; }
+.mmdx-version-list .pick.half { width: 22px; height: 100%; box-sizing: content-box; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--mmdx-muted); font-size: 11px; font-weight: 700; line-height: 1; }
 .mmdx-version-list .pick-before.half { border-right: 2px solid var(--mmdx-muted); }
 .mmdx-version-list .pick.half:hover:not(:disabled) { background: color-mix(in srgb, var(--mmdx-text) 10%, transparent); }
 .mmdx-version-list .pick.half:focus-visible { outline: 2px solid var(--mmdx-accent); outline-offset: -2px; }
