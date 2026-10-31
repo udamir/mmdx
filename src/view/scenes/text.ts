@@ -132,7 +132,7 @@ export class TextScene extends BaseScene {
     if (layers) opts.visibleLayers = layers;
     if (countLines(text) > WORKER_THRESHOLD_LINES && workerAvailable()) {
       const seq = ++this.renderSeq;
-      void renderInWorker(text, core.ctx, opts).then((wr) => {
+      void renderInWorker(text, core.ctx, opts, this).then((wr) => {
         if (this.destroyed || seq !== this.renderSeq || text !== this.text) return;
         if (wr && 'error' in wr) this.showError([{ severity: 'error', code: 'doc.too-large', message: 'Rendering this diagram took too long' }], text);
         else this.apply(wr ?? renderSourceWith(this.kinds.kinds(), text, core.ctx, opts), t0, true);

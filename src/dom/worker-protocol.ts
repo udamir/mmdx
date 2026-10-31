@@ -10,7 +10,7 @@ export interface WorkerRequest {
   src: string;
   opts: { theme?: string; visibleLayers?: readonly string[]; hideLabels?: boolean };
   themes: readonly ThemeFile[];
-  /** Changes when the registry's themes change, so the worker rebuilds its registry. */
+  /** The registry's identity and revision: changes when its themes change, so the worker builds a new registry. */
   themesKey: string;
   idPrefix: string;
 }
