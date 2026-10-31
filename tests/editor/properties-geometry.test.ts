@@ -34,7 +34,7 @@ const fields = async (e: DiagramEditor, items: ItemRef[]): Promise<Record<string
   e.select(items);
   await flush();
   const out: Record<string, string> = {};
-  for (const el of e.core.root.querySelectorAll<HTMLInputElement | HTMLSelectElement>('.rpanel.props [id^="f-"]')) {
+  for (const el of e.core.root.querySelectorAll<HTMLInputElement | HTMLSelectElement>('.mmdx-panel.props [id^="f-"]')) {
     const name = el.id.split('-')[1]!;
     if (!['x', 'y', 'w', 'h', 'routing', 'labelAt', 'fromSide'].includes(name)) continue;
     out[name] = el instanceof HTMLSelectElement ? el.selectedOptions[0]!.text : el.type === 'number' ? el.value || el.placeholder : el.value;

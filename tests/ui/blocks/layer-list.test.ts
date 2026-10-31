@@ -140,9 +140,10 @@ describe('LayerList', () => {
     expect(onCountHover).toHaveBeenLastCalledWith(null);
   });
 
-  it('a hover-only count is a focusable badge; no delete while viewing', () => {
+  it('a hover-only count is a focusable badge; no delete and no count button while viewing', () => {
     const onCountHover = vi.fn();
-    const list = createLayerList({ layers: LAYERS, editable: false, onToggle: () => undefined, onDelete: () => undefined, onCountHover, t });
+    const list = createLayerList({ layers: LAYERS, editable: false, onToggle: () => undefined, onDelete: () => undefined, onCountClick: () => undefined, onCountHover, t });
+    expect(list.el.querySelector('button.count')).toBeNull();
     expect(list.el.querySelector('.del')).toBeNull();
     const count = list.el.querySelector<HTMLElement>('span.count')!;
     expect(count.tabIndex).toBe(0);

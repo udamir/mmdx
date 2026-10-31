@@ -62,7 +62,7 @@ describe('History in the editor (studio)', () => {
     // in place: the editor's own canvas shows the diff, its editing chrome is suspended
     expect(editor.core.stage.peek()).toBe('history');
     expect(ed.querySelector('mmdx-diff')).toBeNull();
-    expect(ed.querySelector('.pane.left')).toBeNull();
+    expect(ed.querySelector('.mmdx-panel.code-edit')).toBeNull();
     expect(ed.querySelector('.vt-history')!.getAttribute('aria-pressed')).toBe('true');
     expect(ed.querySelector('.mmdx-pill [role=status]')!.textContent).toMatch(/^\w+ → \w+$/);
     expect(editor.historySession).not.toBeNull();
@@ -79,7 +79,7 @@ describe('History in the editor (studio)', () => {
     ed.querySelector<HTMLButtonElement>('.mmdx-pill .mmdx-pill-btn')!.click();
     expect(editor.core.stage.peek()).toBe('document');
     expect(editor.historySession).toBeNull();
-    expect(ed.querySelector('.pane.left')).not.toBeNull();
+    expect(ed.querySelector('.mmdx-panel.code-edit')).not.toBeNull();
     expect(ed.querySelector('.mmdx-pill')).toBeNull();
     expect(events).toContain('mmdx-history-close');
 

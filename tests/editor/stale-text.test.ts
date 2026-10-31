@@ -52,7 +52,7 @@ describe('text edits apply to the current document', () => {
     const e = mount(FLOW, [panesModule, rightPanelsModule]);
     e.core.select([{ kind: 'node', id: 'B' }]);
     await flush();
-    const ta = e.core.root.querySelector<HTMLTextAreaElement>('.rpanel.props .prop-label textarea')!;
+    const ta = e.core.root.querySelector<HTMLTextAreaElement>('.mmdx-panel.props .prop-label textarea')!;
     ta.focus();
     ta.value = 'Bravo';
     e.setSource(REMOTE, { history: 'push', fit: false });

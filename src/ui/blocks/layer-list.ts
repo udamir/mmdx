@@ -1,7 +1,7 @@
 // LayerList (§5.2, §7.6): the body of the View settings card and of the editor's Layers card — layer rows (eye
 // toggle, name, item count, and while editing a lock toggle, an inline rename and a delete button) under a "Layers"
 // heading, then the display toggles (connector labels, hover highlight, …) as switches under "Display". The count can
-// select the layer's items (a button) and highlight them while hovered or focused. Rows re-render on `update({ layers })`, keeping the focus on the same
+// select the layer's items while editing (a button) and highlight them while hovered or focused. Rows re-render on `update({ layers })`, keeping the focus on the same
 // control. Replaces the layers DOM of editor/modules/panels/layers.ts (`renderLayers`) and the viewer's View
 // settings popup (`viewSettings` in elements/viewer-popups.ts).
 import { h, icon } from '../h.js';
@@ -39,7 +39,7 @@ export interface LayerListProps {
   onRename?: (id: string, name: string) => void;
   /** While editing, a × on every row but the `fixed` ones. */
   onDelete?: (id: string) => void;
-  /** The count becomes a button (e.g. selects the layer's items). */
+  /** While editing, the count is a button (e.g. selects the layer's items). */
   onCountClick?: (id: string) => void;
   /** The pointer or the focus on a count (e.g. highlights the layer's items); null when it leaves. */
   onCountHover?: (id: string | null) => void;
@@ -111,7 +111,7 @@ export function createLayerList(props: LayerListProps): LayerListHandle {
       r.append(name);
     } else r.append(h('span', { class: 'layer-name' }, l.name));
     if (l.count !== undefined) {
-      const n = l.count, onCount = p.onCountClick, onHover = p.onCountHover;
+      const n = l.count, onCount = p.editable ? p.onCountClick : undefined, onHover = p.onCountHover;
       const cnt = onCount
         ? h('button', { type: 'button', class: 'count', title: t('layers.select'), 'aria-label': t('layers.selectN', { n, name: l.name }), 'data-f': `count-${l.id}` }, String(n))
         : h('span', { class: 'count', 'aria-label': t('layers.countLabel', { n }) }, String(n));

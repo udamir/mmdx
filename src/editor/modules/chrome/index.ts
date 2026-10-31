@@ -18,7 +18,7 @@ export { documentModule, editorParamsModule, editorToolsModule, panesModule, too
 
 const std = <M>(m: M): EditorModule => m as unknown as EditorModule;
 
-/** Installed before the panels: `setPanel` and the remembered panel widths. */
+/** Installed before the panels: `setPanel` and the panel stacks the panels go into. */
 export const LAYOUT_MODULES: readonly EditorModule[] = [panesModule];
 export const CHROME_MODULES: readonly EditorModule[] = [
   editorToolsModule, std(toolDockModule), std(panModule), std(penModule), std(historyModule),

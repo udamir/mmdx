@@ -20,7 +20,6 @@ import type { BoxGeom, GeometryIndex } from '../core/render/types.js';
 import type { SceneNode } from '../core/scene/types.js';
 import type { ItemKind, ItemRef, Rect } from '../core/types.js';
 import { itemKey } from '../core/types.js';
-import type { Insets } from '../dom/canvas.js';
 import { HIGHLIGHT_CSS } from '../dom/highlight.js';
 import type { Viewport } from '../dom/viewport.js';
 import { Dialogs, DIALOG_CSS } from '../ui/dialog.js';
@@ -152,7 +151,7 @@ export interface EditorActions {
   gotoCodeLine(line: number): void;
   /** Opens the Metadata tab at a (1-based) line of the metadata text. */
   gotoMetaLine(line: number): void;
-  setPanel(name: string, open: boolean): void;
+  setPanel(name: PanelName, open: boolean): void;
   toggleHelp(on?: boolean): void;
   /** Opens or closes the History of the document (when the editor has a history). */
   toggleHistory(on?: boolean): void;
@@ -193,7 +192,9 @@ export interface EditorCoreOptions {
   css?: readonly string[];
 }
 
-export type EditorPanels = Readonly<{ code: boolean; properties: boolean; layers: boolean } & Record<string, boolean>>;
+/** The editor's own panels (History brings its own while it is open). */
+export type PanelName = 'code' | 'properties' | 'layers';
+export type EditorPanels = Readonly<Record<PanelName, boolean> & Record<string, boolean>>;
 
 const reducedMotion = (): boolean => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -249,8 +250,6 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       canvas: {
         interaction: 'pan-zoom', wheel: 'always', panOnDrag: false, minK: 0.05, maxK: 6, pad: 40, svgClass: 'canvas', part: 'canvas',
         pageClass: 'page-layer page-shadow', reducedMotion,
-        // fit keeps clear of the open side panels and the tool dock (measured: their widths are user-resizable)
-        insets: () => this.editorInsets(),
         onView: () => {
           this.fire('view');
           this.drawOverlay();
@@ -267,7 +266,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     });
     this.store = o.store;
     this.features = o.features;
-    this.dialogs = new Dialogs(this.shadow);
+    this.dialogs = new Dialogs(this.shadow, this.i18n.t);
     this.tool.set('pointer');
     this.panels.set({ code: true, properties: true, layers: true });
     const c = this.canvas;
@@ -308,19 +307,6 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       default:
         return true;
     }
-  }
-
-  private editorInsets(): Insets {
-    const root = this.root;
-    const box = root.getBoundingClientRect();
-    const edge = (sel: string, side: 'left' | 'right'): number => {
-      const el = root.querySelector<HTMLElement>(sel);
-      if (!el || !el.offsetParent) return 0;
-      const r = el.getBoundingClientRect();
-      return side === 'left' ? Math.max(0, r.right - box.left) : Math.max(0, box.right - r.left);
-    };
-    const left = Math.max(edge('.pane.left', 'left'), edge('.tool-dock', 'left'), edge('.mmdx-stack[data-side=left].open', 'left'));
-    return { left: left + 8, right: Math.max(edge('.pane.right', 'right'), edge('.mmdx-stack[data-side=right].open', 'right')) + 8, top: 56, bottom: 56 };
   }
 
   // ---- document access --------------------------------------------------------------------------------------------
