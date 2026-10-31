@@ -30,7 +30,7 @@ import { EDITOR_CSS } from '../ui/styles/editor.js';
 import { ViewCore } from '../view/core.js';
 import type { Mode, Tool, ViewActions } from '../view/types.js';
 import { StoreScene } from './scene.js';
-import type { DocStore } from './store.js';
+import type { ChangeReason, DocStore } from './store.js';
 
 export type { Mode, Tool };
 
@@ -592,30 +592,39 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   // ---- changes ----------------------------------------------------------------------------------------------------
 
   /**
-   * Applies a code rewrite from an op (`edit.js` / `connect.js` results). Remaps positional sequence metadata, keeps
-   * the selection where items survive, fires the cancelable `mmdx-op` event, commits one history step. Returns false
-   * when nothing changed or the host vetoed the op.
+   * Applies a code rewrite from an op (`edit.js` / `connect.js` results) or typed into the code panel. Remaps
+   * positional sequence metadata, keeps the selection where items survive, fires the cancelable `mmdx-op` event
+   * (`type`, default the label), commits one history step (`reason` of the `mmdx-change`, default `op`). `%%@` lines
+   * in the code move into the metadata. Returns false when nothing changed or the host vetoed the op.
    */
-  applyCode(res: { code?: string | null; meta?: DiagramMeta } | null | undefined, label: string, opts: { select?: Sel[] | null } = {}): boolean {
+  applyCode(res: { code?: string | null; meta?: DiagramMeta } | null | undefined, label: string, opts: { select?: Sel[] | null; type?: string; reason?: ChangeReason } = {}): boolean {
     if (!res || res.code == null || (res.code === this.code && !res.meta)) return false;
-    if (!this.emit('mmdx-op', { type: label, code: res.code }, true)) return false;
+    if (!this.emit('mmdx-op', { type: opts.type ?? label, code: res.code }, true)) return false;
     const oldModel = this.model, oldCode = this.code;
     this.store.begin();
     try {
       if (res.meta) this.store.meta.set(res.meta);
-      this.store.code.set(res.code);
+      this.store.setCode(res.code, label);
       const model = this.model;
       // ops that return metadata have already carried it over to the new positional ids
       if (!res.meta && model.type === 'sequence' && oldModel.type === 'sequence')
-        this.store.meta.set(remapSequenceMeta(this.meta, oldModel, oldCode, model, res.code));
+        this.store.meta.set(remapSequenceMeta(this.meta, oldModel, oldCode, model, this.code));
       const keep = (r: Sel): boolean => this.store.exists(r);
       if (opts.select !== undefined) this.select((opts.select ?? []).filter(keep));
-      else this.select(this.selection().filter(keep));
+      else {
+        const cur = this.selection(), kept = cur.filter(keep);
+        if (kept.length !== cur.length) this.select(kept);
+      }
     } finally {
-      this.store.commit(label);
+      this.store.commit(label, opts.reason);
     }
     this.afterChange();
     return true;
+  }
+
+  /** Replaces the metadata as one history step (`mmdx-op`; a veto rolls it back). */
+  setMeta(label: string, meta: DiagramMeta): void {
+    this.change(label, () => this.store.meta.set(meta));
   }
 
   /**

@@ -3,7 +3,6 @@
 import { FIELD_DEFS, type FieldOption } from '../../../core/schema/style-fields.js';
 import { h } from '../../../ui/h.js';
 import type { I18n } from '../../../ui/i18n.js';
-import { toHex } from './util.js';
 
 export interface FieldTarget {
   /** The stored value (undefined: inherited). */
@@ -23,10 +22,18 @@ export interface FieldTarget {
 }
 
 /** `t(key)`, or the English fallback when the catalog has no entry. */
-export const tOr = (i18n: I18n, key: string, fallback: string): string => {
+const tOr = (i18n: I18n, key: string, fallback: string): string => {
   const s = i18n.t(key);
   return s === key ? fallback : s;
 };
+
+/** `#rgb` / `#rrggbb` → `#rrggbb` for colour inputs (anything else → white). */
+function toHex(c: unknown): string {
+  if (typeof c !== 'string') return '#ffffff';
+  if (/^#[0-9a-f]{6}$/i.test(c)) return c;
+  if (/^#[0-9a-f]{3}$/i.test(c)) return '#' + [...c.slice(1)].map((x) => x + x).join('');
+  return '#ffffff';
+}
 
 const opt = (o: FieldOption): readonly [string, string] => (typeof o === 'string' ? [o, o] : o);
 

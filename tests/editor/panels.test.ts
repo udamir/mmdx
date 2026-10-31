@@ -7,7 +7,7 @@ import { panesModule } from '../../src/editor/modules/chrome/panes.js';
 import { documentModule, exportMmdx, buildExport } from '../../src/editor/modules/chrome/document.js';
 import { codePanelModule } from '../../src/editor/modules/panels/code-panel.js';
 import { rightPanelsModule } from '../../src/editor/modules/panels/right-panels.js';
-import { buildSegments, mergeFilteredView, viewOf } from '../../src/editor/modules/panels/util.js';
+import { buildSegments, mergeFilteredView, viewOf } from '../../src/editor/ops/code-filter.js';
 import type { EditorModule } from '../../src/editor/module.js';
 
 const FLOW = 'flowchart LR\n  A["Alpha"] --> B["Beta"]\n  B --> C["Gamma"]\n';

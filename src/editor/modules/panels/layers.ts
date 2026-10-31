@@ -8,7 +8,7 @@ import { clearHighlight, highlightItems } from '../../../dom/highlight.js';
 import { h, icon } from '../../../ui/h.js';
 import { ICONS } from '../../../ui/icons.js';
 import type { EditorCore } from '../../core.js';
-import { applyMeta } from './util.js';
+import { applyMeta } from '../../ops/doc.js';
 
 /** "+ New layer": takes the selected items along; the new name field is focused for renaming. */
 export function addLayer(core: EditorCore, host: HTMLElement | null): void {

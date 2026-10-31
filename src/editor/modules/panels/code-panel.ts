@@ -13,7 +13,8 @@ import { ICONS } from '../../../ui/icons.js';
 import type { EditorCore } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { attachResizer, setPanel } from '../chrome/panes.js';
-import { applyDoc, buildSegments, filterItems, filterLines, mergeFilteredView, viewOf, type Segment } from './util.js';
+import { buildSegments, filterItems, filterLines, mergeFilteredView, viewOf, type Segment } from '../../ops/code-filter.js';
+import { applyDoc } from '../../ops/doc.js';
 
 /** One problem of the code or the metadata (1-based line, null = no line). */
 export interface Issue {

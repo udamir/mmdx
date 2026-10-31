@@ -13,14 +13,14 @@ import type { ItemRef } from '../../../core/types.js';
 import { h, icon } from '../../../ui/h.js';
 import { drawItemPreview } from '../../../ui/item-preview.js';
 import type { EditorCore } from '../../core.js';
-import { applyMeta, styleEnv } from './util.js';
+import { applyMeta, styleEnv } from '../../ops/doc.js';
 
 const ICON_SAVE = 'M5 4.5h11l3 3V19a.5.5 0 0 1-.5.5h-13A.5.5 0 0 1 5 19zM8.5 4.5v4h6v-4M12 12.5v5M9.5 15h5';
 const ICON_RESET = 'M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4 4v4.5h4.5';
 const ICON_UPDATE = 'M4.5 12a7.5 7.5 0 0 1 12.8-5.3L19.5 9M19.5 4.5V9H15M19.5 12a7.5 7.5 0 0 1-12.8 5.3L4.5 15M4.5 19.5V15H9';
 
 /** The item's own look is dropped: it looks exactly like its preset again. */
-export function resetOwnLook(core: EditorCore, ref: ItemRef): void {
+function resetOwnLook(core: EditorCore, ref: ItemRef): void {
   const patch = Object.fromEntries(PRESET_KEYS.map((k) => [k, undefined]));
   applyMeta(core, core.i18n.t('history.resetStyle'), setStyle(core.meta, [ref], patch));
 }
@@ -47,12 +47,12 @@ export async function saveItemAsPreset(core: EditorCore, ref: ItemRef): Promise<
   return true;
 }
 
-export function updateItemPreset(core: EditorCore, ref: ItemRef): void {
+function updateItemPreset(core: EditorCore, ref: ItemRef): void {
   const res = updatePreset(styleEnv(core), ref);
   if (applyMeta(core, core.i18n.t('history.updatePreset'), res)) core.toast(core.i18n.t('presets.updated', { name: res.name ?? '' }));
 }
 
-export async function deleteItemPreset(core: EditorCore, ref: ItemRef, name: string): Promise<boolean> {
+async function deleteItemPreset(core: EditorCore, ref: ItemRef, name: string): Promise<boolean> {
   const t = core.i18n.t;
   const n = presetUsers(core.meta, ref.kind, name).length;
   const ok = await core.dialogs.confirm(t('presets.deleteTitle'), n ? t(n === 1 ? 'presets.deleteUsers1' : 'presets.deleteUsersN', { name, n }) : t('presets.deleteMsg', { name }), { ok: t('presets.delete'), danger: true });

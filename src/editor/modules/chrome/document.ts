@@ -14,7 +14,7 @@ import type { Diagnostic } from '../../../core/types.js';
 import { h } from '../../../ui/h.js';
 import type { EditorCore } from '../../core.js';
 import type { EditorModule } from '../../module.js';
-import { applyMeta } from '../panels/util.js';
+import { applyMeta } from '../../ops/doc.js';
 
 export type ExportKind = 'mmdx' | 'mmd' | 'svg' | 'png';
 

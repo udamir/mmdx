@@ -7,7 +7,7 @@ import { DiagramEditor } from '../../src/editor/editor.js';
 import { CANVAS_MODULES } from '../../src/editor/modules/canvas/index.js';
 import { panesModule } from '../../src/editor/modules/chrome/panes.js';
 import { rightPanelsModule } from '../../src/editor/modules/panels/right-panels.js';
-import { labelSpec } from '../../src/editor/modules/panels/util.js';
+import { labelSpec } from '../../src/editor/ops/label.js';
 import type { EditorModule } from '../../src/editor/module.js';
 
 beforeAll(() => {

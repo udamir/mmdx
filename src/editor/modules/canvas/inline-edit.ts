@@ -3,7 +3,7 @@
 // relabel functions (`labelSpec`, shared with Properties). Ported from prototype app.js (`inlineEdit`, `focusLabel`).
 import type { Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
-import { labelSpec } from '../panels/util.js';
+import { labelSpec } from '../../ops/label.js';
 import { itemEls } from './shared.js';
 
 export const INLINE_EDIT_CSS = /* css */ `

@@ -23,7 +23,7 @@ import type { EditorCore, Gesture } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { elementAt } from '../canvas/shared.js';
 import { freeStrip } from '../chrome/toolbars.js';
-import { applyMeta, styleEnv } from '../panels/util.js';
+import { applyMeta, styleEnv } from '../../ops/doc.js';
 import { writeAttrLook } from './look.js';
 
 export const ER_TABLE_CSS = /* css */ `

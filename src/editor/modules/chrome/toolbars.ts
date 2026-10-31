@@ -21,10 +21,10 @@ import { h } from '../../../ui/h.js';
 import type { EditorCore, Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { saveItemAsPreset, presetPicker } from '../panels/presets.js';
-import {
-  choosePagePreset, DIAGRAM_TYPES, FLOW_DIRS, pageEff, RATIOS, setAutonumberOn, setFlowDirection, setPageRatio, setPageSizeMode, setPageValue, switchDiagramType,
-} from '../panels/properties.js';
-import { applyDoc, applyMeta, canGroup, LiveEdit, styleEnv } from '../panels/util.js';
+import { applyDoc, applyMeta, DIAGRAM_TYPES, FLOW_DIRS, setAutonumberOn, setFlowDirection, styleEnv, switchDiagramType } from '../../ops/doc.js';
+import { canGroup } from '../../ops/group.js';
+import { LiveEdit } from '../../ops/live.js';
+import { choosePagePreset, pageEff, RATIOS, setPageRatio, setPageSizeMode, setPageValue } from '../../ops/page.js';
 import { LINE_KINDS } from '../canvas/shared.js';
 import { setPanel } from './panes.js';
 

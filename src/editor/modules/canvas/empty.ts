@@ -48,7 +48,7 @@ const pictogram = (t: DiagramType): SVGElement =>
 export const isBlank = (core: EditorCore): boolean => !core.model.type && !core.code.split('\n').some((l) => l.trim() && !l.trim().startsWith('%%'));
 
 /** Centres the page in the free part of the canvas at zoom `k` at most (a new diagram is not blown up). */
-export function centerView(core: EditorCore, k = 1): void {
+function centerView(core: EditorCore, k = 1): void {
   const b = core.result.result.bounds;
   const r = core.dom.svg.getBoundingClientRect();
   if (!r.width || !b.w || !b.h) return;

@@ -9,7 +9,7 @@ import type { EditorModule } from '../../module.js';
 import { attachResizer, setPanel } from '../chrome/panes.js';
 import { addLayer, renderLayers } from './layers.js';
 import { renderProperties } from './properties.js';
-import { LiveEdit } from './util.js';
+import { LiveEdit } from '../../ops/live.js';
 
 export const RIGHT_PANELS_CSS = /* css */ `
 .pane.right.right-stack { background: none; border: 0; box-shadow: none; border-radius: 0; overflow: visible; display: flex; flex-direction: column; gap: 0; }
