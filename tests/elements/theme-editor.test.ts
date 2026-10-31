@@ -264,7 +264,10 @@ describe('<mmdx-theme-editor>', () => {
   it('can-edit="false" is read only', async () => {
     const { el, root } = await mount({ attrs: { 'can-edit': 'false' } });
     expect(root.querySelector<HTMLInputElement>('.te-dot input')!.disabled).toBe(true);
-    expect(Array.from(root.querySelectorAll('.te-list-acts button')).map((b) => b.textContent)).toEqual(['Export']);
+    // no New; the actions menu offers Export only
+    expect(Array.from(root.querySelectorAll('.te-list-acts button')).map((b) => b.textContent)).toEqual(['More']);
+    root.querySelector<HTMLButtonElement>('.te-list-acts .te-more')!.click();
+    expect(Array.from(root.querySelectorAll('.te-menu [role=menuitem]')).map((b) => b.textContent)).toEqual(['Export']);
     expect(await el.save()).toBe(false);
   });
 
