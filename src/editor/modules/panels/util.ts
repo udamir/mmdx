@@ -338,29 +338,59 @@ export interface LabelSpec {
   multi: boolean;
   /** i18n key of the section title. */
   title: string;
-  apply(v: string): CodeResult;
+  /**
+   * Rewrites the code with a new text, against the document as it is when called (an edit typed while a remote update
+   * or an undo changed the document applies to the current code); null when the item is gone — or, for the positional
+   * ids of sequence items, now names an item whose text is no longer the one being edited.
+   */
+  apply(v: string): CodeResult | null;
 }
 
-/** How an item's text is read and written back to Mermaid (prototype `labelSpec`). */
-export function labelSpec(core: EditorCore, kind: ItemKind, id: string): LabelSpec | null {
+interface TextOf {
+  value: string;
+  multi: boolean;
+  title: string;
+  write(v: string): CodeResult;
+}
+
+/** An item's text in the current document and how to rewrite it there. */
+function textOf(core: EditorCore, kind: ItemKind, id: string): TextOf | null {
   const M = core.model;
   const code = core.code;
   if (M.type === 'flowchart') {
-    if (kind === 'node') return { value: M.nodes.get(id)?.label ?? '', multi: true, title: 'props.text', apply: (v) => relabelFlowNode(code, M, id, v) };
-    if (kind === 'group') return { value: M.groups.get(id)?.label ?? '', multi: false, title: 'props.titleText', apply: (v) => relabelGroup(code, M, id, v) };
-    if (kind === 'edge') return { value: M.edges.find((e) => e.id === id)?.label ?? '', multi: false, title: 'props.label', apply: (v) => relabelFlowEdge(code, M, id, v) };
+    if (kind === 'node') return { value: M.nodes.get(id)?.label ?? '', multi: true, title: 'props.text', write: (v) => relabelFlowNode(code, M, id, v) };
+    if (kind === 'group') return { value: M.groups.get(id)?.label ?? '', multi: false, title: 'props.titleText', write: (v) => relabelGroup(code, M, id, v) };
+    if (kind === 'edge') return { value: M.edges.find((e) => e.id === id)?.label ?? '', multi: false, title: 'props.label', write: (v) => relabelFlowEdge(code, M, id, v) };
   } else if (M.type === 'sequence') {
     const it = M.items.find((x) => (x.kind === 'message' || x.kind === 'note' || x.kind === 'blockStart') && x.id === id);
-    if (kind === 'participant') return { value: M.participants.find((p) => p.id === id)?.label ?? '', multi: false, title: 'props.name', apply: (v) => relabelSeq(code, M, { kind, id }, v) };
+    if (kind === 'participant') return { value: M.participants.find((p) => p.id === id)?.label ?? '', multi: false, title: 'props.name', write: (v) => relabelSeq(code, M, { kind, id }, v) };
     if ((kind === 'message' || kind === 'note') && it && (it.kind === 'message' || it.kind === 'note'))
-      return { value: it.text, multi: false, title: 'props.text', apply: (v) => relabelSeq(code, M, { kind, id }, v) };
-    if (kind === 'block' && it?.kind === 'blockStart') return { value: it.label, multi: false, title: 'props.condition', apply: (v) => relabelSeq(code, M, { kind, id }, v) };
-    if (kind === 'box') return { value: M.boxes.find((b) => b.id === id)?.label ?? '', multi: false, title: 'props.titleText', apply: (v) => relabelBox(code, M, id, v) };
+      return { value: it.text, multi: false, title: 'props.text', write: (v) => relabelSeq(code, M, { kind, id }, v) };
+    if (kind === 'block' && it?.kind === 'blockStart') return { value: it.label, multi: false, title: 'props.condition', write: (v) => relabelSeq(code, M, { kind, id }, v) };
+    if (kind === 'box') return { value: M.boxes.find((b) => b.id === id)?.label ?? '', multi: false, title: 'props.titleText', write: (v) => relabelBox(code, M, id, v) };
   } else if (M.type === 'er') {
-    if (kind === 'rel') return { value: M.rels.find((r) => r.id === id)?.label ?? '', multi: false, title: 'props.label', apply: (v) => updateRel(code, M, id, { label: v }) };
-    if (kind === 'entity') return { value: M.entities.get(id)?.label ?? '', multi: false, title: 'props.name', apply: (v) => updateEntity(code, M, id, { label: v }) };
+    if (kind === 'rel') return { value: M.rels.find((r) => r.id === id)?.label ?? '', multi: false, title: 'props.label', write: (v) => updateRel(code, M, id, { label: v }) };
+    if (kind === 'entity') return { value: M.entities.get(id)?.label ?? '', multi: false, title: 'props.name', write: (v) => updateEntity(code, M, id, { label: v }) };
   }
   return null;
+}
+
+/** Sequence ids are positions (`m3` is the third message): an insertion above moves them to another item. */
+const POSITIONAL: ReadonlySet<ItemKind> = new Set(['message', 'note', 'block', 'box']);
+
+/** How an item's text is read and written back to Mermaid (prototype `labelSpec`; the inline editor and Properties). */
+export function labelSpec(core: EditorCore, kind: ItemKind, id: string): LabelSpec | null {
+  const at = textOf(core, kind, id);
+  if (!at) return null;
+  return {
+    value: at.value, multi: at.multi, title: at.title,
+    apply: (v) => {
+      if (!core.store.exists({ kind, id })) return null;
+      const now = textOf(core, kind, id);
+      if (!now || (POSITIONAL.has(kind) && now.value !== at.value)) return null;
+      return now.write(v);
+    },
+  };
 }
 
 /** `#rgb` / `#rrggbb` → `#rrggbb` for colour inputs (anything else → white). */
