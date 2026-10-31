@@ -142,12 +142,13 @@ describe('VersionList', () => {
     expect(createVersionList(props({ menu: { entries, popovers, modes: ['history'] } })).el.querySelector('.vmenu')).toBeNull();
   });
 
-  it('split picks: one frame of two halves without text, the label stays each half\'s accessible name', () => {
+  it('split picks: one frame of two halves with the initials, the label stays each half\'s accessible name', () => {
     const vl = createVersionList(props({ splitPicks: true }));
     expect(vl.el.querySelector('.vpick.split')).not.toBeNull();
     const picks = [...vl.el.querySelectorAll<HTMLButtonElement>('.version')[0]!.querySelectorAll<HTMLButtonElement>('.pick')];
     expect(picks.map((b) => b.getAttribute('aria-label'))).toEqual(['Before', 'After']);
-    expect(picks.every((b) => b.classList.contains('half') && !b.textContent)).toBe(true);
+    expect(picks.every((b) => b.classList.contains('half'))).toBe(true);
+    expect(picks.map((b) => b.textContent)).toEqual(['B', 'A']);
     expect(picks[1]!.getAttribute('aria-pressed')).toBe('true');
   });
 
