@@ -64,11 +64,11 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   readonly shadow: ShadowRoot;
   readonly ctx: CoreContext;
   readonly i18n: I18n;
+  /** UI preferences; reads and writes reach the adapter set last (`setStorage`). */
   readonly storage: StorageAdapter;
   readonly popovers: PopoverManager;
   readonly toaster: Toaster;
   readonly shortcuts = new ShortcutRegistry();
-  readonly themeSource: ThemeSource | undefined;
   /** Loads the History code; null: no History in this component. */
   readonly loadHistory: HistoryLoader | null;
 
@@ -126,6 +126,8 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   private readonly modules: ModuleHost<this> = new ModuleHost<this>(this);
   private readonly schemeState: SchemeState;
   private readonly loadTheme: (id: string) => Promise<boolean>;
+  private prefs: StorageAdapter;
+  private source: ThemeSource | undefined;
 
   constructor(host: HTMLElement, o: ViewCoreOptions) {
     registerMessages(VIEW_MESSAGES);
@@ -133,9 +135,10 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.product = o.product;
     this.host = host;
     this.i18n = getShared().i18n;
-    this.storage = o.storage ?? (typeof localStorage !== 'undefined' ? localStorageAdapter() : memoryStorage());
+    this.prefs = o.storage ?? defaultStorage();
+    this.storage = { get: (k) => this.prefs.get(k), set: (k, v) => this.prefs.set(k, v), remove: (k) => this.prefs.remove(k) };
     this.ctx = instanceContext(o.ctx);
-    this.themeSource = o.themeSource;
+    this.source = o.themeSource;
     this.loadHistory = o.loadHistory ?? null;
     this.shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
 
@@ -161,7 +164,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.schemeState = schemeState(this.storage, `${o.product}.ui`, o.ui);
     this.scheme = this.schemeState.scheme;
     this.themes = new ThemeState({ registry: this.ctx.themes, storage: this.storage, product: o.product, scheme: this.scheme, theme: o.theme, themeDark: o.themeDark });
-    this.loadTheme = themeLoader(this.ctx.themes, o.themeSource, () => !this.destroyed);
+    this.loadTheme = themeLoader(this.ctx.themes, () => this.source, () => !this.destroyed);
     this.cleanups.push(watchUiScheme(() => this.schemeState.apply()));
     this.cleanups.push(this.ctx.themes.onChange(() => {
       if (this.destroyed) return;
@@ -304,6 +307,24 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.emit('mmdx-ui', { ui: s });
   }
 
+  /** Where unregistered themes are loaded from (default: the shared `configure({ themeSource })`). */
+  get themeSource(): ThemeSource | undefined {
+    return this.source;
+  }
+
+  /** Changes the theme source; the shown theme is loaded through it when it is not registered yet. */
+  setThemeSource(s: ThemeSource | undefined): void {
+    this.source = s;
+    void this.ensureTheme(this.shownTheme());
+  }
+
+  /** Changes where UI preferences live: the remembered scheme and theme pick are read from it again. */
+  setStorage(s: StorageAdapter | undefined): void {
+    this.prefs = s ?? defaultStorage();
+    this.schemeState.apply();
+    this.themes.reload();
+  }
+
   // ---- layout -----------------------------------------------------------------------------------------------------
 
   setCompact(c: boolean | 'auto'): void {
@@ -376,3 +397,4 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   }
 }
 
+const defaultStorage = (): StorageAdapter => (typeof localStorage !== 'undefined' ? localStorageAdapter() : memoryStorage());

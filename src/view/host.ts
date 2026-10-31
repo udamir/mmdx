@@ -35,25 +35,34 @@ export class ModuleHost<C extends HostCore> {
   running: Scope<C> | null = null;
   private readonly installed = new Map<string, Scope<C>>();
   private available: readonly ViewModule<C>[] = [];
+  /** The product's modules (`use`) and the sets added on top of them (`add`, e.g. History's), kept apart. */
+  private base: readonly ViewModule<C>[] = [];
+  private added: (readonly ViewModule<C>[])[] = [];
   private refreshing = false;
   private again = false;
 
   constructor(readonly core: C) {}
 
+  /** Replaces the product's modules; the sets added with `add` stay. */
   use(list: readonly ViewModule<C>[]): void {
-    this.available = orderModules(list);
-    this.refresh();
+    this.base = list;
+    this.order();
   }
 
   add(list: readonly ViewModule<C>[]): () => void {
     const ids = new Set(this.available.map((m) => m.id));
     const added = list.filter((m) => !ids.has(m.id));
-    this.available = orderModules([...this.available, ...added]);
-    this.refresh();
+    this.added.push(added);
+    this.order();
     return () => {
-      this.available = this.available.filter((m) => !added.includes(m));
-      this.refresh();
+      this.added = this.added.filter((l) => l !== added);
+      this.order();
     };
+  }
+
+  private order(): void {
+    this.available = orderModules([...this.base, ...this.added.flat()]);
+    this.refresh();
   }
 
   /**
