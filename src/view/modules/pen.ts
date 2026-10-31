@@ -1,18 +1,14 @@
 // pen (component architecture §7.4, §6): the magic pen. One stroke store per component, painted into every canvas
 // (the main one, side-by-side panes, every morph state); the Pen tool in the dock, its options in the dock's flyout
 // while drawing, P to toggle, Esc to stop. Strokes are cleared when the mode or the stage changes (§8.3).
+import { reducedMotion } from '../../dom/motion.js';
 import { StrokeStore } from '../../dom/pen.js';
 import { dockButton } from '../../ui/blocks/tool-dock.js';
 import { createPenOptions, PEN_OPTIONS_CSS } from '../../ui/blocks/pen-options.js';
 import { ICONS } from '../../ui/icons.js';
-import { computed } from '../../ui/signal.js';
 import type { ViewCore } from '../core.js';
 import type { ViewModule } from '../module.js';
 import { strokesOf } from '../strokes.js';
-
-const reducedMotion = (): boolean => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-export { strokesOf };
 
 export const penModule: ViewModule<ViewCore> = {
   id: 'pen',
@@ -23,11 +19,12 @@ export const penModule: ViewModule<ViewCore> = {
     const t = core.i18n.t;
     const store = new StrokeStore(core.storage, reducedMotion);
     strokesOf.set(core, store);
+    core.strokes.set(store);
     const detach = core.canvas.attachInk(store);
     const defaultTool = (): 'hand' | 'pointer' => (core.mode.peek() === 'edit' ? 'pointer' : 'hand');
     const toggle = (): void => void core.run('setTool', core.tool.peek() === 'pen' ? defaultTool() : 'pen');
 
-    const btn = dockButton({ icon: ICONS.pen, label: t('tools.pen'), keys: 'p', class: 'vt-pen', f: 'tool-pen', pressed: computed(() => core.tool() === 'pen'), onClick: toggle });
+    const btn = dockButton({ icon: ICONS.pen, label: t('tools.pen'), keys: 'p', class: 'vt-pen', f: 'tool-pen', pressed: scope.computed(() => core.tool() === 'pen'), onClick: toggle });
     scope.contribute(core.dockItems, { id: 'pen', section: 'tools', order: 40, el: btn.el });
     const opts = createPenOptions({ pen: store, t });
     scope.onDispose(store.subscribe(() => opts.refresh()));
@@ -57,6 +54,7 @@ export const penModule: ViewModule<ViewCore> = {
       if (core.tool.peek() === 'pen') core.tool.set(defaultTool());
       if (core.dockFlyout.peek() === opts.el) core.dockFlyout.set(null);
       strokesOf.delete(core);
+      if (core.strokes.peek() === store) core.strokes.set(null);
       detach();
       opts.destroy();
       btn.destroy();

@@ -4,7 +4,6 @@
 // (H) and Esc back to it.
 import { createToolDock, dockButton, TOOL_DOCK_CSS, type ToolDockGroup } from '../../ui/blocks/tool-dock.js';
 import { ICONS } from '../../ui/icons.js';
-import { computed } from '../../ui/signal.js';
 import type { ViewCore } from '../core.js';
 import type { ViewModule } from '../module.js';
 import type { DockItem } from '../types.js';
@@ -18,7 +17,7 @@ export const toolDockModule: ViewModule<ViewCore> = {
   install(scope) {
     const core = scope.core;
     const t = core.i18n.t;
-    const groups = computed((): ToolDockGroup[] => {
+    const groups = scope.computed((): ToolDockGroup[] => {
       const items = core.dockItems();
       const tools = bySection(items, 'tools'), panels = bySection(items, 'panels'), edit = bySection(items, 'edit');
       const main: (HTMLElement | 'sep')[] = [...tools];
@@ -49,10 +48,10 @@ export const panModule: ViewModule<ViewCore> = {
     const t = core.i18n.t;
     const hand = dockButton({
       icon: ICONS.hand, label: t('tools.hand'), keys: 'h', class: 'vt-hand', f: 'tool-hand',
-      pressed: computed(() => core.tool() === 'hand'), onClick: () => core.run('setTool', 'hand'),
+      pressed: scope.computed(() => core.tool() === 'hand'), onClick: () => core.run('setTool', 'hand'),
     });
     scope.contribute(core.dockItems, { id: 'hand', section: 'tools', order: 20, el: hand.el });
-    if (!core.has('setTool')) core.provide('setTool', (tool) => core.tool.set(tool));
+    if (!core.has('setTool')) scope.provide('setTool', (tool) => core.tool.set(tool));
     // H, unless a module installed earlier owns it (the editor's canvas)
     if (!core.shortcuts.list({ mode: 'edit' }).some((s) => s.keys.includes('h')))
       scope.shortcut({ id: 'tool-hand', keys: ['h'], label: t('help.hand'), group: t('help.tools'), run: () => void core.run('setTool', 'hand') });

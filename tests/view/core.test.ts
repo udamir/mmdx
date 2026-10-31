@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { h } from '../../src/ui/h.js';
 import { ViewCore } from '../../src/view/core.js';
-import type { ViewModule } from '../../src/view/module.js';
+import { lazyModule, orderModules, type ViewModule } from '../../src/view/module.js';
 import { BaseScene, type CanvasArea } from '../../src/view/scene.js';
 
 const mount = (o: Partial<ConstructorParameters<typeof ViewCore>[1]> = {}): ViewCore => {
@@ -131,6 +131,117 @@ describe('module host', () => {
   });
 });
 
+describe('module scope', () => {
+  it('scope.on / provide / computed / mount (also after install) are muted while suspended and gone after uninstall', () => {
+    const core = mount();
+    const calls: string[] = [];
+    const late = h('i', { class: 'late' });
+    let s!: Parameters<ViewModule<ViewCore>['install']>[0];
+    const m: ViewModule<ViewCore> = {
+      id: 'scoped', when: { stage: ['document'] },
+      install(scope) {
+        s = scope;
+        scope.on('draw', () => calls.push('draw'));
+        scope.provide('fitView', () => calls.push('fit'));
+        const dbl = scope.computed(() => core.tool() === 'pen');
+        scope.effect(() => void calls.push(`pen:${dbl()}`));
+      },
+    };
+    core.useModules([m]);
+    s.mount(core.slots.overlay, late);
+    expect(late.isConnected).toBe(true);
+    core.fire('draw');
+    core.run('fitView');
+    core.tool.set('pen');
+    expect(calls).toEqual(['pen:false', 'draw', 'fit', 'pen:true']);
+    calls.length = 0;
+    core.stage.set('history');
+    expect(late.isConnected).toBe(false);
+    core.fire('draw');
+    expect(core.has('fitView')).toBe(false);
+    core.stage.set('document');
+    expect(late.isConnected).toBe(true);
+    core.useModules([]);
+    expect(late.isConnected).toBe(false);
+    calls.length = 0;
+    core.fire('draw');
+    core.tool.set('hand');
+    expect(core.has('fitView')).toBe(false);
+    expect(calls).toEqual([]);
+  });
+
+  it('warns when module code registers on the core after install (not removed with the module)', () => {
+    const core = mount();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const btn = h('button');
+    core.useModules([{ id: 'leaky', install: (scope) => scope.listen(btn, 'click', () => void core.on('draw', () => undefined)) }]);
+    btn.click();
+    expect(warn).toHaveBeenCalledOnce();
+    expect(String(warn.mock.calls[0]![0])).toContain('leaky');
+    warn.mockRestore();
+  });
+
+  it('a lazy part\'s DOM placed straight into the root is the module\'s (detached while suspended, removed on uninstall)', async () => {
+    const core = mount();
+    const el = h('div', { class: 'direct' });
+    const m: ViewModule<ViewCore> = { id: 'lazy', when: { stage: ['document'] }, install: (scope) => void scope.load(), load: async () => ({ activate: (scope) => void scope.core.root.append(el) }) };
+    core.useModules([m]);
+    await core.moduleScope('lazy')!.load();
+    expect(el.parentNode).toBe(core.root);
+    core.stage.set('history');
+    expect(el.isConnected).toBe(false);
+    core.stage.set('document');
+    expect(el.parentNode).toBe(core.root);
+    core.useModules([]);
+    expect(el.isConnected).toBe(false);
+  });
+
+  it('a module that read a feature while installing is installed again when the feature changes', () => {
+    const features = new Set(['help']);
+    const core = mount({ feature: (n) => features.has(n) });
+    let installs = 0;
+    core.useModules([{ id: 'bar', install: (scope) => void (installs++, scope.core.feature('help')) }]);
+    core.refreshModules();
+    expect(installs).toBe(1);
+    features.add('other');
+    core.refreshModules();
+    expect(installs).toBe(1);
+    features.delete('help');
+    core.refreshModules();
+    expect(installs).toBe(2);
+  });
+
+  it('a refresh asked for while one runs (a module changing the stage) runs after it, with the new stage', () => {
+    const core = mount();
+    const seen: string[] = [];
+    core.useModules([
+      { id: 'switch', install: () => void core.stage.set('history') },
+      { id: 'doc-only', when: { stage: ['document'] }, install: (scope) => scope.effect(() => void seen.push('active')) },
+    ]);
+    expect(core.stage.peek()).toBe('history');
+    expect(core.moduleScope('doc-only')?.active).toBe(false);
+    expect(seen).toEqual([]);
+  });
+
+  it('orderModules reports a cycle and an unknown `after`', () => {
+    const warn = vi.fn();
+    const out = orderModules([{ id: 'a', after: ['b'] }, { id: 'b', after: ['a'] }, { id: 'c', after: ['zz'] }], warn);
+    expect(out.map((m) => m.id)).toEqual(['b', 'a', 'c']);
+    expect(warn.mock.calls.map((c) => c[0])).toEqual(['module a: cycle in "after"', 'module c: "after" names zz, which is not in the set']);
+  });
+
+  it('lazyModule applies the real module\'s own enabled() once loaded', async () => {
+    let realOn = true;
+    const m = lazyModule<ViewCore>({ id: 'lz' }, async () => ({ id: 'lz', enabled: () => realOn, install: () => undefined }));
+    const core = mount();
+    core.useModules([m]);
+    await core.moduleScope('lz')!.load();
+    realOn = false;
+    core.refreshModules();
+    expect(core.moduleIds).toEqual([]);
+  });
+});
+
 describe('scenes', () => {
   class Probe extends BaseScene {
     readonly id: string;
@@ -205,5 +316,33 @@ describe('theme', () => {
     expect(core.shownTheme()).toBe('default-light');
     expect(seen).toHaveBeenCalledOnce();
     expect(mount({ storage }).scheme.peek()).toBe('dark');
+  });
+
+  it('the menu ticks the pick the shown theme comes from: none while the host attribute overrides a remembered pick', () => {
+    const core = mount({ storage: memoryStorage({ 'viewer.theme': 'stored' }), ui: 'light', theme: 'forced' });
+    expect(core.shownTheme()).toBe('forced');
+    expect(core.themes.picked()).toBeNull();
+    core.themes.choose('mine');
+    expect(core.themes.picked()).toBe('mine');
+    expect(mount({ storage: memoryStorage({ 'viewer.theme': 'stored' }), ui: 'light' }).themes.picked()).toBe('stored');
+  });
+
+  it('ui "auto" follows the remembered toggle, else the page', () => {
+    const storage = memoryStorage({ 'viewer.ui': 'dark' });
+    const core = mount({ storage, ui: 'light' });
+    expect(core.scheme.peek()).toBe('light');
+    core.setUi('auto');
+    expect(core.scheme.peek()).toBe('dark');
+  });
+
+  it('a scheme flip that keeps the theme repaints nothing', () => {
+    const core = mount({ storage: memoryStorage(), ui: 'light' });
+    core.themes.choose('default-light');
+    const theme = vi.fn();
+    core.on('theme', theme);
+    core.setUi('dark');
+    expect(theme).not.toHaveBeenCalled();
+    core.themes.follow();
+    expect(theme).toHaveBeenCalledOnce();
   });
 });

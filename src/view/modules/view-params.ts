@@ -8,7 +8,7 @@ import { createSchemeToggle, SCHEME_TOGGLE_CSS } from '../../ui/blocks/scheme-to
 import { createThemeButton, THEME_MENU_CSS } from '../../ui/blocks/theme-menu.js';
 import { createToolbar, TOOLBAR_CSS } from '../../ui/blocks/toolbar.js';
 import { h } from '../../ui/h.js';
-import { computed, signal } from '../../ui/signal.js';
+import { signal } from '../../ui/signal.js';
 import type { ViewCore } from '../core.js';
 import type { ViewModule } from '../module.js';
 
@@ -38,11 +38,8 @@ export const viewParamsModule: ViewModule<ViewCore> = {
     const theme = core.feature('theme')
       ? createThemeButton({
         themes: core.ctx.themes.list().map((x) => ({ id: x.id, name: x.name, appearance: x.appearance === 'dark' ? 'dark' : 'light' })),
-        picked: computed(() => {
-          themesRev();
-          const p = core.themes.pick();
-          return p ? p.id : null;
-        }),
+        // the pick the shown theme comes from (not a remembered pick the host's `theme` attribute overrides)
+        picked: core.themes.picked,
         shown: core.themes.current,
         onPick: (id) => core.themes.choose(id),
         onFollow: () => core.themes.follow(),

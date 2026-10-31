@@ -10,7 +10,7 @@ import { createSidePanel } from '../../ui/blocks/side-panel.js';
 import { dockButton } from '../../ui/blocks/tool-dock.js';
 import { h } from '../../ui/h.js';
 import { ICONS } from '../../ui/icons.js';
-import { computed, signal } from '../../ui/signal.js';
+import { signal } from '../../ui/signal.js';
 import type { ViewCore } from '../core.js';
 import type { ModuleScope, ViewModule } from '../module.js';
 
@@ -20,7 +20,7 @@ const VIEW_SETTINGS_ICON = 'M2.5 11.5C4.6 7.4 8 5.5 12 5.5s7.4 1.9 9.5 6M2.5 11.
 function panelToggle(scope: ModuleScope<ViewCore>, id: string, o: { icon: string; label: string; keys: string | null; help: string; order: number }): () => void {
   const core = scope.core;
   const t = core.i18n.t;
-  const open = computed(() => !!core.panels()[id]);
+  const open = scope.computed(() => !!core.panels()[id]);
   const toggle = (): void => void core.run('setPanel', id, !core.panels.peek()[id]);
   const btn = dockButton({ icon: o.icon, label: o.label, ...(o.keys ? { keys: o.keys } : {}), class: `vt-panel vt-${id}`, f: `panel-${id}`, pressed: open, onClick: toggle });
   scope.contribute(core.dockItems, { id, section: 'panels', order: o.order, el: btn.el });
@@ -42,7 +42,7 @@ export const viewSettingsModule: ViewModule<ViewCore> = {
     const keys = freeKey(core, 'l');
     const offBtn = panelToggle(scope, 'view-settings', { icon: VIEW_SETTINGS_ICON, label: t('tools.viewSettings'), keys, help: t('help.viewSettings'), order: 30 });
     const display = core.display;
-    const labels = computed(() => display().labels), hover = computed(() => display().hoverHighlight);
+    const labels = scope.computed(() => display().labels), hover = scope.computed(() => display().hoverHighlight);
     const set = (patch: Partial<ReturnType<typeof display.peek>>): void => {
       display.set({ ...display.peek(), ...patch });
       core.invalidate();
@@ -63,7 +63,7 @@ export const viewSettingsModule: ViewModule<ViewCore> = {
       t,
     });
     const rev = signal(0);
-    scope.onDispose(core.on('draw', () => rev.update((n) => n + 1)));
+    scope.on('draw', () => rev.update((n) => n + 1));
     scope.effect(() => {
       rev();
       const visible = core.visibleLayers();
@@ -98,7 +98,7 @@ export const codeViewModule: ViewModule<ViewCore> = {
     const view = createCodeView({ mode: 'plain', lines: lines(), language: 'mermaid', label: t('codeView.label'), copy: true, part: 'code', t });
     const body = h('div', { class: 'code-view' }, view.el);
     const rev = signal(0);
-    scope.onDispose(core.on('draw', () => rev.update((n) => n + 1)));
+    scope.on('draw', () => rev.update((n) => n + 1));
     scope.effect(() => {
       rev();
       if (core.panels()['code-view']) view.update({ lines: lines() });

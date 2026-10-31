@@ -69,8 +69,28 @@ export interface ViewActions {
   setClipboard(data: unknown): void;
 }
 
-/** Kernel events (no payload); products add their own. */
-export type ViewEvent = 'draw' | 'view' | 'theme' | 'mode' | 'stage' | 'tool' | 'panels' | 'model' | 'selection' | 'overlay' | 'document';
+/**
+ * Kernel events, by name → payload (`void`: none). An open map: a product extends it (`interface MyEvents extends
+ * ViewEvents { … }`) and passes it to `ViewCore<Actions, Panels, MyEvents>`.
+ */
+export interface ViewEvents {
+  /** The attached scene painted. */
+  draw: void;
+  /** Pan, zoom or the canvas insets changed. */
+  view: void;
+  theme: void;
+  mode: void;
+  stage: void;
+  tool: void;
+  panels: void;
+  model: void;
+  selection: void;
+  overlay: void;
+  /** The shown document changed (a new source). */
+  document: void;
+}
+
+export type ViewEvent = keyof ViewEvents;
 
 /** A button a module adds to the tool dock (the toolDock module renders them by section, then order). */
 export interface DockItem {
