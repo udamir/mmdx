@@ -19,9 +19,6 @@ export const TOKENS = /* css */ `
   --mmdx-shadow-card: 0 10px 30px rgba(20,30,60,.16), 0 1px 3px rgba(20,30,60,.08);
   --mmdx-shadow-raised: 0 1px 3px rgba(0,0,0,.18);
   --mmdx-swatch-ring: rgba(0,0,0,.14); --mmdx-backdrop: rgba(10,12,20,.32);
-  --mmdx-code-kw: #7c3aed; --mmdx-code-arrow: #db2777; --mmdx-code-str: #15803d; --mmdx-code-label: #0369a1; --mmdx-code-text: #0f766e;
-  --mmdx-code-cls: #c2410c; --mmdx-code-dir: #9333ea; --mmdx-code-key: #b45309; --mmdx-code-punct: #64748b; --mmdx-code-comment: #8a93a6;
-  --mmdx-code-meta: #b5bac6; --mmdx-code-fold: #c9a24a;
   --mmdx-z-popover: 1000;
   --mmdx-focus: 0 0 0 2px var(--mmdx-accent);
   color-scheme: light;
@@ -38,12 +35,6 @@ export const TOKENS = /* css */ `
   --mmdx-ok: #5fd38a;
   --mmdx-float: #353b47; --mmdx-float-2: #434a58; --mmdx-float-line: rgba(255,255,255,.1);
   --mmdx-shadow: 0 2px 8px rgba(0,0,0,.4); --mmdx-shadow-lg: 0 8px 28px rgba(0,0,0,.5);
-  --mmdx-shadow-float: 0 4px 16px rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.3);
-  --mmdx-shadow-card: 0 10px 30px rgba(0,0,0,.5), 0 1px 3px rgba(0,0,0,.3);
-  --mmdx-shadow-raised: 0 1px 3px rgba(0,0,0,.5);
-  --mmdx-swatch-ring: rgba(255,255,255,.22); --mmdx-backdrop: rgba(0,0,0,.5);
-  --mmdx-code-kw: #c4a5ff; --mmdx-code-arrow: #ff7eb6; --mmdx-code-str: #7ee0a1; --mmdx-code-label: #6cc4ff; --mmdx-code-text: #5fd8c9;
-  --mmdx-code-cls: #ffa26b; --mmdx-code-dir: #d29bff; --mmdx-code-punct: #8d97a8; --mmdx-code-comment: #7d8597; --mmdx-code-meta: #5b6272;
 }
 `;
 

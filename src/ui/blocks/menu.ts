@@ -86,7 +86,6 @@ export interface OpenMenuOptions {
   /** Opens below (default) or above the opener. */
   placement?: 'below' | 'above';
   class?: string;
-  part?: string;
 }
 
 /**
@@ -98,7 +97,7 @@ export function openMenu(o: OpenMenuOptions): void {
     o.popovers.close();
     return;
   }
-  const menu = createMenu({ label: o.label, entries: o.entries, ...(o.class ? { class: o.class } : {}), ...(o.part ? { part: o.part } : {}), onPick: () => o.popovers.close(true) });
+  const menu = createMenu({ label: o.label, entries: o.entries, ...(o.class ? { class: o.class } : {}), onPick: () => o.popovers.close(true) });
   const box = (o.within ?? o.opener.offsetParent ?? o.opener.parentElement)?.getBoundingClientRect();
   const r = o.opener.getBoundingClientRect();
   if (box) {

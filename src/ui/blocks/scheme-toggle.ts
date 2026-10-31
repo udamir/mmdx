@@ -39,7 +39,7 @@ export function createSchemeToggle(props: SchemeToggleProps): BlockHandle<Scheme
   const el = h('div', { class: 'vp-mode', role: 'radiogroup' }, light, dark);
 
   // arrows pick the other scheme (two radios: every arrow toggles) and move the focus with it
-  const keys = rovingKeys(el, { orientation: 'both', selector: '[role=radio]', select: true, homeEnd: false });
+  const keys = rovingKeys(el, { orientation: 'both', selector: '[role=radio]', select: true });
   scope.add(() => keys.destroy());
 
   const render = (): void => {

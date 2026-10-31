@@ -37,8 +37,6 @@ export interface RovingOptions {
   roving?: boolean;
   /** The tab stop when none of the items has the focus (e.g. the selected row). */
   current?: (items: HTMLElement[]) => HTMLElement | null | undefined;
-  /** Home / End (default true). */
-  homeEnd?: boolean;
   /** Clicks the item moved to (tabs, radios: moving selects). */
   select?: boolean;
   /** Ignore keys from these targets (default: text fields and selects). */
@@ -58,11 +56,8 @@ export interface RovingHandle {
 const defaultSkip = (t: HTMLElement): boolean => t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable;
 
 /** Not disabled, not under `[hidden]`, and rendered (where the engine can tell). */
-export const usable = (e: HTMLElement): boolean => {
-  if ((e as HTMLButtonElement).disabled || e.closest('[hidden]')) return false;
-  const v = (e as HTMLElement & { checkVisibility?: () => boolean }).checkVisibility;
-  return typeof v === 'function' && e.isConnected ? v.call(e) : true;
-};
+export const usable = (e: HTMLElement): boolean =>
+  !(e as HTMLButtonElement).disabled && !e.closest('[hidden]') && (!e.checkVisibility || !e.isConnected || e.checkVisibility());
 
 /**
  * Arrow keys (and Home / End) move the focus through the items of `el`; with `roving`, only one item is in the Tab
@@ -71,26 +66,23 @@ export const usable = (e: HTMLElement): boolean => {
  */
 export function rovingKeys(el: HTMLElement, o: RovingOptions): RovingHandle {
   const ac = new AbortController();
+  const signal = ac.signal;
   const all = (): HTMLElement[] => (typeof o.selector === 'string' ? [...el.querySelectorAll<HTMLElement>(o.selector)] : o.selector(el));
   const items = (): HTMLElement[] => all().filter(usable);
-  const homeEnd = o.homeEnd !== false;
-  const skip = o.skip ?? defaultSkip;
-  // items of a nested roving group keep their own tab stops
+  // items of a nested group with its own keys keep their own tab stops
   const own = (e: HTMLElement): boolean => {
     const g = e.parentElement?.closest('[data-roving]');
     return !g || g === el || !el.contains(g);
   };
-
-  const setStop = (stop: HTMLElement | null): void => {
-    for (const e of all()) if (own(e)) e.tabIndex = e === stop ? 0 : -1;
+  const setStop = (stop: HTMLElement | null | undefined): void => {
+    if (o.roving) for (const e of all()) if (own(e)) e.tabIndex = e === stop ? 0 : -1;
   };
   const sync = (): void => {
-    if (!o.roving) return;
-    const list = items();
+    const list = items().filter(own);
     const active = focusedIn(el);
-    const stop = (active && list.includes(active) ? active : null) ?? o.current?.(list)
-      ?? list.find((e) => own(e) && e.getAttribute('tabindex') === '0') ?? list.find(own) ?? null;
-    setStop(stop && list.includes(stop) ? stop : list.find(own) ?? null);
+    const cur = o.current?.(list);
+    setStop((active && list.includes(active) ? active : null) ?? (cur && list.includes(cur) ? cur : null)
+      ?? list.find((e) => e.getAttribute('tabindex') === '0') ?? list[0]);
   };
 
   // a surrounding roving group leaves this group's tab stops alone
@@ -98,53 +90,42 @@ export function rovingKeys(el: HTMLElement, o: RovingOptions): RovingHandle {
   if (o.roving) {
     el.addEventListener('focusin', (ev) => {
       const t = ev.target as HTMLElement;
-      if (all().includes(t) && own(t)) setStop(t);
-    }, { signal: ac.signal });
+      if (own(t) && all().includes(t)) setStop(t);
+    }, { signal });
     // hidden / disabled items change from outside (signals): keep a valid tab stop
     if (typeof MutationObserver !== 'undefined') {
-      let queued = false;
-      const mo = new MutationObserver(() => {
-        if (queued) return;
-        queued = true;
-        queueMicrotask(() => {
-          queued = false;
-          if (!ac.signal.aborted) sync();
-        });
-      });
+      const mo = new MutationObserver(() => queueMicrotask(sync));
       mo.observe(el, { subtree: true, childList: true, attributes: true, attributeFilter: ['hidden', 'disabled', 'class'] });
-      ac.signal.addEventListener('abort', () => mo.disconnect());
+      signal.addEventListener('abort', () => mo.disconnect());
     }
   }
 
   el.addEventListener('keydown', (ev) => {
+    const k = ev.key;
     if (ev.altKey || ev.metaKey || ev.ctrlKey || ev.defaultPrevented) return;
     const or = typeof o.orientation === 'function' ? o.orientation() : o.orientation;
-    const fwd = or === 'vertical' ? ['ArrowDown'] : or === 'horizontal' ? ['ArrowRight'] : ['ArrowDown', 'ArrowRight'];
-    const back = or === 'vertical' ? ['ArrowUp'] : or === 'horizontal' ? ['ArrowLeft'] : ['ArrowUp', 'ArrowLeft'];
-    const isFwd = fwd.includes(ev.key), isBack = back.includes(ev.key);
-    const isEnd = homeEnd && (ev.key === 'Home' || ev.key === 'End');
-    if (!isFwd && !isBack && !isEnd) return;
+    const h = or !== 'vertical', v = or !== 'horizontal';
+    const d = (h && k === 'ArrowRight') || (v && k === 'ArrowDown') ? 1 : (h && k === 'ArrowLeft') || (v && k === 'ArrowUp') ? -1 : 0;
+    if (!d && k !== 'Home' && k !== 'End') return;
     const target = (ev.composedPath()[0] ?? ev.target) as HTMLElement;
-    if (skip(target)) return;
+    if ((o.skip ?? defaultSkip)(target)) return;
     const list = items();
     // the item that holds the focus (a key from a control inside an item counts for that item)
-    const i = list.findIndex((e) => e === target || e.contains(target));
+    const i = list.findIndex((e) => e.contains(target));
     if (i < 0) return;
     const n = list.length;
-    const j = ev.key === 'Home' ? 0 : ev.key === 'End' ? n - 1
-      : o.wrap === false ? Math.max(0, Math.min(n - 1, i + (isFwd ? 1 : -1))) : (i + (isFwd ? 1 : -1) + n) % n;
-    const next = list[j]!;
+    const next = list[k === 'Home' ? 0 : k === 'End' ? n - 1 : o.wrap === false ? Math.max(0, Math.min(n - 1, i + d)) : (i + d + n) % n]!;
     const to = o.pick?.(target, next, list) ?? next;
     ev.preventDefault();
     ev.stopPropagation();
-    if (o.roving && own(to)) setStop(to);
+    if (own(to)) setStop(to);
     to.focus();
     if (o.select && to !== target) to.click();
-  }, { signal: ac.signal });
+  }, { signal });
 
-  sync();
+  if (o.roving) sync();
   return {
-    sync,
+    sync: () => void (o.roving && sync()),
     items,
     destroy() {
       ac.abort();

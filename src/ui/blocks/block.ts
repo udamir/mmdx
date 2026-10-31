@@ -56,16 +56,11 @@ export class Scope {
 /** Tooltip text with a shortcut hint: `Hand (H)`; `format` defaults to the registry's `formatKeys` (platform symbols). */
 export const tipText = (label: string, keys?: string, format: (k: string) => string = formatKeys): string => (keys ? `${label} (${format(keys)})` : label);
 
-/** Registry key names → `aria-keyshortcuts` names (UI Events `key` values). */
-const ARIA_NAMES: Readonly<Record<string, string>> = {
-  shift: 'Shift', alt: 'Alt', ctrl: 'Control', delete: 'Delete', escape: 'Escape', enter: 'Enter', space: 'Space',
-  arrowup: 'ArrowUp', arrowdown: 'ArrowDown', arrowleft: 'ArrowLeft', arrowright: 'ArrowRight', home: 'Home', end: 'End', tab: 'Tab',
-};
-
 /**
- * `aria-keyshortcuts` value from a registry key: `mod+z` → `Meta+z` on Apple platforms, `Control+z` elsewhere;
- * alternatives (`['delete', 'backspace']`) are joined by a space.
+ * `aria-keyshortcuts` value from a registry key: `mod+z` → `Meta+z` on Apple platforms, `Control+z` elsewhere; named
+ * keys take their `KeyboardEvent.key` names (`escape` → `Escape`, `arrowup` → `ArrowUp`); alternatives
+ * (`['delete', 'mod+x']`) are joined by a space.
  */
 export const ariaKeys = (keys: string | readonly string[]): string =>
   (typeof keys === 'string' ? [keys] : keys).map((k) => k.split('+').map((p) =>
-    p === 'mod' ? (isMac() ? 'Meta' : 'Control') : ARIA_NAMES[p] ?? (p.length > 1 ? p[0]!.toUpperCase() + p.slice(1) : p)).join('+')).join(' ');
+    p === 'mod' ? (isMac() ? 'Meta' : 'Control') : p === 'ctrl' ? 'Control' : p.length > 1 ? p.replace(/^(arrow)?(.)/, (_, a?: string, c = '') => (a ? 'Arrow' : '') + c.toUpperCase()) : p).join('+')).join(' ');

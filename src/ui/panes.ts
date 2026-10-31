@@ -2,7 +2,7 @@
 // resize by dragging a panel's inner edge (double-click resets, arrow keys step). Hosts keep the widths in CSS custom
 // properties.
 import { Scope } from './blocks/block.js';
-import { createGrip } from './blocks/side-panel.js';
+import { createGrip } from './blocks/grip.js';
 
 const reducedMotion = (): boolean => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 

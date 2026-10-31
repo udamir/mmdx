@@ -2,9 +2,9 @@
 // alert(), which block the host page and cannot be styled or tested. Modal, focus-trapped, Esc cancels. The button
 // labels and the empty-name message go through the host's `t` (English without one).
 import { h } from './h.js';
-import { registerMessages, type I18n, type Messages } from './i18n.js';
+import type { I18n, Messages } from './i18n.js';
 
-/** English strings of the dialogs (registered on first use; a host catalog overrides them). */
+/** English strings of the dialogs (a host catalog overrides them). */
 export const DIALOG_MESSAGES: Messages = {
   'dialog.ok': 'OK',
   'dialog.cancel': 'Cancel',
@@ -33,8 +33,11 @@ export class Dialogs {
 
   /** `t`: the host's translation function (default: the English strings). */
   constructor(private readonly root: ShadowRoot, t?: I18n['t']) {
-    registerMessages(DIALOG_MESSAGES);
-    this.t = t ?? ((key) => DIALOG_MESSAGES[key] ?? key);
+    // a host catalog wins; keys it does not have fall back to the English table
+    this.t = (key) => {
+      const v = t?.(key);
+      return v && v !== key ? v : DIALOG_MESSAGES[key] ?? key;
+    };
   }
 
   /** Generic modal with buttons; resolves with the chosen value, or `cancel` on Esc / backdrop. */
