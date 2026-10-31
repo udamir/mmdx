@@ -21,12 +21,11 @@ import { h } from '../../../ui/h.js';
 import type { EditorCore, Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { saveItemAsPreset, presetPicker } from '../panels/presets.js';
-import {
-  choosePagePreset, DIAGRAM_TYPES, FLOW_DIRS, pageEff, RATIOS, setAutonumberOn, setFlowDirection, setPageRatio, setPageSizeMode, setPageValue, switchDiagramType,
-} from '../panels/properties.js';
-import { applyDoc, applyMeta, canGroup, LiveEdit, styleEnv } from '../panels/util.js';
+import { applyDoc, applyMeta, DIAGRAM_TYPES, FLOW_DIRS, setAutonumberOn, setFlowDirection, styleEnv, switchDiagramType } from '../../ops/doc.js';
+import { canGroup } from '../../ops/group.js';
+import { LiveEdit } from '../../ops/live.js';
+import { choosePagePreset, pageEff, RATIOS, setPageRatio, setPageSizeMode, setPageValue } from '../../ops/page.js';
 import { LINE_KINDS } from '../canvas/shared.js';
-import { setPanel } from './panes.js';
 
 export const TOOLBARS_CSS = /* css */ `
 ${TOOLBAR_CSS}
@@ -43,15 +42,15 @@ const BOX_LOOK: ReadonlySet<string> = new Set(['fill', 'fillOpacity', 'stroke', 
 
 const selKey = (sel: readonly ItemRef[]): string => sel.map((x) => `${x.kind}:${x.id}`).join('|');
 
-/** Horizontal strip of the canvas not covered by the tool dock, the code panel or the right panels (wrap coords). */
+/** Horizontal strip of the canvas not covered by the tool dock or the open panel stacks (wrap coords). */
 export function freeStrip(core: EditorCore): [number, number] {
-  const wrap = core.dom.wrap, root = core.dom.root;
+  const wrap = core.dom.wrap;
   const wr = wrap.getBoundingClientRect();
   const shown = (e: Element | null): e is HTMLElement => !!e && e instanceof HTMLElement && e.offsetParent !== null && getComputedStyle(e).visibility !== 'hidden' && getComputedStyle(e).display !== 'none';
-  const dock = wrap.querySelector('.tool-dock'), lp = root.querySelector('.pane.left'), rp = root.querySelector('.pane.right');
+  const dock = wrap.querySelector('.tool-dock'), stacks = core.stackInsets.peek();
   let lo = shown(dock) ? dock.getBoundingClientRect().right - wr.left : 0;
-  if (shown(lp)) lo = Math.max(lo, lp.getBoundingClientRect().right - wr.left);
-  const hi = (shown(rp) ? rp.getBoundingClientRect().left - wr.left : wr.width) - 10;
+  if (stacks) lo = Math.max(lo, stacks.left);
+  const hi = wr.width - (stacks?.right ?? 0) - 10;
   lo += 10;
   return hi - lo > 200 ? [lo, hi] : [8, wr.width - 8];
 }
@@ -389,7 +388,7 @@ export const toolbarsModule: EditorModule = {
           const s = primary();
           if (s) void saveItemAsPreset(core, s);
         },
-        inspect: () => setPanel(core, 'properties', true),
+        inspect: () => void core.run('setPanel', 'properties', true),
         bendCount: () => sameKind().reduce((n, s) => {
           const pts = core.getM(s.kind, s.id).points;
           return n + (Array.isArray(pts) ? pts.length : 0);

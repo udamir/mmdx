@@ -4,7 +4,7 @@ import type { AttrHighlight } from '../../../core/meta/types.js';
 import { cloneMeta, ensure, tidy } from '../../../core/ops/meta-util.js';
 import { ATTR_PRESETS } from '../../../core/render/er.js';
 import type { EditorCore } from '../../core.js';
-import { applyMeta } from '../panels/util.js';
+import { applyMeta } from '../../ops/doc.js';
 
 /**
  * Writes look keys (`color`, `bold`, `italic`, `underline`, `fontFamily`, `fontSize`, `preset`) into the highlights

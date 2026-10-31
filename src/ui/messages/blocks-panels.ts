@@ -15,4 +15,6 @@ export const BLOCK_MESSAGES_PANELS: Messages = {
   'panes.resize': 'Drag to resize · double-click to reset',
   // ---- layer list
   'layers.rename': 'Layer name', 'layers.countLabel': '{n} items', 'layers.lock': 'Lock layer', 'layers.unlock': 'Unlock layer',
+  'layers.select': 'Select the items on this layer', 'layers.selectN': 'Select the {n} items on {name}', 'layers.highlight': 'Highlight the items on this layer',
+  'layers.delete': 'Delete layer (its items move to Default)',
 };

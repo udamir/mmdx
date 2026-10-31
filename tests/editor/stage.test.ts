@@ -52,7 +52,7 @@ const state = (e: DiagramEditor) => ({
   panels: { ...e.core.panels.peek() },
   modules: e.core.moduleIds.join(' '),
   nodes: e.core.dom.body.querySelectorAll('.el[data-kind="node"]').length,
-  chrome: [...e.core.root.querySelectorAll('.pane, .tool-dock, .view-params, .bottom-bar')].map((x) => x.className).join(' | '),
+  chrome: [...e.core.root.querySelectorAll('.mmdx-stack, .mmdx-panel, .tool-dock, .view-params, .bottom-bar')].map((x) => x.className).join(' | '),
 });
 
 describe('the history stage', () => {
@@ -68,7 +68,7 @@ describe('the history stage', () => {
       expect(e.core.dom.body.querySelectorAll('.el').length).toBe(0);
       // editing modules are suspended: their panels leave the DOM, gestures and painters are off
       expect(e.core.moduleScope('canvas-select')?.active).toBe(false);
-      expect(e.core.root.querySelector('.pane')).toBeNull();
+      expect(e.core.root.querySelector('.mmdx-panel.code-edit, .mmdx-panel.props, .mmdx-panel.layers')).toBeNull();
       const hit = e.core.hitTest({ target: e.core.canvas.svg, clientX: 0, clientY: 0 });
       expect(e.core.startGesture(new MouseEvent('pointerdown') as PointerEvent, hit)).toBeNull();
       // the chrome that History keeps is still there

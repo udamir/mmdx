@@ -7,7 +7,7 @@ import { panesModule } from '../../src/editor/modules/chrome/panes.js';
 import { documentModule, exportMmdx, buildExport } from '../../src/editor/modules/chrome/document.js';
 import { codePanelModule } from '../../src/editor/modules/panels/code-panel.js';
 import { rightPanelsModule } from '../../src/editor/modules/panels/right-panels.js';
-import { buildSegments, mergeFilteredView, viewOf } from '../../src/editor/modules/panels/util.js';
+import { buildSegments, mergeFilteredView, viewOf } from '../../src/editor/ops/code-filter.js';
 import type { EditorModule } from '../../src/editor/module.js';
 
 const FLOW = 'flowchart LR\n  A["Alpha"] --> B["Beta"]\n  B --> C["Gamma"]\n';
@@ -30,6 +30,8 @@ const type = (ta: HTMLTextAreaElement, value: string): void => {
   ta.dispatchEvent(new Event('input', { bubbles: true }));
 };
 const flush = async (): Promise<void> => {
+  // the Properties inspectors load the first time the panel shows
+  await vi.dynamicImportSettled();
   await Promise.resolve();
   await Promise.resolve();
 };
@@ -49,7 +51,7 @@ afterEach(() => {
 describe('code panel', () => {
   test('typing in the code updates the model and is one undo step', () => {
     const e = mount(FLOW);
-    const ta = $<HTMLTextAreaElement>('.pane.left [data-body="code"] textarea');
+    const ta = $<HTMLTextAreaElement>('.mmdx-panel.code-edit [data-body="code"] textarea');
     expect(ta.value).toBe(e.core.code);
     type(ta, `${e.core.code}\n  C --> D`);
     type(ta, `${e.core.code}\n  C --> D["Delta"]`);
@@ -67,7 +69,7 @@ describe('code panel', () => {
 
   test('%%@ lines pasted into the code move into the metadata', () => {
     const e = mount(FLOW);
-    const ta = $<HTMLTextAreaElement>('.pane.left [data-body="code"] textarea');
+    const ta = $<HTMLTextAreaElement>('.mmdx-panel.code-edit [data-body="code"] textarea');
     type(ta, `${e.core.code}\n%%@ node A {"fill":"#ff0000"}`);
     vi.advanceTimersByTime(260);
     expect(e.core.meta.nodes?.['A']?.fill).toBe('#ff0000');
@@ -88,7 +90,7 @@ describe('code panel', () => {
 
   test('the items a code filter finds are selected; clearing the filter clears that selection', () => {
     const e = mount('flowchart LR\n  A["Alpha"] -->|"go"| B["Beta"]\n  B --> C["Gamma"]\n  subgraph G ["Alpha team"]\n    D:::worker\n  end\n');
-    const search = $<HTMLInputElement>('.pane.left [data-body="code"] input[type=search]');
+    const search = $<HTMLInputElement>('.mmdx-panel.code-edit [data-body="code"] input[type=search]');
     const query = (q: string): string[] => {
       search.value = q;
       search.dispatchEvent(new Event('input'));
@@ -119,15 +121,15 @@ describe('code panel', () => {
 
   test('code filter round trip writes edits into the full file and keeps hidden lines', () => {
     const e = mount(FLOW);
-    const search = $<HTMLInputElement>('.pane.left [data-body="code"] input[type=search]');
+    const search = $<HTMLInputElement>('.mmdx-panel.code-edit [data-body="code"] input[type=search]');
     search.value = 'Gamma';
     search.dispatchEvent(new Event('input'));
     vi.advanceTimersByTime(200);
-    const ta = $<HTMLTextAreaElement>('.pane.left [data-body="code"] textarea');
+    const ta = $<HTMLTextAreaElement>('.mmdx-panel.code-edit [data-body="code"] textarea');
     expect(ta.value).toBe('%% - 2 hidden\n  B --> C["Gamma"]');
     expect($('.code-filter-bar').hidden).toBe(false);
     // the gutter shows ⋯ for the hidden run and the real line number of the visible line
-    expect($$('.pane.left [data-body="code"] .cm-gutter > div > div').map((d) => d.textContent)).toEqual(['⋯', '3']);
+    expect($$('.mmdx-panel.code-edit [data-body="code"] .cm-gutter > div > div').map((d) => d.textContent)).toEqual(['⋯', '3']);
     type(ta, ta.value.replace('Gamma', 'Gamma 2'));
     vi.advanceTimersByTime(260);
     expect(e.core.code).toBe('flowchart LR\n  A["Alpha"] --> B["Beta"]\n  B --> C["Gamma 2"]');
@@ -140,8 +142,8 @@ describe('code panel', () => {
 
   test('metadata edit with a bad line keeps it and flags it', () => {
     const e = mount(`${FLOW}\n%%@ node A {"fill":"#00ff00"}\n`);
-    $('.pane.left [role=tab][data-tab="meta"]').click();
-    const ta = $<HTMLTextAreaElement>('.pane.left [data-body="meta"] textarea');
+    $('.mmdx-panel.code-edit [role=tab][data-tab="meta"]').click();
+    const ta = $<HTMLTextAreaElement>('.mmdx-panel.code-edit [data-body="meta"] textarea');
     expect(ta.value).toContain('%%@ node A {"fill":"#00ff00"}');
     ta.focus();
     type(ta, `${ta.value}\n%%@ node B {"fill":"#0000ff"}\n%%@ node C not json`);
@@ -169,13 +171,13 @@ describe('code panel', () => {
 
   test('gotoCodeLine clears a filter that hides the line', () => {
     const e = mount(FLOW);
-    const search = $<HTMLInputElement>('.pane.left [data-body="code"] input[type=search]');
+    const search = $<HTMLInputElement>('.mmdx-panel.code-edit [data-body="code"] input[type=search]');
     search.value = 'Gamma';
     search.dispatchEvent(new Event('input'));
     vi.advanceTimersByTime(200);
     e.core.run('gotoCodeLine', 2);
     expect(search.value).toBe('');
-    const ta = $<HTMLTextAreaElement>('.pane.left [data-body="code"] textarea');
+    const ta = $<HTMLTextAreaElement>('.mmdx-panel.code-edit [data-body="code"] textarea');
     expect(ta.value.slice(ta.selectionStart, ta.selectionEnd)).toBe('  A["Alpha"] --> B["Beta"]');
   });
 });
@@ -185,7 +187,7 @@ describe('right panels', () => {
     const e = mount(FLOW);
     e.core.select([{ kind: 'node', id: 'A' }]);
     await flush();
-    const row = $$('.rpanel.props .f').find((r) => r.querySelector('label')?.textContent === 'Font size');
+    const row = $$('.mmdx-panel.props .f').find((r) => r.querySelector('label')?.textContent === 'Font size');
     const input = row!.querySelector<HTMLInputElement>('input[type=number]')!;
     input.value = '20';
     input.dispatchEvent(new Event('input'));
@@ -193,7 +195,7 @@ describe('right panels', () => {
     expect(e.core.meta.nodes?.['A']?.fontSize).toBe(20);
     expect(e.store.undoLabel()).toBe('Style');
     // a select writes right away
-    const align = $$('.rpanel.props .f').find((r) => r.querySelector('label')?.textContent === 'Text align')!.querySelector('select')!;
+    const align = $$('.mmdx-panel.props .f').find((r) => r.querySelector('label')?.textContent === 'Text align')!.querySelector('select')!;
     align.value = 'left';
     align.dispatchEvent(new Event('change'));
     expect(e.core.meta.nodes?.['A']?.align).toBe('left');
@@ -207,8 +209,8 @@ describe('right panels', () => {
     });
     e.core.select([{ kind: 'node', id: 'A' }, { kind: 'node', id: 'B' }]);
     await flush();
-    expect($('.rpanel.props .insp-title').textContent).toBe('2 nodes selected');
-    const rowOf = (label: string): HTMLElement => $$('.rpanel.props .f').find((r) => r.querySelector('label')?.textContent === label)!;
+    expect($('.mmdx-panel.props .insp-title').textContent).toBe('2 nodes selected');
+    const rowOf = (label: string): HTMLElement => $$('.mmdx-panel.props .f').find((r) => r.querySelector('label')?.textContent === label)!;
     // the same font size: shown; different fills: mixed
     const size = rowOf('Font size').querySelector<HTMLInputElement>('input[type=number]')!;
     expect(size.value).toBe('18');
@@ -236,14 +238,14 @@ describe('right panels', () => {
     // mixed kinds keep the summary
     e.core.select([{ kind: 'node', id: 'A' }, { kind: 'edge', id: 'A->B' }]);
     await flush();
-    expect($('.rpanel.props .insp-title').textContent).toBe('2 items selected');
+    expect($('.mmdx-panel.props .insp-title').textContent).toBe('2 items selected');
   });
 
   test('ER attributes: one line each (type name PK (comment)) and a style button with a popup', async () => {
     const e = mount('erDiagram\n  CUSTOMER {\n    string id PK\n    string name\n  }\n');
     e.core.select([{ kind: 'entity', id: 'CUSTOMER' }]);
     await flush();
-    const lines = (): HTMLInputElement[] => $$('.rpanel.props .attr-line input') as HTMLInputElement[];
+    const lines = (): HTMLInputElement[] => $$('.mmdx-panel.props .attr-line input') as HTMLInputElement[];
     expect(lines().map((i) => i.value)).toEqual(['string id PK', 'string name']);
     // one field: type, name, keys and the comment in brackets
     lines()[1]!.value = 'varchar(80) full_name UK (shown on invoices)';
@@ -252,7 +254,7 @@ describe('right panels', () => {
     await flush();
     expect(lines()[1]!.value).toBe('varchar(80) full_name UK (shown on invoices)');
     // the style button opens the popup; each change applies at once and the popup stays
-    $$('.rpanel.props .attr-style')[1]!.click();
+    $$('.mmdx-panel.props .attr-style')[1]!.click();
     const pop = (): HTMLElement => $('.attr-style-pop');
     pop().querySelector<HTMLButtonElement>('.asp-italic')!.click();
     expect(e.core.getM('entity', 'CUSTOMER').attrs).toEqual({ full_name: { italic: true } });
@@ -263,7 +265,7 @@ describe('right panels', () => {
     Array.from(pop().querySelectorAll<HTMLButtonElement>('.asp-chip')).find((b) => b.textContent === 'Key')!.click();
     expect(e.core.getM('entity', 'CUSTOMER').attrs).toEqual({ full_name: { preset: 'key' } });
     await flush();
-    expect($$('.rpanel.props .attr-style')[1]!.classList.contains('set')).toBe(true);
+    expect($$('.mmdx-panel.props .attr-style')[1]!.classList.contains('set')).toBe(true);
     // an emptied line deletes the attribute
     lines()[0]!.value = '';
     lines()[0]!.dispatchEvent(new Event('change'));
@@ -275,7 +277,7 @@ describe('right panels', () => {
     const e = mount(FLOW);
     e.core.select([{ kind: 'node', id: 'B' }]);
     await flush();
-    const ta = $<HTMLTextAreaElement>('.rpanel.props .prop-label textarea');
+    const ta = $<HTMLTextAreaElement>('.mmdx-panel.props .prop-label textarea');
     expect(ta.value).toBe('Beta');
     ta.value = 'Bravo';
     ta.dispatchEvent(new Event('blur'));
@@ -286,13 +288,13 @@ describe('right panels', () => {
   test('page size Custom writes canvas w / h', async () => {
     const e = mount(FLOW);
     await flush();
-    const custom = $$('.rpanel.props .page-size-seg button').find((b) => b.textContent === 'Custom')!;
+    const custom = $$('.mmdx-panel.props .page-size-seg button').find((b) => b.textContent === 'Custom')!;
     custom.click();
     const c = e.core.meta.canvas;
     expect(typeof c.w).toBe('number');
     expect(typeof c.h).toBe('number');
     await flush();
-    const w = $$('.rpanel.props .page-wh input[type=number]')[0] as HTMLInputElement;
+    const w = $$('.mmdx-panel.props .page-wh input[type=number]')[0] as HTMLInputElement;
     expect(w.disabled).toBe(false);
     w.value = '900';
     w.dispatchEvent(new Event('change'));
@@ -304,7 +306,7 @@ describe('right panels', () => {
     await flush();
     const rendered = (): string[] => Array.from(e.core.dom.body.querySelectorAll('.el.node')).map((n) => n.getAttribute('data-id') ?? '');
     expect(rendered()).toContain('C');
-    const row = $('.rpanel.layers [data-layer="L1"]');
+    const row = $('.mmdx-panel.layers [data-layer="L1"]');
     row.querySelector<HTMLButtonElement>('.eye')!.click();
     expect(e.core.meta.layers?.['L1']?.hidden).toBe(true);
     expect(rendered()).not.toContain('C');
@@ -317,12 +319,12 @@ describe('right panels', () => {
     const e = mount(FLOW);
     e.core.select([{ kind: 'node', id: 'A' }]);
     await flush();
-    $('.rpanel.layers .rp-act').click();
+    $('.mmdx-panel.layers [data-f=layers-new]').click();
     expect(e.core.meta.layers?.['L1']?.name).toBe('Layer 1');
     expect(e.core.meta.nodes?.['A']?.layer).toBe('L1');
     e.core.select([]);
     await flush();
-    $('.rpanel.layers [data-layer="L1"] .count').click();
+    $('.mmdx-panel.layers [data-layer="L1"] .count').click();
     expect(e.core.selection()).toEqual([{ kind: 'node', id: 'A' }]);
   });
 });
@@ -350,6 +352,28 @@ describe('export', () => {
     });
     await e.exportAs('mmdx');
     expect(seen).toEqual(['diagram.mmdx']);
+  });
+});
+
+describe('open files', () => {
+  test('a file opened replaces the document as one undoable step and names the exports; the view leaves the group and the selection', async () => {
+    vi.useRealTimers();
+    ed = new DiagramEditor(host, { value: FLOW, modules: [documentModule], storage: memoryStorage(), features: { open: true } });
+    const e = ed;
+    e.core.select([{ kind: 'node', id: 'A' }]);
+    e.core.enteredGroup.set('G');
+    const ops: string[] = [];
+    host.addEventListener('mmdx-op', (ev) => ops.push((ev as CustomEvent<{ type: string }>).detail.type));
+    const file = { name: 'other.mmd', text: () => Promise.resolve('flowchart TB\n  X --> Y\n') } as unknown as File; // jsdom's File has no text()
+    await e.core.run('openFiles', [file]);
+    expect(ops).toEqual(['doc.open']);
+    expect(e.getSource()).toContain('X --> Y');
+    expect(e.core.fileName).toBe('other');
+    expect(e.core.selection()).toEqual([]);
+    expect(e.core.enteredGroup.peek()).toBeNull();
+    expect(e.dirty).toBe(true);
+    e.undo();
+    expect(e.getSource()).toBe(FLOW);
   });
 });
 

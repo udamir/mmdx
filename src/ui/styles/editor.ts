@@ -1,17 +1,9 @@
-// <mmdx-editor> layout (§10): the canvas fills the element; side panels float over it as rounded cards (prototype
-// layout). Feature modules add their own CSS (EditorModule.css).
+// <mmdx-editor> layout (§10): the canvas fills the element; the side panels float over it in the panel stacks
+// (chrome/panes.ts; prototype layout). Feature modules add their own CSS (EditorModule.css).
 export const EDITOR_CSS = /* css */ `
 :host { display: block; position: relative; height: 100%; min-height: 360px; contain: strict; }
 :host([height="auto"]) { contain: content; }
-.ed {
-  position: absolute; inset: 0; overflow: hidden; background: var(--mmdx-bg); color: var(--mmdx-text); outline: none;
-  --left-w: 360px; --right-w: 340px; --right-vw: 260px;
-  --inset-l: calc(var(--left-w) + 12px); --inset-r: calc(var(--right-w) + 12px);
-}
-.ed.mode-view { --inset-l: 0px; --inset-r: calc(var(--right-vw) + 12px); }
-.ed.no-code { --inset-l: 0px; }
-.ed.no-right { --inset-r: 0px; }
-.ed.mode-view.no-layers { --inset-r: 0px; }
+.ed { position: absolute; inset: 0; overflow: hidden; background: var(--mmdx-bg); color: var(--mmdx-text); outline: none; }
 .mode-view .edit-only { display: none !important; }
 .canvas-wrap {
   position: absolute; inset: 0; overflow: hidden;
@@ -35,22 +27,10 @@ svg.canvas.panning { cursor: grabbing; }
 .page-layer.page-shadow { filter: drop-shadow(0 2px 10px rgba(20,30,60,.13)); }
 .overlay { pointer-events: none; }
 .overlay [data-handle], .overlay .hit-on { pointer-events: all; }
-.pane {
-  position: absolute; top: 12px; bottom: 12px; z-index: 30; display: flex; flex-direction: column; min-height: 0;
-  background: var(--mmdx-panel); border: 1px solid var(--mmdx-border); border-radius: 14px; overflow: hidden;
-  box-shadow: 0 10px 30px rgba(20, 30, 60, .16), 0 1px 3px rgba(20, 30, 60, .08);
-}
-.pane.left { left: 12px; width: var(--left-w); }
-.pane.right { right: 12px; top: 60px; bottom: 60px; width: var(--right-w); }
-.mode-view .pane.right { width: var(--right-vw); }
-.no-code .pane.left, .no-right .pane.right { display: none; }
-.pane-resizer { position: absolute; top: 14px; bottom: 14px; width: 7px; z-index: 31; cursor: col-resize; touch-action: none; }
-.pane-resizer::after { content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; background: transparent; transition: background .12s; }
-.pane-resizer:hover::after, .pane-resizer.dragging::after { background: var(--mmdx-accent); width: 2px; left: 2px; }
-.pane.left .pane-resizer { right: 0; }
-.pane.right .pane-resizer { left: 0; }
 .ed.dragging .mtb { opacity: 0; pointer-events: none; }
 .ed:focus-visible { box-shadow: inset var(--mmdx-focus); }
-@media (prefers-reduced-motion: reduce) { .pane { transition: none !important; } }
-@media print { .pane, .tool-dock, .bottom-bar, .view-params { display: none !important; } }
+.mmdx-dialog.compare { width: min(760px, calc(100% - 32px)); }
+.compare-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; min-width: 0; }
+.compare-sides pre { max-height: 260px; overflow: auto; margin: 0; padding: 8px; border-radius: 6px; background: var(--mmdx-surface-2); font: 12px/1.5 var(--mmdx-mono); }
+@media print { .tool-dock, .bottom-bar, .view-params { display: none !important; } }
 `;

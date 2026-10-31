@@ -11,21 +11,13 @@ import {
   unboxParticipants, unlockAll as unlockAllOp, type AlignOp,
 } from '../../../core/ops/index.js';
 import type { ItemRef } from '../../../core/types.js';
-import { h } from '../../../ui/h.js';
-import { formatKeys } from '../../../ui/shortcuts.js';
+import { MENU_CSS, openMenu, type MenuItem } from '../../../ui/blocks/menu.js';
 import type { EditorActions, EditorCore, Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { items as nItems } from './shared.js';
 
-export const STRUCTURE_CSS = /* css */ `
-.ctx-menu { min-width: 190px; padding: 5px; background: var(--float); border: 1px solid var(--float-line); border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(20,30,60,.2); }
-.ctx-menu .ctx-item { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; background: none; text-align: left; padding: 6px 10px; border-radius: 7px; color: var(--ink); }
-.ctx-item span { flex: 1; }
-.ctx-item kbd { border: 0; background: none; color: var(--muted); font-size: 11px; font-family: inherit; }
-.ctx-menu .ctx-item:hover:not(:disabled), .ctx-menu .ctx-item:focus-visible { background: var(--float-2); box-shadow: none; }
-.ctx-item:disabled { color: var(--muted); cursor: default; }
-`;
+/** The board's right-click menu is the Menu block. */
+export const STRUCTURE_CSS = MENU_CSS;
 
 /** Clipboard MIME type of the editor's own format (§8.2); `web ` prefix = custom format of the async clipboard API. */
 export const MMDX_CLIPBOARD_TYPE = 'web application/x-mmdx+json';
@@ -267,28 +259,15 @@ export const canvasStructureModule: EditorModule = {
     // ---- right-click on the board ------------------------------------------------------------------------------
 
     const showContextMenu = (clientX: number, clientY: number, at: { x: number; y: number }): void => {
-      const entries: [string, string, (() => void) | null][] = [];
-      if (canPaste()) entries.push(['Paste', formatKeys('mod+v'), () => pasteAt(at)]);
+      const entries: MenuItem[] = [];
+      if (canPaste()) entries.push({ label: 'Paste', keys: 'mod+v', run: () => pasteAt(at) });
       const locked = lockedItems(core.meta).length;
-      if (locked) entries.push([`Unlock all (${locked})`, '', unlockAll]);
-      if (!entries.length) entries.push(['Nothing to paste', '', null]);
-      const m = h('div', { class: 'ctx-menu mmdx-menu', role: 'menu', 'aria-label': 'Board' });
-      for (const [label, keys, fn] of entries) {
-        const b = h('button', { type: 'button', class: 'ctx-item', role: 'menuitem' }, h('span', null, label), h('kbd', null, keys));
-        b.disabled = !fn;
-        b.addEventListener('click', () => {
-          core.popovers.close();
-          fn?.();
-        });
-        m.append(b);
-      }
-      core.dom.wrap.append(m);
-      core.popovers.open(m, null, { onClose: () => core.dom.root.focus({ preventScroll: true }) });
-      const wr = core.dom.wrap.getBoundingClientRect();
-      const x = Math.min(clientX - wr.left, wr.width - m.offsetWidth - 8);
-      const y = Math.min(clientY - wr.top, wr.height - m.offsetHeight - 8);
-      m.style.left = `${Math.max(0, x)}px`;
-      m.style.top = `${Math.max(0, y)}px`;
+      if (locked) entries.push({ label: `Unlock all (${locked})`, run: unlockAll });
+      if (!entries.length) entries.push({ label: 'Nothing to paste', disabled: true, run: () => undefined });
+      openMenu({
+        popovers: core.popovers, opener: null, label: 'Board', entries, within: core.area, at: { clientX, clientY }, class: 'ctx-menu',
+        onClose: () => core.root.focus({ preventScroll: true }),
+      });
     };
 
     scope.listen(core.dom.svg, 'contextmenu', (ev) => {

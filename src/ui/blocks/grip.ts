@@ -1,5 +1,5 @@
-// The width grip on a card's inner edge (§5.2): SidePanel's and PanelStack's resize handle, and the editor's pane
-// resizer (ui/panes.ts). A module of its own, so a host that needs only the grip does not load the panel block.
+// The width grip on a card's inner edge (§5.2): SidePanel's and PanelStack's resize handle. A module of its own, so a
+// host that needs only the grip does not load the panel block.
 import { h } from '../h.js';
 import type { Scope } from './block.js';
 

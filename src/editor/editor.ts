@@ -18,6 +18,8 @@ import { DEFAULT_MODULES } from './modules/index.js';
 import { DocStore, type ChangeReason } from './store.js';
 import type { ItemRef } from '../core/types.js';
 import type { HistorySession } from '../view/history.js';
+import type { BlockHandle } from '../ui/blocks/block.js';
+import type { PillProps } from '../ui/blocks/pill.js';
 
 export interface EditorOptions {
   value?: string;
@@ -59,7 +61,9 @@ export class DiagramEditor {
   private version: string | undefined;
   private saving: Promise<SaveOutcome> | null = null;
   private autosaveTimer: ReturnType<typeof setTimeout> | undefined;
-  private remoteBar: HTMLElement | null = null;
+  /** The remote-change pill (top centre), and the count of the bars asked for (the pill block loads on first use). */
+  private remoteBar: BlockHandle<PillProps> | null = null;
+  private remoteAsked = 0;
   /** The adapter's subscription to remote changes (one at a time; replaced when the adapter changes). */
   private unsubscribe: (() => void) | null = null;
   /** The latest remote update that arrived during a gesture or a transaction; applied when it ends. */
@@ -126,7 +130,7 @@ export class DiagramEditor {
     // the remote-change bar waits while History is open
     this.cleanups.push(effect(() => {
       const history = core.stage() === 'history';
-      if (this.remoteBar) this.remoteBar.hidden = history;
+      if (this.remoteBar) this.remoteBar.el.hidden = history;
     }));
     this.cleanups.push(effect(() => {
       const t = core.tool();
@@ -187,18 +191,7 @@ export class DiagramEditor {
    * captured before the load over it. (Remote updates from the adapter wait for the gesture to end instead.)
    */
   setSource(src: string, opts: { history?: 'reset' | 'push'; fit?: boolean; markSaved?: boolean } = {}): void {
-    this.core.cancelGesture();
-    const before = this.store.model.peek().type;
-    this.store.load(src, { history: opts.history ?? 'reset', reason: opts.history === 'push' ? 'remote' : 'load', markSaved: opts.markSaved !== false });
-    if (opts.history !== 'push') {
-      this.core.enteredGroup.set(null);
-      this.core.pageSelected.set(false);
-    }
-    this.core.draw();
-    // while History owns the canvas, the document's view is restored on the way back
-    if (this.core.scene === this.core.storeScene && (opts.fit !== false || before !== this.store.model.peek().type)) this.core.viewport.setBounds(this.core.result.result.bounds, { fit: true });
-    this.core.fire('model');
-    this.core.fire('panels');
+    this.core.loadSource(src, { history: opts.history ?? 'reset', reason: opts.history === 'push' ? 'remote' : 'load', ...(opts.fit !== undefined ? { fit: opts.fit } : {}), markSaved: opts.markSaved !== false });
   }
 
   get adapter(): DocumentAdapter | undefined {
@@ -395,10 +388,11 @@ export class DiagramEditor {
       return 'conflict';
     }
     if (choice === 'both') {
-      const pre = (t: string): HTMLElement => h('pre', { style: 'max-height:260px;overflow:auto;font:12px/1.5 var(--mmdx-mono);background:var(--mmdx-surface-2);padding:8px;border-radius:6px;margin:0' }, t);
+      const side = (title: string, text: string): HTMLElement => h('div', null, h('b', null, title), h('pre', null, text));
       const c2 = await this.core.dialogs.choose<'mine' | 'theirs' | 'cancel'>({
         title: 'Compare versions',
-        body: h('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0' }, h('div', null, h('b', null, 'Yours'), pre(mine)), h('div', null, h('b', null, 'Theirs'), pre(theirs.source))),
+        class: 'compare',
+        body: h('div', { class: 'compare-sides' }, side('Yours', mine), side('Theirs', theirs.source)),
         cancel: 'cancel',
         buttons: [{ label: 'Take theirs', value: 'theirs' }, { label: 'Keep mine', value: 'mine', primary: true }],
       });
@@ -446,17 +440,29 @@ export class DiagramEditor {
       return;
     }
     this.hideRemoteBar();
-    const bar = h('div', { class: 'mmdx-float', role: 'status', style: 'position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:40;display:flex;gap:8px;align-items:center;padding:6px 8px 6px 14px' },
-      h('span', null, 'Changed by someone else'),
-      h('button', { type: 'button', onclick: () => { this.version = version; this.setSource(src, { history: 'push', fit: false }); this.hideRemoteBar(); } }, 'Reload'),
-      h('button', { type: 'button', class: 'primary', onclick: () => this.hideRemoteBar() }, 'Keep mine'));
-    bar.hidden = this.core.stage.peek() === 'history';
-    this.remoteBar = bar;
-    this.core.dom.root.append(bar);
+    // a pill at the top centre (the block loads the first time); the latest bar asked for wins
+    const asked = ++this.remoteAsked;
+    const reload = (): void => {
+      this.version = version;
+      this.setSource(src, { history: 'push', fit: false });
+      this.hideRemoteBar();
+    };
+    void import('../ui/blocks/pill.js').then((m) => {
+      if (this.destroyed || asked !== this.remoteAsked) return;
+      this.core.addCss([m.PILL_CSS]);
+      const bar = m.createPill({
+        text: 'Changed by someone else', label: 'Remote change', class: 'remote', t: this.core.i18n.t,
+        tools: [{ id: 'reload', label: 'Reload', onClick: reload }], action: { label: 'Keep mine', plain: true, onClick: () => this.hideRemoteBar() },
+      });
+      bar.el.hidden = this.core.stage.peek() === 'history';
+      this.remoteBar = bar;
+      this.core.slots['top-center'].append(bar.el);
+    });
   }
 
   private hideRemoteBar(): void {
-    this.remoteBar?.remove();
+    this.remoteAsked++;
+    this.remoteBar?.destroy();
     this.remoteBar = null;
   }
 

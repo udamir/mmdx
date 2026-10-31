@@ -1,6 +1,7 @@
-// LayerList (§5.2, §7.6): the body of the View settings card — layer rows (eye toggle, name, item count, and while
-// editing a lock toggle and an inline rename) under a "Layers" heading, then the display toggles (connector labels,
-// hover highlight, …) as switches under "Display". Rows re-render on `update({ layers })`, keeping the focus on the same
+// LayerList (§5.2, §7.6): the body of the View settings card and of the editor's Layers card — layer rows (eye
+// toggle, name, item count, and while editing a lock toggle, an inline rename and a delete button) under a "Layers"
+// heading, then the display toggles (connector labels, hover highlight, …) as switches under "Display". The count can
+// select the layer's items while editing (a button) and highlight them while hovered or focused. Rows re-render on `update({ layers })`, keeping the focus on the same
 // control. Replaces the layers DOM of editor/modules/panels/layers.ts (`renderLayers`) and the viewer's View
 // settings popup (`viewSettings` in elements/viewer-popups.ts).
 import { h, icon } from '../h.js';
@@ -17,6 +18,8 @@ export interface LayerRow {
   locked?: boolean;
   /** Items on the layer (shown as a badge). */
   count?: number;
+  /** No delete button (the default layer). */
+  fixed?: boolean;
 }
 
 export interface DisplayToggle {
@@ -34,6 +37,12 @@ export interface LayerListProps {
   onToggle: (id: string, visible: boolean) => void;
   onLock?: (id: string, locked: boolean) => void;
   onRename?: (id: string, name: string) => void;
+  /** While editing, a × on every row but the `fixed` ones. */
+  onDelete?: (id: string) => void;
+  /** While editing, the count is a button (e.g. selects the layer's items). */
+  onCountClick?: (id: string) => void;
+  /** The pointer or the focus on a count (e.g. highlights the layer's items); null when it leaves. */
+  onCountHover?: (id: string | null) => void;
   display?: readonly DisplayToggle[];
   t: Translate;
   /** `part` of the element (default none). */
@@ -57,6 +66,10 @@ export const LAYER_LIST_CSS = /* css */ `
 .mmdx-layer input.layer-name:focus { outline: none; box-shadow: none; border-color: var(--mmdx-accent); background: var(--mmdx-surface); }
 .mmdx-layer.off .layer-name { color: var(--mmdx-faint); text-decoration: line-through; }
 .mmdx-layer .count { flex: none; border: 1px solid var(--mmdx-border); background: var(--mmdx-surface); border-radius: 10px; padding: 0 6px; font-size: 11px; color: var(--mmdx-muted); }
+.mmdx-layer button.count:hover { border-color: var(--mmdx-accent); color: var(--mmdx-accent); }
+.mmdx-layer .del { flex: none; width: 20px; border: 0; background: none; color: var(--mmdx-faint); padding: 0; visibility: hidden; }
+.mmdx-layer:hover .del, .mmdx-layer .del:focus-visible { visibility: visible; }
+.mmdx-layer .del:hover { color: var(--mmdx-danger); }
 .mmdx-layer-opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 5px 4px; }
 `;
 
@@ -97,7 +110,19 @@ export function createLayerList(props: LayerListProps): LayerListHandle {
       }, { signal: s.signal });
       r.append(name);
     } else r.append(h('span', { class: 'layer-name' }, l.name));
-    if (l.count !== undefined) r.append(h('span', { class: 'count', 'aria-label': t('layers.countLabel', { n: l.count }) }, String(l.count)));
+    if (l.count !== undefined) {
+      const n = l.count, onCount = p.editable ? p.onCountClick : undefined, onHover = p.onCountHover;
+      const cnt = onCount
+        ? h('button', { type: 'button', class: 'count', title: t('layers.select'), 'aria-label': t('layers.selectN', { n, name: l.name }), 'data-f': `count-${l.id}` }, String(n))
+        : h('span', { class: 'count', 'aria-label': t('layers.countLabel', { n }) }, String(n));
+      if (onCount) cnt.addEventListener('click', () => onCount(l.id), { signal: s.signal });
+      if (onHover) {
+        if (!onCount) Object.assign(cnt, { tabIndex: 0, title: t('layers.highlight') });
+        for (const type of ['pointerenter', 'focus'] as const) cnt.addEventListener(type, () => onHover(l.id), { signal: s.signal });
+        for (const type of ['pointerleave', 'blur'] as const) cnt.addEventListener(type, () => onHover(null), { signal: s.signal });
+      }
+      r.append(cnt);
+    }
     const onLock = p.onLock;
     if (p.editable && onLock) {
       const locked = !!l.locked;
@@ -106,6 +131,12 @@ export function createLayerList(props: LayerListProps): LayerListHandle {
         icon(locked ? I_lock : I_unlock, 15));
       lock.addEventListener('click', () => onLock(l.id, !locked), { signal: s.signal });
       r.append(lock);
+    }
+    const onDelete = p.onDelete;
+    if (p.editable && onDelete) {
+      const del = h('button', { type: 'button', class: 'del', title: t('layers.delete'), 'aria-label': `${t('layers.delete')}: ${l.name}`, 'data-f': `del-${l.id}`, hidden: !!l.fixed }, '×');
+      del.addEventListener('click', () => onDelete(l.id), { signal: s.signal });
+      r.append(del);
     }
     return r;
   };

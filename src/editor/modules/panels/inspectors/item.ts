@@ -1,0 +1,149 @@
+// The Properties panel for one selected item (A.7 rows 61, 63; prototype app `refreshInspector`, `textSection`,
+// `activationInspector`): title and sub line, its text (and an ER table's attributes or a relationship's
+// cardinalities), layer, preset tiles, appearance and geometry fields, and the reset buttons.
+import { KIND_TO_COLL } from '../../../../core/meta/types.js';
+import { ensure, tidy, cloneMeta } from '../../../../core/ops/meta-util.js';
+import { baseStyleOf, presetsFor } from '../../../../core/ops/style-env.js';
+import { STYLE_FIELDS } from '../../../../core/schema/style-fields.js';
+import type { ItemKind, ItemRef } from '../../../../core/types.js';
+import { h } from '../../../../ui/h.js';
+import { applyMeta, styleEnv } from '../../../ops/doc.js';
+import { describe, labelSpec } from '../../../ops/label.js';
+import { field } from '../fields.js';
+import { attrEditor, relEditor } from '../props-er.js';
+import { itemTarget, layerRow, lineDefaults, lineFields, pickerSection, roundedBox, row, sect, type PanelCtx } from './shared.js';
+
+function textSection(p: PanelCtx, host: HTMLElement, kind: ItemKind, id: string): void {
+  const { core } = p;
+  const t = core.i18n.t;
+  const spec = labelSpec(core, kind, id);
+  if (!spec) return;
+  const { value, multi } = spec;
+  sect(host, t(spec.title));
+  const inp: HTMLTextAreaElement | HTMLInputElement = multi ? h('textarea', { 'aria-label': t(spec.title) }) : h('input', { type: 'text', 'aria-label': t(spec.title) });
+  inp.value = value;
+  inp.placeholder = multi ? t('props.textMultiHint') : t('props.textHint');
+  let done = false;
+  const go = (): void => {
+    if (done) return;
+    const v = multi ? inp.value.replace(/\s+$/, '') : inp.value.trim();
+    if (v === value) return;
+    done = true;
+    core.applyCode(spec.apply(v), t('history.text'), { select: [{ kind, id }] });
+  };
+  inp.addEventListener('keydown', (ev) => {
+    const kev = ev as KeyboardEvent;
+    if (kev.key === 'Enter' && (!multi || kev.metaKey || kev.ctrlKey)) {
+      kev.preventDefault();
+      go();
+    }
+    if (kev.key === 'Escape') {
+      kev.stopPropagation();
+      inp.value = value;
+      inp.blur();
+    }
+  });
+  inp.addEventListener('blur', go);
+  host.append(h('div', { class: 'prop-label' }, inp));
+  if (kind === 'entity') attrEditor(p, host, id);
+  if (kind === 'rel') relEditor(p, host, id);
+}
+
+function activationInspector(p: PanelCtx, host: HTMLElement, id: string): void {
+  const { core } = p;
+  const t = core.i18n.t;
+  const info = describe(core.model, 'activation', id);
+  host.append(h('div', { class: 'insp-title' }, info.title), h('div', { class: 'insp-sub' }, info.sub));
+  host.append(h('div', { class: 'hint' }, t('props.activationHint')));
+  const ref: ItemRef = { kind: 'activation', id };
+  pickerSection(p, host, ref);
+  sect(host, t('props.appearance'));
+  const target = itemTarget(p, ref, baseStyleOf(styleEnv(core), 'activation', id));
+  for (const f of STYLE_FIELDS.activation) field(core.i18n, host, f, target);
+  const del = h('button', { type: 'button' }, t('props.removeProcess'));
+  del.addEventListener('click', () => core.run('deleteSelection'));
+  host.append(h('div', { class: 'btnrow' }, del));
+}
+
+/** One selected item: its text, layer, preset, appearance and geometry, and the reset buttons. */
+export function itemInspector(p: PanelCtx, host: HTMLElement, kind: ItemKind, id: string): void {
+  const { core } = p;
+  const t = core.i18n.t;
+  const M = core.model;
+  if (kind === 'activation') return activationInspector(p, host, id);
+  const env = styleEnv(core);
+  const ref: ItemRef = { kind, id };
+  const info = describe(M, kind, id);
+  host.append(h('div', { class: 'insp-title' }, info.title), h('div', { class: 'insp-sub' }, info.sub));
+  textSection(p, host, kind, id);
+  layerRow(p, host, [ref]);
+  if (presetsFor(env, kind)) pickerSection(p, host, ref);
+  sect(host, t('props.appearance'));
+  const base = baseStyleOf(env, kind, id);
+  const target = itemTarget(p, ref, base);
+  for (const f of STYLE_FIELDS[kind] ?? []) field(core.i18n, host, f, target);
+  if (kind === 'box') return; // placed by its participants
+
+  sect(host, t('props.geometry'));
+  const g = core.geom;
+  if ((kind === 'node' && g.type === 'flowchart') || (kind === 'entity' && g.type === 'er')) {
+    const gb = g.type === 'flowchart' ? g.nodes.get(id) : g.type === 'er' ? g.entities.get(id) : undefined;
+    const geo = itemTarget(p, ref, roundedBox(gb));
+    for (const f of ['x', 'y', 'w', 'h']) field(core.i18n, host, f, geo);
+  } else if (kind === 'group' && g.type === 'flowchart') {
+    const gb = g.groups.get(id);
+    const fixed = !!core.getM('group', id).w;
+    const cb = h('input', { type: 'checkbox', 'aria-label': t('props.fixedFrame') });
+    cb.checked = fixed;
+    cb.addEventListener('change', () => {
+      const meta = cloneMeta(core.meta);
+      const m = ensure(meta, 'group', id);
+      if (cb.checked && gb) Object.assign(m, { x: Math.round(gb.x - gb.w / 2), y: Math.round(gb.y - gb.h / 2), w: Math.round(gb.w), h: Math.round(gb.h) });
+      else {
+        delete m.x;
+        delete m.y;
+        delete m['w'];
+        delete m['h'];
+      }
+      tidy(meta, 'group', id);
+      applyMeta(core, t('history.frame'), { meta });
+    });
+    host.append(row(t('props.fixedFrame'), cb, h('span', { class: 'hint' }, fixed ? t('props.fixedOn') : t('props.fixedOff'))));
+    if (fixed) {
+      const geo = itemTarget(p, ref, {});
+      for (const f of ['x', 'y', 'w', 'h']) field(core.i18n, host, f, geo);
+    }
+  } else if (kind === 'edge' || kind === 'rel') {
+    const geo = itemTarget(p, ref, lineDefaults(core, kind));
+    for (const f of lineFields(kind)) field(core.i18n, host, f, geo);
+  } else if (kind === 'participant' && g.type === 'sequence') {
+    const pb = g.participants.get(id);
+    const geo = itemTarget(p, ref, roundedBox(pb));
+    for (const f of ['x', 'w', 'h']) field(core.i18n, host, f, geo);
+  } else if (kind === 'message' || kind === 'note' || kind === 'block') {
+    field(core.i18n, host, 'dy', itemTarget(p, ref, { dy: 0 }));
+  }
+
+  const br = h('div', { class: 'btnrow' });
+  const reset = h('button', { type: 'button', class: 'danger' }, t('props.resetAll'));
+  reset.addEventListener('click', () => {
+    const meta = cloneMeta(core.meta);
+    const coll = meta[KIND_TO_COLL[kind]] as Record<string, unknown> | undefined;
+    if (coll) delete coll[id];
+    applyMeta(core, t('history.resetAll'), { meta });
+  });
+  br.append(reset);
+  if (kind === 'edge' || kind === 'rel') {
+    const lbl = h('button', { type: 'button' }, t('props.resetLabel'));
+    lbl.addEventListener('click', () => {
+      const meta = cloneMeta(core.meta);
+      const m = ensure(meta, kind, id);
+      delete m.labelDx;
+      delete m.labelDy;
+      tidy(meta, kind, id);
+      applyMeta(core, t('history.resetLabel'), { meta });
+    });
+    br.append(lbl);
+  }
+  host.append(br);
+}

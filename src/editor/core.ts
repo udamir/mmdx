@@ -20,7 +20,6 @@ import type { BoxGeom, GeometryIndex } from '../core/render/types.js';
 import type { SceneNode } from '../core/scene/types.js';
 import type { ItemKind, ItemRef, Rect } from '../core/types.js';
 import { itemKey } from '../core/types.js';
-import type { Insets } from '../dom/canvas.js';
 import { HIGHLIGHT_CSS } from '../dom/highlight.js';
 import type { Viewport } from '../dom/viewport.js';
 import { Dialogs, DIALOG_CSS } from '../ui/dialog.js';
@@ -30,7 +29,7 @@ import { EDITOR_CSS } from '../ui/styles/editor.js';
 import { ViewCore } from '../view/core.js';
 import type { Mode, Tool, ViewActions } from '../view/types.js';
 import { StoreScene } from './scene.js';
-import type { DocStore } from './store.js';
+import type { ChangeReason, DocStore } from './store.js';
 
 export type { Mode, Tool };
 
@@ -152,7 +151,7 @@ export interface EditorActions {
   gotoCodeLine(line: number): void;
   /** Opens the Metadata tab at a (1-based) line of the metadata text. */
   gotoMetaLine(line: number): void;
-  setPanel(name: string, open: boolean): void;
+  setPanel(name: PanelName, open: boolean): void;
   toggleHelp(on?: boolean): void;
   /** Opens or closes the History of the document (when the editor has a history). */
   toggleHistory(on?: boolean): void;
@@ -193,7 +192,9 @@ export interface EditorCoreOptions {
   css?: readonly string[];
 }
 
-export type EditorPanels = Readonly<{ code: boolean; properties: boolean; layers: boolean } & Record<string, boolean>>;
+/** The editor's own panels (History brings its own while it is open). */
+export type PanelName = 'code' | 'properties' | 'layers';
+export type EditorPanels = Readonly<Record<PanelName, boolean> & Record<string, boolean>>;
 
 export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPanels> {
   readonly store: DocStore;
@@ -247,8 +248,6 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       canvas: {
         interaction: 'pan-zoom', wheel: 'always', panOnDrag: false, minK: 0.05, maxK: 6, pad: 40, svgClass: 'canvas', part: 'canvas',
         pageClass: 'page-layer page-shadow',
-        // fit keeps clear of the open side panels and the tool dock (measured: their widths are user-resizable)
-        insets: () => this.editorInsets(),
         onView: () => {
           this.fire('view');
           this.drawOverlay();
@@ -266,7 +265,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     });
     this.store = o.store;
     this.features = o.features;
-    this.dialogs = new Dialogs(this.shadow);
+    this.dialogs = new Dialogs(this.shadow, this.i18n.t);
     this.tool.set('pointer');
     this.panels.set({ code: true, properties: true, layers: true });
     const c = this.canvas;
@@ -307,19 +306,6 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       default:
         return true;
     }
-  }
-
-  private editorInsets(): Insets {
-    const root = this.root;
-    const box = root.getBoundingClientRect();
-    const edge = (sel: string, side: 'left' | 'right'): number => {
-      const el = root.querySelector<HTMLElement>(sel);
-      if (!el || !el.offsetParent) return 0;
-      const r = el.getBoundingClientRect();
-      return side === 'left' ? Math.max(0, r.right - box.left) : Math.max(0, box.right - r.left);
-    };
-    const left = Math.max(edge('.pane.left', 'left'), edge('.tool-dock', 'left'), edge('.mmdx-stack[data-side=left].open', 'left'));
-    return { left: left + 8, right: Math.max(edge('.pane.right', 'right'), edge('.mmdx-stack[data-side=right].open', 'right')) + 8, top: 56, bottom: 56 };
   }
 
   // ---- document access --------------------------------------------------------------------------------------------
@@ -591,30 +577,59 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   // ---- changes ----------------------------------------------------------------------------------------------------
 
   /**
-   * Applies a code rewrite from an op (`edit.js` / `connect.js` results). Remaps positional sequence metadata, keeps
-   * the selection where items survive, fires the cancelable `mmdx-op` event, commits one history step. Returns false
-   * when nothing changed or the host vetoed the op.
+   * Applies a code rewrite from an op (`edit.js` / `connect.js` results) or typed into the code panel. Remaps
+   * positional sequence metadata, keeps the selection where items survive, fires the cancelable `mmdx-op` event
+   * (`type`, default the label), commits one history step (`reason` of the `mmdx-change`, default `op`). `%%@` lines
+   * in the code move into the metadata. Returns false when nothing changed or the host vetoed the op.
    */
-  applyCode(res: { code?: string | null; meta?: DiagramMeta } | null | undefined, label: string, opts: { select?: Sel[] | null } = {}): boolean {
+  applyCode(res: { code?: string | null; meta?: DiagramMeta } | null | undefined, label: string, opts: { select?: Sel[] | null; type?: string; reason?: ChangeReason } = {}): boolean {
     if (!res || res.code == null || (res.code === this.code && !res.meta)) return false;
-    if (!this.emit('mmdx-op', { type: label, code: res.code }, true)) return false;
+    if (!this.emit('mmdx-op', { type: opts.type ?? label, code: res.code }, true)) return false;
     const oldModel = this.model, oldCode = this.code;
     this.store.begin();
     try {
       if (res.meta) this.store.meta.set(res.meta);
-      this.store.code.set(res.code);
+      this.store.setCode(res.code, label);
       const model = this.model;
       // ops that return metadata have already carried it over to the new positional ids
       if (!res.meta && model.type === 'sequence' && oldModel.type === 'sequence')
-        this.store.meta.set(remapSequenceMeta(this.meta, oldModel, oldCode, model, res.code));
+        this.store.meta.set(remapSequenceMeta(this.meta, oldModel, oldCode, model, this.code));
       const keep = (r: Sel): boolean => this.store.exists(r);
       if (opts.select !== undefined) this.select((opts.select ?? []).filter(keep));
-      else this.select(this.selection().filter(keep));
+      else {
+        const cur = this.selection(), kept = cur.filter(keep);
+        if (kept.length !== cur.length) this.select(kept);
+      }
     } finally {
-      this.store.commit(label);
+      this.store.commit(label, opts.reason);
     }
     this.afterChange();
     return true;
+  }
+
+  /**
+   * Replaces the document (a host's `setSource`, a remote update, an opened file). A gesture or transaction in flight
+   * is cancelled first (rolled back, like Esc). `reset` clears the history, `push` makes it an undoable step. A load
+   * (not a remote update) leaves group editing and the page selection; the view fits the new document unless `fit` is
+   * false and the diagram type stayed (while History owns the canvas, the document's view is restored on the way back).
+   */
+  loadSource(src: string, opts: { history: 'reset' | 'push'; reason: 'load' | 'remote'; fit?: boolean; markSaved?: boolean }): void {
+    this.cancelGesture();
+    const before = this.store.model.peek().type;
+    this.store.load(src, { history: opts.history, reason: opts.reason, markSaved: opts.markSaved !== false });
+    if (opts.reason === 'load') {
+      this.enteredGroup.set(null);
+      this.pageSelected.set(false);
+    }
+    this.draw();
+    if (this.scene === this.storeScene && (opts.fit !== false || before !== this.store.model.peek().type)) this.viewport.setBounds(this.result.result.bounds, { fit: true });
+    this.fire('model');
+    this.fire('panels');
+  }
+
+  /** Replaces the metadata as one history step (`mmdx-op`; a veto rolls it back). */
+  setMeta(label: string, meta: DiagramMeta): void {
+    this.change(label, () => this.store.meta.set(meta));
   }
 
   /**

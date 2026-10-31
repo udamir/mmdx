@@ -380,7 +380,7 @@ describe('canvas selection', () => {
   it('right-click on the board offers Paste / Unlock all, else a disabled "Nothing to paste"', () => {
     const { core } = mount(FLOW);
     core.dom.svg.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: -300, clientY: -300 }));
-    let menu = core.dom.wrap.querySelector('.ctx-menu');
+    let menu = core.area.querySelector('[role=menu][aria-label=Board]');
     expect(menu?.textContent).toMatch(/Nothing to paste/);
     expect((menu?.querySelector('button') as HTMLButtonElement).disabled).toBe(true);
     core.popovers.close();
@@ -388,7 +388,7 @@ describe('canvas selection', () => {
       core.ensure('node', 'A').locked = true;
     });
     core.dom.svg.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: -300, clientY: -300 }));
-    menu = core.dom.wrap.querySelector('.ctx-menu');
+    menu = core.area.querySelector('[role=menu][aria-label=Board]');
     expect(menu?.textContent).toMatch(/Unlock all \(1\)/);
     (menu?.querySelector('button') as HTMLButtonElement).click();
     expect(core.getM('node', 'A').locked).toBeUndefined();

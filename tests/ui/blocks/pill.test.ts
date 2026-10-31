@@ -85,4 +85,24 @@ describe('Pill', () => {
     el.querySelector<HTMLButtonElement>('.mmdx-pill-btn')!.click();
     expect(onClick).not.toHaveBeenCalled();
   });
+
+  it('text tools, a plain action without the back chevron, and an extra class', () => {
+    const reload = vi.fn(), keep = vi.fn();
+    const pill = createPill({ text: 'Changed by someone else', label: 'Remote change', class: 'remote', tools: [{ id: 'reload', label: 'Reload', onClick: reload }], action: { label: 'Keep mine', plain: true, onClick: keep }, t });
+    expect(pill.el.className).toBe('mmdx-pill remote');
+    expect(pill.el.getAttribute('aria-label')).toBe('Remote change');
+    const tool = pill.el.querySelector<HTMLButtonElement>('[data-tool=reload]')!;
+    expect(tool.textContent).toBe('Reload');
+    expect(tool.querySelector('svg')).toBeNull();
+    tool.click();
+    expect(reload).toHaveBeenCalledOnce();
+    const btn = pill.el.querySelector<HTMLButtonElement>('[data-f=pill-action]')!;
+    expect(btn.textContent).toBe('Keep mine');
+    expect(btn.querySelector('svg')).toBeNull();
+    expect(btn.classList.contains('plain')).toBe(true);
+    btn.click();
+    expect(keep).toHaveBeenCalledOnce();
+    pill.update({ class: 'issue' });
+    expect(pill.el.className).toBe('mmdx-pill issue');
+  });
 });

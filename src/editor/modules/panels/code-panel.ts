@@ -1,19 +1,25 @@
 // Left panel (A.1 rows 2–6, 8): Mermaid code and Metadata tabs, the code filter (`%% - N hidden` folding, edits in
 // the filtered view written into the full file), live per-line metadata validation, the problems list with fixes,
-// gutter markers, the canvas issue bar and `gotoCodeLine` / `gotoMetaLine`. Ported from prototype/app.js
-// (~85–237, ~1809–1875, ~2697–2730, ~4307–4449) and index.html `#leftPane`.
+// gutter markers, the canvas issue bar (a Pill at the top centre while the panel is closed, loaded on first use) and
+// `gotoCodeLine` /
+// `gotoMetaLine`. A SidePanel with a Tabs head in the left stack (chrome/panes.ts); the editors are ui/code-editor.
+// Ported from prototype/app.js (~85–237, ~1809–1875, ~2697–2730, ~4307–4449) and index.html `#leftPane`.
 import { checkMetaLine, metaToLines, splitSource } from '../../../core/meta/index.js';
 import { fixIdClash } from '../../../core/ops/meta-ops.js';
-import { remapSequenceMeta } from '../../../core/ops/remap.js';
 import { flowPresets } from '../../../core/render/flowchart.js';
 import type { Diagnostic } from '../../../core/types.js';
+import type { BlockHandle } from '../../../ui/blocks/block.js';
+import type { PillProps } from '../../../ui/blocks/pill.js';
+import { createSidePanel } from '../../../ui/blocks/side-panel.js';
+import { createTabs } from '../../../ui/blocks/tabs.js';
 import { CODE_EDITOR_CSS, createCodeEditor, highlightMetaLine, type CodeEditor } from '../../../ui/code-editor.js';
 import { h, icon } from '../../../ui/h.js';
 import { ICONS } from '../../../ui/icons.js';
+import { signal } from '../../../ui/signal.js';
 import type { EditorCore } from '../../core.js';
 import type { EditorModule } from '../../module.js';
-import { attachResizer, setPanel } from '../chrome/panes.js';
-import { applyDoc, buildSegments, filterItems, filterLines, mergeFilteredView, viewOf, type Segment } from './util.js';
+import { buildSegments, filterItems, filterLines, mergeFilteredView, viewOf, type Segment } from '../../ops/code-filter.js';
+import { applyDoc } from '../../ops/doc.js';
 
 /** One problem of the code or the metadata (1-based line, null = no line). */
 export interface Issue {
@@ -26,7 +32,7 @@ export interface Issue {
 const blankCode = (code: string): boolean => !code.split('\n').some((l) => l.trim() && !l.trim().startsWith('%%'));
 
 /** Problems of the Mermaid code (parser, render and theme diagnostics, unknown classes) for the problems list. */
-export function codeIssues(core: EditorCore): Issue[] {
+function codeIssues(core: EditorCore): Issue[] {
   const M = core.model, code = core.code;
   if (!M.type && blankCode(code)) return [];
   const out: Issue[] = [];
@@ -73,12 +79,7 @@ const marksOf = (list: readonly Issue[]): Map<number, string[]> => {
 
 export const CODE_PANEL_CSS = /* css */ `
 ${CODE_EDITOR_CSS}
-.pane.left .tabs { display: flex; border-bottom: 1px solid var(--line); flex-shrink: 0; border-radius: 14px 14px 0 0; }
-.pane.left .tabs [role=tab] { border: 0; border-radius: 0; padding: 9px 12px; color: var(--muted); border-bottom: 2px solid transparent; background: none; }
-.pane.left .tabs [role=tab][aria-selected=true] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
-.pane.left .tabs-spacer { flex: 1; }
-.pane .collapse-btn { border: 0; background: none; padding: 4px 12px; color: var(--muted); font-size: 18px; line-height: 1; }
-.pane .collapse-btn:hover { color: var(--accent); }
+.code-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .tab-body { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 8px; gap: 6px; }
 .tab-body[hidden] { display: none !important; }
 .code-search { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 0 6px 0 9px; background: var(--surface); color: var(--muted); flex-shrink: 0; }
@@ -111,15 +112,10 @@ button.link { border: 0; background: none; color: var(--accent); padding: 0; fon
 .pb-tag { flex-shrink: 0; padding: 0 6px; border-radius: 4px; background: var(--surface-2); color: var(--muted); font-size: 10.5px; line-height: 17px; }
 .pb-msg { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .pb-fix { display: block; margin: 2px 0 4px 30px; padding: 2px 10px; font-size: 12px; }
-.issue-bar { position: absolute; top: 14px; left: calc(var(--inset-l, 0px) + 72px); right: 300px; width: fit-content; max-width: 620px; margin: 0 auto; z-index: 6; display: flex; align-items: center; gap: 9px;
-  padding: 6px 6px 6px 10px; border: 1px solid var(--danger); border-radius: 10px; background: var(--danger-bg); color: var(--ink); font-size: 12.5px; box-shadow: 0 4px 16px rgba(0,0,0,.12); cursor: pointer; text-align: left; }
-.issue-bar[hidden] { display: none; }
-.issue-bar:hover { filter: brightness(.98); box-shadow: 0 6px 20px rgba(0,0,0,.16); }
-.ib-ic { flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; background: var(--danger); color: #fff; font-size: 11px; font-weight: 800; }
-.ib-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ib-text b { color: var(--danger); }
-.ib-open { flex-shrink: 0; padding: 3px 10px; border-radius: 7px; background: var(--danger); color: #fff; font-weight: 600; font-size: 12px; }
-.ed.resizing-panes, .ed.resizing-panes * { cursor: col-resize !important; user-select: none !important; }
+.mmdx-pill.issue { border-color: var(--mmdx-danger); background: var(--mmdx-danger-bg); max-width: min(620px, 100%); font-size: 12.5px; }
+.mmdx-pill.issue .mmdx-pill-text::before { content: '!'; display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 9px; border-radius: 50%;
+  background: var(--mmdx-danger); color: #fff; font-size: 11px; font-weight: 800; }
+.mmdx-pill.issue .mmdx-pill-btn, .mmdx-pill.issue .mmdx-pill-btn:hover:not(:disabled) { background: var(--mmdx-danger); color: #fff; font-weight: 600; }
 `;
 
 export const codePanelModule: EditorModule = {
@@ -137,12 +133,13 @@ export const codePanelModule: EditorModule = {
 
     // ---- DOM
     const uid = Math.random().toString(36).slice(2, 8);
-    const tab = (id: 'code' | 'meta', label: string): HTMLButtonElement =>
-      h('button', { type: 'button', role: 'tab', id: `mmdx-tab-${id}-${uid}`, 'aria-controls': `mmdx-panel-${id}-${uid}`, 'aria-selected': 'false', tabindex: '-1', dataset: { tab: id } }, label);
-    const tabCode = tab('code', t('code.tabMermaid'));
-    const tabMeta = metaTab ? tab('meta', t('code.tabMetadata')) : null;
-    const closeBtn = h('button', { type: 'button', class: 'collapse-btn', title: t('code.close'), 'aria-label': t('code.close') }, '×');
-    const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': t('code.panel') }, tabCode, tabMeta, h('span', { class: 'tabs-spacer' }), closeBtn);
+    const tabId = (id: 'code' | 'meta'): string => `mmdx-tab-${id}-${uid}`;
+    const bodyId = (id: 'code' | 'meta'): string => `mmdx-panel-${id}-${uid}`;
+    const current = signal<'code' | 'meta'>('code');
+    const tabs = createTabs<'code' | 'meta'>({
+      label: t('code.panel'), value: current, onChange: (v) => showTab(v),
+      tabs: [{ value: 'code', label: t('code.tabMermaid'), id: tabId('code'), controls: bodyId('code') }, ...(metaTab ? [{ value: 'meta' as const, label: t('code.tabMetadata'), id: tabId('meta'), controls: bodyId('meta') }] : [])],
+    });
 
     const search = (placeholder: string, label: string): { box: HTMLElement; input: HTMLInputElement; count: HTMLElement; clear: HTMLButtonElement } => {
       const input = h('input', { type: 'search', placeholder, autocomplete: 'off', 'aria-label': label });
@@ -159,59 +156,52 @@ export const codePanelModule: EditorModule = {
       return { bar, info, all };
     };
 
-    const tipHost = (): HTMLElement => core.dom.root;
+    const tipHost = (): HTMLElement => core.root;
     const cs = search(t('code.filterPlaceholder'), t('code.filterLabel'));
     const cf = filterBar();
     const codeEd: CodeEditor = createCodeEditor({ lineNumbers: true, label: t('code.editorLabel'), tipHost, onInput: () => onCodeInput() });
-    const codeBody = h('div', { class: 'tab-body', role: 'tabpanel', id: `mmdx-panel-code-${uid}`, 'aria-labelledby': tabCode.id, dataset: { body: 'code' } }, cs.box, cf.bar, codeEd.el);
+    const codeBody = h('div', { class: 'tab-body', role: 'tabpanel', id: bodyId('code'), 'aria-labelledby': tabId('code'), dataset: { body: 'code' } }, cs.box, cf.bar, codeEd.el);
 
     const ms = search(t('code.metaFilterPlaceholder'), t('code.metaFilterLabel'));
     const mf = filterBar();
     const metaEd: CodeEditor | null = metaTab ? createCodeEditor({ lineNumbers: true, label: t('code.metaEditorLabel'), highlightLine: highlightMetaLine, tipHost, onInput: () => onMetaInput() }) : null;
-    const metaBody = metaEd && tabMeta
-      ? h('div', { class: 'tab-body', role: 'tabpanel', id: `mmdx-panel-meta-${uid}`, 'aria-labelledby': tabMeta.id, hidden: true, dataset: { body: 'meta' } }, ms.box, mf.bar, metaEd.el)
+    const metaBody = metaEd
+      ? h('div', { class: 'tab-body', role: 'tabpanel', id: bodyId('meta'), 'aria-labelledby': tabId('meta'), hidden: true, dataset: { body: 'meta' } }, ms.box, mf.bar, metaEd.el)
       : null;
 
     const problems = h('div', { class: 'problems', role: 'region', 'aria-label': t('problems.title') });
-    const pane = h('section', { class: 'pane left edit-only', part: 'panel', 'aria-label': t('code.panel') }, tabs, codeBody, metaBody, problems);
-    core.dom.root.append(pane);
-    cleanups.push(attachResizer(core, pane, 'left'));
+    const panel = createSidePanel({
+      side: 'left', head: tabs.el, label: t('code.panel'), class: 'code-edit', closeLabel: t('code.close'), closeKeys: 'c',
+      onClose: () => void core.run('setPanel', 'code', false), body: h('div', { class: 'code-body' }, codeBody, metaBody, problems), t,
+    });
+    scope.contribute(core.panelItems, { id: 'code', side: 'left', order: 10, el: panel.el, visible: () => core.mode() === 'edit' });
 
-    const issueBar = h('button', { type: 'button', class: 'issue-bar edit-only', hidden: true });
-    core.dom.wrap.append(issueBar);
+    // the problems outside the code panel: a pill at the top centre while the panel is closed (placed only then; the
+    // block loads the first time it shows)
+    const issueText = signal('');
+    let issue: BlockHandle<PillProps> | null = null;
+    let loadingIssue = false, gone = false;
+    let unmountIssue: (() => void) | null = null;
+    const loadIssue = (): void => {
+      if (loadingIssue) return;
+      loadingIssue = true;
+      void import('../../../ui/blocks/pill.js').then((m) => {
+        if (gone) return;
+        core.addCss([m.PILL_CSS]);
+        issue = m.createPill({ text: issueText, label: t('problems.title'), class: 'issue edit-only', action: { label: t('problems.openCode'), plain: true, onClick: () => openFirstIssue() }, t });
+        syncIssueBar();
+      });
+    };
 
-    // ---- tabs (ARIA tabs pattern)
-    let current: 'code' | 'meta' = 'code';
+    // ---- tabs
     const showTab = (which: 'code' | 'meta'): void => {
       if (which === 'meta' && !metaBody) which = 'code';
-      current = which;
-      for (const [b, body, id] of [[tabCode, codeBody, 'code'], [tabMeta, metaBody, 'meta']] as const) {
-        if (!b || !body) continue;
-        const on = id === which;
-        b.setAttribute('aria-selected', String(on));
-        b.tabIndex = on ? 0 : -1;
-        body.hidden = !on;
-      }
+      current.set(which);
+      codeBody.hidden = which !== 'code';
+      if (metaBody) metaBody.hidden = which !== 'meta';
       if (which === 'meta') writeMetaText(true);
     };
-    tabs.addEventListener('click', (ev) => {
-      const b = (ev.target as Element).closest<HTMLElement>('[role=tab]');
-      if (b) showTab(b.dataset['tab'] === 'meta' ? 'meta' : 'code');
-    }, sig);
-    tabs.addEventListener('keydown', (ev) => {
-      if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight' && ev.key !== 'Home' && ev.key !== 'End') return;
-      if (!(ev.target as Element).matches('[role=tab]')) return;
-      ev.preventDefault();
-      const list = [tabCode, tabMeta].filter((x): x is HTMLButtonElement => !!x);
-      const i = list.indexOf(ev.target as HTMLButtonElement);
-      const next = ev.key === 'Home' ? list[0] : ev.key === 'End' ? list[list.length - 1] : list[(i + (ev.key === 'ArrowRight' ? 1 : -1) + list.length) % list.length];
-      if (next) {
-        showTab(next.dataset['tab'] === 'meta' ? 'meta' : 'code');
-        next.focus();
-      }
-    }, sig);
     showTab('code');
-    closeBtn.addEventListener('click', () => setPanel(core, 'code', false), sig);
 
     // ---- problems
     let codeIssueList: Issue[] = [];
@@ -264,28 +254,31 @@ export const codePanelModule: EditorModule = {
       problems.replaceChildren(...kids);
     };
 
-    // outside the code panel: a bar on the canvas (while the panel is closed); the Code tool shows a badge
+    // outside the code panel: the issue pill (while the panel is closed); the Code tool shows a badge
     const syncIssueBar = (): void => {
       const issues = allIssues();
       const n = issues.length;
-      issueBar.hidden = !n || core.panels.peek().code;
+      const show = !!n && !core.panels.peek().code;
+      if (show && !issue) loadIssue();
+      else if (show && issue && !unmountIssue) unmountIssue = scope.mount(core.slots['top-center'], issue.el);
+      else if (!show && unmountIssue) {
+        unmountIssue();
+        unmountIssue = null;
+      }
       if (!n) return;
       const first = issues[0]!;
       const where = codeIssueList.length && metaIssueList.length ? t('problems.inBoth') : codeIssueList.length ? t('problems.inCode') : t('problems.inMeta');
-      const text = h('span', { class: 'ib-text' }, h('b', null, t(n === 1 ? 'problems.count1' : 'problems.countN', { n })), ` ${where}`,
-        first.line != null ? ` — ${t('problems.lineN', { line: first.line })}: ${first.msg}` : `: ${first.msg}`);
-      issueBar.replaceChildren(h('span', { class: 'ib-ic', 'aria-hidden': 'true' }, '!'), text, h('span', { class: 'ib-open' }, t('problems.openCode')));
-      issueBar.title = t('problems.openFirst');
+      issueText.set(`${t(n === 1 ? 'problems.count1' : 'problems.countN', { n })} ${where}` + (first.line != null ? ` — ${t('problems.lineN', { line: first.line })}: ${first.msg}` : `: ${first.msg}`));
     };
-    issueBar.addEventListener('click', () => {
+    const openFirstIssue = (): void => {
       const issues = allIssues();
       const it = issues.find((x) => x.line != null);
       if (it?.line != null) (it.meta ? gotoMetaLine : gotoCodeLine)(it.line);
       else {
-        setPanel(core, 'code', true);
+        core.run('setPanel', 'code', true);
         showTab(issues[0]?.meta ? 'meta' : 'code');
       }
-    }, sig);
+    };
     scope.effect(() => {
       core.panels();
       syncIssueBar();
@@ -352,28 +345,15 @@ export const codePanelModule: EditorModule = {
     };
     let applying = false;
     const commitCode = (raw: string): void => {
-      if (!core.emit('mmdx-op', { type: 'code.replace', code: raw }, true)) {
+      const before = core.model.type;
+      if (!core.applyCode({ code: raw }, t('history.editCode'), { type: 'code.replace', reason: 'code' })) {
         syncEditor();
         return;
-      }
-      const oldModel = core.model, oldCode = core.code;
-      store.begin();
-      try {
-        store.setCode(raw, t('history.editCode'));
-        const model = core.model;
-        if (model.type === 'sequence' && oldModel.type === 'sequence') store.meta.set(remapSequenceMeta(core.meta, oldModel, oldCode, model, core.code));
-        const sel = core.selection();
-        const keep = sel.filter((r) => store.exists(r));
-        if (keep.length !== sel.length) core.select(keep);
-      } finally {
-        store.commit(t('history.editCode'), 'code');
       }
       // %%@ lines pasted into the code moved into the metadata: show the code without them
       if (core.code !== raw) syncEditor();
       else shownCode = core.code;
-      const typeChanged = oldModel.type !== core.model.type;
-      core.afterChange();
-      if (typeChanged) core.viewport.setBounds(core.result.result.bounds, { fit: true });
+      if (before !== core.model.type) core.viewport.setBounds(core.result.result.bounds, { fit: true });
     };
     // apply right away when leaving the editor (no lost keystrokes when clicking elsewhere)
     codeEd.textarea.addEventListener('blur', () => {
@@ -439,7 +419,7 @@ export const codePanelModule: EditorModule = {
     cf.all.addEventListener('click', clearCodeFilter, sig);
 
     const searchFromSelection = (): void => {
-      if (core.dom.shadow.activeElement === cs.input) return;
+      if (core.shadow.activeElement === cs.input) return;
       const ids = core.mode.peek() === 'edit' ? core.selection().map((x) => x.id) : [];
       const key = ids.join(' ');
       if (key === selKey) return;
@@ -460,7 +440,7 @@ export const codePanelModule: EditorModule = {
 
     /** Rebuilds the metadata text from the store; invalid lines (not in the metadata) are kept at the end. */
     const writeMetaText = (force = false): void => {
-      if (!force && metaEd && core.dom.shadow.activeElement === metaEd.textarea) return;
+      if (!force && metaEd && core.shadow.activeElement === metaEd.textarea) return;
       const lines = metaToLines(core.meta);
       const known = new Set(lines);
       const bad = metaText.split('\n').filter((l) => !known.has(l) && checkMetaLine(l) && 'error' in checkMetaLine(l)!);
@@ -532,7 +512,7 @@ export const codePanelModule: EditorModule = {
       const next = splitSource(metaText).doc.meta;
       checkMeta();
       if (JSON.stringify(next) === JSON.stringify(core.meta)) return;
-      core.change(t('history.editMeta'), () => store.meta.set(next));
+      core.setMeta(t('history.editMeta'), next);
     };
     metaEd?.textarea.addEventListener('blur', () => {
       if (metaTimer !== undefined) {
@@ -565,7 +545,7 @@ export const codePanelModule: EditorModule = {
 
     // ---- goto line
     const openPanel = (which: 'code' | 'meta'): void => {
-      if (!core.panels.peek().code) setPanel(core, 'code', true);
+      if (!core.panels.peek().code) core.run('setPanel', 'code', true);
       showTab(which);
     };
     const gotoCodeLine = (n: number): void => {
@@ -612,6 +592,7 @@ export const codePanelModule: EditorModule = {
     onDraw();
 
     return () => {
+      gone = true;
       clearTimeout(codeTimer);
       clearTimeout(metaTimer);
       clearTimeout(searchTimer);
@@ -619,8 +600,9 @@ export const codePanelModule: EditorModule = {
       for (const c of cleanups) c();
       codeEd.destroy();
       metaEd?.destroy();
-      pane.remove();
-      issueBar.remove();
+      tabs.destroy();
+      panel.destroy();
+      issue?.destroy();
       core.issueCount.set(0);
     };
   },

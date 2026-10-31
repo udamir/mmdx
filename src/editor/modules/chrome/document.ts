@@ -14,7 +14,7 @@ import type { Diagnostic } from '../../../core/types.js';
 import { h } from '../../../ui/h.js';
 import type { EditorCore } from '../../core.js';
 import type { EditorModule } from '../../module.js';
-import { applyMeta } from '../panels/util.js';
+import { applyMeta } from '../../ops/doc.js';
 
 export type ExportKind = 'mmdx' | 'mmd' | 'svg' | 'png';
 
@@ -29,7 +29,7 @@ export const exportMmdx = (core: EditorCore): string =>
   joinSource({ code: core.code, meta: pruneMeta(core.meta, usedIds(core.model)) });
 
 /** Portable Mermaid (`.mmd`): flowchart classDef / linkStyle colours, other types pass through. */
-export const exportPortable = (core: EditorCore): string => {
+const exportPortable = (core: EditorCore): string => {
   const r = core.result;
   return toPortableMermaid(core.code, core.meta, core.model, r.theme, r.rctx.color);
 };
@@ -84,37 +84,13 @@ export function parseMermaidSvg(markup: string): SVGSVGElement | null {
   return svg;
 }
 
+/** Opens the Plain Mermaid dialog (one of the in-component dialogs) and renders into it; resolves once rendered. */
 export async function plainMermaid(core: EditorCore): Promise<void> {
   const t = core.i18n.t;
   const body = h('div', { class: 'mm-body' }, h('div', { class: 'hint' }, t('plain.rendering')));
-  const titleId = `mm-${Math.random().toString(36).slice(2, 8)}`;
-  const close = h('button', { type: 'button', class: 'mm-close', title: t('plain.close'), 'aria-label': t('plain.close') }, '×');
-  const card = h('div', { class: 'mmdx-dialog mm-card', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId },
-    h('div', { class: 'mm-head' }, h('h2', { id: titleId }, t('plain.title')), close), body);
-  const back = h('div', { class: 'mmdx-dialog-back' }, card);
-  const prev = core.dom.shadow.activeElement as HTMLElement | null;
-  const done = (): void => {
-    back.remove();
-    prev?.focus?.();
-  };
-  close.addEventListener('click', done);
-  back.addEventListener('pointerdown', (ev) => {
-    if (ev.target === back) done();
-  });
-  card.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Escape') {
-      ev.stopPropagation();
-      done();
-    } else if (ev.key === 'Tab') {
-      ev.preventDefault();
-      close.focus();
-    }
-  });
-  core.dom.shadow.append(back);
-  queueMicrotask(() => close.focus());
+  void core.dialogs.choose({ title: t('plain.title'), class: 'mm-card', body, cancel: null, buttons: [{ label: t('plain.close'), value: null, primary: true }] });
   try {
-    const dark = (core.dom.shadow.host as HTMLElement).getAttribute('data-ui') === 'dark';
-    const out = await renderWithMermaid(exportPortable(core), dark);
+    const out = await renderWithMermaid(exportPortable(core), core.scheme.peek() === 'dark');
     const svg = parseMermaidSvg(out);
     if (!svg) throw new Error(t('plain.badSvg'));
     body.replaceChildren(h('div', { class: 'hint', style: 'margin-bottom:10px' }, t('plain.note')), document.importNode(svg, true));
@@ -138,18 +114,11 @@ export function autoLayout(core: EditorCore): void {
 // ---- open files ---------------------------------------------------------------------------------------------------
 
 /** Replaces the document (an undoable step), like the prototype's `setSource` after opening a file. */
-export function loadDocument(core: EditorCore, src: string, name?: string): void {
+function loadDocument(core: EditorCore, src: string, name?: string): void {
   if (!core.emit('mmdx-op', { type: 'doc.open', code: src }, true)) return;
-  core.cancelGesture();
-  core.store.load(src, { history: 'push', reason: 'load', markSaved: false });
   if (name) core.fileName = name.replace(/\.(mmdx|mmd|md|txt|json)$/i, '') || core.fileName;
-  core.enteredGroup.set(null);
-  core.pageSelected.set(false);
+  core.loadSource(src, { history: 'push', reason: 'load', markSaved: false });
   core.select([]);
-  core.draw();
-  core.viewport.setBounds(core.result.result.bounds, { fit: true });
-  core.fire('model');
-  core.fire('panels');
 }
 
 const isJson = (f: File): boolean => /\.json$/i.test(f.name);
@@ -205,11 +174,8 @@ export async function openFiles(core: EditorCore, files: FileList | File[]): Pro
 }
 
 export const DOCUMENT_CSS = /* css */ `
-.mm-card { width: min(1200px, calc(100% - 48px)); height: min(860px, calc(100% - 48px)); padding: 0; gap: 0; }
-.mm-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--mmdx-border); }
-.mm-head h2 { margin: 0; font-size: 14px; }
-.mm-close { border: 0; background: none; font-size: 18px; line-height: 1; color: var(--mmdx-muted); }
-.mm-body { flex: 1; overflow: auto; padding: 16px; min-height: 0; }
+.mmdx-dialog.mm-card { width: min(1200px, calc(100% - 48px)); height: min(860px, calc(100% - 48px)); }
+.mm-body { flex: 1; overflow: auto; min-height: 0; }
 .mm-body svg { max-width: 100%; height: auto; }
 .mm-err { color: var(--mmdx-danger); }
 .canvas-wrap.drop-target { outline: 2px dashed var(--mmdx-accent); outline-offset: -8px; }
@@ -230,7 +196,7 @@ export const documentModule: EditorModule = {
       // drag-and-drop onto the canvas: through the `openFiles` action, so a host that provides its own (the studio:
       // its file name, versions and unsaved-changes check) handles the drop; the event is consumed (defaultPrevented)
       // for hosts that listen further up. Muted while the module is suspended: History never loads a dropped file.
-      const wrap = core.dom.wrap;
+      const wrap = core.area;
       const hasFiles = (ev: DragEvent): boolean => !!ev.dataTransfer && Array.from(ev.dataTransfer.types).includes('Files');
       scope.listen(wrap, 'dragover', (ev: DragEvent) => {
         if (!hasFiles(ev) || core.mode.peek() !== 'edit') return;

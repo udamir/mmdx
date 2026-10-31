@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 // A text edit (inline editor, Properties text field) applies to the document as it is when the edit ends, not to the
 // snapshot taken when it opened: a remote update while typing survives, and an item that is gone is left alone.
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
 import { CANVAS_MODULES } from '../../src/editor/modules/canvas/index.js';
 import { panesModule } from '../../src/editor/modules/chrome/panes.js';
 import { rightPanelsModule } from '../../src/editor/modules/panels/right-panels.js';
-import { labelSpec } from '../../src/editor/modules/panels/util.js';
+import { labelSpec } from '../../src/editor/ops/label.js';
 import type { EditorModule } from '../../src/editor/module.js';
 
 beforeAll(() => {
@@ -30,6 +30,8 @@ const mount = (value: string, modules: readonly EditorModule[]): DiagramEditor =
   return ed;
 };
 const flush = async (): Promise<void> => {
+  // the Properties inspectors load the first time the panel shows
+  await vi.dynamicImportSettled();
   await Promise.resolve();
   await Promise.resolve();
 };
@@ -52,7 +54,7 @@ describe('text edits apply to the current document', () => {
     const e = mount(FLOW, [panesModule, rightPanelsModule]);
     e.core.select([{ kind: 'node', id: 'B' }]);
     await flush();
-    const ta = e.core.root.querySelector<HTMLTextAreaElement>('.rpanel.props .prop-label textarea')!;
+    const ta = e.core.root.querySelector<HTMLTextAreaElement>('.mmdx-panel.props .prop-label textarea')!;
     ta.focus();
     ta.value = 'Bravo';
     e.setSource(REMOTE, { history: 'push', fit: false });

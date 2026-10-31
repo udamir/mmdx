@@ -269,7 +269,7 @@ function sameRefs(a: readonly ItemRef[], b: readonly ItemRef[]): boolean {
 }
 
 /** Item existence for selection repair after undo / reload. */
-export function itemExists(model: DiagramModel, r: ItemRef, _meta?: DiagramMeta): boolean {
+function itemExists(model: DiagramModel, r: ItemRef, _meta?: DiagramMeta): boolean {
   switch (model.type) {
     case 'flowchart':
       return r.kind === 'node' ? model.nodes.has(r.id) : r.kind === 'group' ? model.groups.has(r.id) : r.kind === 'edge' ? model.edges.some((e) => e.id === r.id) : false;
