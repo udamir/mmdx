@@ -1,6 +1,15 @@
 // In-component dialogs (§8.2): confirmations and name prompts replace the prototype's native confirm() / prompt() /
-// alert(), which block the host page and cannot be styled or tested. Modal, focus-trapped, Esc cancels.
+// alert(), which block the host page and cannot be styled or tested. Modal, focus-trapped, Esc cancels. The button
+// labels and the empty-name message go through the host's `t` (English without one).
 import { h } from './h.js';
+import { registerMessages, type I18n, type Messages } from './i18n.js';
+
+/** English strings of the dialogs (registered on first use; a host catalog overrides them). */
+export const DIALOG_MESSAGES: Messages = {
+  'dialog.ok': 'OK',
+  'dialog.cancel': 'Cancel',
+  'dialog.enterName': 'Enter a name',
+};
 
 export const DIALOG_CSS = /* css */ `
 .mmdx-dialog-back { position: absolute; inset: 0; z-index: calc(var(--mmdx-z-popover) + 10); background: var(--mmdx-backdrop); display: grid; place-items: center; }
@@ -20,7 +29,13 @@ export interface ChoiceButton<T> {
 }
 
 export class Dialogs {
-  constructor(private readonly root: ShadowRoot) {}
+  private readonly t: I18n['t'];
+
+  /** `t`: the host's translation function (default: the English strings). */
+  constructor(private readonly root: ShadowRoot, t?: I18n['t']) {
+    registerMessages(DIALOG_MESSAGES);
+    this.t = t ?? ((key) => DIALOG_MESSAGES[key] ?? key);
+  }
 
   /** Generic modal with buttons; resolves with the chosen value, or `cancel` on Esc / backdrop. */
   choose<T>(opts: { title: string; message?: string; buttons: ChoiceButton<T>[]; cancel: T; body?: HTMLElement }): Promise<T> {
@@ -61,14 +76,14 @@ export class Dialogs {
   }
 
   confirm(title: string, message: string, opts: { ok?: string; cancel?: string; danger?: boolean } = {}): Promise<boolean> {
-    const ok: ChoiceButton<boolean> = { label: opts.ok ?? 'OK', value: true };
+    const ok: ChoiceButton<boolean> = { label: opts.ok ?? this.t('dialog.ok'), value: true };
     if (opts.danger) ok.danger = true;
     else ok.primary = true;
-    return this.choose({ title, message, cancel: false, buttons: [{ label: opts.cancel ?? 'Cancel', value: false }, ok] });
+    return this.choose({ title, message, cancel: false, buttons: [{ label: opts.cancel ?? this.t('dialog.cancel'), value: false }, ok] });
   }
 
   /** Name prompt with validation; resolves null when cancelled. */
-  prompt(title: string, opts: { label?: string; value?: string; ok?: string; validate?: (v: string) => string | null } = {}): Promise<string | null> {
+  prompt(title: string, opts: { label?: string; value?: string; ok?: string; cancel?: string; validate?: (v: string) => string | null } = {}): Promise<string | null> {
     const input = h('input', { type: 'text', value: opts.value ?? '', 'aria-label': opts.label ?? title });
     const err = h('div', { class: 'err', 'aria-live': 'polite' });
     const body = h('div', null, opts.label ? h('label', null, opts.label) : null, input, err);
@@ -85,12 +100,12 @@ export class Dialogs {
         title,
         body,
         cancel: 'cancel',
-        buttons: [{ label: 'Cancel', value: 'cancel' }, { label: opts.ok ?? 'OK', value: 'ok', primary: true }],
+        buttons: [{ label: opts.cancel ?? this.t('dialog.cancel'), value: 'cancel' }, { label: opts.ok ?? this.t('dialog.ok'), value: 'ok', primary: true }],
       });
       // Enter / OK: validate first; an invalid name keeps the dialog open
       const okBtn = (): HTMLButtonElement | null => body.parentElement?.querySelector('button.primary') ?? null;
       const check = (): boolean => {
-        const msg = opts.validate?.(input.value.trim()) ?? (input.value.trim() ? null : 'Enter a name');
+        const msg = opts.validate?.(input.value.trim()) ?? (input.value.trim() ? null : this.t('dialog.enterName'));
         err.textContent = msg ?? '';
         return !msg;
       };
