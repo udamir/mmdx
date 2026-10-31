@@ -4,9 +4,12 @@
 // the card shells of editor/modules/panels/right-panels.ts (`.rpanel`, `.rp-head`), the editor's code panel and the
 // diff's panels (`.lpanel`, `.pane-side`, `.collapse-btn`); the grip replaces `attachPaneResizer` of ui/panes.ts.
 import { h } from '../h.js';
+import { registerMessages } from '../i18n.js';
+import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
 import type { Signal } from '../signal.js';
-import { Scope, type BlockHandle } from './block.js';
+import { Scope, type BlockHandle, type Translate } from './block.js';
 import { createIconButton, type IconButtonHandle } from './button.js';
+import { keepFocus } from './focus.js';
 
 export interface SidePanelResize {
   /** The panel's width in px; null means the CSS default. */
@@ -16,8 +19,8 @@ export interface SidePanelResize {
   max: () => number;
   /** After a drag, a reset or a key step (remember the width). */
   onCommit?: () => void;
-  /** Tooltip of the grip (`Drag to resize · double-click to reset`). */
-  title: string;
+  /** Tooltip of the grip (default: `panes.resize`, `Drag to resize · double-click to reset`). */
+  title?: string;
 }
 
 export interface SidePanelProps {
@@ -28,7 +31,8 @@ export interface SidePanelProps {
   head?: HTMLElement;
   /** Small controls between the title and the close button (e.g. `+ New layer`). */
   actions?: readonly HTMLElement[];
-  closeLabel: string;
+  /** Accessible name of the close button (default: `panel.close`, "Close"). */
+  closeLabel?: string;
   /** The panel's toggle shortcut (registry form), shown in the close tooltip. */
   closeKeys?: string;
   /** No close button without it. */
@@ -39,6 +43,8 @@ export interface SidePanelProps {
   /** Accessible name of the `section`. */
   label: string;
   resizable?: SidePanelResize;
+  /** The block's own strings (close label and grip title defaults); English without it. */
+  t?: Translate;
 }
 
 export interface SidePanelHandle extends BlockHandle<SidePanelProps> {
@@ -141,7 +147,18 @@ export function createGrip(o: GripOptions, scope: Scope): HTMLElement {
   return grip;
 }
 
+/** English fallback for blocks created without a translation function. */
+const english = (key: string): string => BLOCK_MESSAGES_PANELS[key] ?? key;
+
+/** Replaces `box`'s children only when they differ (moving a focused node out and back would drop the focus). */
+const setChildren = (box: HTMLElement, kids: readonly Node[]): void => {
+  const cur = box.childNodes;
+  if (cur.length === kids.length && kids.every((k, i) => cur[i] === k)) return;
+  box.replaceChildren(...kids);
+};
+
 export function createSidePanel(props: SidePanelProps): SidePanelHandle {
+  registerMessages(BLOCK_MESSAGES_PANELS);
   let p = { ...props };
   const scope = new Scope();
   let fx = new Scope();
@@ -150,29 +167,29 @@ export function createSidePanel(props: SidePanelProps): SidePanelHandle {
   const head = h('div', { class: 'mmdx-panel-head' });
   const bodyEl = h('div', { class: 'mmdx-panel-body' });
 
-  const render = (): void => {
+  // the close button and the grip are rebuilt (their focus is kept); the head and the body stay in place
+  const render = (): void => keepFocus(el, () => {
     fx.dispose();
     fx = new Scope();
     close?.destroy();
     close = null;
+    const t = p.t ?? english;
     el.className = ['mmdx-panel', p.class].filter(Boolean).join(' ');
     el.dataset['side'] = p.side;
     el.setAttribute('aria-label', p.label);
     if (p.part) el.setAttribute('part', p.part);
     else el.removeAttribute('part');
     const onClose = p.onClose;
-    if (onClose) close = createIconButton({ icon: null, text: '×', label: p.closeLabel, class: 'mmdx-panel-close collapse-btn', f: 'panel-close', ...(p.closeKeys ? { keys: p.closeKeys } : {}), onClick: () => onClose() });
-    head.replaceChildren(
-      p.head ?? h('b', { class: 'mmdx-panel-title', role: 'heading', 'aria-level': '2' }, p.title ?? ''),
-      ...(p.actions ?? []),
-      ...(close ? [close.el] : []),
-    );
-    bodyEl.replaceChildren(p.body);
+    if (onClose) close = createIconButton({ icon: null, text: '×', label: p.closeLabel ?? t('panel.close'), class: 'mmdx-panel-close collapse-btn', f: 'panel-close', ...(p.closeKeys ? { keys: p.closeKeys } : {}), onClick: () => onClose() });
+    const title = p.head ?? (head.firstElementChild?.classList.contains('mmdx-panel-title') ? head.firstElementChild as HTMLElement : h('b', { class: 'mmdx-panel-title', role: 'heading', 'aria-level': '2' }));
+    if (!p.head) title.textContent = p.title ?? '';
+    setChildren(head, [title, ...(p.actions ?? []), ...(close ? [close.el] : [])]);
+    setChildren(bodyEl, [p.body]);
     const children: HTMLElement[] = [head, bodyEl];
     const r = p.resizable;
     if (r) {
       children.push(createGrip({
-        side: p.side, measure: el, get: () => r.width.peek(), set: (w) => r.width.set(w), min: r.min, max: r.max, title: r.title,
+        side: p.side, measure: el, get: () => r.width.peek(), set: (w) => r.width.set(w), min: r.min, max: r.max, title: r.title ?? t('panes.resize'),
         ...(r.onCommit ? { onCommit: r.onCommit } : {}), dragRoot: () => el.parentElement,
       }, fx));
       fx.effect(() => {
@@ -181,8 +198,8 @@ export function createSidePanel(props: SidePanelProps): SidePanelHandle {
         else el.style.width = `${w}px`;
       });
     } else el.style.removeProperty('width');
-    el.replaceChildren(...children);
-  };
+    setChildren(el, children);
+  });
   render();
 
   return {

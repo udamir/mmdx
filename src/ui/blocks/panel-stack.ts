@@ -9,6 +9,7 @@ import { registerMessages } from '../i18n.js';
 import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
 import { signal, untracked } from '../signal.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
+import { keepFocus } from './focus.js';
 import { createGrip } from './side-panel.js';
 
 /** What the stack remembers sizes in (the kernel's storage adapter fits). */
@@ -93,10 +94,17 @@ export function createPanelStack(props: PanelStackProps): PanelStackHandle {
 
   // ---- remembered sizes
   const wKey = (): string => `${p.storageKey}.w`, hKey = (): string => `${p.storageKey}.h`;
-  const savedW = p.storage.get<number>(wKey());
-  let w: number | null = typeof savedW === 'number' && Number.isFinite(savedW) && savedW > 0 ? savedW : null;
-  const savedH = p.storage.get<Record<string, number>>(hKey());
-  const heights = new Map<string, number>(savedH && typeof savedH === 'object' ? Object.entries(savedH).filter(([, v]) => typeof v === 'number' && v > 0) : []);
+  let w: number | null = null;
+  const heights = new Map<string, number>();
+  /** Reads the remembered sizes of the current `storageKey` (again after it changes). */
+  const load = (): void => {
+    const savedW = p.storage.get<number>(wKey());
+    w = typeof savedW === 'number' && Number.isFinite(savedW) && savedW > 0 ? savedW : null;
+    const savedH = p.storage.get<Record<string, number>>(hKey());
+    heights.clear();
+    if (savedH && typeof savedH === 'object') for (const [k, v] of Object.entries(savedH)) if (typeof v === 'number' && v > 0) heights.set(k, v);
+  };
+  load();
   const saveHeights = (): void => {
     if (heights.size) p.storage.set(hKey(), Object.fromEntries(heights));
     else p.storage.remove(hKey());
@@ -183,7 +191,7 @@ export function createPanelStack(props: PanelStackProps): PanelStackHandle {
     return split;
   };
 
-  const render = (): void => {
+  const render = (): void => keepFocus(el, () => {
     fx.dispose();
     fx = new Scope();
     el.className = ['mmdx-stack', p.class].filter(Boolean).join(' ');
@@ -213,7 +221,9 @@ export function createPanelStack(props: PanelStackProps): PanelStackHandle {
           else p.storage.set(wKey(), w);
         },
       }, fx));
-    el.replaceChildren(...children);
+    // panels already in place are not moved (a focused control inside one keeps the focus)
+    const cur = el.childNodes;
+    if (cur.length !== children.length || children.some((c, i) => cur[i] !== c)) el.replaceChildren(...children);
     applyWidth();
 
     // ---- visibility: open panels (or, as a drawer, the one opened last); splitters between visible panels
@@ -240,13 +250,20 @@ export function createPanelStack(props: PanelStackProps): PanelStackHandle {
       el.classList.toggle('drawer', isDrawer);
       changed();
     });
-  };
+  });
   render();
 
-  // ---- drawer form below a host width
+  // ---- drawer form below a host width (observed again when `container` or `drawerBelow` change)
+  let unobserve = (): void => undefined;
+  scope.add(() => unobserve());
   const observe = (): void => {
+    unobserve();
+    unobserve = () => undefined;
     const c = p.container, below = p.drawerBelow;
-    if (!c || below === undefined) return;
+    if (!c || below === undefined) {
+      if (ready) drawer.set(false);
+      return;
+    }
     const check = (width: number): void => {
       if (width > 0) drawer.set(width < below);
     };
@@ -254,7 +271,7 @@ export function createPanelStack(props: PanelStackProps): PanelStackHandle {
     if (typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver((entries) => check(entries[0]?.contentRect.width ?? c.getBoundingClientRect().width));
     ro.observe(c);
-    scope.add(() => ro.disconnect());
+    unobserve = () => ro.disconnect();
   };
   observe();
   ready = true;
@@ -272,8 +289,11 @@ export function createPanelStack(props: PanelStackProps): PanelStackHandle {
       drawer.set(on);
     },
     update(next) {
+      const prev = p;
       p = { ...p, ...next };
+      if (p.storageKey !== prev.storageKey || p.storage !== prev.storage) load();
       render();
+      if (p.container !== prev.container || p.drawerBelow !== prev.drawerBelow) observe();
     },
     destroy() {
       fx.dispose();

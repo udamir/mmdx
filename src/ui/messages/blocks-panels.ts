@@ -10,7 +10,8 @@ export const BLOCK_MESSAGES_PANELS: Messages = {
   'theme.follow': 'Follow light / dark', 'theme.edit': 'Edit themes…',
   // ---- export menu
   'export.tip': 'Export the diagram',
-  // ---- panel stack (splitters and the width grip)
+  // ---- side panel (close button) and panel stack (splitters and the width grip)
+  'panel.close': 'Close',
   'panes.resize': 'Drag to resize · double-click to reset', 'panes.split': 'Drag to resize · double-click to reset',
   // ---- layer list
   'layers.rename': 'Layer name', 'layers.countLabel': '{n} items', 'layers.lock': 'Lock layer', 'layers.unlock': 'Unlock layer',
