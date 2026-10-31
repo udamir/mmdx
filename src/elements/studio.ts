@@ -10,6 +10,7 @@ import { ensureBuiltinThemes, getShared } from '../config.js';
 import { defineEditor, type DiagramEditor, type MmdxEditorElement } from '../editor/editor.js';
 import { readDocumentFiles } from '../editor/modules/chrome/document.js';
 import { download } from '../dom/export.js';
+import { renderSource, standaloneSvg } from '../core/pipeline.js';
 import { contentId, type HistoryAdapter, type StaticVersion } from '../adapters/history.js';
 import type { BlockHandle } from '../ui/blocks/block.js';
 import { createSegmented, type SegmentedOption, type SegmentedProps } from '../ui/blocks/segmented.js';
@@ -73,10 +74,12 @@ const STUDIO_CSS = /* css */ `
 .main { flex: 1; min-height: 0; position: relative; }
 mmdx-editor { position: absolute; inset: 0; height: auto; min-height: 0; }
 .gallery-box { position: relative; }
-.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; max-height: 60vh; overflow: auto; padding: 2px; }
+.mmdx-dialog.examples { width: min(600px, calc(100% - 32px)); }
+.gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; max-height: 70vh; overflow: auto; padding: 2px; }
 .card { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 8px; border-radius: 10px; }
-.card .thumb { height: 120px; border-radius: 6px; background: var(--mmdx-surface-2); display: grid; place-items: center; overflow: hidden; }
-.card .thumb img { max-width: 100%; max-height: 100%; }
+.card .thumb { aspect-ratio: 1; border-radius: 6px; background: var(--mmdx-surface-2); display: grid; place-items: center; overflow: hidden; position: relative; }
+.card .thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: 10px; box-sizing: border-box; }
+.card .thumb.loading { opacity: .6; }
 .card .tags { color: var(--mmdx-muted); font-size: 12px; }
 .themes-dialog { position: absolute; inset: 0; z-index: 2000; background: rgba(10,12,20,.32); display: grid; place-items: center; }
 .themes-dialog > .box { width: min(1280px, calc(100% - 32px)); height: min(860px, calc(100% - 32px)); background: var(--mmdx-surface); border-radius: 12px; box-shadow: var(--mmdx-shadow-lg); display: flex; flex-direction: column; overflow: hidden; }
@@ -412,20 +415,64 @@ export class DiagramStudio {
       return;
     }
     let picked: ExampleInfo | null = null;
+    // a preview of each example (its own thumbnail, else its newest version rendered here), the file icon meanwhile
+    let open = true;
+    const thumbOf = (ex: ExampleInfo): HTMLElement => {
+      if (ex.thumbnail) return h('div', { class: 'thumb' }, h('img', { src: ex.thumbnail, alt: '' }));
+      const box = h('div', { class: 'thumb loading' }, icon(ICONS.file, 32));
+      void this.preview(ex).then((url) => {
+        box.classList.remove('loading');
+        if (url && open) box.replaceChildren(h('img', { src: url, alt: '' }));
+      });
+      return box;
+    };
     const grid = h('div', { class: 'gallery' }, ...this.examples.map((ex) => h('button', { type: 'button', class: 'card', onclick: (ev: Event) => {
       picked = ex;
       (ev.currentTarget as HTMLElement).closest('.mmdx-dialog')?.querySelector<HTMLButtonElement>('button.primary')?.click();
     } },
-      h('div', { class: 'thumb' }, ex.thumbnail ? h('img', { src: ex.thumbnail, alt: '' }) : icon(ICONS.file, 32)),
+      thumbOf(ex),
       h('b', null, ex.title),
       ex.tags?.length ? h('span', { class: 'tags' }, ex.tags.join(' · ')) : null)));
     // the panels' thin scrollbar over the cards
     const scroll = createOverlayScroll(h('div', { class: 'gallery-box' }, grid));
     const box = grid.parentElement!;
     box.append(...scroll.thumbs);
-    const v = await this.dialogs.choose<'open' | 'cancel'>({ title: 'Examples', body: box, cancel: 'cancel', buttons: [{ label: 'Close', value: 'cancel' }, { label: 'Open', value: 'open', primary: true }] });
+    const v = await this.dialogs.choose<'open' | 'cancel'>({ title: 'Examples', body: box, class: 'examples', cancel: 'cancel', buttons: [{ label: 'Close', value: 'cancel' }, { label: 'Open', value: 'open', primary: true }] });
+    open = false;
     scroll.destroy();
     if (v === 'open' && picked) await this.openExample(picked);
+  }
+
+  /** Previews of the examples (the newest version, in the editor's theme) as SVG images, rendered once per theme. */
+  private readonly previews = new Map<string, Promise<string | null>>();
+
+  private preview(ex: ExampleInfo): Promise<string | null> {
+    const core = this.editorEl.instance?.core;
+    if (!core) return Promise.resolve(null);
+    const theme = core.shownTheme();
+    const key = `${ex.id}|${theme}`;
+    let p = this.previews.get(key);
+    if (!p) {
+      p = (async (): Promise<string | null> => {
+        let src = (await this.fetchHistory(ex))[0]?.source;
+        if (src === undefined) {
+          const r = await fetch(ex.file);
+          if (!r.ok) return null;
+          src = await r.text();
+        }
+        // one preview per task: the dialog stays responsive while they render
+        await new Promise((r) => setTimeout(r, 0));
+        if (this.destroyed) return null;
+        const svg = standaloneSvg(renderSource(src, core.ctx, { theme }), core.ctx);
+        return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+      })().catch(() => null).then((url) => {
+        // a failed one is tried again next time
+        if (!url) this.previews.delete(key);
+        return url;
+      });
+      this.previews.set(key, p);
+    }
+    return p;
   }
 
   private pickFiles(): void {
