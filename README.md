@@ -137,7 +137,7 @@ const md = diffReport(diffDiagrams(before, after), { format: 'markdown', before:
 | `mmdx/react` | Optional typed wrappers for React ≤ 18 |
 | `mmdx/themes/*` | The built-in theme files (`default-light.theme.json`, …) |
 
-Importing an element entry registers its tag once (importing it twice is safe), and importing any entry in Node does not throw, so server-side rendering frameworks can import them. Each element is also an imperative class you can mount on any element, for hosts where `customElements.define` is not allowed:
+Importing an element entry registers its tag once (importing it twice is safe), and importing any entry in Node does not throw, so server-side rendering frameworks can import them. Properties can be set before or after the element is connected: they are kept, apply to the live component, and come back when the element is connected again; an attribute set later replaces a property of the same option, and the other way round. Moving an element in the DOM (re-parenting, a framework reordering a list) keeps its component as it is — the editor keeps its document, undo history, selection and an open History; an element removed for good is destroyed, and the editor connected again starts from its last document. `element.instance` is the component behind the element, `null` while it is not connected. `theme` and `theme-dark` are attributes (the theme editor also has a `theme` property). Options read only when the component is created (`ctx`, the editor's `autosave` and `guard-unload`) warn once when changed on a live one. Each element is also an imperative class you can mount on any element, for hosts where `customElements.define` is not allowed:
 
 ```ts
 import { DiagramViewer } from 'mmdx/viewer';
@@ -179,13 +179,15 @@ Each diagram type's parser and renderer load on first use, and diagrams over 300
 | `adapter` (property) | — | `DocumentAdapter` `{ load, save, subscribe? }`: Save button, ⌘S, conflict dialog, live updates |
 | `value` (property) | — | The source when there is no adapter |
 | `read-only` | `false` | View mode only |
-| `features` (property) | all on | Turn parts off: `codePanel`, `properties`, `layers`, `pen`, `styleToolbar`, `export`, `themePicker`, `help`, `history`, … |
+| `features` | all on | The parts that are on, like the viewer's `controls` (`features="pen code-panel layers"`, or `none`); the property takes an object to turn parts off: `codePanel`, `properties`, `layers`, `pen`, `styleToolbar`, `export`, `themePicker`, `help`, `history`, … |
 | `history` (property) | — | The document's versions (a `HistoryAdapter` or `[{ id, message, author?, date?, source }]`, newest first): the tool dock gets a History button |
 | `panels` (property) | remembered | Which side panels are open: `{ code, properties, layers }` |
 | `storage` (property) | `localStorage` (`mmdx.` keys) | Where UI preferences are kept; never the document |
 | `autosave` | off | Debounced save through the adapter, in ms |
 | `guard-unload` | off | Ask before leaving the page with unsaved changes |
 | `name` | `diagram` | File name for exports |
+| `theme`, `theme-dark`, `ui`, `compact` | — | As on the viewer |
+| `modules`, `themeSource` (properties) | — | The editor's modules (default `DEFAULT_MODULES`); where unknown themes are loaded from |
 
 Events: `mmdx-change` `{ source, reason }`, `mmdx-dirty` `{ dirty }`, `mmdx-save` (cancelable, to save yourself), `mmdx-saved`, `mmdx-conflict`, `mmdx-op` (cancelable, every edit), `mmdx-selection`, `mmdx-export` (cancelable), `mmdx-edit-themes`, `mmdx-ui`, `mmdx-error`. Methods: `getSource()`, `setSource(src, { history: 'reset' | 'push' })`, `save()`, `undo()`, `redo()`, `select(items)`, `focusCode(line)`, `exportAs('mmdx' | 'mmd' | 'svg' | 'png')`, `fit()`, `toggleHistory(on?)`.
 
@@ -236,7 +238,7 @@ How a diagram changed between two versions, item by item (not line by line): nod
 | `filters` | all | Shown change kinds among `added removed content layout style`; a facet left out is ignored (Layout off draws the old version on the new layout, Style off draws both unstyled) |
 | `dim` | `true` | Fade unchanged items |
 | `panels` | `changes` | Open panels, any combination: `history` and `code` (stacked on the left, a splitter between them) and `changes` (right) |
-| `features` (property) | all on | Turn parts off: `history`, `code`, `changes`, `views`, `filters`, `pen`, `export`, `help`, `fullscreen`, `select` |
+| `features` | all on | The parts that are on, like the viewer's `controls` (`features="changes views filters"`, or `none`); the property takes an object to turn parts off: `history`, `code`, `changes`, `views`, `filters`, `pen`, `export`, `help`, `fullscreen`, `select`, `theme`, `scheme`, `layers` |
 | `theme`, `theme-dark` | Default Light / Dark | Both versions are drawn with the component's theme (also from the theme menu); `theme-dark` while the chrome is dark, `auto` its counterpart |
 | `ui` | `auto` | Chrome colour scheme: `light`, `dark` or `auto` |
 | `wheel` | `always` | `always`: the wheel pans and ⌘ / Ctrl + wheel or pinch zooms; `ctrl`: only ⌘ / Ctrl + wheel zooms; `never` |
