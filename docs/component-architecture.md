@@ -1,6 +1,6 @@
 # Component architecture: one viewer kernel, building blocks, products as scenes and modules
 
-Design document · status: proposed, review decisions recorded (§15) · scope: `src/ui`, `src/dom`, `src/editor`, `src/elements`, `src/view` (new), `src/diff` (new), and four changes in `src/core` (§9)
+Design document · status: proposed, review decisions in §15, every review question and answer in §16 · scope: `src/ui`, `src/dom`, `src/editor`, `src/elements`, `src/view` (new), `src/diff` (new), and three changes in `src/core` (§9)
 
 ## 1. Summary
 
@@ -457,3 +457,56 @@ The viewer's keys (`+` `−` `0` arrows `P`) move onto the same table. Esc runs 
 | 19 | Viewer budget | Phase-0 spike first, then split the kernel or re-set the budget. |
 | 20 | Keymap collisions | Designed as one table before phase 3 (§13). |
 | 21 | When do the blocks become public? | Internal first; `mmdx/ui` one release after the refactor. |
+
+## 16. Review questions and answers
+
+Every question asked in the architecture review, with the answer as given and where this document applies it. Look-only questions were answered on the "mmdx chrome options" design canvas; the rest in text.
+
+### 16.1 Earlier decisions (before the review)
+
+| # | Question | Answer | Status |
+|---|---|---|---|
+| E1 | What does a theme picked in the diff change? | The theme belongs to the kernel: one theme per component, inherited by every canvas, mode and panel. | Kept and extended by R2, R5–R9 (§7.5) |
+| E2 | Theme menu and light / dark toggle in `<mmdx-viewer>`? | Opt-in with `controls="theme"`; docs pages usually follow the site. | Kept (§7.4) |
+| E3 | History in the editor and the viewer? | A mode of the host, drawn in the host's own canvas and panel stacks, editing suspended and restored on exit. | Kept in substance; "mode" replaced by a separate stage (R1, §8.2) |
+| E4 | When do the blocks become public? | Internal first; `mmdx/ui` one release after the refactor. | Kept (§11) |
+
+### 16.2 Kernel, History and theme
+
+| # | Question | Answer | Applied in |
+|---|---|---|---|
+| R1 | How should History relate to Edit / View in the kernel? | Separate stage: `mode: 'edit' \| 'view'` unchanged, `stage: 'document' \| 'history'` added; `readOnly` stays true in History opened from View; Restore when `mode` is `edit`; Edit / View switching blocked while History is open. | §7.1, §8.2 |
+| R2 | In History, with no theme picked, which theme draws the versions? | "Theme is not part of document and history! Kernel owns selected theme." | §7.5 |
+| R3 | When the editor's theme menu is used during History, what happens to `canvas.theme`? | Answered by R2 and R5: the theme is never written into the document, in History or anywhere else. | §7.5, §11 |
+| R4 | The viewer has 0.7 kB of its 46 kB budget left; how should the kernel fit? | Spike first, decide later: measure the kernel in a phase-0 spike, then split it into eager / lazy parts or raise the budget. | §10, §12 phase 0 |
+| R5 | What happens to the theme stored in existing files (`canvas.theme`)? | Remove from the format: ignored on load, removed on the next save; the theme comes only from the component. | §7.5, §9, §11 |
+| R6 | When nothing is selected yet, where does the kernel's theme come from? | Host attribute (`theme` / `theme-dark`) → the user's saved pick → the built-in default. | §7.5 |
+| R7 | How long does a user's theme pick last? | Per product in storage (editor, viewer, diff), so a pick in a docs-page viewer does not change the editor's theme. | §7.5, §11 |
+| R8 | If a user picks a dark theme while the chrome is light, what happens? | "Component light / dark mode and canvas theme should not be linked; canvas theme should follow default mode, but can be changed separately from component mode." | §7.5 |
+| R9 | After picking GitHub Light, the user switches the component to dark: which theme does the canvas show? | Keep the pick: an explicit pick is independent of the mode; only an unpicked theme follows the mode. | §7.5 |
+| R10 | How should History open in a small viewer (e.g. 700 × 300 on a docs page)? | Grow + collapse panels: the viewer grows to a minimum height (560 px) while History is open; below a width threshold the panels open one at a time as drawers. | §8.2 |
+| R11 | The document changes while History is open: what happens? | "Component should have current state; on history change current state is stored; the document from history is in view mode, but it should allow to view properties, select items, copy them (open history, copy something from a previous version, close history, paste into the current document)." | §8.2 |
+| R12 | In History, where can items be selected and copied? | The single version view, and the Before or After side of a comparison; not Merged. | §8.2 |
+| R13 | Should the clipboard carry the content itself (code lines, looks, positions, edges between copied items)? | Yes, carry content, so a node deleted since can be pasted back. | §9 |
+| R14 | The current document changes while History is open (remote update, host `setSource`, `undo()` from code): what should History do? | Update the working copy: stay in History, update the "Working copy" entry and recompute a comparison that uses it; the canvas keeps showing History until Back. | §7.3, §8.2 |
+| R15 | Pen strokes: what happens when History opens or closes? | Clear on switch. | §6, §8.2 |
+| R16 | How should History's events on the host be named? | `mmdx-history-*` (open, close, compare, version, select, view, filters, export, restore, error). | §8.3 |
+| R17 | Should hosts control History from code? | Yes, a session object: `editor.historySession` / `viewer.historySession` with the `<mmdx-diff>` methods, null while History is closed. | §8.3 |
+| R18 | `EditorModule` changes shape: what about third-party modules? | Break in a major release; no adapter. | §7.2, §11 |
+| R19 | Which features should the module matrix add to products that lack them today? | All four: diff view settings, diff clickable links, a read-only code panel in the editor's View mode, the help popup in the viewer. | §2, §7.4 |
+| R20 | Keys that mean different things in the editor and the diff (V, L, C, ⌘Z, History toggle): how to resolve them? | Design the keymap later: record the collisions as open and decide with a keymap table before phase 3. | §13 |
+| R21 | With clickable links in the diff, does a click open the link or select the change? | Click selects; ⌘ / Ctrl-click opens. | §7.4 |
+
+### 16.3 Chrome look
+
+| # | Question | Answer | Applied in |
+|---|---|---|---|
+| L1 | The editor's View mode and `<mmdx-viewer>` look different today: which look wins? | Most modules should look the same everywhere. | §7.6 |
+| L2 | Controls layout for the editor's View mode and the viewer? | The editor's look, plus a global `compact` parameter. | §7.6 |
+| L3 | Compact preset: everything in one bar (A), or the same pieces smaller and icon-only (B)? | B: the same pieces, smaller. | §7.6 |
+| L4 | View settings (layers, labels, hover highlight): side card or popover? | Side card in the right stack. | §7.4, §7.6 |
+| L5 | Read-only code view: left panel or over the canvas? | Left panel, as in the editor and the diff. | §7.4, §7.6 |
+| L6 | Export: `Export ▾` top-right or an icon in the bar? | `Export ▾` top-right, as in the editor (an icon in the `compact` preset). | §7.6 |
+| L7 | History mode: where do Back and Restore live (a mode strip, the History panel header, or a pill on top)? | Back pill on top; Restore in the diff bar. | §8.1, §8.2 |
+| L8 | Layout correction on the canvas | The tool dock sits after (to the right of) the Code / History panels, not before them. | §7.1, §8.2 |
+| L9 | Layout correction on the canvas | The diff bar's filters are icon buttons (Added, Removed, Content, Layout, Style), not text labels. | §5.2, §8.1 |
