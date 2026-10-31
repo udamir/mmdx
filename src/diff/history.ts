@@ -62,20 +62,32 @@ const EN: Record<string, string> = {
 };
 
 /** Session events reach the host under their History names. */
-const EVENTS = new Set(['mmdx-compare', 'mmdx-version', 'mmdx-select', 'mmdx-view', 'mmdx-filters', 'mmdx-export', 'mmdx-error']);
+const EVENTS = new Set(['mmdx-compare', 'mmdx-version', 'mmdx-select', 'mmdx-view', 'mmdx-mode', 'mmdx-filters', 'mmdx-export', 'mmdx-error']);
 
 export type HistorySource = HistoryAdapter | readonly StaticVersion[];
 
-/** The host's history with the working copy on top while it differs from the newest version (read live). */
+/** The host's history with the working copy on top while it differs from the newest version (read live; the newest version's source is fetched once per id, not on every document change). */
 export function withWorkingCopy(history: HistorySource, current: () => string, message: string): HistoryAdapter {
   const base = Array.isArray(history) ? staticHistory(history as readonly StaticVersion[]) : (history as HistoryAdapter);
+  let newestSource: { id: string; source: Promise<string> } | null = null;
+  const sourceOfNewest = (id: string): Promise<string> => {
+    if (newestSource?.id !== id) {
+      const source = base.load(id);
+      const entry = { id, source };
+      newestSource = entry;
+      source.catch(() => {
+        if (newestSource === entry) newestSource = null;
+      });
+    }
+    return newestSource!.source;
+  };
   return {
     async list(cursor) {
       const page = await base.list(cursor);
       if (cursor) return page;
       const newest = page.versions[0];
       const versions = page.versions.filter((v) => v.id !== WORKING_COPY);
-      if (newest && (await base.load(newest.id)) === current()) return { ...page, versions };
+      if (newest && (await sourceOfNewest(newest.id)) === current()) return { ...page, versions };
       const working: VersionInfo = { id: WORKING_COPY, message, date: new Date().toISOString() };
       return { ...page, versions: [working, ...versions] };
     },
@@ -123,10 +135,23 @@ export function openHistory(core: ViewCore, o: { onClose(): void }): HistoryCont
   const sceneLabel = computed(() => (session.viewOnly() ? t('diff.labelVersion', { id: label(session.viewing()) }) : t('history.label')));
   const scene = new DiffScene(core, session, { reducedMotion, label: sceneLabel, canvas: () => ({ panOnDrag: true }) });
 
+  let closed = false;
+
   // ---- Restore (Edit mode) and Back
   const restore = async (id: string): Promise<void> => {
-    if (id === WORKING_COPY) return;
-    const source = await session.sourceOf(id);
+    if (id === WORKING_COPY || closed) return;
+    let source: string;
+    try {
+      source = await session.sourceOf(id);
+    } catch (e) {
+      if (closed) return;
+      const message = e instanceof Error ? e.message : String(e);
+      core.emit('mmdx-history-error', { diagnostics: [{ severity: 'error', code: 'load.failed', message }] });
+      core.toast(`${t('diff.history.failed')}: ${message}`, { error: true });
+      return;
+    }
+    // Back while the version loaded: nothing is restored
+    if (closed) return;
     const info = session.versions.peek().find((v) => v.id === id) ?? { id };
     if (!core.emit('mmdx-history-restore', { id, source }, true)) return;
     close();
@@ -188,9 +213,16 @@ export function openHistory(core: ViewCore, o: { onClose(): void }): HistoryCont
     const before = v === 'before' || ch.status === 'removed';
     const r = before ? D.before : D.after;
     const id = before ? ch.beforeId ?? ch.id : ch.id;
-    const { copyItems } = await import('../core/ops/clipboard.js');
-    if (closed || session.rendered.peek() !== D) return;
-    const data = copyItems(r.model, r.doc.meta, [{ kind: ch.kind as ItemKind, id }], { code: r.doc.code, geom: r.result.geom });
+    let ops: typeof import('../core/ops/clipboard.js');
+    try {
+      ops = await import('../core/ops/clipboard.js');
+    } catch (e) {
+      core.toast(e instanceof Error ? e.message : String(e), { error: true });
+      return;
+    }
+    // what was selected when ⌘C was pressed is copied, also after Back meanwhile
+    if (core.isDestroyed) return;
+    const data = ops.copyItems(r.model, r.doc.meta, [{ kind: ch.kind as ItemKind, id }], { code: r.doc.code, geom: r.result.geom });
     if (!data) {
       core.toast(t('history.copyNothing'));
       return;
@@ -229,12 +261,18 @@ export function openHistory(core: ViewCore, o: { onClose(): void }): HistoryCont
     }),
   ];
 
-  let closed = false;
   function close(): void {
     if (closed) return;
     closed = true;
     for (const off of offs) off();
     core.historySession.set(null);
+    if (core.isDestroyed) {
+      // the host is being destroyed (its modules uninstall): nothing to give back, nothing to repaint
+      session.destroy();
+      core.emit('mmdx-history-close', {});
+      o.onClose();
+      return;
+    }
     core.popScene();
     removeModules();
     session.destroy();
