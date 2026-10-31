@@ -40,8 +40,8 @@ export class Dialogs {
     };
   }
 
-  /** Generic modal with buttons; resolves with the chosen value, or `cancel` on Esc / backdrop. */
-  choose<T>(opts: { title: string; message?: string; buttons: ChoiceButton<T>[]; cancel: T; body?: HTMLElement }): Promise<T> {
+  /** Generic modal with buttons; resolves with the chosen value, or `cancel` on Esc / backdrop. `class`: on the card. */
+  choose<T>(opts: { title: string; message?: string; buttons: ChoiceButton<T>[]; cancel: T; body?: HTMLElement; class?: string }): Promise<T> {
     return new Promise((resolve) => {
       const prevFocus = this.root.activeElement as HTMLElement | null;
       const done = (v: T): void => {
@@ -50,7 +50,7 @@ export class Dialogs {
         resolve(v);
       };
       const titleId = `dlg-${Math.random().toString(36).slice(2)}`;
-      const box = h('div', { class: 'mmdx-dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId },
+      const box = h('div', { class: opts.class ? `mmdx-dialog ${opts.class}` : 'mmdx-dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId },
         h('h2', { id: titleId }, opts.title),
         opts.message ? h('p', null, opts.message) : null,
         opts.body ?? null,

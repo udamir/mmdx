@@ -76,4 +76,29 @@ describe('Menu', () => {
     opener.click();
     expect(entries).toHaveBeenCalledOnce();
   });
+
+  it('items show their shortcut (kbd, aria-keyshortcuts)', () => {
+    const m = createMenu({ label: 'Board', entries: [{ label: 'Paste', keys: 'mod+v', run: () => undefined }, { label: 'Nothing to paste', disabled: true, run: () => undefined }] });
+    const [paste, none] = [...m.el.querySelectorAll<HTMLElement>('[role=menuitem]')];
+    expect(paste!.querySelector('kbd')?.textContent).toMatch(/V$/i);
+    expect(paste!.getAttribute('aria-keyshortcuts')).toMatch(/^(Meta|Control)\+v$/);
+    expect(none!.querySelector('kbd')).toBeNull();
+    expect(none!.hasAttribute('aria-keyshortcuts')).toBe(false);
+  });
+
+  it('openMenu at a point: no opener, placed inside the container, onClose after a pick', () => {
+    const { root, pops } = shadow();
+    const area = h('div');
+    root.append(area);
+    const run = vi.fn(), onClose = vi.fn();
+    openMenu({ popovers: pops, opener: null, label: 'Board', entries: [{ label: 'Paste', run }], within: area, at: { clientX: 40, clientY: 30 }, onClose });
+    const menu = area.querySelector<HTMLElement>('[role=menu]')!;
+    expect(menu.getAttribute('aria-label')).toBe('Board');
+    expect(menu.style.left).toBe('0px'); // clamped into the (zero-sized) container
+    expect(menu.style.top).toBe('0px');
+    menu.querySelector<HTMLElement>('[role=menuitem]')!.click();
+    expect(run).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(menu.isConnected).toBe(false);
+  });
 });

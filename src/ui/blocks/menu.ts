@@ -1,9 +1,11 @@
-// Menu and MenuButton (§5.2): an ARIA menu with sections, ticks (menuitemradio), separators and disabled items,
-// opened through the host's PopoverManager (one popover at a time, Esc / outside click closes, arrow keys move,
-// focus returns to the opener) and positioned against its opener inside the host element.
+// Menu and MenuButton (§5.2): an ARIA menu with sections, ticks (menuitemradio), separators, disabled items and a
+// shortcut column, opened through the host's PopoverManager (one popover at a time, Esc / outside click closes, arrow
+// keys move, focus returns to the opener) and positioned against its opener, or at a point (a context menu), inside
+// the host element.
 import { h } from '../h.js';
 import type { PopoverManager } from '../popover.js';
-import { Scope, type BlockHandle } from './block.js';
+import { formatKeys } from '../shortcuts.js';
+import { ariaKeys, Scope, type BlockHandle } from './block.js';
 
 export interface MenuItem {
   label: string;
@@ -13,6 +15,8 @@ export interface MenuItem {
   disabled?: boolean;
   /** Extra class on the item. */
   class?: string;
+  /** Its shortcut (registry form, e.g. `mod+v`), shown at the end of the item. */
+  keys?: string;
   run: () => void;
 }
 export type MenuEntry = MenuItem | { section: string } | 'sep';
@@ -34,6 +38,8 @@ export const MENU_CSS = /* css */ `
 .mmdx-bmenu [role^=menuitem]:hover:not(:disabled), .mmdx-bmenu [role^=menuitem]:focus-visible { background: var(--mmdx-float-2); }
 .mmdx-bmenu [aria-checked=true] { color: var(--mmdx-accent); font-weight: 600; }
 .mmdx-bmenu .mmdx-check { width: 14px; display: inline-block; flex: none; }
+.mmdx-bmenu .mmdx-menu-label { flex: 1; }
+.mmdx-bmenu kbd { border: 0; background: none; padding: 0 0 0 12px; color: var(--mmdx-muted); font: inherit; font-size: 11px; }
 .mmdx-bmenu hr { border: 0; border-top: 1px solid var(--mmdx-float-line); margin: 5px 2px; }
 `;
 
@@ -51,8 +57,10 @@ export function createMenu(props: MenuProps): BlockHandle<MenuProps> {
       if (e === 'sep') return h('hr', { role: 'separator' });
       if ('section' in e) return h('div', { class: 'mmdx-sect', role: 'presentation' }, e.section);
       const item = h('button', { type: 'button', role: e.checked !== undefined ? 'menuitemradio' : 'menuitem', title: e.title ?? '', tabindex: '-1', disabled: !!e.disabled, class: e.class ?? '' },
-        radio ? h('span', { class: 'mmdx-check', 'aria-hidden': 'true' }, e.checked ? '✓' : '') : null, h('span', null, e.label));
+        radio ? h('span', { class: 'mmdx-check', 'aria-hidden': 'true' }, e.checked ? '✓' : '') : null, h('span', { class: 'mmdx-menu-label' }, e.label),
+        e.keys ? h('kbd', { 'aria-hidden': 'true' }, formatKeys(e.keys)) : null);
       if (e.checked !== undefined) item.setAttribute('aria-checked', String(e.checked));
+      if (e.keys) item.setAttribute('aria-keyshortcuts', ariaKeys(e.keys));
       item.addEventListener('click', () => {
         p.onPick?.(e);
         e.run();
@@ -76,11 +84,19 @@ export function createMenu(props: MenuProps): BlockHandle<MenuProps> {
 
 export interface OpenMenuOptions {
   popovers: PopoverManager;
-  opener: HTMLElement;
+  /** The button the menu belongs to (focus returns to it); null for a menu opened at a point. */
+  opener: HTMLElement | null;
   label: string;
   entries: readonly MenuEntry[];
-  /** The positioned element the menu is placed in (the component's host); default: the opener's offset parent. */
+  /**
+   * The positioned element the menu is placed in (the component's host); default: the opener's offset parent. A menu
+   * opened `at` a point is placed inside it.
+   */
   within?: Element;
+  /** Opens at this point (client coordinates, e.g. a right-click), kept inside `within`, instead of at the opener. */
+  at?: { clientX: number; clientY: number };
+  /** After the menu closed (picked, Esc, outside click). */
+  onClose?: () => void;
   /** Aligns the menu's right edge (default) or left edge with the opener's. */
   align?: 'right' | 'left';
   /** Opens below (default) or above the opener. */
@@ -93,20 +109,36 @@ export interface OpenMenuOptions {
  * again from the same opener closes it (nothing is built then).
  */
 export function openMenu(o: OpenMenuOptions): void {
-  if (o.popovers.isOpenFor(o.opener)) {
+  const opener = o.opener;
+  if (opener && o.popovers.isOpenFor(opener)) {
     o.popovers.close();
     return;
   }
   const menu = createMenu({ label: o.label, entries: o.entries, ...(o.class ? { class: o.class } : {}), onPick: () => o.popovers.close(true) });
-  const box = (o.within ?? o.opener.offsetParent ?? o.opener.parentElement)?.getBoundingClientRect();
-  const r = o.opener.getBoundingClientRect();
+  const onClose = (): void => {
+    menu.destroy();
+    o.onClose?.();
+  };
+  const at = o.at, within = o.within;
+  if (at && within) {
+    // a context menu: at the point, kept inside the container (measured once it is in place)
+    within.append(menu.el);
+    o.popovers.open(menu.el, opener, { onClose });
+    const box = within.getBoundingClientRect();
+    menu.el.style.left = `${Math.max(0, Math.min(at.clientX - box.left, box.width - menu.el.offsetWidth - 8))}px`;
+    menu.el.style.top = `${Math.max(0, Math.min(at.clientY - box.top, box.height - menu.el.offsetHeight - 8))}px`;
+    return;
+  }
+  if (!opener) return;
+  const box = (within ?? opener.offsetParent ?? opener.parentElement)?.getBoundingClientRect();
+  const r = opener.getBoundingClientRect();
   if (box) {
     if ((o.placement ?? 'below') === 'below') menu.el.style.top = `${Math.round(r.bottom - box.top + 6)}px`;
     else menu.el.style.bottom = `${Math.round(box.bottom - r.top + 6)}px`;
     if ((o.align ?? 'right') === 'right') menu.el.style.right = `${Math.max(8, Math.round(box.right - r.right))}px`;
     else menu.el.style.left = `${Math.max(8, Math.round(r.left - box.left))}px`;
   }
-  o.popovers.open(menu.el, o.opener, { onClose: () => menu.destroy() });
+  o.popovers.open(menu.el, opener, { onClose });
 }
 
 export interface MenuButtonProps {

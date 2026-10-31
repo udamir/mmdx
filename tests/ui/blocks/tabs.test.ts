@@ -44,4 +44,13 @@ describe('Tabs', () => {
     b!.click();
     expect(onChange).toHaveBeenCalledOnce();
   });
+
+  it('tabs link to their panels (id, aria-controls)', () => {
+    const tabs = createTabs({ label: 'T', tabs: [{ value: 'a', label: 'A', id: 'tab-a', controls: 'panel-a' }, { value: 'b', label: 'B' }], value: 'a', onChange: () => undefined });
+    const [a, b] = [...tabs.el.querySelectorAll<HTMLElement>('[role=tab]')];
+    expect(a!.id).toBe('tab-a');
+    expect(a!.getAttribute('aria-controls')).toBe('panel-a');
+    expect(b!.id).toBe('');
+    expect(b!.hasAttribute('aria-controls')).toBe(false);
+  });
 });

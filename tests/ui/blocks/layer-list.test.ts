@@ -113,4 +113,41 @@ describe('LayerList', () => {
     expect(onChange).not.toHaveBeenCalled();
     expect(sw.getAttribute('aria-checked')).toBe('true');
   });
+
+  it('editing: a delete button on every row but the fixed one; the count selects (a button) and highlights while hovered or focused', () => {
+    const onDelete = vi.fn(), onCountClick = vi.fn(), onCountHover = vi.fn();
+    const rows: LayerRow[] = [{ ...LAYERS[0]!, fixed: true }, LAYERS[1]!];
+    const list = createLayerList({ layers: rows, editable: true, onToggle: () => undefined, onRename: () => undefined, onDelete, onCountClick, onCountHover, t });
+    document.body.append(list.el);
+    const dels = list.el.querySelectorAll<HTMLButtonElement>('.del');
+    expect(dels).toHaveLength(2);
+    expect(dels[0]!.hidden).toBe(true);
+    expect(dels[1]!.hidden).toBe(false);
+    expect(dels[1]!.getAttribute('aria-label')).toBe('Delete layer (its items move to Default): Infra');
+    dels[1]!.click();
+    expect(onDelete).toHaveBeenCalledWith('L1');
+    const count = list.el.querySelector<HTMLButtonElement>('[data-layer="L1"] button.count')!;
+    expect(count.getAttribute('aria-label')).toBe('Select the 3 items on Infra');
+    count.click();
+    expect(onCountClick).toHaveBeenCalledWith('L1');
+    count.dispatchEvent(new Event('pointerenter'));
+    expect(onCountHover).toHaveBeenLastCalledWith('L1');
+    count.dispatchEvent(new Event('pointerleave'));
+    expect(onCountHover).toHaveBeenLastCalledWith(null);
+    count.dispatchEvent(new Event('focus'));
+    expect(onCountHover).toHaveBeenLastCalledWith('L1');
+    count.dispatchEvent(new Event('blur'));
+    expect(onCountHover).toHaveBeenLastCalledWith(null);
+  });
+
+  it('a hover-only count is a focusable badge; no delete while viewing', () => {
+    const onCountHover = vi.fn();
+    const list = createLayerList({ layers: LAYERS, editable: false, onToggle: () => undefined, onDelete: () => undefined, onCountHover, t });
+    expect(list.el.querySelector('.del')).toBeNull();
+    const count = list.el.querySelector<HTMLElement>('span.count')!;
+    expect(count.tabIndex).toBe(0);
+    expect(count.title).toBe('Highlight the items on this layer');
+    count.dispatchEvent(new Event('focus'));
+    expect(onCountHover).toHaveBeenCalledWith('default');
+  });
 });

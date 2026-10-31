@@ -15,7 +15,7 @@ const entries = (log: HTMLElement): MenuEntry[] => {
     { label: 'Default Dark', checked: false, run: run('Default Dark') },
     { label: 'Midnight', checked: false, disabled: true, title: 'Not installed', run: run('Midnight') },
     'sep',
-    { label: 'Edit themes…', run: run('Edit themes') },
+    { label: 'Edit themes…', keys: 'mod+e', run: run('Edit themes') },
   ];
 };
 
@@ -49,7 +49,7 @@ const meta: Meta<Args> = {
       description: {
         component:
           '`createMenu`, `openMenu` and `attachMenu`: an ARIA menu with sections, ticks (`menuitemradio`), separators and ' +
-          'disabled items, opened through the host\'s PopoverManager (one at a time, Esc and outside clicks close, arrow ' +
+          'disabled items and a shortcut column (`keys`), opened through the host\'s PopoverManager (one at a time, Esc and outside clicks close, arrow ' +
           'keys move, the focus returns to the opener; a second click on the opener closes it).',
       },
     },

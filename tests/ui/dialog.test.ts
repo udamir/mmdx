@@ -82,4 +82,12 @@ describe('Dialogs', () => {
     buttons(root)[0]!.click();
     expect(await answer).toBeNull();
   });
+
+  it('choose: a class on the card', async () => {
+    const { root, dialogs } = setup();
+    const done = dialogs.choose({ title: 'Plain', class: 'wide', cancel: null, buttons: [{ label: 'Close', value: null, primary: true }] });
+    expect(root.querySelector('.mmdx-dialog')!.className).toBe('mmdx-dialog wide');
+    buttons(root)[0]!.click();
+    expect(await done).toBeNull();
+  });
 });
