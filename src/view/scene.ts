@@ -99,10 +99,6 @@ export class SceneStack {
     return this.stack[this.stack.length - 1] ?? null;
   }
 
-  get scenes(): readonly SceneSource[] {
-    return this.stack;
-  }
-
   /** Makes `s` what the canvas shows; the scene underneath is detached (and repaints in full when it is back). */
   push(s: SceneSource): void {
     this.top?.detach();

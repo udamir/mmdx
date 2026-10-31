@@ -50,8 +50,11 @@ export interface ModuleScope<C = unknown> {
   readonly active: boolean;
   /** Appends DOM to a named slot; detached while suspended. */
   slot(name: SlotName): { append(...els: (Element | null | undefined | false)[]): void };
-  /** Places an element into a parent (at any time, also after install): detached while suspended, removed on uninstall. */
-  mount(parent: Element, el: Element): void;
+  /**
+   * Places an element into a parent (at any time, also after install): detached while suspended, removed on
+   * uninstall. Returns an unmount (removes it now and forgets it), for elements a module creates and drops repeatedly.
+   */
+  mount(parent: Element, el: Element): () => void;
   /** A muted-while-suspended listener on a DOM target, removed on uninstall. */
   listen<K extends keyof HTMLElementEventMap>(target: EventTarget, type: K, f: (ev: HTMLElementEventMap[K]) => void, opts?: AddEventListenerOptions): void;
   listen(target: EventTarget, type: string, f: (ev: Event) => void, opts?: AddEventListenerOptions): void;
@@ -88,14 +91,14 @@ export function orderModules<M extends { id: string; after?: readonly string[] }
     const s = state.get(m.id);
     if (s === 'done') return;
     if (s === 'visiting') {
-      warn(`module ${m.id}: cycle in "after"`);
+      warn(`${m.id}: "after" cycle`);
       return;
     }
     state.set(m.id, 'visiting');
     for (const dep of m.after ?? []) {
       const d = byId.get(dep);
       if (d) visit(d);
-      else warn(`module ${m.id}: "after" names ${dep}, which is not in the set`);
+      else warn(`${m.id}: "after" ${dep} missing`);
     }
     state.set(m.id, 'done');
     out.push(m);
@@ -107,14 +110,11 @@ export function orderModules<M extends { id: string; after?: readonly string[] }
 export const matchesWhen = (w: ModuleWhen | undefined, mode: Mode, stage: Stage): boolean =>
   (!w?.mode || w.mode.includes(mode)) && (!w?.stage || w.stage.includes(stage));
 
-const sameWhen = (a: ModuleWhen | undefined, b: ModuleWhen | undefined): boolean =>
-  String(a?.mode ?? '') === String(b?.mode ?? '') && String(a?.stage ?? '') === String(b?.stage ?? '');
-
 /**
  * A module whose code loads on first install (component architecture §10): the stub carries the id, ordering,
- * `when` and `enabled`, which the kernel needs before the chunk arrives; the real module's `install` runs in the same
- * scope once its chunk arrived. The real module's own `enabled` applies too once it is loaded; a `when` or `after` of
- * its own must be the stub's (a mismatch is reported, the stub's win).
+ * `when` and `enabled`, which the kernel needs before the chunk arrives (the stub's `when` and `after` are the ones
+ * that apply); the real module's `install` runs in the same scope once its chunk arrived, and its own `enabled`
+ * applies too from then on.
  */
 export function lazyModule<C>(stub: Omit<ViewModule<C>, 'install' | 'load' | 'css'>, load: () => Promise<ViewModule<C>>): ViewModule<C> {
   let real: ViewModule<C> | null = null;
@@ -125,9 +125,7 @@ export function lazyModule<C>(stub: Omit<ViewModule<C>, 'install' | 'load' | 'cs
       void scope.load();
     },
     load: async () => {
-      const m = await load();
-      real = m;
-      if ((m.when && !sameWhen(m.when, stub.when)) || (m.after && String(m.after) !== String(stub.after ?? ''))) console.warn(`[mmdx] lazy module ${stub.id}: "when" / "after" differ from the stub's`);
+      const m = (real = await load());
       return { css: m.css ?? [], activate: (scope) => m.install(scope) };
     },
   };

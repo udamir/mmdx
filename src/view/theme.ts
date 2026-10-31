@@ -92,68 +92,60 @@ export class ThemeState {
 }
 
 /** The chrome's light / dark scheme: an explicit `ui`, else the remembered toggle, else the page's. */
-export class SchemeState {
+export interface SchemeState {
   readonly scheme: Signal<Scheme>;
-  private ui: UiOption | undefined;
-
-  constructor(private readonly storage: StorageAdapter, private readonly key: string, ui: UiOption | undefined) {
-    this.ui = ui;
-    this.scheme = signal<Scheme>(this.resolve());
-  }
-
   /** The `ui` option: explicit light / dark, or `auto` / unset (the remembered toggle, else the page). */
-  setUi(ui: UiOption | undefined): void {
-    this.ui = ui;
-    this.apply();
-  }
-
+  setUi(ui: UiOption | undefined): void;
   /** The user's toggle: remembered. */
-  choose(s: Scheme): void {
-    this.storage.set(this.key, s);
-    this.ui = s;
-    this.apply();
-  }
-
+  choose(s: Scheme): void;
   /** Re-resolves (the page's scheme changed). */
-  apply(): void {
-    this.scheme.set(this.resolve());
-  }
+  apply(): void;
+}
 
-  private resolve(): Scheme {
-    const ui = this.ui;
+export function schemeState(storage: StorageAdapter, key: string, initial: UiOption | undefined): SchemeState {
+  let ui = initial;
+  const resolve = (): Scheme => {
     if (ui === 'light' || ui === 'dark') return ui;
-    const stored = this.storage.get<string>(this.key);
-    if (stored === 'light' || stored === 'dark') return stored;
-    return resolveUiScheme(null);
-  }
+    const stored = storage.get<string>(key);
+    return stored === 'light' || stored === 'dark' ? stored : resolveUiScheme(null);
+  };
+  const scheme = signal<Scheme>(resolve());
+  const apply = (): void => scheme.set(resolve());
+  return {
+    scheme,
+    apply,
+    setUi(u) {
+      ui = u;
+      apply();
+    },
+    choose(s) {
+      storage.set(key, s);
+      ui = s;
+      apply();
+    },
+  };
 }
 
 /** Loads themes that are not registered yet: built-ins on demand, others through the theme source. */
-export class ThemeLoader {
-  private readonly fetched = new Set<string>();
-
-  constructor(private readonly registry: ThemeRegistry, private readonly source: ThemeSource | undefined, private readonly alive: () => boolean) {}
-
-  ensure(id: string): Promise<boolean> {
-    if (this.registry.has(id)) return Promise.resolve(true);
-    if (BUILTIN_IDS.includes(id)) return ensureBuiltinThemes().then(() => this.registry.has(id));
-    return this.fetch(id);
-  }
-
-  private async fetch(id: string): Promise<boolean> {
-    const src = this.source ?? getShared().themeSource;
-    if (!src || this.fetched.has(id)) return this.registry.has(id);
-    this.fetched.add(id);
+export function themeLoader(registry: ThemeRegistry, source: ThemeSource | undefined, alive: () => boolean): (id: string) => Promise<boolean> {
+  const fetched = new Set<string>();
+  const ensure = async (id: string): Promise<boolean> => {
+    if (registry.has(id)) return true;
+    if (BUILTIN_IDS.includes(id)) return ensureBuiltinThemes().then(() => registry.has(id));
+    const src = source ?? getShared().themeSource;
+    if (!src || fetched.has(id)) return registry.has(id);
+    fetched.add(id);
     try {
       const file = await src.get(id);
-      if (!this.alive()) return false;
-      this.registry.register(file);
+      if (!alive()) return false;
+      registry.register(file);
       // a theme that extends another unknown theme pulls that one in too
-      if (file.extends && !this.registry.has(file.extends)) await this.ensure(file.extends);
+      if (file.extends && !registry.has(file.extends)) await ensure(file.extends);
       return true;
     } catch {
       // missing or private theme: the diagram stays on baseline with an info diagnostic
       return false;
     }
-  }
+  };
+  return ensure;
 }

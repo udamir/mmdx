@@ -161,6 +161,13 @@ describe('module scope', () => {
     expect(core.has('fitView')).toBe(false);
     core.stage.set('document');
     expect(late.isConnected).toBe(true);
+    const again = h('b');
+    const unmount = s.mount(core.slots.overlay, again);
+    core.stage.set('history');
+    unmount();
+    core.stage.set('document');
+    expect(again.isConnected).toBe(false);
+    expect(core.slots.overlay.childNodes.length).toBe(1);
     core.useModules([]);
     expect(late.isConnected).toBe(false);
     calls.length = 0;
@@ -227,7 +234,7 @@ describe('module scope', () => {
     const warn = vi.fn();
     const out = orderModules([{ id: 'a', after: ['b'] }, { id: 'b', after: ['a'] }, { id: 'c', after: ['zz'] }], warn);
     expect(out.map((m) => m.id)).toEqual(['b', 'a', 'c']);
-    expect(warn.mock.calls.map((c) => c[0])).toEqual(['module a: cycle in "after"', 'module c: "after" names zz, which is not in the set']);
+    expect(warn.mock.calls.map((c) => c[0])).toEqual(['a: "after" cycle', 'c: "after" zz missing']);
   });
 
   it('lazyModule applies the real module\'s own enabled() once loaded', async () => {

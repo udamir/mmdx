@@ -17,13 +17,12 @@ import { PopoverManager, Toaster } from '../ui/popover.js';
 import { ShortcutRegistry } from '../ui/shortcuts.js';
 import { computed, effect, signal, untracked, type ReadSignal, type Signal } from '../ui/signal.js';
 import { BASE, TOKENS, watchUiScheme } from '../ui/styles/base.js';
-import { ActionRegistry, EventBus } from './bus.js';
 import type { HistoryLoader, HistorySession } from './history.js';
 import { ModuleHost, Scope } from './host.js';
 import type { ModuleScope, Registration, ViewModule } from './module.js';
 import { SceneStack, type CanvasArea, type SceneSource } from './scene.js';
-import { SHELL_CSS, Shell } from './shell.js';
-import { SchemeState, ThemeLoader, ThemeState, type Scheme, type UiOption } from './theme.js';
+import { createShell, SHELL_CSS, type Shell } from './shell.js';
+import { schemeState, themeLoader, ThemeState, type Scheme, type SchemeState, type UiOption } from './theme.js';
 import type { Display, DockItem, ExportFormat, Mode, PanelItem, SlotName, Stage, Tool, ViewActions, ViewEvents } from './types.js';
 
 export { SHELL_CSS };
@@ -124,11 +123,9 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   private readonly o: ViewCoreOptions;
   private readonly shell: Shell;
   private readonly scenes: SceneStack;
-  private readonly bus = new EventBus<E>();
-  private readonly actions = new ActionRegistry<A>();
-  private readonly modules: ModuleHost<this>;
+  private readonly modules: ModuleHost<this> = new ModuleHost<this>(this);
   private readonly schemeState: SchemeState;
-  private readonly themeLoader: ThemeLoader;
+  private readonly loadTheme: (id: string) => Promise<boolean>;
 
   constructor(host: HTMLElement, o: ViewCoreOptions) {
     registerMessages(VIEW_MESSAGES);
@@ -143,7 +140,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
 
     // ---- shell, canvas area, scenes
-    const shell = (this.shell = new Shell(host, this.shadow, { root: o.root, areaClass: o.areaClass, css: [TOKENS, BASE, SHELL_CSS, CANVAS_CSS, ...o.css], compact: o.compact ?? 'auto' }));
+    const shell = (this.shell = createShell(host, this.shadow, { root: o.root, areaClass: o.areaClass, css: [TOKENS, BASE, SHELL_CSS, CANVAS_CSS, ...o.css], compact: o.compact ?? 'auto' }));
     this.root = shell.root;
     this.area = shell.area;
     this.slots = shell.slots;
@@ -153,34 +150,18 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     const canvasOptions = (): CanvasOptions => ({ ...o.canvas, insets: o.canvas.insets ?? (() => this.insets()) });
     this.canvas = new DiagramCanvas(this.area, canvasOptions());
     shell.placeAreaSlots();
-    this.scenes = new SceneStack(this.area, this.canvas, canvasOptions, () => this.kernelFire('draw'));
+    this.scenes = new SceneStack(this.area, this.canvas, canvasOptions, () => this.modules.bus.fire('draw', undefined));
     this.canvasArea = this.scenes.area;
     this.popovers = new PopoverManager(this.shadow);
     this.toaster = new Toaster(this.root);
     this.cleanups.push(() => this.toaster.destroy(), () => this.popovers.close());
 
-    // ---- modules
-    this.modules = new ModuleHost<this>({
-      core: this,
-      slots: this.slots,
-      shortcuts: this.shortcuts,
-      adoptFrom: [this.root, this.area],
-      canvasSvg: () => this.canvas.svg,
-      addCss: (css) => this.addCss(css),
-      mode: () => this.mode.peek(),
-      stage: () => this.stage.peek(),
-      feature: (name) => (o.feature ? o.feature(name) : true),
-      isDestroyed: () => this.destroyed,
-      listen: (ev, cb) => this.bus.on(ev as keyof E, cb as (d: E[keyof E]) => void),
-      provide: (name, f, owner) => this.actions.provide(name as keyof A, f as A[keyof A], owner),
-    });
-
     // ---- state
     this.mode = signal<Mode>(o.initialMode ?? 'view');
-    this.schemeState = new SchemeState(this.storage, `${o.product}.ui`, o.ui);
+    this.schemeState = schemeState(this.storage, `${o.product}.ui`, o.ui);
     this.scheme = this.schemeState.scheme;
     this.themes = new ThemeState({ registry: this.ctx.themes, storage: this.storage, product: o.product, scheme: this.scheme, theme: o.theme, themeDark: o.themeDark });
-    this.themeLoader = new ThemeLoader(this.ctx.themes, o.themeSource, () => !this.destroyed);
+    this.loadTheme = themeLoader(this.ctx.themes, o.themeSource, () => !this.destroyed);
     this.cleanups.push(watchUiScheme(() => this.schemeState.apply()));
     this.cleanups.push(this.ctx.themes.onChange(() => {
       if (this.destroyed) return;
@@ -194,7 +175,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
       if (now === shown) return;
       shown = now;
       untracked(() => {
-        this.kernelFire('theme');
+        this.modules.bus.fire('theme', undefined);
         this.invalidate();
       });
     }));
@@ -227,18 +208,13 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
 
   /** Listens to a kernel event; returns a remover. Registered during a module's install, it belongs to the module. */
   on<K extends keyof E>(ev: K, cb: (d: E[K]) => void): () => void {
-    const r = this.bus.on(ev, cb);
+    const r = this.modules.bus.on(ev, cb as (d: unknown) => void);
     this.attribute(r, 'on');
     return () => r.dispose();
   }
 
   fire<K extends keyof E>(ev: K, ...d: E[K] extends void ? [] : [E[K]]): void {
-    this.bus.fire(ev, d[0] as E[K]);
-  }
-
-  /** Fires one of the kernel's own (payload-free) events, whatever the product's event map adds. */
-  private kernelFire(ev: keyof ViewEvents): void {
-    this.bus.fire(ev, undefined as never);
+    this.modules.bus.fire(ev, d[0]);
   }
 
   /**
@@ -258,24 +234,24 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
 
   /** Provides a named action; a provider registered during a module's install is muted while the module is suspended. */
   provide<K extends keyof A>(name: K, f: A[K]): () => void {
-    const r = this.actions.provide(name, f, this.modules.installing);
+    const r = this.modules.actions.provide(name, f, this.modules.installing);
     this.attribute(r, 'provide');
     return () => r.dispose();
   }
 
   has(name: keyof A): boolean {
-    return this.actions.has(name);
+    return this.modules.actions.has(name);
   }
 
   run<K extends keyof A>(name: K, ...args: A[K] extends (...a: infer P) => unknown ? P : never): (A[K] extends (...a: never[]) => infer R ? R : never) | undefined {
-    return this.actions.run(name, args) as (A[K] extends (...a: never[]) => infer R ? R : never) | undefined;
+    return this.modules.actions.run(name, args) as (A[K] extends (...a: never[]) => infer R ? R : never) | undefined;
   }
 
   /** A registration made on the core belongs to the module installing; made by module code after install, it is reported. */
   private attribute(r: Registration, what: 'on' | 'provide'): void {
     const s = this.modules.installing;
     if (s) s.register(r);
-    else if (this.modules.running) console.warn(`[mmdx] module ${this.modules.running.id}: core.${what}() after install stays after uninstall; use scope.${what}()`);
+    else if (this.modules.running) console.warn(`[mmdx] ${this.modules.running.id}: use scope.${what}()`);
   }
 
   // ---- scenes -----------------------------------------------------------------------------------------------------
@@ -314,7 +290,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
 
   /** Loads the theme when it is not registered yet (built-ins on demand, others through the theme source). */
   ensureTheme(id: string): Promise<boolean> {
-    return this.themeLoader.ensure(id);
+    return this.loadTheme(id);
   }
 
   /** Sets the chrome scheme option (`ui`): explicit light / dark, or `auto` (the remembered choice, else the page). */
