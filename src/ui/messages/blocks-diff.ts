@@ -51,4 +51,6 @@ export const BLOCK_MESSAGES_DIFF: Messages = {
   'diff.history.compareWith': 'Compare {id} with the version before it',
   'diff.history.view': 'View {id}',
   'diff.history.more': 'Load older versions',
+  'diff.history.actions': 'Actions for {id}',
+  'diff.history.comparePrev': 'Compare with the previous version',
 };

@@ -2,8 +2,8 @@
 // saves the canvas view, switches the host to the `history` stage (its editing modules are suspended with their
 // state; the pen strokes are cleared), and pushes a DiffScene over the host's history plus its working copy onto the
 // host's own canvas. The diff modules join the host for that stage: the diff bar, the History and Code panels in the
-// left stack, Changes in the right one, the canvas behaviour, the exports, Restore (Edit mode, at the foot of the
-// History panel) and the Back pill.
+// left stack, Changes in the right one, the canvas behaviour, the exports, Restore (Edit mode, in each version's "⋯"
+// menu of the History panel) and the Back pill.
 // Session events reach the host as `mmdx-history-*`. Leaving pops the scene, restores the panels and the view, and
 // the host's scene repaints in full. Loaded on first use: the viewer and the editor bundles never contain the diff.
 import { staticHistory, type HistoryAdapter, type StaticVersion, type VersionInfo } from '../adapters/history.js';
@@ -20,7 +20,8 @@ import type { ViewModule } from '../view/module.js';
 import { panelStacksModule } from '../view/modules/panels.js';
 import { diffBarModule } from './modules/bar.js';
 import { diffExportModule } from './modules/export.js';
-import { changeListModule, codeDiffModule, versionsModule, type VersionAction } from './modules/panels.js';
+import { changeListModule, codeDiffModule, versionsModule } from './modules/panels.js';
+import type { MenuEntry } from '../ui/blocks/menu.js';
 import { diffStageModule } from './modules/stage.js';
 import { DiffScene } from './scene.js';
 import { DiffSession } from './session.js';
@@ -110,20 +111,18 @@ export function openHistory(core: ViewCore, o: { onClose(): void }): HistoryCont
   const scene = new DiffScene(core, session, { reducedMotion, label: sceneLabel, canvas: () => ({ panOnDrag: true }) });
 
   // ---- Restore (Edit mode) and Back
-  const shownId = (p: { head: string | null; viewing: string | null }): string | null => p.viewing ?? p.head;
-  const restore = async (): Promise<void> => {
-    const id = shownId(session.pair);
-    if (!id || id === WORKING_COPY) return;
+  const restore = async (id: string): Promise<void> => {
+    if (id === WORKING_COPY) return;
     const source = await session.sourceOf(id);
     const info = session.versions.peek().find((v) => v.id === id) ?? { id };
     if (!core.emit('mmdx-history-restore', { id, source }, true)) return;
     close();
     core.run('restoreVersion', source, info);
   };
-  // Restore (Edit mode) is the History panel's action on the shown version
-  const restoreAction: VersionAction | undefined = core.mode.peek() === 'edit' && core.has('restoreVersion')
-    ? { id: 'restore', label: (id) => (id && id !== WORKING_COPY ? t('history.restoreId', { id }) : t('history.restore')), title: t('history.restoreTip'), enabled: (id) => !!id && id !== WORKING_COPY, run: () => void restore() }
-    : undefined;
+  // Restore (Edit mode) is in each version's "⋯" menu of the History panel
+  const canRestore = core.mode.peek() === 'edit' && core.has('restoreVersion');
+  const rowActions = (id: string): MenuEntry[] =>
+    canRestore ? [{ label: t('history.restoreId', { id: label(id) }), title: t('history.restoreTip'), disabled: id === WORKING_COPY, class: 'restore', run: () => void restore(id) }] : [];
 
   // ---- the Back pill, top centre; Esc at the end of the Esc chain
   const pillModule: ViewModule<ViewCore> = {
@@ -172,7 +171,7 @@ export function openHistory(core: ViewCore, o: { onClose(): void }): HistoryCont
 
   const inHistory = (m: ViewModule<ViewCore>): ViewModule<ViewCore> => ({ ...m, when: { ...m.when, stage: ['history'] } });
   const modules: ViewModule<ViewCore>[] = [
-    panelStacksModule, diffBarModule(session), versionsModule(session, { dockButton: false, ...(restoreAction ? { action: restoreAction } : {}) }), codeDiffModule(session), changeListModule(session),
+    panelStacksModule, diffBarModule(session), versionsModule(session, { dockButton: false, rowActions }), codeDiffModule(session), changeListModule(session),
     diffStageModule(scene), diffExportModule(session), pillModule,
   ].map(inHistory);
 

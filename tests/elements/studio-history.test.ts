@@ -118,10 +118,19 @@ describe('History in the editor (studio)', () => {
     await wait(() => rows().length === 8);
     expect(editor.core.stage.peek()).toBe('history');
 
+    // each version's ⋯ menu: Restore (not for the working copy) and Compare with the previous version
+    const menuOf = (i: number): HTMLButtonElement => ed.querySelectorAll<HTMLButtonElement>('.mmdx-stack .version .vmenu')[i]!;
+    const items = (): string[] => [...ed.querySelectorAll('[role=menu] [role=menuitem]')].map((b) => b.textContent!);
+    menuOf(0).click();
+    expect(items()).toEqual(['Restore Working copy', 'Compare with the previous version']);
+    expect(ed.querySelector<HTMLButtonElement>('[role=menu] .restore')!.disabled).toBe(true);
+    menuOf(3).click(); // the same popover manager: another opener replaces the menu
+    [...ed.querySelectorAll<HTMLButtonElement>('[role=menu] [role=menuitem]')].find((b) => b.textContent === 'Compare with the previous version')!.click();
+    expect(editor.historySession!.pair).toMatchObject({ base: versions[2].id, head: versions[1].id });
     // restore the newest bundled version: the editor gets it as an undoable change
-    ed.querySelectorAll<HTMLButtonElement>('.mmdx-stack .version-main')[2]!.click();
-    await wait(() => !ed.querySelector<HTMLButtonElement>('[data-action=restore]')!.disabled);
-    ed.querySelector<HTMLButtonElement>('[data-action=restore]')!.click();
+    menuOf(2).click();
+    expect(items()[0]).toBe(`Restore ${newest.id}`);
+    ed.querySelector<HTMLButtonElement>('[role=menu] .restore')!.click();
     await wait(() => editor.getSource() === newest.source);
     expect(editor.core.stage.peek()).toBe('document');
     expect(events).toContain('mmdx-history-restore');
@@ -159,7 +168,10 @@ describe('History in the viewer', () => {
     root.querySelector<HTMLButtonElement>('button[aria-label^="History"]')!.click();
     await wait(() => root.querySelectorAll('.mmdx-stack .version').length === 6);
     expect(v.core.stage.peek()).toBe('history');
-    expect(root.querySelector('[data-action=restore]')).toBeNull();
+    // the version menu has no Restore in the viewer
+    root.querySelector<HTMLButtonElement>('.mmdx-stack .version .vmenu')!.click();
+    expect(root.querySelector('[role=menu] .restore')).toBeNull();
+    expect(root.querySelectorAll('[role=menu] [role=menuitem]')).toHaveLength(1);
     expect(v.historySession?.pair.head).toBe(versions[0].id);
     v.toggleHistory(false);
     expect(v.core.stage.peek()).toBe('document');

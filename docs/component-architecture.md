@@ -433,7 +433,7 @@ Phase 3 is the largest (the kernel split of `EditorCore`, ~700 lines, and `Diagr
 | 3 | Done | `ViewCore`, scopes, `ViewModule`, `lazyModule`, `TextScene`, `StoreScene`, `EditorCore extends ViewCore`, the theme rule and the `canvas.theme` migration, `compact`. The editor keeps its own Code / Properties / Layers panels in the document stage; its View mode uses its Layers card as view settings |
 | 4a | Done | `<mmdx-diff>` on the kernel; 91 kB, not 60 kB (§10.1) |
 | 4b | Done | Stages, suspension (including DOM a module placed while installing, gestures and painters), scene ownership; `tests/editor/stage.test.ts` |
-| 4c | Done | History in the editor's own canvas and panels; working copy; Restore at the foot of the History panel (rather than at the end of the diff bar); `historySession`; `mmdx-history-*`; ⌘C copies a selected change's item from Before / After. A read-only Properties card for old versions is not done |
+| 4c | Done | History in the editor's own canvas and panels; working copy; Restore in each version's ⋯ menu of the History panel, next to Compare with the previous version (rather than at the end of the diff bar); `historySession`; `mmdx-history-*`; ⌘C copies a selected change's item from Before / After. A read-only Properties card for old versions is not done |
 | 4d | Done | The viewer grows to 560 px; panels become drawers below 640 px; no `mmdx/diff` needed |
 | 5 | In part | Done: the studio's mode switch and New menu, the view-params bar, a **Canvas/** story, the README section. Open: the editor's Code / Properties / Layers panels and context menu, and the theme editor's tabs and menus, still build their own markup; `ui/panes.ts` stays for them; the element stories keep their **Elements/** title |
 

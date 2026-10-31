@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { VersionInfo } from '../../../src/core/diff/report.js';
 import { ago, createVersionList, type VersionCounts, type VersionListProps } from '../../../src/ui/blocks/version-list.js';
 import { createI18n } from '../../../src/ui/i18n.js';
+import { PopoverManager } from '../../../src/ui/popover.js';
 
 const t = createI18n().t;
 const daysAgo = (n: number): string => new Date(Date.now() - n * 86400_000).toISOString();
@@ -115,6 +116,28 @@ describe('VersionList', () => {
     vl.el.querySelector<HTMLElement>('.more')!.focus();
     vl.update({ versions: [...versions, { id: 'c0' }], hasMore: false });
     expect((document.activeElement as HTMLElement).dataset['f']).toBe('v:c0');
+  });
+
+  it('a ⋯ menu on each row opens the entries for that version through the popover manager', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = host.attachShadow({ mode: 'open' });
+    const popovers = new PopoverManager(root);
+    const run = vi.fn();
+    const entries = vi.fn((id: string, i: number) => [{ label: `Restore ${id} #${i}`, run }]);
+    const vl = createVersionList(props({ menu: { entries, popovers, within: () => host } }));
+    root.append(vl.el);
+    const dots = vl.el.querySelectorAll<HTMLButtonElement>('.vmenu');
+    expect(dots).toHaveLength(3);
+    expect(dots[1]!.getAttribute('aria-label')).toBe('Actions for c2');
+    expect(dots[1]!.getAttribute('aria-haspopup')).toBe('menu');
+    dots[1]!.click();
+    expect(entries).toHaveBeenCalledWith('c2', 1);
+    expect(dots[1]!.getAttribute('aria-expanded')).toBe('true');
+    root.querySelector<HTMLButtonElement>('[role=menu] [role=menuitem]')!.click();
+    expect(run).toHaveBeenCalledOnce();
+    expect(popovers.isOpen).toBe(false);
+    expect(createVersionList(props()).el.querySelector('.vmenu')).toBeNull();
   });
 
   it('destroy() removes the element and its listeners', () => {

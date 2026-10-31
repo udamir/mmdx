@@ -6,11 +6,16 @@
 // adopts `DIFF_TOKENS` (ui/styles/diff.ts).
 import type { DiagramDiff } from '../../core/diff/index.js';
 import type { VersionInfo } from '../../core/diff/report.js';
-import { h } from '../h.js';
+import { h, icon } from '../h.js';
+import type { PopoverManager } from '../popover.js';
 import { registerMessages } from '../i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
 import { focusedIn, keepFocus } from './focus.js';
+import { openMenu, type MenuEntry } from './menu.js';
+
+/** The row menu's "⋯" (three dots). */
+const I_DOTS = 'M5 12h.01M12 12h.01M19 12h.01';
 
 /** Relative age of an ISO date (`3 days ago`), or '' without a valid date. */
 export const ago = (iso: string | undefined, locale: string): string => {
@@ -41,6 +46,8 @@ export interface VersionListProps {
   onPick: (side: 'before' | 'after', id: string) => void;
   onRow: (id: string) => void;
   onMore: () => void;
+  /** A "⋯" menu on each row with the version's actions (Restore, Compare…); `entries` is built when it opens. */
+  menu?: { entries: (id: string, index: number) => readonly MenuEntry[]; popovers: PopoverManager; within?: () => Element | undefined };
   t: Translate;
   part?: string;
 }
@@ -72,9 +79,12 @@ export const VERSION_LIST_CSS = /* css */ `
 .mmdx-version-list .pick-before.on { background: var(--mmdx-diff-del-bg); border-color: var(--mmdx-diff-del); color: var(--mmdx-diff-del); font-weight: 600; }
 .mmdx-version-list .pick-after.on { background: var(--mmdx-diff-add-bg); border-color: var(--mmdx-diff-add); color: var(--mmdx-diff-add); font-weight: 600; }
 .mmdx-version-list .more { margin: 6px; }
+.mmdx-version-list .vmenu { flex: none; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; margin-right: 6px; border: 0; border-radius: 7px; background: transparent; color: var(--mmdx-muted); }
+.mmdx-version-list .vmenu:hover:not(:disabled), .mmdx-version-list .vmenu[aria-expanded=true] { background: var(--mmdx-float-2, var(--mmdx-surface-2)); color: var(--mmdx-text); }
+.mmdx-version-list .vmenu .mmdx-icon { width: 18px; height: 18px; stroke-width: 3; }
 `;
 
-type Col = 'main' | 'before' | 'after';
+type Col = 'main' | 'before' | 'after' | 'menu';
 
 export function createVersionList(props: VersionListProps): BlockHandle<VersionListProps> {
   registerMessages(BLOCK_MESSAGES_DIFF);
@@ -140,9 +150,21 @@ export function createVersionList(props: VersionListProps): BlockHandle<VersionL
           h('span', { class: 'vwho' }, h('code', { class: 'vid' }, v.id), i === 0 ? h('span', { class: 'vtag' }, t('diff.history.current')) : null, who ? ` ${who}` : ''),
           stats));
       fx.on(main, 'click', () => p.onRow(v.id));
+      let dots: HTMLButtonElement | null = null;
+      const m = p.menu;
+      if (m) {
+        const label = t('diff.history.actions', { id: v.id });
+        const b = h('button', { type: 'button', class: 'vmenu', title: label, 'aria-label': label, 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'data-f': `menu:${v.id}`, 'data-col': 'menu' }, icon(I_DOTS, 18));
+        fx.on(b, 'click', () => {
+          const within = m.within?.();
+          openMenu({ popovers: m.popovers, opener: b, label, entries: m.entries(v.id, i), ...(within ? { within } : {}) });
+        });
+        dots = b;
+      }
       return h('div', { class: `version${viewing ? ' viewing' : ''}${isAfter ? ' after' : ''}${isBefore ? ' before' : ''}`, role: compare ? 'listitem' : 'option', 'aria-selected': compare ? undefined : String(viewing), 'data-id': v.id },
         main,
-        compare ? h('span', { class: 'vpick' }, pick('before'), pick('after')) : null);
+        compare ? h('span', { class: 'vpick' }, pick('before'), pick('after')) : null,
+        dots);
     });
     let more: HTMLElement | null = null;
     if (p.hasMore) {
