@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-// History is part of the editor and the viewer: their History button covers them with the diff of the document's
-// versions. The studio only provides the versions (an example's history and the versions saved in the studio).
+// History is part of the editor and the viewer (component architecture §8): their History button enters the `history`
+// stage in their own canvas and panels. The studio only provides the versions (an example's history and the versions
+// saved in the studio).
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DiagramStudio } from '../../src/elements/studio.js';
@@ -51,37 +52,63 @@ describe('History in the editor (studio)', () => {
     // no History mode in the studio's top bar
     expect([...root.querySelectorAll('.top button')].some((b) => b.textContent?.trim() === 'History')).toBe(false);
 
+    const events: string[] = [];
+    for (const ev of ['mmdx-history-open', 'mmdx-history-close', 'mmdx-history-compare', 'mmdx-history-restore'])
+      root.querySelector('mmdx-editor')!.addEventListener(ev, () => events.push(ev));
+    const editor = studio.editor!;
+    const rows = (): NodeListOf<HTMLElement> => ed.querySelectorAll('.mmdx-stack .version');
     ed.querySelector<HTMLButtonElement>('.vt-history')!.click();
-    const view = (): ShadowRoot | null | undefined => ed.querySelector('.mmdx-history-view')?.shadowRoot;
-    await wait(() => view()?.querySelectorAll('.version').length === 6);
+    await wait(() => rows().length === 6);
+    // in place: the editor's own canvas shows the diff, its editing chrome is suspended
+    expect(editor.core.stage.peek()).toBe('history');
+    expect(ed.querySelector('mmdx-diff')).toBeNull();
+    expect(ed.querySelector('.pane.left')).toBeNull();
     expect(ed.querySelector('.vt-history')!.getAttribute('aria-pressed')).toBe('true');
+    expect(ed.querySelector('.mmdx-pill [role=status]')!.textContent).toContain('History');
+    expect(editor.historySession).not.toBeNull();
+    await wait(() => events.includes('mmdx-history-compare'));
+    // Edit / View cannot switch while History is open
+    editor.setMode('view');
+    expect(editor.readOnly).toBe(false);
 
-    // Back closes it
-    view()!.querySelector<HTMLButtonElement>('[data-action=back]')!.click();
-    expect(ed.querySelector('.mmdx-history-view')).toBeNull();
+    // Back closes it: the editor is back as it was
+    ed.querySelector<HTMLButtonElement>('.mmdx-pill button')!.click();
+    expect(editor.core.stage.peek()).toBe('document');
+    expect(editor.historySession).toBeNull();
+    expect(ed.querySelector('.pane.left')).not.toBeNull();
+    expect(ed.querySelector('.mmdx-pill')).toBeNull();
+    expect(events).toContain('mmdx-history-close');
 
     // an edit, saved as a version, then edited again: saved version + working copy join the history
-    studio.editor!.setSource(`${newest.source}\n  extra[Extra step]`, { history: 'push' });
+    editor.setSource(`${newest.source}\n  extra[Extra step]`, { history: 'push' });
     const save = [...root.querySelectorAll<HTMLButtonElement>('.top button')].find((b) => b.textContent?.trim() === 'Save version')!;
     save.click();
     await wait(() => root.querySelector('.mmdx-dialog input'));
     root.querySelector<HTMLInputElement>('.mmdx-dialog input')!.value = 'Add an extra step';
     root.querySelector<HTMLButtonElement>('.mmdx-dialog button.primary')!.click();
     await wait(() => (storage.get<Record<string, unknown[]>>('studio.versions')?.['example:simple-flow']?.length ?? 0) === 1);
-    studio.editor!.setSource(`${newest.source}\n  extra[Extra step] --> more[More]`, { history: 'push' });
-    studio.editor!.toggleHistory(true);
-    await wait(() => view()?.querySelectorAll('.version').length === 8);
-    const msgs = [...view()!.querySelectorAll('.vmsg')].map((e) => e.textContent);
+    editor.setSource(`${newest.source}\n  extra[Extra step] --> more[More]`, { history: 'push' });
+    editor.toggleHistory(true);
+    await wait(() => rows().length === 8);
+    const msgs = [...ed.querySelectorAll('.mmdx-stack .vmsg')].map((e) => e.textContent);
     expect(msgs.slice(0, 2)).toEqual(['Working copy (not saved as a version)', 'Add an extra step']);
 
+    // the working copy follows the document while History is open (the same as the saved version: no working copy)
+    editor.setSource(`${newest.source}\n  extra[Extra step]`, { history: 'push' });
+    await wait(() => rows().length === 7);
+    editor.setSource(`${newest.source}\n  extra[Extra step] --> more[More]`, { history: 'push' });
+    await wait(() => rows().length === 8);
+    expect(editor.core.stage.peek()).toBe('history');
+
     // restore the newest bundled version: the editor gets it as an undoable change
-    view()!.querySelectorAll<HTMLButtonElement>('.version-main')[2]!.click();
-    await wait(() => !view()!.querySelector<HTMLButtonElement>('[data-action=restore]')!.disabled);
-    view()!.querySelector<HTMLButtonElement>('[data-action=restore]')!.click();
-    await wait(() => studio.editor?.getSource() === newest.source);
-    expect(ed.querySelector('.mmdx-history-view')).toBeNull();
-    studio.editor!.undo();
-    expect(studio.editor!.getSource()).toContain('more[More]');
+    ed.querySelectorAll<HTMLButtonElement>('.mmdx-stack .version-main')[2]!.click();
+    await wait(() => !ed.querySelector<HTMLButtonElement>('[data-action=restore]')!.disabled);
+    ed.querySelector<HTMLButtonElement>('[data-action=restore]')!.click();
+    await wait(() => editor.getSource() === newest.source);
+    expect(editor.core.stage.peek()).toBe('document');
+    expect(events).toContain('mmdx-history-restore');
+    editor.undo();
+    expect(editor.getSource()).toContain('more[More]');
     studio.destroy();
   });
 
@@ -99,10 +126,8 @@ describe('History in the editor (studio)', () => {
 });
 
 describe('History in the viewer', () => {
-  it('controls="history" opens the versions over the viewer, without Restore', async () => {
+  it('controls="history" opens the versions in the viewer itself, without Restore; no <mmdx-diff> on the page needed', async () => {
     await loadKind('flowchart');
-    // the page loads mmdx/diff: the History button appears once <mmdx-diff> is defined
-    (await import('../../src/elements/diff.js')).defineDiff();
     const host = document.createElement('div');
     document.body.append(host);
     const rendered = new Promise((r) => host.addEventListener('mmdx-render', r, { once: true }));
@@ -111,13 +136,16 @@ describe('History in the viewer', () => {
     const root = host.shadowRoot!;
     // the tool dock and the History button load on demand
     await wait(() => root.querySelector('button[aria-label^="History"]'));
-    const btn = root.querySelector<HTMLButtonElement>('button[aria-label^="History"]')!;
-    btn.click();
-    const view = (): ShadowRoot | null | undefined => root.querySelector('.mmdx-history-view')?.shadowRoot;
-    await wait(() => view()?.querySelectorAll('.version').length === 6);
-    expect(view()!.querySelector('[data-action=restore]')).toBeNull();
+    root.querySelector<HTMLButtonElement>('button[aria-label^="History"]')!.click();
+    await wait(() => root.querySelectorAll('.mmdx-stack .version').length === 6);
+    expect(v.core.stage.peek()).toBe('history');
+    expect(root.querySelector('[data-action=restore]')).toBeNull();
+    expect(v.historySession?.pair.head).toBe(versions[0].id);
     v.toggleHistory(false);
-    expect(root.querySelector('.mmdx-history-view')).toBeNull();
+    expect(v.core.stage.peek()).toBe('document');
+    expect(root.querySelector('.mmdx-stack .version')).toBeNull();
+    // the diagram is back
+    expect(root.querySelectorAll('.body-layer .el[data-kind="node"]').length).toBeGreaterThan(0);
     v.destroy();
   });
 });

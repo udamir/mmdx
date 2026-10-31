@@ -7,7 +7,6 @@
 // shell, module host and canvas come from it — and adds the document store, the selection, gestures and overlay
 // painters. What the canvas shows is the StoreScene (src/editor/scene.ts); `draw()` invalidates it.
 import type { StorageAdapter } from '../adapters/storage.js';
-import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import type { ThemeSource } from '../adapters/themes.js';
 import type { CoreContext } from '../core/context.js';
 import { KIND_TO_COLL, type DiagramMeta, type ItemMeta } from '../core/meta/types.js';
@@ -213,10 +212,6 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   readonly enteredGroup: Signal<string | null> = signal<string | null>(null);
   readonly pageSelected: Signal<boolean> = signal(false);
   readonly codeFilter = signal('');
-  /** The document's versions (host-provided); null = no History button. */
-  readonly history: Signal<HistoryAdapter | readonly StaticVersion[] | null> = signal<HistoryAdapter | readonly StaticVersion[] | null>(null);
-  /** The History view is open. */
-  readonly historyOpen: Signal<boolean> = signal(false);
   /** Problems in the Mermaid code and the metadata (code panel → canvas issue bar, badge on the Code tool). */
   readonly issueCount = signal(0);
   /** Base name for exports (no extension); files opened through `openFiles` set it. */
@@ -673,7 +668,8 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   }
 
   setMode(m: Mode): void {
-    if (this.mode.peek() === m) return;
+    // no Edit / View switching while History is open (§8.2)
+    if (this.mode.peek() === m || this.stage.peek() === 'history') return;
     this.mode.set(m);
     this.tool.set(m === 'edit' ? 'pointer' : 'hand');
     if (m === 'view') {

@@ -5,6 +5,7 @@
 // uninstall). Products are compositions: a kernel, a scene source and a set of modules.
 import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
 import type { ThemeSource } from '../adapters/themes.js';
+import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import { ensureBuiltinThemes, getShared, instanceContext } from '../config.js';
 import type { CoreContext } from '../core/context.js';
 import { BUILTIN_IDS } from '../core/theme/builtin-ids.js';
@@ -15,11 +16,12 @@ import { registerMessages, type I18n } from '../ui/i18n.js';
 import { VIEW_MESSAGES } from '../ui/messages/view.js';
 import { PopoverManager, Toaster } from '../ui/popover.js';
 import { ShortcutRegistry, type Shortcut } from '../ui/shortcuts.js';
-import { effect, signal, untracked, type Signal } from '../ui/signal.js';
+import { computed, effect, signal, untracked, type ReadSignal, type Signal } from '../ui/signal.js';
 import { adoptStyles, BASE, resolveUiScheme, TOKENS, watchUiScheme } from '../ui/styles/base.js';
 import { matchesWhen, orderModules, type ModuleScope, type Registration, type ViewModule } from './module.js';
 import type { CanvasArea, SceneSource } from './scene.js';
 import { ThemeState, type Scheme } from './theme.js';
+import type { HistorySession } from './history.js';
 import type { Display, DockItem, ExportFormat, Mode, PanelItem, SlotName, Stage, Tool, ViewActions, ViewEvent } from './types.js';
 
 export type Product = 'viewer' | 'editor' | 'diff';
@@ -63,6 +65,7 @@ export const SHELL_CSS = /* css */ `
 .slot { display: contents; }
 .slot-top-center { display: flex; flex-direction: column; align-items: center; gap: 8px; position: absolute; top: 12px; left: calc(50% + (var(--inset-l, 0px) - var(--inset-r, 0px)) / 2); transform: translateX(-50%); z-index: 36; pointer-events: none; max-width: calc(100% - 24px); }
 .slot-top-center > * { pointer-events: auto; }
+.slot-top-center > .mmdx-pill { position: static; transform: none; }
 .slot-top-center:empty { display: none; }
 /* the right stack keeps clear of the view params (top right) and the zoom bar (bottom right) */
 .slot-right-stack > .mmdx-stack:not(.drawer) { top: 60px; bottom: 60px; }
@@ -104,6 +107,12 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   readonly compact: Signal<boolean> = signal(false);
   /** Layers shown by the host's override (viewer / diff); undefined = the document's own visibility. */
   readonly visibleLayers: Signal<readonly string[] | undefined> = signal<readonly string[] | undefined>(undefined);
+  /** The document's versions (host-provided); null: no History. */
+  readonly history: Signal<HistoryAdapter | readonly StaticVersion[] | null> = signal<HistoryAdapter | readonly StaticVersion[] | null>(null);
+  /** History is open (the `history` stage). */
+  readonly historyOpen: ReadSignal<boolean> = computed(() => this.stage() === 'history');
+  /** The open History's session (the `<mmdx-diff>` methods), null while History is closed (§8.3). */
+  readonly historySession: Signal<HistorySession | null> = signal<HistorySession | null>(null);
   /** Buttons of the tool dock, contributed by modules. */
   readonly dockItems: Signal<readonly DockItem[]> = signal<readonly DockItem[]>([]);
   /** Entries of the Export menu, contributed by modules. */
@@ -120,7 +129,8 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   protected destroyed = false;
   private readonly o: ViewCoreOptions;
   private readonly listeners = new Map<string, Set<Listener>>();
-  private readonly actionMap = new Map<keyof A, Provided>();
+  /** Providers per action, newest last: a suspended or removed provider gives the action back to the one before it. */
+  private readonly actionMap = new Map<keyof A, Provided[]>();
   private readonly sceneStack: SceneSource[] = [];
   private readonly extraCanvases = new Set<DiagramCanvas>();
   private readonly css: string[];
@@ -287,23 +297,34 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   /** Provides a named action; a provider registered during a module's install is muted while the module is suspended. */
   provide<K extends keyof A>(name: K, f: A[K]): () => void {
     const p: Provided = { f: f as (...args: never[]) => unknown, scope: this.installing };
-    this.actionMap.set(name, p);
+    const list = this.actionMap.get(name) ?? [];
+    list.push(p);
+    this.actionMap.set(name, list);
     const off = (): void => {
-      if (this.actionMap.get(name) === p) this.actionMap.delete(name);
+      const i = list.indexOf(p);
+      if (i >= 0) list.splice(i, 1);
     };
     this.installing?.register({ set: () => undefined, dispose: off });
     return off;
   }
 
+  /** The newest provider of an action whose module is active. */
+  private provider(name: keyof A): Provided | undefined {
+    const list = this.actionMap.get(name) ?? [];
+    for (let i = list.length - 1; i >= 0; i--) {
+      const p = list[i]!;
+      if (!p.scope || p.scope.active) return p;
+    }
+    return undefined;
+  }
+
   has(name: keyof A): boolean {
-    const p = this.actionMap.get(name);
-    return !!p && (!p.scope || p.scope.active);
+    return !!this.provider(name);
   }
 
   run<K extends keyof A>(name: K, ...args: A[K] extends (...a: infer P) => unknown ? P : never): (A[K] extends (...a: never[]) => infer R ? R : never) | undefined {
-    const p = this.actionMap.get(name);
-    if (!p || (p.scope && !p.scope.active)) return undefined;
-    return (p.f as (...a: unknown[]) => never)(...args);
+    const p = this.provider(name);
+    return p ? (p.f as (...a: unknown[]) => never)(...args) : undefined;
   }
 
   // ---- scenes -----------------------------------------------------------------------------------------------------
@@ -458,6 +479,18 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   useModules(list: readonly ViewModule<this>[]): void {
     this.available = orderModules(list);
     this.refreshModules();
+  }
+
+  /** Adds modules to the installed set (e.g. History's, for the `history` stage); returns a remover. */
+  addModules(list: readonly ViewModule<this>[]): () => void {
+    const ids = new Set(this.available.map((m) => m.id));
+    const added = list.filter((m) => !ids.has(m.id));
+    this.available = orderModules([...this.available, ...added]);
+    this.refreshModules();
+    return () => {
+      this.available = this.available.filter((m) => !added.includes(m));
+      this.refreshModules();
+    };
   }
 
   /** Installs, uninstalls, suspends and resumes modules for the current options, mode and stage. */

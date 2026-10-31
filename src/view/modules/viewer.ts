@@ -10,7 +10,7 @@ import { zoomBarModule } from './zoom-bar.js';
  * diagram on a docs page).
  */
 export const VIEWER_MODULES: readonly ViewModule<ViewCore>[] = [
-  lazyModule({ id: 'panel-stacks', enabled: (c) => c.feature('code') || c.feature('layers') }, () => import('./panels.js').then((m) => m.panelStacksModule)),
+  lazyModule({ id: 'panel-stacks', enabled: (c) => c.feature('code') || c.feature('layers') || c.historyOpen.peek() }, () => import('./panels.js').then((m) => m.panelStacksModule)),
   zoomBarModule,
   lazyModule({ id: 'tool-dock', enabled: (c) => c.feature('pen') || c.feature('code') || c.feature('layers') || c.feature('history') }, () => import('./tool-dock.js').then((m) => m.toolDockModule)),
   lazyModule({ id: 'pan', enabled: (c) => c.feature('pen') }, () => import('./tool-dock.js').then((m) => m.panModule)),
@@ -18,6 +18,7 @@ export const VIEWER_MODULES: readonly ViewModule<ViewCore>[] = [
   lazyModule({ id: 'view-settings', after: ['panel-stacks'], enabled: (c) => c.feature('layers') }, () => import('./side-panels.js').then((m) => m.viewSettingsModule)),
   lazyModule({ id: 'code-view', after: ['panel-stacks'], enabled: (c) => c.feature('code') }, () => import('./side-panels.js').then((m) => m.codeViewModule)),
   lazyModule({ id: 'view-params', enabled: (c) => c.feature('theme') || c.feature('export') }, () => import('./view-params.js').then((m) => m.viewParamsModule)),
+  lazyModule({ id: 'history', enabled: (c) => c.feature('history') }, () => import('./history.js').then((m) => m.historyModule)),
   linksModule,
   hoverHighlightModule,
 ];

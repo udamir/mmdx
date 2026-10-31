@@ -36,22 +36,38 @@ async function bundle(entry) {
   return { outs, closure, base, size };
 }
 
+/** The chunks a dynamic import of `input` adds to what is loaded already. */
+const lazy = (b, input, loaded) => {
+  const f = Object.keys(b.outs).find((x) => b.outs[x].entryPoint === input);
+  return f ? [...b.closure(f)].filter((x) => !loaded.has(x)) : [];
+};
+
 const v = await bundle('viewer');
+const flow = [];
 for (const k of ['flowchart', 'sequence', 'er']) {
   const f = Object.keys(v.outs).find((x) => x.includes(`kind-${k}-`) && x.endsWith('.js'));
   const extra = [...v.closure(f)].filter((x) => !v.base.has(x));
-  // 55 kB with the view kernel (component architecture §10, phase-0 measurement: 53.4 kB with every chrome module but
-  // the zoom bar loaded on demand; 46 kB before). Provisional until the eager / lazy split of the kernel is decided.
-  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), 55 * KB);
+  if (k === 'flowchart') flow.push(...extra);
+  // 58 kB with the view kernel (component architecture §10.1: 53.4 kB with every chrome module but the zoom bar on
+  // demand; 56.7 kB once History's chunk shares code with the kinds; 46 kB before). Provisional (decision 19 is open).
+  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), 58 * KB);
+}
+// the viewer with History opened on a flowchart (no `mmdx/diff` on the page any more)
+{
+  const loaded = new Set([...v.base, ...flow]);
+  const hist = lazy(v, 'src/diff/history.ts', loaded);
+  report('viewer + History opened', v.size(loaded) + v.size(hist), 116 * KB);
 }
 // core includes the diff engine (diffs, merged model, annotations, reports, renderDiffToSvg)
-// editor: 176 kB with the view kernel (173.2 kB measured; 165 kB before), provisional like the viewer's
+// editor: 184 kB with the view kernel (173.2 kB measured in phase 3, 182.6 kB once History's chunk shares code with the
+// editor — summed per chunk; 177.6 kB as one stream; 165 kB before), provisional like the viewer's
 // diff: 93 kB on the view kernel (component architecture §10, phase 4a: 90.8 kB measured; 86.7 kB before with every
 // kind static). The renderers load on demand; the parsers stay in the entry for its synchronous `diffDiagrams`
 // export (8.5 kB), the kernel and the blocks replace the diff's own chrome. The 60 kB target needs the panels on
 // demand as in the viewer.
-for (const [entry, budget] of [['core', 55], ['theme-editor', 120], ['editor', 176], ['diff', 93]]) {
+for (const [entry, budget] of [['core', 55], ['theme-editor', 120], ['editor', 184], ['diff', 93]]) {
   const b = await bundle(entry);
   report(entry, b.size(b.base), budget * KB);
+  if (entry === 'editor') report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 227 * KB);
 }
 process.exit(failed ? 1 : 0);

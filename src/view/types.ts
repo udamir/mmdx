@@ -59,10 +59,18 @@ export interface ViewActions {
   documentMeta(): DiagramMeta | null;
   /** The shown document's Mermaid code (without `%%@` metadata), for the code view. */
   documentCode(): string | null;
+  /** The document's full source as it is now (History's working copy). */
+  documentSource(): string | null;
+  /** File name stem of exports. */
+  documentName(): string;
+  /** Opens a version in the document as one undoable change (the editor; History's Restore). */
+  restoreVersion(source: string, version: { id: string }): void;
+  /** Puts copied items on the host's item clipboard (the editor; copying from History). */
+  setClipboard(data: unknown): void;
 }
 
 /** Kernel events (no payload); products add their own. */
-export type ViewEvent = 'draw' | 'view' | 'theme' | 'mode' | 'stage' | 'tool' | 'panels' | 'model' | 'selection' | 'overlay';
+export type ViewEvent = 'draw' | 'view' | 'theme' | 'mode' | 'stage' | 'tool' | 'panels' | 'model' | 'selection' | 'overlay' | 'document';
 
 /** A button a module adds to the tool dock (the toolDock module renders them by section, then order). */
 export interface DockItem {

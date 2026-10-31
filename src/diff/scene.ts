@@ -97,6 +97,8 @@ export class DiffScene extends BaseScene {
   override attach(area: CanvasArea): void {
     this.core.addCss(DIFF_SCENE_CSS);
     const stale = this.dirty;
+    // the stage is inset by the panel stacks already: fit keeps clear of the scene's own chrome only
+    area.main.setInsets(() => this.insets());
     super.attach(area);
     if (stale) this.session.invalidate();
   }
@@ -114,6 +116,7 @@ export class DiffScene extends BaseScene {
     const area = this.area;
     for (const off of this.offs.splice(0).reverse()) off();
     if (area) {
+      area.main.setInsets(null);
       this.dropSecond();
       this.morph = null;
       area.main.setMorph(null);

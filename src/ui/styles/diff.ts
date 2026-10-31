@@ -29,30 +29,37 @@ export const DIFF_TOKENS = /* css */ `
 }
 `;
 
-export const DIFF_CSS = /* css */ `
+/** The `<mmdx-diff>` element's own box (not adopted by the hosts that show History in place). */
+export const DIFF_HOST_CSS = /* css */ `
 :host { display: block; position: relative; height: 640px; min-height: 360px; contain: content; }
 :host(:fullscreen) { height: 100%; }
 .root { position: absolute; inset: 0; overflow: hidden; background: var(--mmdx-surface); outline: none; border-radius: inherit; }
 .area { container: area / size; position: absolute; inset: 0; }
+@media print { .tool-dock, .bottom-bar, .view-params { display: none !important; } }
+`;
+
+/** The stage of a DiffScene and the marks in its canvases (every selector scoped to the stage). */
+export const DIFF_CSS = /* css */ `
+.mmdx-area { container: area / size; }
 
 /* ---- the stage: one pane, or two side by side; inset by the open panel stacks ---- */
 .dx-stage { position: absolute; top: 0; bottom: 0; left: var(--inset-l, 0px); right: var(--inset-r, 0px); display: flex; gap: 1px; background: var(--mmdx-border);
   transition: left .24s cubic-bezier(.2,.8,.2,1), right .24s cubic-bezier(.2,.8,.2,1); }
 .dx-stage.single { background: transparent; }
 .resizing-panes .dx-stage { transition: none; }
-.pane { position: relative; flex: 1; min-width: 0; overflow: hidden; background: var(--mmdx-surface); }
-.pane > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
-.pane > svg.panning { cursor: grabbing; }
-.pane-title { position: absolute; top: 8px; left: 8px; right: 200px; display: flex; gap: 6px; align-items: baseline; pointer-events: none; z-index: 2; min-width: 0; }
-.pane-title b { background: var(--mmdx-surface); border: 1px solid var(--mmdx-border); border-radius: 5px; padding: 1px 8px; font-size: 12px; flex: none; }
-.pane-title span { color: var(--mmdx-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pane.before .pane-title b { color: var(--mmdx-diff-del); }
-.pane.after .pane-title b { color: var(--mmdx-diff-add); }
+.dx-stage .pane { position: relative; flex: 1; min-width: 0; overflow: hidden; background: var(--mmdx-surface); }
+.dx-stage .pane > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
+.dx-stage .pane > svg.panning { cursor: grabbing; }
+.dx-stage .pane-title { position: absolute; top: 8px; left: 8px; right: 200px; display: flex; gap: 6px; align-items: baseline; pointer-events: none; z-index: 2; min-width: 0; }
+.dx-stage .pane-title b { background: var(--mmdx-surface); border: 1px solid var(--mmdx-border); border-radius: 5px; padding: 1px 8px; font-size: 12px; flex: none; }
+.dx-stage .pane-title span { color: var(--mmdx-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dx-stage .pane.before .pane-title b { color: var(--mmdx-diff-del); }
+.dx-stage .pane.after .pane-title b { color: var(--mmdx-diff-add); }
 .dx-stage > .mmdx-banner { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 5; max-width: calc(100% - 32px); }
-.msg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--mmdx-muted); pointer-events: none; }
-.msg .error { pointer-events: auto; max-width: 560px; padding: 12px 14px; background: var(--mmdx-danger-bg); color: var(--mmdx-text); border: 1px solid var(--mmdx-danger); border-radius: var(--mmdx-radius); }
-.msg .error button { margin-top: 8px; }
-.el[data-link] { cursor: pointer; }
+.dx-stage .msg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--mmdx-muted); pointer-events: none; }
+.dx-stage .msg .error { pointer-events: auto; max-width: 560px; padding: 12px 14px; background: var(--mmdx-danger-bg); color: var(--mmdx-text); border: 1px solid var(--mmdx-danger); border-radius: var(--mmdx-radius); }
+.dx-stage .msg .error button { margin-top: 8px; }
+.dx-stage .el[data-link] { cursor: pointer; }
 
 /* ---- inside the canvases ---- */
 .dx-ins { fill: var(--mmdx-diff-add); font-weight: 700; }
@@ -87,5 +94,4 @@ export const DIFF_CSS = /* css */ `
   .dx-stage.side { flex-direction: column; }
 }
 @media (prefers-reduced-motion: reduce) { .dx-stage { transition: none !important; } }
-@media print { .tool-dock, .bottom-bar, .view-params { display: none !important; } }
 `;

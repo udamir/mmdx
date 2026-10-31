@@ -34,7 +34,8 @@ function toggleOf(scope: ModuleScope<ViewCore>, id: string): { open: () => boole
   };
 }
 
-export function versionsModule(session: DiffSession): ViewModule<ViewCore> {
+/** `dockButton: false` when the host's History button already stands for the panel (History in place). */
+export function versionsModule(session: DiffSession, o: { dockButton?: boolean } = {}): ViewModule<ViewCore> {
   return {
     id: 'versions',
     after: ['panel-stacks'],
@@ -63,11 +64,14 @@ export function versionsModule(session: DiffSession): ViewModule<ViewCore> {
         closeLabel: t('diff.panel.hide'), closeKeys: 'v', onClose: () => void core.run('setPanel', 'history', false), body: list.el,
       });
       scope.contribute(core.panelItems, { id: 'history', side: 'left', order: 10, el: panel.el, visible: () => session.hasHistory() });
-      const btn = dockButton({
-        icon: I_HISTORY, label: t('diff.tool.history'), keys: 'v', class: 'vt-panel vt-history', f: 'panel-history',
-        pressed: computed(open), hidden: computed(() => !session.hasHistory()), onClick: toggle,
-      });
-      scope.contribute(core.dockItems, { id: 'history', section: 'panels', order: 10, el: btn.el });
+      if (o.dockButton !== false) {
+        const btn = dockButton({
+          icon: I_HISTORY, label: t('diff.tool.history'), keys: 'v', class: 'vt-panel vt-history', f: 'panel-history',
+          pressed: computed(open), hidden: computed(() => !session.hasHistory()), onClick: toggle,
+        });
+        scope.contribute(core.dockItems, { id: 'versions', section: 'panels', order: 10, el: btn.el });
+        scope.onDispose(() => btn.destroy());
+      }
       scope.shortcut({ id: 'history', keys: ['v'], label: t('diff.help.history'), group: t('diff.help.panels'), run: () => (session.hasHistory.peek() ? toggle() : false) });
       // the rows follow the versions, the pair, the tab and the counts while the panel shows
       scope.effect(() => {
@@ -79,7 +83,6 @@ export function versionsModule(session: DiffSession): ViewModule<ViewCore> {
         untracked(() => list.update(props));
       });
       return () => {
-        btn.destroy();
         list.destroy();
         tabs.destroy();
         panel.destroy();

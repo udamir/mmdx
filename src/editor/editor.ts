@@ -17,6 +17,7 @@ import type { EditorModule } from './module.js';
 import { DEFAULT_MODULES } from './modules/index.js';
 import { DocStore, type ChangeReason } from './store.js';
 import type { ItemRef } from '../core/types.js';
+import type { HistorySession } from '../view/history.js';
 
 export interface EditorOptions {
   value?: string;
@@ -112,6 +113,19 @@ export class DiagramEditor {
     this.wireKeys();
     this.addBaseShortcuts();
 
+    // what History needs from the document (component architecture §8.2)
+    core.provide('documentSource', () => this.store.source());
+    core.provide('documentName', () => core.fileName || 'diagram');
+    core.provide('setClipboard', (data) => void (core.clipboard = data as typeof core.clipboard));
+    core.provide('restoreVersion', (source, v) => {
+      core.store.load(source, { history: 'push', reason: 'remote', markSaved: false });
+      core.draw();
+      core.viewport.setBounds(core.result.result.bounds, { fit: true });
+      core.fire('model');
+      core.fire('panels');
+      core.toast(core.i18n.t('history.restored', { id: v.id }));
+    });
+
     core.useModules(options.modules ?? DEFAULT_MODULES);
 
     core.fileName = this.name;
@@ -175,6 +189,11 @@ export class DiagramEditor {
   /** Opens or closes the History view (when there is a history). */
   toggleHistory(on?: boolean): void {
     this.core.run('toggleHistory', on);
+  }
+
+  /** The open History's session (the `<mmdx-diff>` methods), null while History is closed (§8.3). */
+  get historySession(): HistorySession | null {
+    return this.core.historySession.peek();
   }
 
   get readOnly(): boolean {
@@ -357,6 +376,7 @@ export class DiagramEditor {
   }
 
   private onStoreChange(source: string, reason: ChangeReason): void {
+    this.core.fire('document');
     this.core.emit('mmdx-change', { source, reason });
     this.core.emit('mmdx-dirty', { dirty: this.store.dirty.peek() });
     if (this.o.autosave && this.o.adapter && reason !== 'load' && reason !== 'remote' && this.store.dirty.peek()) {
@@ -614,6 +634,10 @@ export class MmdxEditorElement extends ElementBase {
   /** Opens or closes the History view (when the editor has a `history`). */
   toggleHistory(on?: boolean): void {
     this.editor?.toggleHistory(on);
+  }
+  /** The open History's session, null while History is closed. */
+  get historySession(): HistorySession | null {
+    return this.editor?.historySession ?? null;
   }
   get dirty(): boolean {
     return this.editor?.dirty ?? false;

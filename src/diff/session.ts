@@ -431,6 +431,20 @@ export class DiffSession {
     return p;
   }
 
+  /**
+   * A version's source changed (History's working copy follows the document): its cached source and counts go, the
+   * version list is read again (the working copy may appear or go), and a comparison that shows it renders again.
+   */
+  sourceChanged(id: string): void {
+    this.sources.delete(id);
+    this.countMap.delete(id);
+    for (const [i, v] of this.versions.peek().entries()) if (this.versions.peek()[i + 1]?.id === id) this.countMap.delete(v.id);
+    this.cache.clear();
+    void this.reloadHistory();
+    const p = this.pair;
+    if (p.base === id || p.head === id || p.viewing === id) this.scheduleRefresh();
+  }
+
   /** The theme, the display settings or the registered themes changed: render again. */
   invalidate(): void {
     this.cache.clear();

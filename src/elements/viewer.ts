@@ -18,6 +18,7 @@ import type { WheelMode } from '../dom/viewport.js';
 import { h } from '../ui/h.js';
 import { VIEWER_CSS } from '../ui/styles/viewer.js';
 import { ViewCore } from '../view/core.js';
+import type { HistorySession } from '../view/history.js';
 import { lazyModule, type ViewModule } from '../view/module.js';
 import { VIEWER_MODULES } from '../view/modules/viewer.js';
 import { TextScene, type FallbackMode, type FitMode } from '../view/scenes/text.js';
@@ -60,6 +61,8 @@ export interface ViewerEventMap {
   'mmdx-link': CustomEvent<{ href: string; id: string | null }>;
   'mmdx-fullscreen': CustomEvent<{ active: boolean }>;
   'mmdx-ui': CustomEvent<{ ui: 'light' | 'dark' }>;
+  'mmdx-history-open': CustomEvent<Record<string, never>>;
+  'mmdx-history-close': CustomEvent<Record<string, never>>;
 }
 
 const DEFAULT_CONTROLS: readonly ViewerControl[] = ['zoom', 'fullscreen'];
@@ -123,6 +126,10 @@ export class DiagramViewer {
     core.provide('documentMeta', () => this.scene.rendered?.doc.meta ?? null);
     core.provide('documentCode', () => this.scene.rendered?.doc.code ?? (this.scene.text !== null ? splitSource(this.scene.text).doc.code : null));
     core.provide('contentBounds', () => this.scene.bounds.peek());
+    core.provide('documentSource', () => this.scene.text);
+    core.provide('documentName', () => this.fileName);
+    if (o.history) core.history.set(o.history);
+
     core.pushScene(this.scene);
     this.installModules();
     // a picture while the diagram shows; the code panel must stay readable for screen readers
@@ -163,7 +170,8 @@ export class DiagramViewer {
     if ('wheel' in patch) core.canvas.setOptions({ wheel: patch.wheel ?? 'ctrl' });
     if ('labels' in patch || 'hoverHighlight' in patch) core.display.set({ labels: this.o.labels !== false, hoverHighlight: this.o.hoverHighlight !== false });
     if ('layers' in patch) core.visibleLayers.set(this.o.layers);
-    if (controlsChanged || 'interactive' in patch || 'history' in patch) this.installModules();
+    if ('history' in patch) core.history.set(patch.history ?? null);
+    if (controlsChanged || 'interactive' in patch) this.installModules();
     if (srcChanged || ('source' in patch && patch.source !== undefined)) void this.load();
     else core.invalidate();
   }
@@ -227,6 +235,11 @@ export class DiagramViewer {
     this.core.run('toggleHistory', on);
   }
 
+  /** The open History's session (the `<mmdx-diff>` methods), null while History is closed. */
+  get historySession(): HistorySession | null {
+    return this.core.historySession.peek();
+  }
+
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
@@ -258,7 +271,7 @@ export class DiagramViewer {
       case 'scheme':
         return c.includes('theme');
       case 'history':
-        return c.includes('history') && !!this.o.history;
+        return c.includes('history');
       default:
         return c.includes(name as ViewerControl);
     }
@@ -268,7 +281,6 @@ export class DiagramViewer {
     const list: ViewModule<ViewCore>[] = [
       ...VIEWER_MODULES,
       lazyModule({ id: 'viewer-export', enabled: (c) => c.feature('export') }, () => import('./viewer-modules.js').then((m) => m.viewerExportModule(this))),
-      lazyModule({ id: 'history', enabled: (c) => c.feature('history') }, () => import('./viewer-modules.js').then((m) => m.viewerHistoryModule(this))),
     ];
     this.core.useModules([]);
     this.core.useModules(list);
@@ -304,6 +316,7 @@ export class DiagramViewer {
       text = dedent((script?.textContent ?? this.host.getAttribute('data-source') ?? '').replace(/<\\\/(script)/gi, '</$1'));
     }
     this.scene.setText(text);
+    this.core.fire('document');
   }
 }
 
@@ -396,6 +409,10 @@ export class MmdxViewerElement extends ElementBase {
   }
   toggleHistory(on?: boolean): void {
     this.viewer?.toggleHistory(on);
+  }
+  /** The open History's session, null while History is closed. */
+  get historySession(): HistorySession | null {
+    return this.viewer?.historySession ?? null;
   }
 
   fit(): void {

@@ -92,6 +92,7 @@ export class DiagramCanvas {
   private readonly unlinks: (() => void)[] = [];
   private readonly ac = new AbortController();
   private penActive = false;
+  private insetsOverride: (() => Insets) | null = null;
 
   constructor(container: HTMLElement | null, opts: CanvasOptions) {
     this.o = { ...opts };
@@ -147,11 +148,16 @@ export class DiagramCanvas {
       ...(o.minK !== undefined ? { minK: o.minK } : {}),
       ...(o.maxK !== undefined ? { maxK: o.maxK } : {}),
       ...(o.pad !== undefined ? { pad: o.pad } : {}),
-      ...(o.insets ? { insets: o.insets } : {}),
+      insets: () => (this.insetsOverride ?? o.insets)?.() ?? { left: 0, right: 0, top: 0, bottom: 0 },
       reducedMotion: o.reducedMotion?.() ?? false,
       onChange: (v) => this.onChange(v),
     });
     if (this.bounds) this.vpt.setBounds(this.bounds, { fit: true });
+  }
+
+  /** Insets fit() keeps clear, set by the scene that draws here (null: the canvas's own option again). */
+  setInsets(f: (() => Insets) | null): void {
+    this.insetsOverride = f;
   }
 
   setOptions(opts: Partial<Pick<CanvasOptions, 'wheel' | 'panOnDrag'>>): void {

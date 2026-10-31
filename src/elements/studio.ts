@@ -140,13 +140,16 @@ export class DiagramStudio {
     this.toaster = new Toaster(root);
     this.dialogs = new Dialogs(this.shadow);
     this.history = this.historyAdapter();
-    // the editor's History shows <mmdx-diff>: the studio loads it in the background
-    void import('./diff.js').then((m) => m.defineDiff());
 
     const sig = { signal: this.ac.signal };
     this.editorEl.addEventListener('mmdx-change', () => this.persist(), sig);
     this.editorEl.addEventListener('mmdx-dirty', () => this.nameEl.classList.toggle('dirty', this.editorEl.dirty), sig);
     this.editorEl.addEventListener('mmdx-edit-themes', () => void this.openThemeEditor(), sig);
+    // no Edit / View switching while the editor's History is open (§8.2)
+    for (const [ev, off] of [['mmdx-history-open', true], ['mmdx-history-close', false]] as const)
+      this.editorEl.addEventListener(ev, () => {
+        for (const b of modeSwitch.el.querySelectorAll('button')) b.disabled = off;
+      }, sig);
     this.editorEl.addEventListener('mmdx-ui', (ev) => {
       const ui = (ev as CustomEvent<{ ui: 'light' | 'dark' }>).detail.ui;
       this.ui = ui;
