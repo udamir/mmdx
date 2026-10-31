@@ -23,10 +23,12 @@ export interface MenuProps {
   class?: string;
   /** Called after an item ran (the opener closes the popover here). */
   onPick?: (item: MenuItem) => void;
+  /** `part` of the menu (default none). */
+  part?: string;
 }
 
 export const MENU_CSS = /* css */ `
-.mmdx-menu.mmdx-bmenu { min-width: 210px; padding: 6px; background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: 12px; box-shadow: 0 10px 30px rgba(20,30,60,.18); }
+.mmdx-menu.mmdx-bmenu { min-width: 210px; padding: 6px; background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: 12px; box-shadow: var(--mmdx-shadow-card); }
 .mmdx-bmenu .mmdx-sect { padding: 6px 8px 3px; }
 .mmdx-bmenu [role^=menuitem] { color: var(--mmdx-text); border-radius: 7px; padding: 6px 8px; }
 .mmdx-bmenu [role^=menuitem]:hover:not(:disabled), .mmdx-bmenu [role^=menuitem]:focus-visible { background: var(--mmdx-float-2); }
@@ -42,6 +44,8 @@ export function createMenu(props: MenuProps): BlockHandle<MenuProps> {
   const render = (): void => {
     el.className = ['mmdx-menu', 'mmdx-bmenu', p.class].filter(Boolean).join(' ');
     el.setAttribute('aria-label', p.label);
+    if (p.part) el.setAttribute('part', p.part);
+    else el.removeAttribute('part');
     const radio = p.entries.some((e) => typeof e === 'object' && 'checked' in e && e.checked !== undefined);
     el.replaceChildren(...p.entries.map((e) => {
       if (e === 'sep') return h('hr', { role: 'separator' });
@@ -84,8 +88,15 @@ export interface OpenMenuOptions {
   class?: string;
 }
 
-/** Opens a menu under (or above) `opener`; picking an item closes it and returns the focus to the opener. */
+/**
+ * Opens a menu under (or above) `opener`; picking an item closes it and returns the focus to the opener. Opening it
+ * again from the same opener closes it (nothing is built then).
+ */
 export function openMenu(o: OpenMenuOptions): void {
+  if (o.popovers.isOpenFor(o.opener)) {
+    o.popovers.close();
+    return;
+  }
   const menu = createMenu({ label: o.label, entries: o.entries, ...(o.class ? { class: o.class } : {}), onPick: () => o.popovers.close(true) });
   const box = (o.within ?? o.opener.offsetParent ?? o.opener.parentElement)?.getBoundingClientRect();
   const r = o.opener.getBoundingClientRect();
@@ -117,6 +128,11 @@ export function attachMenu(p: MenuButtonProps): () => void {
   p.button.setAttribute('aria-haspopup', 'menu');
   p.button.setAttribute('aria-expanded', 'false');
   scope.on(p.button, 'click', () => {
+    // a second click closes it (the entries are not built for nothing)
+    if (p.popovers.isOpenFor(p.button)) {
+      p.popovers.close();
+      return;
+    }
     const within = p.within?.();
     openMenu({
       popovers: p.popovers, opener: p.button, label: p.label, entries: p.entries(),

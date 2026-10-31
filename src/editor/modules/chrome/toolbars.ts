@@ -15,7 +15,7 @@ import type { Direction, DiagramType } from '../../../core/model.js';
 import type { DiagramMeta } from '../../../core/meta/types.js';
 import type { ItemRef, Rect } from '../../../core/types.js';
 import type { PageToolbarApi, PageToolbarHandle, SequenceLayoutState } from '../../../ui/page-toolbar.js';
-import type { ArrangeOp, ToolbarApi, ToolbarHandle, ToolbarOptions } from '../../../ui/style-toolbar.js';
+import type { ArrangeOp, ToolbarApi, StyleToolbarHandle, StyleToolbarOptions } from '../../../ui/style-toolbar.js';
 import { TOOLBAR_CSS } from '../../../ui/styles/toolbar.js';
 import { h } from '../../../ui/h.js';
 import type { EditorCore, Sel } from '../../core.js';
@@ -243,13 +243,13 @@ export const toolbarsModule: EditorModule = {
       left: 'left', hcenter: 'center', right: 'right', top: 'top', vcenter: 'middle', bottom: 'bottom', hdist: 'hdist', vdist: 'vdist',
     };
     let destroyed = false;
-    let style: ToolbarHandle | null = null;
-    let styleArgs: [ToolbarApi, ToolbarOptions] | null = null;
+    let style: StyleToolbarHandle | null = null;
+    let styleArgs: [ToolbarApi, StyleToolbarOptions] | null = null;
     let styleLoading: Promise<void> | null = null;
     // the style toolbar code loads with the first selection (prefetched when the browser is idle)
-    const ensureStyleBar = (): Promise<void> => (styleLoading ??= import('../../../ui/style-toolbar.js').then(({ createToolbar }) => {
+    const ensureStyleBar = (): Promise<void> => (styleLoading ??= import('../../../ui/style-toolbar.js').then(({ createStyleToolbar }) => {
       if (!styleArgs || style || destroyed) return;
-      style = createToolbar(wrap, ...styleArgs);
+      style = createStyleToolbar(wrap, ...styleArgs);
       cleanups.push(() => style?.destroy());
       if (!scope.active) style.el.remove();
       else sync(true);

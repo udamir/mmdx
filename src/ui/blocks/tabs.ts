@@ -2,6 +2,7 @@
 // is the only one in the Tab order. Extra elements (a close button) can follow the tabs.
 import { h } from '../h.js';
 import { read, Scope, type BlockHandle, type Value } from './block.js';
+import { keepFocus, rovingKeys } from './focus.js';
 
 export interface TabsProps<V extends string = string> {
   label: string;
@@ -23,18 +24,10 @@ export function createTabs<V extends string>(props: TabsProps<V>): BlockHandle<T
   const scope = new Scope();
   let fx = new Scope();
   const el = h('div', { role: 'tablist' });
-  scope.on(el, 'keydown', (ev: KeyboardEvent) => {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(ev.key)) return;
-    const tabs = [...el.querySelectorAll<HTMLElement>('[role=tab]')];
-    const i = tabs.indexOf(ev.target as HTMLElement);
-    if (i < 0) return;
-    const n = ev.key === 'Home' ? 0 : ev.key === 'End' ? tabs.length - 1 : (i + (ev.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
-    ev.preventDefault();
-    const next = tabs[n];
-    next?.focus();
-    next?.click();
-  });
-  const render = (): void => {
+  // the selected tab is the tab stop (set below); arrows select as they move
+  const keys = rovingKeys(el, { orientation: 'horizontal', selector: '[role=tab]', select: true });
+  scope.add(() => keys.destroy());
+  const render = (): void => keepFocus(el, () => {
     fx.dispose();
     fx = new Scope();
     el.className = ['mmdx-tabs', 'tabs', p.class].filter(Boolean).join(' ');
@@ -56,7 +49,7 @@ export function createTabs<V extends string>(props: TabsProps<V>): BlockHandle<T
         b.tabIndex = on ? 0 : -1;
       }
     });
-  };
+  });
   render();
   return {
     el,

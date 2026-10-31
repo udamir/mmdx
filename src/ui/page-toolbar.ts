@@ -2,12 +2,13 @@
 // with nothing else selected. One button per page property of its diagram type: type, direction, preset,
 // background, border, size, proportions, lines, and the sequence layout. Same look as the style toolbar (.mtb); the
 // host supplies a `PageToolbarApi` with the page state and actions. Listeners are scoped to the host's root node and
-// removed by destroy().
+// removed by destroy(). The popover host, sliders and colour grids are ui/toolbar-kit.ts's, shared with the style
+// toolbar.
 import { TOOLBAR_MESSAGES } from './messages/toolbar.js';
 import type { Rect } from '../core/types.js';
 import { h, s } from './h.js';
 import { createI18n, registerMessages, type I18n } from './i18n.js';
-import type { PaletteColor } from './style-toolbar.js';
+import { accentHex, barKeys, createPopHost, localColors, popLabel, slider as kitSlider, swatches, type PaletteColor } from './toolbar-kit.js';
 
 /** `[value, label]`. */
 export type Choice = readonly [string, string];
@@ -104,7 +105,6 @@ function icon(body: string, size = 22): SVGSVGElement {
 }
 
 const clear = (col: string | null | undefined): boolean => !col || col === 'none' || col === 'transparent';
-const isHex6 = (v: string): boolean => /^#[0-9a-f]{6}$/i.test(v);
 
 /** `host` must already be in its final root (document or shadow root): outside clicks and Esc are listened for there. */
 export function createPageToolbar(host: HTMLElement, api: PageToolbarApi, opts: { i18n?: I18n } = {}): PageToolbarHandle {
@@ -113,45 +113,10 @@ export function createPageToolbar(host: HTMLElement, api: PageToolbarApi, opts: 
   const bar = h('div', { class: 'mtb page-mtb', role: 'toolbar', 'aria-label': t('ptb.label'), part: 'toolbar' });
   bar.hidden = true;
   host.append(bar);
-  let open: PopName | null = null;
-  const ac = new AbortController();
-  const sig = { signal: ac.signal };
-  const root = host.getRootNode() as Document | ShadowRoot;
-
-  const close = (returnFocus = false): void => {
-    const was = open;
-    open = null;
-    bar.querySelectorAll('.mtb-pop').forEach((p) => p.remove());
-    bar.querySelectorAll('.mtb-btn.on').forEach((b) => {
-      b.classList.remove('on');
-      b.setAttribute('aria-expanded', 'false');
-    });
-    if (returnFocus && was) bar.querySelector<HTMLElement>(`[data-c="${was}"]`)?.focus();
-  };
-  root.addEventListener('pointerdown', (ev) => {
-    if (open && !ev.composedPath().includes(bar)) close();
-  }, sig);
-  root.addEventListener('keydown', (ev) => {
-    const k = ev as KeyboardEvent;
-    if (k.key === 'Escape' && open) {
-      k.preventDefault();
-      k.stopPropagation();
-      close(k.composedPath().includes(bar));
-    }
-  }, sig);
-  bar.addEventListener('pointerdown', (ev) => ev.stopPropagation(), sig); // clicks on the bar do not reach the canvas
-  bar.addEventListener('keydown', (ev) => {
-    const target = ev.composedPath()[0] as HTMLElement;
-    const menu = target.closest<HTMLElement>('.mtb-pop [role=menu]');
-    const items = menu
-      ? Array.from(menu.querySelectorAll<HTMLElement>('[role^=menuitem]'))
-      : target.closest('.mtb-pop') || target.tagName === 'INPUT' ? [] : Array.from(bar.querySelectorAll<HTMLElement>('.mtb-seg > button'));
-    const keys = menu ? ['ArrowUp', 'ArrowDown'] : ['ArrowLeft', 'ArrowRight'];
-    if (!items.length || !keys.includes(ev.key)) return;
-    const i = items.indexOf(target);
-    items[(i + (ev.key === keys[1] ? 1 : -1) + items.length) % items.length]?.focus();
-    ev.preventDefault();
-  }, sig);
+  const pops = createPopHost({ host, bar, hBounds: () => api.hBounds?.() });
+  const keys = barKeys(bar, '.mtb-seg > button');
+  const close = (returnFocus = false): void => pops.close(returnFocus);
+  bar.addEventListener('pointerdown', (ev) => ev.stopPropagation()); // clicks on the bar do not reach the canvas
 
   function refresh(): void {
     if (!api.visible()) {
@@ -159,9 +124,9 @@ export function createPageToolbar(host: HTMLElement, api: PageToolbarApi, opts: 
       close();
       return;
     }
-    const keep = open;
+    const keep = pops.open as PopName | null;
     bar.replaceChildren();
-    open = null;
+    pops.reset();
     const types = api.types(), type = api.diagramType() ?? '';
     const typeLabel = types.find(([v]) => v === type)?.[1] ?? t('ptb.diagram');
     const dir = api.direction();
@@ -198,6 +163,7 @@ export function createPageToolbar(host: HTMLElement, api: PageToolbarApi, opts: 
       const b = bar.querySelector<HTMLElement>(`[data-c="${keep}"]`);
       if (b) toggle(keep, b, false);
     }
+    keys.sync();
     place();
   }
 
@@ -250,21 +216,15 @@ export function createPageToolbar(host: HTMLElement, api: PageToolbarApi, opts: 
   }
 
   function toggle(name: PopName, btn: HTMLElement, focusIn = true): void {
-    if (open === name) {
-      close(true);
-      return;
-    }
-    close();
-    open = name;
-    btn.classList.add('on');
-    btn.setAttribute('aria-expanded', 'true');
-    const p = h('div', { class: 'mtb-pop', role: 'dialog', 'aria-label': btn.getAttribute('aria-label') ?? name });
-    bar.append(p);
+    pops.toggle(name, btn, (p) => fill(p, name), { focusIn, focus: '[role^=menuitem][aria-checked=true], [role^=menuitem], button, input' });
+  }
+
+  /** Re-fills the open popover in place (after a local colour was removed). */
+  function again(): void {
+    const p = pops.pop(), name = pops.open as PopName | null;
+    if (!p || !name) return;
+    p.replaceChildren();
     fill(p, name);
-    const bl = btn.offsetLeft + (btn.parentElement?.offsetLeft ?? 0);
-    p.style.left = `${Math.max(0, Math.min(bl - 20, bar.clientWidth - p.offsetWidth))}px`;
-    fitPop(p);
-    if (focusIn) queueMicrotask(() => p.querySelector<HTMLElement>('[role^=menuitem][aria-checked=true], [role^=menuitem], button, input')?.focus());
   }
 
   function fill(p: HTMLElement, name: PopName): void {
@@ -305,15 +265,7 @@ export function createPageToolbar(host: HTMLElement, api: PageToolbarApi, opts: 
 
   // value slider: live redraw while dragging, one undo step on release
   function slider(p: HTMLElement, text: string, value: number, min: number, max: number, step: number, set: (v: number, live: boolean) => void, fmt: (v: number) => string): void {
-    const out = h('span', { class: 'mtb-val' }, fmt(value));
-    const r = h('input', { type: 'range', min: String(min), max: String(max), step: String(step), 'aria-label': text });
-    r.value = String(value);
-    r.addEventListener('input', () => {
-      out.textContent = fmt(Number(r.value));
-      set(Number(r.value), true);
-    });
-    r.addEventListener('change', () => set(Number(r.value), false));
-    p.append(h('div', { class: 'mtb-slider' }, h('div', { class: 'mtb-slabel' }, h('span', null, text), out), r));
+    p.append(kitSlider({ label: text, value, min, max, step, fmt, onInput: (v) => set(v, true), onChange: (v) => set(v, false) }));
   }
 
   function list(items: readonly Choice[], cur: string | null | undefined, pick: (v: string) => void, name: string): HTMLElement {
@@ -329,69 +281,14 @@ export function createPageToolbar(host: HTMLElement, api: PageToolbarApi, opts: 
   function colors(p: HTMLElement, key: 'background' | 'border', pick: (v: string | undefined) => void): void {
     const cur = String(api.getRaw(key) ?? '').toLowerCase();
     const title = key === 'border' ? t('ptb.borderColour') : t('ptb.backgroundColour');
-    p.append(h('div', { class: 'mtb-label' }, title));
-    const g = h('div', { class: 'mtb-colors', role: 'group', 'aria-label': title });
-    const noneOn = !cur || cur === 'none';
-    g.append(h('button', { type: 'button', class: 'mtb-sw none' + (noneOn ? ' on' : ''), title: t('ptb.transparent'), 'aria-label': t('ptb.transparent'), 'aria-pressed': String(noneOn), onclick: () => pick('none') }));
-    for (const { name, value } of api.palette()) {
-      const on = cur === `@${name}`.toLowerCase() || value.toLowerCase() === cur;
-      const b = h('button', { type: 'button', class: 'mtb-sw' + (on ? ' on' : ''), title: name, 'aria-label': name, 'aria-pressed': String(on), onclick: () => pick(`@${name}`) });
-      b.style.background = value;
-      g.append(b);
-    }
-    p.append(g);
-    if (api.addLocalColor) localColors(p, cur, pick);
+    p.append(popLabel(title), swatches({ label: title, cur, colors: api.palette(), pick, none: { label: t('ptb.transparent'), on: !cur || cur === 'none', pick: () => pick('none') } }));
+    const add = api.addLocalColor, remove = api.removeLocalColor;
+    if (add)
+      p.append(...localColors({
+        t, cur, colors: api.localPalette?.() ?? [], pick, add: (hex) => add(hex), again, plus: icon(ICON['plus']!, 14), start: accentHex(bar),
+        ...(remove ? { remove: (name: string) => remove(name) } : {}),
+      }));
     p.append(h('button', { type: 'button', class: 'mtb-item', onclick: () => pick(undefined) }, t('ptb.themeDefault')));
-  }
-
-  // the diagram's own colours (not the theme's) + "+" to add one: saved in the diagram, then applied
-  function localColors(p: HTMLElement, cur: string, pick: (v: string) => void): void {
-    p.append(h('div', { class: 'mtb-label' }, t('tb.thisDiagram')));
-    const g = h('div', { class: 'mtb-colors', role: 'group', 'aria-label': t('tb.thisDiagram') });
-    for (const { name, value } of api.localPalette?.() ?? []) {
-      const on = cur === `@${name}`.toLowerCase() || value.toLowerCase() === cur;
-      const title = t('tb.localColor', { value });
-      const b = h('button', { type: 'button', class: 'mtb-sw' + (on ? ' on' : ''), title, 'aria-label': title, 'aria-pressed': String(on) });
-      b.style.background = value;
-      b.addEventListener('click', (ev) => {
-        if (ev.altKey) {
-          api.removeLocalColor?.(name);
-          return;
-        }
-        pick(`@${name}`);
-      });
-      b.addEventListener('keydown', (ev) => {
-        if ((ev.key === 'Delete' || ev.key === 'Backspace') && api.removeLocalColor) {
-          ev.preventDefault();
-          api.removeLocalColor(name);
-        }
-      });
-      g.append(b);
-    }
-    const ci = h('input', { type: 'color', 'aria-label': t('tb.addColor') });
-    ci.value = isHex6(cur) ? cur : '#4f46e5';
-    ci.addEventListener('change', () => {
-      const n = api.addLocalColor?.(ci.value);
-      if (n) pick(`@${n}`);
-    });
-    g.append(h('label', { class: 'mtb-sw mtb-add', title: t('tb.addColor') }, icon(ICON['plus']!, 14), ci));
-    p.append(g);
-  }
-
-  function fitPop(p: HTMLElement): void {
-    const barLeft = bar.getBoundingClientRect().left - host.getBoundingClientRect().left;
-    const [lo, hi] = api.hBounds?.() ?? [8, host.clientWidth - 8];
-    p.style.left = `${Math.max(lo - barLeft, Math.min(parseFloat(p.style.left) || 0, hi - barLeft - p.offsetWidth))}px`;
-    const barTop = bar.getBoundingClientRect().top - host.getBoundingClientRect().top;
-    const below = host.clientHeight - (barTop + bar.offsetHeight + 8) - 8;
-    if (p.scrollHeight <= below || below >= barTop - 16) {
-      p.style.top = `${bar.offsetHeight + 8}px`;
-      p.style.maxHeight = `${below}px`;
-    } else {
-      const hh = Math.min(p.scrollHeight, barTop - 16);
-      p.style.top = `${-hh - 8}px`;
-      p.style.maxHeight = `${hh}px`;
-    }
   }
 
   // Above the page; pinned to the top of the host when the page starts above the view.
@@ -418,10 +315,10 @@ export function createPageToolbar(host: HTMLElement, api: PageToolbarApi, opts: 
     refresh,
     place,
     close,
-    isOpen: () => open !== null,
+    isOpen: () => pops.open !== null,
     destroy: () => {
-      ac.abort();
-      close();
+      keys.destroy();
+      pops.destroy();
       bar.remove();
     },
     el: bar,

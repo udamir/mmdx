@@ -2,6 +2,7 @@
 // compact `<select>` form that the host's container queries show instead of the buttons on narrow canvases.
 import { h } from '../h.js';
 import { read, Scope, type BlockHandle, type Value } from './block.js';
+import { keepFocus } from './focus.js';
 
 export interface SegmentedOption<V extends string = string> {
   value: V;
@@ -37,7 +38,7 @@ export function createSegmented<V extends string>(props: SegmentedProps<V>): Blo
   let p = { ...props };
   let fx = new Scope();
   const el = h('span', { class: 'mmdx-seg', role: 'group' });
-  const render = (): void => {
+  const render = (): void => keepFocus(el, () => {
     fx.dispose();
     fx = new Scope();
     el.setAttribute('aria-label', p.label);
@@ -68,7 +69,7 @@ export function createSegmented<V extends string>(props: SegmentedProps<V>): Blo
       }
       if (select) select.value = v;
     });
-  };
+  });
   render();
   return {
     el,

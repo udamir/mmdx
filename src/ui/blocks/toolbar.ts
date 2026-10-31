@@ -1,7 +1,9 @@
 // Toolbar (§5.2): a floating bar of buttons, vertical or horizontal, with separators, arrow-key focus movement
-// (Home / End too) and the CSS tooltips of `data-tip` placed beside (vertical) or above (horizontal) the bar.
+// (Home / End too) with a roving tab stop (the bar is one stop in the Tab order; a nested radio group keeps its own)
+// and the CSS tooltips of `data-tip` placed beside (vertical) or above (horizontal) the bar.
 import { h } from '../h.js';
 import { read, Scope, type BlockHandle, type Value } from './block.js';
+import { keepFocus, rovingKeys } from './focus.js';
 
 export type ToolbarItem = HTMLElement | 'sep' | null | undefined | false;
 
@@ -40,8 +42,10 @@ export interface ToolbarHandle extends BlockHandle<ToolbarProps> {
   setItems(items: readonly ToolbarItem[]): void;
 }
 
-const focusable = (bar: HTMLElement): HTMLElement[] =>
-  [...bar.querySelectorAll<HTMLElement>('button, select, [role=radio], [tabindex="0"]')].filter((e) => !(e as HTMLButtonElement).disabled && !e.closest('[hidden]') && e.closest('.mmdx-toolbar') === bar);
+/** The controls of this bar (not of a toolbar nested in it). */
+const FOCUSABLE = 'button, select, input, [role=radio], [role=tab]';
+const controls = (bar: HTMLElement): HTMLElement[] =>
+  [...bar.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((e) => e.closest('.mmdx-toolbar') === bar);
 
 export function createToolbar(props: ToolbarProps): ToolbarHandle {
   let p = { ...props };
@@ -49,22 +53,9 @@ export function createToolbar(props: ToolbarProps): ToolbarHandle {
   const el = h(p.tag ?? 'div', { role: 'toolbar' });
   let compactScope = new Scope();
 
-  // arrow keys move along the bar (the buttons stay in the Tab order: the editor's tool dock never used roving tabindex)
-  scope.on(el, 'keydown', (ev: KeyboardEvent) => {
-    const vertical = p.orientation === 'vertical';
-    const fwd = vertical ? 'ArrowDown' : 'ArrowRight', back = vertical ? 'ArrowUp' : 'ArrowLeft';
-    if (![fwd, back, 'Home', 'End'].includes(ev.key) || ev.altKey || ev.metaKey || ev.ctrlKey) return;
-    const target = ev.target as HTMLElement;
-    if (target.tagName === 'SELECT' || target.tagName === 'INPUT') return;
-    const list = focusable(el);
-    const i = list.indexOf(target);
-    if (i < 0) return;
-    const next = ev.key === 'Home' ? list[0] : ev.key === 'End' ? list[list.length - 1] : list[(i + (ev.key === fwd ? 1 : -1) + list.length) % list.length];
-    if (!next) return;
-    ev.preventDefault();
-    ev.stopPropagation();
-    next.focus();
-  });
+  // arrow keys move along the bar; only the last focused control (else the first) is in the Tab order
+  const keys = rovingKeys(el, { orientation: () => p.orientation, selector: controls, roving: true, skip: (x) => x.tagName === 'INPUT' || x.tagName === 'SELECT' });
+  scope.add(() => keys.destroy());
 
   const renderFrame = (): void => {
     el.className = ['mmdx-toolbar', p.class, `tip-${p.tooltip ?? (p.orientation === 'vertical' ? 'side' : 'above')}`].filter(Boolean).join(' ');
@@ -78,10 +69,8 @@ export function createToolbar(props: ToolbarProps): ToolbarHandle {
     if (compact !== undefined) compactScope.effect(() => el.classList.toggle('compact', read(compact)));
   };
   const renderItems = (): void => {
-    const active = (el.getRootNode() as Document | ShadowRoot).activeElement as HTMLElement | null;
-    const f = active && el.contains(active) ? active.getAttribute('data-f') : null;
-    el.replaceChildren(...p.items.filter((x): x is HTMLElement | 'sep' => !!x).map((x) => (x === 'sep' ? h('span', { class: 'mmdx-sep', role: 'separator', 'aria-orientation': p.orientation === 'vertical' ? 'horizontal' : 'vertical' }) : x)));
-    if (f) [...el.querySelectorAll<HTMLElement>('[data-f]')].find((e) => e.getAttribute('data-f') === f)?.focus({ preventScroll: true });
+    keepFocus(el, () => el.replaceChildren(...p.items.filter((x): x is HTMLElement | 'sep' => !!x).map((x) => (x === 'sep' ? h('span', { class: 'mmdx-sep', role: 'separator', 'aria-orientation': p.orientation === 'vertical' ? 'horizontal' : 'vertical' }) : x))));
+    keys.sync();
   };
   renderFrame();
   renderItems();

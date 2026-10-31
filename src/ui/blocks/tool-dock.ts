@@ -4,7 +4,6 @@
 // `editor/modules/chrome/tool-dock.ts` and the diff's `vbar`; the class names are kept so the editor's tests and
 // styles still match. The host builds the buttons (`dockButton`) and owns their state.
 import { h } from '../h.js';
-import { formatKeys } from '../shortcuts.js';
 import { read, Scope, type BlockHandle, type Value } from './block.js';
 import { createIconButton, type IconButtonHandle, type IconButtonProps } from './button.js';
 import { keepFocus } from './focus.js';
@@ -43,7 +42,7 @@ export interface ToolDockHandle extends BlockHandle<ToolDockProps> {
 export const TOOL_DOCK_CSS = /* css */ `
 .tool-dock { position: absolute; left: calc(12px + var(--inset-l, 0px)); top: 50%; transform: translateY(-50%); z-index: 31; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .view-tools { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border-radius: 14px;
-  background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); box-shadow: 0 4px 16px rgba(20,30,60,.10), 0 1px 3px rgba(20,30,60,.06); }
+  background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); box-shadow: var(--mmdx-shadow-float); }
 .vt-tool, .vt-card button { border: 0; background: none; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 10px; color: var(--mmdx-text); padding: 0; }
 .vt-tool .mmdx-icon, .vt-card button .mmdx-icon { width: 24px; height: 24px; }
 .vt-tool:hover:not(:disabled), .vt-card button:hover:not(:disabled) { background: var(--mmdx-float-2); }
@@ -52,13 +51,13 @@ export const TOOL_DOCK_CSS = /* css */ `
 .vt-tool:disabled { opacity: .35; }
 .vt-divider { width: 30px; height: 1px; background: var(--mmdx-border); margin: 4px 0; flex: none; }
 .vt-card { display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 14px; background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line);
-  box-shadow: 0 4px 16px rgba(20,30,60,.10), 0 1px 3px rgba(20,30,60,.06); }
+  box-shadow: var(--mmdx-shadow-float); }
 .vt-card button:disabled { opacity: .3; cursor: default; background: none; }
 .vt-tool.has-issues { position: relative; }
 .vt-tool.has-issues::after { content: attr(data-issues); position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 8px;
-  background: var(--mmdx-danger); color: #fff; font: 700 10px/16px system-ui, sans-serif; text-align: center; box-shadow: 0 0 0 2px var(--mmdx-float); pointer-events: none; }
+  background: var(--mmdx-danger); color: var(--mmdx-on-danger); font: 700 10px/16px system-ui, sans-serif; text-align: center; box-shadow: 0 0 0 2px var(--mmdx-float); pointer-events: none; }
 .vt-opts { position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 5px;
-  background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+  background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: 10px; box-shadow: var(--mmdx-shadow); }
 .vt-opts[hidden] { display: none; }
 .tool-dock.compact { gap: 8px; }
 .tool-dock.compact .view-tools, .tool-dock.compact .vt-card { padding: 4px; gap: 2px; border-radius: 12px; }
@@ -74,7 +73,7 @@ export interface DockButtonProps extends Omit<IconButtonProps, 'icon' | 'iconSiz
 
 /** A tool-dock button (`.vt-tool`): 19 px icon, native tooltip with the shortcut formatted for the platform. */
 export function dockButton(props: DockButtonProps): IconButtonHandle {
-  return createIconButton({ formatKeys, ...props, iconSize: 19, tooltip: 'title', class: ['vt-tool', props.class].filter(Boolean).join(' ') });
+  return createIconButton({ ...props, iconSize: 19, tooltip: 'title', class: ['vt-tool', props.class].filter(Boolean).join(' ') });
 }
 
 /** The problem badge on a dock button (`.has-issues`, count from `data-issues`, capped at 99+). */

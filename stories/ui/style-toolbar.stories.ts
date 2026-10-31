@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
-import { createToolbar, TOOLBAR_KINDS, type PaletteColor, type ToolbarApi, type ToolbarControl } from '../../src/ui/style-toolbar.js';
+import { createStyleToolbar, TOOLBAR_KINDS, type PaletteColor, type ToolbarApi, type ToolbarControl } from '../../src/ui/style-toolbar.js';
 import { TOOLBAR_CSS } from '../../src/ui/styles/toolbar.js';
 import { chromeHost } from '../support.js';
 
@@ -101,7 +101,7 @@ function styleToolbar(a: ToolbarArgs): HTMLElement {
       : {}),
   };
   const exclude: ToolbarControl[] = a.themeEditorMode ? ['more', 'lock', 'link'] : [];
-  const tb = createToolbar(stage, api, { exclude, reset: a.themeEditorMode });
+  const tb = createStyleToolbar(stage, api, { exclude, reset: a.themeEditorMode });
   tb.refresh();
   // placement needs the host in the document
   requestAnimationFrame(() => tb.place());

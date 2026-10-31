@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DiagramDiff, ItemChange } from '../../../src/core/diff/index.js';
+import { changeKey } from '../../../src/core/diff/merge.js';
+import { signal } from '../../../src/ui/signal.js';
 import { createChangeList, describeChange, fieldRow, kindLabel, type ChangeListProps } from '../../../src/ui/blocks/change-list.js';
 import { createI18n } from '../../../src/ui/i18n.js';
 
@@ -17,7 +19,7 @@ const diff: DiagramDiff = {
   counts: { added: 1, removed: 1, changed: 1, content: 1, layout: 0, style: 2 },
 };
 const props = (over: Partial<ChangeListProps> = {}): ChangeListProps => ({
-  diff, changes, selected: null, colorBefore: (v) => (typeof v === 'string' && v.startsWith('#') ? v : undefined), colorAfter: () => undefined,
+  doc: diff.doc, changes, keyOf: changeKey, selected: null, colorBefore: (v) => (typeof v === 'string' && v.startsWith('#') ? v : undefined), colorAfter: () => undefined,
   onSelect: () => undefined, t, ...over,
 });
 const key = (el: Element, k: string): void => void el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
@@ -42,10 +44,31 @@ describe('ChangeList', () => {
     expect(rows[2]!.querySelector('.label')!.textContent).toBe('a → c');
     expect([...rows[2]!.querySelectorAll('.cicon')].map((c) => c.className)).toEqual(['cicon m-content', 'cicon m-style']);
     expect(rows[2]!.title).toBe('edge a → c: content, style changed (label, stroke)');
+    // one tab stop: the selected row
+    expect(rows.map((r) => r.tabIndex)).toEqual([0, -1, -1]);
+  });
+
+  it('a selected signal moves the selection and the tab stop in place', () => {
+    const selected = signal<string | null>(null);
+    const cl = createChangeList(props({ selected }));
+    const rows = [...cl.el.querySelectorAll<HTMLButtonElement>('.change')];
+    expect(rows.map((r) => r.tabIndex)).toEqual([0, -1, -1]);
+    selected.set('edge:L0');
+    expect(cl.el.querySelectorAll('.change')[2]).toBe(rows[2]);
+    expect(rows[2]!.getAttribute('aria-selected')).toBe('true');
+    expect(rows.map((r) => r.tabIndex)).toEqual([-1, -1, 0]);
+    // a click on the selected row clears it
+    const onSelect = vi.fn();
+    cl.update({ onSelect });
+    cl.el.querySelectorAll<HTMLElement>('.change')[2]!.click();
+    expect(onSelect).toHaveBeenCalledWith(null);
+    cl.destroy();
+    selected.set('node:a');
+    expect(rows[0]!.getAttribute('aria-selected')).toBe('false');
   });
 
   it('shows the empty state without changes', () => {
-    const cl = createChangeList(props({ changes: [], diff: { ...diff, doc: [] } }));
+    const cl = createChangeList(props({ changes: [], doc: [] }));
     expect(cl.el.querySelector('.changes')).toBeNull();
     expect(cl.el.querySelector('.empty')!.textContent).toBe('No changes with the current filters.');
   });
@@ -109,6 +132,9 @@ describe('change helpers', () => {
   it('describeChange, kindLabel and fieldRow', () => {
     expect(kindLabel(t, 'entity')).toBe('table');
     expect(describeChange(t, changes[0]!)).toBe('node Start: added');
+    // the field list goes through its own message (a translation can place it)
+    const de = (k: string, p?: Readonly<Record<string, string | number>>): string => (k === 'diff.status.changedFields' ? `${p?.['facets']} geändert [${p?.['fields']}]` : t(k, p));
+    expect(describeChange(de, changes[2]!)).toBe('edge a → c: content, style geändert [label, stroke]');
     const row = fieldRow(changes[2]!.fields[1]!, (v) => String(v), () => undefined);
     expect(row.className).toBe('field m-style');
     const [before, after] = [...row.querySelectorAll('.val')];

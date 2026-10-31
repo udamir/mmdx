@@ -36,6 +36,8 @@ export interface LayerListProps {
   onRename?: (id: string, name: string) => void;
   display?: readonly DisplayToggle[];
   t: Translate;
+  /** `part` of the element (default none). */
+  part?: string;
 }
 
 export const LAYER_LIST_CSS = /* css */ `
@@ -123,6 +125,8 @@ export function createLayerList(props: LayerListProps): LayerListHandle {
       fx.dispose();
       fx = new Scope();
       const t = p.t;
+      if (p.part) el.setAttribute('part', p.part);
+      else el.removeAttribute('part');
       const out: HTMLElement[] = [];
       if (p.layers.length)
         out.push(h('div', { class: 'mmdx-sect', role: 'heading', 'aria-level': '3' }, t('layers.layers')),

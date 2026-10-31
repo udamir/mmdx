@@ -38,6 +38,8 @@ export interface FilterTogglesProps {
   onToggle: (id: string) => void;
   onDim?: () => void;
   t: Translate;
+  /** `part` of the group (default none). */
+  part?: string;
 }
 
 export interface FilterTogglesHandle extends BlockHandle<FilterTogglesProps> {
@@ -80,9 +82,11 @@ export function createFilterToggles(props: FilterTogglesProps): FilterTogglesHan
     fx = new Scope();
     const t = p.t;
     el.setAttribute('aria-label', t('diff.filters'));
+    if (p.part) el.setAttribute('part', p.part);
+    else el.removeAttribute('part');
     const parts: HTMLElement[] = p.filters.map((f) => {
       const b = h('button', {
-        type: 'button', class: `flt flt-${f.id} ${f.on ? 'on' : 'off'}`, 'aria-pressed': String(f.on), 'aria-label': `${f.label} (${f.count})`, 'data-f': `flt-${f.id}`,
+        type: 'button', class: `flt flt-${f.id} ${f.on ? 'on' : 'off'}`, 'aria-pressed': String(f.on), 'aria-label': t('diff.filter.name', { label: f.label, n: f.count }), 'data-f': `flt-${f.id}`,
         'data-tip': t('diff.filter.tip', { label: f.label, n: f.count, action: f.on ? t('diff.filter.hide') : t('diff.filter.show') }),
       }, icon(f.icon), f.count ? h('span', { class: 'cnt', 'aria-hidden': 'true' }, String(f.count)) : null);
       fx.on(b, 'click', () => p.onToggle(f.id));
@@ -94,7 +98,7 @@ export function createFilterToggles(props: FilterTogglesProps): FilterTogglesHan
         type: 'button', class: `mmdx-dim${dim.on ? ' on' : ''}`, 'aria-pressed': String(dim.on), 'aria-label': dim.label, 'data-tip': dim.label, 'data-f': 'dim',
       }, icon(dim.icon));
       fx.on(b, 'click', () => p.onDim?.());
-      if (parts.length) parts.push(h('span', { class: 'mmdx-sep sep', role: 'separator', 'aria-orientation': 'vertical' }));
+      if (parts.length) parts.push(h('span', { class: 'mmdx-sep', role: 'separator', 'aria-orientation': 'vertical' }));
       parts.push(b);
     }
     el.replaceChildren(...parts);

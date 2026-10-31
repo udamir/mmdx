@@ -26,7 +26,14 @@ export const MESSAGES_CSS = /* css */ `
 export interface BannerProps {
   text: Value<string>;
   tone?: 'info' | 'warn' | 'error';
+  part?: string;
 }
+
+/** Sets or removes the `part` a host passed. */
+const setPart = (el: HTMLElement, part: string | undefined): void => {
+  if (part) el.setAttribute('part', part);
+  else el.removeAttribute('part');
+};
 
 export function createBanner(props: BannerProps): BlockHandle<BannerProps> {
   let p = { ...props };
@@ -36,6 +43,7 @@ export function createBanner(props: BannerProps): BlockHandle<BannerProps> {
     fx.dispose();
     fx = new Scope();
     el.className = `mmdx-banner tone-${p.tone ?? 'warn'}`;
+    setPart(el, p.part);
     const text = p.text;
     fx.effect(() => {
       const s = read(text);
@@ -68,6 +76,7 @@ export interface ErrorCardProps {
   /** 0-based lines of the source to mark. */
   badLines?: readonly number[];
   t: Translate;
+  part?: string;
 }
 
 export function createErrorCard(props: ErrorCardProps): BlockHandle<ErrorCardProps> {
@@ -78,6 +87,7 @@ export function createErrorCard(props: ErrorCardProps): BlockHandle<ErrorCardPro
     fx.dispose();
     fx = new Scope();
     const t = p.t;
+    setPart(el, p.part);
     const src = p.source ?? '';
     const bad = new Set(p.badLines ?? []);
     let copy: HTMLButtonElement | null = null;
@@ -117,6 +127,7 @@ export function createErrorCard(props: ErrorCardProps): BlockHandle<ErrorCardPro
 export interface EmptyStateProps {
   text: Value<string>;
   action?: { label: string; onClick: () => void };
+  part?: string;
 }
 
 export function createEmptyState(props: EmptyStateProps): BlockHandle<EmptyStateProps> {
@@ -126,6 +137,7 @@ export function createEmptyState(props: EmptyStateProps): BlockHandle<EmptyState
   const render = (): void => {
     fx.dispose();
     fx = new Scope();
+    setPart(el, p.part);
     const msg = h('p', null);
     const text = p.text;
     fx.effect(() => void (msg.textContent = read(text)));

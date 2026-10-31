@@ -3,14 +3,17 @@
 // collapsed unchanged runs ("⋯ N unchanged lines", expanded on click), and the narrowing to the lines of one item
 // (`sel`, with "Show all"). An optional Copy button copies the listing (diff: the after side). Replaces
 // `codeDiff` and `codeListing` of elements/diff/panels.ts (same DOM and classes, now highlighted) and the listing
-// of elements/viewer-code.ts. Highlighting is the dependency-free tokenizer of ui/code-editor (`highlightLine`,
-// `highlightMetaLine`); text goes in as text nodes only. The diff colours come from the `--mmdx-diff-*` tokens: in
-// diff mode the host adopts `DIFF_TOKENS` (ui/styles/diff.ts).
+// of elements/viewer-code.ts. Highlighting is the dependency-free tokenizer of ui/highlight.ts (`highlightLine`,
+// `highlightMetaLine`); text goes in as text nodes only. The line diff is core/diff/text's `diffLines` (a small, pure
+// Myers diff with no further imports, an L0 value function like the `core/diff` types §5.1 allows), or the host's
+// precomputed `ops`. The diff colours come from the `--mmdx-diff-*` tokens: in diff mode the host adopts
+// `DIFF_TOKENS` (ui/styles/diff.ts).
 import { diffLines, hunks, type LineOp } from '../../core/diff/text.js';
-import { highlightLine, highlightMetaLine } from '../code-editor.js';
 import { h } from '../h.js';
+import { highlightLine, highlightMetaLine } from '../highlight.js';
 import { registerMessages } from '../i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
+import { CODE_TOKENS_CSS } from '../styles/code-tokens.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
 import { focusedIn, keepFocus } from './focus.js';
 
@@ -43,6 +46,8 @@ export interface CodeViewDiffProps extends CodeViewCommon {
   mode: 'diff';
   a: readonly string[];
   b: readonly string[];
+  /** The line diff of `a` and `b`, when the host has it already (default: `diffLines(a, b)`). */
+  ops?: readonly LineOp[];
   /** Narrow the diff to these lines (null / absent: the whole file). */
   sel?: CodeSelection | null;
   /** Short notes in the header (facets left out of the diff). */
@@ -53,7 +58,7 @@ export interface CodeViewDiffProps extends CodeViewCommon {
 
 export type CodeViewProps = CodeViewPlainProps | CodeViewDiffProps;
 
-export const CODE_VIEW_CSS = /* css */ `
+const CODE_VIEW_OWN_CSS = /* css */ `
 .mmdx-code { position: relative; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; color: var(--mmdx-text); }
 .mmdx-code .empty { padding: 24px 12px; color: var(--mmdx-muted); text-align: center; }
 .mmdx-code .code-head { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--mmdx-border); flex: none; }
@@ -82,29 +87,10 @@ export const CODE_VIEW_CSS = /* css */ `
 .mmdx-code > .copy { position: absolute; top: 8px; right: 8px; z-index: 1; box-shadow: var(--mmdx-shadow); }
 .mmdx-code .code-head .copy { margin-left: auto; padding: 1px 8px; font-size: 11.5px; }
 .mmdx-code .code-head .code-note + .copy { margin-left: 0; }
-.mmdx-code .t-kw { color: #7c3aed; font-weight: 600; }
-.mmdx-code .t-arrow, .mmdx-code .t-card { color: #db2777; font-weight: 600; }
-.mmdx-code .t-str { color: #15803d; }
-.mmdx-code .t-label { color: #0369a1; }
-.mmdx-code .t-text { color: #0f766e; }
-.mmdx-code .t-cls { color: #c2410c; }
-.mmdx-code .t-dir, .mmdx-code .t-pos { color: #9333ea; }
-.mmdx-code .t-key { color: #b45309; font-weight: 600; }
-.mmdx-code .t-punct { color: #64748b; }
-.mmdx-code .t-comment { color: #8a93a6; font-style: italic; }
-.mmdx-code .t-meta { color: #b5bac6; }
-.mmdx-code .t-fold { color: var(--mmdx-warn); background: var(--mmdx-warn-bg); border-radius: 3px; font-style: italic; }
-:host([data-ui="dark"]) .mmdx-code .t-kw { color: #c4a5ff; }
-:host([data-ui="dark"]) .mmdx-code .t-arrow, :host([data-ui="dark"]) .mmdx-code .t-card { color: #ff7eb6; }
-:host([data-ui="dark"]) .mmdx-code .t-str { color: #7ee0a1; }
-:host([data-ui="dark"]) .mmdx-code .t-label { color: #6cc4ff; }
-:host([data-ui="dark"]) .mmdx-code .t-text { color: #5fd8c9; }
-:host([data-ui="dark"]) .mmdx-code .t-cls { color: #ffa26b; }
-:host([data-ui="dark"]) .mmdx-code .t-dir, :host([data-ui="dark"]) .mmdx-code .t-pos { color: #d29bff; }
-:host([data-ui="dark"]) .mmdx-code .t-punct { color: #8d97a8; }
-:host([data-ui="dark"]) .mmdx-code .t-comment { color: #7d8597; }
-:host([data-ui="dark"]) .mmdx-code .t-meta { color: #5b6272; }
 `;
+
+/** The CodeView's CSS, the shared highlight colours included. */
+export const CODE_VIEW_CSS = CODE_VIEW_OWN_CSS + CODE_TOKENS_CSS;
 
 /** One line as highlighted nodes (spans with `t-*` classes and text nodes). */
 export function highlighted(line: string, language: CodeLanguage): (HTMLElement | string)[] {
@@ -156,7 +142,7 @@ export function createCodeView(props: CodeViewProps): CodeViewHandle {
 
   const diff = (x: CodeViewDiffProps): HTMLElement[] => {
     const t = x.t;
-    const all = diffLines(x.a, x.b);
+    const all = x.ops ?? diffLines(x.a, x.b);
     const sel = x.sel ?? null;
     const ops = sel ? all.filter((o) => (o.a !== undefined && sel.a.has(o.a - 1)) || (o.b !== undefined && sel.b.has(o.b - 1))) : all;
     const adds = ops.filter((o) => o.op === 'add').length, dels = ops.filter((o) => o.op === 'del').length;
