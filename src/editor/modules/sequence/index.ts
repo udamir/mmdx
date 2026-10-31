@@ -612,7 +612,7 @@ export const sequenceModule: EditorModule = {
         core.drawOverlay();
       }
     };
-    svg.addEventListener('pointermove', (ev) => {
+    scope.listen(svg, 'pointermove', (ev) => {
       if (ev.buttons || busy()) return;
       const gm = seqGeom(core);
       if (!gm || core.mode.peek() !== 'edit' || core.tool.peek() !== 'pointer' || !(ev.target instanceof Element)) {
@@ -638,10 +638,10 @@ export const sequenceModule: EditorModule = {
       llHover = ll;
       hoverMsg = msg;
       core.drawOverlay();
-    }, { signal: ac.signal });
-    svg.addEventListener('pointerleave', () => {
+    });
+    scope.listen(svg, 'pointerleave', () => {
       if (!busy()) clear();
-    }, { signal: ac.signal });
+    });
     offs.push(core.on('model', () => {
       llHover = null;
       hoverMsg = null;

@@ -476,20 +476,20 @@ export const connectModule: EditorModule = {
       hoverEdge = it;
       core.drawOverlay();
     };
-    svg.addEventListener('pointermove', (ev) => {
+    scope.listen(svg, 'pointermove', (ev) => {
       if (ev.buttons || busy() || core.mode.peek() !== 'edit' || !(ev.target instanceof Element)) return;
       hoverConnect(ev, ev.target);
       hoverBend(ev, ev.target);
-    }, { signal: ac.signal });
+    });
     // a double press on a bend point / end handle is handled on pointerdown: the browser's own dblclick that follows
     // must not reach the text editor (it would edit the line's label)
-    svg.addEventListener('dblclick', (ev) => {
+    scope.listen(svg, 'dblclick', (ev) => {
       const onHandle = ev.target instanceof Element && ev.target.closest('[data-handle="bend"], [data-handle="bendNew"], [data-handle="end"]');
       if (onHandle || ev.timeStamp - Math.max(bendPress.at, endPress.at) < 800) {
         ev.stopImmediatePropagation();
         ev.preventDefault();
       }
-    }, { capture: true, signal: ac.signal });
+    }, { capture: true });
     offs.push(core.on('model', () => {
       hoverEdge = null;
     }));

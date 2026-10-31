@@ -292,11 +292,11 @@ export const canvasStructureModule: EditorModule = {
       m.style.top = `${Math.max(0, y)}px`;
     };
 
-    core.dom.svg.addEventListener('contextmenu', (ev) => {
+    scope.listen(core.dom.svg, 'contextmenu', (ev) => {
       ev.preventDefault();
       if (!editing() || (ev.target instanceof Element && ev.target.closest('.el'))) return;
       showContextMenu(ev.clientX, ev.clientY, core.toDiagram(ev));
-    }, { signal: ac.signal });
+    });
 
     /** Shift+F10 / the context-menu key: the board menu at the selection (or the middle of the canvas). */
     const keyboardMenu = (): boolean => {

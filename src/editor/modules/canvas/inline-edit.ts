@@ -127,8 +127,10 @@ export const canvasInlineEditModule: EditorModule = {
     };
 
     // pressing on the canvas applies the open editor first (prototype: S.inlineClose?.(true) on pointerdown)
-    core.dom.svg.addEventListener('pointerdown', () => close?.(true), { capture: true, signal: ac.signal });
+    scope.listen(core.dom.svg, 'pointerdown', () => close?.(true), { capture: true });
     const off = core.provide('inlineEdit', inlineEdit);
+    // suspended (History opens): the open editor is cancelled — the document is not written in History (§8.2)
+    scope.register({ set: (on) => void (on || close?.(false)), dispose: () => undefined });
     return () => {
       ac.abort();
       off();

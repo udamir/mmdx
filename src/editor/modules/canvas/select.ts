@@ -10,7 +10,6 @@ import type { SceneNode } from '../../../core/scene/types.js';
 import type { ItemKind, ItemRef } from '../../../core/types.js';
 import { clearHighlight, hoverHighlight } from '../../../dom/highlight.js';
 import { h } from '../../../ui/h.js';
-import { effect } from '../../../ui/signal.js';
 import type { EditorCore, Gesture, Hit, Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { connectionCount, elementAt, inArea, itemLabel, LINE_KINDS, markSelection, samePrimary, selectable, selKey, sizeBadge } from './shared.js';
@@ -107,6 +106,16 @@ export const canvasSelectModule: EditorModule = {
         h('button', { type: 'button', class: 'primary small', title: 'Finish editing the group (Esc)', onclick: () => exitGroup() }, 'Done'),
       );
     };
+
+    // suspended (History): the bar goes; it comes back with the group-edit effect when the module resumes
+    scope.register({
+      set: (on) => {
+        if (on) return;
+        bar?.remove();
+        bar = null;
+      },
+      dispose: () => undefined,
+    });
 
     // ---- overlay: selection boxes, resize handle, entered group, page, marquee -----------------------------------
 
@@ -397,27 +406,27 @@ export const canvasSelectModule: EditorModule = {
     const altCopy = (on: boolean): void => {
       core.dom.root.classList.toggle('alt-copy', on && editing() && (core.model.type === 'flowchart' || core.model.type === 'er'));
     };
-    svg.addEventListener('pointermove', (ev) => altCopy(ev.altKey), sig);
-    svg.addEventListener('pointerleave', () => altCopy(false), sig);
-    core.dom.root.addEventListener('keydown', (ev) => {
+    scope.listen(svg, 'pointermove', (ev) => altCopy(ev.altKey));
+    scope.listen(svg, 'pointerleave', () => altCopy(false));
+    scope.listen(core.dom.root, 'keydown', (ev) => {
       if (ev.key === 'Alt') altCopy(true);
-    }, sig);
-    core.dom.root.addEventListener('keyup', (ev) => {
+    });
+    scope.listen(core.dom.root, 'keyup', (ev) => {
       if (ev.key === 'Alt') altCopy(false);
-    }, sig);
+    });
     offs.push(() => core.dom.root.classList.remove('alt-copy', 'copying'));
 
     let down: { x: number; y: number } | null = null;
-    svg.addEventListener('pointerdown', (ev) => {
+    scope.listen(svg, 'pointerdown', (ev) => {
       down = { x: ev.clientX, y: ev.clientY };
       if (core.pageSelected.peek()) {
         core.pageSelected.set(false);
         core.drawOverlay();
         core.fire('panels');
       }
-    }, { capture: true, signal: ac.signal });
+    }, { capture: true });
 
-    svg.addEventListener('dblclick', (ev) => {
+    scope.listen(svg, 'dblclick', (ev) => {
       if (core.tool.peek() === 'hand' && editing()) return;
       const t = ev.target instanceof Element ? ev.target : null;
       if (t?.closest('[data-handle]')) return; // handles (connector ends, bend points) handle their own double-click
@@ -446,7 +455,7 @@ export const canvasSelectModule: EditorModule = {
         return;
       }
       if (!itemEl) fit();
-    }, sig);
+    });
 
     const fit = (): void => {
       if (core.has('fitView')) core.run('fitView');
@@ -454,7 +463,7 @@ export const canvasSelectModule: EditorModule = {
     };
 
     // Links open in View mode on a plain click (not the end of a pan); the host can route or veto (`mmdx-link`).
-    svg.addEventListener('click', (ev) => {
+    scope.listen(svg, 'click', (ev) => {
       const t = ev.target instanceof Element ? ev.target : null;
       const a = t?.closest('a');
       const linked = t?.closest('[data-link]');
@@ -468,18 +477,18 @@ export const canvasSelectModule: EditorModule = {
       const target = core.ctx.linkPolicy.target ?? '_blank';
       if (target === '_blank') window.open(href, '_blank', 'noopener,noreferrer');
       else window.location.assign(href);
-    }, sig);
+    });
 
     let hoverKey = '';
-    svg.addEventListener('pointermove', (ev) => {
+    scope.listen(svg, 'pointermove', (ev) => {
       if (editing() || !core.display.peek().hoverHighlight || core.viewport.panning) return;
       hoverKey = hoverHighlight(core.dom.body, ev.target instanceof Element ? ev.target : null, core.model);
-    }, sig);
-    svg.addEventListener('pointerleave', () => {
+    });
+    scope.listen(svg, 'pointerleave', () => {
       if (!hoverKey) return;
       hoverKey = '';
       clearHighlight(core.dom.body);
-    }, sig);
+    });
 
     // ---- keyboard: nudge (one history step per burst of key presses) -------------------------------------------
 
@@ -521,13 +530,13 @@ export const canvasSelectModule: EditorModule = {
       return true;
     };
     const root = core.dom.root;
-    root.addEventListener('keyup', (ev) => {
+    scope.listen(root, 'keyup', (ev) => {
       if (ev.key.startsWith('Arrow')) flushNudge();
-    }, sig);
-    root.addEventListener('keydown', (ev) => {
+    });
+    scope.listen(root, 'keydown', (ev) => {
       if (nudgeOpen && !ev.key.startsWith('Arrow') && ev.key !== 'Shift') flushNudge();
-    }, { capture: true, signal: ac.signal });
-    svg.addEventListener('pointerdown', () => flushNudge(), { capture: true, signal: ac.signal });
+    }, { capture: true });
+    scope.listen(svg, 'pointerdown', () => flushNudge(), { capture: true });
 
     // ---- selection helpers -------------------------------------------------------------------------------------
 
@@ -615,10 +624,10 @@ export const canvasSelectModule: EditorModule = {
       hoverKey = '';
       decorateGroupEdit();
     }));
-    offs.push(effect(() => {
+    scope.effect(() => {
       core.enteredGroup();
       decorateGroupEdit();
-    }));
+    });
 
     offs.push(core.provide('selectAll', selectAll));
     offs.push(core.provide('enterGroup', enterGroup));
@@ -652,10 +661,11 @@ export const canvasSelectModule: EditorModule = {
       { id: 'alt-drag', keys: ['alt'], label: 'Alt-drag: drag a copy · Alt while dragging: no snapping', group: 'Edit', editOnly: true, hintOnly: true },
     );
     // The end of the Esc chain (A.11: help → paint → shapes menu → tool → group → selection / page) is registered
-    // after every module installed, so the earlier links of the chain come first in the registry.
+    // after every module installed, so the earlier links of the chain come first in the registry. Through the scope:
+    // muted while the module is suspended (History) and removed when it is uninstalled.
     queueMicrotask(() => {
       if (destroyed) return;
-      core.shortcuts.add(
+      scope.shortcut(
         {
           id: 'exit-group', keys: ['escape'], label: 'Leave the group being edited', group: 'Edit', editOnly: true,
           run: () => {

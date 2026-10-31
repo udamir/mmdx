@@ -10,7 +10,6 @@ import type { Diagnostic } from '../../../core/types.js';
 import { CODE_EDITOR_CSS, createCodeEditor, highlightMetaLine, type CodeEditor } from '../../../ui/code-editor.js';
 import { h, icon } from '../../../ui/h.js';
 import { ICONS } from '../../../ui/icons.js';
-import { effect } from '../../../ui/signal.js';
 import type { EditorCore } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { attachResizer, setPanel } from '../chrome/panes.js';
@@ -287,10 +286,10 @@ export const codePanelModule: EditorModule = {
         showTab(issues[0]?.meta ? 'meta' : 'code');
       }
     }, sig);
-    cleanups.push(effect(() => {
+    scope.effect(() => {
       core.panels();
       syncIssueBar();
-    }));
+    });
 
     // ---- code editor ⇄ store
     let filter: { query: string; segments: Segment[] } | null = null;

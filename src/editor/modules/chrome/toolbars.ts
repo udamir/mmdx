@@ -251,7 +251,8 @@ export const toolbarsModule: EditorModule = {
       if (!styleArgs || style || destroyed) return;
       style = createToolbar(wrap, ...styleArgs);
       cleanups.push(() => style?.destroy());
-      sync(true);
+      if (!scope.active) style.el.remove();
+      else sync(true);
     }));
     if (f.styleToolbar) {
       styleArgs = [{
@@ -431,7 +432,8 @@ export const toolbarsModule: EditorModule = {
       if (!pageApi || page) return;
       page = createPageToolbar(wrap, pageApi, { i18n: core.i18n });
       cleanups.push(() => page?.destroy());
-      page.refresh();
+      if (!scope.active) page.el.remove();
+      else page.refresh();
     }));
     let pageApi: PageToolbarApi | null = null;
     if (f.pageToolbar) {
@@ -577,6 +579,23 @@ export const toolbarsModule: EditorModule = {
       } else style.place();
     };
     // after a committed change the values shown may differ: rebuild unless a popover (slider) is in use
+    // the toolbars are created after install (on first use): detached while the module is suspended (History, where
+    // their popovers would edit the document), back and placed again when it resumes
+    scope.register({
+      set: (on) => {
+        for (const bar of [style, page]) {
+          if (!bar) continue;
+          if (on) {
+            if (!bar.el.parentNode) wrap.append(bar.el);
+          } else {
+            bar.close();
+            bar.el.remove();
+          }
+        }
+        if (on) sync(true);
+      },
+      dispose: () => undefined,
+    });
     const afterCommit = (): void => {
       if (ordering) return;
       if (style && !style.isOpen()) {

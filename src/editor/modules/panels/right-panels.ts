@@ -5,7 +5,6 @@
 // prototype/app.js (~1875–2594, ~3016–3066).
 import { clearHighlight, hoverHighlight } from '../../../dom/highlight.js';
 import { h } from '../../../ui/h.js';
-import { effect } from '../../../ui/signal.js';
 import type { EditorModule } from '../../module.js';
 import { attachResizer, setPanel } from '../chrome/panes.js';
 import { addLayer, renderLayers } from './layers.js';
@@ -189,7 +188,7 @@ export const rightPanelsModule: EditorModule = {
     cleanups.push(attachResizer(core, col, 'right'));
 
     // ---- visibility classes (the shell sets no-right / no-layers; Properties needs its own)
-    cleanups.push(effect(() => {
+    scope.effect(() => {
       const p = core.panels();
       const m = core.mode();
       core.dom.root.classList.toggle('no-props', !p.properties || !f.properties);
@@ -201,7 +200,7 @@ export const rightPanelsModule: EditorModule = {
         layersClose.setAttribute('aria-label', layersClose.title);
         layersPanel?.setAttribute('aria-label', layersTitle.textContent);
       }
-    }));
+    });
 
     // ---- splitter between Properties and Layers: drag sets the Layers height (remembered); double-click resets
     if (split && layersPanel) {
@@ -281,7 +280,7 @@ export const rightPanelsModule: EditorModule = {
     // ---- View mode: hovering a box highlights its connections (Display → hover highlight)
     let hoverKey = '';
     const svg = core.dom.svg;
-    svg.addEventListener('pointermove', (ev) => {
+    scope.listen(svg, 'pointermove', (ev) => {
       if (core.mode.peek() !== 'view' || !core.display.peek().hoverHighlight || core.tool.peek() === 'pen' || core.dragging) {
         if (hoverKey) {
           hoverKey = '';
@@ -294,12 +293,12 @@ export const rightPanelsModule: EditorModule = {
       const key = box ? `${box.getAttribute('data-kind')}:${box.getAttribute('data-id')}` : '';
       if (key === hoverKey) return;
       hoverKey = hoverHighlight(svg, target, core.model);
-    }, sig);
-    svg.addEventListener('pointerleave', () => {
+    });
+    scope.listen(svg, 'pointerleave', () => {
       if (!hoverKey) return;
       hoverKey = '';
       clearHighlight(svg);
-    }, sig);
+    });
 
     return () => {
       live.flush();
