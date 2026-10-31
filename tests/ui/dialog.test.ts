@@ -82,4 +82,16 @@ describe('Dialogs', () => {
     buttons(root)[0]!.click();
     expect(await answer).toBeNull();
   });
+
+  it('destroy closes every open dialog and resolves each with its cancel value', async () => {
+    const { root, dialogs } = setup();
+    const a = dialogs.confirm('A', 'a');
+    const b = dialogs.prompt('B');
+    const c = dialogs.choose({ title: 'C', cancel: 'stay', buttons: [{ label: 'Go', value: 'go' }] });
+    expect(root.querySelectorAll('.mmdx-dialog')).toHaveLength(3);
+    dialogs.destroy();
+    expect(root.querySelector('.mmdx-dialog-back')).toBeNull();
+    expect(await Promise.all([a, b, c])).toEqual([false, null, 'stay']);
+    dialogs.destroy(); // nothing left: no-op
+  });
 });
