@@ -34,6 +34,8 @@ export interface EditorOptions {
   theme?: string;
   /** The theme while the chrome is dark (`auto`: the dark counterpart of `theme`). */
   themeDark?: string;
+  /** The `compact` preset (§7.6): the same chrome, smaller and icon-only; automatic below a host size by default. */
+  compact?: boolean | 'auto';
   /** Ask before leaving the page with unsaved changes (opt-in; SPAs handle this themselves). */
   guardUnload?: boolean;
   /** File name used for exports. */
@@ -78,6 +80,7 @@ export class DiagramEditor {
       ...(options.ui && options.ui !== 'auto' ? { ui: options.ui } : {}),
       ...(options.theme ? { theme: options.theme } : {}),
       ...(options.themeDark ? { themeDark: options.themeDark } : {}),
+      ...(options.compact !== undefined ? { compact: options.compact } : {}),
     });
     this.shadow = this.core.shadow;
     const core = this.core;
@@ -487,7 +490,7 @@ const isTyping = (ev: KeyboardEvent): boolean => {
 // ---- custom element ------------------------------------------------------------------------------------------------
 
 export class MmdxEditorElement extends ElementBase {
-  static observedAttributes = ['read-only', 'ui', 'autosave', 'name'];
+  static observedAttributes = ['read-only', 'ui', 'autosave', 'name', 'theme', 'theme-dark', 'compact'];
   private editor: DiagramEditor | null = null;
   private pending: EditorOptions = {};
 
@@ -501,6 +504,10 @@ export class MmdxEditorElement extends ElementBase {
     if (this.hasAttribute('guard-unload')) o.guardUnload = true;
     const name = this.getAttribute('name');
     if (name) o.name = name;
+    const theme = this.getAttribute('theme'), themeDark = this.getAttribute('theme-dark'), compact = this.getAttribute('compact');
+    if (theme) o.theme = theme;
+    if (themeDark) o.themeDark = themeDark;
+    if (compact !== null) o.compact = compact === 'auto' ? 'auto' : compact !== 'false';
     if (o.value === undefined && !o.adapter) {
       const script = this.querySelector(':scope > script[type="text/mermaid"]');
       if (script?.textContent) o.value = script.textContent.replace(/^\s*\n/, '');
@@ -519,6 +526,9 @@ export class MmdxEditorElement extends ElementBase {
     if (name === 'read-only') e.readOnly = v !== null && v !== 'false';
     else if (name === 'ui' && (v === 'light' || v === 'dark' || v === 'auto')) e.setUi(v);
     else if (name === 'name' && v) e.name = e.core.fileName = v;
+    else if (name === 'theme') e.core.themes.attr.set(v);
+    else if (name === 'theme-dark') e.core.themes.attrDark.set(v);
+    else if (name === 'compact') e.core.setCompact(v === null || v === 'auto' ? 'auto' : v !== 'false');
   }
 
   private opt<K extends keyof EditorOptions>(k: K, v: EditorOptions[K]): void {

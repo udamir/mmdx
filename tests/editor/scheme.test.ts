@@ -90,4 +90,13 @@ describe('light / dark switch', () => {
     expect(ed.core.scheme.peek()).toBe('dark');
     expect(ed.core.result.themeId).toBe('default-dark');
   });
+
+  test('the host sets the theme (theme / theme-dark) and the compact preset', () => {
+    const e = mount('flowchart LR\n  a --> b\n', { theme: 'default-dark', compact: true });
+    expect(e.core.result.themeId).toBe('default-dark');
+    expect(e.core.root.classList.contains('compact')).toBe(true);
+    expect(host.shadowRoot!.querySelector('.view-params .vp-export-btn.compact')).not.toBeNull();
+    e.core.themes.attr.set('default-light');
+    expect(e.core.result.themeId).toBe('default-light');
+  });
 });
