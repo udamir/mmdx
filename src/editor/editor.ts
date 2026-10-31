@@ -146,6 +146,7 @@ export class DiagramEditor {
     core.provide('documentSource', () => this.store.source());
     core.provide('documentName', () => core.fileName || 'diagram');
     core.provide('setClipboard', (data) => void (core.clipboard = data as typeof core.clipboard));
+    core.provide('showVersion', (v) => core.showVersion(v));
     core.provide('restoreVersion', (source, v) => {
       core.cancelGesture();
       core.store.load(source, { history: 'push', reason: 'remote', markSaved: false });
@@ -218,9 +219,9 @@ export class DiagramEditor {
     this.core.history.set(h ?? null);
   }
 
-  /** Opens or closes the History view (when there is a history). */
-  toggleHistory(on?: boolean): void {
-    this.core.run('toggleHistory', on);
+  /** Opens or closes History (when there is a history): the version panel; `compare` opens on the newest change compared. */
+  toggleHistory(on?: boolean, opts?: { compare?: boolean }): void {
+    this.core.run('toggleHistory', on, opts);
   }
 
   /** The open History's session (the `<mmdx-diff>` methods), null while History is closed (§8.3). */
@@ -804,9 +805,9 @@ export class MmdxEditorElement extends MmdxElement<EditorOptions, DiagramEditor>
   plainMermaid(): Promise<void> {
     return this.live?.plainMermaid() ?? Promise.resolve();
   }
-  /** Opens or closes the History view (when the editor has a `history`). */
-  toggleHistory(on?: boolean): void {
-    this.live?.toggleHistory(on);
+  /** Opens or closes History (when the editor has a `history`); `compare` opens on the newest change compared. */
+  toggleHistory(on?: boolean, opts?: { compare?: boolean }): void {
+    this.live?.toggleHistory(on, opts);
   }
   /** The open History's session, null while History is closed. */
   get historySession(): HistorySession | null {

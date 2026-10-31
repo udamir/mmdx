@@ -6,8 +6,12 @@ import type { DiagramModel } from '../core/model.js';
 /** Edit or View. The viewer and the diff are always `view`. */
 export type Mode = 'edit' | 'view';
 
-/** What the component shows: its document, or the History of it (§8.2). Orthogonal to the mode. */
-export type Stage = 'document' | 'history';
+/**
+ * What the component shows (§8.2), orthogonal to the mode: its document; an old version of it, read-only in the
+ * document's own scene (History, a version picked; the editor); or History's comparison (or a version in a host
+ * without a document scene of its own).
+ */
+export type Stage = 'document' | 'version' | 'history';
 
 /** Named places in the shell that modules fill (§7.1). */
 export type SlotName =
@@ -44,8 +48,11 @@ export interface ExportFormat {
 export interface ViewActions {
   fitView(): void;
   toggleHelp(on?: boolean): void;
-  /** Opens or closes the History of the document (when there is a history). */
-  toggleHistory(on?: boolean): void;
+  /**
+   * Opens or closes the History of the document (when there is a history). Opening shows the version panel only;
+   * `compare`: opens on the newest change compared (the studio's Diff).
+   */
+  toggleHistory(on?: boolean, opts?: { compare?: boolean }): void;
   /** Export formats of the installed modules, in menu order. */
   exportFormats(): ExportFormat[];
   setTool(tool: Tool): void;
@@ -64,6 +71,11 @@ export interface ViewActions {
   restoreVersion(source: string, version: { id: string }): void;
   /** Puts copied items on the host's item clipboard (the editor; copying from History). */
   setClipboard(data: unknown): void;
+  /**
+   * Shows a version of the document read-only in the host's own scene, drawn as the document is (the editor;
+   * History's version view), or the document again (null). Nothing writes the document while a version shows.
+   */
+  showVersion(version: { id: string; source: string } | null): void;
 }
 
 /**

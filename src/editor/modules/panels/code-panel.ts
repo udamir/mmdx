@@ -298,9 +298,12 @@ export const codePanelModule: EditorModule = {
       core.codeFilter.set(q.trim());
       const lines = q.trim() ? filterLines(code, core.model, q) : null;
       cs.count.textContent = lines ? t(lines.length === 1 ? 'code.lines1' : 'code.linesN', { n: lines.length }) : '';
+      // an old version (History) is read-only: its code and metadata can be read, filtered and copied
+      const version = !!core.version.peek();
+      if (metaEd) metaEd.readOnly = version;
       if (!lines) {
         filter = null;
-        codeEd.readOnly = false;
+        codeEd.readOnly = version;
         cf.bar.hidden = true;
         if (codeEd.value !== code) codeEd.value = code;
         return;
@@ -308,7 +311,7 @@ export const codePanelModule: EditorModule = {
       const L = code.split('\n');
       const segments = buildSegments(lines, L.length);
       filter = { query: q, segments };
-      codeEd.readOnly = !lines.length;
+      codeEd.readOnly = !lines.length || version;
       cf.bar.hidden = false;
       cf.info.textContent = lines.length ? t('code.showing', { n: lines.length, total: L.length }) : t('code.noMatch');
       const view = viewOf(L, segments);
@@ -568,11 +571,12 @@ export const codePanelModule: EditorModule = {
     cleanups.push(core.provide('gotoCodeLine', gotoCodeLine), core.provide('gotoMetaLine', gotoMetaLine));
 
     // ---- follow the document: code (undo, ops, loads), metadata and problems after each draw
-    let revSeen = -1;
+    let revSeen = '';
     let themeSeen = '';
     const onDraw = (): void => {
-      if (codeTimer === undefined && core.code !== shownCode) syncEditor();
-      const rev = store.revision.peek(), theme = core.result.themeId;
+      if (codeTimer === undefined && (core.code !== shownCode || codeEd.readOnly !== !!core.version.peek() && !filter)) syncEditor();
+      // the document's revision, or the version shown instead of it
+      const rev = `${store.revision.peek()}|${core.version.peek()?.id ?? ''}`, theme = core.result.themeId;
       if (rev === revSeen && theme === themeSeen) return;
       revSeen = rev;
       themeSeen = theme;

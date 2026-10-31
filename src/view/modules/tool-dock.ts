@@ -24,7 +24,7 @@ export const toolDockModule: ViewModule<ViewCore> = {
       if (tools.length && panels.length) main.push('sep');
       main.push(...panels);
       const out: ToolDockGroup[] = [{ id: 'tools', items: main }];
-      if (edit.length) out.push({ id: 'undo', label: t('tools.history'), items: edit, class: 'edit-only' });
+      if (edit.length) out.push({ id: 'undo', label: t('tools.history'), items: edit, class: 'edit-only no-version' });
       return out;
     });
     const dock = createToolDock({ label: t('tools.title'), groups: groups.peek(), flyout: core.dockFlyout.peek(), compact: core.compact });

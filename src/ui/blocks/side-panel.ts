@@ -11,6 +11,7 @@ import { Scope, type BlockHandle, type Translate } from './block.js';
 import { createIconButton, type IconButtonHandle } from './button.js';
 import { keepFocus } from './focus.js';
 import { createGrip } from './grip.js';
+import { createOverlayScroll, OVERLAY_SCROLL_CSS } from './overlay-scroll.js';
 
 export { createGrip, type GripOptions } from './grip.js';
 
@@ -56,6 +57,7 @@ export interface SidePanelHandle extends BlockHandle<SidePanelProps> {
 }
 
 export const SIDE_PANEL_CSS = /* css */ `
+${OVERLAY_SCROLL_CSS}
 .mmdx-panel { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--mmdx-panel); border: 1px solid var(--mmdx-border);
   border-radius: 14px; box-shadow: var(--mmdx-shadow-card); overflow: hidden; color: var(--mmdx-text); }
 .mmdx-panel-head { display: flex; align-items: center; gap: 4px; min-height: 40px; padding: 0 6px 0 0; border-bottom: 1px solid var(--mmdx-border); flex: none; }
@@ -93,6 +95,8 @@ export function createSidePanel(props: SidePanelProps): SidePanelHandle {
   const el = h('section', null);
   const head = h('div', { class: 'mmdx-panel-head' });
   const bodyEl = h('div', { class: 'mmdx-panel-body' });
+  // thin scrollbars over the content of whatever scrolls inside (the body, a list, a code editor)
+  const scroll = createOverlayScroll(el);
 
   // the close button and the grip are rebuilt (their focus is kept); the head and the body stay in place
   const render = (): void => keepFocus(el, () => {
@@ -101,7 +105,8 @@ export function createSidePanel(props: SidePanelProps): SidePanelHandle {
     close?.destroy();
     close = null;
     const t = p.t ?? english;
-    el.className = ['mmdx-panel', p.class].filter(Boolean).join(' ');
+    // mmdx-oscroll: the native scrollbars inside are hidden for the overlay ones
+    el.className = ['mmdx-panel', 'mmdx-oscroll', p.class].filter(Boolean).join(' ');
     el.dataset['side'] = p.side;
     el.setAttribute('aria-label', p.label);
     if (p.part) el.setAttribute('part', p.part);
@@ -112,7 +117,7 @@ export function createSidePanel(props: SidePanelProps): SidePanelHandle {
     if (!p.head) title.textContent = p.title ?? '';
     setChildren(head, [title, ...(p.actions ?? []), ...(close ? [close.el] : [])]);
     setChildren(bodyEl, [p.body]);
-    const children: HTMLElement[] = [head, bodyEl];
+    const children: HTMLElement[] = [head, bodyEl, ...scroll.thumbs];
     const r = p.resizable;
     if (r) {
       children.push(createGrip({
@@ -138,6 +143,7 @@ export function createSidePanel(props: SidePanelProps): SidePanelHandle {
     },
     destroy() {
       close?.destroy();
+      scroll.destroy();
       fx.dispose();
       scope.dispose();
       el.remove();

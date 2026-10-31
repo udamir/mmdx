@@ -1,6 +1,7 @@
 // <mmdx-studio> (§8.4, UC4): the standalone all-in-one app — editor, theme editor (dialog), file menu, examples
 // gallery, appearance toggle — the prototype's index.html, packaged as one element. The studio gives the editor the
 // open document's versions (an example's bundled history and the versions saved here), shown by the editor's History.
+import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../ui/blocks/overlay-scroll.js';
 import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
 import { decodeHash, encodeHash } from '../adapters/share.js';
 import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
@@ -71,6 +72,7 @@ const STUDIO_CSS = /* css */ `
 .seg button[aria-pressed=true] { background: var(--mmdx-accent); color: var(--mmdx-on-accent); }
 .main { flex: 1; min-height: 0; position: relative; }
 mmdx-editor { position: absolute; inset: 0; height: auto; min-height: 0; }
+.gallery-box { position: relative; }
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; max-height: 60vh; overflow: auto; padding: 2px; }
 .card { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 8px; border-radius: 10px; }
 .card .thumb { height: 120px; border-radius: 6px; background: var(--mmdx-surface-2); display: grid; place-items: center; overflow: hidden; }
@@ -114,7 +116,7 @@ export class DiagramStudio {
     this.o = { ...opts };
     this.storage = opts.storage ?? (typeof localStorage !== 'undefined' ? localStorageAdapter() : memoryStorage());
     this.shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
-    adoptStyles(this.shadow, [TOKENS, ALIASES, BASE, DIALOG_CSS, MENU_CSS, STUDIO_CSS]);
+    adoptStyles(this.shadow, [TOKENS, ALIASES, BASE, DIALOG_CSS, MENU_CSS, OVERLAY_SCROLL_CSS, STUDIO_CSS]);
     defineEditor();
     this.ui = this.storage.get<'light' | 'dark'>('ui') ?? 'auto';
 
@@ -152,9 +154,11 @@ export class DiagramStudio {
     this.editorEl.addEventListener('mmdx-change', () => this.persist(), sig);
     this.editorEl.addEventListener('mmdx-dirty', () => this.nameEl.classList.toggle('dirty', this.editorEl.dirty), sig);
     this.editorEl.addEventListener('mmdx-edit-themes', () => void this.openThemeEditor(), sig);
-    // Diff is the editor's History: the switch follows it, whoever opens or closes it (the tool dock, Esc, Back)
-    this.editorEl.addEventListener('mmdx-history-open', () => this.mode.set('diff'), sig);
-    this.editorEl.addEventListener('mmdx-history-close', () => this.mode.set(this.editorEl.readOnly ? 'view' : 'edit'), sig);
+    // Diff is a comparison in the editor's History: the switch follows what History shows, whoever picks it (the
+    // version panel, Esc, Back); the panel alone (nothing picked, or a version as it is) keeps Edit / View
+    const docMode = (): StudioMode => (this.editorEl.readOnly ? 'view' : 'edit');
+    this.editorEl.addEventListener('mmdx-history-show', (ev) => this.mode.set((ev as CustomEvent<{ shown: string }>).detail.shown === 'compare' ? 'diff' : docMode()), sig);
+    this.editorEl.addEventListener('mmdx-history-close', () => this.mode.set(docMode()), sig);
     this.editorEl.addEventListener('mmdx-ui', (ev) => {
       const ui = (ev as CustomEvent<{ ui: 'light' | 'dark' }>).detail.ui;
       this.ui = ui;
@@ -296,8 +300,29 @@ export class DiagramStudio {
       this.toaster.show('The link does not contain a valid diagram', { error: true });
       return false;
     }
-    if (src !== this.editorEl.getSource()) this.open(src, 'shared-diagram', { key: 'shared:shared-diagram' });
+    // the studio keeps the open document in the link: one that is this browser's own document or an example opens as
+    // that document (its name, saved versions and history), anything else as a shared diagram
+    const known = await this.knownSource(src);
+    if (this.destroyed || seq !== this.openSeq) return true;
+    if (src !== this.editorEl.getSource()) this.open(src, known?.name ?? 'shared-diagram', { key: known?.key ?? 'shared:shared-diagram' });
     return true;
+  }
+
+  /** The document a source is: the autosaved one of this browser, or an example (its file or one of its versions). */
+  private async knownSource(src: string): Promise<{ key: string; name: string } | null> {
+    const saved = this.persistModes().includes('local') ? this.storage.get<{ src: string; name?: string; key?: string }>(STORE_KEY) : undefined;
+    if (saved?.src === src && typeof saved.key === 'string') return { key: saved.key, name: saved.name ?? 'diagram' };
+    for (const ex of this.examples) {
+      const name = ex.file.split('/').pop() ?? ex.id;
+      try {
+        if ((await this.fetchHistory(ex)).some((v) => v.source === src)) return { key: `example:${ex.id}`, name };
+        const r = await fetch(ex.file);
+        if (r.ok && (await r.text()) === src) return { key: `example:${ex.id}`, name };
+      } catch {
+        // an example that does not load is not this one
+      }
+    }
+    return null;
   }
 
   private async share(): Promise<void> {
@@ -394,7 +419,12 @@ export class DiagramStudio {
       h('div', { class: 'thumb' }, ex.thumbnail ? h('img', { src: ex.thumbnail, alt: '' }) : icon(ICONS.file, 32)),
       h('b', null, ex.title),
       ex.tags?.length ? h('span', { class: 'tags' }, ex.tags.join(' · ')) : null)));
-    const v = await this.dialogs.choose<'open' | 'cancel'>({ title: 'Examples', body: grid, cancel: 'cancel', buttons: [{ label: 'Close', value: 'cancel' }, { label: 'Open', value: 'open', primary: true }] });
+    // the panels' thin scrollbar over the cards
+    const scroll = createOverlayScroll(h('div', { class: 'gallery-box' }, grid));
+    const box = grid.parentElement!;
+    box.append(...scroll.thumbs);
+    const v = await this.dialogs.choose<'open' | 'cancel'>({ title: 'Examples', body: box, cancel: 'cancel', buttons: [{ label: 'Close', value: 'cancel' }, { label: 'Open', value: 'open', primary: true }] });
+    scroll.destroy();
     if (v === 'open' && picked) await this.openExample(picked);
   }
 
@@ -437,13 +467,15 @@ export class DiagramStudio {
     ];
   }
 
-  /** Diff opens the editor's History on the newest change (the working copy or the newest version against the one before); Edit / View leave it. */
+  /** Diff opens the editor's History on the newest change compared (the working copy or the newest version against the one before); Edit / View leave it. */
   private setMode(m: StudioMode): void {
     if (m === 'diff') {
-      this.editorEl.toggleHistory(true);
+      this.editorEl.toggleHistory(true, { compare: true });
       return;
     }
-    if (this.mode.peek() === 'diff') this.editorEl.toggleHistory(false);
+    // Edit / View leave what History shows (a comparison or a version); the panel alone stays open
+    const p = this.editorEl.historySession?.pair;
+    if (this.mode.peek() === 'diff' || (p && (p.base || p.viewing))) this.editorEl.toggleHistory(false);
     this.editorEl.readOnly = m === 'view';
     this.mode.set(m);
   }

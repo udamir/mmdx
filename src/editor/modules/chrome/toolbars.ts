@@ -56,7 +56,7 @@ export function freeStrip(core: EditorCore): [number, number] {
 }
 
 /** The selected item's box on screen (wrap coords): connectors take their path, label and bend points. */
-function anchorRect(core: EditorCore, s: Sel): Rect | null {
+export function anchorRect(core: EditorCore, s: Sel): Rect | null {
   const wr = core.dom.wrap.getBoundingClientRect();
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   const add = (l: number, t: number, r: number, b: number): void => {

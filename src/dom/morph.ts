@@ -84,10 +84,24 @@ function pair(a: Element, b: Element, flips: { a: Element; b: Element }[]): Twee
   return out;
 }
 
+/**
+ * An item's pairing key: its change key (the diff), else the key the renderer gives it (`part:kind:id`, read back
+ * from its attributes: the editor's and the viewer's items), so a diff and a document picture pair too; the page is
+ * one item.
+ */
+const ITEM = '[data-ck], .el[data-kind][data-id], g.page-layer';
+const keyOf = (e: Element): string => {
+  const ck = e.getAttribute('data-ck');
+  if (ck) return ck;
+  if (e.classList.contains('page-layer')) return '~page';
+  const part = e.getAttribute('data-part'), raw = `${e.getAttribute('data-kind')}:${e.getAttribute('data-id')}`;
+  return part ? `${part}:${raw}` : raw;
+};
+
 /** Outermost item groups by pairing key. */
 function items(root: Element): Map<string, Element> {
   const m = new Map<string, Element>();
-  for (const e of root.querySelectorAll('[data-ck]')) if (!e.parentElement?.closest('[data-ck]')) m.set(e.getAttribute('data-ck')!, e);
+  for (const e of root.querySelectorAll(ITEM)) if (!e.parentElement?.closest(ITEM)) m.set(keyOf(e), e);
   return m;
 }
 
@@ -165,103 +179,111 @@ export class Morph {
   }
 
   private transition(from: MorphState): { finish(): void } {
-    const root = this.content;
-    const tweens: Tween[] = [];
-    const cleanup: (() => void)[] = [];
-    const flips: { a: Element; b: Element }[] = [];
-    const fade = (el: Element, a: number, b: number, after?: () => void): void => {
-      const s = (el as SVGElement).style;
-      tweens.push((t) => (s.opacity = String(lerp(a, b, t))));
-      cleanup.push(() => (after ? after() : s.removeProperty('opacity')));
-    };
-    // markers and patterns the old state needs while it fades out
-    const ids = new Set([...this.defs.querySelectorAll('[id]')].map((e) => e.id));
-    for (const d of from.defs) if (d.id && !ids.has(d.id)) this.defs.append(d.cloneNode(true));
-
-    const A = items(from.content), B = items(root);
-    const out = document.createElementNS(NS, 'g');
-    const top = root.querySelector(LAYERS.map((c) => `:scope > g.${c}`).join(', '));
-    if (top) top.before(out);
-    else root.append(out);
-    for (const [k, b] of B) {
-      const a = A.get(k);
-      if (!a) {
-        fade(b, 0, 1);
-        continue;
-      }
-      const local: { a: Element; b: Element }[] = [];
-      const tw = pair(a, b, local);
-      if (tw) {
-        tweens.push(...tw);
-        flips.push(...local);
-      } else {
-        const ghost = a.cloneNode(true) as Element;
-        b.before(ghost);
-        fade(ghost, 1, 0, () => ghost.remove());
-        fade(b, 0, 1);
-      }
-    }
-    for (const [k, a] of A) {
-      if (B.has(k)) continue;
-      const ghost = a.cloneNode(true) as Element;
-      out.append(ghost);
-      fade(ghost, 1, 0, () => ghost.remove());
-    }
-    for (const cls of LAYERS) {
-      const a = from.content.querySelector(`:scope > g.${cls}`), b = root.querySelector(`:scope > g.${cls}`);
-      if (b) fade(b, a ? 0.2 : 0, 1);
-      if (a && a.childElementCount) {
-        const ghost = a.cloneNode(true) as Element;
-        root.append(ghost);
-        fade(ghost, 1, 0, () => ghost.remove());
-      }
-    }
-    // changed text: the old text flips out where it was, the new one flips in, both sliding with the item
-    const anims: Animation[] = [];
-    for (const { a, b } of flips) {
-      const old = a.cloneNode(true) as Element;
-      b.before(old);
-      const pa = firstPos(a), pb = firstPos(b);
-      const dx = pb.x - pa.x, dy = pb.y - pa.y;
-      if (dx || dy) tweens.push(slideText(old, dx, dy, false), slideText(b, -dx, -dy, true));
-      if (typeof old.animate === 'function') {
-        old.classList.add('mx-flip');
-        b.classList.add('mx-flip');
-        anims.push(old.animate([{ scale: '1 1', opacity: 1 }, { scale: '1 0', opacity: 0 }], { duration: DURATION / 2, easing: 'ease-in', fill: 'forwards' }));
-        anims.push(b.animate([{ scale: '1 0', opacity: 0 }, { scale: '1 1', opacity: 1 }], { duration: DURATION / 2, delay: DURATION / 2, easing: 'ease-out', fill: 'backwards' }));
-      } else fade(old, 1, 0);
-      cleanup.push(() => {
-        old.remove();
-        b.classList.remove('mx-flip');
-      });
-    }
-
-    for (const tw of tweens) tw(0);
-    // the clock starts at the first frame (its timestamp, not performance.now(): a frame's time can be earlier)
-    let t0 = -1, raf = 0, done = false;
-    const end = (): void => {
-      if (done) return;
-      done = true;
-      cancelAnimationFrame(raf);
-      for (const tw of tweens) tw(1);
-      for (const x of anims) x.finish();
-      for (const c of cleanup) c();
-      out.remove();
-      this.running = null;
-    };
-    const step = (now: number): void => {
-      if (t0 < 0) t0 = now;
-      const p = Math.min(1, (now - t0) / DURATION);
-      const e = ease(p);
-      for (const tw of tweens) tw(e);
-      if (p < 1) raf = requestAnimationFrame(step);
-      else end();
-    };
-    raf = requestAnimationFrame(step);
-    return { finish: end };
+    return transitionFrom(this.defs, this.content, from, () => (this.running = null));
   }
 
   dispose(): void {
     this.running?.finish();
   }
+}
+
+/**
+ * Animates `content` (and `defs`), which already show the new picture, from `from` (a copy of what was shown): items
+ * both have move, the others fade in or out. The editor runs it when it switches between versions of a document.
+ */
+export function transitionFrom(defs: Element, content: Element, from: MorphState, onEnd?: () => void): { finish(): void } {
+  const root = content;
+  const tweens: Tween[] = [];
+  const cleanup: (() => void)[] = [];
+  const flips: { a: Element; b: Element }[] = [];
+  const fade = (el: Element, a: number, b: number, after?: () => void): void => {
+    const s = (el as SVGElement).style;
+    tweens.push((t) => (s.opacity = String(lerp(a, b, t))));
+    cleanup.push(() => (after ? after() : s.removeProperty('opacity')));
+  };
+  // markers and patterns the old state needs while it fades out
+  const ids = new Set([...defs.querySelectorAll('[id]')].map((e) => e.id));
+  for (const d of from.defs) if (d.id && !ids.has(d.id)) defs.append(d.cloneNode(true));
+
+  const A = items(from.content), B = items(root);
+  const out = document.createElementNS(NS, 'g');
+  const top = root.querySelector(LAYERS.map((c) => `:scope > g.${c}`).join(', '));
+  if (top) top.before(out);
+  else root.append(out);
+  for (const [k, b] of B) {
+    const a = A.get(k);
+    if (!a) {
+      fade(b, 0, 1);
+      continue;
+    }
+    const local: { a: Element; b: Element }[] = [];
+    const tw = pair(a, b, local);
+    if (tw) {
+      tweens.push(...tw);
+      flips.push(...local);
+    } else {
+      const ghost = a.cloneNode(true) as Element;
+      b.before(ghost);
+      fade(ghost, 1, 0, () => ghost.remove());
+      fade(b, 0, 1);
+    }
+  }
+  for (const [k, a] of A) {
+    if (B.has(k)) continue;
+    const ghost = a.cloneNode(true) as Element;
+    out.append(ghost);
+    fade(ghost, 1, 0, () => ghost.remove());
+  }
+  for (const cls of LAYERS) {
+    const a = from.content.querySelector(`:scope > g.${cls}`), b = root.querySelector(`:scope > g.${cls}`);
+    if (b) fade(b, a ? 0.2 : 0, 1);
+    if (a && a.childElementCount) {
+      const ghost = a.cloneNode(true) as Element;
+      root.append(ghost);
+      fade(ghost, 1, 0, () => ghost.remove());
+    }
+  }
+  // changed text: the old text flips out where it was, the new one flips in, both sliding with the item
+  const anims: Animation[] = [];
+  for (const { a, b } of flips) {
+    const old = a.cloneNode(true) as Element;
+    b.before(old);
+    const pa = firstPos(a), pb = firstPos(b);
+    const dx = pb.x - pa.x, dy = pb.y - pa.y;
+    if (dx || dy) tweens.push(slideText(old, dx, dy, false), slideText(b, -dx, -dy, true));
+    if (typeof old.animate === 'function') {
+      old.classList.add('mx-flip');
+      b.classList.add('mx-flip');
+      anims.push(old.animate([{ scale: '1 1', opacity: 1 }, { scale: '1 0', opacity: 0 }], { duration: DURATION / 2, easing: 'ease-in', fill: 'forwards' }));
+      anims.push(b.animate([{ scale: '1 0', opacity: 0 }, { scale: '1 1', opacity: 1 }], { duration: DURATION / 2, delay: DURATION / 2, easing: 'ease-out', fill: 'backwards' }));
+    } else fade(old, 1, 0);
+    cleanup.push(() => {
+      old.remove();
+      b.classList.remove('mx-flip');
+    });
+  }
+
+  for (const tw of tweens) tw(0);
+  // the clock starts at the first frame (its timestamp, not performance.now(): a frame's time can be earlier)
+  let t0 = -1, raf = 0, done = false;
+  const end = (): void => {
+    if (done) return;
+    done = true;
+    cancelAnimationFrame(raf);
+    for (const tw of tweens) tw(1);
+    for (const x of anims) x.finish();
+    for (const c of cleanup) c();
+    out.remove();
+    onEnd?.();
+  };
+  const step = (now: number): void => {
+    if (t0 < 0) t0 = now;
+    const p = Math.min(1, (now - t0) / DURATION);
+    const e = ease(p);
+    for (const tw of tweens) tw(e);
+    if (p < 1) raf = requestAnimationFrame(step);
+    else end();
+  };
+  raf = requestAnimationFrame(step);
+  return { finish: end };
 }

@@ -15,7 +15,7 @@ import { MENU_CSS } from '../../ui/blocks/menu.js';
 import { createVersionList, VERSION_LIST_CSS } from '../../ui/blocks/version-list.js';
 import { h } from '../../ui/h.js';
 import { I_code } from '../../ui/icons.js';
-import { computed, signal, untracked } from '../../ui/signal.js';
+import { computed, signal, untracked, type ReadSignal, type Signal } from '../../ui/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import type { ModuleScope, ViewModule } from '../../view/module.js';
 import { metaLines, relatedLines } from '../lines.js';
@@ -37,10 +37,30 @@ function toggleOf(scope: ModuleScope<ViewCore>, id: string): { open: () => boole
 }
 
 /**
- * `dockButton: false` when the host's History button already stands for the panel (History in place). Each row of both
- * tabs has a "⋮" menu: the host's `rowActions` (History's Restore), then Compare with the previous version.
+ * What the version panel does in History in place (src/diff/history.ts): the tab is the panel's own (switching it
+ * shows nothing new), the rows mark what is shown (nothing until a version is picked), and a row or a pick goes to the
+ * host, which decides what to show.
  */
-export function versionsModule(session: DiffSession, o: { dockButton?: boolean; rowActions?: (id: string) => readonly MenuEntry[] } = {}): ViewModule<ViewCore> {
+export interface VersionControls {
+  tab: Signal<DiffMode>;
+  base: ReadSignal<string | null>;
+  head: ReadSignal<string | null>;
+  viewing: ReadSignal<string | null>;
+  /** A row of the History tab (view it) or of the Compare tab (compare it). */
+  row(id: string): void;
+  /** A Before / After pick of the Compare tab. */
+  pick(side: 'before' | 'after', id: string): void;
+  swap(): void;
+  /** "Compare with the previous version" of a row's menu. */
+  comparePrevious(id: string): void;
+}
+
+/**
+ * `dockButton: false` when the host's History button already stands for the panel (History in place, which passes its
+ * `controls`). Each row of both tabs has a "⋮" menu: the host's `rowActions` (History's Restore), then Compare with the
+ * previous version.
+ */
+export function versionsModule(session: DiffSession, o: { dockButton?: boolean; rowActions?: (id: string) => readonly MenuEntry[]; controls?: VersionControls } = {}): ViewModule<ViewCore> {
   return {
     id: 'versions',
     after: ['panel-stacks'],
@@ -50,21 +70,23 @@ export function versionsModule(session: DiffSession, o: { dockButton?: boolean; 
       const core = scope.core;
       const t = core.i18n.t;
       const { open, toggle } = toggleOf(scope, 'history');
+      const c = o.controls;
       const tabs = createTabs<DiffMode>({
         label: t('diff.panel.history'),
         tabs: [{ value: 'history', label: t('diff.panel.history') }, { value: 'compare', label: t('diff.panel.compare') }],
-        value: session.mode, onChange: (m) => session.setMode(m),
+        value: c ? c.tab : session.mode, onChange: (m) => (c ? c.tab.set(m) : session.setMode(m)),
       });
       const loadMore = (): void => {
         session.loadMore().catch((e: unknown) => core.toast(`${t('diff.history.failed')}: ${e instanceof Error ? e.message : String(e)}`, { error: true }));
       };
       const list = createVersionList({
-        versions: [], counts: (id) => session.counts(id), mode: session.mode, base: session.base, head: session.head, viewing: session.viewing, locale: core.i18n.locale, hasMore: false,
-        onPick: (side, id) => session.setPair(side === 'before' ? id : session.base.peek(), side === 'after' ? id : session.head.peek()),
-        onRow: (id) => (session.mode.peek() === 'compare' ? session.compareWithPrevious(id) : session.viewVersion(id)),
+        versions: [], firstIsDocument: !!c, counts: (id) => session.counts(id), mode: c?.tab ?? session.mode, base: c?.base ?? session.base, head: c?.head ?? session.head, viewing: c?.viewing ?? session.viewing,
+        locale: core.i18n.locale, hasMore: false,
+        onPick: (side, id) => (c ? c.pick(side, id) : session.setPair(side === 'before' ? id : session.base.peek(), side === 'after' ? id : session.head.peek())),
+        onRow: (id) => (c ? c.row(id) : session.mode.peek() === 'compare' ? session.compareWithPrevious(id) : session.viewVersion(id)),
         onMore: loadMore, t,
         // Compare as a timeline: the pair is a range on it; After's or Before's own dot swaps them
-        timeline: { onSwap: () => session.setPair(session.head.peek(), session.base.peek()) },
+        timeline: { onSwap: () => (c ? c.swap() : session.setPair(session.head.peek(), session.base.peek())) },
         // on both tabs' rows: in Compare, next to the Before / After picks
         menu: {
           popovers: core.popovers, within: () => core.root,
@@ -73,8 +95,9 @@ export function versionsModule(session: DiffSession, o: { dockButton?: boolean; 
             {
               label: t('diff.history.comparePrev'), disabled: i === session.versions.peek().length - 1 && !session.hasMore.peek(),
               run: () => {
+                if (c) return c.comparePrevious(id);
                 session.setMode('compare');
-                session.compareWithPrevious(id);
+                void session.compareWithPrevious(id);
               },
             },
           ],
@@ -93,7 +116,8 @@ export function versionsModule(session: DiffSession, o: { dockButton?: boolean; 
         scope.contribute(core.dockItems, { id: 'versions', section: 'panels', order: 10, el: btn.el });
         scope.onDispose(() => btn.destroy());
       }
-      scope.shortcut({ id: 'history', keys: ['v'], label: t('diff.help.history'), group: t('diff.help.panels'), run: () => (session.hasHistory.peek() ? toggle() : false) });
+      // in place, V is the host's (the editor's pointer tool) except over a comparison
+      scope.shortcut({ id: 'history', keys: ['v'], label: t('diff.help.history'), group: t('diff.help.panels'), ...(c ? { when: { stage: ['history'] } } : {}), run: () => (session.hasHistory.peek() ? toggle() : false) });
       // the rows follow the versions while the panel shows (the pair, the tab and the viewed version are signals the
       // list follows itself); a count that arrives patches only its row's badges
       scope.effect(() => {

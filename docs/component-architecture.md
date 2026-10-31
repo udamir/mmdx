@@ -321,6 +321,7 @@ The theme is **component state, not document state**.
 
 - One look everywhere: the editor's chrome (tool dock, zoom bar bottom-right, view params top-right with the light / dark toggle, theme menu and a labelled `Export ▾`). The viewer adopts it; the editor's View mode and `<mmdx-viewer>` look the same because they run the same modules.
 - **Code view**: a panel in the left stack (`CodeView`), in every product.
+- **Scrollbars**: every side panel (and the studio's examples gallery) scrolls with thin overlay scrollbars (`OverlayScroll`): the native ones are hidden, the thumb of the area under the pointer floats over the content while the pointer is over it, while it scrolls and while it is dragged.
 - **View settings**: a side card in the right stack (display toggles and layers).
 - **`compact`** (a kernel-level option, attribute `compact` on every element, automatic below a host size): the same pieces, smaller and icon-only — 32 px dock buttons, the zoom bar without labels, `Export` as an icon, view params condensed. No piece moves or merges into another.
 - The prototype of these decisions: the "mmdx chrome options" design canvas (compact preset, view settings card, History placement).
@@ -339,28 +340,24 @@ The theme is **component state, not document state**.
 | `changeList` | right-stack · `ChangeList` |
 | `diffStage` | canvas area · morph states, linked second canvas, highlights and badges |
 | `diffExport` | formats for `export` (patch, reports, images of a view) |
-| `historyPill` | top-center · `Pill`: "History · v3 → Working copy" and **Back** (Esc); History only. A version viewed as it is is named here only: the `DiffScene` draws no title over its picture (`versionTitle: false`; the standalone `<mmdx-diff>`, which has no pill, keeps it) |
+| `historyPill` | top-center · `Pill`: "History · v3" or the pair "v3 → Working copy", and **Back** (Esc: back to the document, the panel stays); while History shows a version or a comparison. A version viewed as it is is named here only: no title over its picture (`versionTitle: false` in the `DiffScene`; the standalone `<mmdx-diff>`, which has no pill, keeps it) |
 
-### 8.2 The `history` stage
+### 8.2 History in place: the `version` and `history` stages
 
-`stage: 'document' | 'history'` is a second axis next to `mode: 'edit' | 'view'`; `mode` keeps its meaning (`readOnly` stays `mode === 'view'`, existing mode checks stay correct). While History is open the user cannot switch Edit / View (`setMode` is ignored and the studio's switch is disabled); Restore is offered when `mode === 'edit'`.
+`stage: 'document' | 'version' | 'history'` is a second axis next to `mode: 'edit' | 'view'`; `mode` keeps its meaning (`readOnly` stays `mode === 'view'`). `core.historyOpen` is History being open (its version panel), whatever it shows; the stage is what the canvas shows.
 
-Opening History (the History button in the tool dock, `toggleHistory()`, or `historySession` API):
+Opening History (the History button in the tool dock, `toggleHistory()`) shows the version panel only, with the History tab, in the host's own left stack. Nothing is picked: the document stays as it is, editable in the editor. Switching between the History and Compare tabs shows nothing new. What a pick shows:
 
-1. The kernel saves the canvas view (`saveView()`), clears the pen strokes, and pushes a `DiffScene` over the host's history plus its **working copy** (the current document).
-2. The `DiffScene` paints the host's own canvas; side by side adds a second linked canvas in the same canvas area. Pan, zoom, pen and the zoom bar are the host's.
-3. The History and Code panels open in the host's left stack (at the component's edge, the tool dock to their right), the Changes panel in its right stack; the editor's Code, Properties and Layers panels are suspended with their state.
-4. The diff bar takes bottom-center; the `Back` pill takes top-center; the theme menu and light / dark toggle stay and keep working.
-5. Modules whose `when.stage` excludes `history` are suspended: editing gestures, handles, editing shortcuts. The document store is never written while History is open.
+- **A version on the History tab** (the `version` stage): read-only in the host's own scene, drawn exactly as the document is (page, canvas, theme). The editor's `EditorCore.showVersion` reads and draws the version instead of the store (`version` signal: the getters, `render()` and the selection read it) and refuses every write (`applyCode`, `change`, transactions, undo / redo). The editor's dock keeps Pointer, Hand, pen, Code, Layers and History; Shapes, Properties and Undo / Redo are hidden (`.no-version`). Items can be selected (click, marquee, never moved, resized or cloned); the action bar over the selection has Copy only (`version-copy` module); the Code panel shows the version's code and metadata read-only; Layers hides and shows the version's layers in the view only (`visibleLayers`). Editing shortcuts are off unless marked `readOnly` (copy, select all, tools, panels). A viewer, which has no document scene of its own to draw a version read-only, shows it in the `DiffScene`'s History mode (the `history` stage). The current version (the top row, the document itself) cannot be picked on the History tab.
+- **A version on the Compare tab** (the `history` stage): compared with the current one (the top row; the top row itself with the one before it), in a `DiffScene` pushed over the host's canvas: the diff bar, the code diff, the Changes panel (opened with the first comparison), the exports, the `history-pill` with the pair and the swap. The timeline's dots and Swap change the pair from there.
+- Every switch between the document, a version and a comparison animates on the canvas (`transitionFrom`, `DiffScene.continueFrom`): the view stays where it is on screen (it moves with the canvas into the comparison's pane and back), items keep their place and move, the others fade; a comparison then glides to its fit.
 
-Inside History:
+The Back pill (top centre, "History · v3" or the pair) and Esc go back to the document: the version panel stays open. Closing the panel (its ×, `toggleHistory(false)`, the History button) leaves History. **Restore this version** (Edit mode, in each version's "⋮" menu) loads the version into the store as one undoable change and leaves History.
 
-- **Old versions are read-only documents.** In View version, and on the Before or After side of a comparison, the user can select items, read their properties (the Properties card, read-only, labelled with the version) and **copy** them. Merged is for looking only (an item there can mix both versions).
-- **The clipboard carries content** (§9): what was copied from an old version can be pasted into the current document after Back, including items the current document no longer has.
-- **The working copy follows the document**: a store change while History is open (remote update, host `setSource`, `undo()` from code) updates the "Working copy" entry and recomputes a comparison that uses it; the canvas keeps showing History.
-- **Restore this version** (Edit mode; in the diff bar) loads the shown version into the store as one undoable change and leaves History.
+- **The clipboard carries content** (§9): what was copied from an old version can be pasted into the current document, including items the current document no longer has.
+- **The working copy follows the document**: an edit, a remote update, host `setSource` or `undo()` updates the "Working copy" entry and recomputes a comparison that uses it.
 
-Leaving History (Back pill, Esc at the end of the Esc chain, the History button, `toggleHistory(false)`): the `DiffScene` is popped, the pen strokes are cleared, the `StoreScene` / `TextScene` repaints in full, the saved view is restored, suspended modules resume with their state (selection, tool, panels, scroll).
+Leaving History: the `DiffScene` is popped if it was shown, the document is shown again (the selection, entered group and layer visibility it had are back), suspended modules resume with their state.
 
 **Small hosts** (a docs-page viewer): the viewer grows to a minimum height (560 px) while History is open, and below the drawer width its panels open one at a time as drawers over the canvas (`PanelStack.drawerBelow`).
 
@@ -368,8 +365,8 @@ The session's code (diff modules and the diff part of `core`) loads on first use
 
 ### 8.3 History API and events
 
-- `editor.historySession` / `viewer.historySession`: `null` while History is closed; while open, a `DiffSession` facade with the `<mmdx-diff>` methods — `setPair(base, head)`, `viewVersion(id)`, `setView(view)`, `setFilters(filters, dim?)`, `select(key)`, `next()`, `prev()`, `pair`, `getDiff()`, `exportAs(kind, opts)`.
-- `history` and `toggleHistory()` keep working.
+- `editor.historySession` / `viewer.historySession`: `null` while History is closed; while open, a `DiffSession` facade with the `<mmdx-diff>` methods — `setPair(base, head)` (a comparison), `viewVersion(id)` (a version as it is), `setView(view)`, `setFilters(filters, dim?)`, `select(key)`, `next()`, `prev()`, `pair` (all null while nothing is picked), `getDiff()` (null unless a comparison shows), `exportAs(kind, opts)`.
+- `history` and `toggleHistory(on?, { compare? })` keep working; `compare` opens on the newest change compared (the studio's Diff). `mmdx-history-show` `{ shown: 'none' | 'version' | 'compare' }` tells the host what History shows (the studio's mode switch shows Diff for a comparison).
 - Events on the host, separate from the host's own events: `mmdx-history-open`, `mmdx-history-close`, `mmdx-history-compare`, `mmdx-history-version`, `mmdx-history-select`, `mmdx-history-view`, `mmdx-history-mode`, `mmdx-history-filters`, `mmdx-history-export`, `mmdx-history-restore`. Errors of the session come as `mmdx-history-error`; `mmdx-render` and `mmdx-error` remain the host's own. Destroying the host while History is open closes it without giving the canvas back, repainting or emitting `mmdx-history-close`: a component being destroyed emits no events.
 - `<mmdx-diff>` keeps its current event names (`mmdx-compare`, `mmdx-select`, …). `mmdx-view` `{ view, mode }` is the view (Before / Merged / After / Side by side) only; the version panel's tab and History mode (one version as it is, which needs the panel) have their own event, `mmdx-mode` `{ mode, viewOnly }` (`mmdx-history-mode` in History). Methods emit; options and attributes (`view`, `mode`, `filters`, `dim`) set the state without an event.
 - `setPair` leaves History mode for Compare. Every `load()` starts a generation: a list, a page, a source, a render or a change count that arrives for an older one is dropped. While a newly viewed version loads, nothing of the previous one is shown or exported under its name.

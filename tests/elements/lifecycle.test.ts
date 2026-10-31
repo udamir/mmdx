@@ -83,7 +83,7 @@ describe('moving an element keeps its component', () => {
     expect(e.store.canUndo.peek()).toBe(true);
     e.select([{ kind: 'node', id: 'a' }]);
     el.history = versions;
-    el.toggleHistory(true);
+    el.toggleHistory(true, { compare: true });
     await wait(() => el.historySession?.getDiff());
     const session = el.historySession;
 

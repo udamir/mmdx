@@ -12,9 +12,10 @@ import { documentModule } from './document.js';
 import { panesModule } from './panes.js';
 import { editorToolsModule } from './tool-dock.js';
 import { toolbarsModule } from './toolbars.js';
+import { versionCopyModule } from './version-copy.js';
 import { editorParamsModule } from './view-params.js';
 
-export { documentModule, editorParamsModule, editorToolsModule, panesModule, toolbarsModule };
+export { documentModule, editorParamsModule, editorToolsModule, panesModule, toolbarsModule, versionCopyModule };
 
 const std = <M>(m: M): EditorModule => m as unknown as EditorModule;
 

@@ -69,7 +69,8 @@ export class Viewport {
       this.zoomAt(g.scale / this.gestureScale, p.x, p.y);
       this.gestureScale = g.scale;
     }, sig);
-    this.ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => { if (this.auto) this.fit(); }) : null;
+    // a resize while the view glides to a fit (panels sliding) goes on gliding to the new fit
+    this.ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => { if (this.auto) this.fit(!!this.glide); }) : null;
     this.ro?.observe(el);
   }
 

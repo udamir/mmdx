@@ -205,7 +205,7 @@ export const canvasStructureModule: EditorModule = {
       }
       core.clipboard = data;
       core.toast(`Copied ${nItems(data.items.length)}`);
-      const json = JSON.stringify({ format: 'mmdx-items', version: 2, type: data.type, items: data.items, content: data.content, source: core.store.source() });
+      const json = JSON.stringify({ format: 'mmdx-items', version: 2, type: data.type, items: data.items, content: data.content, source: core.shownSource() });
       void writeSystemClipboard(mermaidFragment(core.model, core.code, data.items), json);
       return true;
     };
@@ -272,13 +272,13 @@ export const canvasStructureModule: EditorModule = {
 
     scope.listen(core.dom.svg, 'contextmenu', (ev) => {
       ev.preventDefault();
-      if (!editing() || (ev.target instanceof Element && ev.target.closest('.el'))) return;
+      if (!editing() || core.version.peek() || (ev.target instanceof Element && ev.target.closest('.el'))) return;
       showContextMenu(ev.clientX, ev.clientY, core.toDiagram(ev));
     });
 
     /** Shift+F10 / the context-menu key: the board menu at the selection (or the middle of the canvas). */
     const keyboardMenu = (): boolean => {
-      if (!editing()) return false;
+      if (!editing() || core.version.peek()) return false;
       const p = core.primary();
       const b = p ? core.boxOf(p) : null;
       const sr = core.dom.svg.getBoundingClientRect();
@@ -304,7 +304,7 @@ export const canvasStructureModule: EditorModule = {
     if (!core.has('moveSelection')) offs.push(core.provide('moveSelection', moveSelection));
 
     core.shortcuts.add(
-      { id: 'copy', keys: ['mod+c'], label: 'Copy', group: 'Edit', editOnly: true, run: () => (core.selection().length ? copySelection() : false) },
+      { id: 'copy', keys: ['mod+c'], label: 'Copy', group: 'Edit', editOnly: true, readOnly: true, run: () => (core.selection().length ? copySelection() : false) },
       {
         id: 'paste', keys: ['mod+v'], label: 'Paste (at the pointer)', group: 'Edit', editOnly: true,
         run: () => {

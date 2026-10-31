@@ -100,8 +100,8 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   readonly visibleLayers: Signal<readonly string[] | undefined> = signal<readonly string[] | undefined>(undefined);
   /** The document's versions (host-provided); null: no History. */
   readonly history: Signal<HistoryAdapter | readonly StaticVersion[] | null> = signal<HistoryAdapter | readonly StaticVersion[] | null>(null);
-  /** History is open (the `history` stage). */
-  readonly historyOpen: ReadSignal<boolean> = computed(() => this.stage() === 'history');
+  /** History is open: its version panel, whatever it shows (set by History). */
+  readonly historyOpen: Signal<boolean> = signal(false);
   /** The open History's session (the `<mmdx-diff>` methods), null while History is closed (§8.3). */
   readonly historySession: Signal<HistorySession | null> = signal<HistorySession | null>(null);
   /** The pen's strokes (set by the pen module), painted into every canvas the scenes add. */

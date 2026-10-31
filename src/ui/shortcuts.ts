@@ -9,8 +9,10 @@ export interface Shortcut {
   /** Help text. */
   label: string;
   group: string;
-  /** Hidden in View mode (help and handling). */
+  /** Hidden in View mode (help and handling), and while an old version shows read-only (the `version` stage). */
   editOnly?: boolean;
+  /** An `editOnly` shortcut that edits nothing (copy, select all, tools, panels): kept while a version shows. */
+  readOnly?: boolean;
   /** Shown in help only (gestures like Space+drag, Alt-drag). */
   hintOnly?: boolean;
   run?: (ev: KeyboardEvent) => boolean | void;
@@ -29,7 +31,7 @@ const applies = (s: Shortcut, c: KeyContext): boolean => {
   if (s.active && !s.active()) return false;
   const mode = typeof c === 'boolean' ? (c ? 'edit' : 'view') : c.mode;
   const stage = typeof c === 'boolean' ? 'document' : c.stage ?? 'document';
-  if (s.editOnly && mode !== 'edit') return false;
+  if (s.editOnly && (mode !== 'edit' || (stage === 'version' && !s.readOnly))) return false;
   if (s.when?.mode && !s.when.mode.includes(mode)) return false;
   if (s.when?.stage && !s.when.stage.includes(stage)) return false;
   return true;

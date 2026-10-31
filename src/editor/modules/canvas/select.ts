@@ -57,6 +57,8 @@ export const canvasSelectModule: EditorModule = {
 
     const isLane = (gid: string): boolean => core.isLane(gid);
     const editing = (): boolean => core.mode.peek() === 'edit';
+    /** An old version shows (History): its items are selected to copy them, never moved, resized or cloned. */
+    const readOnly = (): boolean => !!core.version.peek();
 
     // ---- group editing ------------------------------------------------------------------------------------------
 
@@ -156,7 +158,7 @@ export const canvasSelectModule: EditorModule = {
         }
         const one = core.primary();
         const b = one && core.boxOf(one);
-        if (one && b && !b.hidden && one.kind !== 'note' && one.kind !== 'block' && one.kind !== 'activation' && one.kind !== 'box') {
+        if (one && b && !b.hidden && !readOnly() && one.kind !== 'note' && one.kind !== 'block' && one.kind !== 'activation' && one.kind !== 'box') {
           const r = rect(b), hs = 9 / k;
           out.push(el('rect', { class: 'sel-handle', 'data-handle': 'resize', x: r.x + r.w - hs / 2, y: r.y + r.h - hs / 2, width: hs, height: hs, 'stroke-width': 1.5 / k }, 'resize'));
         }
@@ -301,7 +303,7 @@ export const canvasSelectModule: EditorModule = {
       id: 'canvas-resize',
       priority: 100,
       down(ev, hit) {
-        if (!editing() || hit.handle?.getAttribute('data-handle') !== 'resize') return null;
+        if (!editing() || readOnly() || hit.handle?.getAttribute('data-handle') !== 'resize') return null;
         return resizeGesture();
       },
     }));
@@ -331,14 +333,14 @@ export const canvasSelectModule: EditorModule = {
         }
         const cur = core.selection();
         const multi = cur.length > 1;
-        if (ev.altKey && !part) {
+        if (ev.altKey && !part && !readOnly()) {
           const items = multi && core.isSelected(sel) ? cur : [sel];
           const d = cloneGesture(items);
           if (d) return d;
         }
         if (multi && core.isSelected(sel)) {
           if (redraw) core.draw();
-          return multiMoveGesture();
+          return readOnly() ? NOOP : multiMoveGesture();
         }
         if (!samePrimary(core.primary(), sel) || multi) {
           core.select([sel]);
@@ -348,7 +350,7 @@ export const canvasSelectModule: EditorModule = {
           core.draw();
           core.fire('panels');
         }
-        return moveGesture(sel, part);
+        return readOnly() ? NOOP : moveGesture(sel, part);
       },
     }));
 
@@ -639,9 +641,9 @@ export const canvasSelectModule: EditorModule = {
       return !!d && nudge(d[0], d[1], step);
     };
     core.shortcuts.add(
-      { id: 'tool-pointer', keys: ['v'], label: 'Select & edit', group: 'Tools', editOnly: true, run: () => core.setTool('pointer') },
+      { id: 'tool-pointer', keys: ['v'], label: 'Select & edit', group: 'Tools', editOnly: true, readOnly: true, run: () => core.setTool('pointer') },
       { id: 'tool-hand', keys: ['h'], label: 'Hand — drag to move around', group: 'Tools', run: () => core.setTool('hand') },
-      { id: 'select-all', keys: ['mod+a'], label: 'Select all', group: 'Edit', editOnly: true, run: () => selectAll() },
+      { id: 'select-all', keys: ['mod+a'], label: 'Select all', group: 'Edit', editOnly: true, readOnly: true, run: () => selectAll() },
       { id: 'nudge', keys: ['arrowleft', 'arrowright', 'arrowup', 'arrowdown'], label: 'Move the selection 1 px', group: 'Edit', editOnly: true, run: arrow(1) },
       { id: 'nudge10', keys: ['shift+arrowleft', 'shift+arrowright', 'shift+arrowup', 'shift+arrowdown'], label: 'Move the selection 10 px', group: 'Edit', editOnly: true, run: arrow(10) },
       { id: 'focus-next', keys: ['tab'], label: 'Select the next item', group: 'Edit', editOnly: true, run: (ev) => tab(ev, 1) },

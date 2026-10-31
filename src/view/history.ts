@@ -19,8 +19,11 @@ export interface HistorySession {
   close(): void;
 }
 
-/** Opens the `history` stage on a component (src/diff/history.ts); `onClose` runs when it is left. */
-export type HistoryOpener = (core: ViewCore, o: { onClose(): void }) => { close(): void };
+/**
+ * Opens History on a component (src/diff/history.ts): the version panel, nothing picked; `compare` opens on the
+ * newest change compared. `onClose` runs when it is left. `compareNewest` compares the newest change of an open one.
+ */
+export type HistoryOpener = (core: ViewCore, o: { onClose(): void; compare?: boolean }) => { close(): void; compareNewest(): void };
 
 /** Loads the History code on first use (`() => import('…/diff/history.js')`): the kernel never imports the diff. */
 export type HistoryLoader = () => Promise<{ openHistory: HistoryOpener }>;

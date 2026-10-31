@@ -12,6 +12,7 @@ import type { EditorModule } from '../../module.js';
 
 export const EDITOR_TOOLS_CSS = /* css */ `
 .mode-edit .view-only { display: none !important; }
+[data-stage=version] .no-version { display: none !important; }
 `;
 
 const VIEW_SETTINGS_ICON = 'M2.5 11.5C4.6 7.4 8 5.5 12 5.5s7.4 1.9 9.5 6M2.5 11.5c2.1 4.1 5.5 6 9.5 6M12 14.3a2.8 2.8 0 1 0 0-5.6 2.8 2.8 0 0 0 0 5.6zM18.5 20.7a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4z';
@@ -40,10 +41,10 @@ export const editorToolsModule: EditorModule = {
 
     const toolOn = (tool: Tool) => computed(() => core.tool() === tool);
     const pointer = dockButton({ icon: ICONS.pointer, label: t('tools.pointer'), keys: 'v', class: 'edit-only', f: 'tool-pointer', pressed: toolOn('pointer'), attrs: { 'data-tool': 'pointer' }, onClick: () => setTool('pointer') });
-    const shapes = dockButton({ icon: ICONS.shapes, label: t('tools.shapes'), keys: 's', class: 'edit-only vt-shapes', f: 'tool-shapes', attrs: { 'aria-haspopup': 'menu' }, onClick: () => core.run('toggleShapesMenu', shapes.el) });
+    const shapes = dockButton({ icon: ICONS.shapes, label: t('tools.shapes'), keys: 's', class: 'edit-only no-version vt-shapes', f: 'tool-shapes', attrs: { 'aria-haspopup': 'menu' }, onClick: () => core.run('toggleShapesMenu', shapes.el) });
     const panelOn = (name: 'code' | 'properties' | 'layers') => computed(() => core.panels()[name]);
     const codeBtn = f.codePanel ? dockButton({ icon: ICONS.code, label: t('tools.code'), keys: 'c', class: 'edit-only vt-code', f: 'panel-code', pressed: panelOn('code'), onClick: () => void core.run('setPanel', 'code', !core.panels.peek().code) }) : null;
-    const propsBtn = f.properties ? dockButton({ icon: ICONS.props, label: t('tools.props'), keys: 'i', class: 'edit-only vt-props', f: 'panel-props', pressed: panelOn('properties'), onClick: () => void core.run('setPanel', 'properties', !core.panels.peek().properties) }) : null;
+    const propsBtn = f.properties ? dockButton({ icon: ICONS.props, label: t('tools.props'), keys: 'i', class: 'edit-only no-version vt-props', f: 'panel-props', pressed: panelOn('properties'), onClick: () => void core.run('setPanel', 'properties', !core.panels.peek().properties) }) : null;
     // Layers in Edit mode, View settings in View mode (the same right-hand card)
     const layersBtn = f.layers ? dockButton({ icon: ICONS.layers, label: t('tools.layers'), keys: 'l', class: 'vt-layers', f: 'panel-layers', pressed: panelOn('layers'), onClick: () => void core.run('setPanel', 'layers', !core.panels.peek().layers) }) : null;
     if (layersBtn) {
@@ -71,7 +72,11 @@ export const editorToolsModule: EditorModule = {
     };
     core.on('model', syncShapes);
     core.on('draw', syncShapes);
-    queueMicrotask(syncShapes);
+    // the Shapes menu's module is suspended while History shows something: checked again once it is back
+    scope.effect(() => {
+      core.stage();
+      queueMicrotask(syncShapes);
+    });
     scope.effect(() => {
       const m = core.mode();
       if (!layersBtn) return;
@@ -98,11 +103,11 @@ export const editorToolsModule: EditorModule = {
 
     // ---- shortcuts (A.11): tools and panels; Esc goes back to the default tool
     core.shortcuts.add(
-      { id: 'panel-code', keys: ['c'], label: t('help.code'), group: t('help.tools'), editOnly: true, run: () => (f.codePanel ? void core.run('setPanel', 'code', !core.panels.peek().code) : false) },
+      { id: 'panel-code', keys: ['c'], label: t('help.code'), group: t('help.tools'), editOnly: true, readOnly: true, run: () => (f.codePanel ? void core.run('setPanel', 'code', !core.panels.peek().code) : false) },
       { id: 'panel-props', keys: ['i'], label: t('help.props'), group: t('help.tools'), editOnly: true, run: () => (f.properties ? void core.run('setPanel', 'properties', !core.panels.peek().properties) : false) },
       { id: 'panel-layers', keys: ['l'], label: t('help.layers'), group: t('help.tools'), run: () => (f.layers ? void core.run('setPanel', 'layers', !core.panels.peek().layers) : false) },
       {
-        id: 'tool-default', keys: ['escape'], label: t('help.escTool'), group: t('help.tools'), editOnly: true,
+        id: 'tool-default', keys: ['escape'], label: t('help.escTool'), group: t('help.tools'), editOnly: true, readOnly: true,
         run: () => {
           if (core.tool.peek() === defaultTool() || core.tool.peek() === 'paint' || core.tool.peek() === 'shapes') return false;
           setTool(defaultTool());
@@ -114,7 +119,7 @@ export const editorToolsModule: EditorModule = {
     queueMicrotask(() => {
       if (!scope.active && core.isDestroyed) return;
       if (!core.shortcuts.list(true).some((s) => s.keys.includes('v')))
-        core.inScope(scope, () => void core.shortcuts.add({ id: 'tool-pointer', keys: ['v'], label: t('help.pointer'), group: t('help.tools'), editOnly: true, run: () => setTool('pointer') }));
+        core.inScope(scope, () => void core.shortcuts.add({ id: 'tool-pointer', keys: ['v'], label: t('help.pointer'), group: t('help.tools'), editOnly: true, readOnly: true, run: () => setTool('pointer') }));
     });
 
     return () => {

@@ -239,9 +239,9 @@ export class DiagramViewer {
     return (this.o.src?.split('/').pop() ?? 'diagram').replace(/\.(mmdx?|md|txt)$/i, '') || 'diagram';
   }
 
-  /** Opens or closes the History of the diagram. */
-  toggleHistory(on?: boolean): void {
-    this.core.run('toggleHistory', on);
+  /** Opens or closes the History of the diagram; `compare` opens on the newest change compared. */
+  toggleHistory(on?: boolean, opts?: { compare?: boolean }): void {
+    this.core.run('toggleHistory', on, opts);
   }
 
   /** The open History's session (the `<mmdx-diff>` methods), null while History is closed. */
@@ -396,8 +396,8 @@ export class MmdxViewerElement extends MmdxElement<ViewerOptions, DiagramViewer>
   set history(v: ViewerOptions['history']) {
     this.setOpt({ history: v });
   }
-  toggleHistory(on?: boolean): void {
-    this.live?.toggleHistory(on);
+  toggleHistory(on?: boolean, opts?: { compare?: boolean }): void {
+    this.live?.toggleHistory(on, opts);
   }
   /** The open History's session, null while History is closed. */
   get historySession(): HistorySession | null {

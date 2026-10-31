@@ -38,9 +38,16 @@ describe('History in the editor', () => {
     document.body.append(host);
     ed = new DiagramEditor(host, { value: NOW, storage: memoryStorage(), ui: 'light', history: [{ id: 'v2', message: 'Now', source: NOW }, { id: 'v1', message: 'Old', source: OLD }] });
     ed.toggleHistory(true);
-    await wait(() => ed.historySession?.getDiff());
+    await wait(() => ed.historySession);
     const s = ed.historySession!;
+    // opening shows the version panel only: nothing is compared until a version is picked
+    expect(s.pair).toEqual({ base: null, head: null, viewing: null });
+    expect(ed.core.stage.peek()).toBe('document');
+    s.setPair('v1', 'v2');
+    await wait(() => s.getDiff());
     expect(s.pair).toMatchObject({ base: 'v1', head: 'v2' });
+    // a comparison opens the Changes panel
+    expect(ed.core.panels.peek()['changes']).toBe(true);
     // the pill names the two versions; its swap button and X exchange Before and After
     const pill = ed.core.root.querySelector('.mmdx-pill')!;
     await wait(() => pill.querySelector('[role=status]')!.textContent === 'v1 → v2');
@@ -72,6 +79,66 @@ describe('History in the editor', () => {
     if (after.type !== 'flowchart') throw new Error();
     expect([...after.nodes.values()].map((n) => n.label)).toContain('Gone step');
     expect(after.nodes.has('x')).toBe(false); // a copy: a fresh id
+  });
+});
+
+describe('History: a version as it is', () => {
+  const key = (k: string, mod = false): void =>
+    void ed.core.root.dispatchEvent(new KeyboardEvent('keydown', { key: k, ctrlKey: mod, metaKey: mod, bubbles: true, cancelable: true, composed: true }));
+
+  it('opening shows only the panel (the current version disabled); a picked version is read-only: select and copy, nothing writes; Esc goes back to the document', async () => {
+    host = document.createElement('div');
+    document.body.append(host);
+    ed = new DiagramEditor(host, { value: NOW, storage: memoryStorage(), ui: 'light', history: [{ id: 'v2', message: 'Now', source: NOW }, { id: 'v1', message: 'Old', source: OLD }] });
+    const root = host.shadowRoot!;
+    ed.toggleHistory(true);
+    await wait(() => root.querySelectorAll('.mmdx-panel.history .version').length === 2);
+    // nothing changed but the panel: the document, editable, Shapes and Undo in the dock
+    expect(ed.core.stage.peek()).toBe('document');
+    expect(ed.core.version.peek()).toBeNull();
+    expect(root.querySelector('.mmdx-pill')).toBeNull();
+    // the current version is the document: it cannot be picked on the History tab
+    const rows = root.querySelectorAll<HTMLButtonElement>('.mmdx-panel.history .version-main');
+    expect(rows[0]!.disabled).toBe(true);
+    // switching to Compare and back shows nothing new
+    root.querySelector<HTMLButtonElement>('.mmdx-panel.history [role=tab][data-tab=compare]')!.click();
+    root.querySelector<HTMLButtonElement>('.mmdx-panel.history [role=tab][data-tab=history]')!.click();
+    expect(ed.core.stage.peek()).toBe('document');
+
+    root.querySelectorAll<HTMLButtonElement>('.mmdx-panel.history .version-main')[1]!.click();
+    await wait(() => ed.core.version.peek()?.id === 'v1');
+    expect(ed.core.stage.peek()).toBe('version');
+    expect(ed.historySession!.pair).toEqual({ base: null, head: null, viewing: 'v1' });
+    // drawn by the editor itself: the old node is on the canvas, the page too
+    expect(ed.core.dom.body.querySelector('.el[data-kind=node][data-id=x]')).not.toBeNull();
+    // read-only: no Shapes, Properties or Undo / Redo; the code shows the version and cannot be typed into
+    expect(ed.core.root.dataset['stage']).toBe('version');
+    expect(ed.core.code).toContain('x[Gone step]');
+    ed.core.select([{ kind: 'node', id: 'x' }]);
+    expect(ed.core.selection()).toEqual([{ kind: 'node', id: 'x' }]);
+    // writes are refused while it shows
+    expect(ed.core.applyCode({ code: 'flowchart LR\n  q --> r\n' }, 'Edit')).toBe(false);
+    ed.core.undo();
+    key('delete');
+    expect(ed.getSource()).toBe(NOW);
+    // the action bar has Copy only; ⌘C copies the version's item
+    const bar = root.querySelector<HTMLElement>('.ver-copy')!;
+    expect(bar.hidden).toBe(false);
+    expect([...bar.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Copy']);
+    key('c', true);
+    expect(ed.core.clipboard?.items).toEqual([{ kind: 'node', id: 'x' }]);
+    // Esc (the selection first) goes back to the document; the panel stays
+    key('escape');
+    key('escape');
+    expect(ed.core.stage.peek()).toBe('document');
+    expect(ed.core.version.peek()).toBeNull();
+    expect(ed.core.historyOpen.peek()).toBe(true);
+    expect(root.querySelector('.ver-copy:not([hidden])')).toBeNull();
+    // the copy pastes into the document
+    ed.core.run('pasteAt');
+    const after = ed.core.model;
+    if (after.type !== 'flowchart') throw new Error();
+    expect([...after.nodes.values()].map((n) => n.label)).toContain('Gone step');
   });
 });
 
@@ -131,7 +198,7 @@ describe('History: Restore, the working copy, destroy', () => {
     await clickRestore(root, 1);
     fail(new Error('HTTP 500'));
     await wait(() => events.includes('mmdx-history-error'));
-    expect(ed.core.stage.peek()).toBe('history');
+    expect(ed.core.historyOpen.peek()).toBe(true);
     expect(ed.getSource()).toBe(NOW);
     expect(events).not.toContain('mmdx-history-restore');
   });
@@ -139,7 +206,8 @@ describe('History: Restore, the working copy, destroy', () => {
   it('the working copy check reads the newest version once, not on every document change', async () => {
     const a = gated(Promise.resolve());
     await open(a);
-    await wait(() => ed.historySession?.getDiff());
+    await wait(() => a.lists > 0 && a.loads.includes('v2'));
+    await new Promise((r) => setTimeout(r, 30));
     const newest = (): number => a.loads.filter((id) => id === 'v2').length;
     const n = newest(), lists = a.lists;
     for (const label of ['One', 'Two', 'Three']) {
@@ -155,6 +223,7 @@ describe('History: Restore, the working copy, destroy', () => {
 
   it('destroying the host with History open closes it without giving the canvas back (no repaint, no event)', async () => {
     const { events } = await open(gated(Promise.resolve()));
+    ed.historySession!.setPair('v1', 'v2');
     await wait(() => ed.historySession?.getDiff());
     const pop = vi.spyOn(ed.core, 'popScene');
     ed.destroy();

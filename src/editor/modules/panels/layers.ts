@@ -56,12 +56,26 @@ export function layersCard(core: EditorCore): LayersCard {
     { id: 'hover', label: t('layers.hoverConnections'), value: hover, onChange: (v) => display('hoverHighlight', v) },
   ];
 
+  /** The layers shown: the view override, else the document's own visibility. */
+  const shownLayers = (): string[] => [...(core.visibleLayers.peek() ?? layerDefs(core.meta).filter((l) => !l.hidden).map((l) => l.id))];
   const list = createLayerList({
     layers: [], editable: true, t,
-    onToggle: (id, visible) => editDefs(t(visible ? 'history.showLayer' : 'history.hideLayer'), id, (def) => {
-      if (visible) delete def.hidden;
-      else def.hidden = true;
-    }),
+    onToggle: (id, visible) => {
+      // an old version (History) is never written: its layers show and hide in the view only
+      if (core.version.peek()) {
+        const on = new Set(shownLayers());
+        if (visible) on.add(id);
+        else on.delete(id);
+        core.visibleLayers.set([...on]);
+        core.draw();
+        core.fire('panels');
+        return;
+      }
+      editDefs(t(visible ? 'history.showLayer' : 'history.hideLayer'), id, (def) => {
+        if (visible) delete def.hidden;
+        else def.hidden = true;
+      });
+    },
     onRename: (id, name) => editDefs(t('history.renameLayer'), id, (def) => {
       if (id === DEFAULT_LAYER && name === 'Default') delete def.name;
       else def.name = name;
@@ -88,7 +102,8 @@ export function layersCard(core: EditorCore): LayersCard {
         list.update({ layers: [], display: [] });
         return;
       }
-      const editing = core.mode.peek() === 'edit';
+      const version = !!core.version.peek();
+      const editing = core.mode.peek() === 'edit' && !version;
       items = layerItems(M);
       const inLayer = effectiveLayers(M, core.meta);
       onLayer = (id) => items.filter((it) => inLayer(it.kind, it.id) === id);
@@ -98,9 +113,10 @@ export function layersCard(core: EditorCore): LayersCard {
         counts.set(l, (counts.get(l) ?? 0) + 1);
       }
       // display options only matter while viewing (Edit always shows every label)
+      const shown = version ? new Set(shownLayers()) : null;
       list.update({
-        editable: editing, display: editing ? [] : toggles,
-        layers: layerDefs(core.meta).map((l) => ({ id: l.id, name: l.name, visible: !l.hidden, count: counts.get(l.id) ?? 0, fixed: l.id === DEFAULT_LAYER })),
+        editable: editing, display: editing || version ? [] : toggles,
+        layers: layerDefs(core.meta).map((l) => ({ id: l.id, name: l.name, visible: shown ? shown.has(l.id) : !l.hidden, count: counts.get(l.id) ?? 0, fixed: l.id === DEFAULT_LAYER })),
       });
     },
     addLayer() {

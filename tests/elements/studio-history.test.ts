@@ -59,42 +59,48 @@ describe('History in the editor (studio)', () => {
     const rows = (): NodeListOf<HTMLElement> => ed.querySelectorAll('.mmdx-stack .version');
     ed.querySelector<HTMLButtonElement>('.vt-history')!.click();
     await wait(() => rows().length === 6);
-    // in place: the editor's own canvas shows the diff, its editing chrome is suspended
-    expect(editor.core.stage.peek()).toBe('history');
+    // in place, the panel only: the document stays as it is (editable), nothing is compared
+    const modeBtn = (v: string): HTMLButtonElement => root.querySelector<HTMLButtonElement>(`.top button.mode[data-value=${v}]`)!;
+    expect(editor.core.stage.peek()).toBe('document');
     expect(ed.querySelector('mmdx-diff')).toBeNull();
-    expect(ed.querySelector('.mmdx-panel.code-edit')).toBeNull();
     expect(ed.querySelector('.vt-history')!.getAttribute('aria-pressed')).toBe('true');
-    expect(ed.querySelector('.mmdx-pill [role=status]')!.textContent).toMatch(/^\w+ → \w+$/);
+    expect(ed.querySelector('.mmdx-pill')).toBeNull();
     expect(editor.historySession).not.toBeNull();
-    await wait(() => events.includes('mmdx-history-compare'));
-    // a version viewed as it is: the pill names it, the canvas carries no title of it
-    let draws = 0;
-    const off = editor.core.on('draw', () => draws++);
+    expect(events).toEqual(['mmdx-history-open']);
+    expect(modeBtn('edit').getAttribute('aria-pressed')).toBe('true');
+
+    // a version viewed as it is: drawn by the editor, read-only; the pill names it, the canvas carries no title of it
     for (const v of [versions[2], versions[1]]) {
-      const n = draws;
       editor.historySession!.viewVersion(v.id);
-      await wait(() => draws > n);
+      await wait(() => editor.core.version.peek()?.id === v.id);
+      expect(editor.core.stage.peek()).toBe('version');
       expect(ed.querySelector('.mmdx-pill')!.textContent).toContain(v.id);
       expect(editor.core.area.querySelector('.pane-title')).toBeNull();
     }
-    off();
-    // Edit / View cannot switch while History is open
+    // Edit / View cannot switch while a version shows
     editor.setMode('view');
     expect(editor.readOnly).toBe(false);
 
-    // the studio's mode switch shows Diff while History is open
-    const modeBtn = (v: string): HTMLButtonElement => root.querySelector<HTMLButtonElement>(`.top button.mode[data-value=${v}]`)!;
+    // a version on the Compare tab: compared with the current one; the studio's switch shows Diff
+    ed.querySelector<HTMLButtonElement>('.mmdx-panel.history [role=tab][data-tab=compare]')!.click();
+    expect(editor.core.stage.peek()).toBe('version');
+    ed.querySelectorAll<HTMLButtonElement>('.mmdx-stack .version .version-main')[2]!.click();
+    await wait(() => events.includes('mmdx-history-compare'));
+    expect(editor.historySession!.pair).toMatchObject({ base: versions[2].id, head: versions[0].id });
+    expect(editor.core.stage.peek()).toBe('history');
+    expect(ed.querySelector('.mmdx-pill [role=status]')!.textContent).toMatch(/^\w+ → \w+$/);
     expect(modeBtn('diff').getAttribute('aria-pressed')).toBe('true');
 
-    // Back closes it: the editor is back as it was
+    // Back (the pill's ×) goes back to the document; the panel stays
     ed.querySelector<HTMLButtonElement>('.mmdx-pill .mmdx-pill-btn')!.click();
     expect(editor.core.stage.peek()).toBe('document');
-    expect(editor.historySession).toBeNull();
-    expect(ed.querySelector('.mmdx-panel.code-edit')).not.toBeNull();
+    expect(editor.historySession).not.toBeNull();
     expect(ed.querySelector('.mmdx-pill')).toBeNull();
-    expect(events).toContain('mmdx-history-close');
-
     expect(modeBtn('edit').getAttribute('aria-pressed')).toBe('true');
+    // closing the panel leaves History
+    editor.toggleHistory(false);
+    expect(editor.historySession).toBeNull();
+    expect(events).toContain('mmdx-history-close');
 
     // Diff in the mode switch opens History on the newest version against the one before; Edit leaves it
     modeBtn('diff').click();
@@ -127,9 +133,10 @@ describe('History in the editor (studio)', () => {
     await wait(() => rows().length === 7);
     editor.setSource(`${newest.source}\n  extra[Extra step] --> more[More]`, { history: 'push' });
     await wait(() => rows().length === 8);
-    expect(editor.core.stage.peek()).toBe('history');
+    expect(editor.historySession).not.toBeNull();
 
     // each version's ⋮ menu, on both tabs: Restore (not for the working copy) and Compare with the previous version
+    ed.querySelector<HTMLButtonElement>('.mmdx-panel.history [role=tab][data-tab=compare]')!.click();
     await wait(() => ed.querySelector('.mmdx-stack .version .vrail ~ .vmenu'));
     const historyTab = (): void => ed.querySelector<HTMLButtonElement>('.mmdx-panel.history [role=tab][data-tab=history]')!.click();
     historyTab();
@@ -141,6 +148,7 @@ describe('History in the editor (studio)', () => {
     expect(ed.querySelector<HTMLButtonElement>('[role=menu] .restore')!.disabled).toBe(true);
     menuOf(3).click(); // the same popover manager: another opener replaces the menu
     [...ed.querySelectorAll<HTMLButtonElement>('[role=menu] [role=menuitem]')].find((b) => b.textContent === 'Compare with the previous version')!.click();
+    await wait(() => editor.historySession!.pair.base === versions[2].id);
     expect(editor.historySession!.pair).toMatchObject({ base: versions[2].id, head: versions[1].id });
     // restore the newest bundled version: the editor gets it as an undoable change
     historyTab();
@@ -184,14 +192,17 @@ describe('History in the viewer', () => {
     await wait(() => root.querySelector('button[aria-label^="History"]'));
     root.querySelector<HTMLButtonElement>('button[aria-label^="History"]')!.click();
     await wait(() => root.querySelectorAll('.mmdx-stack .version').length === 6);
-    expect(v.core.stage.peek()).toBe('history');
+    // the panel only: the diagram stays
+    expect(v.core.stage.peek()).toBe('document');
     // the version menu (History tab) has no Restore in the viewer
     root.querySelector<HTMLButtonElement>('.mmdx-panel.history [role=tab][data-tab=history]')!.click();
     await wait(() => root.querySelector('.mmdx-stack .version .vmenu'));
     root.querySelector<HTMLButtonElement>('.mmdx-stack .version .vmenu')!.click();
     expect(root.querySelector('[role=menu] .restore')).toBeNull();
     expect(root.querySelectorAll('[role=menu] [role=menuitem]')).toHaveLength(1);
-    expect(v.historySession?.pair.head).toBe(versions[0].id);
+    // a version as it is: the viewer has no editor to draw it read-only, its diff scene shows it
+    v.historySession!.viewVersion(versions[2].id);
+    await wait(() => v.core.stage.peek() === 'history' && v.historySession?.pair.viewing === versions[2].id);
     v.toggleHistory(false);
     expect(v.core.stage.peek()).toBe('document');
     expect(root.querySelector('.mmdx-stack .version')).toBeNull();
@@ -212,7 +223,9 @@ describe('History in the viewer', () => {
     const lightBg = bg();
     await wait(() => v.core.has('toggleHistory'));
     v.toggleHistory(true);
-    await wait(() => v.core.stage.peek() === 'history' && v.historySession);
+    await wait(() => v.historySession);
+    v.historySession!.viewVersion(versions[1].id);
+    await wait(() => v.core.stage.peek() === 'history');
     v.set({ source: 'flowchart LR\n  fresh[Brand new step] --> b[End]' });
     v.core.themes.choose('default-dark');
     // nothing of the document is painted over History
@@ -233,7 +246,9 @@ describe('History in the viewer', () => {
     await rendered;
     await wait(() => v.core.has('toggleHistory'));
     v.toggleHistory(true);
-    await wait(() => v.core.stage.peek() === 'history' && v.historySession);
+    await wait(() => v.historySession);
+    v.historySession!.viewVersion(versions[1].id);
+    await wait(() => v.core.stage.peek() === 'history');
     const seen = vi.fn();
     host.addEventListener('mmdx-history-close', seen);
     host.addEventListener('mmdx-render', seen);

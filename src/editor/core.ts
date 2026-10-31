@@ -9,8 +9,10 @@
 import type { StorageAdapter } from '../adapters/storage.js';
 import type { ThemeSource } from '../adapters/themes.js';
 import type { CoreContext } from '../core/context.js';
+import { normalizeMeta, splitSource, type DiagramDocument } from '../core/meta/index.js';
 import { KIND_TO_COLL, type DiagramMeta, type ItemMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
+import { parse } from '../core/parse/index.js';
 import type { ClipboardData } from '../core/ops/clipboard.js';
 import { remapSequenceMeta } from '../core/ops/remap.js';
 import { currentPreset, type StyleEnv } from '../core/ops/style-env.js';
@@ -29,7 +31,7 @@ import { EDITOR_CSS } from '../ui/styles/editor.js';
 import { ViewCore } from '../view/core.js';
 import type { Mode, Tool, ViewActions } from '../view/types.js';
 import { StoreScene } from './scene.js';
-import type { ChangeReason, DocStore } from './store.js';
+import { itemExists, type ChangeReason, type DocStore } from './store.js';
 
 export type { Mode, Tool };
 
@@ -60,6 +62,14 @@ export const DEFAULT_FEATURES: EditorFeatures = {
   pageToolbar: true, autoLayout: true, plainMermaid: true, open: false, themePicker: true, export: true,
   exportFormats: ['mmdx', 'mmd', 'svg', 'png'], help: true, fullscreen: true, history: true,
 };
+
+/** An old version shown read-only in the editor's canvas (History): read and drawn instead of the store's document. */
+export interface VersionView {
+  id: string;
+  source: string;
+  doc: DiagramDocument;
+  model: DiagramModel;
+}
 
 /** A selected item; `foot` marks the mirrored copy of a participant at the bottom of a sequence diagram. */
 export interface Sel extends ItemRef {
@@ -153,8 +163,8 @@ export interface EditorActions {
   gotoMetaLine(line: number): void;
   setPanel(name: PanelName, open: boolean): void;
   toggleHelp(on?: boolean): void;
-  /** Opens or closes the History of the document (when the editor has a history). */
-  toggleHistory(on?: boolean): void;
+  /** Opens or closes the History of the document (when the editor has a history); `compare`: on the newest change. */
+  toggleHistory(on?: boolean, opts?: { compare?: boolean }): void;
   exportAs(kind: 'mmdx' | 'mmd' | 'svg' | 'png'): Promise<void>;
   setTheme(id: string): void;
   openFiles(files: FileList | File[]): Promise<void>;
@@ -231,6 +241,15 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   pointer: { clientX: number; clientY: number } | null = null;
   /** The item clipboard (UI state, never saved): copies carry their content (§9), so History can fill it too. */
   clipboard: ClipboardData | null = null;
+  /**
+   * An old version shown read-only (History, `showVersion`): the getters, the render and the selection read it instead
+   * of the store, and nothing writes (changes, transactions, undo are refused) while it shows.
+   */
+  readonly version: Signal<VersionView | null> = signal<VersionView | null>(null);
+  /** The selection while a version shows (the document's own selection is kept in the store meanwhile). */
+  private versionSel: ItemRef[] = [];
+  /** What showing a version put aside (the document's entered group and layer override), given back after it. */
+  private beforeVersion: { group: string | null; layers: readonly string[] | undefined } | null = null;
 
   private rendered: Rendered | null = null;
   private readonly gestures: GestureSource[] = [];
@@ -311,15 +330,58 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   // ---- document access --------------------------------------------------------------------------------------------
 
   get model(): DiagramModel {
-    return this.store.model.peek();
+    return this.version.peek()?.model ?? this.store.model.peek();
   }
 
   get meta(): DiagramMeta {
-    return this.store.meta.peek();
+    return this.version.peek()?.doc.meta ?? this.store.meta.peek();
   }
 
   get code(): string {
-    return this.store.code.peek();
+    return this.version.peek()?.doc.code ?? this.store.code.peek();
+  }
+
+  /** The full source of what is shown: the version, or the document. */
+  shownSource(): string {
+    return this.version.peek()?.source ?? this.store.source();
+  }
+
+  /**
+   * Shows an old version read-only (History) or the document again (null). The document's selection, entered group
+   * and layer visibility are kept for when it is back; the view stays where it is.
+   */
+  showVersion(v: { id: string; source: string } | null): void {
+    const cur = this.version.peek();
+    if ((v?.id ?? null) === (cur?.id ?? null) && v?.source === cur?.source) return;
+    this.cancelGesture();
+    this.inlineEditing = null;
+    if (v) {
+      const split = splitSource(v.source);
+      const doc: DiagramDocument = { code: split.doc.code, meta: normalizeMeta(split.doc.meta) };
+      if (!cur) {
+        this.beforeVersion = { group: this.enteredGroup.peek(), layers: this.visibleLayers.peek() };
+        this.enteredGroup.set(null);
+        this.pageSelected.set(false);
+      }
+      // the same item stays selected from version to version while it is there
+      const model = parse(doc.code);
+      this.versionSel = cur ? this.versionSel.filter((r) => itemExists(model, r, doc.meta)) : [];
+      this.version.set({ id: v.id, source: v.source, doc, model });
+    } else {
+      this.version.set(null);
+      this.versionSel = [];
+      const back = this.beforeVersion;
+      this.beforeVersion = null;
+      if (back) {
+        this.enteredGroup.set(back.group);
+        this.visibleLayers.set(back.layers);
+      }
+    }
+    this.rendered = null;
+    this.draw();
+    this.fire('model');
+    this.fire('selection');
+    this.fire('panels');
   }
 
   /** The last render (scene, geometry, theme). */
@@ -357,7 +419,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   // ---- selection --------------------------------------------------------------------------------------------------
 
   selection(): Sel[] {
-    const sel = this.store.selection.peek();
+    const sel = this.version.peek() ? this.versionSel : this.store.selection.peek();
     return sel.map((r, i) => (i === 0 && this.foot && r.kind === 'participant' ? { ...r, foot: true } : r));
   }
 
@@ -368,7 +430,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   }
 
   isSelected(r: ItemRef): boolean {
-    return this.store.selection.peek().some((x) => x.kind === r.kind && x.id === r.id);
+    return (this.version.peek() ? this.versionSel : this.store.selection.peek()).some((x) => x.kind === r.kind && x.id === r.id);
   }
 
   select(items: readonly Sel[]): void {
@@ -382,10 +444,12 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     }
     this.foot = !!items[0]?.foot;
     if (list.length) this.pageSelected.set(false);
-    this.store.selection.set(list);
+    // a version's items are selected to copy them: the document's selection and its event stay as they are
+    if (this.version.peek()) this.versionSel = list;
+    else this.store.selection.set(list);
     this.fire('selection');
     this.drawOverlay();
-    this.emit('mmdx-selection', { items: list });
+    if (!this.version.peek()) this.emit('mmdx-selection', { items: list });
   }
 
   toggleSelected(it: Sel): void {
@@ -420,14 +484,16 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   /** Renders the current document (no DOM work). */
   render(): Rendered {
-    const doc = this.store.doc();
+    const v = this.version.peek();
+    const doc = v?.doc ?? this.store.doc();
     const model = this.model;
     const opts: Parameters<typeof renderDocument>[3] = {};
     if (this.mode.peek() === 'view' && !this.display.peek().labels) opts.hideLabels = true;
     opts.theme = this.shownTheme();
-    const layers = this.mode.peek() === 'view' ? this.visibleLayers.peek() : undefined;
+    // a version's layers are a view override too (its Layers panel hides and shows them without writing)
+    const layers = this.mode.peek() === 'view' || v ? this.visibleLayers.peek() : undefined;
     if (layers) opts.visibleLayers = layers;
-    if (this.tableView && this.mode.peek() === 'edit') opts.tableView = [this.tableView];
+    if (this.tableView && this.mode.peek() === 'edit' && !v) opts.tableView = [this.tableView];
     const r = renderDocument(doc, model, this.ctx, opts);
     this.rendered = { doc, model, tooLarge: false, ...r, diagnostics: [...model.diagnostics, ...r.diagnostics] };
     return this.rendered;
@@ -583,6 +649,8 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
    * in the code move into the metadata. Returns false when nothing changed or the host vetoed the op.
    */
   applyCode(res: { code?: string | null; meta?: DiagramMeta } | null | undefined, label: string, opts: { select?: Sel[] | null; type?: string; reason?: ChangeReason } = {}): boolean {
+    // a version shown read-only is never written (and the store is not what is shown)
+    if (this.version.peek()) return false;
     if (!res || res.code == null || (res.code === this.code && !res.meta)) return false;
     if (!this.emit('mmdx-op', { type: opts.type ?? label, code: res.code }, true)) return false;
     const oldModel = this.model, oldCode = this.code;
@@ -622,7 +690,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       this.pageSelected.set(false);
     }
     this.draw();
-    if (this.scene === this.storeScene && (opts.fit !== false || before !== this.store.model.peek().type)) this.viewport.setBounds(this.result.result.bounds, { fit: true });
+    if (this.scene === this.storeScene && !this.version.peek() && (opts.fit !== false || before !== this.store.model.peek().type)) this.viewport.setBounds(this.result.result.bounds, { fit: true });
     this.fire('model');
     this.fire('panels');
   }
@@ -637,6 +705,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
    * Fires `mmdx-op`; a veto rolls the change back.
    */
   change(label: string, f: () => void): void {
+    if (this.version.peek()) return;
     this.store.begin();
     try {
       f();
@@ -655,6 +724,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   /** Starts a gesture transaction (live preview through draw(); commit or roll back at the end). */
   begin(): void {
+    if (this.version.peek()) return;
     this.store.begin();
   }
 
@@ -685,12 +755,14 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   /** Undo, after cancelling the edit in flight (its later commit would record a stale start and drop the redo steps). */
   undo(): void {
+    if (this.version.peek()) return;
     this.cancelGesture();
     this.store.undo();
     this.afterChange();
   }
 
   redo(): void {
+    if (this.version.peek()) return;
     this.cancelGesture();
     this.store.redo();
     this.afterChange();
@@ -704,7 +776,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   setMode(m: Mode): void {
     // no Edit / View switching while History is open (§8.2)
-    if (this.mode.peek() === m || this.stage.peek() === 'history') return;
+    if (this.mode.peek() === m || this.stage.peek() !== 'document') return;
     this.mode.set(m);
     this.tool.set(m === 'edit' ? 'pointer' : 'hand');
     if (m === 'view') {

@@ -81,6 +81,11 @@ export interface DiffSessionOptions {
   name(): string;
   /** Asks the host to show the version list (`viewVersion` from code). */
   showVersions?(): void;
+  /**
+   * A loaded history opens on its newest change (default). False: nothing is picked, compared or rendered until a
+   * version is (History in place, where the document shows until then).
+   */
+  pick?: boolean;
   view?: DiffViewName;
   mode?: DiffMode;
   filters?: readonly DiffFilter[];
@@ -272,6 +277,11 @@ export class DiffSession {
     } catch (e) {
       if (seq !== this.loadSeq || this.destroyed) return;
       this.loadFailed(e);
+      return;
+    }
+    if (this.o.pick === false && 'history' in s) {
+      this.status.set(null);
+      this.queueCounts();
       return;
     }
     const ids = this.versions.peek().map((v) => v.id);

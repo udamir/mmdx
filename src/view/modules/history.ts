@@ -1,6 +1,7 @@
 // history (component architecture §7.4, §8): the History button of the tool dock (⇧H) and `toggleHistory`, shown
-// while the host gives the component a history (`core.history`). Opening enters the `history` stage in the host's own
-// canvas and panels; the History code (src/diff/history.ts) is loaded on first use through the kernel's
+// while the host gives the component a history (`core.history`). Opening shows the version panel in the host's own
+// panels (what it shows changes only when a version is picked); the History code (src/diff/history.ts) is loaded on
+// first use through the kernel's
 // `loadHistory`, which the product passes (the kernel never imports the diff) — no `<mmdx-diff>` on the page needed.
 import { dockButton } from '../../ui/blocks/tool-dock.js';
 import type { ViewCore } from '../core.js';
@@ -14,26 +15,34 @@ export const historyModule: ViewModule<ViewCore> = {
     const core = scope.core;
     const t = core.i18n.t;
     const load = core.loadHistory!;
-    let ctl: { close(): void } | null = null;
+    let ctl: { close(): void; compareNewest(): void } | null = null;
     /** The open in progress (the History chunk loading); replaced or cleared to cancel it. */
-    let pending: object | null = null;
+    let pending: { compare: boolean } | null = null;
     let disposed = false;
-    const open = async (): Promise<void> => {
-      if (ctl || pending || !core.history.peek()) return;
-      const ticket = (pending = {});
+    const open = async (compare: boolean): Promise<void> => {
+      if (ctl) {
+        if (compare) ctl.compareNewest();
+        return;
+      }
+      if (pending) {
+        pending.compare ||= compare;
+        return;
+      }
+      if (!core.history.peek()) return;
+      const ticket = (pending = { compare });
       try {
         const m = await load();
         if (pending !== ticket || disposed || core.isDestroyed || !core.history.peek() || ctl) return;
         core.popovers.close();
-        ctl = m.openHistory(core, { onClose: () => (ctl = null) });
+        ctl = m.openHistory(core, { onClose: () => (ctl = null), compare: ticket.compare });
       } catch (e) {
         if (pending === ticket && !disposed) core.toast(e instanceof Error ? e.message : String(e), { error: true });
       } finally {
         if (pending === ticket) pending = null;
       }
     };
-    scope.provide('toggleHistory', (on) => {
-      if (on ?? !(ctl || pending)) void open();
+    scope.provide('toggleHistory', (on, opts) => {
+      if (on ?? !(ctl || pending)) void open(!!opts?.compare);
       else {
         // closing while it still loads cancels the open
         pending = null;

@@ -13,7 +13,7 @@ import { pageScene } from '../core/render/page.js';
 import { fmt } from '../core/scene/serialize.js';
 import { hasMarks, markRuns } from '../core/text/marks.js';
 import type { CanvasOptions, CanvasPicture, DiagramCanvas, Insets } from '../dom/canvas.js';
-import { Morph, type MorphState } from '../dom/morph.js';
+import { Morph, transitionFrom, type MorphState } from '../dom/morph.js';
 import { patchChildren, setMarkedLines } from '../dom/patch.js';
 import type { StrokeStore } from '../dom/pen.js';
 import { createBanner, MESSAGES_CSS } from '../ui/blocks/messages.js';
@@ -75,6 +75,8 @@ export class DiffScene extends BaseScene {
   private panes: HTMLElement[] = [];
   private second: { canvas: DiagramCanvas; unlink: () => void; ink: { store: StrokeStore; off: () => void } | null } | null = null;
   private morph: Morph | null = null;
+  /** The picture shown before the scene was pushed (History: a version, the document): its first picture morphs from it. */
+  private carry: MorphState | null = null;
   private offs: (() => void)[] = [];
   /** What is painted: a repaint only does what changed (a view switch animates). */
   private painted: { kind: Kind | null; D: DiffRendered | null; plain: Rendered | null; dim: boolean; view: DiffViewName | null; pair: string } = { kind: null, D: null, plain: null, dim: false, view: null, pair: '' };
@@ -222,7 +224,8 @@ export class DiffScene extends BaseScene {
     const area = this.area!;
     const main = area.main;
     const keep = refit ? null : main.saveView();
-    const animate = switched && kind === 'single' && this.morph !== null;
+    const animate = switched && kind === 'single' && (this.morph !== null || this.carry !== null);
+    if (kind !== 'single') this.carry = null;
     if (kind === 'single') {
       const states = (['before', 'merged', 'after'] as const).map((v) => this.state(D, v, dim));
       if (this.painted.kind !== 'single') this.layout('single');
@@ -258,7 +261,7 @@ export class DiffScene extends BaseScene {
     const id = this.session.viewing.peek();
     const v = this.session.versions.peek().find((x) => x.id === id);
     const pair = `v:${id}`;
-    const animate = this.morph !== null && this.painted.pair !== pair;
+    const animate = (this.morph !== null || this.carry !== null) && this.painted.pair !== pair;
     const title = this.o.versionTitle === false ? [] : [{ side: 'single', title: v?.id ?? '', sub: [v?.message, v?.author, ago(v?.date, this.core.i18n.locale)].filter(Boolean).join(' · ') }];
     this.layout('plain', title);
     this.panes[0]!.style.background = paneBackground(r);
@@ -271,11 +274,22 @@ export class DiffScene extends BaseScene {
   /** Shows morph states on the main canvas: a new morph, or the shown one moved to them (animated or not). */
   private showStates(states: MorphState[], i: number, animate: boolean): void {
     const main = this.area!.main;
+    const carry = this.carry;
+    this.carry = null;
     if (this.morph) this.morph.replace(states, i, animate);
     else {
       this.morph = new Morph(main.defs, main.content, states, i, this.o.reducedMotion);
       main.setMorph(this.morph);
+      if (carry && animate && typeof requestAnimationFrame !== 'undefined') transitionFrom(main.defs, main.content, carry);
     }
+  }
+
+  /**
+   * The picture on the canvas before the scene is pushed (History: a version or the document drawn by its host): the
+   * scene's first picture morphs from it and the view glides from where it is to the new fit.
+   */
+  continueFrom(from: MorphState | null): void {
+    this.carry = from && !this.o.reducedMotion() ? from : null;
   }
 
   /** Nothing to compare: an empty pane. */

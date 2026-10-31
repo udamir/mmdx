@@ -119,13 +119,14 @@ export const rightPanelsModule: EditorModule = {
         side: 'right', title: t('props.title'), label: t('props.title'), class: 'props', closeLabel: t('props.close'), closeKeys: 'i',
         onClose: () => void core.run('setPanel', 'properties', false), body, t,
       });
-      scope.contribute(core.panelItems, { id: 'properties', side: 'right', order: 10, el: panel.el, visible: () => core.mode() === 'edit' });
+      // not for an old version shown read-only (History)
+      scope.contribute(core.panelItems, { id: 'properties', side: 'right', order: 10, el: panel.el, visible: () => core.mode() === 'edit' && core.stage() !== 'version' });
       offs.push(() => panel.destroy());
     }
     // ---- Layers / View settings
     const layers = f.layers ? layersCard(core) : null;
     if (layers) {
-      const newBtn = h('button', { type: 'button', class: 'small primary edit-only rp-act', title: t('layers.newTip'), 'data-f': 'layers-new' }, t('layers.new'));
+      const newBtn = h('button', { type: 'button', class: 'small primary edit-only no-version rp-act', title: t('layers.newTip'), 'data-f': 'layers-new' }, t('layers.new'));
       scope.listen(newBtn, 'click', () => layers.addLayer());
       const panel = createSidePanel({
         side: 'right', title: t('layers.layers'), label: t('layers.layers'), class: 'layers', actions: [newBtn], closeLabel: t('layers.close'), closeKeys: 'l',
@@ -167,7 +168,7 @@ export const rightPanelsModule: EditorModule = {
       queued = false;
       if (dirty.props && propsBody && !focusedIn(propsBody)) {
         dirty.props = false;
-        if (core.mode.peek() === 'edit' && core.panels.peek().properties) renderProps(propsBody);
+        if (core.mode.peek() === 'edit' && !core.version.peek() && core.panels.peek().properties) renderProps(propsBody);
       }
       if (dirty.layers && layers && !focusedIn(layers.el)) {
         dirty.layers = false;
