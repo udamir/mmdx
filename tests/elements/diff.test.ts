@@ -140,6 +140,27 @@ describe('DiagramDiff: history', () => {
     expect(events.filter((e) => e.type === 'mmdx-version').pop()!.detail).toEqual({ base: versions[4]!.id, head: versions[0]!.id });
   });
 
+  it('History and Code stack on the left; the change list toggles from the bottom bar; all three can be open', async () => {
+    const versions = history('production-microservices');
+    const { root } = await mount({ history: versions, panels: ['history', 'code', 'changes'] });
+    const shown = (sel: string): boolean => !root.querySelector<HTMLElement>(sel)!.hidden;
+    expect(shown('.lpanel.history') && shown('.lpanel.code')).toBe(true);
+    expect(root.querySelector('.left-stack')!.classList.contains('both')).toBe(true);
+    expect(root.querySelector('.pane-side.right.open')).not.toBeNull();
+    // the code panel's own close button leaves History open
+    root.querySelector<HTMLButtonElement>('.lpanel.code .collapse-btn')!.click();
+    expect(shown('.lpanel.code')).toBe(false);
+    expect(shown('.lpanel.history')).toBe(true);
+    // the change list from the bottom bar
+    const toggle = root.querySelector<HTMLButtonElement>('.dbar .changes-btn')!;
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    toggle.click();
+    expect(root.querySelector('.pane-side.right.open')).toBeNull();
+    expect(root.querySelector('.dbar .changes-btn')!.getAttribute('aria-pressed')).toBe('false');
+    root.querySelector<HTMLButtonElement>('.dbar .changes-btn')!.click();
+    expect(root.querySelector('.pane-side.right.open')).not.toBeNull();
+  });
+
   it('History mode shows one version as it is, without diff controls', async () => {
     const versions = history('docker-deploy-sequence');
     const { d, root } = await mount({ history: versions, panels: ['history'] });

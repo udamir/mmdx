@@ -561,6 +561,6 @@ Decisions taken on the open questions: the default view is Merged (not remembere
 Deferred:
 
 - Diffing and rendering in the render worker for sources over 300 lines (§6.4); large samples stay interactive on the main thread.
-- Lazy diagram kinds and lazy panels in `mmdx/diff`: the entry is 85.8 kB gzip (budget 90 kB) instead of the 60 kB target of §16; `mmdx/core` is 52.8 kB with the engine (budget 55 kB); the viewer is 45.3 kB with its History control (budget 46 kB).
+- Lazy diagram kinds and lazy panels in `mmdx/diff`: the entry is 86.5 kB gzip (budget 90 kB) instead of the 60 kB target of §16; `mmdx/core` is 52.8 kB with the engine (budget 55 kB); the viewer is 45.3 kB with its History control (budget 46 kB).
 - Virtualised change list, infinite scroll of the history (a "Load older versions" button pages instead), the theme `diff` block and theme editor preview, the editor's conflict dialog, the Markdown `mermaid-diff` fence, rename detection for entities and participants, and the Playwright / axe suites (jsdom tests cover the element and the History of the editor, the viewer and the studio).
 

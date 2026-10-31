@@ -10,7 +10,7 @@ How a diagram changed, at a glance: the editor and the viewer get a History of t
 
 - **`<mmdx-diff>` and `DiagramDiff`** (`mmdx/diff`): compares two versions of a flowchart, sequence or ER diagram item by item. Views: Before, Merged and After on one animated canvas, and Side by side with linked pan and zoom. The Merged view keeps removed items where they were (removed ER rows and sequence messages get their own room), marks text changes word by word and draws an arrow from the old place of every moved item.
 - **Change filters**: hide added or removed items, and ignore content, layout or style changes (Layout off draws the old version on the new layout, Style off draws both versions unstyled); Dim fades everything that did not change.
-- **Panels**: the version history (Compare two versions, or view one as it is, with `+added −removed ~changed` per version), the code and metadata diff narrowed to the selected change, and the change list. Panels slide, resize and remember their widths like the editor's.
+- **Panels**: the version history (Compare two versions, or view one as it is, with `+added −removed ~changed` per version) and the code and metadata diff narrowed to the selected change, stacked on the left with a splitter between them, and the change list on the right, toggled from the end of the bottom bar; any combination can be open. Panels resize and remember their sizes like the editor's.
 - **Review tools**: J / K through the changes, the magic pen with strokes shared by every view, the editor's zoom bar and help popup, full screen, keyboard shortcuts, light and dark chrome with `--mmdx-diff-*` tokens.
 - **Export** from the diff: PNG and SVG of the current view with a legend, either version as `.mmdx` or portable `.mmd`, a unified patch (applies with `git apply`), and a change report in Markdown or JSON. `mmdx-export` is cancelable so hosts can upload instead of downloading.
 - **History adapters** (`mmdx/diff`, `mmdx/adapters`): `staticHistory(versions)` and `httpHistoryAdapter(url)` (paged with `next` / `?cursor=`); write your own `{ list, load }` for GitLab, GitHub or any backend.
@@ -33,7 +33,7 @@ How a diagram changed, at a glance: the editor and the viewer get a History of t
 
 ### Size
 
-Gzip budgets checked by `pnpm size`: the viewer grows from 44.9 kB to 45.3 kB with its History control (budget raised from 45 to 46 kB) and the editor from 161.9 kB to 162.8 kB (budget 165 kB) — neither bundle contains the diff, which their History uses as `<mmdx-diff>` once the page loads `mmdx/diff`; `mmdx/core` grows from 40.8 kB to 52.8 kB with the diff engine (budget raised to 55 kB); the new `mmdx/diff` entry is 85.8 kB with every diagram kind loaded statically (budget 90 kB). The studio loads `mmdx/diff` in the background after start.
+Gzip budgets checked by `pnpm size`: the viewer grows from 44.9 kB to 45.3 kB with its History control (budget raised from 45 to 46 kB) and the editor from 161.9 kB to 162.8 kB (budget 165 kB) — neither bundle contains the diff, which their History uses as `<mmdx-diff>` once the page loads `mmdx/diff`; `mmdx/core` grows from 40.8 kB to 52.8 kB with the diff engine (budget raised to 55 kB); the new `mmdx/diff` entry is 86.5 kB with every diagram kind loaded statically (budget 90 kB). The studio loads `mmdx/diff` in the background after start.
 
 ### Upgrading from 0.1
 

@@ -72,7 +72,7 @@ export interface DiffOptions {
   filters?: readonly DiffFilter[];
   /** Fade unchanged items (default true). */
   dim?: boolean;
-  /** Open side panels (`history` and `code` share the left side; the last one wins). Default `changes`. */
+  /** Open side panels: `history` and `code` (stacked on the left), `changes` (right); any combination. Default `changes`. */
   panels?: readonly DiffPanel[];
   /** Parts to turn off (all on by default). */
   features?: Partial<Record<DiffFeature, boolean>>;
@@ -191,9 +191,14 @@ export class DiagramDiff {
   private readonly zoomLabel: HTMLOutputElement;
   private readonly helpBtn: HTMLButtonElement;
   private readonly fsBtn: HTMLButtonElement;
+  /** The left column: History on top, the code diff below (each shown on its own), like the editor's right stack. */
   private readonly leftPane: HTMLElement;
-  private readonly leftHead: HTMLElement;
-  private readonly leftBody: HTMLElement;
+  private readonly historyPanel: HTMLElement;
+  private readonly historyHead: HTMLElement;
+  private readonly historyBody: HTMLElement;
+  private readonly codePanel: HTMLElement;
+  private readonly codeHead: HTMLElement;
+  private readonly codeBodyEl: HTMLElement;
   private readonly rightPane: HTMLElement;
   private readonly rightBody: HTMLElement;
   private readonly pops: PopoverManager;
@@ -229,7 +234,8 @@ export class DiagramDiff {
   private ignore: DiffIgnore = {};
   private hide: DiffHide = {};
   private dim: boolean;
-  private left: 'history' | 'code' | null = null;
+  private historyOpen = false;
+  private codeOpen = false;
   private changesOpen = true;
   private tool: 'pan' | 'pen' = 'pan';
   private selected: string | null = null;
@@ -277,9 +283,15 @@ export class DiagramDiff {
     this.live = h('div', { class: 'mmdx-sr', 'aria-live': 'polite' });
     this.area = h('div', { class: 'area' }, this.stage, this.banner, this.msg, this.vbarWrap, this.dbar, this.actionsBar);
 
-    this.leftHead = h('div', { class: 'tabs', role: 'tablist' });
-    this.leftBody = h('div', { class: 'pane-body' });
-    this.leftPane = h('section', { class: 'pane-side left', part: 'panel' }, this.leftHead, this.leftBody);
+    this.historyHead = h('div', { class: 'tabs', role: 'tablist', 'aria-label': t('diff.panel.history') });
+    this.historyBody = h('div', { class: 'pane-body' });
+    this.historyPanel = h('section', { class: 'lpanel history', part: 'panel history', 'aria-label': t('diff.panel.history') }, this.historyHead, this.historyBody);
+    this.codeHead = h('div', { class: 'tabs', role: 'tablist', 'aria-label': t('diff.tool.code') });
+    this.codeBodyEl = h('div', { class: 'pane-body' });
+    this.codePanel = h('section', { class: 'lpanel code', part: 'panel', 'aria-label': t('diff.tool.code') }, this.codeHead, this.codeBodyEl);
+    const split = h('div', { class: 'lp-split', role: 'separator', 'aria-orientation': 'horizontal', title: t('diff.panel.resize') });
+    this.leftPane = h('div', { class: 'pane-side left left-stack' }, this.historyPanel, split, this.codePanel);
+    this.wireSplit(split);
     this.rightBody = h('div', { class: 'pane-body', part: 'change-list' });
     this.rightPane = h('aside', { class: 'pane-side right', part: 'panel', 'aria-label': t('diff.panel.changes') },
       h('div', { class: 'tabs' }, h('b', { class: 'head-title', role: 'heading', 'aria-level': '2' }, t('diff.panel.changes')), h('span', { class: 'tabs-spacer' }),
@@ -376,7 +388,7 @@ export class DiagramDiff {
     if (!this.versions.some((v) => v.id === id)) return;
     this.viewing = id;
     this.mode = 'history';
-    this.left = 'history';
+    this.historyOpen = true;
     this.applyPanels();
     emit(this.host, 'mmdx-version', { base: this.base, head: this.head, viewing: id });
     void this.refresh();
@@ -416,7 +428,7 @@ export class DiagramDiff {
     this.codeAll = false;
     // in place: re-rendering the list would drop the keyboard focus out of the component
     for (const b of this.rightBody.querySelectorAll('.change')) b.setAttribute('aria-selected', String(b.getAttribute('data-key') === this.selected));
-    if (this.left === 'code') this.renderLeft();
+    if (this.codeOpen) this.renderCode();
     this.applySelection(focus && !!change);
     if (change) {
       this.rightBody.querySelector(`[data-key="${cssEscape(this.selected!)}"]`)?.scrollIntoView?.({ block: 'nearest' });
@@ -585,7 +597,6 @@ export class DiagramDiff {
       this.showLoadError(e);
       return;
     }
-    if (!this.hasHistory && this.left === 'history') this.left = null;
     const ids = this.versions.map((v) => v.id);
     const head = this.o.head && ids.includes(this.o.head) ? this.o.head : ids[0] ?? null;
     const hi = head ? ids.indexOf(head) : -1;
@@ -627,7 +638,7 @@ export class DiagramDiff {
       const known = new Set(this.versions.map((v) => v.id));
       this.versions = [...this.versions, ...page.versions.filter((v) => !known.has(v.id))];
       this.nextPage = page.next;
-      this.renderLeft();
+      this.renderHistory();
       this.queueCounts();
     } catch (e) {
       this.toaster.show(`${this.i18n.t('diff.history.failed')}: ${e instanceof Error ? e.message : String(e)}`, { error: true });
@@ -664,10 +675,10 @@ export class DiagramDiff {
         } catch {
           this.counts.set(v.id, { added: 0, removed: 0, changed: 0, content: 0, layout: 0, style: 0 });
         }
-        if (this.left === 'history') this.renderLeft();
+        if (this.historyOpen) this.renderHistory();
       });
     }
-    if (this.left === 'history') this.renderLeft();
+    if (this.historyOpen) this.renderHistory();
   }
 
   private showLoadError(e: unknown): void {
@@ -759,8 +770,8 @@ export class DiagramDiff {
     const text = !D ? '' : unsupported ? t('diff.banner.unsupported') : D.raw.typeChanged ? t('diff.banner.typeChanged') : '';
     this.banner.textContent = text;
     this.banner.hidden = !text;
-    if (unsupported && this.left !== 'code' && this.feature('code')) {
-      this.left = 'code';
+    if (unsupported && !this.codeOpen && this.feature('code')) {
+      this.codeOpen = true;
       this.applyPanels();
     }
   }
@@ -807,7 +818,7 @@ export class DiagramDiff {
 
   /** True while the history panel shows one version as it is (no diff controls). */
   private viewOnly(): boolean {
-    return this.hasHistory && this.left === 'history' && this.mode === 'history';
+    return this.hasHistory && this.historyOpen && this.feature('history') && this.mode === 'history';
   }
 
   // ---- canvases -----------------------------------------------------------------------------------------------------
@@ -1065,8 +1076,8 @@ export class DiagramDiff {
   private applyPanelList(list: readonly DiffPanel[] | undefined): void {
     const l = list ?? ['changes'];
     this.changesOpen = l.includes('changes');
-    const lefts = l.filter((p): p is 'history' | 'code' => p === 'history' || p === 'code');
-    this.left = lefts[lefts.length - 1] ?? null;
+    this.historyOpen = l.includes('history');
+    this.codeOpen = l.includes('code');
   }
 
   private feature(f: DiffFeature): boolean {
@@ -1074,15 +1085,16 @@ export class DiagramDiff {
   }
 
   private applyPanels(): void {
-    const left = this.left === 'history' && !this.hasHistory ? null : this.left;
-    const leftOk = left && this.feature(left) ? left : null;
+    const history = this.historyOpen && this.hasHistory && this.feature('history');
+    const code = this.codeOpen && this.feature('code');
     const right = this.changesOpen && this.feature('changes') && !this.viewOnly();
-    this.leftPane.classList.toggle('open', !!leftOk);
+    this.historyPanel.hidden = !history;
+    this.codePanel.hidden = !code;
+    this.leftPane.classList.toggle('open', history || code);
+    this.leftPane.classList.toggle('both', history && code);
     this.rightPane.classList.toggle('open', right);
-    this.rootEl.classList.toggle('left-open', !!leftOk);
+    this.rootEl.classList.toggle('left-open', history || code);
     this.rootEl.classList.toggle('right-open', right);
-    this.leftPane.setAttribute('aria-label', leftOk === 'history' ? this.i18n.t('diff.panel.history') : this.i18n.t('diff.tool.code'));
-    this.leftPane.setAttribute('part', leftOk === 'history' ? 'panel history' : 'panel');
     this.dbar.hidden = this.viewOnly();
     this.renderLeft();
   }
@@ -1090,18 +1102,62 @@ export class DiagramDiff {
   private togglePanel(name: DiffPanel, open?: boolean): void {
     const wasViewOnly = this.viewOnly();
     if (name === 'changes') this.changesOpen = open ?? !this.changesOpen;
+    else if (name === 'code') this.codeOpen = open ?? !this.codeOpen;
     else {
-      if (name === 'history' && !this.hasHistory) return;
-      const on = open ?? this.left !== name;
-      this.left = on ? name : this.left === name ? null : this.left;
+      if (!this.hasHistory) return;
+      this.historyOpen = open ?? !this.historyOpen;
     }
     this.applyPanels();
     this.renderTools();
+    this.renderBar();
     this.renderChanges();
     if (wasViewOnly !== this.viewOnly()) {
       emit(this.host, 'mmdx-view', { view: this.view, mode: this.mode });
       void this.refresh();
     }
+  }
+
+  /** The splitter between History and Code: drag sets the Code height (remembered); double-click resets. */
+  private wireSplit(split: HTMLElement): void {
+    const col = (): HTMLElement => this.leftPane;
+    const setH = (px: number | null): void => {
+      if (px === null) col().style.removeProperty('--code-h');
+      else col().style.setProperty('--code-h', `${Math.round(px)}px`);
+      col().classList.toggle('sized', px !== null);
+    };
+    queueMicrotask(() => {
+      const saved = this.storage.get<number>('diff.codeH');
+      if (typeof saved === 'number' && saved > 0) setH(saved);
+    });
+    split.addEventListener('pointerdown', (ev) => {
+      if (ev.button !== 0) return;
+      ev.preventDefault();
+      try {
+        split.setPointerCapture(ev.pointerId);
+      } catch {
+        // best-effort
+      }
+      const y0 = ev.clientY, h0 = this.codePanel.getBoundingClientRect().height, colH = col().getBoundingClientRect().height;
+      split.classList.add('dragging');
+      this.rootEl.classList.add('resizing-rows');
+      const move = (e: PointerEvent): void => setH(Math.max(120, Math.min(colH - 140, h0 - (e.clientY - y0))));
+      const up = (): void => {
+        split.classList.remove('dragging');
+        this.rootEl.classList.remove('resizing-rows');
+        split.removeEventListener('pointermove', move);
+        split.removeEventListener('pointerup', up);
+        split.removeEventListener('pointercancel', up);
+        const v = parseInt(col().style.getPropertyValue('--code-h'), 10);
+        if (v) this.storage.set('diff.codeH', v);
+      };
+      split.addEventListener('pointermove', move);
+      split.addEventListener('pointerup', up);
+      split.addEventListener('pointercancel', up);
+    }, { signal: this.ac.signal });
+    split.addEventListener('dblclick', () => {
+      setH(null);
+      this.storage.remove('diff.codeH');
+    }, { signal: this.ac.signal });
   }
 
   private setMode(m: DiffMode): void {
@@ -1129,30 +1185,49 @@ export class DiagramDiff {
   }
 
   private renderLeft(): void {
+    this.renderHistory();
+    this.renderCode();
+  }
+
+  private tab(id: string, label: string, on: boolean, f: () => void): HTMLElement {
+    return h('button', { type: 'button', role: 'tab', 'aria-selected': String(on), 'data-tab': id, onclick: f }, label);
+  }
+
+  private closeBtn(name: 'history' | 'code', key: string): HTMLElement {
     const t = this.i18n.t;
-    const tab = (id: string, label: string, on: boolean, f: () => void): HTMLElement =>
-      h('button', { type: 'button', role: 'tab', 'aria-selected': String(on), 'data-tab': id, onclick: f }, label);
-    const close = (name: 'history' | 'code', key: string): HTMLElement =>
-      h('button', { type: 'button', class: 'collapse-btn', title: `${t('diff.panel.hide')} (${key})`, 'aria-label': t('diff.panel.hide'), onclick: () => this.togglePanel(name, false) }, '‹');
-    if (this.left === 'history' && this.hasHistory) {
-      this.leftHead.replaceChildren(
-        tab('history', t('diff.panel.history'), this.mode === 'history', () => this.setMode('history')),
-        tab('compare', t('diff.panel.compare'), this.mode === 'compare', () => this.setMode('compare')),
-        h('span', { class: 'tabs-spacer' }), close('history', 'V'));
-      this.leftBody.replaceChildren(historyRows(t, {
-        versions: this.versions, counts: (id) => this.counts.get(id), mode: this.mode, base: this.base, head: this.head, viewing: this.viewing,
-        locale: this.i18n.locale, hasMore: !!this.nextPage,
-        onPick: (side, id) => this.pickPair(side === 'before' ? id : this.base, side === 'after' ? id : this.head),
-        onRow: (id) => (this.mode === 'compare' ? this.compareWithPrevious(id) : this.viewVersion(id)),
-        onMore: () => void this.loadMore(),
-      }));
-    } else if (this.left === 'code') {
-      this.leftHead.replaceChildren(
-        tab('code', t('diff.panel.code'), this.codeTab === 'code', () => ((this.codeTab = 'code'), this.renderLeft())),
-        tab('meta', t('diff.panel.meta'), this.codeTab === 'meta', () => ((this.codeTab = 'meta'), this.renderLeft())),
-        h('span', { class: 'tabs-spacer' }), close('code', 'C'));
-      this.leftBody.replaceChildren(...this.codeBody());
-    } else this.leftBody.replaceChildren();
+    return h('button', { type: 'button', class: 'collapse-btn', title: `${t('diff.panel.hide')} (${key})`, 'aria-label': t('diff.panel.hide'), onclick: () => this.togglePanel(name, false) }, '×');
+  }
+
+  private renderHistory(): void {
+    const t = this.i18n.t;
+    if (!this.historyOpen || !this.hasHistory || this.historyPanel.hidden) {
+      this.historyBody.replaceChildren();
+      return;
+    }
+    this.historyHead.replaceChildren(
+      this.tab('history', t('diff.panel.history'), this.mode === 'history', () => this.setMode('history')),
+      this.tab('compare', t('diff.panel.compare'), this.mode === 'compare', () => this.setMode('compare')),
+      h('span', { class: 'tabs-spacer' }), this.closeBtn('history', 'V'));
+    this.historyBody.replaceChildren(historyRows(t, {
+      versions: this.versions, counts: (id) => this.counts.get(id), mode: this.mode, base: this.base, head: this.head, viewing: this.viewing,
+      locale: this.i18n.locale, hasMore: !!this.nextPage,
+      onPick: (side, id) => this.pickPair(side === 'before' ? id : this.base, side === 'after' ? id : this.head),
+      onRow: (id) => (this.mode === 'compare' ? this.compareWithPrevious(id) : this.viewVersion(id)),
+      onMore: () => void this.loadMore(),
+    }));
+  }
+
+  private renderCode(): void {
+    const t = this.i18n.t;
+    if (!this.codeOpen || this.codePanel.hidden) {
+      this.codeBodyEl.replaceChildren();
+      return;
+    }
+    this.codeHead.replaceChildren(
+      this.tab('code', t('diff.panel.code'), this.codeTab === 'code', () => ((this.codeTab = 'code'), this.renderCode())),
+      this.tab('meta', t('diff.panel.meta'), this.codeTab === 'meta', () => ((this.codeTab = 'meta'), this.renderCode())),
+      h('span', { class: 'tabs-spacer' }), this.closeBtn('code', 'C'));
+    this.codeBodyEl.replaceChildren(...this.codeBody());
   }
 
   private codeBody(): HTMLElement[] {
@@ -1179,7 +1254,7 @@ export class DiagramDiff {
     const notes: string[] = [];
     if (this.ignore.style) notes.push(t('diff.panel.styleRemoved'));
     if (D.layoutAligned) notes.push(t('diff.panel.layoutReplaced'));
-    return codeDiff(t, { a, b, tab: this.codeTab, sel, notes, onShowAll: () => ((this.codeAll = true), this.renderLeft()) });
+    return codeDiff(t, { a, b, tab: this.codeTab, sel, notes, onShowAll: () => ((this.codeAll = true), this.renderCode()) });
   }
 
   // ---- history ------------------------------------------------------------------------------------------------------
@@ -1239,9 +1314,8 @@ export class DiagramDiff {
       this.feature('pen') ? btn(`${t('diff.tool.pen')} (P)`, I_pen, this.tool === 'pen', () => this.setTool(this.tool === 'pen' ? 'pan' : 'pen')) : null,
     ];
     const panels: HTMLElement[] = [];
-    if (this.hasHistory && this.feature('history')) panels.push(btn(`${t('diff.tool.history')} (V)`, I_history, this.left === 'history', () => this.togglePanel('history')));
-    if (this.feature('code')) panels.push(btn(`${t('diff.tool.code')} (C)`, I_code, this.left === 'code', () => this.togglePanel('code')));
-    if (this.feature('changes')) panels.push(btn(`${t('diff.tool.changes')} (L)`, I_list, this.changesOpen && !this.viewOnly(), () => this.togglePanel('changes'), { disabled: this.viewOnly() }));
+    if (this.hasHistory && this.feature('history')) panels.push(btn(`${t('diff.tool.history')} (V)`, I_history, this.historyOpen, () => this.togglePanel('history')));
+    if (this.feature('code')) panels.push(btn(`${t('diff.tool.code')} (C)`, I_code, this.codeOpen, () => this.togglePanel('code')));
     if (panels.length) parts.push(sep(), ...panels);
     if (this.feature('export')) parts.push(sep(), btn(t('diff.tool.export'), I_download, false, () => this.openExport(), { 'aria-haspopup': 'menu', 'aria-pressed': undefined, class: 'export-btn' }));
     this.vbar.replaceChildren(...parts.filter((p): p is HTMLElement => !!p));
@@ -1302,6 +1376,16 @@ export class DiagramDiff {
           this.filtersChanged();
         },
       }, icon(FILTER_ICONS.dim)));
+    }
+    // the change list (right panel), at the right end of the bar
+    if (this.feature('changes')) {
+      if (parts.length) parts.push(h('span', { class: 'sep', role: 'separator' }));
+      const on = this.changesOpen;
+      const label = `${t('diff.tool.changes')} (L)`;
+      parts.push(h('button', {
+        type: 'button', class: `changes-btn${on ? ' on' : ''}`, 'aria-pressed': String(on), 'aria-label': label, 'data-tip': label, 'data-f': 'changes',
+        onclick: () => this.togglePanel('changes'),
+      }, icon(I_list), D ? h('span', { class: 'cnt', 'aria-hidden': 'true' }, String(D.changes.length)) : null));
     }
     this.dbar.replaceChildren(...parts);
     this.dbar.hidden = !parts.length || this.viewOnly();

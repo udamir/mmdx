@@ -65,7 +65,7 @@ const meta: Meta<DiffArgs> = {
     pair: { control: 'select', options: ['architecture', 'restyle', 'flow-many', 'small', 'sequence', 'seq-many', 'schema', 'er-many'], if: { arg: 'source', eq: 'two versions' } },
     view: { control: 'inline-radio', options: ['before', 'merged', 'after', 'side'] },
     filters: { control: 'check', options: ['added', 'removed', 'content', 'layout', 'style'] },
-    panels: { control: 'select', options: ['changes', 'history changes', 'code changes', 'history', ''] },
+    panels: { control: 'select', options: ['history code changes', 'history changes', 'code changes', 'changes', 'history code', ''], description: 'Open panels: History and Code stack on the left, Changes on the right (also toggled from the end of the bottom bar).' },
     ui: { control: 'inline-radio', options: ['light', 'dark', 'auto'] },
   },
   args: { source: 'history', example: 'production-microservices', pair: 'architecture', view: 'merged', filters: ['added', 'removed', 'content', 'layout', 'style'], dim: true, panels: 'history changes', ui: 'light' },
@@ -81,6 +81,8 @@ export const SequenceHistory: Story = { name: 'Sequence diagram history', args: 
 export const ErHistory: Story = { name: 'ER diagram history', args: { example: 'atom-schema-er' } };
 
 export const MergeRequest: Story = { name: 'Two versions (merge request)', args: { source: 'two versions', pair: 'architecture', panels: 'code changes' } };
+
+export const AllPanels: Story = { name: 'All panels (History and Code stacked, Changes)', args: { panels: 'history code changes' } };
 
 export const HiddenEdit: Story = { name: 'Restyle with one hidden edit (Style off)', args: { source: 'two versions', pair: 'restyle', filters: ['added', 'removed', 'content', 'layout'] } };
 
