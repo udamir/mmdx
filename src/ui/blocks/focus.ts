@@ -30,7 +30,8 @@ export interface RovingOptions {
   /** Past the last item back to the first (default true); false stops at the ends. */
   wrap?: boolean;
   /**
-   * Roving tab stop: one item has `tabindex=0` (the focused one, else `current()`, else the first), the others -1.
+   * Roving tab stop: one item has `tabindex=0` (the focused one, else `current()`, else the last stop, else the first),
+   * the others -1.
    * Items inside a nested group with its own keys (`[data-roving]`, set by this function) keep their own tab stops.
    */
   roving?: boolean;
@@ -87,9 +88,8 @@ export function rovingKeys(el: HTMLElement, o: RovingOptions): RovingHandle {
     if (!o.roving) return;
     const list = items();
     const active = focusedIn(el);
-    const stop = (active && list.includes(active) ? active : null)
-      ?? list.find((e) => own(e) && e.getAttribute('tabindex') === '0')
-      ?? o.current?.(list) ?? list.find(own) ?? null;
+    const stop = (active && list.includes(active) ? active : null) ?? o.current?.(list)
+      ?? list.find((e) => own(e) && e.getAttribute('tabindex') === '0') ?? list.find(own) ?? null;
     setStop(stop && list.includes(stop) ? stop : list.find(own) ?? null);
   };
 
