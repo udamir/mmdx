@@ -351,29 +351,29 @@ export function createCodeEditor(opts: CodeEditorOptions = {}): CodeEditor {
 
 /** Code editor CSS (scoped to the component that hosts it). Syntax colours follow the host's `data-ui` scheme. */
 const EDITOR_CSS = /* css */ `
-.cm { position: relative; flex: 1; min-height: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); overflow: hidden; }
-.cm:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-2); }
+.cm { position: relative; flex: 1; min-height: 0; border: 1px solid var(--mmdx-border); border-radius: 6px; background: var(--mmdx-surface-2); overflow: hidden; }
+.cm:focus-within { border-color: var(--mmdx-accent); box-shadow: 0 0 0 3px var(--mmdx-accent-2); }
 .cm-hl, .cm-ta { margin: 0; padding: 8px 10px; font: 12.5px/1.55 var(--mmdx-mono); white-space: pre; tab-size: 2; letter-spacing: 0; word-wrap: normal; }
-.cm-hl { position: absolute; inset: 0; overflow: hidden; pointer-events: none; color: var(--ink); }
+.cm-hl { position: absolute; inset: 0; overflow: hidden; pointer-events: none; color: var(--mmdx-text); }
 .cm-hl code { font: inherit; display: block; will-change: transform; }
 .cm-ta { position: relative; display: block; width: 100%; height: 100%; resize: none; border: 0; outline: 0; background: transparent; color: transparent;
-  caret-color: var(--ink); overflow: auto; overscroll-behavior: contain; box-shadow: none !important; }
+  caret-color: var(--mmdx-text); overflow: auto; overscroll-behavior: contain; box-shadow: none !important; }
 .cm-ta::-webkit-scrollbar { width: 9px; height: 9px; }
-.cm-ta::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 6px; border: 2px solid var(--surface-2); }
+.cm-ta::-webkit-scrollbar-thumb { background: var(--mmdx-faint); border-radius: 6px; border: 2px solid var(--mmdx-surface-2); }
 .cm-ta::-webkit-scrollbar-corner { background: transparent; }
-.cm-ta::selection { background: rgba(79,70,229,.22); color: transparent; }
+.cm-ta::selection { background: color-mix(in srgb, var(--mmdx-accent) 22%, transparent); color: transparent; }
 .cm.auto { flex: none; }
 .cm.with-gutter .cm-hl, .cm.with-gutter .cm-ta { padding-left: calc(var(--gutter, 34px) + 8px); }
 .cm-gutter { position: absolute; left: 0; top: 0; bottom: 0; width: var(--gutter, 34px); overflow: hidden; pointer-events: none; z-index: 1;
-  background: var(--surface-2); border-right: 1px solid var(--line); color: var(--faint); text-align: right;
+  background: var(--mmdx-surface-2); border-right: 1px solid var(--mmdx-border); color: var(--mmdx-faint); text-align: right;
   font: 12.5px/1.55 var(--mmdx-mono); padding: 8px 8px 8px 0; box-sizing: border-box; }
 .cm-gutter > div { will-change: transform; }
-.cm-gutter .fold { color: #c9a24a; }
-.cm-gutter .has-issue { position: relative; color: var(--danger); font-weight: 600; }
-.cm-issue { position: absolute; left: 4px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; border-radius: 50%; background: var(--danger); color: #fff;
+.cm-gutter .fold { color: var(--mmdx-code-fold); }
+.cm-gutter .has-issue { position: relative; color: var(--mmdx-danger); font-weight: 600; }
+.cm-issue { position: absolute; left: 4px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; border-radius: 50%; background: var(--mmdx-danger); color: var(--mmdx-on-danger);
   font: 800 9px/13px system-ui, sans-serif; text-align: center; pointer-events: auto; cursor: pointer; }
-.cm-tip { position: absolute; z-index: var(--mmdx-z-popover); max-width: 320px; padding: 6px 9px; border-radius: 6px; background: var(--float); color: var(--ink);
-  border: 1px solid var(--danger); box-shadow: 0 4px 14px rgba(0,0,0,.18); font-size: 12px; line-height: 1.4; white-space: pre-wrap; pointer-events: none; }
+.cm-tip { position: absolute; z-index: var(--mmdx-z-popover); max-width: 320px; padding: 6px 9px; border-radius: 6px; background: var(--mmdx-float); color: var(--mmdx-text);
+  border: 1px solid var(--mmdx-danger); box-shadow: var(--mmdx-shadow-lg); font-size: 12px; line-height: 1.4; white-space: pre-wrap; pointer-events: none; }
 `;
 
 /** The editor's styles, highlight colours included. */

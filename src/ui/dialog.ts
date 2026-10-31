@@ -3,7 +3,7 @@
 import { h } from './h.js';
 
 export const DIALOG_CSS = /* css */ `
-.mmdx-dialog-back { position: absolute; inset: 0; z-index: calc(var(--mmdx-z-popover) + 10); background: rgba(10, 12, 20, .32); display: grid; place-items: center; }
+.mmdx-dialog-back { position: absolute; inset: 0; z-index: calc(var(--mmdx-z-popover) + 10); background: var(--mmdx-backdrop); display: grid; place-items: center; }
 .mmdx-dialog { background: var(--mmdx-surface); color: var(--mmdx-text); border: 1px solid var(--mmdx-border); border-radius: 12px; box-shadow: var(--mmdx-shadow-lg); padding: 18px 20px 16px; width: min(440px, calc(100% - 32px)); display: flex; flex-direction: column; gap: 12px; }
 .mmdx-dialog h2 { margin: 0; font-size: 15px; }
 .mmdx-dialog p { margin: 0; color: var(--mmdx-text-2); white-space: pre-wrap; }

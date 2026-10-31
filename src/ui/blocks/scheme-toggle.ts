@@ -18,7 +18,7 @@ export interface SchemeToggleProps {
 export const SCHEME_TOGGLE_CSS = /* css */ `
 .vp-mode { display: flex; gap: 2px; background: var(--mmdx-float-2); border-radius: 9px; padding: 2px; }
 .vp-mode button { border: 0; background: none; width: 32px; height: 28px; padding: 0; display: grid; place-items: center; border-radius: 7px; color: var(--mmdx-muted); }
-.vp-mode button[aria-checked=true] { background: var(--mmdx-float); color: var(--mmdx-text); box-shadow: 0 1px 3px rgba(0,0,0,.18); }
+.vp-mode button[aria-checked=true] { background: var(--mmdx-float); color: var(--mmdx-text); box-shadow: var(--mmdx-shadow-raised); }
 `;
 
 export function createSchemeToggle(props: SchemeToggleProps): BlockHandle<SchemeToggleProps> {

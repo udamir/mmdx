@@ -6,7 +6,7 @@ export const TOKENS = /* css */ `
 :host {
   --mmdx-font: Inter, 'Segoe UI', system-ui, -apple-system, sans-serif;
   --mmdx-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
-  --mmdx-accent: #4f46e5; --mmdx-accent-2: #eef0ff; --mmdx-on-accent: #fff;
+  --mmdx-accent: #4f46e5; --mmdx-accent-2: #eef0ff; --mmdx-on-accent: #fff; --mmdx-on-danger: #fff;
   --mmdx-bg: #eef0f3; --mmdx-surface: #ffffff; --mmdx-surface-2: #f2f3f7; --mmdx-panel: #ffffff;
   --mmdx-border: #dde1e7; --mmdx-border-2: #eceef2;
   --mmdx-text: #1d2330; --mmdx-text-2: #3a4152; --mmdx-muted: #6b7385; --mmdx-faint: #b0b6c3; --mmdx-dots: #cfd4dc;
@@ -15,6 +15,13 @@ export const TOKENS = /* css */ `
   --mmdx-float: #ffffff; --mmdx-float-2: #f2f3f7; --mmdx-float-line: rgba(0,0,0,.06);
   --mmdx-radius: 8px; --mmdx-radius-sm: 6px;
   --mmdx-shadow: 0 2px 8px rgba(0,0,0,.08); --mmdx-shadow-lg: 0 8px 28px rgba(0,0,0,.16);
+  --mmdx-shadow-float: 0 4px 16px rgba(20,30,60,.10), 0 1px 3px rgba(20,30,60,.06);
+  --mmdx-shadow-card: 0 10px 30px rgba(20,30,60,.16), 0 1px 3px rgba(20,30,60,.08);
+  --mmdx-shadow-raised: 0 1px 3px rgba(0,0,0,.18);
+  --mmdx-swatch-ring: rgba(0,0,0,.14); --mmdx-backdrop: rgba(10,12,20,.32);
+  --mmdx-code-kw: #7c3aed; --mmdx-code-arrow: #db2777; --mmdx-code-str: #15803d; --mmdx-code-label: #0369a1; --mmdx-code-text: #0f766e;
+  --mmdx-code-cls: #c2410c; --mmdx-code-dir: #9333ea; --mmdx-code-key: #b45309; --mmdx-code-punct: #64748b; --mmdx-code-comment: #8a93a6;
+  --mmdx-code-meta: #b5bac6; --mmdx-code-fold: #c9a24a;
   --mmdx-z-popover: 1000;
   --mmdx-focus: 0 0 0 2px var(--mmdx-accent);
   color-scheme: light;
@@ -31,6 +38,12 @@ export const TOKENS = /* css */ `
   --mmdx-ok: #5fd38a;
   --mmdx-float: #353b47; --mmdx-float-2: #434a58; --mmdx-float-line: rgba(255,255,255,.1);
   --mmdx-shadow: 0 2px 8px rgba(0,0,0,.4); --mmdx-shadow-lg: 0 8px 28px rgba(0,0,0,.5);
+  --mmdx-shadow-float: 0 4px 16px rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.3);
+  --mmdx-shadow-card: 0 10px 30px rgba(0,0,0,.5), 0 1px 3px rgba(0,0,0,.3);
+  --mmdx-shadow-raised: 0 1px 3px rgba(0,0,0,.5);
+  --mmdx-swatch-ring: rgba(255,255,255,.22); --mmdx-backdrop: rgba(0,0,0,.5);
+  --mmdx-code-kw: #c4a5ff; --mmdx-code-arrow: #ff7eb6; --mmdx-code-str: #7ee0a1; --mmdx-code-label: #6cc4ff; --mmdx-code-text: #5fd8c9;
+  --mmdx-code-cls: #ffa26b; --mmdx-code-dir: #d29bff; --mmdx-code-punct: #8d97a8; --mmdx-code-comment: #7d8597; --mmdx-code-meta: #5b6272;
 }
 `;
 
@@ -96,13 +109,13 @@ kbd {
 .mmdx-menu hr { border: 0; border-top: 1px solid var(--mmdx-border); margin: 4px 0; width: 100%; }
 .mmdx-sect { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--mmdx-muted); padding: 6px 10px 2px; }
 .mmdx-toggle { position: relative; width: 28px; height: 16px; border-radius: 8px; background: var(--mmdx-faint); border: 0; padding: 0; flex-shrink: 0; }
-.mmdx-toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: transform .15s; }
+.mmdx-toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--mmdx-on-accent); transition: transform .15s; }
 .mmdx-toggle[aria-checked=true] { background: var(--mmdx-accent); }
 .mmdx-toggle[aria-checked=true]::after { transform: translateX(12px); }
 .mmdx-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .mmdx-toast-host { position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; z-index: calc(var(--mmdx-z-popover) + 1); pointer-events: none; }
 .mmdx-toast { background: var(--mmdx-text); color: var(--mmdx-surface); border-radius: var(--mmdx-radius); padding: 7px 14px; box-shadow: var(--mmdx-shadow-lg); max-width: 520px; pointer-events: auto; animation: mmdx-in .15s ease; }
-.mmdx-toast.error { background: var(--mmdx-danger); color: #fff; }
+.mmdx-toast.error { background: var(--mmdx-danger); color: var(--mmdx-on-danger); }
 @keyframes mmdx-in { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 `;

@@ -26,7 +26,7 @@ export interface MenuProps {
 }
 
 export const MENU_CSS = /* css */ `
-.mmdx-menu.mmdx-bmenu { min-width: 210px; padding: 6px; background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: 12px; box-shadow: 0 10px 30px rgba(20,30,60,.18); }
+.mmdx-menu.mmdx-bmenu { min-width: 210px; padding: 6px; background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: 12px; box-shadow: var(--mmdx-shadow-card); }
 .mmdx-bmenu .mmdx-sect { padding: 6px 8px 3px; }
 .mmdx-bmenu [role^=menuitem] { color: var(--mmdx-text); border-radius: 7px; padding: 6px 8px; }
 .mmdx-bmenu [role^=menuitem]:hover:not(:disabled), .mmdx-bmenu [role^=menuitem]:focus-visible { background: var(--mmdx-float-2); }

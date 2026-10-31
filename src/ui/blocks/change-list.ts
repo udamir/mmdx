@@ -78,7 +78,7 @@ export const CHANGE_LIST_CSS = /* css */ `
 .mmdx-change-list .fvals .val:last-child { color: var(--mmdx-diff-add); }
 .mmdx-change-list .fvals .val.none { color: var(--mmdx-muted); text-decoration: none; }
 .mmdx-change-list .fvals .arrow { color: var(--mmdx-muted); }
-.mmdx-change-list .val .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; border: 1px solid rgba(0,0,0,.2); margin-right: 3px; vertical-align: -1px; }
+.mmdx-change-list .val .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; border: 1px solid var(--mmdx-swatch-ring); margin-right: 3px; vertical-align: -1px; }
 .mmdx-change-list .changes { display: flex; flex-direction: column; }
 .mmdx-change-list .change {
   width: 100%; border: 0; border-bottom: 1px solid var(--mmdx-border-2); border-radius: 0; background: none; text-align: left; padding: 6px 12px;

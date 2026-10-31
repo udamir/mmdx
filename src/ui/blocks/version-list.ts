@@ -99,7 +99,7 @@ export const VERSION_LIST_CSS = /* css */ `
 .mmdx-version-list .vnode { position: absolute; left: 16px; top: 50%; transform: translate(-50%, -50%); width: 12px; height: 12px; padding: 0; border: 0; border-radius: 50%; background: var(--mmdx-panel, var(--mmdx-surface)); box-shadow: inset 0 0 0 2px var(--mmdx-faint); }
 .mmdx-version-list .vnode.in { box-shadow: inset 0 0 0 2px var(--mmdx-text); }
 .mmdx-version-list .vnode:hover:not(.on) { transform: translate(-50%, -50%) scale(1.25); box-shadow: inset 0 0 0 2px var(--mmdx-text); }
-.mmdx-version-list .vnode.on { width: 20px; height: 20px; color: #fff; font: 700 10px/1 var(--mmdx-font, inherit); display: grid; place-items: center; box-shadow: 0 0 0 3px var(--mmdx-panel, var(--mmdx-surface)); }
+.mmdx-version-list .vnode.on { width: 20px; height: 20px; color: var(--mmdx-on-accent); font: 700 10px/1 var(--mmdx-font, inherit); display: grid; place-items: center; box-shadow: 0 0 0 3px var(--mmdx-panel, var(--mmdx-surface)); }
 .mmdx-version-list .vnode.on:hover { box-shadow: 0 0 0 3px var(--mmdx-panel, var(--mmdx-surface)), 0 0 0 5px var(--mmdx-faint); }
 .mmdx-version-list .vnode.before { background: var(--mmdx-diff-del); }
 .mmdx-version-list .vnode.after { background: var(--mmdx-diff-add); }

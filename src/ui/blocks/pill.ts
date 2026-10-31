@@ -38,7 +38,7 @@ export interface PillProps {
 export const PILL_CSS = /* css */ `
 .mmdx-pill { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 33; display: flex; align-items: center; gap: 6px; max-width: calc(100% - 24px);
   padding: 4px 4px 4px 14px; background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: 12px; color: var(--mmdx-text);
-  box-shadow: 0 4px 16px rgba(20,30,60,.10), 0 1px 3px rgba(20,30,60,.06); }
+  box-shadow: var(--mmdx-shadow-float); }
 .mmdx-pill-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .mmdx-pill-btn { flex: none; display: flex; align-items: center; gap: 4px; height: 30px; padding: 0 10px 0 6px; border: 0; border-radius: 8px; background: var(--mmdx-float-2); color: var(--mmdx-text); }
 .mmdx-pill-btn:hover:not(:disabled) { background: var(--mmdx-accent-2); color: var(--mmdx-accent); }

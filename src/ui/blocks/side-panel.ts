@@ -54,7 +54,7 @@ export interface SidePanelHandle extends BlockHandle<SidePanelProps> {
 
 export const SIDE_PANEL_CSS = /* css */ `
 .mmdx-panel { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--mmdx-panel); border: 1px solid var(--mmdx-border);
-  border-radius: 14px; box-shadow: 0 10px 30px rgba(20,30,60,.16), 0 1px 3px rgba(20,30,60,.08); overflow: hidden; color: var(--mmdx-text); }
+  border-radius: 14px; box-shadow: var(--mmdx-shadow-card); overflow: hidden; color: var(--mmdx-text); }
 .mmdx-panel-head { display: flex; align-items: center; gap: 4px; min-height: 40px; padding: 0 6px 0 0; border-bottom: 1px solid var(--mmdx-border); flex: none; }
 .mmdx-panel-title { flex: 1; min-width: 0; padding: 8px 0 8px 14px; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mmdx-panel-head > .mmdx-tabs { flex: 1; align-self: stretch; }

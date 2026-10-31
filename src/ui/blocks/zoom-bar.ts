@@ -42,7 +42,7 @@ const I_FIT = 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5M12 14a2 2 0 1 0 0-4 2 2 0 
 export const ZOOM_BAR_CSS = /* css */ `
 .bottom-bar { position: absolute; right: 12px; bottom: 12px; z-index: 38; display: flex; align-items: center; gap: 8px; pointer-events: none; }
 .bottom-bar > * { pointer-events: auto; }
-.zoom { display: flex; gap: 4px; align-items: center; background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: 8px; padding: 4px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.zoom { display: flex; gap: 4px; align-items: center; background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: 8px; padding: 4px; box-shadow: var(--mmdx-shadow); }
 .zoom output { min-width: 44px; text-align: center; color: var(--mmdx-muted); font-variant-numeric: tabular-nums; }
 .zoom button { padding: 2px 8px; background: transparent; border-color: transparent; }
 .zoom button:hover:not(:disabled) { background: var(--mmdx-float-2); border-color: transparent; }
