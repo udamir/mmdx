@@ -18,7 +18,7 @@ import type { SceneNode } from '../../../core/scene/types.js';
 import { relativeColor } from '../../../core/theme/colors.js';
 import type { Rect } from '../../../core/types.js';
 import { h } from '../../../ui/h.js';
-import type { KindSpec, ToolbarApi, ToolbarHandle } from '../../../ui/style-toolbar.js';
+import type { KindSpec, ToolbarApi, StyleToolbarHandle } from '../../../ui/style-toolbar.js';
 import type { EditorCore, Gesture } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { elementAt } from '../canvas/shared.js';
@@ -312,11 +312,11 @@ export const erTableModule: EditorModule = {
         }
       },
     };
-    let tb: ToolbarHandle | null = null;
+    let tb: StyleToolbarHandle | null = null;
     let tbLoading: Promise<void> | null = null;
-    const ensureToolbar = (): Promise<void> => (tbLoading ??= import('../../../ui/style-toolbar.js').then(({ createToolbar }) => {
+    const ensureToolbar = (): Promise<void> => (tbLoading ??= import('../../../ui/style-toolbar.js').then(({ createStyleToolbar }) => {
       if (destroyed || tb) return;
-      tb = createToolbar(wrap, api, { i18n: core.i18n, kinds: { attr: ATTR_SPEC } });
+      tb = createStyleToolbar(wrap, api, { i18n: core.i18n, kinds: { attr: ATTR_SPEC } });
       tb.refresh();
     }));
     /** Repaints the row selection and rebuilds the attribute toolbar. */

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { parseAttrLine } from '../../src/core/parse/er.js';
 import type { EditorCore } from '../../src/editor/core.js';
@@ -199,7 +199,7 @@ describe('ER attribute editing (table view)', () => {
     const el = tableEl(core, 'CUSTOMER');
     click(core, el, rowPoint(core, 'CUSTOMER', 1));
     click(core, el, rowPoint(core, 'CUSTOMER', 2), { shift: true });
-    await tick();
+    await vi.dynamicImportSettled();
     await tick();
     const bar = core.dom.wrap.querySelector<HTMLElement>('.mtb')!;
     expect(bar.hidden).toBe(false);

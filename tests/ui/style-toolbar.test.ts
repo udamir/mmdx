@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createToolbar, fitPresetGrid, shapePreview, TOOLBAR_KINDS, type ToolbarApi } from '../../src/ui/style-toolbar.js';
+import { createStyleToolbar, fitPresetGrid, shapePreview, TOOLBAR_KINDS, type ToolbarApi } from '../../src/ui/style-toolbar.js';
 import { createPageToolbar, type PageToolbarApi } from '../../src/ui/page-toolbar.js';
 
-function mount(kind: string, over: Partial<ToolbarApi> = {}, opts: Parameters<typeof createToolbar>[2] = {}) {
+function mount(kind: string, over: Partial<ToolbarApi> = {}, opts: Parameters<typeof createStyleToolbar>[2] = {}) {
   const host = document.createElement('div');
   document.body.append(host);
   const style: Record<string, unknown> = { fill: '#ffffff', stroke: '#333333', fontSize: 14, fontWeight: 400, color: '#111111' };
@@ -27,7 +27,7 @@ function mount(kind: string, over: Partial<ToolbarApi> = {}, opts: Parameters<ty
     isLocked: () => false,
     ...over,
   };
-  const tb = createToolbar(host, api, opts);
+  const tb = createStyleToolbar(host, api, opts);
   tb.refresh();
   return { host, tb, api, set, style };
 }
@@ -147,8 +147,32 @@ describe('style toolbar', () => {
     expect(menu.getAttribute('role')).toBe('menu');
     const items = Array.from(menu.querySelectorAll<HTMLButtonElement>('[role=menuitem]'));
     expect(items.map((i) => i.querySelector('span')!.textContent)).toEqual(['Copy', 'Duplicate', 'Delete', 'Save as preset', 'Reset style', 'All properties…']);
+    // shortcuts in the registry's aria form (not the display string): Control+c here, Meta+c on Apple
+    expect(items.map((i) => i.getAttribute('aria-keyshortcuts'))).toEqual(['Control+c', 'Control+d', 'Delete', null, null, null]);
+    expect(items[0]!.querySelector('kbd')!.textContent).toBe('Ctrl+C');
+    // up / down move through the enabled items
+    items[0]!.focus();
+    items[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(items[1]);
     items[2]!.click();
     expect(del).toHaveBeenCalled();
+  });
+
+  it('the bar is one tab stop; arrow keys move along it and keep the stop with the focus', () => {
+    const { tb } = mount('node');
+    const buttons = (): HTMLElement[] => Array.from(tb.el.querySelectorAll<HTMLElement>('.mtb-seg button, .mtb-seg input'));
+    expect(buttons().filter((b) => b.tabIndex === 0)).toHaveLength(1);
+    const first = buttons()[0]!;
+    first.focus();
+    first.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+    const now = document.activeElement as HTMLElement;
+    expect(now).toBe(buttons()[1]);
+    expect(now.tabIndex).toBe(0);
+    expect(first.tabIndex).toBe(-1);
+    // a rebuild keeps the focus (and so the stop) on the same control
+    tb.refresh();
+    expect((document.activeElement as HTMLElement).dataset['c'] ?? (document.activeElement as HTMLElement).closest<HTMLElement>('[data-c]')?.dataset['c']).toBe(now.closest<HTMLElement>('[data-c]')!.dataset['c']);
+    expect(buttons().filter((b) => b.tabIndex === 0)).toHaveLength(1);
   });
 
   it('Esc and outside clicks close the popover; destroy removes listeners and the bar', () => {
@@ -291,5 +315,29 @@ describe('page toolbar', () => {
     expect(set).toHaveBeenCalledWith({ background: '@paper' });
     pt.destroy();
     expect(host.childElementCount).toBe(0);
+  });
+
+  it('the diagram\'s own colours: removing one re-renders the popover (like the style toolbar)', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    let local = [{ name: 'c1', value: '#123456' }, { name: 'c2', value: '#654321' }];
+    const api = {
+      visible: () => true, types: () => [], diagramType: () => 'flowchart', direction: () => null, directions: () => [], presets: () => [], preset: () => undefined,
+      sizeMode: () => 'fit' as const, ratio: () => null, ratioLabel: () => '', ratios: () => [], get: () => null, getRaw: () => '@c1', hasRouting: () => false, routing: () => 'curved',
+      seq: () => null, setSeq: vi.fn(), set: vi.fn(), setType: vi.fn(), setDirection: vi.fn(), setPreset: vi.fn(), setSizeMode: vi.fn(), setRatio: vi.fn(), setRouting: vi.fn(),
+      palette: () => [], rect: () => ({ x: 0, y: 100, w: 400, h: 300 }),
+      localPalette: () => local, addLocalColor: () => 'c3', removeLocalColor: (n: string) => void (local = local.filter((c) => c.name !== n)),
+    } satisfies PageToolbarApi;
+    const pt = createPageToolbar(host, api);
+    pt.refresh();
+    (pt.el.querySelector('[data-c="background"]') as HTMLButtonElement).click();
+    const locals = (): HTMLElement[] => Array.from(pt.el.querySelectorAll<HTMLElement>('.mtb-pop .mtb-colors')[1]!.querySelectorAll<HTMLElement>('button.mtb-sw'));
+    expect(locals()).toHaveLength(2);
+    expect(locals()[0]!.getAttribute('aria-pressed')).toBe('true');
+    locals()[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+    expect(locals()).toHaveLength(1);
+    expect(pt.isOpen()).toBe(true);
+    // the colour input starts at the chrome's accent
+    expect(pt.el.querySelector<HTMLInputElement>('.mtb-pop input[type=color]')!.value).toBe('#4f46e5');
   });
 });
