@@ -146,7 +146,6 @@ export const sequenceModule: EditorModule = {
   css: [SEQUENCE_CSS],
   install(scope) {
     const core = scope.core;
-    const ac = new AbortController();
     const offs: (() => void)[] = [];
     let linking: SeqLinking | null = null;
     let actPreview: ActPreview | null = null;
@@ -648,7 +647,6 @@ export const sequenceModule: EditorModule = {
     }));
 
     return () => {
-      ac.abort();
       for (const off of offs) off();
       linking = null;
       actPreview = null;

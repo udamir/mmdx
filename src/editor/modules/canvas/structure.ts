@@ -105,7 +105,6 @@ export const canvasStructureModule: EditorModule = {
   css: [STRUCTURE_CSS],
   install(scope) {
     const core = scope.core;
-    const ac = new AbortController();
     const offs: (() => void)[] = [];
     /** The copy buffer is the core's (`core.clipboard`, UI state, never saved): the source of truth for paste. */
     const editing = (): boolean => core.mode.peek() === 'edit';
@@ -345,7 +344,6 @@ export const canvasStructureModule: EditorModule = {
     );
 
     return () => {
-      ac.abort();
       for (const off of offs) off();
     };
   },

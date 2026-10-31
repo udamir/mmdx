@@ -39,7 +39,6 @@ export const shapesModule: EditorModule = {
   install(scope) {
     const core = scope.core;
     const ac = new AbortController();
-    const sig = { signal: ac.signal };
     const offs: (() => void)[] = [];
     const root = core.dom.root;
     const menu = h('div', { class: 'shapes-menu edit-only', hidden: true });

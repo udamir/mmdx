@@ -131,7 +131,6 @@ export const connectModule: EditorModule = {
   css: [CONNECT_CSS],
   install(scope) {
     const core = scope.core;
-    const ac = new AbortController();
     const offs: (() => void)[] = [];
     let linking: Linking | null = null;
     let magnets: Magnets | null = null;
@@ -495,7 +494,6 @@ export const connectModule: EditorModule = {
     }));
 
     return () => {
-      ac.abort();
       for (const off of offs) off();
       linking = null;
       magnets = null;

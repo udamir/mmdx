@@ -20,7 +20,6 @@ export const canvasInlineEditModule: EditorModule = {
   css: [INLINE_EDIT_CSS],
   install(scope) {
     const core = scope.core;
-    const ac = new AbortController();
     let close: ((apply: boolean) => void) | null = null;
     const wrap = core.dom.wrap;
 
@@ -132,7 +131,6 @@ export const canvasInlineEditModule: EditorModule = {
     // suspended (History opens): the open editor is cancelled — the document is not written in History (§8.2)
     scope.register({ set: (on) => void (on || close?.(false)), dispose: () => undefined });
     return () => {
-      ac.abort();
       off();
       close?.(false);
     };

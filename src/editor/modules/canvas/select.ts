@@ -48,8 +48,6 @@ export const canvasSelectModule: EditorModule = {
   css: [SELECT_CSS],
   install(scope) {
     const core = scope.core;
-    const ac = new AbortController();
-    const sig = { signal: ac.signal };
     const offs: (() => void)[] = [];
     const svg = core.dom.svg;
     let marquee: { x0: number; y0: number; x1: number; y1: number } | null = null;
@@ -691,7 +689,6 @@ export const canvasSelectModule: EditorModule = {
     return () => {
       destroyed = true;
       flushNudge();
-      ac.abort();
       for (const off of offs) off();
       bar?.remove();
       bar = null;

@@ -59,8 +59,6 @@ export const erTableModule: EditorModule = {
   install(scope) {
     const core = scope.core;
     const t = core.i18n.t;
-    const ac = new AbortController();
-    const sig = { signal: ac.signal };
     const offs: (() => void)[] = [];
     const wrap = core.dom.wrap;
     let destroyed = false;
@@ -650,7 +648,6 @@ export const erTableModule: EditorModule = {
     return () => {
       destroyed = true;
       closeEditor(false);
-      ac.abort();
       for (const off of offs) off();
       tb?.destroy();
       bar?.remove();
