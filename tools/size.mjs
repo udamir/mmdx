@@ -55,8 +55,8 @@ for (const k of ['flowchart', 'sequence', 'er']) {
   const f = Object.keys(v.outs).find((x) => x.includes(`kind-${k}-`) && x.endsWith('.js'));
   const extra = [...v.closure(f)].filter((x) => !v.base.has(x));
   if (k === 'flowchart') flow.push(...extra);
-  // 58 kB with the view kernel (component architecture §10.1: 53.4 kB with every chrome module but the zoom bar on demand; 56.7 kB once History's chunk shares code with the kinds; 46 kB before). Provisional (decision 19 is open).
-  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), 58 * KB);
+  // 60.8 kB with the view kernel (component architecture §10.1: 60.3 kB once the kernel was split into modules, the blocks gained roving focus and the elements a shared lifecycle; 53.4 kB with every chrome module but the zoom bar on demand; 46 kB before). Provisional (decision 19 is open).
+  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), 60.8 * KB);
 }
 // the viewer with History opened on a flowchart (no `mmdx/diff` on the page any more)
 {
@@ -66,12 +66,12 @@ for (const k of ['flowchart', 'sequence', 'er']) {
   report('viewer + History opened', v.size(loaded) + v.size(hist), 116 * KB);
 }
 // core includes the diff engine (diffs, merged model, annotations, reports, renderDiffToSvg)
-// editor: 186 kB with the view kernel (173.2 kB measured in phase 3; 184.3 kB summed per chunk once History loads the clipboard ops on demand, which splits them into chunks of their own: 177.9 kB as one stream, as before; 165 kB before the kernel), provisional like the viewer's
-// diff: 84 kB (component architecture §10.1: 81.8 kB once the all-kinds `diffDiagrams` left the entry and the side panels load on demand; 90.8 kB in phase 4a). The 60 kB target needs the kernel split further (decision 19).
-for (const [entry, budget] of [['core', 55], ['theme-editor', 120], ['editor', 186], ['diff', 84]]) {
+// editor: 188.2 kB with the view kernel (187.7 kB after the kernel split, the blocks merge and the element lifecycle; 173.2 kB measured in phase 3; 184.3 kB summed per chunk once History loads the clipboard ops on demand, which splits them into chunks of their own: 177.9 kB as one stream, as before; 165 kB before the kernel), provisional like the viewer's
+// diff: 85.3 kB (84.8 kB after the kernel split, the blocks merge and the element lifecycle; component architecture §10.1: 81.8 kB once the all-kinds `diffDiagrams` left the entry and the side panels load on demand; 90.8 kB in phase 4a). The 60 kB target needs the kernel split further (decision 19).
+for (const [entry, budget] of [['core', 55], ['theme-editor', 120], ['editor', 188.2], ['diff', 85.3]]) {
   const b = await bundle(entry);
   report(entry, b.size(b.base), budget * KB);
-  if (entry === 'editor') report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 232 * KB);
+  if (entry === 'editor') report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 233 * KB);
 }
 
 // ---- 2. the library build (vite, every entry at once, shared chunks) -------------------------------------------------
@@ -106,15 +106,15 @@ const loads = async (keys) => {
 };
 const FLOW = 'src/core/kind-flowchart.ts';
 const HISTORY = ['src/view/modules/history.ts', 'src/diff/history.ts'];
-// budgets: the measurement once History stopped importing the editor's chunk and the diff its kinds and panels (component architecture §10.1), plus about 2 kB
+// budgets: the measurement once History stopped importing the editor's chunk and the diff its kinds and panels (component architecture §10.1), plus about 2 kB; the viewer, editor and diff rows re-measured after the kernel split, the blocks merge and the element lifecycle, plus about 0.5 kB
 const rows = [
-  ['viewer (first flowchart)', ['src/viewer.ts', FLOW], 60],
+  ['viewer (first flowchart)', ['src/viewer.ts', FLOW], 62],
   // the History button is in the tool dock, which loads with the `history` control (246.5 kB while History imported the editor's chunk)
   ['viewer + History opened', ['src/viewer.ts', FLOW, 'src/view/modules/tool-dock.ts', ...HISTORY], 124],
-  ['editor', ['src/editor.ts'], 192],
-  ['editor + History opened', ['src/editor.ts', ...HISTORY], 244],
+  ['editor', ['src/editor.ts'], 194.6],
+  ['editor + History opened', ['src/editor.ts', ...HISTORY], 245.6],
   // 125.2 kB while the entry re-exported the all-kinds diff
-  ['diff', ['src/diff.ts'], 89],
+  ['diff', ['src/diff.ts'], 90.8],
   // a flowchart pair with the default panels (the change list)
   ['diff (first flowchart)', ['src/diff.ts', FLOW, 'src/diff/modules/panels.ts'], 115],
   ['core', ['src/core.ts'], 63],

@@ -16,6 +16,9 @@ The viewer, the editor and the diff are rebuilt on one view kernel, with shared 
 - **The clipboard carries content**: a copied item can be pasted into a document that no longer has it (fresh ids, the source's looks).
 - **Kernel API**: `ViewCore`, `ViewModule`, `ModuleScope`, `lazyModule`, `SceneSource`, `DiagramCanvas`, `StrokeStore`, `DiffSession`, `Stage`; core `renderDiffWith`, `diffDiagramsWith`, `renderDiffToSvgWith` take the loaded diagram kinds.
 - Storybook: **Blocks/** (every UI block) and **Canvas/**.
+- **Elements survive a move**: re-parenting an element (or a framework reordering a list) keeps its component, so the editor keeps its document, undo history, selection and an open History. Properties are kept whether they were set before or after connecting and apply to the live component: the editor's `features`, `panels`, `modules`, `storage` and `themeSource`, and the viewer's and the diff's `storage` and `themeSource`, which were ignored after connect (`ViewCore.setStorage`, `setThemeSource`). An editor removed for good and connected again starts from its last document. Options read only on creation (`ctx`, the editor's `autosave` and `guard-unload`) warn once when changed on a live component.
+- A `features` attribute on `<mmdx-editor>` and `<mmdx-diff>`: the parts that are on, space-separated like the viewer's `controls` (`none` turns all off); the `features` property also takes that string.
+- `mmdx/viewer` exports `VIEWER_MODULES`; `mmdx/viewer` and `mmdx/editor` export the `HistorySession` type and the kernel types their classes expose (`ViewCore`, `ViewModule`, `ModuleScope`, `SceneSource`, `Stage`, `DiagramCanvas`).
 
 ### Changed (breaking)
 
@@ -25,10 +28,13 @@ The viewer, the editor and the diff are rebuilt on one view kernel, with shared 
 - Remembered preferences move to per-component keys (`editor.ui`, `viewer.theme`, `diff.panels`, …); the diff's panel sizes are remembered by its panel stacks.
 - `<mmdx-diff>`: hover highlight starts off; a plain click on a linked item selects the change.
 - `<mmdx-diff>`: `mmdx-view` is the view only; a change of the version panel's tab or of History mode is `mmdx-mode` `{ mode, viewOnly }` (`mmdx-history-mode` in History). The `view` and `mode` options and attributes set the state without an event, as `filters` did. `setPair` leaves History mode for Compare.
+- **`element.instance` is `null` while the element is not connected**, on every element (`<mmdx-viewer>` and `<mmdx-editor>` returned `undefined`); after a removal the component is destroyed a microtask later unless the element is connected again.
+- Attributes apply one option each: a removed attribute sets its option back to the default (the editor's `ui` and `name`, the theme editor's attributes, which re-rendered the whole theme editor on any change), and an attribute set after a property of the same option replaces it. `<mmdx-viewer>` no longer writes `fit="width"` onto the host (`width` stays the default). `guard-unload="false"` turns the editor's unload guard off.
 - **`diffDiagrams` of `mmdx/diff` is asynchronous** (`Promise<DiagramDiff>`): it loads the parsers of both versions first, so the entry ships no parser statically. The synchronous `diffDiagrams` (every parser) stays in `mmdx/core`, with `renderDiff` and `renderDiffToSvg`.
 
 ### Removed
 
+- The deprecated `contentBounds` action (`core.contentBounds()` is the one answer), `CanvasOptions.reducedMotion` (pan and zoom never animate) and `strokesOf` (`core.strokes` holds the pen's strokes).
 - `history-view.ts` (the overlay `<mmdx-diff>` of History), the editor's own zoom bar module, `ui/zoom-bar.ts`, `elements/viewer-popups.ts`, `elements/viewer-code.ts`, the diff's own ink and panels, and `createMagicPen` (the pen draws into the canvases' ink layer through `StrokeStore`).
 
 ### Size

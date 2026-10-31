@@ -195,8 +195,6 @@ export interface EditorCoreOptions {
 
 export type EditorPanels = Readonly<{ code: boolean; properties: boolean; layers: boolean } & Record<string, boolean>>;
 
-const reducedMotion = (): boolean => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-
 export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPanels> {
   readonly store: DocStore;
   readonly features: EditorFeatures;
@@ -248,7 +246,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       initialMode: 'edit',
       canvas: {
         interaction: 'pan-zoom', wheel: 'always', panOnDrag: false, minK: 0.05, maxK: 6, pad: 40, svgClass: 'canvas', part: 'canvas',
-        pageClass: 'page-layer page-shadow', reducedMotion,
+        pageClass: 'page-layer page-shadow',
         // fit keeps clear of the open side panels and the tool dock (measured: their widths are user-resizable)
         insets: () => this.editorInsets(),
         onView: () => {
@@ -257,6 +255,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
         },
       },
       feature: (name) => this.featureOn(name),
+      loadHistory: () => import('../diff/history.js'),
       ...(o.storage ? { storage: o.storage } : {}),
       ...(o.ctx ? { ctx: o.ctx } : {}),
       ...(o.themeSource ? { themeSource: o.themeSource } : {}),

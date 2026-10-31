@@ -17,6 +17,7 @@ import { diffReport, sourcePart, unifiedDiff, type VersionInfo } from '../core/d
 import { renderSourceWith, standaloneSvg, type PipelineOptions, type Rendered } from '../core/pipeline-core.js';
 import { Lru } from '../core/text/measure.js';
 import type { Diagnostic } from '../core/types.js';
+import { nextIdle } from '../dom/idle.js';
 import { loadedKinds } from '../view/kinds.js';
 import type { Translate } from '../ui/blocks/block.js';
 import { batch, computed, signal, type ReadSignal, type Signal } from '../ui/signal.js';
@@ -88,11 +89,6 @@ export interface DiffSessionOptions {
 
 const EMPTY_COUNTS: DiffResult['counts'] = { added: 0, removed: 0, changed: 0, content: 0, layout: 0, style: 0 };
 const now = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
-
-function idle(): Promise<void> {
-  const w = globalThis as typeof globalThis & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
-  return new Promise((r) => (w.requestIdleCallback ? w.requestIdleCallback(() => r(), { timeout: 500 }) : setTimeout(r, 16)));
-}
 
 export class DiffSession {
   // ---- versions
@@ -753,7 +749,7 @@ export class DiffSession {
         }
         continue;
       }
-      this.countQueue = this.countQueue.then(() => idle()).then(async () => {
+      this.countQueue = this.countQueue.then(() => nextIdle(500)).then(async () => {
         if (seq !== this.loadSeq || this.destroyed || this.countMap.has(v.id)) return;
         const stale = (): boolean => seq !== this.loadSeq || this.destroyed;
         let counts: DiffResult['counts'];

@@ -8,7 +8,6 @@ import { createPenOptions, PEN_OPTIONS_CSS } from '../../ui/blocks/pen-options.j
 import { ICONS } from '../../ui/icons.js';
 import type { ViewCore } from '../core.js';
 import type { ViewModule } from '../module.js';
-import { strokesOf } from '../strokes.js';
 
 export const penModule: ViewModule<ViewCore> = {
   id: 'pen',
@@ -18,7 +17,6 @@ export const penModule: ViewModule<ViewCore> = {
     const core = scope.core;
     const t = core.i18n.t;
     const store = new StrokeStore(core.storage, reducedMotion);
-    strokesOf.set(core, store);
     core.strokes.set(store);
     const detach = core.canvas.attachInk(store);
     const defaultTool = (): 'hand' | 'pointer' => (core.mode.peek() === 'edit' ? 'pointer' : 'hand');
@@ -53,7 +51,6 @@ export const penModule: ViewModule<ViewCore> = {
     return () => {
       if (core.tool.peek() === 'pen') core.tool.set(defaultTool());
       if (core.dockFlyout.peek() === opts.el) core.dockFlyout.set(null);
-      strokesOf.delete(core);
       if (core.strokes.peek() === store) core.strokes.set(null);
       detach();
       opts.destroy();

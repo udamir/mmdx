@@ -11,7 +11,6 @@ import { DiagramCanvas } from '../../src/dom/canvas.js';
 import { StrokeStore } from '../../src/dom/pen.js';
 import { ViewCore } from '../../src/view/core.js';
 import { BaseScene } from '../../src/view/scene.js';
-import { strokesOf } from '../../src/view/strokes.js';
 
 const sample = (name: string, side: string): string => readFileSync(`apps/studio-site/diff-samples/${name}.${side}.mmd`, 'utf8');
 
@@ -96,7 +95,7 @@ describe('DiffScene', () => {
   it('marks the selection in every canvas and paints the pen strokes into the second canvas', async () => {
     const { core, session, scene } = mount();
     const store = new StrokeStore(memoryStorage());
-    strokesOf.set(core, store);
+    core.strokes.set(store);
     const attachInk = vi.spyOn(DiagramCanvas.prototype, 'attachInk');
     core.pushScene(scene);
     await session.load({ before: sample('architecture', 'before'), after: sample('architecture', 'after') });

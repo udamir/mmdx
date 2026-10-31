@@ -42,8 +42,6 @@ export interface CanvasOptions {
   maxK?: number;
   pad?: number;
   insets?: () => Insets;
-  /** @deprecated Unused (pan and zoom never animate); kept so callers that pass it compile. */
-  reducedMotion?: () => boolean;
   /** Class of the `<svg>` (`canvas` in the editor, `scene` in the viewer). */
   svgClass?: string;
   /** `part` of the `<svg>`. */

@@ -12,7 +12,6 @@ import { BLOCK_MESSAGES_DIFF } from '../../ui/messages/blocks-diff.js';
 import { untracked } from '../../ui/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import type { ViewModule } from '../../view/module.js';
-import { strokesOf } from '../../view/strokes.js';
 import type { DiffScene } from '../scene.js';
 
 /** The canvas an event happened on (a pane's svg), or null for the chrome over it. */
@@ -98,7 +97,7 @@ export function diffStageModule(scene: DiffScene): ViewModule<ViewCore> {
 
       // the pen loads on first use: its strokes reach the After pane once it is there
       scope.effect(() => {
-        core.tool();
+        core.strokes();
         untracked(() => scene.syncInk());
       });
 
@@ -113,7 +112,7 @@ export function diffStageModule(scene: DiffScene): ViewModule<ViewCore> {
 
       scope.shortcut(
         { id: 'clear-selection', keys: ['escape'], label: t('diff.help.escSelection'), group: t('diff.help.canvas'), run: () => (session.selected.peek() ? (session.select(null), true) : false) },
-        { id: 'undo-stroke', keys: ['mod+z'], label: t('diff.help.undo'), group: t('diff.help.canvas'), run: () => strokesOf.get(core)?.undo() ?? false },
+        { id: 'undo-stroke', keys: ['mod+z'], label: t('diff.help.undo'), group: t('diff.help.canvas'), run: () => core.strokes.peek()?.undo() ?? false },
       );
       return clearAll;
     },

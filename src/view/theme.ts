@@ -66,6 +66,13 @@ export class ThemeState {
     this.o.storage.set(this.key, id);
   }
 
+  /** Reads the remembered pick again (the storage changed); a pick made in this session stays. */
+  reload(): void {
+    if (this.pick.peek()?.session) return;
+    const stored = this.o.storage.get<string>(this.key);
+    this.pick.set(typeof stored === 'string' && stored ? { id: stored, session: false } : null);
+  }
+
   /** "Follow light / dark": drops the pick. */
   follow(): void {
     this.pick.set(null);
@@ -126,13 +133,19 @@ export function schemeState(storage: StorageAdapter, key: string, initial: UiOpt
   };
 }
 
-/** Loads themes that are not registered yet: built-ins on demand, others through the theme source. */
-export function themeLoader(registry: ThemeRegistry, source: ThemeSource | undefined, alive: () => boolean): (id: string) => Promise<boolean> {
+/** Loads themes that are not registered yet: built-ins on demand, others through the theme source (read on every call). */
+export function themeLoader(registry: ThemeRegistry, source: () => ThemeSource | undefined, alive: () => boolean): (id: string) => Promise<boolean> {
   const fetched = new Set<string>();
+  let from: ThemeSource | undefined;
   const ensure = async (id: string): Promise<boolean> => {
     if (registry.has(id)) return true;
     if (BUILTIN_IDS.includes(id)) return ensureBuiltinThemes().then(() => registry.has(id));
-    const src = source ?? getShared().themeSource;
+    const src = source() ?? getShared().themeSource;
+    // another source may have what the previous one did not
+    if (src !== from) {
+      fetched.clear();
+      from = src;
+    }
     if (!src || fetched.has(id)) return registry.has(id);
     fetched.add(id);
     try {

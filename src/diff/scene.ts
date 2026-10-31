@@ -21,7 +21,6 @@ import { ago } from '../ui/blocks/version-list.js';
 import { h } from '../ui/h.js';
 import { effect, untracked, type ReadSignal } from '../ui/signal.js';
 import type { ViewCore } from '../view/core.js';
-import { strokesOf } from '../view/strokes.js';
 import { BaseScene, type CanvasArea } from '../view/scene.js';
 import type { DiffSession, DiffViewName } from './session.js';
 
@@ -308,7 +307,7 @@ export class DiffScene extends BaseScene {
   syncInk(): void {
     const sec = this.second;
     if (!sec) return;
-    const store = strokesOf.get(this.core) ?? null;
+    const store = this.core.strokes.peek();
     if (sec.ink?.store === store) return;
     sec.ink?.off();
     sec.ink = store ? { store, off: sec.canvas.attachInk(store) } : null;

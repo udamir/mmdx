@@ -38,7 +38,7 @@ import { createStyleToolbar, shapePreview, type ToolbarApi, type ToolbarControl,
 import { ALIASES, adoptStyles, BASE, resolveUiScheme, TOKENS, watchUiScheme } from '../ui/styles/base.js';
 import { THEME_EDITOR_CSS } from '../ui/styles/theme-editor.js';
 import { TOOLBAR_CSS } from '../ui/styles/toolbar.js';
-import { ElementBase } from './base.js';
+import { MmdxElement, warnOnce, type AttrSpec, type Patch } from './base.js';
 
 
 // ---- public types --------------------------------------------------------------------------------------------------
@@ -1951,115 +1951,97 @@ const diagText = (d: Diagnostic): string => d.message;
 
 // ---- custom element ------------------------------------------------------------------------------------------------
 
-export class MmdxThemeEditorElement extends ElementBase {
-  static observedAttributes = ['theme', 'can-edit', 'can-publish', 'can-delete', 'presentation', 'ui', 'samples'];
-  private editor: ThemeEditor | null = null;
-  private pending: ThemeEditorOptions = {};
+const flag = (v: string | null): boolean | undefined => (v === null ? undefined : v !== 'false');
 
-  connectedCallback(): void {
-    this.editor = new ThemeEditor(this, { ...this.attrOptions(), ...this.pending });
-  }
-
-  disconnectedCallback(): void {
-    this.editor?.destroy();
-    this.editor = null;
-  }
-
-  attributeChangedCallback(): void {
-    this.editor?.set(this.attrOptions());
-  }
-
-  private attrOptions(): ThemeEditorOptions {
-    const o: ThemeEditorOptions = {};
-    const a = (n: string): string | null => this.getAttribute(n);
-    const bool = (n: string): boolean | undefined => (this.hasAttribute(n) ? a(n) !== 'false' : undefined);
-    const theme = a('theme');
-    if (theme) o.theme = theme;
-    const ce = bool('can-edit'), cp = bool('can-publish'), cd = bool('can-delete');
-    if (ce !== undefined) o.canEdit = ce;
-    if (cp !== undefined) o.canPublish = cp;
-    if (cd !== undefined) o.canDelete = cd;
-    const pres = a('presentation');
-    if (pres === 'dialog' || pres === 'inline') o.presentation = pres;
-    const ui = a('ui');
-    if (ui === 'light' || ui === 'dark' || ui === 'auto') o.ui = ui;
-    const samples = a('samples');
-    if (samples) {
-      try {
-        const s = JSON.parse(samples) as unknown;
-        if (isObj(s)) {
-          const out: ThemeSamples = {};
-          for (const k of TYPES) if (typeof s[k] === 'string') out[k] = s[k] as string;
-          o.samples = out;
-        }
-      } catch {
-        // not JSON: ignored (set the `samples` property instead)
-      }
+/** Attributes and the option each one sets (`samples`: JSON per diagram type; not JSON is ignored). */
+const ATTRS: Readonly<Record<string, AttrSpec<ThemeEditorOptions>>> = {
+  theme: ['theme', (v) => v || undefined], 'can-edit': ['canEdit', flag], 'can-publish': ['canPublish', flag], 'can-delete': ['canDelete', flag],
+  presentation: ['presentation', (v) => (v === 'dialog' || v === 'inline' ? v : undefined)],
+  ui: ['ui', (v) => (v === 'light' || v === 'dark' || v === 'auto' ? v : undefined)],
+  samples: ['samples', (v) => {
+    try {
+      const s = JSON.parse(v ?? '') as unknown;
+      if (!isObj(s)) return undefined;
+      const out: ThemeSamples = {};
+      for (const k of TYPES) if (typeof s[k] === 'string') out[k] = s[k] as string;
+      return out;
+    } catch {
+      return undefined;
     }
-    return o;
+  }],
+};
+
+export class MmdxThemeEditorElement extends MmdxElement<ThemeEditorOptions, ThemeEditor> {
+  static observedAttributes = Object.keys(ATTRS);
+
+  protected attrs(): typeof ATTRS {
+    return ATTRS;
   }
 
-  private setOpt(patch: Partial<ThemeEditorOptions>): void {
-    if (this.editor) this.editor.set(patch);
-    else Object.assign(this.pending, patch);
+  protected create(o: ThemeEditorOptions): ThemeEditor {
+    return new ThemeEditor(this, o);
   }
 
-  /** The imperative editor (null while disconnected). */
-  get instance(): ThemeEditor | null {
-    return this.editor;
+  protected apply(te: ThemeEditor, patch: Patch<ThemeEditorOptions>): void {
+    if ('ctx' in patch) warnOnce('theme editor: `ctx` is read when the theme editor is created');
+    te.set(patch as Partial<ThemeEditorOptions>);
   }
+
   get store(): ThemeStore | undefined {
-    return this.editor?.options.store ?? this.pending.store;
+    return this.live?.options.store ?? this.props.store;
   }
   set store(v: ThemeStore | undefined) {
     if (v) this.setOpt({ store: v });
   }
   get source(): ThemeSource | undefined {
-    return this.editor?.options.source ?? this.pending.source;
+    return this.live?.options.source ?? this.props.source;
   }
   set source(v: ThemeSource | undefined) {
-    if (v) this.setOpt({ source: v });
+    this.setOpt({ source: v });
   }
-  set storage(v: StorageAdapter) {
-    this.setOpt({ storage: v });
+  get storage(): StorageAdapter | undefined {
+    return this.props.storage;
+  }
+  set storage(v: StorageAdapter | undefined) {
+    if (v) this.setOpt({ storage: v });
   }
   get samples(): ThemeSamples | undefined {
-    return this.editor?.options.samples ?? this.pending.samples;
+    return this.live?.options.samples ?? this.props.samples;
   }
   set samples(v: ThemeSamples | undefined) {
-    if (v) this.setOpt({ samples: v });
+    this.setOpt({ samples: v });
   }
   get theme(): string {
-    return this.editor?.themeId ?? this.getAttribute('theme') ?? BASELINE;
+    return this.live?.themeId ?? this.getAttribute('theme') ?? BASELINE;
   }
   set theme(v: string) {
     this.setAttribute('theme', v);
   }
   /** True while the open theme has unsaved changes. */
   get dirty(): boolean {
-    return this.editor?.dirty ?? false;
+    return this.live?.dirty ?? false;
   }
   /** Resolves when the theme list is loaded. */
   get ready(): Promise<void> {
-    return this.editor?.ready ?? Promise.resolve();
+    return this.live?.ready ?? Promise.resolve();
   }
   save(): Promise<boolean> {
-    return this.editor?.save() ?? Promise.resolve(false);
+    return this.live?.save() ?? Promise.resolve(false);
   }
   select(id: string): Promise<boolean> {
-    return this.editor?.select(id) ?? Promise.resolve(false);
+    return this.live?.select(id) ?? Promise.resolve(false);
   }
   undo(): void {
-    this.editor?.undo();
+    this.live?.undo();
   }
   redo(): void {
-    this.editor?.redo();
+    this.live?.redo();
   }
   open(): void {
-    this.editor?.open();
+    this.live?.open();
   }
   close(): Promise<boolean> {
-    return this.editor?.close() ?? Promise.resolve(true);
+    return this.live?.close() ?? Promise.resolve(true);
   }
 }
 
