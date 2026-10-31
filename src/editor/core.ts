@@ -12,6 +12,7 @@ import type { ThemeSource } from '../adapters/themes.js';
 import type { CoreContext } from '../core/context.js';
 import { KIND_TO_COLL, type DiagramMeta, type ItemMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
+import type { ClipboardData } from '../core/ops/clipboard.js';
 import { remapSequenceMeta } from '../core/ops/remap.js';
 import { currentPreset, type StyleEnv } from '../core/ops/style-env.js';
 import { renderDocument, type Rendered } from '../core/pipeline.js';
@@ -236,6 +237,8 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   spaceDown = false;
   /** Last pointer position (client coordinates), for paste-at-pointer and menus. */
   pointer: { clientX: number; clientY: number } | null = null;
+  /** The item clipboard (UI state, never saved): copies carry their content (§9), so History can fill it too. */
+  clipboard: ClipboardData | null = null;
 
   private rendered: Rendered | null = null;
   private readonly gestures: GestureSource[] = [];

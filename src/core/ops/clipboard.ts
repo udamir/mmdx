@@ -1,22 +1,41 @@
-// Copy / paste / duplicate / Alt-drag copies within one diagram (rows 36, prototype app `cloneItems`,
-// `copySelection`, `pasteAt`, `duplicateSelection`). Copies of flowchart nodes / subgraphs (with what is inside them
-// and the edges between them) or ER tables are written into the Mermaid code with the originals' looks.
-// The clipboard holds references only: what is pasted must still be in the diagram (sequence diagrams: refused).
+// Copy / paste / duplicate / Alt-drag copies (rows 36, prototype app `cloneItems`, `copySelection`, `pasteAt`,
+// `duplicateSelection`). Copies of flowchart nodes / subgraphs (with what is inside them and the edges between them)
+// or ER tables are written into the Mermaid code with the originals' looks.
+// The clipboard carries content (component architecture §9): the copied items as a document of their own — their
+// code lines, the connectors between them, their metadata (looks, positions) — so items copied from an old version in
+// History can be pasted into the current document after it lost them. Items still in the target are copied from the
+// target as it is now. Sequence diagrams and another diagram type are refused.
+import { pruneMeta } from '../meta/index.js';
 import type { DiagramMeta } from '../meta/types.js';
 import type { DiagramModel } from '../model.js';
 import { parse } from '../parse/index.js';
 import type { GeometryIndex } from '../render/types.js';
 import type { DiagramType, ItemKind, ItemRef, Point } from '../types.js';
-import { cloneER } from './er.js';
-import { cloneFlow } from './flowchart.js';
+import { cloneER, deleteER } from './er.js';
+import { cloneFlow, deleteFlow } from './flowchart.js';
+import { takenIds, usedIds } from './ids.js';
 import { boxOfItem, cloneJson, cloneMeta, ensure, getM, uniqueRefs } from './meta-util.js';
-import { pinAutoNodes } from './meta-ops.js';
+import { groupDescendants, pinAutoNodes } from './meta-ops.js';
 import type { CloneResult, DocResult } from './types.js';
+
+/** The copied items as a document of their own (what a paste uses when the target no longer has them). */
+export interface ClipboardContent {
+  /** Mermaid code with only the copied items and the connectors between them. */
+  code: string;
+  /** Their metadata, with the positions of auto-laid-out items pinned. */
+  meta: DiagramMeta;
+  /** Looks of the connectors between the copied items, by `from:to` (connector ids are positional). */
+  links: Record<string, unknown>;
+  /** The copied items' box in the source (centring a paste at the pointer). */
+  box: { x0: number; y0: number; x1: number; y1: number } | null;
+}
 
 /** The editor's item clipboard (UI state, never saved into the document). */
 export interface ClipboardData {
   type: DiagramType;
   items: ItemRef[];
+  /** The content, when the copy was made with its source (`copyItems(…, { code, geom })`). */
+  content?: ClipboardContent;
 }
 
 /** Flowchart nodes / groups and ER tables can be copied. */
@@ -27,19 +46,63 @@ export const copyable = (model: DiagramModel, it: ItemRef): boolean =>
  * ⌘C: the copyable part of a selection, or null (the editor toasts "Copy works for flowchart shapes / groups and
  * ER tables" in sequence diagrams, else "Nothing to copy").
  */
-export function copyItems(model: DiagramModel, _meta: DiagramMeta, refs: readonly ItemRef[]): ClipboardData | null {
+export function copyItems(model: DiagramModel, meta: DiagramMeta, refs: readonly ItemRef[], src?: { code: string; geom?: GeometryIndex | null }): ClipboardData | null {
   if (model.type === null) return null;
   const items = uniqueRefs(refs).filter((it) => copyable(model, it));
-  return items.length ? { type: model.type, items } : null;
+  if (!items.length) return null;
+  const content = src ? contentOf(src.code, meta, model, src.geom ?? null, items) : null;
+  return { type: model.type, items, ...(content ? { content } : {}) };
+}
+
+/** The copied items as a document: everything else deleted (frames of uncopied groups only: their content moves up). */
+function contentOf(code: string, meta: DiagramMeta, model: DiagramModel, geom: GeometryIndex | null, items: readonly ItemRef[]): ClipboardContent | null {
+  const pinned = pinAutoNodes(model, meta, geom).meta;
+  let rest: ItemRef[] = [];
+  const links: Record<string, unknown> = {};
+  if (model.type === 'flowchart') {
+    const nodes = new Set<string>(), groups = new Set<string>();
+    for (const it of items) {
+      if (it.kind === 'node') nodes.add(it.id);
+      if (it.kind === 'group') {
+        groups.add(it.id);
+        const d = groupDescendants(model, it.id);
+        d.nodes.forEach((n) => nodes.add(n));
+        d.groups.forEach((g) => groups.add(g));
+      }
+    }
+    rest = [...[...model.nodes.keys()].filter((id) => !nodes.has(id)).map((id) => ({ kind: 'node' as const, id })), ...[...model.groups.keys()].filter((id) => !groups.has(id)).map((id) => ({ kind: 'group' as const, id }))];
+    for (const e of model.edges) if (nodes.has(e.from) && nodes.has(e.to) && pinned.edges?.[e.id]) links[`${e.from}:${e.to}`] = cloneJson(pinned.edges[e.id]);
+  } else if (model.type === 'er') {
+    const keep = new Set(items.map((it) => it.id));
+    rest = [...model.entities.keys()].filter((id) => !keep.has(id)).map((id) => ({ kind: 'entity' as const, id }));
+    for (const r of model.rels) if (keep.has(r.from) && keep.has(r.to) && pinned.rels?.[r.id]) links[`${r.from}:${r.to}`] = cloneJson(pinned.rels[r.id]);
+  } else return null;
+  const res = model.type === 'flowchart' ? deleteFlow(code, model, rest) : deleteER(code, model, rest);
+  const sub = parse(res.code);
+  const { edges: _e, rels: _r, ...own } = pruneMeta(pinned, usedIds(sub));
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const it of items) {
+    const b = boxOfItem(geom, it);
+    if (!b) continue;
+    x0 = Math.min(x0, b.x - b.w / 2);
+    x1 = Math.max(x1, b.x + b.w / 2);
+    y0 = Math.min(y0, b.y - b.h / 2);
+    y1 = Math.max(y1, b.y + b.h / 2);
+  }
+  return { code: res.code, meta: own, links, box: x0 === Infinity ? null : { x0, y0, x1, y1 } };
 }
 
 const existsNow = (model: DiagramModel, it: ItemRef): boolean =>
   model.type === 'flowchart' ? (it.kind === 'group' ? model.groups.has(it.id) : model.nodes.has(it.id))
     : model.type === 'er' ? model.entities.has(it.id) : false;
 
-/** What can be pasted: the copied items that are still in this diagram (null: nothing — "Nothing to paste"). */
+/**
+ * What can be pasted: the copied items when this diagram still has them all, else every copied item when the
+ * clipboard carries their content (null: nothing — "Nothing to paste"; another diagram type is refused).
+ */
 export function pasteable(model: DiagramModel, data: ClipboardData | null | undefined): ItemRef[] | null {
   if (!data || data.type !== model.type) return null;
+  if (data.content && !data.items.every((it) => existsNow(model, it))) return data.items.slice();
   const items = data.items.filter((it) => existsNow(model, it));
   return items.length ? items : null;
 }
@@ -97,7 +160,8 @@ const snapV = (v: number, snap: number): number => (!snap ? Math.round(v) : Math
  */
 export function pasteItems(code: string, meta: DiagramMeta, model: DiagramModel, geom: GeometryIndex | null | undefined, data: ClipboardData | null | undefined, at?: Point | null, snap = 5): DocResult | null {
   const items = pasteable(model, data);
-  if (!items) return null;
+  if (!items || !data) return null;
+  if (data.content && !data.items.every((it) => existsNow(model, it))) return pasteContent(code, meta, model, data.content, items, at ?? null, snap);
   let dx = 30, dy = 30;
   if (at) {
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
@@ -122,4 +186,46 @@ export function duplicateItems(code: string, meta: DiagramMeta, model: DiagramMo
   const items = uniqueRefs(refs).filter((it) => copyable(model, it));
   if (!items.length) return null;
   return cloneItems(code, meta, model, geom, items, 30, 30);
+}
+
+/** Pastes the clipboard's content into a document that does not have the items: fresh ids, the source's looks. */
+function pasteContent(code: string, meta: DiagramMeta, model: DiagramModel, c: ClipboardContent, items: readonly ItemRef[], at: Point | null, snap: number): DocResult | null {
+  const src = parse(c.code);
+  const taken = takenIds(model, true);
+  const res: CloneResult | null = src.type === 'flowchart' && model.type === 'flowchart' ? cloneFlow(c.code, src, items, { into: code, taken })
+    : src.type === 'er' && model.type === 'er' ? cloneER(c.code, src, items, { into: code, taken }) : null;
+  const map = res?.map;
+  if (!res || !map) return null;
+  let dx = 30, dy = 30;
+  if (at && c.box) {
+    dx = snapV(at.x - (c.box.x0 + c.box.x1) / 2, snap);
+    dy = snapV(at.y - (c.box.y0 + c.box.y1) / 2, snap);
+  }
+  const out = cloneMeta(meta);
+  for (const [from, to] of Object.entries(map)) {
+    const kind: ItemKind = src.type === 'flowchart' && src.groups.has(from) ? 'group' : src.type === 'er' ? 'entity' : 'node';
+    const m = ensure(out, kind, to);
+    Object.assign(m, cloneJson(getM(c.meta, kind, from)));
+    delete m.locked;
+    if (typeof m.x === 'number' && typeof m.y === 'number' && (kind !== 'group' || m.w)) {
+      m.x = Math.round(m.x + dx);
+      m.y = Math.round(m.y + dy);
+    }
+  }
+  // connector looks, by their (new) endpoints
+  const back = new Map(Object.entries(map).map(([a, b]) => [b, a]));
+  const next = parse(res.code);
+  const look = (from: string, to: string): unknown => c.links[`${back.get(from)}:${back.get(to)}`];
+  if (next.type === 'flowchart')
+    for (const e of next.edges) {
+      const l = back.has(e.from) && back.has(e.to) ? look(e.from, e.to) : undefined;
+      if (l && !out.edges?.[e.id]) (out.edges ??= {})[e.id] = cloneJson(l) as Record<string, unknown>;
+    }
+  if (next.type === 'er')
+    for (const r of next.rels) {
+      const l = back.has(r.from) && back.has(r.to) ? look(r.from, r.to) : undefined;
+      if (l && !out.rels?.[r.id]) (out.rels ??= {})[r.id] = cloneJson(l) as Record<string, unknown>;
+    }
+  const selection = items.filter((it) => Object.hasOwn(map, it.id)).map((it) => ({ kind: it.kind, id: map[it.id]! }));
+  return { code: res.code, meta: out, selection };
 }

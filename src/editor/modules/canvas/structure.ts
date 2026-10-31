@@ -8,7 +8,7 @@ import type { DiagramModel } from '../../../core/model.js';
 import {
   alignItems, boxParticipants, cloneMeta, copyItems, deleteER, deleteFlow, deleteSeq, duplicateItems, edgeText, groupFlow,
   lockedItems, moveOrder, nodeDef, pasteable, pasteItems, relabelBox, relabelGroup, relText, removeActivation, ungroupFlow,
-  unboxParticipants, unlockAll as unlockAllOp, type AlignOp, type ClipboardData,
+  unboxParticipants, unlockAll as unlockAllOp, type AlignOp,
 } from '../../../core/ops/index.js';
 import type { ItemRef } from '../../../core/types.js';
 import { h } from '../../../ui/h.js';
@@ -107,8 +107,7 @@ export const canvasStructureModule: EditorModule = {
     const core = scope.core;
     const ac = new AbortController();
     const offs: (() => void)[] = [];
-    /** The copy buffer (UI state, never saved): the source of truth for paste. */
-    let clip: ClipboardData | null = null;
+    /** The copy buffer is the core's (`core.clipboard`, UI state, never saved): the source of truth for paste. */
     const editing = (): boolean => core.mode.peek() === 'edit';
 
     // ---- delete ------------------------------------------------------------------------------------------------
@@ -208,22 +207,22 @@ export const canvasStructureModule: EditorModule = {
     // ---- copy / paste / duplicate (§8.2 clipboard) -------------------------------------------------------------
 
     const copySelection = (): boolean => {
-      const data = copyItems(core.model, core.meta, core.selection());
+      const data = copyItems(core.model, core.meta, core.selection(), { code: core.code, geom: core.geom });
       if (!data) {
         core.toast(core.model.type === 'sequence' ? 'Copy works for flowchart shapes / groups and ER tables' : 'Nothing to copy');
         return false;
       }
-      clip = data;
+      core.clipboard = data;
       core.toast(`Copied ${nItems(data.items.length)}`);
-      const json = JSON.stringify({ format: 'mmdx-items', version: 1, type: data.type, items: data.items, source: core.store.source() });
+      const json = JSON.stringify({ format: 'mmdx-items', version: 2, type: data.type, items: data.items, content: data.content, source: core.store.source() });
       void writeSystemClipboard(mermaidFragment(core.model, core.code, data.items), json);
       return true;
     };
 
-    const canPaste = (): boolean => !!pasteable(core.model, clip);
+    const canPaste = (): boolean => !!pasteable(core.model, core.clipboard);
 
     const pasteAt = (at?: { x: number; y: number }): void => {
-      const res = pasteItems(core.code, core.meta, core.model, core.geom, clip, at ?? null, core.snap);
+      const res = pasteItems(core.code, core.meta, core.model, core.geom, core.clipboard, at ?? null, core.snap);
       if (!res) return;
       core.applyCode({ code: res.code, meta: res.meta }, 'Paste', { select: res.selection ?? [] });
     };
@@ -348,7 +347,6 @@ export const canvasStructureModule: EditorModule = {
     return () => {
       ac.abort();
       for (const off of offs) off();
-      clip = null;
     };
   },
 };

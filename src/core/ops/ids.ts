@@ -6,7 +6,7 @@ import type { DiagramModel } from '../model.js';
 import type { ItemRef } from '../types.js';
 
 /** Ids already taken by nodes, subgraphs, entities and participants (one namespace per diagram). */
-function takenIds(model: DiagramModel, withParticipants: boolean): Set<string> {
+export function takenIds(model: DiagramModel, withParticipants: boolean): Set<string> {
   const taken = new Set<string>();
   if (model.type === 'flowchart') {
     for (const id of model.nodes.keys()) taken.add(id);
@@ -22,9 +22,13 @@ export function uniqueId(model: DiagramModel, base: string): string {
   for (let i = 1; ; i++) if (!taken.has(`${base}${i}`)) return `${base}${i}`;
 }
 
-/** Free copy ids: `api` → `api_2`, `api_3`… (an existing `_n` suffix is replaced, so copies of copies stay short). */
-export function copyIds(model: DiagramModel, ids: Iterable<string>): Record<string, string> {
+/**
+ * Free copy ids: `api` → `api_2`, `api_3`… (an existing `_n` suffix is replaced, so copies of copies stay short).
+ * `alsoTaken`: ids of another diagram the copies go into (a paste from another version).
+ */
+export function copyIds(model: DiagramModel, ids: Iterable<string>, alsoTaken: Iterable<string> = []): Record<string, string> {
   const taken = takenIds(model, false);
+  for (const id of alsoTaken) taken.add(id);
   const map = Object.create(null) as Record<string, string>; // no prototype: an id may be `__proto__`
   for (const id of ids) {
     const base = id.replace(/_\d+$/, '');
