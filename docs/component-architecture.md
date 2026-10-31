@@ -1,40 +1,49 @@
-# Component architecture: one viewer kernel, building blocks, products as extensions
+# Component architecture: one viewer kernel, building blocks, products as scenes and modules
 
-Design document · status: proposed, open questions decided (§14) · scope: `src/ui`, `src/dom`, `src/editor`, `src/elements` (no change to `src/core` beyond one signature)
+Design document · status: proposed, review decisions recorded (§15) · scope: `src/ui`, `src/dom`, `src/editor`, `src/elements`, `src/view` (new), `src/diff` (new), and four changes in `src/core` (§9)
 
 ## 1. Summary
 
-Today the viewer, the editor and the diff are three separate implementations that happen to look alike. Each builds its own canvas, chrome, panels and menus; shared code is limited to CSS strings and a few helpers. As a result the diff has no theme selector or light / dark toggle (they live inside an editor module bound to `EditorCore`), the zoom bar, help popup, pen options, export menu, code view and tool bar each exist two or three times, and a fix in one component does not reach the others.
+Today the viewer, the editor and the diff are three separate implementations that happen to look alike. Each builds its own canvas, chrome, panels and menus; shared code is limited to CSS strings and a few helpers (`ui/zoom-bar.ts`, `ui/panes.ts`). As a result the diff has no theme selector or light / dark toggle (they live inside an editor module bound to `EditorCore`), the zoom bar, help popup, pen options, export menu, code view and tool bar each exist two or three times, and a fix in one component does not reach the others.
 
 This proposal restructures the components into layers:
 
 1. **Blocks** (`src/ui/blocks`): small, generic, host-agnostic UI pieces — zoom bar, tool dock, panel and panel stack, menus, theme menu, scheme toggle, export menu, code view, version list, change list… They take plain data, signals and callbacks, and know nothing about diagrams or editors.
-2. **Canvas** (`src/dom/canvas.ts`): one diagram canvas — the SVG layers, viewport, keyed patching, hit testing, ink layer, linking and morphing — used by every component, including the theme editor's previews.
-3. **View kernel** (`src/view`): `ViewCore`, the shared base of every diagram component — loading, kinds, themes and scheme, rendering (with the worker), the shell with named slots, the module system, actions, events, shortcuts, popovers. Every feature is a **module** installed into the kernel: zoom bar, view params (theme + light / dark), pen, export, layers, code view, history, fullscreen…
-4. **Products** as extensions of the kernel:
-   - `DiagramViewer` = `ViewCore` + the read-only module set (presentation chrome).
-   - `DiagramEditor`: `EditorCore extends ViewCore` + the document store, selection, gestures and the editing modules. The editor's View mode *is* the viewer, by construction.
-   - `DiagramDiff`: `DiffCore extends ViewCore` + version pair / history, multi-canvas (morph, side by side) and the diff modules.
+2. **Canvas** (`src/dom/canvas.ts`): one diagram canvas — the SVG layers, viewport (or a static fit), keyed patching, hit testing, ink layer, linking and morphing — used by every component, including the theme editor's live preview.
+3. **View kernel** (`src/view`): `ViewCore`, the shared base of every diagram component — services, the theme, the chrome scheme, the shell with named slots, the module host, actions, events, shortcuts, popovers — and the canvases. What the canvas shows comes from a pluggable **scene source** (§7.3): the viewer's text scene, the editor's store scene, or a diff scene.
+4. **Products** as compositions of the kernel, a scene source and a module set:
+   - `DiagramViewer` = `ViewCore` + `TextScene` + the viewer modules.
+   - `DiagramEditor`: `EditorCore extends ViewCore` + `StoreScene` (the document store, selection, gestures) + the editing modules. The editor's View mode runs the same modules as the viewer.
+   - `DiagramDiff` = `ViewCore` + a permanent `DiffScene` (a diff session) + the diff modules.
 
-A feature written once as a module appears everywhere it is installed: the theme selector arrives in the diff and the viewer simply by installing the `viewParams` module. The theme is kernel state, so every canvas, mode and panel of a component inherits it. The diff itself is a **diff session** (versions, pair, filters, changes) with its modules: `DiffCore` runs one permanently, and the viewer and the editor run one as their **History mode**, drawn in their own canvas with the History, Code and Changes panels in their own panel stacks.
+A feature written once as a module appears everywhere it is installed. The theme is kernel state and is not part of the document (§7.5), so every canvas, stage and panel of a component shares it. **History** is a **stage** of the viewer and the editor, orthogonal to Edit / View: opening it pushes a `DiffScene` onto the host's own canvas and shows the History, Code and Changes panels in the host's own panel stacks (§8).
 
-Public elements, classes, attributes, properties and events stay the same (§10).
+Public elements and attributes stay; the next release is a breaking one (§11): `canvas.theme` leaves the `.mmdx` format, `EditorModule` takes a new shape, and History gets its own events and API.
 
 ## 2. Goals and non-goals
 
 ### Goals
 
-- The editor is an extension of the viewer, and the diff is an extension of the viewer: same kernel, same canvas, same chrome, same keyboard and theming behaviour.
+- The editor and the diff are compositions of the viewer kernel: same canvas, same chrome, same keyboard and theming behaviour.
 - Every UI piece exists once, as a block with a documented API, a story and a DOM test; products compose blocks.
-- Features are modules with one contract (`ViewModule`), installable in any product that provides what they need.
-- No behaviour change for users except the gaps closed by reuse: theme menu and light / dark toggle in the diff and (opt-in) the viewer, highlighted code in the diff, one pen everywhere.
-- Bundle budgets kept: the viewer stays ≤ 46 kB gzip for the first diagram; modules a page does not use are not loaded.
+- Features are modules with one contract (`ViewModule`), installable in any product that provides what they need, and suspendable by the kernel without their cooperation.
+- One look for the chrome everywhere (the editor's), with a global `compact` preset for small hosts (§7.6).
+- Bundle budgets kept or explicitly re-set after a measured spike (§10).
 
 ### Non-goals
 
 - No framework (keep `h()`, signals and shadow DOM).
-- No change to the `.mmdx` format, the core renderers or the public events.
-- No visual redesign: blocks reproduce today's looks (the editor's floating cards, tool dock and zoom bar are the reference).
+- No visual redesign beyond the decisions of §7.6 and §8: blocks reproduce today's editor chrome (floating cards, tool dock, zoom bar, view params).
+- No change to the core renderers.
+
+### Behaviour changes (intended)
+
+- The theme is no longer stored in diagrams (`canvas.theme` removed, §7.5); hosts set it with attributes, users pick it in the theme menu.
+- The theme and the light / dark chrome scheme are independent (§7.5).
+- The diff gains the theme menu, the light / dark toggle, highlighted code, view settings (layers, connector labels, hover highlight) and clickable links (click selects a change, ⌘ / Ctrl-click opens the link).
+- The editor's View mode gains a read-only code panel; the viewer gains the `?` help popup.
+- The viewer adopts the editor's chrome (tool dock, zoom bar, view params), with the `compact` preset on small hosts.
+- History is in place (no overlay `<mmdx-diff>`), lets the user select, inspect and copy items of old versions, and emits `mmdx-history-*` events.
 
 ## 3. Today
 
@@ -42,63 +51,85 @@ Public elements, classes, attributes, properties and events stay the same (§10)
 
 | Piece | Viewer | Editor | Diff |
 |---|---|---|---|
-| Canvas (SVG layers + viewport + patch) | `viewer.ts` builds its own | `editor.ts` builds its own | `diff.ts` builds its own (+ morph, linking) |
+| Canvas (SVG layers + viewport + patch) | `viewer.ts` builds its own; non-interactive viewers drop the viewport and fit through the `viewBox` | `editor.ts` builds its own | `diff.ts` builds its own (+ morph, linking) |
+| Rendering | async from text, worker over 300 lines, kinds on demand, SSR adoption, Mermaid fallback | sync from `DocStore`, every kind static (gestures preview through `draw()`) | `renderDiff`, sync, three renders, every kind static |
 | Tool bar | — (controls in the zoom bar) | `chrome/tool-dock.ts` | own `vbar` (viewer style) |
-| Zoom bar + help | own bar in `viewer.ts` | `chrome/zoom-bar.ts` (help from registry) | copied markup + copied help builder |
+| Zoom bar + help | own bar in `viewer.ts`, no help | `chrome/zoom-bar.ts` + `ui/zoom-bar.ts` | `ui/zoom-bar.ts` CSS + help builder |
 | Theme menu, light / dark toggle | attributes only | `chrome/view-params.ts` (bound to `EditorCore`) | **missing** |
-| Pen | `dom/pen.ts` + `viewer-popups.penOptions` | `dom/pen.ts` + own options in the tool dock | `diff/ink.ts` (shared strokes) + viewer `penOptions` |
-| Export menu | own (`openExport`) | `chrome/document.ts` + view params | own (`openExport`) |
-| Side panels | — | `panels/code-panel.ts`, `panels/right-panels.ts` (stack + splitter) | own left stack (splitter copied), own right panel |
-| Read-only code | `viewer-code.ts` (highlighted) | `ui/code-editor.ts` | plain table, no highlighting |
-| Theme resolution (forced, own, dark counterpart, fetch) | `viewer.ts` | `editor/core.ts` + view params | copied into `diff.ts` |
+| Theme rule | `theme` forced, else `canvas.theme`; dark counterpart only with `theme-dark` | always the counterpart of `canvas.theme` for the chrome scheme; a pick writes `canvas.theme` and flips the chrome | the newer version's `canvas.theme`; counterpart only with `theme-dark` |
+| Pen | `dom/pen.ts` (own SVG over the stage) + `viewer-popups.penOptions` | `dom/pen.ts` + own options in the tool dock; strokes cleared on mode switch | `diff/ink.ts` (strokes inside each canvas) + viewer `penOptions` |
+| Export menu | own (`openExport`) | `chrome/view-params.ts` + `chrome/document.ts` | own (`openExport`) |
+| Side panels | — | `panels/code-panel.ts`, `panels/right-panels.ts` (stack + splitter, `ui/panes.ts`) | own left stack, own right panel (`ui/panes.ts`) |
+| Read-only code | `viewer-code.ts` (highlighted, over the canvas) | `ui/code-editor.ts` (Edit mode only) | plain table, no highlighting |
 | Module system | — | `EditorModule` + `EditorCore` actions / events | ad hoc methods |
-| Shortcuts | ad hoc `keydown` | `ShortcutRegistry` | `ShortcutRegistry` (own list) |
+| Shortcuts | ad hoc `keydown` (+ − 0 arrows p) | `ShortcutRegistry` (`editOnly` scoping) | `ShortcutRegistry` (own list) |
+| History | `history-view.ts` covers the viewer with `<mmdx-diff>` (grows the host to 560 px) | same, from the tool dock | — |
 
 ### 3.2 Consequences
 
-- Features drift: the diff lacks the theme menu and the light / dark toggle; the viewer has no help popup; three pen option UIs differ.
+- Features drift: the diff lacks the theme menu and the light / dark toggle; the viewer has no help popup; three pen option UIs differ; three theme rules disagree.
 - Fixes do not propagate (e.g. focus handling of re-rendered bars was fixed in the diff only).
-- The History view had to embed a separate `<mmdx-diff>` element by tag name, and a lazy import of the diff from the viewer split the shared diagram-kind code into extra chunks (+4 kB gzip on every viewer page) because the diff imports all kinds statically (`pipeline.ts` `ALL_KINDS`) while the viewer loads them on demand.
+- The History view embeds a separate `<mmdx-diff>` by tag name, so the page must load `mmdx/diff`, and a lazy import of the diff from the viewer split the shared diagram-kind code into extra chunks (+4 kB gzip on every viewer page) because the diff imports all kinds statically while the viewer loads them on demand.
+
+### 3.3 Budgets today
+
+Measured with `tools/size.mjs` at `713c820`:
+
+| Entry | Size (gzip) | Budget | Headroom |
+|---|---|---|---|
+| viewer (first flowchart) | 45.3 kB | 46 kB | 0.7 kB |
+| editor | 162.8 kB | 165 kB | 2.2 kB |
+| diff | 86.5 kB | 90 kB | 3.5 kB |
+| core | 52.8 kB | 55 kB | 2.2 kB |
+
+The viewer imports none of signals, `ShortcutRegistry`, `Dialogs`, panes or the zoom bar / help today; the kernel cannot simply add them (§10).
 
 ## 4. Target architecture
 
 ```
-L0  core            pure: parse, render, themes, diff engine                         (unchanged)
+L0  core            pure: parse, render, themes, diff engine, clipboard ops
 L1  dom             patch, viewport, measure, export, morph, worker, StrokeStore     (primitives)
 L2  ui/blocks       generic UI blocks (no diagram, no core knowledge)                 ← new home of all chrome
-L3  dom/canvas      DiagramCanvas: layers + viewport + patch + hit test + ink + link + morph
-L4  view            ViewCore (kernel) + Shell (slots) + ViewModule system + standard view modules
-L5  products        Viewer · Editor (EditorCore extends ViewCore) · Diff (DiffCore extends ViewCore)
-                    Theme editor (canvases + blocks) · Studio (shell around the editor)
+L3  dom/canvas      DiagramCanvas: layers + viewport | static fit + patch + hit test + ink + link + morph
+L4  view            ViewCore (kernel) + Shell (slots) + module host + scene sources + standard modules
+L5  products        Viewer · Editor (EditorCore extends ViewCore) · Diff
+                    Theme editor (canvas + blocks) · Studio (shell around the editor)
 ```
 
-Dependency rule: a layer imports only from layers below it. Blocks never import from `view`, `editor` or `elements`; modules never reach into another module, only through actions and signals of the kernel.
+Dependency rule: a layer imports only from layers below it. Blocks never import from `view`, `editor` or `elements`; modules never reach into another module, only through actions, events and signals of the kernel.
 
 ### 4.1 Class and component tree
 
 ```
-ViewCore                                   src/view/core.ts
-├─ DiagramViewer   (ViewCore + VIEWER_MODULES)                     <mmdx-viewer>
-├─ EditorCore extends ViewCore              src/editor/core.ts
-│  └─ DiagramEditor (EditorCore + EDITOR_MODULES)                  <mmdx-editor>
-└─ DiffCore extends ViewCore                src/diff/core.ts
-   └─ DiagramDiff  (DiffCore + DIFF_MODULES)                       <mmdx-diff>
+ViewCore                                     src/view/core.ts      services, theme, scheme, shell, module host, canvases
+├─ scene: SceneSource                         src/view/scene.ts     what the main canvas shows (a stack: History pushes)
+│  ├─ TextScene      (viewer)                 src/view/scenes/text.ts
+│  ├─ StoreScene     (editor)                 src/editor/scene.ts
+│  └─ DiffScene      (diff, History)          src/diff/scene.ts     owns a DiffSession
+├─ DiagramViewer   = ViewCore + TextScene + VIEWER_MODULES                     <mmdx-viewer>
+├─ EditorCore extends ViewCore                src/editor/core.ts    store, selection, gestures, painters (API compatibility)
+│  └─ DiagramEditor = EditorCore + StoreScene + EDITOR_MODULES                 <mmdx-editor>
+└─ DiagramDiff     = ViewCore + DiffScene (pinned) + DIFF_MODULES              <mmdx-diff>
 
-DiagramCanvas                              src/dom/canvas.ts   one per visible picture
-├─ used by ViewCore (main canvas), DiffCore (morph canvas / two linked canvases)
-└─ used by the theme editor previews (static canvases, no kernel)
+DiagramCanvas                                src/dom/canvas.ts     one per visible picture
+├─ owned by ViewCore (main canvas; a second linked canvas for side by side)
+└─ used by the theme editor's live preview (interactive, draft theme, no kernel)
 
 Blocks (src/ui/blocks) — used by modules and by the theme editor / studio directly
 ```
+
+Composition rather than `DiffCore extends ViewCore`: the three products render in three different ways that must all stay (§3.1), and the diff has no single source. A scene source isolates exactly that difference, and History becomes "push a `DiffScene`, pop it on Back". `EditorCore extends ViewCore` stays so that `EditorCore`'s public members keep their place.
 
 ## 5. Blocks (L2)
 
 ### 5.1 Contract
 
-- A block is a function or a small class: `createX(props): XHandle` returning `{ el, update(props?), destroy() }`. Inputs are plain values, `Signal`s and callbacks; it never imports kernel, editor or diagram types (only `core/types` value types where a block shows them, e.g. a version row).
+- A block is a function or a small class: `createX(props): XHandle` returning `{ el, update(props?), destroy() }`. Inputs are plain values, `Signal`s and callbacks. Signals drive state that changes often (zoom percentage, pressed tool); `update()` replaces structural props (lists, entries).
+- A block never imports kernel, editor or diagram code. It may import value types it displays: `core/types`, `VersionInfo` (`adapters/history`), `ItemChange` (`core/diff`).
 - Strings come in through a `t` function (`I18n['t']`); English keys live with the block (`ui/messages/blocks.ts`).
-- CSS is a fragment exported by the block (`X_CSS`); the kernel adopts the CSS of the blocks its modules use (`ViewModule.css` lists them), so a page ships only what it shows.
-- Keyboard and a11y are part of the block: roving focus in toolbars, `aria-pressed`, tooltips mirroring labels, focus kept on re-render (the `data-f` pattern of the diff becomes `keepFocus()` in `ui/blocks/focus.ts`).
+- CSS is a fragment exported by the block (`X_CSS`) and uses the `--mmdx-*` tokens directly, never the editor's alias variables (`--float`, `--ink`… from `ALIASES`, which the viewer does not load). The kernel adopts block CSS when the module that uses the block activates (§7.2), deduplicated by identity.
+- Keyboard and a11y are part of the block: roving focus in toolbars, `aria-pressed`, tooltips mirroring labels, focus kept on re-render (`keepFocus()` in `ui/blocks/focus.ts`, generalising the diff's `data-f` pattern).
+- Public styling hooks are kept: a block takes the `part` name its host passes (`canvas`, `toolbar`, `zoom-bar`, `diff-bar`, `panel`, `change-list`, `history`).
 - Every block has a Storybook story under **Blocks/** with mock props, and a jsdom test.
 
 ### 5.2 Catalogue
@@ -106,26 +137,29 @@ Blocks (src/ui/blocks) — used by modules and by the theme editor / studio dire
 | Block | Responsibility | Main props | Replaces |
 |---|---|---|---|
 | `IconButton`, `ToggleButton` | Icon button with tooltip, pressed state, shortcut hint | `icon, label, keys?, pressed?, disabled?, onClick` | ad hoc `btn()` in tool dock, viewer bar, diff |
-| `Toolbar` | Floating bar (vertical / horizontal), separators, roving focus, tooltip side | `orientation, items[], tooltip: 'side'\|'above'` | `.view-tools`, viewer `.bar`, diff `.vbar` / `.dbar` |
-| `ToolDock` | The editor's left dock: tool group + panel toggles + undo group, options flyout slot | `groups[], flyout?` | `chrome/tool-dock.ts` DOM, diff `vbar` |
-| `Segmented` | Exclusive buttons (views, edit / view, history / compare tabs) with a compact `<select>` form | `options[], value, onChange, compactBelow?` | diff view buttons + select, studio mode switch |
+| `Toolbar` | Floating bar (vertical / horizontal), separators, roving focus, tooltip side | `orientation, items[], tooltip: 'side'\|'above', compact?` | `.view-tools`, viewer `.bar`, diff `.vbar` / `.dbar` |
+| `ToolDock` | The tool dock: tool group + panel toggles + undo group, options flyout slot | `groups[], flyout?, compact?` | `chrome/tool-dock.ts` DOM, diff `vbar` |
+| `Segmented` | Exclusive buttons (views, compare / version tabs) with a compact `<select>` form | `options[], value, onChange, compactBelow?` | diff view buttons + select, studio mode switch |
 | `Menu`, `MenuButton` | Menus with sections, checks, separators; opener wiring through `PopoverManager` | `sections[], anchor` | view-params menus, export menus, ⋯ menus |
-| `ZoomBar` | − % + Fit, `?`, fullscreen; percentage bound to a view signal | `view: Signal<ViewState>, onZoom, onFit, help?, fullscreen?` | `chrome/zoom-bar.ts` DOM, viewer zoom controls, diff copy |
-| `HelpPopup` | Help dialog generated from a `ShortcutRegistry` (+ hint rows) | `registry, title, editing` | editor help, diff help |
+| `ZoomBar` | − % + Fit, `?`, fullscreen; percentage bound to a view signal | `view: Signal<ViewState>, onZoom, onFit, help?, fullscreen?, compact?` | `chrome/zoom-bar.ts`, `ui/zoom-bar.ts`, viewer zoom controls |
+| `HelpPopup` | Help dialog generated from the keymap of the active modules | `registry, title` | editor help, diff help |
 | `SchemeToggle` | Light / dark chrome toggle | `scheme: Signal, onChange` | view-params `vp-mode` |
-| `ThemeMenu` | Diagram themes grouped light / dark, current ticked, "edit themes" entry | `themes: ThemeInfo[], current, onPick, onEdit?` | view-params theme menu |
-| `ExportMenu` | Export entries from a list of formats with labels and runners | `entries: { id, label, run }[]` | three export menus |
+| `ThemeMenu` | "Follow light / dark" entry, then themes grouped light / dark, current ticked, "edit themes" entry | `themes: ThemeInfo[], picked: string \| null, shown, onPick, onFollow, onEdit?` | view-params theme menu |
+| `ExportMenu` | Labelled `Export ▾` button (icon-only when compact) and its entries | `entries: { id, label, section?, run }[], compact?` | three export menus |
 | `PenOptions` | Colours, sizes, auto erase, erase all | `pen: PenSettings` | editor flyout, viewer popup |
 | `SidePanel` | Floating card: header (title or `Tabs`), close, body, resize grip | `side, title \| tabs, onClose, width: Signal` | editor code panel shell, right panel cards, diff panels |
-| `PanelStack` | Column of `SidePanel`s with splitters, remembered sizes, empty-collapse | `side, panels[], storageKey` | `right-panels.ts` stack, diff left stack |
-| `Tabs` | Tab list with roving focus | `tabs[], value, onChange` | code / metadata, history / compare |
+| `PanelStack` | Column of `SidePanel`s with splitters, remembered sizes, empty-collapse, drawer form below a width | `side, panels[], storageKey, drawerBelow?` | `right-panels.ts` stack, diff left stack |
+| `Tabs` | Tab list with roving focus | `tabs[], value, onChange` | code / metadata, compare / view version |
 | `CodeView` | Read-only highlighted lines: plain listing, unified diff with numbers / hunks / gaps, line narrowing, copy | `lines \| ops, language: 'mermaid'\|'meta', mode: 'plain'\|'diff', select?` | `viewer-code.ts`, diff code table |
 | `CodeEditor` | Editable code (exists) | as today | — |
-| `VersionList` | Version rows (message, id, tags, author, age, counts) with optional Before / After picks | `versions, counts, mode, picked, onRow, onPick, onMore` | diff `historyRows` |
+| `VersionList` | Version rows (message, id, tags, author, age, counts) with Before / After picks | `versions, counts, mode, picked, onRow, onPick, onMore` | diff `historyRows` |
 | `ChangeList` | Change rows with mark icons, kind, label; selection | `changes, selected, onSelect` | diff `changeList` |
-| `LayerList` | Layers rows (show / hide, lock, rename, counts) | `layers, onToggle…` | `panels/layers.ts` DOM |
+| `FilterToggles` | Icon toggle buttons for the change kinds (Added, Removed, Content, Layout, Style), coloured, with tooltips and accessible names | `filters, value, onChange` | diff filter chips |
+| `LayerList` | Layer rows (show / hide, lock, rename, counts) | `layers, editable, onToggle…` | `panels/layers.ts` DOM, viewer layers popup |
 | `StyleToolbar`, `PageToolbar`, `ItemPreview`, `ShapePreview` | (exist; already generic) | as today | — |
-| `Banner`, `ErrorCard`, `EmptyState`, `Toast`, `Dialog`, `Popover` | Messages and overlays (`Toast`, `Dialog`, `Popover` exist) | | viewer error panel, diff banner / msg |
+| `Banner`, `ErrorCard`, `EmptyState`, `Toast`, `Dialog`, `Popover`, `Pill` | Messages and overlays (`Toast`, `Dialog`, `Popover` exist; `Pill` is the History "Back" pill) | | viewer error panel, diff banner / msg |
+
+`ui/zoom-bar.ts` and `ui/panes.ts` are absorbed into `ZoomBar`, `HelpPopup`, `SidePanel` and `PanelStack`.
 
 ## 6. Canvas (L3): `DiagramCanvas`
 
@@ -133,197 +167,293 @@ One class for every picture of a diagram.
 
 ```ts
 interface CanvasOptions {
+  /** 'pan-zoom' (a Viewport) or 'static' (fit through the viewBox, no viewport; the viewer's interactive="false"). */
+  interaction: 'pan-zoom' | 'static';
   wheel?: WheelMode; panOnDrag?: boolean; minK?: number; maxK?: number; pad?: number;
-  insets?: () => Insets; interactive?: boolean; reducedMotion?: () => boolean;
+  insets?: () => Insets; reducedMotion?: () => boolean;
 }
 class DiagramCanvas {
-  readonly el: HTMLElement;          // positioned container
-  readonly svg: SVGSVGElement;       // defs + vp > [page, body, runs, overlay, ink]
-  readonly view: Signal<ViewState>;  // k, tx, ty (drives ZoomBar, badges' constant size, pen)
-  readonly viewport: Viewport;
+  readonly el: HTMLElement;              // positioned container
+  readonly svg: SVGSVGElement;           // defs + vp > [page, body, runs, overlay, ink]
+  readonly view: Signal<ViewState>;      // k, tx, ty (ZoomBar, constant-size badges, pen)
+  readonly viewport: Viewport | null;    // null while static
+  setInteraction(i: CanvasOptions['interaction']): void;     // the viewer toggles it at runtime
   show(r: Rendered, layers?: { body?: SceneNode[]; runs?: SceneNode[]; overlay?: SceneNode[] }): void;  // keyed patch
-  setOverlay(nodes: SceneNode[]): void;          // painters' output (editor handles, diff highlights)
+  clear(): void;                                              // drops the patch state (a new scene owner repaints in full)
+  setOverlay(nodes: SceneNode[]): void;                       // painters' output (editor handles, diff highlights)
   itemAt(target: Element): { key: string; kind: ItemKind; id: string } | null;   // data-kind / data-id / data-key
   fit(bounds?: Rect): void; focus(rect: Rect): void; zoomBy(f: number): void;
-  link(other: DiagramCanvas): () => void;       // shared pan / zoom (side by side)
-  attachInk(store: StrokeStore): () => void;    // one stroke set, every canvas
-  morph(states: MorphState[], index: number): Morph;   // animated states (diff)
+  saveView(): ViewSnapshot; restoreView(s: ViewSnapshot): void;                  // History enter / exit
+  link(other: DiagramCanvas): () => void;                     // shared pan / zoom (side by side)
+  attachInk(store: StrokeStore): () => void;                  // one stroke set, every canvas
+  morph(states: MorphState[], index: number): Morph;          // animated states (diff)
   destroy(): void;
 }
 ```
 
-- A component's canvas area holds the main canvas and, when needed, a second one linked to it (the diff's side by side, also in History mode); both use the kernel theme.
-- `StrokeStore` (in `dom/pen.ts`) holds strokes in diagram coordinates; `MagicPen` becomes "a store + input on one canvas". The viewer and editor use one canvas, the diff two or one morphing canvas; strokes appear in all of them (the diff's `ink.ts` disappears).
-- The theme editor's previews become static `DiagramCanvas`es (`interactive: false`) instead of hand-patched SVGs.
+- A component's canvas area holds the main canvas and, when needed, a second one linked to it (side by side, also in History); both use the kernel theme.
+- `StrokeStore` (in `dom/pen.ts`) holds strokes in diagram coordinates; `MagicPen` becomes "a store + input on one canvas"; strokes live in the canvas's `ink` layer for every product (the viewer's separate pen SVG and the diff's `ink.ts` go away). The store is cleared when the stage changes (§8.3), as the editor clears it on Edit / View today.
+- Layer class names are unified (`page-layer`, `body-layer`, `overlay`, `ink`); the editor's `page-shadow` look moves to CSS on `page-layer`. The root's role stays per product (viewer `img` with the summary label, editor `application`, diff `application`).
+- SSR adoption, `fit="none"` sizing and aspect-ratio reservation stay in `TextScene` (§7.3), not in the canvas.
+- The theme editor's live preview becomes a `DiagramCanvas` (`interaction: 'pan-zoom'`, it has its own zoom) fed with renders made with the draft theme; its item tiles stay `ItemPreview`s.
 
 ## 7. View kernel (L4): `ViewCore`
 
 ### 7.1 Responsibilities
 
-Everything that is not editing and not diffing, extracted from `DiagramViewer`, `EditorCore` / `DiagramEditor` and `DiagramDiff`:
+Everything that is not editing, not diffing and not a rendering strategy, extracted from `DiagramViewer`, `EditorCore` / `DiagramEditor` and `DiagramDiff`:
 
-- **Services**: `ctx` (instance context), `i18n`, `storage`, `dialogs`, `popovers`, `toaster`, `shortcuts` (with key routing scoped to the shadow root), `emit` (bubbling, composed `mmdx-*` events).
-- **State (signals)**: `source`, `rendered` (computed through the pipeline, worker over 300 lines), `scheme` (`ui`), `theme`, `display` (labels, hover highlight, visible layers), `features`, `panels` (open panels by name), `tool` (pan / pen; the editor adds its tools), `mode` (`view`; the editor adds `edit`; any product with a history adds `history`).
-- **Theme, owned by the kernel** (decision 1): one `theme` signal per component, resolved once — the forced `theme` attribute, else the user's pick in the theme menu, else the diagram's own `canvas.theme`, then the dark counterpart on dark pages (`theme-dark`), with missing themes fetched through `themeSource`. Every canvas reads it: the main canvas, the second canvas of side by side, the morph states, item previews in panels, exports. Nothing nested has a theme of its own: a theme picked while in History mode is the component's theme, and stays when the mode ends. How a pick is persisted is the product's concern and unchanged: the editor's theme menu also writes `canvas.theme` (an undoable change, Edit mode only), the viewer and the diff keep the pick in the view.
-- **Kinds**: loaded on demand (`elements/kinds.ts`) for every product; the core gains `renderDiff(…, kinds)` so the diff uses the same loaded kinds instead of `ALL_KINDS` (this also removes the chunk fragmentation of §3.2).
-- **Modes**: modules declare the modes they are active in (`modes: ['edit']`, `['view', 'history']`…); switching mode suspends the other modules (their DOM hidden, gestures and shortcuts off) without uninstalling them, so their state survives (selection, tool, panel contents, scroll positions).
+- **Services**: `ctx` (instance context), `i18n`, `storage`, `popovers`, `toaster`, `emit` (bubbling, composed `mmdx-*` events). Loaded on first use (§10): `dialogs`, `shortcuts` (the keymap, key routing scoped to the shadow root), panel stacks.
+- **State (signals)**: `mode` (`'view'`; the editor adds `'edit'`), `stage` (`'document' | 'history'`, §8), `scheme` (chrome light / dark), `theme` (§7.5), `display` (labels, hover highlight, visible layers), `features`, `panels` (open panels by name), `tool` (hand / pen; the editor adds its tools), `compact` (§7.6).
+- **Scene stack**: `scene` is the active `SceneSource`; `pushScene` / `popScene` switch what the main canvas shows (§7.3).
+- **Kinds**: a `KindsProvider` given by the product — lazy (`elements/kinds.ts`) for the viewer and the diff, static (`ALL_KINDS`) for the editor, whose gestures and typing need synchronous renders. The core gains `…With(kinds)` variants of the diff functions so the diff uses the loaded kinds (§9).
 - **Shell**: the element's shadow root with named **slots** that modules fill:
 
 ```
-┌ top-left: titles, badges ─────────────────────────────── top-right: view params ┐
-│ left-stack (PanelStack)  left-dock (ToolDock)   canvas(es)     right-stack (PanelStack) │
-│                                                                                 │
-│                      bottom-center: context bar (diff bar, page bar)            │
-└───────────────────────────────────────────────────────────── bottom-right: ZoomBar ┘
-  overlay: views that cover the component (code view, Plain Mermaid compare)
+┌ top-left: titles, badges ──── top-center: pill, banners, remote-change bar ──── top-right: view params ┐
+│ left-stack (PanelStack)  left-dock (ToolDock)   canvas(es)                     right-stack (PanelStack) │
+│                                                                                                         │
+│                                bottom-center: context bar (diff bar, page bar)                          │
+└───────────────────────────────────────────────────────────────────────────────────── bottom-right: ZoomBar ┘
+  overlay: views that cover the component (Plain Mermaid compare, dialogs)
 ```
 
-  The canvas area is inset by the open stacks (one inset function for every product); slots that nothing fills take no room. The canvas area can hold one canvas or two linked ones (side by side), so History mode needs no overlay.
-- **Module system**: one contract for every product.
+  The left dock sits to the right of the left panel stack, so the Code and History panels are at the component's edge and the tools stay next to the canvas. The canvas area is inset by the open stacks and the dock (one inset function for every product); slots that nothing fills take no room. Below a width threshold (`PanelStack.drawerBelow`), a stack opens one panel at a time as a drawer over the canvas.
+
+### 7.2 Module contract
 
 ```ts
 interface ViewModule<C extends ViewCore = ViewCore> {
   id: string;
-  /** CSS of the module and of the blocks it uses. */
-  css?: readonly string[];
-  /** Which products / features it applies to. */
+  /** Install after these modules (ids); replaces today's reliance on list order. */
+  after?: readonly string[];
+  /** Active only in these modes / stages (default: all). Inactive = suspended by the kernel. */
+  when?: { mode?: readonly Mode[]; stage?: readonly Stage[] };
+  /** Re-evaluated when features, controls or options change; false uninstalls, true installs. */
   enabled?(core: C): boolean;
-  install(core: C): () => void;
+  /** Eager part: slot DOM (buttons), shortcuts, cheap listeners. Every registration goes through the scope. */
+  install(scope: ModuleScope<C>): void | (() => void);
+  /** Lazy part, loaded on first use (pen, view settings, code view, export, History); its CSS is adopted then. */
+  load?(): Promise<{ css?: readonly string[]; activate(scope: ModuleScope<C>): void | (() => void) }>;
+  css?: readonly string[];
+}
+
+interface ModuleScope<C> {
+  readonly core: C;
+  slot(name: SlotName): { append(el: Element): void };
+  on<E extends keyof EventsOf<C>>(e: E, cb: (d: EventsOf<C>[E]) => void): void;
+  effect(f: () => void): void;
+  shortcut(s: Shortcut): void;                 // keymap entries, scoped by `when`
+  provide<A extends keyof ActionsOf<C>>(name: A, f: ActionsOf<C>[A]): void;
+  gesture(s: GestureSource): void;             // editor only
+  painter(p: OverlayPainter): void;            // editor only
 }
 ```
 
-  Modules talk through `core.provide(name, fn)` / `core.run(name, …)` / `core.has(name)` (the editor's existing action registry, generalised and typed per product via declaration merging), `core.on(event)` / `core.fire(event)`, and signals.
+- The scope records every registration, so the kernel can **suspend** a module (detach its slot DOM, mute its listeners, shortcuts, gestures and painters, keep its state) when `when` no longer matches, **resume** it, and **uninstall** it with nothing left behind. No module touches `core.dom.*` or the canvas DOM directly; the module-matrix test checks that after uninstall no listener, node or registration remains.
+- Actions and events are typed per product with generics (`ViewCore<Actions, Events>`, `EditorCore extends ViewCore<EditorActions, EditorEvents>`), not with global declaration merging. Events are an open, typed map, not a closed union.
+- The viewer's `controls`, the editor's `features` and the diff's `features` map to modules and are re-evaluated at runtime (the viewer's `controls` attribute can change after connect).
 
-### 7.2 Standard view modules (installed by any product that wants them)
+### 7.3 Scene sources
+
+```ts
+interface SceneSource {
+  readonly id: string;
+  /** Takes the main canvas (and may add a linked second one); paints in full. */
+  attach(canvases: CanvasArea): void;
+  /** Gives the canvas back; must stop painting. */
+  detach(): void;
+  /** Something it depends on changed (theme, display, kinds, document). Repaints only while attached. */
+  invalidate(): void;
+  readonly bounds: Signal<Rect | null>;
+}
+```
+
+- `TextScene` (viewer): source text or `src` → async render (worker over 300 lines, kinds on demand), SSR adoption, Mermaid fallback, error card, aspect-ratio reservation.
+- `StoreScene` (editor): `DocStore` → sync render (gestures preview through it), selection decorations, overlay painters.
+- `DiffScene` (diff, History): a `DiffSession` (§8.1) → morph states on the main canvas, a second linked canvas for side by side, highlights and badges in the overlay layer.
+- **Canvas ownership**: only the attached scene paints. `EditorCore.draw()` becomes `scene.invalidate()`, so a store change while History is open (remote update, host `setSource` or `undo()`) marks the `StoreScene` dirty without painting over the diff; it repaints in full when it is attached again.
+
+### 7.4 Standard view modules
 
 | Module | Slot / blocks | Viewer | Editor | Diff |
 |---|---|---|---|---|
-| `zoomBar` | bottom-right · `ZoomBar`, `HelpPopup` | ✓ (compact preset) | ✓ | ✓ |
-| `viewParams` | top-right · `SchemeToggle`, `ThemeMenu`, `ExportMenu` button; sets the kernel theme / scheme | opt-in (`controls="theme"`, decision 2) | ✓ | ✓ (**theme selector**) |
-| `pan` | left-dock · `IconButton`; Space-drag, wheel | implicit | ✓ | ✓ |
+| `zoomBar` | bottom-right · `ZoomBar`, `HelpPopup` | ✓ (help popup new) | ✓ | ✓ |
+| `toolDock` | left-dock · `ToolDock` | ✓ | ✓ | ✓ |
+| `viewParams` | top-right · `SchemeToggle`, `ThemeMenu`, `ExportMenu` | opt-in theme menu (`controls="theme"`); Export ▾ | ✓ | ✓ (**theme selector**) |
+| `pan` | left-dock · `IconButton`; Space-drag, wheel | ✓ | ✓ | ✓ |
 | `pen` | left-dock + flyout · `PenOptions`, `StrokeStore` | ✓ | ✓ | ✓ (all canvases) |
-| `export` | `ExportMenu`; formats contributed by other modules (`core.provide('exportFormats')`) | ✓ | ✓ | ✓ (+ patch, reports) |
+| `export` | `ExportMenu`; formats contributed by modules (`exportFormats` action) | ✓ | ✓ | ✓ (+ patch, reports) |
 | `fullscreen` | ZoomBar button | ✓ | ✓ | ✓ |
-| `viewSettings` | layers, labels, hover · `LayerList`, `Menu` | ✓ | View mode | ✓ |
-| `codeView` | overlay or left-stack · `CodeView` | ✓ | View mode | — (diff has `codeDiff`) |
-| `history` | left-dock button · enters / leaves `history` mode with a diff session (§7.4) | ✓ | ✓ (+ Restore) | — (always in a session) |
-| `links`, `hoverHighlight`, `a11yLabel` | canvas | ✓ | View mode | ✓ |
+| `viewSettings` | right-stack side card · `LayerList`, display toggles | ✓ | View mode | ✓ (new) |
+| `codeView` | left-stack · `CodeView` | ✓ | View mode (new) | — (diff has `codeDiff`) |
+| `history` | left-dock button · enters / leaves the `history` stage (§8) | ✓ | ✓ (+ Restore) | — (always a diff) |
+| `links` | canvas · click opens; in a `DiffScene` click selects, ⌘ / Ctrl-click opens | ✓ | View mode | ✓ (new) |
+| `hoverHighlight`, `a11yLabel` | canvas | ✓ | View mode | ✓ |
 
-### 7.3 Products
+Layers in the viewer and the diff are a view override (`visibleLayers`); in the editor's Edit mode the Layers panel edits the document's layer flags. `LayerList` takes `editable` for the difference.
 
-**Viewer** — `ViewCore` + `zoomBar` (compact: zoom + control buttons in one bar, as today), `pen`, `viewSettings`, `codeView`, `export`, `fullscreen`, `history`, `links`, `hoverHighlight`; presentation options stay on the viewer (`fit`, `lazy`, SSR adoption, `interactive`). `controls` maps to modules.
+### 7.5 Theme
 
-**Editor** — `EditorCore extends ViewCore` adds `DocStore`, selection, gestures and overlay painters, edit / view mode, the editing tools. Its modules are today's modules re-based on blocks: canvas (select, structure, inline edit, paint, empty), connect, sequence, shapes, er-table, panels (`codePanel` in left-stack, `properties` and `layers` in right-stack), toolbars, document commands. View mode switches the module set's visibility to the viewer's — the editor in View mode and `<mmdx-viewer>` behave the same because they run the same modules.
+The theme is **component state, not document state**.
 
-**Diff** — `DiffCore extends ViewCore` and runs a diff session (§7.4) for its whole life: a pair of sources or a `HistoryAdapter`. It installs the diff modules and the standard `zoomBar`, `viewParams`, `pen`, `pan`, `fullscreen`, `export`. Like everything else, its canvases use the kernel theme.
+- **Format**: `canvas.theme` is removed from the `.mmdx` format. A migration in `core/meta/migrations.ts` drops it on load (the editor's next save writes the file without it); `pickTheme` no longer reads it; the diff no longer reports theme changes (`core/diff/index.ts`). Pages that relied on a diagram's own theme set `theme` on the element, or the `theme` option of `renderToSvg` and the markdown plugins.
+- **Resolution** (one `theme` signal per component): the host's `theme` attribute (and `theme-dark` while the chrome is dark) → the user's pick → the default, which follows the chrome scheme (Default Light / Default Dark).
+- **Theme and scheme are independent.** The sun / moon toggle changes only the chrome. While nothing is picked, the diagram follows the scheme (default theme, or `theme` / `theme-dark`); a picked theme stays when the scheme changes. The theme menu's first entry, "Follow light / dark", clears the pick. Picking a dark theme does not switch the chrome to dark.
+- **Persistence**: the pick is remembered in storage per product (`viewer.theme`, `editor.theme`, `diff.theme`), so a pick in a docs-page viewer does not change the editor. The chrome scheme is remembered per product the same way.
+- **Scope**: every canvas, stage and panel of the component uses it — main and side-by-side canvases, morph states, item previews, exports. History has no theme of its own; a pick in History is the component's pick and stays after Back.
 
-### 7.4 Diff session and History mode
+### 7.6 Chrome look and the `compact` preset
 
-The diff is a **session** owned by the kernel, not a separate component: `DiffSession` holds the version source, the pair or the viewed version, the filters, the rendered diff (`renderDiff(…, kinds)`), the selection and the stage (one morphing canvas, or two linked canvases). The diff modules work against any kernel that has a session:
+- One look everywhere: the editor's chrome (tool dock, zoom bar bottom-right, view params top-right with the light / dark toggle, theme menu and a labelled `Export ▾`). The viewer adopts it; the editor's View mode and `<mmdx-viewer>` look the same because they run the same modules.
+- **Code view**: a panel in the left stack (`CodeView`), in every product.
+- **View settings**: a side card in the right stack (display toggles and layers).
+- **`compact`** (a kernel-level option, attribute `compact` on every element, automatic below a host size): the same pieces, smaller and icon-only — 32 px dock buttons, the zoom bar without labels, `Export` as an icon, view params condensed. No piece moves or merges into another.
+- The prototype of these decisions: the "mmdx chrome options" design canvas (compact preset, view settings card, History placement).
+
+## 8. History
+
+### 8.1 Diff session
+
+`DiffSession` holds the version source (a `HistoryAdapter`, a list, or a pair of sources), the pair or the viewed version, the filters, the rendered diff (`renderDiffWith(kinds, …)`), the change selection and the view (Before / Merged / After / Side by side). It is the model behind `DiffScene` and the diff modules:
 
 | Diff module | Slot · blocks |
 |---|---|
-| `diffBar` | bottom-center · `Segmented` views, filter toggles, dim, changes toggle |
-| `versions` | left-stack · `VersionList` (Compare / History tabs) |
+| `diffBar` | bottom-center · `Segmented` views, `FilterToggles` (icon buttons), dim, Changes toggle (icon with count); Restore at its end while in History in Edit mode |
+| `versions` | left-stack · `VersionList` (Compare / View version tabs) |
 | `codeDiff` | left-stack · `CodeView` in diff mode, narrowed to the selection |
 | `changeList` | right-stack · `ChangeList` |
-| `diffStage` | canvas area · morph states on the main canvas, a second linked canvas for side by side, highlights and badges in the overlay layer |
+| `diffStage` | canvas area · morph states, linked second canvas, highlights and badges |
 | `diffExport` | formats for `export` (patch, reports, images of a view) |
+| `historyPill` | top-center · `Pill`: "History · v3 → Working copy" and **Back** (Esc); History only |
 
-**History mode in the viewer and the editor** (decision 3) — the `history` module adds a History button to the host's tool dock. Pressing it starts a session over the host's `history` plus the working copy and switches the kernel to `history` mode, in place:
+### 8.2 The `history` stage
 
-- The host's own canvas shows the diff states (Before / Merged / After with the morph), and side by side adds a second linked canvas next to it in the same canvas area. Pan, zoom, pen strokes and the zoom bar are the host's.
-- The History and Code panels go into the host's left stack and the Changes panel into its right stack; the editor's Code, Properties and Layers panels are suspended (hidden, state kept) and come back when the mode ends.
-- The diff bar takes the bottom-center slot; the theme menu and light / dark toggle stay where they are and keep working (kernel theme).
-- Editing modules are suspended: no selection handles, no gestures, no editing shortcuts. The document store is untouched, so leaving the mode restores the editor exactly (selection, tool, panels, scroll).
-- **Restore this version** (editor, from Edit mode) loads the shown version into the store as an undoable change and leaves the mode; **Back** (or Esc, or the History button again) leaves it without changes.
-- The session's code (diff modules and `core/diff`) loads on first use; with kinds loaded through `loadKind`, the chunk graph stays stable (§3.2), and History needs no `mmdx/diff` on the page.
+`stage: 'document' | 'history'` is a second axis next to `mode: 'edit' | 'view'`; `mode` keeps its meaning (`readOnly` stays `mode === 'view'`, existing mode checks stay correct). While History is open the user cannot switch Edit / View (`setMode` is ignored and the studio's switch is disabled); Restore is offered when `mode === 'edit'`.
 
-**Theme editor** — previews become `DiagramCanvas`es; its toolbars and menus use blocks. **Studio** — the top bar uses `Toolbar`, `Segmented`, `Menu`; it keeps feeding the editor its history.
+Opening History (the History button in the tool dock, `toggleHistory()`, or `historySession` API):
 
-## 8. Target file tree
+1. The kernel saves the canvas view (`saveView()`), clears the pen strokes, and pushes a `DiffScene` over the host's history plus its **working copy** (the current document).
+2. The `DiffScene` paints the host's own canvas; side by side adds a second linked canvas in the same canvas area. Pan, zoom, pen and the zoom bar are the host's.
+3. The History and Code panels open in the host's left stack (at the component's edge, the tool dock to their right), the Changes panel in its right stack; the editor's Code, Properties and Layers panels are suspended with their state.
+4. The diff bar takes bottom-center; the `Back` pill takes top-center; the theme menu and light / dark toggle stay and keep working.
+5. Modules whose `when.stage` excludes `history` are suspended: editing gestures, handles, editing shortcuts. The document store is never written while History is open.
 
-```
-src/
-  core/                      (unchanged; renderDiff takes kinds)
-  dom/
-    canvas.ts                DiagramCanvas
-    pen.ts                   StrokeStore + MagicPen input
-    morph.ts, patch.ts, viewport.ts, measure.ts, export.ts, worker-*.ts
-  ui/
-    blocks/                  icon-button, toolbar, tool-dock, segmented, menu, zoom-bar, help-popup, scheme-toggle,
-                             theme-menu, export-menu, pen-options, side-panel, panel-stack, tabs, code-view,
-                             version-list, change-list, layer-list, banner, error-card, empty-state, focus
-    code-editor.ts, style-toolbar.ts, page-toolbar.ts, item-preview.ts, shape-preview.ts, popover.ts, dialog.ts,
-    signal.ts, shortcuts.ts, i18n.ts, h.ts, icons.ts, logo.ts
-    messages/                blocks.ts, view.ts, editor.ts, diff.ts, …
-    styles/                  tokens + per-product layout only
-  view/
-    core.ts                  ViewCore
-    shell.ts                 slots, insets
-    module.ts                ViewModule
-    modules/                 zoom-bar, view-params, pan, pen, export, fullscreen, view-settings, code-view,
-                             history, links, hover-highlight, a11y
-  editor/
-    core.ts                  EditorCore extends ViewCore
-    store.ts
-    modules/                 canvas/*, connect, sequence, shapes, er-table, panels/*, toolbars, document
-  diff/
-    core.ts                  DiffCore extends ViewCore
-    modules/                 diff-bar, change-list, code-diff, versions, morph, diff-export, host-actions
-  elements/
-    viewer.ts, editor.ts, diff.ts, theme-editor.ts, studio.ts   (thin: element ↔ options ↔ product class)
-```
+Inside History:
 
-## 9. Bundle strategy
+- **Old versions are read-only documents.** In View version, and on the Before or After side of a comparison, the user can select items, read their properties (the Properties card, read-only, labelled with the version) and **copy** them. Merged is for looking only (an item there can mix both versions).
+- **The clipboard carries content** (§9): what was copied from an old version can be pasted into the current document after Back, including items the current document no longer has.
+- **The working copy follows the document**: a store change while History is open (remote update, host `setSource`, `undo()` from code) updates the "Working copy" entry and recomputes a comparison that uses it; the canvas keeps showing History.
+- **Restore this version** (Edit mode; in the diff bar) loads the shown version into the store as one undoable change and leaves History.
 
-- `mmdx/viewer` = kernel + canvas + the viewer's eager modules (`zoomBar`, `links`, `hoverHighlight`, `a11y`); `pen`, `viewSettings`, `codeView`, `export`, `history` load on first use, as today. Budget 46 kB gzip (first diagram).
-- `mmdx/editor` = kernel + canvas + editing modules; budget 165 kB.
-- `mmdx/diff` = kernel + canvas + diff modules + `core/diff`; kinds on demand. Expected to drop well below the current 86.5 kB (the kinds move out of the first view); target 60 kB (the diff design's budget).
-- The size gate adds "viewer + History opened" and "editor + History opened" rows so lazy features are measured too.
+Leaving History (Back pill, Esc at the end of the Esc chain, the History button, `toggleHistory(false)`): the `DiffScene` is popped, the pen strokes are cleared, the `StoreScene` / `TextScene` repaints in full, the saved view is restored, suspended modules resume with their state (selection, tool, panels, scroll).
 
-## 10. Public API compatibility
+**Small hosts** (a docs-page viewer): the viewer grows to a minimum height (560 px) while History is open, and below the drawer width its panels open one at a time as drawers over the canvas (`PanelStack.drawerBelow`).
 
-- Unchanged: element names, attributes, properties, methods and `mmdx-*` events of the viewer, editor, theme editor, studio and diff; the imperative classes `DiagramViewer`, `DiagramEditor`, `DiagramDiff`; entry points.
-- `EditorModule` stays as an alias of `ViewModule<EditorCore>`; `DEFAULT_MODULES` keeps its meaning. New: `ViewCore`, `ViewModule`, `VIEWER_MODULES`, `DIFF_MODULES`, `DiagramCanvas`, and `DiffSession`. The blocks stay internal for now (decision 4) and become a public `mmdx/ui` entry one release later, once their APIs have settled.
-- `history-view.ts` and the tag-based embedding of `<mmdx-diff>` go away: History becomes a mode of the host (§7.4). `editor.history` / `viewer.history` and `toggleHistory()` keep working; History no longer needs the page to load `mmdx/diff`. New events on the host: `mmdx-mode` `{ mode }` when History is entered or left, and the diff events (`mmdx-compare`, `mmdx-version`, `mmdx-select`, `mmdx-filters`) while in History mode.
-- New viewer control `theme` (the view params: light / dark and theme menu), opt-in (decision 2).
+The session's code (diff modules and the diff part of `core`) loads on first use; with kinds loaded through the provider the chunk graph stays stable, and History needs no `mmdx/diff` on the page.
 
-## 11. Migration plan
+### 8.3 History API and events
 
-Each phase keeps the test suite, Storybook and size gate green and ships nothing half-done; behaviour changes are listed explicitly.
+- `editor.historySession` / `viewer.historySession`: `null` while History is closed; while open, a `DiffSession` facade with the `<mmdx-diff>` methods — `setPair(base, head)`, `viewVersion(id)`, `setView(view)`, `setFilters(filters, dim?)`, `select(key)`, `next()`, `prev()`, `pair`, `getDiff()`, `exportAs(kind, opts)`.
+- `history` and `toggleHistory()` keep working.
+- Events on the host, separate from the host's own events: `mmdx-history-open`, `mmdx-history-close`, `mmdx-history-compare`, `mmdx-history-version`, `mmdx-history-select`, `mmdx-history-view`, `mmdx-history-filters`, `mmdx-history-export`, `mmdx-history-restore`. Errors of the session come as `mmdx-history-error`; `mmdx-render` and `mmdx-error` remain the host's own.
+- `<mmdx-diff>` keeps its current event names (`mmdx-compare`, `mmdx-select`, …).
+
+### 8.4 `<mmdx-diff>`
+
+`DiagramDiff` is a `ViewCore` with a pinned `DiffScene` (never popped), the diff modules (without `historyPill`) and the standard `zoomBar`, `toolDock`, `viewParams`, `pen`, `pan`, `fullscreen`, `export`, `viewSettings`, `links`. Host actions (`DiffAction`) render in the top-right slot.
+
+## 9. Core changes
+
+1. **Kinds in the diff**: `renderDiffWith(kinds, …)` and `diffDiagramsWith(kinds, …)`; today `renderDiff` renders through `pipeline.ts` (`ALL_KINDS`) and `diffDiagrams` parses with every parser. `renderDiff` / `diffDiagrams` / `renderDiffToSvg` keep their signatures (all kinds). A session loads the kinds of both versions before rendering (they can differ). `ui/item-preview.ts` takes a parser instead of importing every parser.
+2. **Theme out of the format**: the `canvas.theme` migration, `pickTheme` without the document's theme, no theme field in the diff (§7.5).
+3. **Content clipboard**: `ClipboardData` carries the copied items' code lines, metadata (looks, positions) and the edges between them, plus the source diagram type; `pasteItems` inserts them with fresh ids when they are missing from the target and refuses another diagram type. The system clipboard format (`web application/x-mmdx+json`) carries the same payload. Sequence diagrams stay refused.
+4. **Nothing else**: renderers, the parser and the rest of the format are unchanged.
+
+## 10. Bundle strategy
+
+- **Phase 0 spike** (before any extraction): build the kernel (services, theme, scheme, shell, module host, scene stack, `DiagramCanvas`) and measure the viewer. Then decide between an eager / lazy kernel split (eager: events, i18n, storage, popovers, theme, canvas, slots; lazy: keymap and help, dialogs, panel stacks, suspension) and a higher viewer budget. The decision and its numbers are recorded here.
+- `mmdx/viewer` = kernel + `TextScene` + the viewer's eager modules (`zoomBar`, `toolDock`, `links`, `hoverHighlight`, `a11y`); `pen`, `viewSettings`, `codeView`, `export`, `history` load on first use. Budget 46 kB gzip (first diagram) unless the spike re-sets it.
+- `mmdx/editor` = kernel + `StoreScene` + editing modules; budget 165 kB (2.2 kB headroom today: the kernel indirection is measured per phase).
+- `mmdx/diff` = kernel + `DiffScene` + diff modules + the diff part of `core`; kinds on demand. Target 60 kB.
+- The size gate adds "viewer + History opened" and "editor + History opened" rows.
+
+## 11. Public API and compatibility
+
+The next release is breaking. Its notes list:
+
+- **Format**: `canvas.theme` is removed (§7.5); files keep loading, the field is dropped.
+- **`EditorModule`** takes the `ViewModule<EditorCore>` shape (§7.2: `install(scope)`, `enabled(core)`, `css: string[]`, `when`, `after`, `load`); no adapter for the old shape. `DEFAULT_MODULES` keeps its meaning. `EditorCore.dom` is no longer a module entry point (canvas access goes through the scope and the canvas).
+- **Theme behaviour**: the editor's theme menu no longer writes the document and no longer flips the chrome; the viewer and the diff follow the same rule.
+- **Unchanged**: element names and attributes, the `Mode` type, `readOnly`, the imperative classes, entry points, `::part()` names (`canvas`, `toolbar`, `zoom-bar`, `diff-bar`, `panel`, `change-list`, `history`), `--mmdx-*` tokens, `<mmdx-diff>` events.
+- **New**: `ViewCore`, `ViewModule`, `ModuleScope`, `SceneSource`, `VIEWER_MODULES`, `DIFF_MODULES`, `DiagramCanvas`, `DiffSession`, `Stage`, `historySession`, the `mmdx-history-*` events, the `compact` attribute, the viewer control `theme`. Blocks stay internal and become a public `mmdx/ui` entry one release later.
+- **Storage keys**: the pick and the scheme move to per-product keys; panel sizes keep their keys where a `PanelStack` replaces an existing stack.
+- `history-view.ts` and the tag-based embedding of `<mmdx-diff>` go away after phase 4c (§12).
+
+## 12. Migration plan
+
+Each phase keeps the test suite, Storybook and size gate green and ships nothing half-done.
 
 | Phase | Work | Exit criteria |
 |---|---|---|
-| 1. Blocks | Extract `IconButton`, `Toolbar`, `ToolDock`, `Segmented`, `Menu`, `ZoomBar`, `HelpPopup`, `SchemeToggle`, `ThemeMenu`, `ExportMenu`, `PenOptions`, `SidePanel`, `PanelStack`, `Tabs`, `CodeView`, `VersionList`, `ChangeList` with stories and tests. Rebuild the editor's chrome modules and the diff's chrome on them (thin wrappers); the viewer's bar on `Toolbar` + `ZoomBar`. | Pixel-equivalent Storybook stories for the editor; the diff gains the theme menu, the light / dark toggle and highlighted code; three pen-option UIs become one. |
-| 2. Canvas | `DiagramCanvas` and `StrokeStore`; viewer, editor, diff and theme editor previews draw through it; `diff/ink.ts` removed. | Pen strokes shared across diff canvases via the store; editor overlays unchanged. |
-| 3. Kernel | `ViewCore`, shell slots and `ViewModule` extracted from `EditorCore` and `DiagramViewer`; the viewer becomes `ViewCore` + modules; `EditorCore extends ViewCore`; theme / scheme / kinds / worker logic exists once. | Editor View mode and `<mmdx-viewer>` run the same modules; viewer budget kept. |
-| 4. Diff | `DiffSession` and the diff modules; `DiffCore extends ViewCore` with a permanent session; `renderDiff(…, kinds)`; kernel modes with module suspension; the `history` module runs a session as `history` mode in the host's canvas and panel stacks; `history-view.ts` removed. | History is a mode of the editor and the viewer (state restored on exit, Restore undoable); no `mmdx/diff` import needed; diff budget ≤ 60 kB; viewer + History measured. |
-| 5. Clean-up | Theme editor and studio on blocks; dead CSS and helpers removed; Storybook reorganised: **Blocks/**, **Canvas**, **Products/** (Viewer, Editor, Diff, Theme editor, Studio) with the module matrix as controls; docs (README architecture section; the blocks documented internally, `mmdx/ui` published in the following release). | No duplicated chrome left (checked by a lint rule: products may not create toolbars / menus / panels except through blocks). |
+| 0. Spikes | Kernel size spike (§10); History-in-editor spike: `StoreScene` / `DiffScene` swap on one canvas, suspension through scopes, store changes during History | Budget decision recorded; spike shows no paint-over and full state restore |
+| 1. Blocks | Extract the blocks of §5.2 with stories and tests; rebuild the editor's chrome modules and the diff's chrome on them (thin wrappers); the viewer's bar on `Toolbar` + `ZoomBar` | Pixel-equivalent editor stories; the diff gains highlighted code; one pen-options UI |
+| 2. Canvas | `DiagramCanvas` and `StrokeStore`; viewer, editor, diff and the theme editor's preview draw through it; `diff/ink.ts` and the viewer's pen SVG removed | Pen strokes shared across diff canvases; editor overlays unchanged |
+| 3. Kernel | `ViewCore`, shell slots, scopes and `ViewModule`; scene sources (`TextScene`, `StoreScene`); `EditorCore extends ViewCore`; theme (§7.5) incl. the format migration; the diff's theme menu and toggle; the `compact` preset; the keymap table (§13) | Editor View mode and `<mmdx-viewer>` run the same modules; the viewer has the editor's look; budgets per §10 |
+| 4a. Diff on modules | `DiffSession`, `DiffScene`, diff modules; `<mmdx-diff>` = kernel + pinned `DiffScene`; `…With(kinds)` in core | `<mmdx-diff>` parity, no behaviour change beyond §2; ≤ 60 kB |
+| 4b. Stages | `stage` signal, suspension by `when`, scene stack, canvas ownership | Module-matrix test: enter / leave History in every mode, state identical |
+| 4c. History in the editor | `history` module on the stage; read-only selection, properties and copy; content clipboard; working-copy updates; Restore; `historySession`; `mmdx-history-*` events | Studio history tests rewritten; `history-view.ts` behind a flag as fallback until parity, then removed |
+| 4d. History in the viewer | Grow + drawers; no `mmdx/diff` import needed | viewer + History measured |
+| 5. Clean-up | Theme editor and studio on blocks; dead CSS and helpers removed; Storybook: **Blocks/**, **Canvas**, **Products/**; README architecture section | No chrome built outside blocks (check: no `role="toolbar"`, `role="menu"` or panel markup outside `ui/blocks`) |
 
-Estimated size: phases 1 and 2 are mechanical (mostly moves with adapters); phase 3 is the largest (the kernel split of `EditorCore`, ~700 lines, and `DiagramViewer`, ~900 lines); phase 4 shrinks `elements/diff.ts` (1 740 lines) into a core and modules.
+Phase 3 is the largest (the kernel split of `EditorCore`, ~700 lines, and `DiagramViewer`, ~900 lines); phase 4a shrinks `elements/diff.ts` (1 740 lines) into a session, a scene and modules.
 
-## 12. Testing
+## 13. Keyboard
 
-- **Blocks**: jsdom tests per block (rendering from props, callbacks, keyboard, focus kept on update, a11y attributes) and a Storybook story each.
-- **Kernel**: module install / uninstall leaves no listeners; slots and insets; theme resolution matrix (forced / own / dark counterpart / missing); scheme switching; shortcut scoping.
-- **Products**: the existing viewer, editor, diff, studio tests keep passing unchanged (they are the regression suite); a module-matrix test installs each standard module in each product.
-- **Visual**: Storybook stories per block and product, light and dark; a Playwright pass over the products' stories comparing screenshots before / after each phase.
+One keymap table covers every product, mode and stage; shortcuts carry `when` (§7.2) instead of `editOnly`. The table is designed before phase 3. Collisions to resolve:
+
+| Key | Editor | Diff / History |
+|---|---|---|
+| `V` | pointer tool | History panel |
+| `L` | Layers panel | Changes panel |
+| `C` | editor Code panel | diff Code panel |
+| `⌘Z` | undo the document | undo the last pen stroke |
+| History toggle | `Shift+H` | `V` (panel) |
+
+The viewer's keys (`+` `−` `0` arrows `P`) move onto the same table. Esc runs one chain: close popover → cancel gesture → drop pen → clear change selection → leave History.
+
+## 14. Testing
+
+- **Blocks**: jsdom tests per block (rendering from props, callbacks, keyboard, focus kept on update, a11y attributes, `part` names) and a Storybook story each.
+- **Kernel**: install / suspend / resume / uninstall leaves no listeners, nodes or registrations; slots, insets and drawers; theme resolution matrix (attribute / `theme-dark` / pick / default × light / dark, pick kept across scheme changes); scheme switching; keymap scoping by `when`.
+- **Scenes**: canvas ownership (no paint from a detached scene), store changes during History, view saved and restored.
+- **Core**: the `canvas.theme` migration; `…With(kinds)`; content clipboard round trip (copy from an old version, paste into a document without the items).
+- **Products**: the viewer, editor, diff and studio tests are the regression suite; tests that query internal DOM (`.dbar`, `.pane-side`, `.left-stack`, `.mmdx-history-view`) move to block-level selectors in the phase that changes that DOM. A module-matrix test installs each standard module in each product.
+- **Visual**: Storybook stories per block and product, light and dark, compact and full; a Playwright pass comparing screenshots before / after each phase.
 - **Size**: the gate with the new rows.
 
-## 13. Risks
-
-- **Kernel split of the editor**: `EditorCore` mixes view and edit concerns; the split must keep every module's access paths. Mitigation: phase 3 starts by moving members with re-exports, then narrows types.
-- **Viewer size**: the kernel must not pull editor-only code. Mitigation: the kernel holds only what the viewer needs today; size rows per phase.
-- **Look drift**: blocks must reproduce the editor's chrome exactly. Mitigation: blocks are extracted from the editor's DOM and CSS, not re-designed; screenshot comparison.
-- **History mode inside the editor**: suspending editing modules must not lose state or leak gestures. Mitigation: suspension is a kernel feature tested once (module matrix test: enter / leave History in every mode, state compared before and after).
-- **One diff, two hosts** (`<mmdx-diff>` and History mode): both run the same `DiffSession` and modules; the element is a thin shell around `DiffCore`.
-
-## 14. Decisions
+## 15. Decisions
 
 | # | Question | Decision |
 |---|---|---|
-| 1 | What does a theme picked in the diff change? | The theme belongs to the kernel: one theme per component, inherited by every canvas, mode and panel inside it (§7.1). A pick in History mode is the component's theme; how a pick is persisted stays the product's concern (the editor's menu writes `canvas.theme` in Edit mode). |
-| 2 | Theme menu and light / dark toggle in `<mmdx-viewer>` | Opt-in with `controls="theme"`; docs pages usually follow the site. |
-| 3 | History in the editor and the viewer | A mode of the host: drawn in the host's own canvas (plus a linked second canvas for side by side), the History, Code and Changes panels in the host's panel stacks, editing suspended and restored on exit (§7.4). No overlay, no second component. |
-| 4 | When do the blocks become public? | Internal first; publish `mmdx/ui` one release after the refactor, once the APIs have settled. |
+| 1 | Who owns the theme? | The component (kernel), not the document: `canvas.theme` leaves the format, the diff no longer reports it. Attribute → user pick → default (§7.5). |
+| 2 | Theme vs light / dark | Independent. Unpicked follows the scheme; a pick stays when the scheme changes; "Follow light / dark" clears it; a dark pick does not flip the chrome. |
+| 3 | How long a pick lasts | In storage, per product. |
+| 4 | Theme menu in `<mmdx-viewer>` | Opt-in with `controls="theme"`. |
+| 5 | History vs Edit / View | A separate `stage` axis; `mode` unchanged; no Edit / View switching while History is open. |
+| 6 | Where History is drawn | In the host's own canvas and panel stacks (no overlay, no second component); the diff is a scene pushed on the host. |
+| 7 | Old versions in History | Read-only documents: select, read properties and copy from a single version or the Before / After side, not Merged. |
+| 8 | Copying a deleted item | The clipboard carries content (§9). |
+| 9 | Document changes during History | The working copy entry follows; comparisons recompute; the canvas stays on History. |
+| 10 | Pen strokes | Cleared when the stage changes. |
+| 11 | History events | `mmdx-history-*` on the host. |
+| 12 | History from code | `historySession` with the `<mmdx-diff>` methods. |
+| 13 | `EditorModule` compatibility | New shape in a breaking release, no adapter. |
+| 14 | New features | Diff: view settings, clickable links (click selects, ⌘ / Ctrl-click opens). Editor View mode: read-only code panel. Viewer: help popup. |
+| 15 | Chrome look | The editor's everywhere; Code view as a left panel; `Export ▾` top-right; view settings as a right side card. |
+| 16 | Compact | A global `compact` preset: the same pieces, smaller and icon-only. |
+| 17 | History controls | A Back pill top-center; Restore in the diff bar; filters as icon buttons; Code / History panels at the left edge, the tool dock to their right. |
+| 18 | History in a small viewer | The viewer grows to 560 px; panels become drawers below a width threshold. |
+| 19 | Viewer budget | Phase-0 spike first, then split the kernel or re-set the budget. |
+| 20 | Keymap collisions | Designed as one table before phase 3 (§13). |
+| 21 | When do the blocks become public? | Internal first; `mmdx/ui` one release after the refactor. |
