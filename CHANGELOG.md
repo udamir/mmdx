@@ -24,6 +24,7 @@ The viewer, the editor and the diff are rebuilt on one view kernel, with shared 
 - **`EditorModule`** is `ViewModule<EditorCore>`: `install(scope)` (the core is `scope.core`; the cleanup it returns still runs), `enabled(core)`, `css: string[]`, optional `when`, `after` and `load`. No adapter for the old shape.
 - Remembered preferences move to per-component keys (`editor.ui`, `viewer.theme`, `diff.panels`, …); the diff's panel sizes are remembered by its panel stacks.
 - `<mmdx-diff>`: hover highlight starts off; a plain click on a linked item selects the change.
+- `<mmdx-diff>`: `mmdx-view` is the view only; a change of the version panel's tab or of History mode is `mmdx-mode` `{ mode, viewOnly }` (`mmdx-history-mode` in History). The `view` and `mode` options and attributes set the state without an event, as `filters` did. `setPair` leaves History mode for Compare.
 - **`diffDiagrams` of `mmdx/diff` is asynchronous** (`Promise<DiagramDiff>`): it loads the parsers of both versions first, so the entry ships no parser statically. The synchronous `diffDiagrams` (every parser) stays in `mmdx/core`, with `renderDiff` and `renderDiffToSvg`.
 
 ### Removed
@@ -32,7 +33,7 @@ The viewer, the editor and the diff are rebuilt on one view kernel, with shared 
 
 ### Size
 
-Gzip, `pnpm size`: viewer (first flowchart) 45.3 → 56.7 kB, editor 162.8 → 182.6 kB, diff 86.5 → 91.0 kB (renderers on demand). With History opened: viewer 113.9 kB and editor 224.6 kB, against 131.8 kB and 249.3 kB with `mmdx/diff` before. The viewer and editor budgets are re-set provisionally (58 kB, 184 kB) while a further split of the kernel is decided.
+Gzip, `pnpm size`: viewer (first flowchart) 45.3 → 57.4 kB, editor 162.8 → 184.3 kB, diff 86.5 → 82.2 kB (kinds and panels on demand). With History opened: viewer 113.4 kB and editor 229.6 kB, against 131.8 kB and 249.3 kB with `mmdx/diff` before. The size gate also measures the library build itself (shared chunks): viewer + History opened 122.4 kB there (History no longer imports the editor's chunk), diff 87.4 kB. The viewer and editor budgets are re-set provisionally (58 kB, 186 kB) while a further split of the kernel is decided.
 
 ### Upgrading from 0.2
 
