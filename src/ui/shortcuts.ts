@@ -16,7 +16,24 @@ export interface Shortcut {
   run?: (ev: KeyboardEvent) => boolean | void;
   /** Allowed while typing in an input / textarea / contenteditable. */
   inText?: boolean;
+  /** Active only in these modes / stages (component architecture §13; `editOnly` is `{ mode: ['edit'] }`). */
+  when?: { mode?: readonly string[]; stage?: readonly string[] };
+  /** False while the module that registered it is suspended (set by the kernel). */
+  active?: () => boolean;
 }
+
+/** Where key handling happens: the component's mode and stage. A boolean is the older "editing" flag. */
+export type KeyContext = boolean | { mode: string; stage?: string };
+
+const applies = (s: Shortcut, c: KeyContext): boolean => {
+  if (s.active && !s.active()) return false;
+  const mode = typeof c === 'boolean' ? (c ? 'edit' : 'view') : c.mode;
+  const stage = typeof c === 'boolean' ? 'document' : c.stage ?? 'document';
+  if (s.editOnly && mode !== 'edit') return false;
+  if (s.when?.mode && !s.when.mode.includes(mode)) return false;
+  if (s.when?.stage && !s.when.stage.includes(stage)) return false;
+  return true;
+};
 
 const norm = (ev: KeyboardEvent): string => {
   const parts: string[] = [];
@@ -42,22 +59,39 @@ export const isTextTarget = (t: EventTarget | null): boolean => {
 
 export class ShortcutRegistry {
   private readonly items: Shortcut[] = [];
+  /** Set by the kernel while a module installs: decorates and records what the module registers. */
+  hook: ((s: Shortcut, remove: () => void) => Shortcut) | null = null;
 
-  add(...s: Shortcut[]): void {
-    this.items.push(...s);
+  /** Adds shortcuts; returns a function that removes them. */
+  add(...s: Shortcut[]): () => void {
+    const added = s.map((x) => (this.hook ? this.hook(x, () => this.remove(x)) : x));
+    this.items.push(...added);
+    return () => {
+      for (const x of added) this.remove(x);
+    };
   }
 
-  list(editing: boolean): Shortcut[] {
-    return this.items.filter((s) => editing || !s.editOnly);
+  remove(s: Shortcut): void {
+    const i = this.items.indexOf(s);
+    if (i >= 0) this.items.splice(i, 1);
+    else {
+      // a hooked copy of `s`
+      const j = this.items.findIndex((x) => x.id === s.id && x.run === s.run && x.keys === s.keys);
+      if (j >= 0) this.items.splice(j, 1);
+    }
+  }
+
+  list(c: KeyContext): Shortcut[] {
+    return this.items.filter((s) => applies(s, c));
   }
 
   /** Handles a keydown; returns true when a shortcut ran (the event is then prevented). */
-  handle(ev: KeyboardEvent, editing: boolean): boolean {
+  handle(ev: KeyboardEvent, c: KeyContext): boolean {
     if (ev.isComposing) return false;
     const key = norm(ev);
     const text = isTextTarget(ev.composedPath()[0] ?? ev.target);
     for (const s of this.items) {
-      if (!s.run || s.hintOnly || (s.editOnly && !editing) || (text && !s.inText)) continue;
+      if (!s.run || s.hintOnly || !applies(s, c) || (text && !s.inText)) continue;
       if (!s.keys.includes(key)) continue;
       if (s.run(ev) === false) continue;
       ev.preventDefault();
