@@ -9,6 +9,7 @@ import { renderSourceWith, type PipelineOptions, type Rendered } from '../../cor
 import { pageScene } from '../../core/render/page.js';
 import { BUILTIN_IDS } from '../../core/theme/builtin-ids.js';
 import { diagnosticText, type Diagnostic, type Rect } from '../../core/types.js';
+import { cancelIdle, idle } from '../../dom/idle.js';
 import { renderInWorker, workerAvailable, WORKER_THRESHOLD_LINES } from '../../dom/worker-client.js';
 import { hasKind, loadedKinds, loadKind } from '../../elements/kinds.js';
 import { h } from '../../ui/h.js';
@@ -35,9 +36,13 @@ export class TextScene extends BaseScene {
   /** The source shown (null until loaded). */
   text: string | null = null;
   rendered: Rendered | null = null;
+  /** The source `rendered` was made from. */
+  private renderedText: string | null = null;
   private renderSeq = 0;
   private handle = 0;
   private destroyed = false;
+  /** A message to show once attached again (an error that came while History had the canvas). */
+  private deferred: (() => void) | null = null;
 
   constructor(private readonly core: ViewCore, private readonly o: TextSceneOptions) {
     super();
@@ -46,6 +51,7 @@ export class TextScene extends BaseScene {
   /** Shows a new source (renders now). */
   setText(text: string): void {
     this.text = text;
+    this.deferred = null;
     this.reserveAspect();
     this.renderNow();
   }
@@ -63,9 +69,20 @@ export class TextScene extends BaseScene {
     });
   }
 
-  protected paint(full: boolean): void {
-    if (full && this.rendered) this.apply(this.rendered, 0, false);
+  protected paint(full: boolean, stale = false): void {
+    if (full && this.deferred) {
+      const show = this.deferred;
+      this.deferred = null;
+      show();
+    } else if (full && !stale && this.rendered && this.renderedText === this.text) this.apply(this.rendered, 0, false);
     else this.renderNow();
+  }
+
+  /** Not attached: what arrives now is shown when the scene is attached again (it repaints from scratch). */
+  private missed(): boolean {
+    if (this.area) return false;
+    this.dirty = true;
+    return true;
   }
 
   /** Lazy viewers reserve the page's aspect ratio from `%%@ canvas` before rendering (no layout shift). */
@@ -77,7 +94,7 @@ export class TextScene extends BaseScene {
   }
 
   renderNow(): void {
-    if (this.destroyed || this.text === null || !this.area) return;
+    if (this.destroyed || this.text === null || this.missed()) return;
     if (this.handle) {
       cancelIdle(this.handle);
       this.handle = 0;
@@ -90,7 +107,9 @@ export class TextScene extends BaseScene {
     // the parser and renderer of this diagram type load on first use
     const type = detectType(text);
     if (type && !hasKind(type)) {
-      loadKind(type).then(again, () => this.showError([{ severity: 'error', code: 'load.failed', message: `Could not load the ${type} renderer` }], text));
+      loadKind(type).then(again, () => {
+        if (!this.destroyed && text === this.text) this.showError([{ severity: 'error', code: 'load.failed', message: `Could not load the ${type} renderer` }], text);
+      });
       return;
     }
     const theme = core.shownTheme();
@@ -121,8 +140,10 @@ export class TextScene extends BaseScene {
   }
 
   private apply(r: Rendered, t0: number, announce: boolean): void {
-    if (!this.area) return;
+    const area = this.area;
+    if (this.missed() || !area) return;
     this.rendered = r;
+    this.renderedText = this.text;
     const errors = r.diagnostics.filter((d) => d.severity === 'error');
     if (r.model.type === null) {
       void this.showUnsupported(r);
@@ -135,7 +156,7 @@ export class TextScene extends BaseScene {
     this.o.msg.replaceChildren();
     this.o.stage.hidden = false;
     const res = r.result;
-    const canvas = this.area.main;
+    const canvas = area.main;
     canvas.show({ defs: res.defs, page: pageScene(res, r.rctx), body: res.body });
     this.core.root.style.setProperty('--mmdx-page-bg', res.page.background);
     const b = res.bounds;
@@ -169,20 +190,25 @@ export class TextScene extends BaseScene {
     this.o.msg.replaceChildren(h('div', { class: 'loading' }, t('loading')));
     try {
       const svg = await renderWithMermaid(text, this.core.scheme.peek() === 'dark');
-      if (this.destroyed || text !== this.text) return;
+      if (this.destroyed || text !== this.text || this.missed()) return;
       const box = h('div', { class: 'fallback', part: 'canvas' });
       // stock Mermaid output, rendered with securityLevel "strict" (sanitised by Mermaid's DOMPurify)
       box.innerHTML = svg;
       this.o.msg.replaceChildren(box);
       this.core.emit('mmdx-render', { bounds: { x: 0, y: 0, w: 0, h: 0 } satisfies Rect, type: null, durationMs: 0 });
     } catch (e) {
-      if (this.destroyed) return;
+      if (this.destroyed || text !== this.text) return;
       this.showError([...r.diagnostics, { severity: 'error', code: 'mermaid.failed', message: e instanceof Error ? e.message : String(e) }], text);
     }
   }
 
   /** Compact error panel with line numbers and the source; never throws into the host. */
   showError(diags: readonly Diagnostic[], source: string): void {
+    if (this.destroyed) return;
+    if (this.missed()) {
+      this.deferred = () => this.showError(diags, source);
+      return;
+    }
     const t = this.core.i18n.t;
     this.o.stage.hidden = true;
     this.bounds.set(null);
@@ -213,7 +239,7 @@ export class TextScene extends BaseScene {
     clone.setAttribute('class', 'scene ssr');
     clone.removeAttribute('width');
     clone.removeAttribute('height');
-    const main = this.core.canvas.svg;
+    const main = (this.area?.main ?? this.core.canvas).svg;
     main.before(clone);
     main.style.visibility = 'hidden';
     revealOn.addEventListener('mmdx-render', () => {
@@ -235,13 +261,3 @@ const countLines = (s: string): number => {
 };
 
 const now = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
-
-function idle(f: () => void): number {
-  const w = globalThis as typeof globalThis & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
-  return w.requestIdleCallback ? w.requestIdleCallback(f, { timeout: 120 }) : (setTimeout(f, 16) as unknown as number);
-}
-function cancelIdle(id: number): void {
-  const w = globalThis as typeof globalThis & { cancelIdleCallback?: (id: number) => void };
-  if (w.cancelIdleCallback) w.cancelIdleCallback(id);
-  else clearTimeout(id);
-}

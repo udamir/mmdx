@@ -44,9 +44,10 @@ export abstract class BaseScene implements SceneSource {
 
   attach(area: CanvasArea): void {
     this.area = area;
+    const stale = this.dirty;
     this.dirty = false;
     area.main.clear();
-    this.paint(true);
+    this.paint(true, stale);
   }
 
   detach(): void {
@@ -61,6 +62,9 @@ export abstract class BaseScene implements SceneSource {
     this.paint(false);
   }
 
-  /** Paints into `this.area` (`full`: the canvas was just taken over). */
-  protected abstract paint(full: boolean): void;
+  /**
+   * Paints into `this.area` (`full`: the canvas was just taken over; `stale`: something it shows changed while it was
+   * detached, so what it painted before must not be reused).
+   */
+  protected abstract paint(full: boolean, stale?: boolean): void;
 }

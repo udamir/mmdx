@@ -188,4 +188,46 @@ describe('History in the viewer', () => {
     expect(root.querySelectorAll('.body-layer .el[data-kind="node"]').length).toBeGreaterThan(0);
     v.destroy();
   });
+
+  it('after Back the diagram shows what changed while History was open (source, theme), not the picture from before', async () => {
+    await loadKind('flowchart');
+    const host = document.createElement('div');
+    document.body.append(host);
+    const rendered = new Promise((r) => host.addEventListener('mmdx-render', r, { once: true }));
+    const v = new DiagramViewer(host, { lazy: false, source: newest.source, history: versions, controls: ['zoom', 'history'], storage: memoryStorage(), ui: 'light' });
+    await rendered;
+    const root = host.shadowRoot!;
+    const bg = (): string => v.core.root.style.getPropertyValue('--mmdx-page-bg');
+    const lightBg = bg();
+    await wait(() => v.core.has('toggleHistory'));
+    v.toggleHistory(true);
+    await wait(() => v.core.stage.peek() === 'history' && v.historySession);
+    v.set({ source: 'flowchart LR\n  fresh[Brand new step] --> b[End]' });
+    v.core.themes.choose('default-dark');
+    // nothing of the document is painted over History
+    expect(root.querySelector('.body-layer')!.textContent).not.toContain('Brand new step');
+    v.toggleHistory(false);
+    expect(v.core.stage.peek()).toBe('document');
+    await wait(() => root.querySelector('.body-layer')!.textContent!.includes('Brand new step') && bg() !== lightBg);
+    expect(v.sourceText).toContain('Brand new step');
+    v.destroy();
+  });
+
+  it('destroying the viewer with History open does not repaint the document nor emit mmdx-history-close', async () => {
+    await loadKind('flowchart');
+    const host = document.createElement('div');
+    document.body.append(host);
+    const rendered = new Promise((r) => host.addEventListener('mmdx-render', r, { once: true }));
+    const v = new DiagramViewer(host, { lazy: false, source: newest.source, history: versions, controls: ['zoom', 'history'], storage: memoryStorage() });
+    await rendered;
+    await wait(() => v.core.has('toggleHistory'));
+    v.toggleHistory(true);
+    await wait(() => v.core.stage.peek() === 'history' && v.historySession);
+    const seen = vi.fn();
+    host.addEventListener('mmdx-history-close', seen);
+    host.addEventListener('mmdx-render', seen);
+    v.destroy();
+    expect(seen).not.toHaveBeenCalled();
+  });
 });
+

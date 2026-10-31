@@ -284,8 +284,12 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     for (const l of [...(this.listeners.get(ev) ?? [])]) if (!l.muted) l.cb();
   }
 
-  /** Dispatches a DOM event from the host (`mmdx-*`, bubbling, composed). Returns false when a cancelable one was prevented. */
+  /**
+   * Dispatches a DOM event from the host (`mmdx-*`, bubbling, composed). Returns false when a cancelable one was
+   * prevented. A component being destroyed emits nothing (its modules closing on the way out are not user actions).
+   */
   emit(type: string, detail: unknown, cancelable = false): boolean {
+    if (this.destroyed) return true;
     return this.host.dispatchEvent(new CustomEvent(type, { detail, bubbles: true, composed: true, cancelable }));
   }
 
@@ -348,6 +352,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     const s = this.sceneStack.pop() ?? null;
     s?.detach();
     for (const c of [...this.extraCanvases]) c.destroy();
+    if (this.destroyed) return s;
     this.canvasArea.restoreMain();
     this.scene?.attach(this.canvasArea);
     this.fire('draw');
