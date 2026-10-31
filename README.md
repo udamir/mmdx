@@ -270,7 +270,7 @@ The complete app — editor, examples, file open, theme editor and share links �
 
 `persist="local"` keeps the last document in browser storage; `persist="hash"` keeps it in the URL, which the Share button copies.
 
-The studio gives the editor the versions of the open diagram, so its **History** button works in the studio: an example's own history (the `history` file of its manifest entry, `{ versions: [{ id, message, author, date, source }] }` newest first) and the versions you record with **Save version** or ⌘S (kept in browser storage, per document). The bundled examples each come with six versions that touch every kind of change, and open at their newest version.
+The studio gives the editor the versions of the open diagram, so its **History** button works in the studio: an example's own history (the `history` file of its manifest entry, `{ versions: [{ id, message, author, date, source }] }` newest first) and the versions you record with **Save version** or ⌘S (kept in browser storage, per document). The bundled examples each come with six versions that touch every kind of change, and open at their newest version. The mode switch in the top bar has **Edit**, **View** and **Diff**: Diff opens the editor's History on the newest change (the working copy, or the newest version, against the version before), and Edit or View leave it.
 
 ## The `.mmdx` format
 

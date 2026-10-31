@@ -71,6 +71,10 @@ describe('History in the editor (studio)', () => {
     editor.setMode('view');
     expect(editor.readOnly).toBe(false);
 
+    // the studio's mode switch shows Diff while History is open
+    const modeBtn = (v: string): HTMLButtonElement => root.querySelector<HTMLButtonElement>(`.top button.mode[data-value=${v}]`)!;
+    expect(modeBtn('diff').getAttribute('aria-pressed')).toBe('true');
+
     // Back closes it: the editor is back as it was
     ed.querySelector<HTMLButtonElement>('.mmdx-pill button')!.click();
     expect(editor.core.stage.peek()).toBe('document');
@@ -78,6 +82,20 @@ describe('History in the editor (studio)', () => {
     expect(ed.querySelector('.pane.left')).not.toBeNull();
     expect(ed.querySelector('.mmdx-pill')).toBeNull();
     expect(events).toContain('mmdx-history-close');
+
+    expect(modeBtn('edit').getAttribute('aria-pressed')).toBe('true');
+
+    // Diff in the mode switch opens History on the newest version against the one before; Edit leaves it
+    modeBtn('diff').click();
+    await wait(() => editor.historySession?.getDiff());
+    expect(editor.historySession!.pair).toMatchObject({ base: versions[1].id, head: versions[0].id });
+    expect(modeBtn('diff').getAttribute('aria-pressed')).toBe('true');
+    modeBtn('view').click();
+    expect(editor.core.stage.peek()).toBe('document');
+    expect(editor.readOnly).toBe(true);
+    expect(modeBtn('view').getAttribute('aria-pressed')).toBe('true');
+    modeBtn('edit').click();
+    expect(editor.readOnly).toBe(false);
 
     // an edit, saved as a version, then edited again: saved version + working copy join the history
     editor.setSource(`${newest.source}\n  extra[Extra step]`, { history: 'push' });
@@ -112,7 +130,7 @@ describe('History in the editor (studio)', () => {
     studio.destroy();
   });
 
-  it('a document without versions has no History button', async () => {
+  it('a document without versions has no History button and no Diff mode', async () => {
     vi.stubGlobal('fetch', async () => new Response('', { status: 404 }));
     const host = document.createElement('div');
     document.body.append(host);
@@ -121,6 +139,8 @@ describe('History in the editor (studio)', () => {
     const ed = host.shadowRoot!.querySelector('mmdx-editor')!.shadowRoot!;
     await wait(() => ed.querySelector('.vt-history'));
     expect(ed.querySelector<HTMLButtonElement>('.vt-history')!.hidden).toBe(true);
+    // nothing to compare: Diff is off in the mode switch
+    expect(host.shadowRoot!.querySelector<HTMLButtonElement>('.top button.mode[data-value=diff]')!.disabled).toBe(true);
     studio.destroy();
   });
 });

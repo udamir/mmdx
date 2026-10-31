@@ -10,7 +10,8 @@ import { mergeLegacySidecar, joinSource } from '../core/meta/index.js';
 import { defineEditor, type DiagramEditor, type MmdxEditorElement } from '../editor/editor.js';
 import { download } from '../dom/export.js';
 import { contentId, type HistoryAdapter, type StaticVersion } from '../adapters/history.js';
-import { createSegmented } from '../ui/blocks/segmented.js';
+import type { BlockHandle } from '../ui/blocks/block.js';
+import { createSegmented, type SegmentedOption, type SegmentedProps } from '../ui/blocks/segmented.js';
 import { MENU_CSS, openMenu } from '../ui/blocks/menu.js';
 import { h, icon } from '../ui/h.js';
 import { signal } from '../ui/signal.js';
@@ -19,6 +20,9 @@ import { logoMark } from '../ui/logo.js';
 import { PopoverManager, Toaster } from '../ui/popover.js';
 import { Dialogs, DIALOG_CSS } from '../ui/dialog.js';
 import { adoptStyles, ALIASES, BASE, resolveUiScheme, TOKENS, watchUiScheme } from '../ui/styles/base.js';
+
+/** The studio's mode switch: the editor's Edit and View, and Diff (its History, compared with the version before). */
+export type StudioMode = 'edit' | 'view' | 'diff';
 
 export interface ExampleInfo {
   id: string;
@@ -118,10 +122,10 @@ export class DiagramStudio {
     const newBtn = h('button', { type: 'button', class: 'primary', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: () => this.openNewMenu(newBtn) }, '＋ New ▾');
     const exBtn = h('button', { type: 'button', onclick: () => void this.openGallery() }, 'Examples');
     const openBtn = h('button', { type: 'button', title: 'Open .mmdx / .mmd / .md / .layout.json', onclick: () => this.pickFiles() }, icon(ICONS.folder), 'Open');
-    const modeSwitch = createSegmented<'edit' | 'view'>({
-      label: 'Mode', options: [{ value: 'edit', label: 'Edit' }, { value: 'view', label: 'View' }], value: this.mode, buttonClass: 'mode', f: 'mode',
+    const modeSwitch = (this.modeSwitch = createSegmented<StudioMode>({
+      label: 'Mode', options: this.modeOptions(), value: this.mode, buttonClass: 'mode', f: 'mode',
       onChange: (m) => this.setMode(m),
-    });
+    }));
     const saveVersion = h('button', { type: 'button', title: 'Record the current diagram as a version in its history (see History in the tool dock)', onclick: () => void this.saveVersion() }, icon(ICONS.save), 'Save version');
     const share = h('button', { type: 'button', title: 'Copy a link with the diagram in it', onclick: () => void this.share() }, icon(ICONS.link), 'Share');
     const themesBtn = h('button', { type: 'button', title: 'Edit the diagram themes', onclick: () => void this.openThemeEditor() }, icon(ICONS.palette), 'Theme editor');
@@ -145,11 +149,9 @@ export class DiagramStudio {
     this.editorEl.addEventListener('mmdx-change', () => this.persist(), sig);
     this.editorEl.addEventListener('mmdx-dirty', () => this.nameEl.classList.toggle('dirty', this.editorEl.dirty), sig);
     this.editorEl.addEventListener('mmdx-edit-themes', () => void this.openThemeEditor(), sig);
-    // no Edit / View switching while the editor's History is open (§8.2)
-    for (const [ev, off] of [['mmdx-history-open', true], ['mmdx-history-close', false]] as const)
-      this.editorEl.addEventListener(ev, () => {
-        for (const b of modeSwitch.el.querySelectorAll('button')) b.disabled = off;
-      }, sig);
+    // Diff is the editor's History: the switch follows it, whoever opens or closes it (the tool dock, Esc, Back)
+    this.editorEl.addEventListener('mmdx-history-open', () => this.mode.set('diff'), sig);
+    this.editorEl.addEventListener('mmdx-history-close', () => this.mode.set(this.editorEl.readOnly ? 'view' : 'edit'), sig);
     this.editorEl.addEventListener('mmdx-ui', (ev) => {
       const ui = (ev as CustomEvent<{ ui: 'light' | 'dark' }>).detail.ui;
       this.ui = ui;
@@ -184,8 +186,9 @@ export class DiagramStudio {
     void this.boot();
   }
 
-  /** Edit / View of the editor (the mode switch in the top bar follows it). */
-  private readonly mode = signal<'edit' | 'view'>('edit');
+  /** Edit / View of the editor, or Diff (its History); the mode switch in the top bar follows it. */
+  private readonly mode = signal<StudioMode>('edit');
+  private readonly modeSwitch: BlockHandle<SegmentedProps<StudioMode>>;
 
   get editor(): DiagramEditor | undefined {
     return this.editorEl.instance;
@@ -401,7 +404,22 @@ export class DiagramStudio {
     }
   }
 
-  private setMode(m: 'edit' | 'view'): void {
+  private modeOptions(): SegmentedOption<StudioMode>[] {
+    const diff = !!this.editorEl?.history;
+    return [
+      { value: 'edit', label: 'Edit' },
+      { value: 'view', label: 'View' },
+      { value: 'diff', label: 'Diff', disabled: !diff, tip: diff ? 'Compare with the previous version (History)' : 'Save a version to compare with it' },
+    ];
+  }
+
+  /** Diff opens the editor's History on the newest change (the working copy or the newest version against the one before); Edit / View leave it. */
+  private setMode(m: StudioMode): void {
+    if (m === 'diff') {
+      this.editorEl.toggleHistory(true);
+      return;
+    }
+    if (this.mode.peek() === 'diff') this.editorEl.toggleHistory(false);
     this.editorEl.readOnly = m === 'view';
     this.mode.set(m);
   }
@@ -464,6 +482,7 @@ export class DiagramStudio {
   /** The editor shows History once the document has a version. */
   private syncHistory(): void {
     this.editorEl.history = this.saved().length || this.bundled.length ? this.history : null;
+    this.modeSwitch?.update({ options: this.modeOptions() });
   }
 
   /** The open document's versions, newest first: the ones saved here, then the example's bundled history. */
