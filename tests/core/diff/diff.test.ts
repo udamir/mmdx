@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { diffDiagrams, ignoreFacets, withLayoutOf, withoutStyle } from '../../../src/core/diff/index.js';
+import { diffDiagrams } from '../../../src/core/diff/all.js';
+import { ignoreFacets, withLayoutOf, withoutStyle } from '../../../src/core/diff/index.js';
 import { splitSource } from '../../../src/core/meta/index.js';
 
 const sample = (name: string) => [0, 1].map((i) => readFileSync(`apps/studio-site/diff-samples/${name}.${i ? 'after' : 'before'}.mmd`, 'utf8')) as [string, string];

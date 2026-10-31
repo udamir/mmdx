@@ -7,6 +7,7 @@
 // screen, the tool dock with Hand and the pen, the view params with the theme menu and the light / dark toggle, and
 // view settings. Views: Before, Merged, After (one canvas; switching animates) and Side by side (two linked canvases).
 import { ElementBase } from './base.js';
+import { fetchText } from '../adapters/fetch-text.js';
 import type { ThemeSource } from '../adapters/themes.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import type { StorageAdapter } from '../adapters/storage.js';
@@ -77,6 +78,8 @@ export interface DiffEventMap {
   'mmdx-compare': CustomEvent<{ counts: DiffResult['counts']; typeChanged: boolean; base: string | null; head: string | null }>;
   'mmdx-select': CustomEvent<{ key: string | null; change: ItemChange | null }>;
   'mmdx-view': CustomEvent<{ view: DiffViewName; mode: DiffMode }>;
+  /** The version panel's tab changed, or History mode (one version as it is) started or ended. */
+  'mmdx-mode': CustomEvent<{ mode: DiffMode; viewOnly: boolean }>;
   'mmdx-filters': CustomEvent<{ filters: DiffFilter[]; dim: boolean }>;
   'mmdx-version': CustomEvent<{ base: string | null; head: string | null; viewing?: string }>;
   'mmdx-export': CustomEvent<{ kind: DiffExportKind; name: string; data: string | Blob }>;
@@ -201,8 +204,9 @@ export class DiagramDiff {
     const reload = ['before', 'after', 'beforeSource', 'afterSource', 'history'].some((k) => k in patch && (patch as Record<string, unknown>)[k] !== (this.o as Record<string, unknown>)[k]);
     Object.assign(this.o, patch);
     const core = this.core, s = this.session;
-    if ('view' in patch && patch.view) s.setView(patch.view);
-    if ('mode' in patch && patch.mode) s.setMode(patch.mode);
+    // options and attributes set the state without an event, as the filters do
+    if ('view' in patch && patch.view) s.applyView(patch.view);
+    if ('mode' in patch && patch.mode) s.applyMode(patch.mode);
     if ('filters' in patch) s.applyFilters(patch.filters);
     if ('dim' in patch && patch.dim !== undefined) s.dim.set(patch.dim);
     if ('panels' in patch) core.panels.set({ ...core.panels.peek(), ...panelState(patch.panels) });
@@ -262,7 +266,7 @@ export class DiagramDiff {
   }
 
   /** Selects a change by key (`kind:id`), or clears the selection; a selected change is brought into view. */
-  select(key: string | null, _focus = true): void {
+  select(key: string | null): void {
     this.session.select(key);
   }
 
@@ -333,11 +337,7 @@ export class DiagramDiff {
   private async fetchSide(source: string | undefined, url: string | undefined): Promise<string | null> {
     if (source !== undefined) return source;
     if (!url) return null;
-    const loader = this.o.loader ?? ((u: string) => fetch(u, { credentials: 'same-origin' }).then((r) => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.text();
-    }));
-    return loader(url);
+    return (this.o.loader ?? fetchText)(url);
   }
 }
 

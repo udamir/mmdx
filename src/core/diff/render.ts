@@ -1,11 +1,7 @@
-// Rendering a diff (§7.5): both versions, the merged picture, the filtered change list and one shared coordinate
-// space, from two sources. `renderDiffToSvg` composes any view into one standalone SVG (exports, CI bots, SSR).
-// The `…With(kinds)` variants render with the given diagram kinds (component architecture §9.1: <mmdx-diff> loads
-// the kinds of both versions on demand); the plain ones use every kind.
+// Rendering a diff (§7.5): both versions, the merged picture, the filtered change list and one shared coordinate space, from two sources. `renderDiffToSvgWith` composes any view into one standalone SVG (exports, CI bots, SSR). Everything here renders with the given diagram kinds (component architecture §9.1: <mmdx-diff> loads the kinds of both versions on demand); the all-kinds wrappers are in all.ts, so a bundle that loads kinds ships none statically.
 import { createContext, type CoreContext } from '../context.js';
 import { isSupported } from '../model.js';
 import { renderDocumentWith, renderSourceWith, type Kinds, type PipelineOptions, type Rendered } from '../pipeline-core.js';
-import { ALL_KINDS } from '../pipeline.js';
 import { pageScene } from '../render/page.js';
 import { el, g, text } from '../scene/build.js';
 import { escAttr, escText, fmt, serializeNodes, setMarkedText } from '../scene/serialize.js';
@@ -13,7 +9,8 @@ import { hasMarks, markRuns } from '../text/marks.js';
 import type { SceneNode } from '../scene/types.js';
 import type { Rect } from '../types.js';
 import { annotate, centreOf, DIFF_COLORS, MARKS, shapeOf, type DiffColors, type DiffView, type Mark } from './annotate.js';
-import { diffDiagramsWith, ignoreFacets, type DiagramDiff, type DiffIgnore, type ItemChange } from './index.js';
+import { diffDiagramsWith, ignoreFacets } from './index.js';
+import type { DiagramDiff, DiffIgnore, ItemChange } from './types.js';
 import { withLayoutOf, withoutStyle } from './transform.js';
 import { mergeDiagrams, type Merged } from './merge.js';
 
@@ -67,11 +64,7 @@ const union = (a: Rect, b: Rect): Rect => {
   return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
 };
 
-export function renderDiff(before: string, after: string, ctx: CoreContext, o: DiffRenderOptions = {}): DiffRendered {
-  return renderDiffWith(ALL_KINDS, before, after, ctx, o);
-}
-
-/** `renderDiff` with the given diagram kinds (parsers and renderers of both versions' types). */
+/** Renders a diff with the given diagram kinds (parsers and renderers of both versions' types); `renderDiff` (all.ts) uses every kind. */
 export function renderDiffWith(kinds: Kinds, before: string, after: string, ctx: CoreContext, o: DiffRenderOptions = {}): DiffRendered {
   const ignore = o.ignore ?? {};
   const hide = o.hide ?? {};
@@ -209,15 +202,7 @@ export function diffSvg(d: DiffRendered, o: DiffSvgOptions = {}): string {
   );
 }
 
-/**
- * Server-side and build-time rendering of a diff (CI bots, MR comments): two sources → one standalone SVG of a view.
- * Uses the static text measurer unless the context brings another one. Works in Node and workers (no DOM).
- */
-export async function renderDiffToSvg(before: string, after: string, o: DiffRenderOptions & DiffSvgOptions & { ctx?: CoreContext } = {}): Promise<string> {
-  return renderDiffToSvgWith(ALL_KINDS, before, after, o);
-}
-
-/** `renderDiffToSvg` with the given diagram kinds. */
+/** Server-side and build-time rendering of a diff (CI bots, MR comments) with the given diagram kinds: two sources → one standalone SVG of a view. Uses the static text measurer unless the context brings another one. Works in Node and workers (no DOM). `renderDiffToSvg` (all.ts) uses every kind. */
 export async function renderDiffToSvgWith(kinds: Kinds, before: string, after: string, o: DiffRenderOptions & DiffSvgOptions & { ctx?: CoreContext } = {}): Promise<string> {
   const ctx = o.ctx ?? createContext();
   const ropts: DiffRenderOptions = {};

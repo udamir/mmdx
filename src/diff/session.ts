@@ -5,6 +5,7 @@
 // (`renderDiffWith(loadedKinds(), …)`), and with the host's theme and display settings (`renderOptions`). Events go
 // out through the `emit` callback it is given, so `<mmdx-diff>` dispatches them as `mmdx-*` and History can route
 // them as `mmdx-history-*`. Replaces the data, loading, rendering and export half of elements/diff.ts.
+// Every load starts a generation: a list, a page, a source, a render or a change count that arrives for an older one is dropped.
 import { contentId, staticHistory, type HistoryAdapter, type StaticVersion } from '../adapters/history.js';
 import { getShared } from '../config.js';
 import type { CoreContext } from '../core/context.js';
@@ -123,7 +124,7 @@ export class DiffSession {
   // ---- what is shown
   /** The compared pair as rendered (null before the first comparison). */
   readonly rendered: Signal<DiffRendered | null> = signal<DiffRendered | null>(null);
-  /** The viewed version as rendered (History mode). */
+  /** The viewed version as rendered (History mode); null while it is not rendered yet (never another version's picture). */
   readonly plain: Signal<Rendered | null> = signal<Rendered | null>(null);
   readonly status: Signal<DiffStatus | null> = signal<DiffStatus | null>(null);
   /** One line over the canvas: the diagram type changed, or it cannot be compared visually. */
@@ -140,8 +141,12 @@ export class DiffSession {
   private readonly countMap = new Map<string, DiffResult['counts'] | null>();
   private countQueue: Promise<void> = Promise.resolve();
   private readonly cache = new Lru<string, DiffRendered>(8);
+  /** The load generation: bumped by every `load()`; work of an older generation is dropped when it arrives. */
   private loadSeq = 0;
   private refreshSeq = 0;
+  /** The version `plain` renders. */
+  private plainOf: string | null = null;
+  private more: Promise<void> | null = null;
   private refreshHandle: ReturnType<typeof setTimeout> | 0 = 0;
   private destroyed = false;
 
@@ -213,14 +218,20 @@ export class DiffSession {
     const s = this.src;
     if (!s || this.destroyed) return;
     const seq = ++this.loadSeq;
+    // a render of the previous source still in flight must not land
+    this.refreshSeq++;
+    if (this.refreshHandle) clearTimeout(this.refreshHandle);
+    this.refreshHandle = 0;
+    this.more = null;
     const t = this.o.t;
     this.sources.clear();
     this.countMap.clear();
     this.cache.clear();
+    this.countQueue = Promise.resolve();
     batch(() => {
       this.selected.set(null);
       this.rendered.set(null);
-      this.plain.set(null);
+      this.setPlain(null, null);
     });
     try {
       if ('history' in s) {
@@ -277,6 +288,7 @@ export class DiffSession {
       this.viewing.set(head);
     });
     await this.refresh();
+    if (seq !== this.loadSeq || this.destroyed) return;
     this.queueCounts();
   }
 
@@ -285,24 +297,39 @@ export class DiffSession {
     return this.load();
   }
 
-  /** Compares two versions by id (no-op for the same version on both sides). */
+  /** Compares two versions by id (no-op for the same version on both sides); leaves History mode (one version as it is) for Compare. */
   setPair(base: string | null, head: string | null): void {
     if (!base || !head || base === head) return;
-    if (base === this.base.peek() && head === this.head.peek() && !this.viewOnly.peek()) return;
+    const leave = this.mode.peek() === 'history';
+    if (base === this.base.peek() && head === this.head.peek() && !leave) return;
     batch(() => {
       this.base.set(base);
       this.head.set(head);
       this.selected.set(null);
+      if (leave) this.mode.set('compare');
     });
     this.o.emit('mmdx-version', { base, head });
+    if (leave) this.emitMode();
     void this.refresh();
   }
 
-  /** Compare mode: a version against the one before it (the oldest one becomes Before instead). */
-  compareWithPrevious(id: string): void {
-    const list = this.versions.peek();
-    const i = list.findIndex((v) => v.id === id);
-    const older = list[i + 1];
+  /** Compare mode: a version against the one before it (the oldest one becomes Before instead); loads the next page first when the version before it is not loaded yet. */
+  async compareWithPrevious(id: string): Promise<void> {
+    const gen = this.loadSeq;
+    const at = (): number => this.versions.peek().findIndex((v) => v.id === id);
+    if (at() < 0) return;
+    if (!this.versions.peek()[at() + 1] && this.nextPage) {
+      try {
+        await this.loadMore();
+      } catch (e) {
+        if (gen === this.loadSeq && !this.destroyed) this.loadError(e);
+        return;
+      }
+      if (gen !== this.loadSeq || this.destroyed) return;
+    }
+    const i = at();
+    if (i < 0) return;
+    const older = this.versions.peek()[i + 1];
     if (older) this.setPair(older.id, id);
     else if (id !== this.head.peek()) this.setPair(id, this.head.peek());
   }
@@ -310,44 +337,62 @@ export class DiffSession {
   /** Shows one version as it is (History mode). */
   viewVersion(id: string): void {
     if (!this.versions.peek().some((v) => v.id === id)) return;
+    const was = this.mode.peek();
     batch(() => {
       this.viewing.set(id);
       this.mode.set('history');
       this.versionsShown.set(true);
+      this.dropStalePlain();
     });
     this.o.showVersions?.();
     this.o.emit('mmdx-version', { base: this.base.peek(), head: this.head.peek(), viewing: id });
+    if (was !== 'history') this.emitMode();
     void this.refresh();
   }
 
-  /** The version panel's tab: compare two versions, or view one as it is. */
+  /** The version panel's tab: compare two versions, or view one as it is. Emits `mmdx-mode`. */
   setMode(m: DiffMode): void {
-    if (m === this.mode.peek()) return;
+    if (this.applyMode(m)) this.emitMode();
+  }
+
+  /** Sets the tab without an event (host options); renders again when what is shown changes. False when it was set already. */
+  applyMode(m: DiffMode): boolean {
+    if (m === this.mode.peek()) return false;
     const was = this.viewOnly.peek();
     batch(() => {
       this.mode.set(m);
       if (m === 'history' && !this.viewing.peek()) this.viewing.set(this.head.peek());
+      this.dropStalePlain();
     });
-    this.o.emit('mmdx-view', { view: this.view.peek(), mode: m });
     if (was !== this.viewOnly.peek()) void this.refresh();
+    return true;
   }
 
-  /** The host shows or hides the version panel: History mode starts or ends with it. */
+  /** The host shows or hides the version panel: History mode starts or ends with it (`mmdx-mode`). */
   setVersionsShown(on: boolean): void {
     if (on === this.versionsShown.peek()) return;
     const was = this.viewOnly.peek();
-    this.versionsShown.set(on);
+    batch(() => {
+      this.versionsShown.set(on);
+      this.dropStalePlain();
+    });
     if (was === this.viewOnly.peek()) return;
-    this.o.emit('mmdx-view', { view: this.view.peek(), mode: this.mode.peek() });
+    this.emitMode();
     void this.refresh();
   }
 
+  /** Shows Before, Merged, After or Side by side. Emits `mmdx-view`. */
   setView(view: DiffViewName): void {
-    if (!DIFF_VIEWS.includes(view) || view === this.view.peek()) return;
+    if (this.applyView(view)) this.o.emit('mmdx-view', { view, mode: this.mode.peek() });
+  }
+
+  /** Sets the view without an event (host options). False when it was set already or cannot be shown. */
+  applyView(view: DiffViewName): boolean {
+    if (!DIFF_VIEWS.includes(view) || view === this.view.peek()) return false;
     const D = this.rendered.peek();
-    if (view === 'merged' && D && !D.merged) return;
+    if (view === 'merged' && D && !D.merged) return false;
     this.view.set(view);
-    this.o.emit('mmdx-view', { view, mode: this.mode.peek() });
+    return true;
   }
 
   /** Steps between Before, Merged and After (← →); false when there is nothing to step (side by side, History mode). */
@@ -405,18 +450,30 @@ export class DiffSession {
     this.step(-1);
   }
 
-  /** Older versions of a paged history. */
-  async loadMore(): Promise<void> {
-    if (!this.adapter || !this.nextPage) return;
-    const page = await this.adapter.list(this.nextPage);
-    if (this.destroyed) return;
-    const known = new Set(this.versions.peek().map((v) => v.id));
-    this.nextPage = page.next;
-    batch(() => {
-      this.versions.set([...this.versions.peek(), ...page.versions.filter((v) => !known.has(v.id))]);
-      this.hasMore.set(!!page.next);
-    });
-    this.queueCounts();
+  /** Older versions of a paged history (one request at a time; rejects when the page fails to load). */
+  loadMore(): Promise<void> {
+    const adapter = this.adapter, cursor = this.nextPage;
+    if (!adapter || !cursor) return Promise.resolve();
+    if (this.more) return this.more;
+    const gen = this.loadSeq;
+    let p: Promise<void> | null = null;
+    p = (async () => {
+      try {
+        const page = await adapter.list(cursor);
+        if (gen !== this.loadSeq || this.destroyed) return;
+        const known = new Set(this.versions.peek().map((v) => v.id));
+        this.nextPage = page.next;
+        batch(() => {
+          this.versions.set([...this.versions.peek(), ...page.versions.filter((v) => !known.has(v.id))]);
+          this.hasMore.set(!!page.next);
+        });
+        this.queueCounts();
+      } finally {
+        if (this.more === p) this.more = null;
+      }
+    })();
+    this.more = p;
+    return p;
   }
 
   /** A version's source (cached per load). */
@@ -426,7 +483,9 @@ export class DiffSession {
     if (!p) {
       p = this.adapter.load(id);
       this.sources.set(id, p);
-      p.catch(() => this.sources.delete(id));
+      p.catch(() => {
+        if (this.sources.get(id) === p) this.sources.delete(id);
+      });
     }
     return p;
   }
@@ -464,8 +523,11 @@ export class DiffSession {
 
   /** Standalone SVG of a view (default: the current one), or of the viewed version in History mode. */
   toSvg(o: DiffExportOptions = {}): string {
-    const plain = this.plain.peek();
-    if (this.viewOnly.peek() && plain) return standaloneSvg(plain);
+    if (this.viewOnly.peek()) {
+      // the viewed version once it is rendered, never the previous one under its name
+      const plain = this.plain.peek();
+      return plain && this.plainOf === this.viewing.peek() ? standaloneSvg(plain) : '';
+    }
     const D = this.rendered.peek();
     if (!D) return '';
     const view = o.view ?? this.view.peek();
@@ -498,6 +560,7 @@ export class DiffSession {
     switch (kind) {
       case 'svg':
         data = this.toSvg(o);
+        if (!data) return;
         type = 'image/svg+xml';
         break;
       case 'png':
@@ -547,18 +610,19 @@ export class DiffSession {
   /** Renders the shown pair (or the viewed version) and emits `mmdx-compare` / `mmdx-render`. */
   async refresh(): Promise<void> {
     if (this.destroyed || !this.adapter) return;
-    const seq = ++this.refreshSeq;
-    const stale = (): boolean => seq !== this.refreshSeq || this.destroyed;
+    const seq = ++this.refreshSeq, gen = this.loadSeq;
+    const stale = (): boolean => seq !== this.refreshSeq || gen !== this.loadSeq || this.destroyed;
     const t0 = now();
     const ro = this.o.renderOptions();
     try {
       if (this.viewOnly.peek()) {
-        const src = await this.sourceOf(this.viewing.peek());
+        const id = this.viewing.peek();
+        const src = await this.sourceOf(id);
         await this.prepare(ro.theme, src);
         if (stale()) return;
         const r = renderSourceWith(loadedKinds(), src, this.o.ctx, ro);
         batch(() => {
-          this.plain.set(r);
+          this.setPlain(r, id);
           this.status.set(null);
         });
       } else {
@@ -607,6 +671,23 @@ export class DiffSession {
     if (this.o.ensureTheme && !this.o.ctx.themes.has(theme)) await this.o.ensureTheme(theme);
   }
 
+  /** `mmdx-mode`: the tab changed, or History mode (one version as it is) started or ended with the version panel. */
+  private emitMode(): void {
+    this.o.emit('mmdx-mode', { mode: this.mode.peek(), viewOnly: this.viewOnly.peek() });
+  }
+
+  private setPlain(r: Rendered | null, id: string | null): void {
+    this.plainOf = r ? id : null;
+    this.plain.set(r);
+  }
+
+  /** The viewed version or History mode changed: the picture of another version goes, and History mode shows loading until the viewed one is rendered. */
+  private dropStalePlain(): void {
+    if (this.plain.peek() && this.plainOf === this.viewing.peek()) return;
+    this.setPlain(null, null);
+    if (this.viewOnly.peek()) this.status.set({ kind: 'loading', text: this.o.t('diff.history.loading') });
+  }
+
   private filtersChanged(): void {
     this.o.emit('mmdx-filters', { filters: this.filters, dim: this.dim.peek() });
     void this.refresh();
@@ -624,17 +705,35 @@ export class DiffSession {
   private loadFailed(e: unknown): void {
     const message = e instanceof Error ? e.message : String(e);
     this.status.set({ kind: 'error', text: `${this.o.t('diff.history.failed')}: ${message}`, retry: true });
-    this.o.emit('mmdx-error', { diagnostics: [{ severity: 'error', code: 'load.failed', message }] });
+    this.loadError(e);
   }
 
+  /** A load that leaves what is shown as it is failed (a page of the history read again): `mmdx-error` only. */
+  private loadError(e: unknown): void {
+    this.o.emit('mmdx-error', { diagnostics: [{ severity: 'error', code: 'load.failed', message: e instanceof Error ? e.message : String(e) }] });
+  }
+
+  /** Reads the first page of the history again (it changed); older pages loaded already stay. */
   private async reloadHistory(): Promise<void> {
-    if (!this.adapter) return;
-    const page = await this.adapter.list();
-    if (this.destroyed) return;
-    this.nextPage = page.next;
+    const adapter = this.adapter;
+    if (!adapter) return;
+    const gen = this.loadSeq;
+    let page: Awaited<ReturnType<HistoryAdapter['list']>>;
+    try {
+      page = await adapter.list();
+    } catch (e) {
+      if (gen === this.loadSeq && !this.destroyed) this.loadError(e);
+      return;
+    }
+    if (gen !== this.loadSeq || this.destroyed) return;
+    const old = this.versions.peek();
+    const last = page.versions.at(-1);
+    const from = last && page.next ? old.findIndex((v) => v.id === last.id) : -1;
+    const tail = from >= 0 ? old.slice(from + 1).filter((v) => !page.versions.some((n) => n.id === v.id)) : [];
+    if (!tail.length) this.nextPage = page.next;
     batch(() => {
-      this.versions.set(page.versions);
-      this.hasMore.set(!!page.next);
+      this.versions.set([...page.versions, ...tail]);
+      this.hasMore.set(!!this.nextPage);
     });
     this.queueCounts();
   }
@@ -656,14 +755,20 @@ export class DiffSession {
       }
       this.countQueue = this.countQueue.then(() => idle()).then(async () => {
         if (seq !== this.loadSeq || this.destroyed || this.countMap.has(v.id)) return;
+        const stale = (): boolean => seq !== this.loadSeq || this.destroyed;
+        let counts: DiffResult['counts'];
         try {
           const [a, b] = await Promise.all([this.sourceOf(older.id), this.sourceOf(v.id)]);
+          if (stale()) return;
           await loadKindsOf(a, b);
-          this.countMap.set(v.id, diffDiagramsWith(loadedKinds(), a, b).counts);
+          if (stale()) return;
+          counts = diffDiagramsWith(loadedKinds(), a, b).counts;
         } catch {
-          this.countMap.set(v.id, { ...EMPTY_COUNTS });
+          counts = { ...EMPTY_COUNTS };
         }
-        if (!this.destroyed) this.countsRev.update((n) => n + 1);
+        if (stale()) return;
+        this.countMap.set(v.id, counts);
+        this.countsRev.update((n) => n + 1);
       });
     }
   }

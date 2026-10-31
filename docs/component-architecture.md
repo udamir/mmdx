@@ -109,7 +109,7 @@ ViewCore                                     src/view/core.ts      services, the
 ├─ DiagramViewer   = ViewCore + TextScene + VIEWER_MODULES                     <mmdx-viewer>
 ├─ EditorCore extends ViewCore                src/editor/core.ts    store, selection, gestures, painters (API compatibility)
 │  └─ DiagramEditor = EditorCore + StoreScene + EDITOR_MODULES                 <mmdx-editor>
-└─ DiagramDiff     = ViewCore + DiffScene (pinned) + DIFF_MODULES              <mmdx-diff>
+└─ DiagramDiff     = ViewCore + DiffScene (pinned) + diffModules()             <mmdx-diff>
 
 DiagramCanvas                                src/dom/canvas.ts     one per visible picture
 ├─ owned by ViewCore (main canvas; a second linked canvas for side by side)
@@ -356,8 +356,9 @@ The session's code (diff modules and the diff part of `core`) loads on first use
 
 - `editor.historySession` / `viewer.historySession`: `null` while History is closed; while open, a `DiffSession` facade with the `<mmdx-diff>` methods — `setPair(base, head)`, `viewVersion(id)`, `setView(view)`, `setFilters(filters, dim?)`, `select(key)`, `next()`, `prev()`, `pair`, `getDiff()`, `exportAs(kind, opts)`.
 - `history` and `toggleHistory()` keep working.
-- Events on the host, separate from the host's own events: `mmdx-history-open`, `mmdx-history-close`, `mmdx-history-compare`, `mmdx-history-version`, `mmdx-history-select`, `mmdx-history-view`, `mmdx-history-filters`, `mmdx-history-export`, `mmdx-history-restore`. Errors of the session come as `mmdx-history-error`; `mmdx-render` and `mmdx-error` remain the host's own.
-- `<mmdx-diff>` keeps its current event names (`mmdx-compare`, `mmdx-select`, …).
+- Events on the host, separate from the host's own events: `mmdx-history-open`, `mmdx-history-close`, `mmdx-history-compare`, `mmdx-history-version`, `mmdx-history-select`, `mmdx-history-view`, `mmdx-history-mode`, `mmdx-history-filters`, `mmdx-history-export`, `mmdx-history-restore`. Errors of the session come as `mmdx-history-error`; `mmdx-render` and `mmdx-error` remain the host's own. Destroying the host while History is open still emits `mmdx-history-close`, without giving the canvas back or repainting.
+- `<mmdx-diff>` keeps its current event names (`mmdx-compare`, `mmdx-select`, …). `mmdx-view` `{ view, mode }` is the view (Before / Merged / After / Side by side) only; the version panel's tab and History mode (one version as it is, which needs the panel) have their own event, `mmdx-mode` `{ mode, viewOnly }` (`mmdx-history-mode` in History). Methods emit; options and attributes (`view`, `mode`, `filters`, `dim`) set the state without an event.
+- `setPair` leaves History mode for Compare. Every `load()` starts a generation: a list, a page, a source, a render or a change count that arrives for an older one is dropped. While a newly viewed version loads, nothing of the previous one is shown or exported under its name.
 
 ### 8.4 `<mmdx-diff>`
 
@@ -365,7 +366,7 @@ The session's code (diff modules and the diff part of `core`) loads on first use
 
 ## 9. Core changes
 
-1. **Kinds in the diff**: `renderDiffWith(kinds, …)` and `diffDiagramsWith(kinds, …)`; today `renderDiff` renders through `pipeline.ts` (`ALL_KINDS`) and `diffDiagrams` parses with every parser. `renderDiff` / `diffDiagrams` / `renderDiffToSvg` keep their signatures (all kinds). A session loads the kinds of both versions before rendering (they can differ). `ui/item-preview.ts` takes a parser instead of importing every parser.
+1. **Kinds in the diff**: `renderDiffWith(kinds, …)` and `diffDiagramsWith(kinds, …)`; the diff engine (`core/diff/index.ts`) and the renderer (`core/diff/render.ts`) take the kinds and import none. The all-kinds wrappers `renderDiff` / `diffDiagrams` / `renderDiffToSvg` keep their signatures and live in `core/diff/all.ts`, exported by `mmdx/core` only; `mmdx/diff` has asynchronous `diffDiagrams` and `renderDiffToSvg` that load the kinds of both versions first. The result types are in `core/diff/types.ts`, so the merged model, the annotations, the renderer and the reports import no engine (no cycle among the `core/diff` modules). A session loads the kinds of both versions before rendering (they can differ). `ui/item-preview.ts` takes a parser instead of importing every parser.
 2. **Theme out of the format**: the `canvas.theme` migration, `pickTheme` without the document's theme, no theme field in the diff (§7.5).
 3. **Content clipboard**: `ClipboardData` carries the copied items' code lines, metadata (looks, positions) and the edges between them, plus the source diagram type; `pasteItems` inserts them with fresh ids when they are missing from the target and refuses another diagram type. The system clipboard format (`web application/x-mmdx+json`) carries the same payload. Sequence diagrams stay refused.
 4. **Nothing else**: renderers, the parser and the rest of the format are unchanged.
@@ -376,7 +377,7 @@ The session's code (diff modules and the diff part of `core`) loads on first use
 - `mmdx/viewer` = kernel + `TextScene` + the viewer's eager modules (`zoomBar`, `toolDock`, `links`, `hoverHighlight`, `a11y`); `pen`, `viewSettings`, `codeView`, `export`, `history` load on first use. Budget 46 kB gzip (first diagram) unless the spike re-sets it.
 - `mmdx/editor` = kernel + `StoreScene` + editing modules; budget 165 kB (2.2 kB headroom today: the kernel indirection is measured per phase).
 - `mmdx/diff` = kernel + `DiffScene` + diff modules + the diff part of `core`; kinds on demand. Target 60 kB.
-- The size gate adds "viewer + History opened" and "editor + History opened" rows.
+- The size gate adds "viewer + History opened" and "editor + History opened" rows, and measures the real library build (the `vite build` of every entry at once, whose shared chunks a per-entry bundle never sees) next to the per-entry consumer bundles. It fails when History's static closure imports a chunk only the editor loads.
 
 ### 10.1 Phase-0 measurement (phase 3)
 
@@ -387,10 +388,12 @@ Measured with `tools/size.mjs` once the viewer and the editor ran on the kernel:
 | viewer (first flowchart) | 45.3 kB | 74.0 kB | 53.4 kB | 55 kB (provisional) |
 | editor | 162.8 kB | 173.2 kB | 173.2 kB | 176 kB (provisional) |
 | diff (phase 4a) | 86.5 kB | — | 90.8 kB (renderers on demand; pen, view params, view settings on demand) | 93 kB (provisional) |
+| diff (parsers and panels on demand) | 95.2 kB | — | 82.2 kB | 84 kB (provisional) |
 
 - The viewer loads only the kernel, `TextScene`, `zoomBar`, `links` and `hoverHighlight` eagerly; `panelStacks`, `toolDock`, `pan`, `pen`, `viewSettings`, `codeView`, `viewParams`, its export formats and History load when their control is on (`lazyModule`), the help popup on first `?`. One message table per block group and inlined zoom-bar icons keep the eager chunk free of the lazy blocks' strings and icons.
 - What remains is the kernel itself: `ViewCore` with the module host and scopes (≈ 3.8 kB gzip), `DiagramCanvas` (≈ 1.9 kB), the zoom bar block and module (≈ 2 kB), the keymap (≈ 0.8 kB).
-- The diff misses its 60 kB target: `mmdx/diff` re-exports the synchronous `diffDiagrams`, which keeps every parser in the entry (8.5 kB), and its panels (versions, code diff, change list) are eager. Dropping that re-export (it stays in `mmdx/core`) and loading the panels on demand would bring it near the target; the first is an API change.
+- The diff missed its 60 kB target while `mmdx/diff` re-exported the synchronous `diffDiagrams` (every parser, and with `core/diff/index.ts` re-exporting the renderer every renderer too) and its panels were eager. `mmdx/diff`'s `diffDiagrams` now loads the kinds first (asynchronous, an API change; the synchronous one stays in `mmdx/core`) and the versions, code diff and change list load on demand (`lazyModule`, as the viewer's): 95.2 → 82.2 kB. The rest of the gap to 60 kB is the kernel and the diff bar (decision 19).
+- The library build (`dist/`, every entry built at once; whitespace minified per chunk, gzip summed per chunk), before → after: viewer + History opened 246.5 → 122.4 kB (History imported the editor's shared chunk through the clipboard ops, statically 238.6 kB of closure; it now loads them on the first copy, 96.3 kB); editor + History opened 239.4 → 241.5 kB; diff 125.2 → 87.4 kB; diff with a flowchart and its change list 125.3 → 113.3 kB. Budgets: viewer (first flowchart) 60, viewer + History 124, editor 192, editor + History 244, diff 89, diff (first flowchart) 115, core 63 kB.
 - The budgets above are provisional, to keep the gate meaningful. Decision 19 is still open: split the kernel further (keymap and help, suspension, panel stacks on demand) or keep the re-set budgets.
 
 ## 11. Public API and compatibility
@@ -401,7 +404,8 @@ The next release is breaking. Its notes list:
 - **`EditorModule`** takes the `ViewModule<EditorCore>` shape (§7.2: `install(scope)`, `enabled(core)`, `css: string[]`, `when`, `after`, `load`); no adapter for the old shape. `DEFAULT_MODULES` keeps its meaning. `EditorCore.dom` is no longer a module entry point (canvas access goes through the scope and the canvas).
 - **Theme behaviour**: the editor's theme menu no longer writes the document and no longer flips the chrome; the viewer and the diff follow the same rule.
 - **Unchanged**: element names and attributes, the `Mode` type, `readOnly`, the imperative classes, entry points, `::part()` names (`canvas`, `toolbar`, `zoom-bar`, `diff-bar`, `panel`, `change-list`, `history`), `--mmdx-*` tokens, `<mmdx-diff>` events.
-- **New**: `ViewCore`, `ViewModule`, `ModuleScope`, `SceneSource`, `VIEWER_MODULES`, `DIFF_MODULES`, `DiagramCanvas`, `DiffSession`, `Stage`, `historySession`, the `mmdx-history-*` events, the `compact` attribute, the viewer control `theme`. Blocks stay internal and become a public `mmdx/ui` entry one release later.
+- **New**: `ViewCore`, `ViewModule`, `ModuleScope`, `SceneSource`, `VIEWER_MODULES`, `diffModules()`, `DiagramCanvas`, `DiffSession`, `DiffScene`, `Stage`, `HistorySession` (`historySession`), the `mmdx-history-*` events, `mmdx-mode`, the `compact` attribute, the viewer control `theme`. `mmdx/diff` exports `DiffSession`, `DiffScene`, `diffModules()` and the kernel types its classes expose (`ViewCore`, `ViewModule`, `ModuleScope`, `SceneSource`, `Stage`, `DiagramCanvas`, type-only); `VIEWER_MODULES` and `HistorySession` are for the viewer and editor entries. `mmdx/core` stays free of the DOM kernel. Blocks stay internal and become a public `mmdx/ui` entry one release later.
+- **`mmdx/diff`'s `diffDiagrams` is asynchronous** (it loads the kinds of both versions); the synchronous one is in `mmdx/core`.
 - **Storage keys**: the pick and the scheme move to per-product keys; panel sizes keep their keys where a `PanelStack` replaces an existing stack.
 - `history-view.ts` and the tag-based embedding of `<mmdx-diff>` go away after phase 4c (§12).
 

@@ -17,6 +17,8 @@ afterEach(() => {
   for (const h of hosts.splice(0)) h.remove();
 });
 
+const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 30));
+
 /** Mounts a diff and waits for its first comparison. */
 async function mount(opts: ConstructorParameters<typeof DiagramDiff>[1]): Promise<{ host: HTMLElement; d: DiagramDiff; root: ShadowRoot; events: CustomEvent[] }> {
   const host = document.createElement('div');
@@ -28,10 +30,11 @@ async function mount(opts: ConstructorParameters<typeof DiagramDiff>[1]): Promis
   const ready = new Promise((r) => host.addEventListener('mmdx-render', r, { once: true }));
   const d = new DiagramDiff(host, { storage: memoryStorage(), ...opts });
   await ready;
+  // the side panels load on demand
+  await import('../../src/diff/modules/panels.js');
+  await settle();
   return { host, d, root: host.shadowRoot!, events };
 }
-
-const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 30));
 
 describe('DiagramDiff: two versions', () => {
   it('compares two sources: merged view, change list, counts and an accessible label', async () => {

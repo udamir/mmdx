@@ -5,12 +5,14 @@ import { activationsOf } from '../ids.js';
 import type { BlockKind, Participant, SeqBlockStart, SeqItem, SeqMessage, SequenceModel } from '../model.js';
 import { encodeLabel } from '../parse/label.js';
 import type { ItemRef } from '../types.js';
+import { activationsBalanced } from './activations.js';
 import { blocksOf } from './reorder.js';
 import { uniqueId } from './ids.js';
 import { applyEdits, indentOf, splice, type LineEdit } from './lines.js';
 import type { ActivationResult, CodeResult, LineResult, LineSpan, RefusableResult, ResizeBlockResult, SelectResult, SwapResult } from './types.js';
 
 export { activationsOf } from '../ids.js';
+export { activationsBalanced } from './activations.js';
 
 const headerLine = (code: string): number => Math.max(0, code.split('\n').findIndex((l) => /^\s*sequenceDiagram\b/.test(l)));
 
@@ -189,40 +191,6 @@ export function relabelBox(code: string, model: SequenceModel, boxId: string, ti
   if (!b) return { code };
   const L = code.split('\n');
   return { code: splice(code, b.line, 1, [`${indentOf(L[b.line])}box ${b.color ? b.color + ' ' : ''}${title}`]) };
-}
-
-// ---- activation balance -------------------------------------------------------------------------------------------
-
-const MSG_MARK = /^(.+?)\s*(?:<<-->>|<<->>|-->>|->>|--x|-x|--\)|-\)|-->|->)\s*([+-])?\s*([^:]+?)\s*:/;
-
-/** Mermaid rejects a deactivation (`-` or `deactivate X`) of a participant that is not active. */
-export function activationsBalanced(code: string): boolean {
-  const active = new Map<string, number>();
-  const on = (p: string): void => void active.set(p, (active.get(p) ?? 0) + 1);
-  const off = (p: string): boolean => {
-    const n = active.get(p) ?? 0;
-    if (!n) return false;
-    active.set(p, n - 1);
-    return true;
-  };
-  for (const raw of code.split('\n')) {
-    const t = raw.trim();
-    let m: RegExpExecArray | null;
-    if ((m = /^activate\s+(.+)$/.exec(t))) {
-      on((m[1] ?? '').trim());
-      continue;
-    }
-    if ((m = /^deactivate\s+(.+)$/.exec(t))) {
-      if (!off((m[1] ?? '').trim())) return false;
-      continue;
-    }
-    m = MSG_MARK.exec(t);
-    if (!m) continue;
-    const [, from = '', mark, to = ''] = m;
-    if (mark === '+') on(to.trim());
-    if (mark === '-' && !off(from.trim())) return false;
-  }
-  return true;
 }
 
 // ---- resize a block (loop/alt/opt/…) ------------------------------------------------------------------------------

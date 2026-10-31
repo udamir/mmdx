@@ -1,7 +1,7 @@
 // Diff reports (§7.6): a JSON change report, a Markdown summary for merge request descriptions and bot comments,
 // and a unified source diff (`git apply`-able when no facet is ignored).
 import { joinSource, splitSource } from '../meta/index.js';
-import type { DiagramDiff, DiffIgnore, FieldChange, ItemChange } from './index.js';
+import type { DiagramDiff, DiffIgnore, FieldChange, ItemChange } from './types.js';
 import { withLayoutOf, withoutStyle } from './transform.js';
 import { diffLines, type LineOp } from './text.js';
 
