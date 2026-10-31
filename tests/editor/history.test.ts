@@ -97,15 +97,23 @@ describe('History: a version as it is', () => {
     expect(ed.core.stage.peek()).toBe('document');
     expect(ed.core.version.peek()).toBeNull();
     expect(root.querySelector('.mmdx-pill')).toBeNull();
-    // the current version is the document: it cannot be picked on the History tab
-    const rows = root.querySelectorAll<HTMLButtonElement>('.mmdx-panel.history .version-main');
-    expect(rows[0]!.disabled).toBe(true);
+    // the current version is the document: selected on open
+    const rows = (): NodeListOf<HTMLButtonElement> => root.querySelectorAll<HTMLButtonElement>('.mmdx-panel.history .version-main');
+    expect(rows()[0]!.getAttribute('aria-current')).toBe('true');
     // switching to Compare and back shows nothing new
     root.querySelector<HTMLButtonElement>('.mmdx-panel.history [role=tab][data-tab=compare]')!.click();
     root.querySelector<HTMLButtonElement>('.mmdx-panel.history [role=tab][data-tab=history]')!.click();
     expect(ed.core.stage.peek()).toBe('document');
 
-    root.querySelectorAll<HTMLButtonElement>('.mmdx-panel.history .version-main')[1]!.click();
+    // an old version, then the current one again: editing is back
+    rows()[1]!.click();
+    await wait(() => ed.core.version.peek()?.id === 'v1');
+    expect(rows()[1]!.getAttribute('aria-current')).toBe('true');
+    rows()[0]!.click();
+    expect(ed.core.stage.peek()).toBe('document');
+    expect(ed.core.version.peek()).toBeNull();
+    expect(rows()[0]!.getAttribute('aria-current')).toBe('true');
+    rows()[1]!.click();
     await wait(() => ed.core.version.peek()?.id === 'v1');
     expect(ed.core.stage.peek()).toBe('version');
     expect(ed.historySession!.pair).toEqual({ base: null, head: null, viewing: 'v1' });
@@ -121,6 +129,16 @@ describe('History: a version as it is', () => {
     ed.core.undo();
     key('delete');
     expect(ed.getSource()).toBe(NOW);
+    // the version exports as itself (the Export menu stays)
+    expect(ed.core.exportFormats.peek().map((f) => f.id)).toEqual(['mmdx', 'mmd', 'svg', 'png']);
+    let exported: { name: string; data: unknown } | null = null;
+    host.addEventListener('mmdx-export', (e) => {
+      exported = (e as CustomEvent<{ name: string; data: unknown }>).detail;
+      e.preventDefault();
+    }, { once: true });
+    await ed.core.run('exportAs', 'mmdx');
+    expect(exported!.name).toBe('diagram-v1.mmdx');
+    expect(String(exported!.data)).toContain('x[Gone step]');
     // the action bar has Copy only; ⌘C copies the version's item
     const bar = root.querySelector<HTMLElement>('.ver-copy')!;
     expect(bar.hidden).toBe(false);

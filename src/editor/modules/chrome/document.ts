@@ -39,7 +39,9 @@ export const exportSvg = (core: EditorCore): string => standaloneSvg(core.render
 
 /** Builds one export file (no download). PNG may reject (an image or font failed to load). */
 export async function buildExport(core: EditorCore, kind: ExportKind): Promise<ExportFile> {
-  const name = core.fileName || 'diagram';
+  // an old version shown (History) exports as itself: its id in the file name
+  const v = core.version.peek();
+  const name = `${core.fileName || 'diagram'}${v ? `-${v.id}` : ''}`;
   if (kind === 'mmdx') return { name: `${name}.mmdx`, data: exportMmdx(core), type: 'text/plain' };
   if (kind === 'mmd') return { name: `${name}.mmd`, data: exportPortable(core), type: 'text/plain' };
   const svg = exportSvg(core);
@@ -195,18 +197,19 @@ export const documentModule: EditorModule = {
       cleanups.push(core.provide('openFiles', (files) => openFiles(core, files)));
       // drag-and-drop onto the canvas: through the `openFiles` action, so a host that provides its own (the studio:
       // its file name, versions and unsaved-changes check) handles the drop; the event is consumed (defaultPrevented)
-      // for hosts that listen further up. Muted while the module is suspended: History never loads a dropped file.
+      // for hosts that listen further up. Muted while the module is suspended and ignored over an old version: History
+      // never loads a dropped file.
       const wrap = core.area;
       const hasFiles = (ev: DragEvent): boolean => !!ev.dataTransfer && Array.from(ev.dataTransfer.types).includes('Files');
       scope.listen(wrap, 'dragover', (ev: DragEvent) => {
-        if (!hasFiles(ev) || core.mode.peek() !== 'edit') return;
+        if (!hasFiles(ev) || core.mode.peek() !== 'edit' || core.version.peek()) return;
         ev.preventDefault();
         wrap.classList.add('drop-target');
       });
       scope.listen(wrap, 'dragleave', () => wrap.classList.remove('drop-target'));
       scope.listen(wrap, 'drop', (ev: DragEvent) => {
         wrap.classList.remove('drop-target');
-        if (!ev.dataTransfer?.files.length || core.mode.peek() !== 'edit') return;
+        if (!ev.dataTransfer?.files.length || core.mode.peek() !== 'edit' || core.version.peek()) return;
         ev.preventDefault();
         void core.run('openFiles', ev.dataTransfer.files);
       });

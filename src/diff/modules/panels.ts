@@ -80,7 +80,7 @@ export function versionsModule(session: DiffSession, o: { dockButton?: boolean; 
         session.loadMore().catch((e: unknown) => core.toast(`${t('diff.history.failed')}: ${e instanceof Error ? e.message : String(e)}`, { error: true }));
       };
       const list = createVersionList({
-        versions: [], firstIsDocument: !!c, counts: (id) => session.counts(id), mode: c?.tab ?? session.mode, base: c?.base ?? session.base, head: c?.head ?? session.head, viewing: c?.viewing ?? session.viewing,
+        versions: [], counts: (id) => session.counts(id), mode: c?.tab ?? session.mode, base: c?.base ?? session.base, head: c?.head ?? session.head, viewing: c?.viewing ?? session.viewing,
         locale: core.i18n.locale, hasMore: false,
         onPick: (side, id) => (c ? c.pick(side, id) : session.setPair(side === 'before' ? id : session.base.peek(), side === 'after' ? id : session.head.peek())),
         onRow: (id) => (c ? c.row(id) : session.mode.peek() === 'compare' ? session.compareWithPrevious(id) : session.viewVersion(id)),

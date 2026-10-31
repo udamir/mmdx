@@ -16,12 +16,13 @@ const documentStage = (m: EditorModule): EditorModule => ({ ...m, when: { ...m.w
 
 /**
  * Also while an old version shows read-only (the `version` stage): selecting and copying, the panel layout, the Code
- * panel and Layers (read-only there) and the editor's dock tools (Shapes, Properties and Undo / Redo hidden).
+ * panel and Layers (read-only there), the editor's dock tools (Shapes, Properties and Undo / Redo hidden) and the
+ * exports (of the version).
  */
 const versionToo = (m: EditorModule): EditorModule => ({ ...m, when: { ...m.when, stage: ['document', 'version'] } });
 
 const ALWAYS = new Set(['history', 'tool-dock', 'pan', 'pen', 'zoom-bar', 'view-params']);
-const VERSION = new Set(['canvas-select', 'canvas-structure', 'panes', 'code-panel', 'right-panels', 'editor-tools']);
+const VERSION = new Set(['canvas-select', 'canvas-structure', 'panes', 'code-panel', 'right-panels', 'editor-tools', 'editor-params', 'document']);
 
 export const DEFAULT_MODULES: readonly EditorModule[] = ([
   // first: while a table is edited its rows take the keys (Esc, Delete, ⌘A, Enter, arrows) before the canvas does

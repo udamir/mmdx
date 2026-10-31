@@ -37,11 +37,6 @@ export type VersionCounts = DiagramDiff['counts'];
 export interface VersionListProps {
   /** Newest first; the first one is tagged "current". */
   versions: readonly VersionInfo[];
-  /**
-   * The first version is the document shown next to the list (History in place): on the History tab its row is
-   * disabled, there is nothing else to view.
-   */
-  firstIsDocument?: boolean;
   /** Change counts of each version against the one before it (undefined: not computed yet; null: the first). */
   counts: (id: string) => VersionCounts | null | undefined;
   /** `compare`: Before / After picks, the row compares with the previous version; `history`: the row views it. */
@@ -75,8 +70,6 @@ export const VERSION_LIST_CSS = /* css */ `
 .mmdx-version-list .version { position: relative; display: flex; align-items: center; border-radius: 8px; }
 .mmdx-version-list .version:hover { background: var(--mmdx-surface-2); }
 .mmdx-version-list .version.viewing { background: var(--mmdx-accent-2); }
-.mmdx-version-list .version.is-doc:hover { background: none; }
-.mmdx-version-list .version.is-doc .version-main { opacity: .55; cursor: default; }
 .mmdx-version-list .version.after { background: var(--mmdx-diff-add-bg); }
 .mmdx-version-list .version.before { background: var(--mmdx-diff-del-bg); }
 .mmdx-version-list .version-main { flex: 1; min-width: 0; display: grid; gap: 2px; text-align: left; border: 0; background: none; padding: 7px 8px 7px 12px; border-radius: 8px; color: var(--mmdx-text); }
@@ -236,10 +229,9 @@ export function createVersionList(props: VersionListProps): VersionListHandle {
       };
       const who = [v.author, ago(v.date, p.locale)].filter(Boolean).join(' ');
       const viewing = !compare && v.id === viewingId;
-      const isDoc = !compare && i === 0 && !!p.firstIsDocument;
       const main = h('button', {
-        type: 'button', class: 'version-main', 'data-f': `v:${v.id}`, 'data-col': 'main', ...(viewing ? { 'aria-current': 'true' } : {}), disabled: isDoc,
-        title: isDoc ? t('diff.history.isDocument', { id: v.id }) : compare ? t('diff.history.compareWith', { id: v.id }) : t('diff.history.view', { id: v.id }),
+        type: 'button', class: 'version-main', 'data-f': `v:${v.id}`, 'data-col': 'main', ...(viewing ? { 'aria-current': 'true' } : {}),
+        title: compare ? t('diff.history.compareWith', { id: v.id }) : t('diff.history.view', { id: v.id }),
       },
         h('span', { class: 'vmsg' }, v.message || v.id),
         h('span', { class: 'vmeta' },
@@ -257,7 +249,7 @@ export function createVersionList(props: VersionListProps): VersionListHandle {
         });
         dots = b;
       }
-      return h('div', { class: `version${viewing ? ' viewing' : ''}${isAfter ? ' after' : ''}${isBefore ? ' before' : ''}${tl ? ' tl' : ''}${isDoc ? ' is-doc' : ''}`, role: 'listitem', 'data-id': v.id },
+      return h('div', { class: `version${viewing ? ' viewing' : ''}${isAfter ? ' after' : ''}${isBefore ? ' before' : ''}${tl ? ' tl' : ''}`, role: 'listitem', 'data-id': v.id },
         tl ? rail(v, i, isBefore, isAfter) : null,
         main,
         compare && !tl ? h('span', { class: 'vpick' }, pick('before'), pick('after')) : null,

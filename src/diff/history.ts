@@ -143,7 +143,7 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
 
   // ---- what is shown, and what the panel marks
   const shown = signal<Shown>('none');
-  /** The version shown (or loading) on the History tab. */
+  /** The version shown (or loading) on the History tab; null: the current one (the document, editable). */
   const viewing = signal<string | null>(null);
   const tab = signal<DiffMode>(o.compare ? 'compare' : 'history');
   const sceneLabel = computed(() => (shown() === 'version' ? t('diff.labelVersion', { id: label(viewing()) }) : t('history.label')));
@@ -235,9 +235,11 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
     shown.set('none');
   };
 
-  /** A version as it is: read-only in the host's own scene (the editor), or the DiffScene's History mode. */
+  /** The current version: the top row (the working copy, or the newest version while the document is that one). */
+  const current = (): string | undefined => session.versions.peek()[0]?.id;
+  /** A version as it is: read-only in the host's own scene (the editor), or the DiffScene's History mode; the current one is the document, editable. */
   const showVersion = async (id: string): Promise<void> => {
-    if (id === WORKING_COPY) return showDocument();
+    if (id === WORKING_COPY || id === current()) return showDocument();
     const ticket = ++seq;
     viewing.set(id);
     if (!ownScene) {
@@ -416,7 +418,8 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
     tab,
     base: computed(() => (shown() === 'compare' ? session.base() : null)),
     head: computed(() => (shown() === 'compare' ? session.head() : null)),
-    viewing,
+    // the History tab marks what shows: a version, else the current one (the document)
+    viewing: computed(() => (shown() === 'version' ? viewing() : shown() === 'none' ? session.versions()[0]?.id ?? null : null)),
     row: (id) => void (tab.peek() === 'compare' ? compareRow(id) : showVersion(id)),
     pick: (side, id) => {
       if (shown.peek() !== 'compare') return void compareRow(id);
