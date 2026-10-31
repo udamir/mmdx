@@ -9,6 +9,8 @@ export interface SegmentedOption<V extends string = string> {
   /** Tooltip (`data-tip`, placed by the surrounding toolbar). */
   tip?: string;
   disabled?: boolean;
+  /** Icon-only button: the icon replaces the label, which becomes the accessible name. */
+  icon?: () => SVGElement;
 }
 
 export interface SegmentedProps<V extends string = string> {
@@ -41,7 +43,10 @@ export function createSegmented<V extends string>(props: SegmentedProps<V>): Blo
     el.setAttribute('aria-label', p.label);
     const prefix = p.f ?? 'seg';
     const buttons = p.options.map((o) => {
-      const b = h('button', { type: 'button', class: p.buttonClass ?? 'view', disabled: !!o.disabled, 'data-f': `${prefix}-${o.value}`, 'data-value': o.value, ...(o.tip ? { 'data-tip': o.tip } : {}) }, o.label);
+      const b = h('button', {
+        type: 'button', class: p.buttonClass ?? 'view', disabled: !!o.disabled, 'data-f': `${prefix}-${o.value}`, 'data-value': o.value,
+        ...(o.tip ? { 'data-tip': o.tip } : {}), ...(o.icon ? { 'aria-label': o.label } : {}),
+      }, o.icon ? o.icon() : o.label);
       b.addEventListener('click', () => p.onChange(o.value), { signal: fx.signal });
       return b;
     });

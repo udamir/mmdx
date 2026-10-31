@@ -15,6 +15,7 @@ import { computed, untracked } from '../../ui/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import type { ViewModule } from '../../view/module.js';
 import { DIFF_FILTERS, DIFF_VIEWS, type DiffSession, type DiffViewName } from '../session.js';
+import { VIEW_ICONS } from '../view-icons.js';
 
 const VIEW_KEYS: Record<DiffViewName, string> = { before: '1', merged: '2', after: '3', side: '4' };
 
@@ -24,12 +25,17 @@ export const DIFF_BAR_CSS = /* css */ `
   background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: var(--mmdx-radius); box-shadow: var(--mmdx-shadow); }
 /* no panel on the right: the zoom bar sits in the canvas corner, the diff bar keeps clear of it */
 .dbar.right-closed { left: calc(var(--inset-l, 0px) + (100% - var(--inset-l, 0px)) / 2 - 90px); max-width: calc(100% - var(--inset-l, 0px) - 220px); }
-.dbar button { position: relative; border: 0; background: transparent; padding: 4px 7px; border-radius: 5px; min-width: 28px; min-height: 28px;
+.dbar button { position: relative; border: 0; background: transparent; padding: 4px 7px; border-radius: 5px; min-width: 36px; min-height: 36px;
   display: inline-flex; align-items: center; justify-content: center; color: var(--mmdx-text); }
 .dbar button:hover:not(:disabled) { background: var(--mmdx-float-2); }
 .dbar button.on { background: var(--mmdx-accent-2); color: var(--mmdx-accent); }
-.dbar button.view { padding: 4px 10px; }
-.dbar button.view.on { font-weight: 600; }
+.dbar button.view { padding: 4px 6px; }
+.dbar .mmdx-icon { width: 20px; height: 20px; }
+.dbar .mmdx-toolbar .mmdx-sep, .dbar .mmdx-sep { height: 24px; }
+.dbar .dx-view-icon { width: 24px; height: 24px; }
+.dbar .dx-fb { fill: var(--mmdx-diff-del); fill-opacity: .42; }
+.dbar .dx-fa { fill: var(--mmdx-diff-add); fill-opacity: .42; }
+.dbar button.view:disabled .dx-fb, .dbar button.view:disabled .dx-fa { fill-opacity: .15; }
 .dbar select.views { border: 0; background: transparent; padding: 4px 6px; }
 .dbar .changes-btn .cnt { position: absolute; right: -3px; bottom: -2px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px;
   background: var(--mmdx-muted); color: var(--mmdx-surface); font-size: 9px; font-weight: 700; line-height: 14px; text-align: center; }
@@ -54,8 +60,12 @@ export function diffBarModule(session: DiffSession): ViewModule<ViewCore> {
         const D = session.rendered();
         return !!D && !D.merged;
       });
+      // icon buttons; the name and the help are in the tooltip, the name is the accessible name
       const viewOptions = (): SegmentedOption<DiffViewName>[] =>
-        DIFF_VIEWS.map((v) => ({ value: v, label: t(`diff.view.${v}`), tip: `${t(`diff.view.${v}Help`)} (${VIEW_KEYS[v]})`, disabled: v === 'merged' && noMerged.peek() }));
+        DIFF_VIEWS.map((v) => ({
+          value: v, label: t(`diff.view.${v}`), icon: VIEW_ICONS[v], disabled: v === 'merged' && noMerged.peek(),
+          tip: `${t(`diff.view.${v}`)} (${VIEW_KEYS[v]}) — ${t(`diff.view.${v}Help`)}`,
+        }));
       const views = core.feature('views')
         ? createSegmented<DiffViewName>({ label: t('diff.views'), options: viewOptions(), value: session.view, onChange: (v) => session.setView(v), select: true, buttonClass: 'view', selectClass: 'views', f: 'view' })
         : null;
@@ -109,7 +119,7 @@ export function diffBarModule(session: DiffSession): ViewModule<ViewCore> {
         bar.el.classList.toggle('right-closed', !Object.entries(p).some(([id, on]) => on && core.panelItems.peek().some((x) => x.id === id && x.side === 'right')));
       });
       // the views fold into a select when the canvas between the open panels is narrow
-      const NEEDS = 560;
+      const NEEDS = 440;
       const syncNarrow = (): void => {
         const st = getComputedStyle(core.root);
         const free = core.area.clientWidth - (parseFloat(st.getPropertyValue('--inset-l')) || 0) - (parseFloat(st.getPropertyValue('--inset-r')) || 0);

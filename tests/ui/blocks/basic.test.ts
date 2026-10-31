@@ -157,4 +157,15 @@ describe('Tabs and Segmented', () => {
     sel.dispatchEvent(new Event('change'));
     expect(value.peek()).toBe('merged');
   });
+
+  it('segmented icon buttons: the icon replaces the label, which becomes the accessible name', () => {
+    const value = signal('a');
+    const icon = (): SVGElement => document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const seg = createSegmented({ label: 'Views', options: [{ value: 'a', label: 'Before', icon, tip: 'Before (1)' }], value, onChange: () => undefined });
+    const b = seg.el.querySelector('button')!;
+    expect(b.getAttribute('aria-label')).toBe('Before');
+    expect(b.textContent).toBe('');
+    expect(b.querySelector('svg')).not.toBeNull();
+    expect(b.dataset['tip']).toBe('Before (1)');
+  });
 });

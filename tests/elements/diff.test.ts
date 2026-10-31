@@ -68,6 +68,13 @@ describe('DiagramDiff: two versions', () => {
   it('views: one canvas for before / merged / after, two linked canvases side by side', async () => {
     const { d, root, events } = await mount({ beforeSource: sample('schema', 'before'), afterSource: sample('schema', 'after') });
     expect(root.querySelectorAll('.pane svg').length).toBe(1);
+    // the views are icon buttons named by their view, the shown one pressed
+    const views = [...root.querySelectorAll<HTMLButtonElement>('.dbar button.view')];
+    expect(views.map((b) => b.getAttribute('aria-label'))).toEqual(['Before', 'Merged', 'After', 'Side by side']);
+    expect(views.every((b) => b.querySelector('svg.dx-view-icon') && !b.textContent)).toBe(true);
+    expect(views[1]!.getAttribute('aria-pressed')).toBe('true');
+    views[3]!.click();
+    expect(views[3]!.getAttribute('aria-pressed')).toBe('true');
     d.setView('side');
     expect(root.querySelectorAll('.pane svg').length).toBe(2);
     expect(root.querySelector('.pane.before .pane-title')).not.toBeNull();
