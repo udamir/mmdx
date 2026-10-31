@@ -51,8 +51,9 @@ export const INLINE_EDIT_CSS = /* css */ `
 
 export const canvasInlineEditModule: EditorModule = {
   id: 'canvas-inline-edit',
-  css: INLINE_EDIT_CSS,
-  install(core) {
+  css: [INLINE_EDIT_CSS],
+  install(scope) {
+    const core = scope.core;
     const ac = new AbortController();
     let close: ((apply: boolean) => void) | null = null;
     const wrap = core.dom.wrap;

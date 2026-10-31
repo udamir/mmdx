@@ -14,9 +14,10 @@ export const PAINT_CSS = /* css */ `
 
 export const canvasPaintModule: EditorModule = {
   id: 'canvas-paint',
-  css: PAINT_CSS,
-  enabled: (f) => f.copyStyle,
-  install(core: EditorCore) {
+  css: [PAINT_CSS],
+  enabled: ({ features: f }) => f.copyStyle,
+  install(scope) {
+    const core = scope.core;
     const offs: (() => void)[] = [];
     let clip: StyleClip | null = null;
     let paintFrom: Sel | null = null;

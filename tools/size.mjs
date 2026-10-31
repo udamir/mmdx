@@ -40,12 +40,14 @@ const v = await bundle('viewer');
 for (const k of ['flowchart', 'sequence', 'er']) {
   const f = Object.keys(v.outs).find((x) => x.includes(`kind-${k}-`) && x.endsWith('.js'));
   const extra = [...v.closure(f)].filter((x) => !v.base.has(x));
-  // 46 kB since 0.2.0: the History control (+0.4 kB; the diff itself is never in the viewer bundle)
-  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), 46 * KB);
+  // 55 kB with the view kernel (component architecture §10, phase-0 measurement: 53.4 kB with every chrome module but
+  // the zoom bar loaded on demand; 46 kB before). Provisional until the eager / lazy split of the kernel is decided.
+  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), 55 * KB);
 }
 // core includes the diff engine (diffs, merged model, annotations, reports, renderDiffToSvg); the diff entry ships every
 // diagram kind statically (both versions may be any type) — lazy kinds and panels are the next size step
-for (const [entry, budget] of [['core', 55], ['theme-editor', 120], ['editor', 165], ['diff', 90]]) {
+// editor: 176 kB with the view kernel (173.2 kB measured; 165 kB before), provisional like the viewer's
+for (const [entry, budget] of [['core', 55], ['theme-editor', 120], ['editor', 176], ['diff', 90]]) {
   const b = await bundle(entry);
   report(entry, b.size(b.base), budget * KB);
 }

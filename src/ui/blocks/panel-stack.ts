@@ -6,7 +6,7 @@
 // diff's left stack (`leftPane`, `wireSplit` in elements/diff.ts).
 import { h } from '../h.js';
 import { registerMessages } from '../i18n.js';
-import { BLOCK_MESSAGES_PANELS } from '../messages/blocks.js';
+import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
 import { signal, untracked } from '../signal.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
 import { createGrip } from './side-panel.js';

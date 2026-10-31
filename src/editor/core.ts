@@ -2,14 +2,17 @@
 // and the free functions of app.js that everything called (draw, drawOverlay, commit, toast, ensure / getM / tidy,
 // selection helpers). Feature modules (canvas gestures, panels, toolbars) are installed on it and talk to each other
 // only through it: its signals, its events, and its registries for gestures, overlay painters and shortcuts.
+//
+// Component architecture §4.1: EditorCore extends the view kernel (ViewCore) — services, theme, chrome scheme,
+// shell, module host and canvas come from it — and adds the document store, the selection, gestures and overlay
+// painters. What the canvas shows is the StoreScene (src/editor/scene.ts); `draw()` invalidates it.
 import type { StorageAdapter } from '../adapters/storage.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
+import type { ThemeSource } from '../adapters/themes.js';
 import type { CoreContext } from '../core/context.js';
 import { KIND_TO_COLL, type DiagramMeta, type ItemMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
 import { remapSequenceMeta } from '../core/ops/remap.js';
-import { counterpartTheme } from '../core/theme/pairs.js';
-import { BASELINE, canonicalId } from '../core/theme/registry.js';
 import { currentPreset, type StyleEnv } from '../core/ops/style-env.js';
 import { renderDocument, type Rendered } from '../core/pipeline.js';
 import { pageScene } from '../core/render/index.js';
@@ -17,17 +20,19 @@ import type { BoxGeom, GeometryIndex } from '../core/render/types.js';
 import type { SceneNode } from '../core/scene/types.js';
 import type { ItemKind, ItemRef, Rect } from '../core/types.js';
 import { itemKey } from '../core/types.js';
-import { patchChildren } from '../dom/patch.js';
+import type { Insets } from '../dom/canvas.js';
+import { HIGHLIGHT_CSS } from '../dom/highlight.js';
 import type { Viewport } from '../dom/viewport.js';
-import type { Dialogs } from '../ui/dialog.js';
-import type { I18n } from '../ui/i18n.js';
-import type { PopoverManager, Toaster } from '../ui/popover.js';
-import type { ShortcutRegistry } from '../ui/shortcuts.js';
+import { Dialogs, DIALOG_CSS } from '../ui/dialog.js';
 import { signal, type Signal } from '../ui/signal.js';
+import { ALIASES } from '../ui/styles/base.js';
+import { EDITOR_CSS } from '../ui/styles/editor.js';
+import { ViewCore } from '../view/core.js';
+import type { Mode, Tool, ViewActions } from '../view/types.js';
+import { StoreScene } from './scene.js';
 import type { DocStore } from './store.js';
 
-export type Mode = 'edit' | 'view';
-export type Tool = 'pointer' | 'hand' | 'pen' | 'shapes' | 'paint';
+export type { Mode, Tool };
 
 /** Feature flags (§8.2 `features`): every group of Appendix A rows can be turned off; all on by default. */
 export interface EditorFeatures {
@@ -149,7 +154,7 @@ export interface EditorActions {
   gotoCodeLine(line: number): void;
   /** Opens the Metadata tab at a (1-based) line of the metadata text. */
   gotoMetaLine(line: number): void;
-  setPanel(name: 'code' | 'properties' | 'layers', open: boolean): void;
+  setPanel(name: string, open: boolean): void;
   toggleHelp(on?: boolean): void;
   /** Opens or closes the History of the document (when the editor has a history). */
   toggleHistory(on?: boolean): void;
@@ -161,7 +166,7 @@ export interface EditorActions {
   refreshToolbar(): void;
 }
 
-export type CoreEvent = 'draw' | 'selection' | 'panels' | 'mode' | 'tool' | 'view' | 'model' | 'theme' | 'overlay';
+export type CoreEvent = 'draw' | 'selection' | 'panels' | 'mode' | 'tool' | 'view' | 'model' | 'theme' | 'overlay' | 'stage';
 
 export interface CoreDom {
   shadow: ShadowRoot;
@@ -178,46 +183,35 @@ export interface CoreDom {
   overlay: SVGGElement;
 }
 
-export interface CoreServices {
+export interface EditorCoreOptions {
   store: DocStore;
-  ctx: CoreContext;
-  i18n: I18n;
-  storage: StorageAdapter;
   features: EditorFeatures;
-  dom: CoreDom;
-  viewport: Viewport;
-  dialogs: Dialogs;
-  toaster: Toaster;
-  popovers: PopoverManager;
-  shortcuts: ShortcutRegistry;
-  /** Dispatches a DOM event from the host element (`mmdx-*`). Returns false when a cancelable event was prevented. */
-  emit(type: string, detail: unknown, cancelable?: boolean): boolean;
+  storage?: StorageAdapter;
+  ctx?: Partial<CoreContext>;
+  themeSource?: ThemeSource;
+  ui?: 'light' | 'dark' | 'auto';
+  theme?: string;
+  themeDark?: string;
+  compact?: boolean | 'auto';
+  /** CSS of the installed modules' that is not in their `css` (adopted after the editor's own). */
+  css?: readonly string[];
 }
 
-export class EditorCore implements CoreServices {
+export type EditorPanels = Readonly<{ code: boolean; properties: boolean; layers: boolean } & Record<string, boolean>>;
+
+const reducedMotion = (): boolean => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPanels> {
   readonly store: DocStore;
-  readonly ctx: CoreContext;
-  readonly i18n: I18n;
-  readonly storage: StorageAdapter;
   readonly features: EditorFeatures;
-  readonly dom: CoreDom;
-  readonly viewport: Viewport;
   readonly dialogs: Dialogs;
-  readonly toaster: Toaster;
-  readonly popovers: PopoverManager;
-  readonly shortcuts: ShortcutRegistry;
-  readonly emit: CoreServices['emit'];
+  /** The scene that draws the document (the canvas shows it unless History is open). */
+  readonly storeScene: StoreScene;
 
   // ---- UI state (never saved into the document) -------------------------------------------------------------------
-  readonly mode: Signal<Mode> = signal<Mode>('edit');
-  readonly tool: Signal<Tool> = signal<Tool>('pointer');
   readonly enteredGroup: Signal<string | null> = signal<string | null>(null);
   readonly pageSelected: Signal<boolean> = signal(false);
-  readonly panels = signal({ code: true, properties: true, layers: true });
   readonly codeFilter = signal('');
-  readonly display = signal({ labels: true, hoverHighlight: true });
-  /** The chrome's light / dark scheme. The diagram is shown in the counterpart of its theme that matches it. */
-  readonly scheme: Signal<'light' | 'dark'> = signal<'light' | 'dark'>('light');
   /** The document's versions (host-provided); null = no History button. */
   readonly history: Signal<HistoryAdapter | readonly StaticVersion[] | null> = signal<HistoryAdapter | readonly StaticVersion[] | null>(null);
   /** The History view is open. */
@@ -243,57 +237,94 @@ export class EditorCore implements CoreServices {
   /** Last pointer position (client coordinates), for paste-at-pointer and menus. */
   pointer: { clientX: number; clientY: number } | null = null;
 
-  private readonly actionMap = new Map<keyof EditorActions, (...args: never[]) => unknown>();
   private rendered: Rendered | null = null;
   private readonly gestures: GestureSource[] = [];
   private readonly painters: OverlayPainter[] = [];
-  private readonly listeners = new Map<CoreEvent, Set<() => void>>();
   private drawQueued = 0;
+  private readonly domCache: CoreDom;
 
-  constructor(s: CoreServices) {
-    this.store = s.store;
-    this.ctx = s.ctx;
-    this.i18n = s.i18n;
-    this.storage = s.storage;
-    this.features = s.features;
-    this.dom = s.dom;
-    this.viewport = s.viewport;
-    this.dialogs = s.dialogs;
-    this.toaster = s.toaster;
-    this.popovers = s.popovers;
-    this.shortcuts = s.shortcuts;
-    this.emit = s.emit;
+  constructor(host: HTMLElement, o: EditorCoreOptions) {
+    super(host, {
+      product: 'editor',
+      css: [ALIASES, DIALOG_CSS, EDITOR_CSS, HIGHLIGHT_CSS, ...(o.css ?? [])],
+      root: { class: 'ed mode-edit', role: 'application', roleDescription: 'diagram editor' },
+      areaClass: 'canvas-wrap',
+      initialMode: 'edit',
+      canvas: {
+        interaction: 'pan-zoom', wheel: 'always', panOnDrag: false, minK: 0.05, maxK: 6, pad: 40, svgClass: 'canvas', part: 'canvas',
+        pageClass: 'page-layer page-shadow', reducedMotion,
+        // fit keeps clear of the open side panels and the tool dock (measured: their widths are user-resizable)
+        insets: () => this.editorInsets(),
+        onView: () => {
+          this.fire('view');
+          this.drawOverlay();
+        },
+      },
+      feature: (name) => this.featureOn(name),
+      ...(o.storage ? { storage: o.storage } : {}),
+      ...(o.ctx ? { ctx: o.ctx } : {}),
+      ...(o.themeSource ? { themeSource: o.themeSource } : {}),
+      ...(o.ui ? { ui: o.ui } : {}),
+      ...(o.theme ? { theme: o.theme } : {}),
+      ...(o.themeDark ? { themeDark: o.themeDark } : {}),
+      ...(o.compact !== undefined ? { compact: o.compact } : {}),
+    });
+    this.store = o.store;
+    this.features = o.features;
+    this.dialogs = new Dialogs(this.shadow);
+    this.tool.set('pointer');
+    this.panels.set({ code: true, properties: true, layers: true });
+    const c = this.canvas;
+    this.domCache = { shadow: this.shadow, root: this.root, wrap: this.area, svg: c.svg, defs: c.defs, vp: c.vp, page: c.page, body: c.body, overlay: c.overlay };
+    this.storeScene = new StoreScene(this);
+    this.pushScene(this.storeScene);
   }
 
-  // ---- events -----------------------------------------------------------------------------------------------------
-
-  on(ev: CoreEvent, cb: () => void): () => void {
-    let set = this.listeners.get(ev);
-    if (!set) this.listeners.set(ev, (set = new Set()));
-    set.add(cb);
-    return () => set.delete(cb);
+  /** The editor's DOM (the shell's root and canvas area, the main canvas's layers). */
+  get dom(): CoreDom {
+    return this.domCache;
   }
 
-  fire(ev: CoreEvent): void {
-    for (const cb of [...(this.listeners.get(ev) ?? [])]) cb();
+  /** Pan and zoom of the main canvas. */
+  get viewport(): Viewport {
+    return this.canvas.viewport!;
   }
 
-  // ---- actions ----------------------------------------------------------------------------------------------------
+  private featureOn(name: string): boolean {
+    const f = this.features;
+    switch (name) {
+      case 'help':
+        return f.help;
+      case 'fullscreen':
+        return f.fullscreen;
+      case 'pen':
+        return f.pen;
+      case 'theme':
+        return f.themePicker;
+      case 'export':
+        return f.export && f.exportFormats.length > 0;
+      case 'code':
+        return f.codePanel;
+      case 'layers':
+        return f.layers;
+      case 'history':
+        return f.history;
+      default:
+        return true;
+    }
+  }
 
-  provide<K extends keyof EditorActions>(name: K, f: EditorActions[K]): () => void {
-    this.actionMap.set(name, f as (...args: never[]) => unknown);
-    return () => {
-      if (this.actionMap.get(name) === (f as unknown)) this.actionMap.delete(name);
+  private editorInsets(): Insets {
+    const root = this.root;
+    const box = root.getBoundingClientRect();
+    const edge = (sel: string, side: 'left' | 'right'): number => {
+      const el = root.querySelector<HTMLElement>(sel);
+      if (!el || !el.offsetParent) return 0;
+      const r = el.getBoundingClientRect();
+      return side === 'left' ? Math.max(0, r.right - box.left) : Math.max(0, box.right - r.left);
     };
-  }
-
-  has(name: keyof EditorActions): boolean {
-    return this.actionMap.has(name);
-  }
-
-  run<K extends keyof EditorActions>(name: K, ...args: Parameters<EditorActions[K]>): ReturnType<EditorActions[K]> | undefined {
-    const f = this.actionMap.get(name) as ((...a: Parameters<EditorActions[K]>) => ReturnType<EditorActions[K]>) | undefined;
-    return f ? f(...args) : undefined;
+    const left = Math.max(edge('.pane.left', 'left'), edge('.tool-dock', 'left'), edge('.mmdx-stack[data-side=left].open', 'left'));
+    return { left: left + 8, right: Math.max(edge('.pane.right', 'right'), edge('.mmdx-stack[data-side=right].open', 'right')) + 8, top: 56, bottom: 56 };
   }
 
   // ---- document access --------------------------------------------------------------------------------------------
@@ -404,17 +435,6 @@ export class EditorCore implements CoreServices {
     return null;
   }
 
-  /** The diagram's own theme (`canvas.theme`), or baseline when it names none or one that is not registered. */
-  documentTheme(): string {
-    const id = canonicalId(typeof this.meta.canvas.theme === 'string' ? this.meta.canvas.theme : null);
-    return this.ctx.themes.has(id) ? id : BASELINE;
-  }
-
-  /** The theme the diagram is drawn with: its own theme, or that theme's counterpart for the current UI scheme. */
-  shownTheme(): string {
-    return counterpartTheme(this.ctx.themes, this.documentTheme(), this.scheme.peek());
-  }
-
   // ---- rendering --------------------------------------------------------------------------------------------------
 
   /** Renders the current document (no DOM work). */
@@ -424,23 +444,32 @@ export class EditorCore implements CoreServices {
     const opts: Parameters<typeof renderDocument>[3] = {};
     if (this.mode.peek() === 'view' && !this.display.peek().labels) opts.hideLabels = true;
     opts.theme = this.shownTheme();
+    const layers = this.mode.peek() === 'view' ? this.visibleLayers.peek() : undefined;
+    if (layers) opts.visibleLayers = layers;
     if (this.tableView && this.mode.peek() === 'edit') opts.tableView = [this.tableView];
     const r = renderDocument(doc, model, this.ctx, opts);
     this.rendered = { doc, model, tooLarge: false, ...r, diagnostics: [...model.diagnostics, ...r.diagnostics] };
     return this.rendered;
   }
 
-  /** Re-renders and patches the scene, then the overlay. Synchronous (gestures preview through it). */
+  /**
+   * Re-renders and patches the document, then the overlay. Synchronous (gestures preview through it). While another
+   * scene owns the canvas (History), the store scene only becomes dirty and repaints in full when it is back.
+   */
   draw(): void {
     if (this.drawQueued) {
       cancelAnimationFrame(this.drawQueued);
       this.drawQueued = 0;
     }
+    this.storeScene.invalidate();
+  }
+
+  /** Paints the document into the main canvas (the store scene calls it while attached). */
+  paintDocument(): void {
     const r = this.render();
     const res = r.result;
-    patchChildren(this.dom.defs, res.defs);
-    patchChildren(this.dom.page, pageScene(res, r.rctx));
-    patchChildren(this.dom.body, res.body);
+    this.canvas.show({ defs: res.defs, page: pageScene(res, r.rctx), body: res.body });
+    this.storeScene.bounds.set(res.bounds);
     this.decorate();
     this.drawOverlay();
     this.fire('draw');
@@ -492,7 +521,7 @@ export class EditorCore implements CoreServices {
           console.error(`[mmdx] overlay painter ${p.id}`, e);
         }
       }
-    patchChildren(this.dom.overlay, nodes);
+    if (this.scene === this.storeScene) this.canvas.setOverlay(nodes);
     this.fire('overlay');
   }
 
@@ -624,10 +653,6 @@ export class EditorCore implements CoreServices {
   afterChange(): void {
     this.draw();
     this.fire('panels');
-  }
-
-  toast(msg: string, opts: { error?: boolean } = {}): void {
-    this.toaster.show(msg, opts);
   }
 
   setMode(m: Mode): void {

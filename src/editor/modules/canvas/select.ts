@@ -46,8 +46,9 @@ export const SELECT_CSS = /* css */ `
 
 export const canvasSelectModule: EditorModule = {
   id: 'canvas-select',
-  css: SELECT_CSS,
-  install(core) {
+  css: [SELECT_CSS],
+  install(scope) {
+    const core = scope.core;
     const ac = new AbortController();
     const sig = { signal: ac.signal };
     const offs: (() => void)[] = [];

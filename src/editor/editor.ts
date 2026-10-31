@@ -6,26 +6,17 @@ import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import { TOOLBAR_MESSAGES } from '../ui/messages/toolbar.js';
 import { ElementBase } from '../elements/base.js';
 import type { DocumentAdapter } from '../adapters/documents.js';
-import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
+import type { StorageAdapter } from '../adapters/storage.js';
 import type { ThemeSource } from '../adapters/themes.js';
-import { ensureBuiltinThemes, getShared, instanceContext } from '../config.js';
+import { ensureBuiltinThemes } from '../config.js';
 import type { CoreContext } from '../core/context.js';
-import { Viewport } from '../dom/viewport.js';
-import { HIGHLIGHT_CSS } from '../dom/highlight.js';
-import { Dialogs, DIALOG_CSS } from '../ui/dialog.js';
 import { h } from '../ui/h.js';
-import { PopoverManager, Toaster } from '../ui/popover.js';
-import { ShortcutRegistry } from '../ui/shortcuts.js';
 import { effect } from '../ui/signal.js';
-import { adoptStyles, ALIASES, BASE, resolveUiScheme, TOKENS, watchUiScheme } from '../ui/styles/base.js';
-import { EDITOR_CSS } from '../ui/styles/editor.js';
 import { DEFAULT_FEATURES, EditorCore, type EditorFeatures, type Gesture, type Mode } from './core.js';
 import type { EditorModule } from './module.js';
 import { DEFAULT_MODULES } from './modules/index.js';
 import { DocStore, type ChangeReason } from './store.js';
 import type { ItemRef } from '../core/types.js';
-
-const NS = 'http://www.w3.org/2000/svg';
 
 export interface EditorOptions {
   value?: string;
@@ -39,6 +30,10 @@ export interface EditorOptions {
   storage?: StorageAdapter;
   themeSource?: ThemeSource;
   ui?: 'light' | 'dark' | 'auto';
+  /** The diagram theme the host sets (the user's pick in the theme menu wins; component architecture §7.5). */
+  theme?: string;
+  /** The theme while the chrome is dark (`auto`: the dark counterpart of `theme`). */
+  themeDark?: string;
   /** Ask before leaving the page with unsaved changes (opt-in; SPAs handle this themselves). */
   guardUnload?: boolean;
   /** File name used for exports. */
@@ -71,80 +66,26 @@ export class DiagramEditor {
     registerMessages(TOOLBAR_MESSAGES);
     this.o = { ...options };
     this.name = options.name ?? 'diagram';
-    const shared = getShared();
     const features: EditorFeatures = { ...DEFAULT_FEATURES, ...(options.features ?? {}) };
     if (options.toolbar === 'none') features.styleToolbar = false;
-    const storage = options.storage ?? (typeof localStorage !== 'undefined' ? localStorageAdapter() : memoryStorage());
-    this.shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open', delegatesFocus: false });
-    const modules = (options.modules ?? DEFAULT_MODULES).filter((m) => !m.enabled || m.enabled(features));
-    adoptStyles(this.shadow, [TOKENS, ALIASES, BASE, DIALOG_CSS, EDITOR_CSS, HIGHLIGHT_CSS, ...modules.map((m) => m.css ?? '').filter(Boolean)]);
-
-    // ---- DOM
-    const svg = document.createElementNS(NS, 'svg');
-    svg.setAttribute('class', 'canvas');
-    svg.setAttribute('part', 'canvas');
-    const defs = document.createElementNS(NS, 'defs');
-    const vp = document.createElementNS(NS, 'g');
-    const page = document.createElementNS(NS, 'g');
-    const body = document.createElementNS(NS, 'g');
-    const overlay = document.createElementNS(NS, 'g');
-    page.setAttribute('class', 'page-shadow');
-    body.setAttribute('class', 'body-layer');
-    overlay.setAttribute('class', 'overlay');
-    vp.append(page, body, overlay);
-    svg.append(defs, vp);
-    const wrap = h('div', { class: 'canvas-wrap' }, svg);
-    const live = h('div', { class: 'mmdx-sr', 'aria-live': 'polite' });
-    const root = h('div', { class: 'ed mode-edit', role: 'application', tabindex: '0', 'aria-roledescription': 'diagram editor' }, wrap, live);
-    this.shadow.append(root);
-
     this.store = new DocStore({ onChange: (src, reason) => this.onStoreChange(src, reason) });
-    const popovers = new PopoverManager(this.shadow);
-    const toaster = new Toaster(root);
-    const viewport = new Viewport(svg, {
-      wheel: 'always',
-      panOnDrag: false,
-      minK: 0.05,
-      maxK: 6,
-      pad: 40,
-      // fit keeps clear of the open side panels and the tool dock (measured: their widths are user-resizable)
-      insets: () => {
-        const box = root.getBoundingClientRect();
-        const edge = (sel: string, side: 'left' | 'right'): number => {
-          const el = root.querySelector<HTMLElement>(sel);
-          if (!el || !el.offsetParent) return 0;
-          const r = el.getBoundingClientRect();
-          return side === 'left' ? Math.max(0, r.right - box.left) : Math.max(0, box.right - r.left);
-        };
-        const left = Math.max(edge('.pane.left', 'left'), edge('.tool-dock', 'left'));
-        return { left: left + 8, right: edge('.pane.right', 'right') + 8, top: 56, bottom: 56 };
-      },
-      onChange: (v) => {
-        vp.setAttribute('transform', `translate(${v.tx},${v.ty}) scale(${v.k})`);
-        this.core?.fire('view');
-        this.core?.drawOverlay();
-      },
-    });
-    this.core = new EditorCore({
+    this.core = new EditorCore(host, {
       store: this.store,
-      ctx: instanceContext(options.ctx),
-      i18n: shared.i18n,
-      storage,
       features,
-      dom: { shadow: this.shadow, root, wrap, svg, defs, vp, page, body, overlay },
-      viewport,
-      dialogs: new Dialogs(this.shadow),
-      toaster,
-      popovers,
-      shortcuts: new ShortcutRegistry(),
-      emit: (type, detail, cancelable = false) =>
-        this.host.dispatchEvent(new CustomEvent(type, { detail, bubbles: true, composed: true, cancelable })),
+      ...(options.storage ? { storage: options.storage } : {}),
+      ...(options.ctx ? { ctx: options.ctx } : {}),
+      ...(options.themeSource ? { themeSource: options.themeSource } : {}),
+      ...(options.ui && options.ui !== 'auto' ? { ui: options.ui } : {}),
+      ...(options.theme ? { theme: options.theme } : {}),
+      ...(options.themeDark ? { themeDark: options.themeDark } : {}),
     });
+    this.shadow = this.core.shadow;
     const core = this.core;
-    this.cleanups.push(() => viewport.destroy(), () => toaster.destroy(), () => popovers.close());
+    const root = core.root;
+    this.cleanups.push(() => core.destroy());
 
     // panel visibility from storage, then options
-    const savedPanels = storage.get<{ code?: boolean; properties?: boolean; layers?: boolean }>('panels') ?? {};
+    const savedPanels = core.storage.get<{ code?: boolean; properties?: boolean; layers?: boolean }>('panels') ?? {};
     core.panels.set({ code: true, properties: true, layers: true, ...savedPanels, ...(options.panels ?? {}) });
     this.cleanups.push(effect(() => {
       const p = core.panels();
@@ -167,16 +108,8 @@ export class DiagramEditor {
     this.wirePointer();
     this.wireKeys();
     this.addBaseShortcuts();
-    this.cleanups.push(watchUiScheme(() => this.applyScheme()));
-    this.applyScheme();
 
-    for (const m of modules) {
-      try {
-        this.cleanups.push(m.install(core));
-      } catch (e) {
-        console.error(`[mmdx] module ${m.id} failed to install`, e);
-      }
-    }
+    core.useModules(options.modules ?? DEFAULT_MODULES);
 
     core.fileName = this.name;
     // built-in themes besides baseline load on demand; redraw when they (or a theme saved elsewhere) arrive
@@ -186,10 +119,6 @@ export class DiagramEditor {
       core.fire('theme');
     }));
     void ensureBuiltinThemes();
-    // a module may have set the host's `ui` (the remembered light / dark choice) while installing: adopt it
-    const hostUi = host.getAttribute('ui');
-    if (!options.ui && (hostUi === 'light' || hostUi === 'dark')) this.o.ui = hostUi;
-    this.applyScheme();
     if (options.readOnly) core.setMode('view');
     if (options.history) core.history.set(options.history);
     if (options.guardUnload) {
@@ -312,7 +241,6 @@ export class DiagramEditor {
       }
     }
     this.cleanups.length = 0;
-    this.shadow.replaceChildren();
   }
 
   // ---- adapter ----------------------------------------------------------------------------------------------------
@@ -518,7 +446,6 @@ export class DiagramEditor {
         core.spaceDown = true;
         root.classList.add('space-pan');
       }
-      core.shortcuts.handle(ev, core.mode.peek() === 'edit');
     }, sig);
     root.addEventListener('keyup', (ev) => {
       if (ev.key === ' ') {
@@ -543,21 +470,10 @@ export class DiagramEditor {
     );
   }
 
-  private applyScheme(): void {
-    const scheme = resolveUiScheme(this.o.ui === 'auto' || !this.o.ui ? null : this.o.ui);
-    this.host.setAttribute('data-ui', scheme);
-    // the diagram follows: shown in its theme's light or dark counterpart (the file keeps its own theme)
-    if (this.core && this.core.scheme.peek() !== scheme) {
-      this.core.scheme.set(scheme);
-      this.core.draw();
-      this.core.fire('theme');
-      this.core.fire('panels');
-    }
-  }
-
+  /** The chrome scheme: `light`, `dark`, or `auto` (the remembered choice, else the page). */
   setUi(ui: 'light' | 'dark' | 'auto'): void {
     this.o.ui = ui;
-    this.applyScheme();
+    this.core.setUi(ui === 'auto' ? undefined : ui);
   }
 }
 

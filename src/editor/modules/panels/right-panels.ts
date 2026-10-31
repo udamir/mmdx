@@ -148,9 +148,10 @@ button.small { padding: 2px 10px; font-size: 12px; }
 
 export const rightPanelsModule: EditorModule = {
   id: 'right-panels',
-  css: RIGHT_PANELS_CSS,
-  enabled: (f) => f.properties || f.layers,
-  install(core) {
+  css: [RIGHT_PANELS_CSS],
+  enabled: ({ features: f }) => f.properties || f.layers,
+  install(scope) {
+    const core = scope.core;
     const t = core.i18n.t;
     const f = core.features;
     const ac = new AbortController();

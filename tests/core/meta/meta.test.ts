@@ -67,8 +67,15 @@ describe('splitSource / joinSource', () => {
   });
 
   it('a file without "v" is v1, and v is not kept in the model', () => {
-    const { doc } = splitSource('graph TD\n%%@ canvas {"v":1,"theme":"clean"}\n%%@ node A {"x":1}');
-    expect(doc.meta.canvas).toEqual({ theme: 'clean' });
+    const { doc } = splitSource('graph TD\n%%@ canvas {"v":1,"ratio":"16:9"}\n%%@ node A {"x":1}');
+    expect(doc.meta.canvas).toEqual({ ratio: '16:9' });
+  });
+
+  it('drops canvas.theme on load: the theme is the component\'s, not the document\'s', () => {
+    const { doc } = splitSource('graph TD\n%%@ canvas {"v":1,"theme":"clean","ratio":"4:3"}');
+    expect(doc.meta.canvas).toEqual({ ratio: '4:3' });
+    expect(metaToLines(doc.meta)[0]).toBe('%%@ canvas {"v":1,"ratio":"4:3"}');
+    expect(splitSource('graph TD\n%%@ canvas {"theme":"clean"}').doc.meta.canvas).toEqual({});
   });
 
   it('keeps unknown kinds verbatim and writes them after the known lines', () => {
@@ -205,7 +212,7 @@ describe('mergeLegacySidecar', () => {
     });
     const r = mergeLegacySidecar('graph TD\n  A --> B\n%%@ node A {"x":1,"w":5}\n%%@ edge e {"color":"red"}', side);
     expect(r.doc.code).toBe('graph TD\n  A --> B');
-    expect(r.doc.meta.canvas).toEqual({ theme: 'clean', border: 'none' });
+    expect(r.doc.meta.canvas).toEqual({ border: 'none' });
     expect(r.doc.meta.styles).toEqual({ node: { p: { fill: '@sky' } } });
     expect(r.doc.meta.nodes).toEqual({ A: { x: 10 }, B: { y: 2 } });
     expect(r.doc.meta.edges).toEqual({ e: { color: 'red' } });

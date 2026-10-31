@@ -1,14 +1,13 @@
 // The viewer's pop-up panels (View settings, pen options). Loaded on first use: not needed to show a diagram (§R5).
 import { layerDefs } from '../core/layers.js';
 import type { DiagramMeta } from '../core/meta/types.js';
-import type { MagicPen } from '../dom/pen.js';
 import { PEN_COLORS, PEN_FADES, PEN_SIZES } from '../dom/pen.js';
 import { h, icon } from '../ui/h.js';
 import type { I18n } from '../ui/i18n.js';
 import { I_eye, I_eyeOff } from '../ui/icons.js';
 
-/** What the pen options read and set (the viewer's MagicPen, the diff's shared ink). */
-export type PenSettings = Pick<MagicPen, 'color' | 'size' | 'fade' | 'setColor' | 'setSize' | 'setFade' | 'clear'>;
+export type { PenSettings } from '../dom/pen.js';
+import type { PenSettings } from '../dom/pen.js';
 
 /** Pen colours, sizes, auto erase and Erase all; re-draws itself on every change. */
 export function penOptions(pen: PenSettings, t: I18n['t']): HTMLElement {

@@ -82,9 +82,10 @@ export function setPanel(core: EditorCore, name: PanelName, open: boolean): void
 
 export const panesModule: EditorModule = {
   id: 'panes',
-  install(core) {
+  install(scope) {
+    const core = scope.core;
     restorePaneWidths(core);
-    const off = core.provide('setPanel', (name, open) => setPanel(core, name, open));
+    const off = core.provide('setPanel', (name, open) => setPanel(core, name as PanelName, open));
     return () => {
       off();
     };

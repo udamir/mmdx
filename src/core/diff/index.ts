@@ -394,7 +394,6 @@ function count(items: readonly ItemChange[], doc: readonly FieldChange[]): Diagr
 export function diffModels(a: DiagramModel, b: DiagramModel, ma: DiagramMeta, mb: DiagramMeta): DiagramDiff {
   const items: ItemChange[] = [];
   const doc: FieldChange[] = [];
-  field(doc, 'style', 'theme', ma.canvas.theme, mb.canvas.theme);
   const { theme: _ta, v: _va, ...ca } = ma.canvas;
   const { theme: _tb, v: _vb, ...cb } = mb.canvas;
   for (const k of new Set([...Object.keys(ca), ...Object.keys(cb)]))

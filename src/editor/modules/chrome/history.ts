@@ -1,14 +1,19 @@
 // History (diff design §15): when the host gives the editor a `history` (a HistoryAdapter or a list of versions), the
-// tool dock shows a History button. It covers the editor with <mmdx-diff> over the document's versions and the
+// tool dock shows a History button (shown while the host gives a history and <mmdx-diff> is defined). It covers the editor with <mmdx-diff> over the document's versions and the
 // working copy; Restore opens a version in the editor as an undoable change (Edit mode), Back or Esc closes it.
 // <mmdx-diff> comes from the page (`mmdx/diff`); the small view module loads on first use.
 import type { EditorModule } from '../../module.js';
 import type { HistoryView } from '../../../elements/history-view.js';
+import { dockButton } from '../../../ui/blocks/tool-dock.js';
+import { computed, signal } from '../../../ui/signal.js';
+
+const I_HISTORY = 'M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3 4.5V9h4.5M12 7.5V12l3 2';
 
 export const historyModule: EditorModule = {
   id: 'history',
-  enabled: (f) => f.history,
-  install(core) {
+  enabled: ({ features: f }) => f.history,
+  install(scope) {
+    const core = scope.core;
     let view: HistoryView | null = null;
     let opening = false;
     const close = (): void => view?.close();
@@ -55,6 +60,16 @@ export const historyModule: EditorModule = {
       if (on ?? !view) void open();
       else close();
     });
+    // History shows <mmdx-diff>, which the page loads (`mmdx/diff`); the editor bundle never contains it
+    const diffReady = signal(typeof customElements !== 'undefined' && !!customElements.get('mmdx-diff'));
+    if (!diffReady.peek() && typeof customElements !== 'undefined') void customElements.whenDefined('mmdx-diff').then(() => diffReady.set(true));
+    const t = core.i18n.t;
+    const btn = dockButton({
+      icon: I_HISTORY, label: t('tools.versions'), class: 'vt-history', f: 'history', pressed: core.historyOpen,
+      hidden: computed(() => !core.history() || !diffReady()), onClick: () => core.run('toggleHistory'),
+    });
+    scope.contribute(core.dockItems, { id: 'history', section: 'panels', order: 40, el: btn.el });
+    core.shortcuts.add({ id: 'history', keys: ['shift+h'], label: t('help.history'), group: t('help.tools'), run: () => (core.history.peek() && !btn.el.hidden ? core.run('toggleHistory') : false) });
     // the history went away or a new document was loaded under it
     const offModel = core.on('model', () => {
       if (view && !core.history.peek()) close();
@@ -63,6 +78,7 @@ export const historyModule: EditorModule = {
       offAction();
       offModel();
       close();
+      btn.destroy();
     };
   },
 };

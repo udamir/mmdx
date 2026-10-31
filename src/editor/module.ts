@@ -1,12 +1,9 @@
-// Feature modules of the editor. Each one installs gestures, overlay painters, shortcuts, actions and DOM on the
-// EditorCore, and returns a cleanup function that removes everything it added (§8: no leaks on disconnect).
-import type { EditorCore, EditorFeatures } from './core.js';
+// Feature modules of the editor (component architecture §7.2): the kernel's module contract on EditorCore. Each one
+// installs gestures, overlay painters, shortcuts, actions and DOM through its scope (or on the core while installing,
+// which records them in the scope), and may return a cleanup; the kernel suspends a module whose `when` no longer
+// matches and uninstalls it with nothing left behind.
+import type { ViewModule } from '../view/module.js';
+import type { EditorCore } from './core.js';
 
-export interface EditorModule {
-  id: string;
-  /** Scoped CSS adopted into the editor's shadow root. */
-  css?: string;
-  /** Install only when this returns true (feature flags, read-only…). */
-  enabled?(features: EditorFeatures): boolean;
-  install(core: EditorCore): () => void;
-}
+export type { EditorFeatures } from './core.js';
+export type EditorModule = ViewModule<EditorCore>;

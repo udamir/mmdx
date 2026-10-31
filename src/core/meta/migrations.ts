@@ -12,7 +12,18 @@ export function migrate(meta: DiagramMeta, fromVersion: number): DiagramMeta {
   if (!Number.isFinite(fromVersion) || fromVersion > META_VERSION) return meta;
   let m = fromVersion <= 1 ? legacyV1(meta) : meta;
   for (let v = Math.max(1, Math.floor(fromVersion)); v < META_VERSION; v++) m = UPGRADES[v]?.(m) ?? m;
-  return m;
+  return dropTheme(m);
+}
+
+/**
+ * `canvas.theme` left the format (component architecture §7.5): the theme is the component's state, set by the host
+ * (`theme` attribute, `theme` option of renderToSvg and the markdown plugins) or picked by the user. Files that name a
+ * theme keep loading; the field is dropped, so the next save writes the file without it.
+ */
+function dropTheme(meta: DiagramMeta): DiagramMeta {
+  if (!('theme' in meta.canvas)) return meta;
+  const { theme: _drop, ...canvas } = meta.canvas;
+  return { ...meta, canvas };
 }
 
 /**

@@ -20,7 +20,6 @@ export interface PageSettings {
 
 export interface CanvasMeta extends PageSettings {
   v?: number;
-  theme?: string;
   /** Page preset name (`<type>.pagePresets`). */
   preset?: string;
   w?: number;

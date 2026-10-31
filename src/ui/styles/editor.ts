@@ -32,12 +32,9 @@ svg.canvas.panning { cursor: grabbing; }
 .ed.group-edit .canvas .el { transition: opacity .15s; }
 .ed.group-edit .canvas .el:not(.in-edit) { opacity: .15; }
 .canvas .el.text-editing.selected .hit { stroke: transparent; }
-.page-shadow { filter: drop-shadow(0 2px 10px rgba(20,30,60,.13)); }
+.page-layer.page-shadow { filter: drop-shadow(0 2px 10px rgba(20,30,60,.13)); }
 .overlay { pointer-events: none; }
 .overlay [data-handle], .overlay .hit-on { pointer-events: all; }
-.pen-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
-.pen-layer.on { pointer-events: auto; cursor: crosshair; }
-.pen-layer path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .pane {
   position: absolute; top: 12px; bottom: 12px; z-index: 30; display: flex; flex-direction: column; min-height: 0;
   background: var(--mmdx-panel); border: 1px solid var(--mmdx-border); border-radius: 14px; overflow: hidden;

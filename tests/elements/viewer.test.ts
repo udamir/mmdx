@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DiagramViewer, dedent } from '../../src/elements/viewer.js';
 import { hasKind, loadKind } from '../../src/elements/kinds.js';
+import { memoryStorage } from '../../src/adapters/storage.js';
 
 const example = (f: string): string => readFileSync(resolve(__dirname, '../../examples', f), 'utf8');
 
@@ -123,18 +124,24 @@ describe('code view (controls="code")', () => {
       '%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----',
       '%%@ node a {"x":10,"y":10,"w":80,"h":40}',
     ].join('\n');
-    new DiagramViewer(host, { lazy: false, source, controls: ['code'] });
+    new DiagramViewer(host, { lazy: false, source, controls: ['code'], storage: memoryStorage() });
     const sr = host.shadowRoot!;
-    const btn = (): HTMLButtonElement => sr.querySelector<HTMLButtonElement>('.bar button[aria-label="Show Mermaid code"], .bar button[aria-label="Show diagram"]')!;
-    expect(btn().getAttribute('aria-label')).toBe('Show Mermaid code');
+    // the code view is a panel of the left stack, toggled from the tool dock
+    const btn = (): HTMLButtonElement => sr.querySelector<HTMLButtonElement>('.tool-dock .vt-code-view')!;
+    const panel = (): HTMLElement | null => sr.querySelector<HTMLElement>('.mmdx-stack .code-panel');
+    // the tool dock, the panel stacks and the code view load on demand
+    await vi.waitFor(() => expect(btn()).not.toBeNull());
+    await vi.waitFor(() => expect(panel()).not.toBeNull());
+    expect(btn().getAttribute('aria-pressed')).toBe('false');
+    expect(sr.querySelector('.mmdx-stack.open')).toBeNull();
     btn().click();
-    await vi.waitFor(() => expect(sr.querySelector('.code-view')).not.toBeNull());
-    const text = sr.querySelector('.code-view pre')!.textContent!;
-    expect(text).toBe('flowchart LR\n  a[Start] --> b[End]\n');
+    expect(sr.querySelector('.mmdx-stack.open')).not.toBeNull();
+    const lines = [...panel()!.querySelectorAll('table.code td.txt')].map((td) => td.textContent);
+    expect(lines).toEqual(['flowchart LR', '  a[Start] --> b[End]']);
     expect(sr.querySelector('.root')!.getAttribute('role')).toBe('group');
-    expect(btn().getAttribute('aria-label')).toBe('Show diagram');
+    expect(btn().getAttribute('aria-pressed')).toBe('true');
     btn().click();
-    expect(sr.querySelector('.code-view')).toBeNull();
+    expect(sr.querySelector('.mmdx-stack.open')).toBeNull();
     expect(sr.querySelector('.root')!.getAttribute('role')).toBe('img');
     host.remove();
   });

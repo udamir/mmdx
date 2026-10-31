@@ -188,8 +188,9 @@ export const DOCUMENT_CSS = /* css */ `
 
 export const documentModule: EditorModule = {
   id: 'document',
-  css: DOCUMENT_CSS,
-  install(core) {
+  css: [DOCUMENT_CSS],
+  install(scope) {
+    const core = scope.core;
     const f = core.features;
     const cleanups: (() => void)[] = [];
     if (f.export) cleanups.push(core.provide('exportAs', (kind) => exportAs(core, kind)));

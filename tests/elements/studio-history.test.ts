@@ -109,6 +109,8 @@ describe('History in the viewer', () => {
     const v = new DiagramViewer(host, { lazy: false, source: newest.source, history: versions, controls: ['zoom', 'history'], storage: memoryStorage() });
     await rendered;
     const root = host.shadowRoot!;
+    // the tool dock and the History button load on demand
+    await wait(() => root.querySelector('button[aria-label^="History"]'));
     const btn = root.querySelector<HTMLButtonElement>('button[aria-label^="History"]')!;
     btn.click();
     const view = (): ShadowRoot | null | undefined => root.querySelector('.mmdx-history-view')?.shadowRoot;

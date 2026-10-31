@@ -8,7 +8,7 @@ import type { DiagramDiff } from '../../core/diff/index.js';
 import type { VersionInfo } from '../../core/diff/report.js';
 import { h } from '../h.js';
 import { registerMessages } from '../i18n.js';
-import { BLOCK_MESSAGES_DIFF } from '../messages/blocks.js';
+import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
 import { focusedIn, keepFocus } from './focus.js';
 

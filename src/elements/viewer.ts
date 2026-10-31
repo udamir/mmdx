@@ -1,41 +1,29 @@
 // <mmdx-viewer> (§8.1, UC1): read-only interactive diagram for documentation pages. Behind the element is the
 // DiagramViewer class, which can also be mounted into any element without custom elements.
+//
+// Component architecture §4: the viewer is the view kernel (ViewCore) with a TextScene (source text → async render)
+// and the viewer's modules — the editor's chrome (tool dock, zoom bar with help, view params), every piece behind a
+// control of the `controls` attribute.
 import { ElementBase } from './base.js';
 import type { ThemeSource } from '../adapters/themes.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
-import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
-import { ensureBuiltinThemes, getShared, instanceContext, renderWithMermaid } from '../config.js';
-import { BASE_THEME_ID, BUILTIN_IDS } from '../core/theme/builtin-ids.js';
-import { counterpartTheme, HOUSE } from '../core/theme/pairs.js';
+import type { StorageAdapter } from '../adapters/storage.js';
+import { getShared } from '../config.js';
 import type { CoreContext } from '../core/context.js';
 import { splitSource } from '../core/meta/index.js';
+import { standaloneSvg } from '../core/pipeline-core.js';
 import { summarize } from '../core/summary.js';
-import { detectType } from '../core/parse/dispatch.js';
-import { renderSourceWith, standaloneSvg, type PipelineOptions, type Rendered } from '../core/pipeline-core.js';
-import { pageScene } from '../core/render/page.js';
-import { hasKind, loadedKinds, loadKind } from './kinds.js';
 import type { Diagnostic, Rect } from '../core/types.js';
-import { diagnosticText } from '../core/types.js';
-import { renderInWorker, workerAvailable, WORKER_THRESHOLD_LINES } from '../dom/worker-client.js';
-import { HIGHLIGHT_CSS, hoverHighlight, clearHighlight } from '../dom/highlight.js';
-import { patchChildren } from '../dom/patch.js';
-import type { MagicPen } from '../dom/pen.js';
-import { Viewport, type WheelMode } from '../dom/viewport.js';
-import { h, icon } from '../ui/h.js';
-import type { I18n } from '../ui/i18n.js';
-import { I_code, I_download, I_expand, I_layers, I_minus, I_pen, I_plus, I_shrink } from '../ui/icons.js';
-import { PopoverManager, Toaster } from '../ui/popover.js';
-import { adoptStyles, BASE, resolveUiScheme, TOKENS, watchUiScheme } from '../ui/styles/base.js';
+import type { WheelMode } from '../dom/viewport.js';
+import { h } from '../ui/h.js';
 import { VIEWER_CSS } from '../ui/styles/viewer.js';
+import { ViewCore } from '../view/core.js';
+import { lazyModule, type ViewModule } from '../view/module.js';
+import { VIEWER_MODULES } from '../view/modules/viewer.js';
+import { TextScene, type FallbackMode, type FitMode } from '../view/scenes/text.js';
 
-const NS = 'http://www.w3.org/2000/svg';
-const I_HISTORY = 'M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3 4.5V9h4.5M12 7.5V12l3 2';
-/** History shows <mmdx-diff>, which the page loads (`mmdx/diff`); the viewer bundle never contains it. */
-const hasDiff = (): boolean => typeof customElements !== 'undefined' && !!customElements.get('mmdx-diff');
-
-export type ViewerControl = 'zoom' | 'layers' | 'pen' | 'fullscreen' | 'export' | 'code' | 'history';
-export type FitMode = 'contain' | 'width' | 'none';
-export type FallbackMode = 'mermaid' | 'source' | 'error';
+export type { FallbackMode, FitMode };
+export type ViewerControl = 'zoom' | 'layers' | 'pen' | 'fullscreen' | 'export' | 'code' | 'history' | 'theme';
 
 export interface ViewerOptions {
   source?: string;
@@ -55,6 +43,8 @@ export interface ViewerOptions {
   hoverHighlight?: boolean;
   /** `light` | `dark` | `auto` chrome scheme. */
   ui?: 'light' | 'dark' | 'auto';
+  /** The `compact` preset (§7.6): smaller, icon-only chrome; automatic below a host size by default. */
+  compact?: boolean | 'auto';
   /** `adopt` keeps server-rendered SVG as is (no idle re-measure). */
   rehydrate?: 'auto' | 'adopt';
   themeSource?: ThemeSource;
@@ -69,107 +59,91 @@ export interface ViewerEventMap {
   'mmdx-error': CustomEvent<{ diagnostics: Diagnostic[] }>;
   'mmdx-link': CustomEvent<{ href: string; id: string | null }>;
   'mmdx-fullscreen': CustomEvent<{ active: boolean }>;
+  'mmdx-ui': CustomEvent<{ ui: 'light' | 'dark' }>;
 }
 
 const DEFAULT_CONTROLS: readonly ViewerControl[] = ['zoom', 'fullscreen'];
 
-const emit = <K extends keyof ViewerEventMap>(target: EventTarget, type: K, detail: ViewerEventMap[K]['detail'], cancelable = false): boolean =>
-  target.dispatchEvent(new CustomEvent(type, { detail, bubbles: true, composed: true, cancelable }));
+const reducedMotion = (): boolean => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export class DiagramViewer {
+  readonly core: ViewCore;
   readonly ctx: CoreContext;
   private readonly o: ViewerOptions;
-  private readonly shadow: ShadowRoot;
-  private readonly i18n: I18n;
-  private readonly storage: StorageAdapter;
-  private readonly rootEl: HTMLElement;
-  private readonly stage: HTMLElement;
-  private readonly svg: SVGSVGElement;
-  private readonly defsEl: SVGDefsElement;
-  private readonly vpEl: SVGGElement;
-  private readonly pageEl: SVGGElement;
-  private readonly bodyEl: SVGGElement;
-  private readonly bar: HTMLElement;
+  private readonly scene: TextScene;
   private readonly msg: HTMLElement;
-  private readonly live: HTMLElement;
-  private readonly pops: PopoverManager;
-  private readonly toaster: Toaster;
-  private viewport: Viewport | null = null;
-  private pen: MagicPen | null = null;
-  /** Pen and export code load on first use (they are not needed to show a diagram, §R5). */
-  private penMod: typeof import('../dom/pen.js') | null = null;
-  private rendered: Rendered | null = null;
-  private text: string | null = null;
-  private showCode = false;
-  /** Code view module (with its styles adopted), loaded when the view is first shown. */
-  private codeMod: typeof import('./viewer-code.js') | null = null;
-  private hoverKey = '';
-  /** The open History view (loaded on first use). */
-  private historyView: { close(): void } | null = null;
   private visible = false;
   private io: IntersectionObserver | null = null;
-  private renderHandle = 0;
-  private renderSeq = 0;
   private fetchSeq = 0;
-  private moved = false;
-  private readonly cleanups: (() => void)[] = [];
   private readonly ac = new AbortController();
   private destroyed = false;
 
   constructor(private readonly host: HTMLElement, options: ViewerOptions = {}) {
     this.o = { ...options };
-    const shared = getShared();
-    this.i18n = shared.i18n;
-    this.storage = options.storage ?? (typeof localStorage !== 'undefined' ? localStorageAdapter() : memoryStorage());
-    this.ctx = instanceContext(options.ctx);
-    this.shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
-    adoptStyles(this.shadow, [TOKENS, BASE, VIEWER_CSS, HIGHLIGHT_CSS]);
-
-    this.svg = document.createElementNS(NS, 'svg');
-    this.svg.setAttribute('class', 'scene');
-    this.svg.setAttribute('aria-hidden', 'true');
-    this.svg.setAttribute('part', 'canvas');
-    this.defsEl = document.createElementNS(NS, 'defs');
-    this.vpEl = document.createElementNS(NS, 'g');
-    this.pageEl = document.createElementNS(NS, 'g');
-    this.bodyEl = document.createElementNS(NS, 'g');
-    this.pageEl.setAttribute('class', 'page-layer');
-    this.bodyEl.setAttribute('class', 'body-layer');
-    this.vpEl.append(this.pageEl, this.bodyEl);
-    this.svg.append(this.defsEl, this.vpEl);
-    this.stage = h('div', { class: 'stage' }, this.svg);
-    this.bar = h('div', { class: 'bar mmdx-float', part: 'zoom-bar', role: 'toolbar' });
+    const o = this.o;
+    this.core = new ViewCore(host, {
+      product: 'viewer',
+      css: [VIEWER_CSS],
+      root: { class: 'root', role: 'img' },
+      areaClass: 'stage',
+      canvas: { interaction: o.interactive === false ? 'static' : 'pan-zoom', wheel: o.wheel ?? 'ctrl', panOnDrag: true, svgClass: 'scene', part: 'canvas', reducedMotion },
+      feature: (name) => this.feature(name),
+      ...(o.storage ? { storage: o.storage } : {}),
+      ...(o.ctx ? { ctx: o.ctx } : {}),
+      ...(o.themeSource ? { themeSource: o.themeSource } : {}),
+      ...(o.ui ? { ui: o.ui } : {}),
+      ...(o.theme ? { theme: o.theme } : {}),
+      ...(o.themeDark ? { themeDark: o.themeDark } : {}),
+      ...(o.compact !== undefined ? { compact: o.compact } : {}),
+    });
+    const core = this.core;
+    this.ctx = core.ctx;
+    core.canvas.svg.setAttribute('aria-hidden', 'true');
+    core.display.set({ labels: o.labels !== false, hoverHighlight: o.hoverHighlight !== false });
+    if (o.layers) core.visibleLayers.set(o.layers);
     this.msg = h('div', { class: 'msg' });
-    this.live = h('div', { class: 'mmdx-sr', 'aria-live': 'polite' });
-    this.rootEl = h('div', { class: 'root', role: 'img', tabindex: '0' }, this.stage, this.bar, this.msg, this.live);
-    this.shadow.append(this.rootEl);
-    this.pops = new PopoverManager(this.shadow);
-    this.toaster = new Toaster(this.shadow);
-
-    this.wireLinks();
-    this.wireKeys();
-    this.wireHover();
-    this.cleanups.push(watchUiScheme(() => this.applyScheme(true)));
-    // a theme registered later (built-ins loaded on demand, a theme saved in the theme editor) re-renders
-    this.cleanups.push(this.ctx.themes.onChange(() => this.scheduleRender()));
-    this.applyScheme(false);
-    if (typeof customElements !== 'undefined' && !hasDiff()) void customElements.whenDefined('mmdx-diff').then(() => !this.destroyed && this.rendered && this.buildBar());
+    core.area.after(this.msg);
+    this.scene = new TextScene(core, {
+      fit: () => this.o.fit ?? 'contain',
+      fallback: () => this.o.fallback ?? 'mermaid',
+      msg: this.msg,
+      stage: core.area,
+      onRendered: (r, durationMs) => {
+        const s = summarize(r.model);
+        core.root.setAttribute('aria-label', this.o.label ?? core.i18n.t(s.key, s.params));
+        core.root.classList.toggle('can-pan', core.canvas.interaction === 'pan-zoom');
+        const warn = r.diagnostics.filter((d) => d.severity !== 'info' || d.code === 'theme.missing');
+        if (warn.length) core.emit('mmdx-error', { diagnostics: warn });
+        core.emit('mmdx-render', { bounds: r.result.bounds, type: r.model.type, durationMs });
+      },
+      onFallback: () => undefined,
+      onError: (diagnostics) => core.emit('mmdx-error', { diagnostics }),
+    });
+    core.provide('documentModel', () => this.scene.rendered?.model ?? null);
+    core.provide('documentMeta', () => this.scene.rendered?.doc.meta ?? null);
+    core.provide('documentCode', () => this.scene.rendered?.doc.code ?? (this.scene.text !== null ? splitSource(this.scene.text).doc.code : null));
+    core.provide('contentBounds', () => this.scene.bounds.peek());
+    core.pushScene(this.scene);
+    this.installModules();
+    // a picture while the diagram shows; the code panel must stay readable for screen readers
+    core.on('panels', () => this.syncRole());
+    core.panels.set({ ...core.panels.peek() });
 
     const ssr = host.querySelector(':scope > svg[data-mmdx-ssr]');
-    if (ssr instanceof SVGSVGElement) this.adoptSsr(ssr);
-    if (this.o.lazy !== false && typeof IntersectionObserver !== 'undefined') {
+    if (ssr instanceof SVGSVGElement) this.scene.adoptSsr(ssr, host, this.ac.signal);
+    if (o.lazy !== false && typeof IntersectionObserver !== 'undefined') {
       this.io = new IntersectionObserver((entries) => {
         if (entries.some((e) => e.isIntersecting)) {
           this.visible = true;
           this.io?.disconnect();
           this.io = null;
-          this.load();
+          void this.load();
         }
       }, { rootMargin: '300px' });
       this.io.observe(host);
     } else {
       this.visible = true;
-      this.load();
+      void this.load();
     }
   }
 
@@ -178,11 +152,20 @@ export class DiagramViewer {
   /** Updates options; re-renders or re-fetches as needed. */
   set(patch: Partial<ViewerOptions>): void {
     const srcChanged = 'src' in patch && patch.src !== this.o.src;
+    const controlsChanged = 'controls' in patch && patch.controls?.join(' ') !== this.o.controls?.join(' ');
     Object.assign(this.o, patch);
-    if ('ui' in patch) this.applyScheme(true);
-    if ('interactive' in patch || 'wheel' in patch) this.setupInteraction();
-    if (srcChanged || ('source' in patch && patch.source !== undefined)) this.load();
-    else this.scheduleRender();
+    const core = this.core;
+    if ('ui' in patch) core.setUi(patch.ui);
+    if ('theme' in patch) core.themes.attr.set(patch.theme ?? null);
+    if ('themeDark' in patch) core.themes.attrDark.set(patch.themeDark ?? null);
+    if ('compact' in patch) core.setCompact(patch.compact ?? 'auto');
+    if ('interactive' in patch) core.canvas.setInteraction(patch.interactive === false ? 'static' : 'pan-zoom');
+    if ('wheel' in patch) core.canvas.setOptions({ wheel: patch.wheel ?? 'ctrl' });
+    if ('labels' in patch || 'hoverHighlight' in patch) core.display.set({ labels: this.o.labels !== false, hoverHighlight: this.o.hoverHighlight !== false });
+    if ('layers' in patch) core.visibleLayers.set(this.o.layers);
+    if (controlsChanged || 'interactive' in patch || 'history' in patch) this.installModules();
+    if (srcChanged || ('source' in patch && patch.source !== undefined)) void this.load();
+    else core.invalidate();
   }
 
   get options(): Readonly<ViewerOptions> {
@@ -190,11 +173,11 @@ export class DiagramViewer {
   }
 
   fit(): void {
-    this.viewport?.fit();
+    this.core.canvas.fit();
   }
 
   zoomTo(k: number): void {
-    this.viewport?.zoomTo(k);
+    this.core.canvas.zoomTo(k);
   }
 
   /** Re-fetches `src` (after an edit, §11.5). */
@@ -205,31 +188,43 @@ export class DiagramViewer {
   setLayers(ids: readonly string[] | undefined): void {
     if (ids) this.o.layers = ids;
     else delete this.o.layers;
-    this.scheduleRender();
+    this.core.visibleLayers.set(ids);
+    this.core.invalidate();
   }
 
   /** Standalone SVG document of what is shown (visible layers, label setting). */
   toSvg(): string {
-    return this.rendered ? standaloneSvg(this.rendered, this.ctx) : '';
+    const r = this.scene.rendered;
+    return r ? standaloneSvg(r, this.ctx) : '';
   }
 
   async toPng(opts: { scale?: number } = {}): Promise<Blob> {
-    const r = this.rendered;
+    const r = this.scene.rendered;
     if (!r) throw new Error('Nothing rendered');
     const b = r.result.bounds;
     const { svgToPng } = await import('../dom/export.js');
     const res = await svgToPng(this.toSvg(), b.w, b.h, { scale: opts.scale ?? 2, fonts: getShared().fonts });
-    if (res.missingFonts.length) emit(this.host, 'mmdx-error', { diagnostics: [{ severity: 'info', code: 'export.font-missing', message: `Fonts not embedded (no font source): ${res.missingFonts.join(', ')}` }] });
+    if (res.missingFonts.length) this.core.emit('mmdx-error', { diagnostics: [{ severity: 'info', code: 'export.font-missing', message: `Fonts not embedded (no font source): ${res.missingFonts.join(', ')}` }] });
     return res.blob;
   }
 
   get diagnostics(): readonly Diagnostic[] {
-    return this.rendered?.diagnostics ?? [];
+    return this.scene.rendered?.diagnostics ?? [];
   }
 
   /** The source text currently shown. */
   get sourceText(): string | null {
-    return this.text;
+    return this.scene.text;
+  }
+
+  /** The file name stem of exports. */
+  get fileName(): string {
+    return (this.o.src?.split('/').pop() ?? 'diagram').replace(/\.(mmdx?|md|txt)$/i, '') || 'diagram';
+  }
+
+  /** Opens or closes the History of the diagram. */
+  toggleHistory(on?: boolean): void {
+    this.core.run('toggleHistory', on);
   }
 
   destroy(): void {
@@ -237,510 +232,78 @@ export class DiagramViewer {
     this.destroyed = true;
     this.ac.abort();
     this.io?.disconnect();
-    this.viewport?.destroy();
-    this.pen?.destroy();
-    this.historyView?.close();
-    this.pops.close();
-    this.toaster.destroy();
-    for (const c of this.cleanups) c();
-    if (this.renderHandle) cancelIdle(this.renderHandle);
-    this.rootEl.remove();
+    this.core.destroy();
   }
 
-  // ---- loading and rendering --------------------------------------------------------------------------------------
-
-  private async load(): Promise<void> {
-    if (!this.visible) return;
-    const seq = ++this.fetchSeq;
-    if (this.o.source !== undefined) this.text = this.o.source;
-    else if (this.o.src) {
-      if (!this.rendered) this.msg.replaceChildren(h('div', { class: 'loading' }, this.i18n.t('loading')));
-      try {
-        const loader = this.o.loader ?? ((url: string) => fetch(url, { credentials: 'same-origin' }).then((r) => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.text();
-        }));
-        const t = await loader(this.o.src);
-        if (seq !== this.fetchSeq || this.destroyed) return;
-        this.text = t;
-      } catch (e) {
-        if (seq !== this.fetchSeq || this.destroyed) return;
-        this.showError([{ severity: 'error', code: 'load.failed', message: `Could not load ${this.o.src}: ${e instanceof Error ? e.message : String(e)}` }], '');
-        return;
-      }
-    } else {
-      const script = this.host.querySelector(':scope > script[type="text/mermaid"], :scope > script[type="text/x-mermaid"]');
-      this.text = script?.textContent ?? this.host.getAttribute('data-source') ?? '';
-      this.text = dedent(this.text.replace(/<\\\/(script)/gi, '</$1'));
-    }
-    this.reserveAspect();
-    this.renderNow();
-  }
-
-  /** Lazy viewers reserve the page's aspect ratio from `%%@ canvas` before rendering (no layout shift). */
-  private reserveAspect(): void {
-    if (this.text === null) return;
-    const { doc } = splitSource(this.text);
-    const { w, h: hh } = doc.meta.canvas;
-    if (typeof w === 'number' && typeof hh === 'number' && w > 0 && hh > 0) this.stage.style.setProperty('--mmdx-aspect', `${w} / ${hh}`);
-  }
-
-  private scheduleRender(): void {
-    if (!this.visible || this.text === null || this.renderHandle) return;
-    this.renderHandle = idle(() => {
-      this.renderHandle = 0;
-      this.renderNow();
-    });
-  }
-
-  private themeFor(diagramTheme: string | undefined): string | undefined {
-    const forced = this.o.theme;
-    const id = forced ?? diagramTheme;
-    if (this.isDark() && this.o.themeDark) {
-      const t = this.ctx.themes.has(id ?? BASE_THEME_ID) ? this.ctx.themes.get(id ?? BASE_THEME_ID) : null;
-      // "auto": the dark counterpart of the diagram's theme (GitHub Light → GitHub Dark, Default Light → Default Dark)
-      if (!t || t.appearance !== 'dark') return this.o.themeDark === 'auto' ? counterpartTheme(this.ctx.themes, id, 'dark') : this.o.themeDark;
-    }
-    return id;
-  }
-
-  private isDark(): boolean {
-    return resolveUiScheme(this.o.ui === 'auto' || !this.o.ui ? null : this.o.ui) === 'dark';
-  }
-
-  private renderNow(): void {
-    if (this.destroyed || this.text === null) return;
-    // theme-dark="auto" on a dark page needs the dark built-in themes to pick a counterpart: load them first
-    if (this.o.themeDark === 'auto' && this.isDark() && !this.ctx.themes.has(HOUSE.dark)) {
-      const text = this.text;
-      void ensureBuiltinThemes().then(() => {
-        if (!this.destroyed && text === this.text) this.renderNow();
-      });
-      return;
-    }
-    // the parser and renderer of this diagram type load on first use
-    const type = detectType(this.text);
-    if (type && !hasKind(type)) {
-      const text = this.text;
-      loadKind(type).then(() => {
-        if (!this.destroyed && text === this.text) this.renderNow();
-      }, () => this.showError([{ severity: 'error', code: 'load.failed', message: `Could not load the ${type} renderer` }], text));
-      return;
-    }
-    const t0 = now();
-    const { doc } = splitSource(this.text);
-    const themeId = this.themeFor(typeof doc.meta.canvas.theme === 'string' ? doc.meta.canvas.theme : undefined);
-    if (themeId && !this.ctx.themes.has(themeId)) {
-      // a built-in theme that is not loaded yet: wait for it instead of flashing baseline
-      if (BUILTIN_IDS.includes(themeId)) {
-        const text = this.text;
-        void ensureBuiltinThemes().then(() => {
-          if (!this.destroyed && text === this.text) this.renderNow();
-        });
-        return;
-      }
-      void this.fetchTheme(themeId);
-    }
-    const opts: PipelineOptions = { hideLabels: this.o.labels === false };
-    if (themeId !== undefined) opts.theme = themeId;
-    if (this.o.layers) opts.visibleLayers = this.o.layers;
-    const text = this.text;
-    if (countLines(text) > WORKER_THRESHOLD_LINES && workerAvailable()) {
-      const seq = ++this.renderSeq;
-      void renderInWorker(text, this.ctx, opts).then((wr) => {
-        if (this.destroyed || seq !== this.renderSeq || text !== this.text) return;
-        if (wr && 'error' in wr) this.showError([{ severity: 'error', code: 'doc.too-large', message: 'Rendering this diagram took too long' }], text);
-        else this.applyRendered(wr ?? renderSourceWith(loadedKinds(), text, this.ctx, opts), t0);
-      });
-      return;
-    }
-    ++this.renderSeq;
-    this.applyRendered(renderSourceWith(loadedKinds(), text, this.ctx, opts), t0);
-  }
-
-  private applyRendered(r: Rendered, t0: number): void {
-    this.rendered = r;
-    const errors = r.diagnostics.filter((d) => d.severity === 'error');
-    if (r.model.type === null) {
-      void this.showUnsupported(r);
-      return;
-    }
-    if (errors.length && r.tooLarge) {
-      this.showError(errors, this.text ?? '');
-      return;
-    }
-    this.msg.replaceChildren();
-    if (this.showCode) this.renderCode();
-    const res = r.result;
-    patchChildren(this.defsEl, res.defs);
-    patchChildren(this.pageEl, pageScene(res, r.rctx));
-    patchChildren(this.bodyEl, res.body);
-    this.rootEl.style.setProperty('--mmdx-page-bg', res.page.background);
-    const b = res.bounds;
-    this.stage.style.setProperty('--mmdx-aspect', `${Math.max(1, b.w)} / ${Math.max(1, b.h)}`);
-    if (this.o.fit === 'none') {
-      this.stage.style.width = `${b.w}px`;
-      this.stage.style.height = `${b.h}px`;
-    } else {
-      this.stage.style.removeProperty('width');
-      this.stage.style.removeProperty('height');
-    }
-    const s = summarize(r.model);
-    const label = this.o.label ?? this.i18n.t(s.key, s.params);
-    this.rootEl.setAttribute('aria-label', label);
-    this.setupInteraction();
-    this.viewport?.setBounds(b);
-    if (!this.viewport) this.staticFit(b);
-    this.buildBar();
-    const warn = r.diagnostics.filter((d) => d.severity !== 'info' || d.code === 'theme.missing');
-    if (warn.length) emit(this.host, 'mmdx-error', { diagnostics: warn });
-    emit(this.host, 'mmdx-render', { bounds: b, type: r.model.type, durationMs: Math.round((now() - t0) * 10) / 10 });
-  }
-
-  /** Non-interactive viewers: the whole page fills the element through the viewBox. */
-  private staticFit(b: Rect): void {
-    this.vpEl.removeAttribute('transform');
-    this.svg.setAttribute('viewBox', `${b.x} ${b.y} ${b.w} ${b.h}`);
-    this.svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-  }
-
-  private async fetchTheme(id: string): Promise<void> {
-    const src = this.o.themeSource ?? getShared().themeSource;
-    if (!src) return;
-    try {
-      const file = await src.get(id);
-      if (this.destroyed) return;
-      this.ctx.themes.register(file);
-      // a theme that extends another unknown theme pulls that one in too
-      if (file.extends && !this.ctx.themes.has(file.extends)) await this.fetchTheme(file.extends);
-      this.scheduleRender();
-    } catch {
-      // missing or private theme: the diagram stays on baseline with an info diagnostic (§8.1)
-    }
-  }
-
-  private async showUnsupported(r: Rendered): Promise<void> {
-    const text = this.text ?? '';
-    patchChildren(this.bodyEl, []);
-    patchChildren(this.pageEl, []);
-    this.stage.hidden = true;
-    this.bar.replaceChildren();
-    const mode = this.o.fallback ?? 'mermaid';
-    if (mode === 'error') return this.showError(r.diagnostics, text);
-    if (mode === 'source') {
-      this.msg.replaceChildren(h('pre', { class: 'error' }, text));
-      return;
-    }
-    this.msg.replaceChildren(h('div', { class: 'loading' }, this.i18n.t('loading')));
-    try {
-      const svg = await renderWithMermaid(text, this.isDark());
-      if (this.destroyed || text !== this.text) return;
-      const box = h('div', { class: 'fallback', part: 'canvas' });
-      // stock Mermaid output, rendered with securityLevel "strict" (sanitised by Mermaid's DOMPurify)
-      box.innerHTML = svg;
-      this.msg.replaceChildren(box);
-      emit(this.host, 'mmdx-render', { bounds: { x: 0, y: 0, w: 0, h: 0 }, type: null, durationMs: 0 });
-    } catch (e) {
-      if (this.destroyed) return;
-      this.showError([...r.diagnostics, { severity: 'error', code: 'mermaid.failed', message: e instanceof Error ? e.message : String(e) }], text);
-    }
-  }
-
-  /** Compact error panel with line numbers and the source; never throws into the host. */
-  private showError(diags: readonly Diagnostic[], source: string): void {
-    this.stage.hidden = true;
-    this.bar.replaceChildren();
-    const bad = new Set(diags.map((d) => d.range?.line).filter((l): l is number => l !== undefined));
-    const pre = h('pre', null, ...source.split('\n').slice(0, 2000).map((l, i) => h('span', { class: bad.has(i) ? 'bad' : '' }, l || ' ')));
-    const copy = h('button', {
-      type: 'button',
-      onclick: () => {
-        void navigator.clipboard?.writeText(source).then(() => {
-          copy.textContent = this.i18n.t('error.copied');
-        });
-      },
-    }, this.i18n.t('error.copy'));
-    this.msg.replaceChildren(h('div', { class: 'error', role: 'alert' },
-      h('h2', null, diags.some((d) => d.code === 'doc.too-large' || d.code === 'doc.too-many-items') ? this.i18n.t('error.tooLarge') : this.i18n.t('error.title')),
-      h('ul', null, ...diags.slice(0, 20).map((d) => h('li', null, diagnosticText(d)))),
-      source ? pre : null,
-      source ? h('div', { class: 'actions' }, copy) : null));
-    emit(this.host, 'mmdx-error', { diagnostics: [...diags] });
-  }
-
-  /** Code view over the diagram: its Mermaid code without the layout metadata and without styling. */
-  private renderCode(): void {
-    const r = this.rendered;
-    if (!r) return;
-    void (async () => {
-      if (!this.codeMod) {
-        const mod = await import('./viewer-code.js');
-        if ('adoptedStyleSheets' in this.shadow && typeof CSSStyleSheet !== 'undefined' && 'replaceSync' in CSSStyleSheet.prototype) {
-          const sheet = new CSSStyleSheet();
-          sheet.replaceSync(mod.CODE_VIEW_CSS);
-          this.shadow.adoptedStyleSheets = [...this.shadow.adoptedStyleSheets, sheet];
-        } else this.shadow.append(h('style', null, mod.CODE_VIEW_CSS));
-        this.codeMod = mod;
-      }
-      if (this.destroyed || !this.showCode || this.rendered !== r) return;
-      this.msg.replaceChildren(this.codeMod.codeView(r.doc.code, this.i18n));
-    })();
-  }
-
-  /** Server-rendered SVG (build plugin, §11.4): shown immediately; interaction attaches on first render. */
-  private adoptSsr(ssr: SVGSVGElement): void {
-    const vb = ssr.viewBox.baseVal;
-    if (vb && vb.width && vb.height) this.stage.style.setProperty('--mmdx-aspect', `${vb.width} / ${vb.height}`);
-    const clone = ssr.cloneNode(true) as SVGSVGElement;
-    clone.setAttribute('class', 'scene ssr');
-    clone.removeAttribute('width');
-    clone.removeAttribute('height');
-    this.stage.prepend(clone);
-    this.svg.style.visibility = 'hidden';
-    const reveal = (): void => {
-      clone.remove();
-      this.svg.style.removeProperty('visibility');
-    };
-    // the server's pixels stay until the first client render replaces them in one swap
-    this.host.addEventListener('mmdx-render', reveal, { once: true, signal: this.ac.signal });
-  }
-
-  // ---- interaction ------------------------------------------------------------------------------------------------
-
-  private setupInteraction(): void {
-    const interactive = this.o.interactive !== false;
-    this.rootEl.classList.toggle('can-pan', interactive);
-    if (!interactive) {
-      this.viewport?.destroy();
-      this.viewport = null;
-      return;
-    }
-    if (this.viewport) {
-      this.viewport.setOptions({ wheel: this.o.wheel ?? 'ctrl' });
-      return;
-    }
-    this.svg.removeAttribute('viewBox');
-    this.viewport = new Viewport(this.svg, {
-      wheel: this.o.wheel ?? 'ctrl',
-      panOnDrag: true,
-      reducedMotion: matchMediaSafe('(prefers-reduced-motion: reduce)'),
-      onChange: (v) => {
-        this.vpEl.setAttribute('transform', `translate(${v.tx},${v.ty}) scale(${v.k})`);
-        this.pen?.sync();
-        const pct = this.bar.querySelector('.pct');
-        if (pct) pct.textContent = `${Math.round(v.k * 100)}%`;
-      },
-    });
-    this.svg.addEventListener('pointerdown', (ev) => {
-      this.moved = false;
-      const x = ev.clientX, y = ev.clientY;
-      const mv = (e: PointerEvent): void => {
-        if (Math.hypot(e.clientX - x, e.clientY - y) > 4) this.moved = true;
-      };
-      this.svg.addEventListener('pointermove', mv, { signal: this.ac.signal });
-      this.svg.addEventListener('pointerup', () => this.svg.removeEventListener('pointermove', mv), { once: true, signal: this.ac.signal });
-    }, { signal: this.ac.signal });
-    this.svg.addEventListener('dblclick', () => this.viewport?.fit(), { signal: this.ac.signal });
-  }
-
-  private wireLinks(): void {
-    // links open on click (not after a pan); hosts can route or veto them through the cancelable mmdx-link event
-    this.svg.addEventListener('click', (ev) => {
-      const a = (ev.target as Element).closest('a');
-      if (!a) return;
-      ev.preventDefault();
-      if (this.moved) return;
-      const href = a.getAttribute('href');
-      if (!href) return;
-      const item = a.closest('[data-id]');
-      if (!emit(this.host, 'mmdx-link', { href, id: item?.getAttribute('data-id') ?? null }, true)) return;
-      const target = this.ctx.linkPolicy.target ?? '_blank';
-      if (target === '_blank') window.open(href, '_blank', 'noopener,noreferrer');
-      else window.location.assign(href);
-    }, { signal: this.ac.signal });
-  }
-
-  private wireHover(): void {
-    this.svg.addEventListener('pointermove', (ev) => {
-      if (this.o.hoverHighlight === false || this.viewport?.panning || this.pen?.active) return;
-      const key = hoverHighlight(this.bodyEl, ev.target as Element, this.rendered?.model ?? null);
-      if (key !== this.hoverKey) this.hoverKey = key;
-    }, { signal: this.ac.signal });
-    this.svg.addEventListener('pointerleave', () => {
-      clearHighlight(this.bodyEl);
-      this.hoverKey = '';
-    }, { signal: this.ac.signal });
-  }
-
-  private wireKeys(): void {
-    // shortcuts only while focus is inside the viewer (§8.2: never at document level)
-    this.rootEl.addEventListener('keydown', (ev) => {
-      if (ev.target !== this.rootEl || ev.metaKey || ev.ctrlKey || ev.altKey) return;
-      const vp = this.viewport;
-      const { w, h: hh } = vp?.size ?? { w: 0, h: 0 };
-      const k = ev.key;
-      if ((k === '+' || k === '=') && vp) vp.zoomAt(1.2, w / 2, hh / 2);
-      else if (k === '-' && vp) vp.zoomAt(1 / 1.2, w / 2, hh / 2);
-      else if ((k === 'f' || k === 'F' || k === '0') && vp) vp.fit();
-      else if (k.startsWith('Arrow') && vp) vp.panBy(k === 'ArrowLeft' ? 40 : k === 'ArrowRight' ? -40 : 0, k === 'ArrowUp' ? 40 : k === 'ArrowDown' ? -40 : 0);
-      else if ((k === 'p' || k === 'P') && this.controls().includes('pen')) this.togglePen();
-      else if (k === 'Escape' && this.pen?.active) this.togglePen(false);
-      else return;
-      ev.preventDefault();
-    }, { signal: this.ac.signal });
-  }
-
-  private applyScheme(rerender: boolean): void {
-    const dark = this.isDark();
-    this.host.setAttribute('data-ui', dark ? 'dark' : 'light');
-    if (rerender && this.o.themeDark) this.scheduleRender();
-  }
-
-  // ---- controls bar -----------------------------------------------------------------------------------------------
+  // ---- internals --------------------------------------------------------------------------------------------------
 
   private controls(): readonly ViewerControl[] {
     return this.o.controls ?? DEFAULT_CONTROLS;
   }
 
-  private buildBar(): void {
+  /** Features of the kernel's modules, from the `controls`. */
+  private feature(name: string): boolean {
     const c = this.controls();
-    const t = this.i18n.t;
-    const parts: (HTMLElement | null)[] = [];
-    const btn = (label: string, ic: string, onclick: (ev: MouseEvent) => void, extra: Record<string, unknown> = {}): HTMLButtonElement =>
-      h('button', { type: 'button', title: label, 'aria-label': label, onclick, ...extra }, icon(ic));
-    if (c.includes('zoom') && this.viewport) {
-      const vp = this.viewport;
-      const mid = (): [number, number] => [vp.size.w / 2, vp.size.h / 2];
-      parts.push(
-        btn(t('zoom.out'), I_minus, () => vp.zoomAt(1 / 1.2, ...mid())),
-        h('span', { class: 'pct', 'aria-live': 'off' }, `${Math.round(vp.state.k * 100)}%`),
-        btn(t('zoom.in'), I_plus, () => vp.zoomAt(1.2, ...mid())),
-        h('button', { type: 'button', title: t('zoom.fit'), onclick: () => vp.fit() }, t('zoom.fitShort')),
-      );
+    const interactive = this.o.interactive !== false;
+    switch (name) {
+      case 'zoom':
+        return interactive && (c.includes('zoom') || c.includes('fullscreen'));
+      case 'help':
+        return interactive && c.includes('zoom');
+      case 'fullscreen':
+        return c.includes('fullscreen');
+      case 'pen':
+        return interactive && c.includes('pen');
+      case 'theme':
+      case 'scheme':
+        return c.includes('theme');
+      case 'history':
+        return c.includes('history') && !!this.o.history;
+      default:
+        return c.includes(name as ViewerControl);
     }
-    const extra: HTMLElement[] = [];
-    if (c.includes('layers')) extra.push(btn(t('layers.title'), I_layers, (ev) => this.openLayers(ev.currentTarget as HTMLElement), { 'aria-haspopup': 'true', 'aria-expanded': 'false' }));
-    if (c.includes('pen') && this.viewport) extra.push(btn(t('pen.title'), I_pen, () => this.togglePen(), { class: this.pen?.active ? 'on' : '', 'aria-pressed': String(!!this.pen?.active) }));
-    if (c.includes('code')) extra.push(btn(this.showCode ? t('codeView.hide') : t('codeView.show'), I_code, () => this.toggleCode(), { class: this.showCode ? 'on' : '', 'aria-pressed': String(this.showCode) }));
-    if (c.includes('history') && this.o.history && hasDiff()) extra.push(btn(t('history.open'), I_HISTORY, () => this.toggleHistory(), { class: this.historyView ? 'on' : '', 'aria-pressed': String(!!this.historyView) }));
-    if (c.includes('export')) extra.push(btn(t('export.title'), I_download, (ev) => this.openExport(ev.currentTarget as HTMLElement), { 'aria-haspopup': 'menu', 'aria-expanded': 'false' }));
-    if (c.includes('fullscreen') && document.fullscreenEnabled) {
-      const active = document.fullscreenElement === this.host;
-      extra.push(btn(active ? t('fullscreen.exit') : t('fullscreen.enter'), active ? I_shrink : I_expand, () => this.toggleFullscreen()));
+  }
+
+  private installModules(): void {
+    const list: ViewModule<ViewCore>[] = [
+      ...VIEWER_MODULES,
+      lazyModule({ id: 'viewer-export', enabled: (c) => c.feature('export') }, () => import('./viewer-modules.js').then((m) => m.viewerExportModule(this))),
+      lazyModule({ id: 'history', enabled: (c) => c.feature('history') }, () => import('./viewer-modules.js').then((m) => m.viewerHistoryModule(this))),
+    ];
+    this.core.useModules([]);
+    this.core.useModules(list);
+  }
+
+  private syncRole(): void {
+    this.core.root.setAttribute('role', this.core.panels.peek()['code-view'] ? 'group' : 'img');
+    this.core.root.classList.toggle('pinned', Object.values(this.core.panels.peek()).some(Boolean));
+  }
+
+  private async load(): Promise<void> {
+    if (!this.visible) return;
+    const seq = ++this.fetchSeq;
+    const t = this.core.i18n.t;
+    let text: string;
+    if (this.o.source !== undefined) text = this.o.source;
+    else if (this.o.src) {
+      if (!this.scene.rendered) this.msg.replaceChildren(h('div', { class: 'loading' }, t('loading')));
+      try {
+        const loader = this.o.loader ?? ((url: string) => fetch(url, { credentials: 'same-origin' }).then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.text();
+        }));
+        text = await loader(this.o.src);
+        if (seq !== this.fetchSeq || this.destroyed) return;
+      } catch (e) {
+        if (seq !== this.fetchSeq || this.destroyed) return;
+        this.scene.showError([{ severity: 'error', code: 'load.failed', message: `Could not load ${this.o.src}: ${e instanceof Error ? e.message : String(e)}` }], '');
+        return;
+      }
+    } else {
+      const script = this.host.querySelector(':scope > script[type="text/mermaid"], :scope > script[type="text/x-mermaid"]');
+      text = dedent((script?.textContent ?? this.host.getAttribute('data-source') ?? '').replace(/<\\\/(script)/gi, '</$1'));
     }
-    if (parts.length && extra.length) parts.push(h('span', { class: 'sep' }));
-    this.bar.replaceChildren(...parts.filter((p): p is HTMLElement => !!p), ...extra);
-    this.bar.hidden = !this.bar.childElementCount;
-  }
-
-  /** Opens or closes the History of the diagram (its versions in a diff view over the viewer). */
-  toggleHistory(on = !this.historyView): void {
-    if (!on) this.historyView?.close();
-    const history = this.o.history;
-    if (!on || this.historyView || !history || !hasDiff()) return;
-    void import('./history-view.js').then((m) => {
-      if (this.destroyed || this.historyView) return;
-      this.historyView = m.openHistoryView({
-        container: this.rootEl, history, current: this.text ?? '', t: this.i18n.t, ui: this.isDark() ? 'dark' : 'light', storage: this.storage, grow: true,
-        onClose: () => {
-          this.historyView = null;
-          this.buildBar();
-        },
-      });
-      this.buildBar();
-    });
-  }
-
-  private toggleCode(): void {
-    this.showCode = !this.showCode;
-    if (!this.showCode) this.msg.replaceChildren();
-    // a picture while the diagram shows; the code view inside must stay readable for screen readers
-    this.rootEl.setAttribute('role', this.showCode ? 'group' : 'img');
-    this.renderNow();
-  }
-
-  private toggleFullscreen(): void {
-    if (document.fullscreenElement === this.host) {
-      void document.exitFullscreen();
-      return;
-    }
-    this.host.requestFullscreen().then(() => {
-      emit(this.host, 'mmdx-fullscreen', { active: true });
-      const off = (): void => {
-        if (document.fullscreenElement === this.host) return;
-        document.removeEventListener('fullscreenchange', off);
-        emit(this.host, 'mmdx-fullscreen', { active: false });
-        this.buildBar();
-        this.viewport?.fit();
-      };
-      document.addEventListener('fullscreenchange', off, { signal: this.ac.signal });
-      this.buildBar();
-      this.viewport?.fit();
-    }, () => this.toaster.show(this.i18n.t('fullscreen.failed'), { error: true }));
-  }
-
-  private togglePen(on?: boolean): void {
-    if (!this.penMod) {
-      void import('../dom/pen.js').then((m) => {
-        this.penMod = m;
-        if (!this.destroyed) this.togglePen(on);
-      });
-      return;
-    }
-    if (!this.pen) {
-      const vp = this.viewport;
-      if (!vp) return;
-      this.pen = this.penMod.createMagicPen({
-        container: this.stage,
-        getView: () => vp.state,
-        wheelTarget: this.svg,
-        storage: this.storage,
-        reducedMotion: () => matchMediaSafe('(prefers-reduced-motion: reduce)'),
-        onChange: () => this.buildBar(),
-      });
-    }
-    const next = on ?? !this.pen.active;
-    this.pen.setActive(next);
-    if (next) this.openPenOptions();
-    else this.pops.close();
-  }
-
-  private openPenOptions(): void {
-    const pen = this.pen;
-    if (!pen) return;
-    void import('./viewer-popups.js').then(({ penOptions }) => {
-      if (this.destroyed || !pen.active) return;
-      this.pops.open(penOptions(pen, this.i18n.t), null, { focus: false });
-    });
-  }
-
-  private openLayers(opener: HTMLElement): void {
-    if (!this.rendered) return;
-    void import('./viewer-popups.js').then(({ viewSettings }) => {
-      if (this.destroyed) return;
-      this.pops.open(viewSettings({
-        meta: () => this.rendered?.doc.meta ?? { canvas: {}, styles: {} },
-        visible: () => this.o.layers,
-        labels: () => this.o.labels !== false,
-        hover: () => this.o.hoverHighlight !== false,
-        setVisible: (ids) => this.setLayers(ids),
-        setLabels: (v) => this.set({ labels: v }),
-        setHover: (v) => this.set({ hoverHighlight: v }),
-      }, this.i18n.t), opener);
-    });
-  }
-
-  private openExport(opener: HTMLElement): void {
-    const t = this.i18n.t;
-    const name = (this.o.src?.split('/').pop() ?? 'diagram').replace(/\.(mmdx?|md|txt)$/i, '') || 'diagram';
-    const item = (label: string, f: () => void | Promise<void>): HTMLElement =>
-      h('button', { type: 'button', role: 'menuitem', onclick: () => { this.pops.close(); void Promise.resolve(f()).catch((e: unknown) => this.toaster.show(e instanceof Error ? e.message : String(e), { error: true })); } }, label);
-    const download = async (file: string, data: string | Blob, type?: string): Promise<void> => (await import('../dom/export.js')).download(file, data, type);
-    const pop = h('div', { class: 'pop mmdx-menu', role: 'menu' },
-      item(t('export.svg'), () => download(`${name}.svg`, this.toSvg(), 'image/svg+xml')),
-      item(t('export.png'), async () => download(`${name}.png`, await this.toPng())),
-      this.text ? item(t('export.mmdx'), () => download(`${name}.mmdx`, this.text ?? '')) : null);
-    this.pops.open(pop, opener);
+    this.scene.setText(text);
   }
 }
 
@@ -749,7 +312,7 @@ export class DiagramViewer {
 const BOOL_ATTRS = ['interactive', 'lazy', 'labels', 'hover-highlight'] as const;
 
 export class MmdxViewerElement extends ElementBase {
-  static observedAttributes = ['src', 'theme', 'theme-dark', 'fit', 'controls', 'wheel', 'fallback', 'label', 'ui', 'rehydrate', ...BOOL_ATTRS];
+  static observedAttributes = ['src', 'theme', 'theme-dark', 'fit', 'controls', 'wheel', 'fallback', 'label', 'ui', 'rehydrate', 'compact', ...BOOL_ATTRS];
   private viewer: DiagramViewer | null = null;
   private pending: Partial<ViewerOptions> = {};
 
@@ -786,6 +349,8 @@ export class MmdxViewerElement extends ElementBase {
     set('label', a('label'));
     set('ui', a('ui') as ViewerOptions['ui'] | null);
     set('rehydrate', a('rehydrate') as ViewerOptions['rehydrate'] | null);
+    const compact = a('compact');
+    if (compact !== null) o.compact = compact === 'auto' ? 'auto' : compact !== 'false';
     set('interactive', bool('interactive'));
     set('lazy', bool('lazy'));
     set('labels', bool('labels'));
@@ -854,31 +419,13 @@ export class MmdxViewerElement extends ElementBase {
   get diagnostics(): readonly Diagnostic[] {
     return this.viewer?.diagnostics ?? [];
   }
+  /** The underlying viewer (advanced use; undefined while disconnected). */
+  get instance(): DiagramViewer | undefined {
+    return this.viewer ?? undefined;
+  }
 }
 
 // ---- helpers -------------------------------------------------------------------------------------------------------
-
-const countLines = (s: string): number => {
-  let n = 1;
-  for (let i = s.indexOf('\n'); i >= 0 && n <= WORKER_THRESHOLD_LINES; i = s.indexOf('\n', i + 1)) n++;
-  return n;
-};
-
-const now = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
-
-function idle(f: () => void): number {
-  const w = globalThis as typeof globalThis & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
-  return w.requestIdleCallback ? w.requestIdleCallback(f, { timeout: 120 }) : (setTimeout(f, 16) as unknown as number);
-}
-function cancelIdle(id: number): void {
-  const w = globalThis as typeof globalThis & { cancelIdleCallback?: (id: number) => void };
-  if (w.cancelIdleCallback) w.cancelIdleCallback(id);
-  else clearTimeout(id);
-}
-
-function matchMediaSafe(q: string): boolean {
-  return typeof matchMedia !== 'undefined' && matchMedia(q).matches;
-}
 
 /** Removes the common indentation of an inline `<script type="text/mermaid">` block. */
 export function dedent(s: string): string {

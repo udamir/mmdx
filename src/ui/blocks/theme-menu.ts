@@ -5,7 +5,7 @@
 import { h, icon } from '../h.js';
 import { registerMessages } from '../i18n.js';
 import { I_chevronDown, I_palette } from '../icons.js';
-import { BLOCK_MESSAGES_PANELS } from '../messages/blocks.js';
+import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
 import type { PopoverManager } from '../popover.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
 import { attachMenu, openMenu, type MenuEntry } from './menu.js';

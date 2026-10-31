@@ -6,7 +6,7 @@
 import { h, icon } from '../h.js';
 import { registerMessages } from '../i18n.js';
 import { I_eye, I_eyeOff, I_lock, I_unlock } from '../icons.js';
-import { BLOCK_MESSAGES_PANELS } from '../messages/blocks.js';
+import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
 import { focusedIn, keepFocus } from './focus.js';
 

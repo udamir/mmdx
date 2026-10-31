@@ -128,8 +128,9 @@ export function reconnect(core: EditorCore, kind: LineKind, id: string, which: '
 
 export const connectModule: EditorModule = {
   id: 'connect',
-  css: CONNECT_CSS,
-  install(core) {
+  css: [CONNECT_CSS],
+  install(scope) {
+    const core = scope.core;
     const ac = new AbortController();
     const offs: (() => void)[] = [];
     let linking: Linking | null = null;

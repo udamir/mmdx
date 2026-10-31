@@ -15,7 +15,7 @@ const registry = createDefaultRegistry();
 
 function portable(src: string, themeId?: string): string {
   const { doc } = splitSource(src);
-  const theme = registry.get(themeId ?? (typeof doc.meta.canvas.theme === 'string' ? doc.meta.canvas.theme : 'default-light'));
+  const theme = registry.get(themeId ?? 'default-light');
   return toPortableMermaid(doc.code, doc.meta, parse(doc.code), theme, createColorResolver(theme, diagramPaletteOf(doc.meta.styles)));
 }
 

@@ -4,7 +4,6 @@
 // smaller, and Fit becomes an icon.
 import { h, icon } from '../h.js';
 import { registerMessages } from '../i18n.js';
-import { ICONS } from '../icons.js';
 import { BLOCK_MESSAGES_CHROME } from '../messages/blocks.js';
 import { formatKeys as defaultFormat } from '../shortcuts.js';
 import type { ReadSignal } from '../signal.js';
@@ -34,6 +33,9 @@ export interface ZoomBarHandle extends BlockHandle<ZoomBarProps> {
   readonly helpButton: HTMLButtonElement | null;
 }
 
+/** Full screen in / out (`I_expand` / `I_shrink` of ui/icons.ts, inlined: the viewer's eager chunk has no icon table). */
+const I_EXPAND = 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5';
+const I_SHRINK = 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5';
 /** Fit to view: the four corners around a dot (the expand arrows are full screen's). */
 const I_FIT = 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z';
 
@@ -99,7 +101,7 @@ export function createZoomBar(props: ZoomBarProps): ZoomBarHandle {
       fx.effect(() => {
         const on = read(full.active);
         const label = on ? t('fullscreen.exit') : t('fullscreen.enter');
-        fs.replaceChildren(icon(on ? ICONS.shrink : ICONS.expand, 16));
+        fs.replaceChildren(icon(on ? I_SHRINK : I_EXPAND, 16));
         fs.title = label;
         fs.setAttribute('aria-label', label);
         fs.setAttribute('aria-pressed', String(on));

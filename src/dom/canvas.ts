@@ -1,7 +1,7 @@
 // DiagramCanvas (component architecture §6): one class for every picture of a diagram — the viewer's, the editor's,
 // each pane of the diff and the theme editor's live preview. It owns the SVG layers, the viewport (pan / zoom) or a
 // static fit through the viewBox, keyed patching, hit testing, the pen's ink layer, linking with a second canvas
-// (side by side) and the morph between states.
+// (side by side), and handing the content to a morph between states.
 //
 //   svg  > defs
 //        > g.vp (pan / zoom transform)
@@ -9,7 +9,6 @@
 //            > g.ink
 import type { Rect } from '../core/types.js';
 import type { SceneNode } from '../core/scene/types.js';
-import { Morph, type MorphState } from './morph.js';
 import { patchChildren } from './patch.js';
 import type { StrokeStore } from './pen.js';
 import { Viewport, type ViewState, type WheelMode } from './viewport.js';
@@ -87,7 +86,7 @@ export class DiagramCanvas {
   private vpt: Viewport | null = null;
   private o: CanvasOptions;
   private bounds: Rect | null = null;
-  private morphing: Morph | null = null;
+  private morphing: { dispose(): void } | null = null;
   private readonly links = new Set<DiagramCanvas>();
   private linking = false;
   private readonly unlinks: (() => void)[] = [];
@@ -184,14 +183,13 @@ export class DiagramCanvas {
     for (const g of [this.defs, this.page, this.body, this.runs, this.overlay]) g.replaceChildren();
   }
 
-  /** Shows animated states in the content group (the diff's before / merged / after). */
-  morph(states: MorphState[], index: number): Morph {
-    if (this.morphing) {
-      this.morphing.reset(states, index);
-      return this.morphing;
-    }
-    this.morphing = new Morph(this.defs, this.content, states, index, this.o.reducedMotion ?? (() => false));
-    return this.morphing;
+  /**
+   * Hands the content group to a morph between states (the diff's before / merged / after: `new Morph(canvas.defs,
+   * canvas.content, …)`); `show()` or `clear()` end it and put the standard layers back.
+   */
+  setMorph(m: { dispose(): void } | null): void {
+    if (this.morphing && this.morphing !== m) this.endMorph();
+    this.morphing = m;
   }
 
   private endMorph(): void {

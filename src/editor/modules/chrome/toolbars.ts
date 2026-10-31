@@ -106,8 +106,9 @@ function anchorRect(core: EditorCore, s: Sel): Rect | null {
 
 export const toolbarsModule: EditorModule = {
   id: 'toolbars',
-  css: TOOLBARS_CSS,
-  install(core) {
+  css: [TOOLBARS_CSS],
+  install(scope) {
+    const core = scope.core;
     const t = core.i18n.t;
     const f = core.features;
     const ac = new AbortController();

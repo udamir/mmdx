@@ -63,8 +63,9 @@ export function centerView(core: EditorCore, k = 1): void {
 
 export const canvasEmptyModule: EditorModule = {
   id: 'canvas-empty',
-  css: EMPTY_CSS,
-  install(core) {
+  css: [EMPTY_CSS],
+  install(scope) {
+    const core = scope.core;
     const offs: (() => void)[] = [];
     const hint = h('div', { class: 'empty-hint edit-only', hidden: true }, 'Drag shapes from the toolbar on the left onto the canvas');
     const chooser = h('div', { class: 'type-chooser edit-only', role: 'dialog', 'aria-label': 'Start a diagram', hidden: true },

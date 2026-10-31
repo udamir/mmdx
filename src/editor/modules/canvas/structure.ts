@@ -102,8 +102,9 @@ const ALIGN: Record<Parameters<EditorActions['arrange']>[0], AlignOp> = {
 
 export const canvasStructureModule: EditorModule = {
   id: 'canvas-structure',
-  css: STRUCTURE_CSS,
-  install(core: EditorCore) {
+  css: [STRUCTURE_CSS],
+  install(scope) {
+    const core = scope.core;
     const ac = new AbortController();
     const offs: (() => void)[] = [];
     /** The copy buffer (UI state, never saved): the source of truth for paste. */

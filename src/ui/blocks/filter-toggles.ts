@@ -7,7 +7,7 @@
 import { h, icon } from '../h.js';
 import { registerMessages } from '../i18n.js';
 import { I_palette } from '../icons.js';
-import { BLOCK_MESSAGES_DIFF } from '../messages/blocks.js';
+import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
 import { keepFocus } from './focus.js';
 

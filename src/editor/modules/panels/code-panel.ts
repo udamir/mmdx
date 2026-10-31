@@ -125,9 +125,10 @@ button.link { border: 0; background: none; color: var(--accent); padding: 0; fon
 
 export const codePanelModule: EditorModule = {
   id: 'code-panel',
-  css: CODE_PANEL_CSS,
-  enabled: (f) => f.codePanel,
-  install(core) {
+  css: [CODE_PANEL_CSS],
+  enabled: ({ features: f }) => f.codePanel,
+  install(scope) {
+    const core = scope.core;
     const t = core.i18n.t;
     const store = core.store;
     const ac = new AbortController();

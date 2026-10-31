@@ -143,8 +143,9 @@ export function applyActivation(core: EditorCore): void {
 
 export const sequenceModule: EditorModule = {
   id: 'sequence',
-  css: SEQUENCE_CSS,
-  install(core) {
+  css: [SEQUENCE_CSS],
+  install(scope) {
+    const core = scope.core;
     const ac = new AbortController();
     const offs: (() => void)[] = [];
     let linking: SeqLinking | null = null;

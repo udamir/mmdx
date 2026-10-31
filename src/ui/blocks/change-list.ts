@@ -9,7 +9,7 @@ import type { DiagramDiff, FieldChange, ItemChange } from '../../core/diff/index
 import { changeKey } from '../../core/diff/merge.js';
 import { h, icon } from '../h.js';
 import { registerMessages } from '../i18n.js';
-import { BLOCK_MESSAGES_DIFF } from '../messages/blocks.js';
+import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
 import { FILTER_ICONS } from './filter-toggles.js';
 import { keepFocus } from './focus.js';

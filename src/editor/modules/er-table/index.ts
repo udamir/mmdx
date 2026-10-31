@@ -55,8 +55,9 @@ type RowHit = { i: number; add: boolean } | 'title' | null;
 
 export const erTableModule: EditorModule = {
   id: 'er-table',
-  css: ER_TABLE_CSS,
-  install(core) {
+  css: [ER_TABLE_CSS],
+  install(scope) {
+    const core = scope.core;
     const t = core.i18n.t;
     const ac = new AbortController();
     const sig = { signal: ac.signal };

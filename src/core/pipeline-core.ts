@@ -20,7 +20,7 @@ export interface Kinds {
 }
 
 export interface PipelineOptions {
-  /** Theme to use instead of the diagram's own (`canvas.theme`). */
+  /** Theme to draw with (default: baseline). Diagrams do not carry a theme: the host or the user picks it. */
   theme?: string;
   /** Only these layers are shown (overrides the stored hidden flags). */
   visibleLayers?: readonly string[];
@@ -60,10 +60,9 @@ export function renderContext(ctx: CoreContext, theme: ResolvedTheme, doc: Diagr
   };
 }
 
-/** Picks the theme: forced, else the diagram's own, else baseline; reports a theme the registry does not have. */
-export function pickTheme(ctx: CoreContext, doc: DiagramDocument, forced?: string): { id: string; theme: ResolvedTheme; diagnostics: Diagnostic[] } {
-  const own = typeof doc.meta.canvas.theme === 'string' ? doc.meta.canvas.theme : undefined;
-  const want = forced ?? own ?? BASELINE;
+/** Picks the theme: the given one, else baseline; reports a theme the registry does not have. */
+export function pickTheme(ctx: CoreContext, _doc: DiagramDocument, forced?: string): { id: string; theme: ResolvedTheme; diagnostics: Diagnostic[] } {
+  const want = forced ?? BASELINE;
   const diagnostics: Diagnostic[] = [];
   if (!ctx.themes.has(want))
     diagnostics.push({ severity: 'info', code: 'theme.missing', message: `Theme "${want}" is not available; using Baseline`, source: 'meta', params: { theme: want } });

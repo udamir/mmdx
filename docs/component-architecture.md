@@ -378,6 +378,19 @@ The session's code (diff modules and the diff part of `core`) loads on first use
 - `mmdx/diff` = kernel + `DiffScene` + diff modules + the diff part of `core`; kinds on demand. Target 60 kB.
 - The size gate adds "viewer + History opened" and "editor + History opened" rows.
 
+### 10.1 Phase-0 measurement (phase 3)
+
+Measured with `tools/size.mjs` once the viewer and the editor ran on the kernel:
+
+| Entry | Before | Eager kernel, every module eager | Eager kernel, viewer modules on demand | Budget set |
+|---|---|---|---|---|
+| viewer (first flowchart) | 45.3 kB | 74.0 kB | 53.4 kB | 55 kB (provisional) |
+| editor | 162.8 kB | 173.2 kB | 173.2 kB | 176 kB (provisional) |
+
+- The viewer loads only the kernel, `TextScene`, `zoomBar`, `links` and `hoverHighlight` eagerly; `panelStacks`, `toolDock`, `pan`, `pen`, `viewSettings`, `codeView`, `viewParams`, its export formats and History load when their control is on (`lazyModule`), the help popup on first `?`. One message table per block group and inlined zoom-bar icons keep the eager chunk free of the lazy blocks' strings and icons.
+- What remains is the kernel itself: `ViewCore` with the module host and scopes (≈ 3.8 kB gzip), `DiagramCanvas` (≈ 1.9 kB), the zoom bar block and module (≈ 2 kB), the keymap (≈ 0.8 kB).
+- The budgets above are provisional, to keep the gate meaningful. Decision 19 is still open: split the kernel further (keymap and help, suspension, panel stacks on demand) or keep the re-set budgets.
+
 ## 11. Public API and compatibility
 
 The next release is breaking. Its notes list:

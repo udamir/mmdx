@@ -10,7 +10,7 @@ import { diffLines, hunks, type LineOp } from '../../core/diff/text.js';
 import { highlightLine, highlightMetaLine } from '../code-editor.js';
 import { h } from '../h.js';
 import { registerMessages } from '../i18n.js';
-import { BLOCK_MESSAGES_DIFF } from '../messages/blocks.js';
+import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
 import { focusedIn, keepFocus } from './focus.js';
 

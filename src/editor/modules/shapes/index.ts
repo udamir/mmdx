@@ -35,8 +35,9 @@ export function addShape(core: EditorCore, kind: string, opts: { preset?: string
 
 export const shapesModule: EditorModule = {
   id: 'shapes',
-  css: SHAPES_CSS,
-  install(core) {
+  css: [SHAPES_CSS],
+  install(scope) {
+    const core = scope.core;
     const ac = new AbortController();
     const sig = { signal: ac.signal };
     const offs: (() => void)[] = [];
