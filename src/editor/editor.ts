@@ -268,6 +268,16 @@ export class DiagramEditor {
     this.name = this.core.fileName = v;
   }
 
+  /** The id of the theme the diagram is shown in (the host's, the user's pick or the default; §7.5). */
+  get theme(): string {
+    return this.core.shownTheme();
+  }
+
+  /** Repaints the document and the panels (e.g. after a theme was edited elsewhere). */
+  redraw(): void {
+    this.core.afterChange();
+  }
+
   select(items: ItemRef[]): void {
     this.core.select(items);
   }

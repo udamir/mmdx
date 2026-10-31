@@ -10,6 +10,7 @@ import { usedIds } from '../../../core/ops/ids.js';
 import { resetLayout } from '../../../core/ops/meta-ops.js';
 import { standaloneSvg } from '../../../core/pipeline.js';
 import { download, svgToPng } from '../../../dom/export.js';
+import type { Diagnostic } from '../../../core/types.js';
 import { h } from '../../../ui/h.js';
 import type { EditorCore } from '../../core.js';
 import type { EditorModule } from '../../module.js';
@@ -153,24 +154,51 @@ export function loadDocument(core: EditorCore, src: string, name?: string): void
 
 const isJson = (f: File): boolean => /\.json$/i.test(f.name);
 
-export async function openFiles(core: EditorCore, files: FileList | File[]): Promise<void> {
-  const t = core.i18n.t;
+/** The text of a Markdown file is its first ```mermaid block (other files are taken as they are). */
+export function extractMermaid(text: string, fileName: string): string {
+  if (!/\.(md|markdown)$/i.test(fileName)) return text;
+  const md = /```mermaid[^\n]*\n([\s\S]*?)```/.exec(text);
+  return md ? md[1] ?? '' : text;
+}
+
+export interface ReadFiles {
+  /** The document to load. */
+  source: string;
+  /** The diagram file's name (absent when only a sidecar was given). */
+  name?: string;
+  /** A `.json` legacy layout sidecar that was merged, with what merging it reported. */
+  sidecar?: { name: string; diagnostics: Diagnostic[] };
+}
+
+/**
+ * Reads dropped or picked files into one document (A.8 row 79): `.mmdx`, `.mmd`, `.txt`, `.md` (its first mermaid
+ * block), plus a `.json` legacy sidecar merged into it (into `current()` when no diagram file came with it). Null when
+ * nothing could be opened.
+ */
+export async function readDocumentFiles(files: FileList | File[], current: () => string): Promise<ReadFiles | null> {
   const list = Array.from(files);
   const json = list.find(isJson);
   const src = list.find((f) => !isJson(f));
-  if (!json && !src) return;
+  if (!json && !src) return null;
+  const text = src ? extractMermaid(await src.text(), src.name) : current();
+  const out: ReadFiles = { source: text };
+  if (src) out.name = src.name;
+  if (json) {
+    const merged = mergeLegacySidecar(text, await json.text());
+    out.source = joinSource(merged.doc);
+    out.sidecar = { name: json.name, diagnostics: merged.diagnostics };
+  }
+  return out;
+}
+
+export async function openFiles(core: EditorCore, files: FileList | File[]): Promise<void> {
+  const t = core.i18n.t;
   try {
-    let text = src ? await src.text() : null;
-    if (text !== null) {
-      const md = /```mermaid[^\n]*\n([\s\S]*?)```/.exec(text);
-      if (md) text = md[1] ?? '';
-    }
-    if (json) {
-      const merged = mergeLegacySidecar(text ?? core.store.source(), await json.text());
-      for (const d of merged.diagnostics) if (d.severity !== 'info') core.toast(d.message, { error: d.severity === 'error' });
-      loadDocument(core, joinSource(merged.doc), src?.name);
-      core.toast(t('open.layout', { name: json.name }));
-    } else if (text !== null) loadDocument(core, text, src?.name);
+    const read = await readDocumentFiles(files, () => core.store.source());
+    if (!read) return;
+    for (const d of read.sidecar?.diagnostics ?? []) if (d.severity !== 'info') core.toast(d.message, { error: d.severity === 'error' });
+    loadDocument(core, read.source, read.name);
+    if (read.sidecar) core.toast(t('open.layout', { name: read.sidecar.name }));
   } catch (e) {
     core.toast(t('open.failed', { msg: e instanceof Error ? e.message : String(e) }), { error: true });
   }
@@ -199,23 +227,24 @@ export const documentModule: EditorModule = {
     if (f.autoLayout) cleanups.push(core.provide('autoLayout', () => autoLayout(core)));
     if (f.open) {
       cleanups.push(core.provide('openFiles', (files) => openFiles(core, files)));
-      // drag-and-drop onto the canvas
-      const ac = new AbortController();
+      // drag-and-drop onto the canvas: through the `openFiles` action, so a host that provides its own (the studio:
+      // its file name, versions and unsaved-changes check) handles the drop; the event is consumed (defaultPrevented)
+      // for hosts that listen further up. Muted while the module is suspended: History never loads a dropped file.
       const wrap = core.dom.wrap;
       const hasFiles = (ev: DragEvent): boolean => !!ev.dataTransfer && Array.from(ev.dataTransfer.types).includes('Files');
-      wrap.addEventListener('dragover', (ev) => {
+      scope.listen(wrap, 'dragover', (ev: DragEvent) => {
         if (!hasFiles(ev) || core.mode.peek() !== 'edit') return;
         ev.preventDefault();
         wrap.classList.add('drop-target');
-      }, { signal: ac.signal });
-      wrap.addEventListener('dragleave', () => wrap.classList.remove('drop-target'), { signal: ac.signal });
-      wrap.addEventListener('drop', (ev) => {
+      });
+      scope.listen(wrap, 'dragleave', () => wrap.classList.remove('drop-target'));
+      scope.listen(wrap, 'drop', (ev: DragEvent) => {
         wrap.classList.remove('drop-target');
         if (!ev.dataTransfer?.files.length || core.mode.peek() !== 'edit') return;
         ev.preventDefault();
-        void openFiles(core, ev.dataTransfer.files);
-      }, { signal: ac.signal });
-      cleanups.push(() => ac.abort());
+        void core.run('openFiles', ev.dataTransfer.files);
+      });
+      cleanups.push(() => wrap.classList.remove('drop-target'));
     }
     return () => {
       for (const c of cleanups) c();

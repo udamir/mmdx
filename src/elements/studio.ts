@@ -6,8 +6,8 @@ import { decodeHash, encodeHash } from '../adapters/share.js';
 import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
 import { fetchThemeSource, localStorageThemeStore, type ThemeSource } from '../adapters/themes.js';
 import { ensureBuiltinThemes, getShared } from '../config.js';
-import { mergeLegacySidecar, joinSource } from '../core/meta/index.js';
 import { defineEditor, type DiagramEditor, type MmdxEditorElement } from '../editor/editor.js';
+import { readDocumentFiles } from '../editor/modules/chrome/document.js';
 import { download } from '../dom/export.js';
 import { contentId, type HistoryAdapter, type StaticVersion } from '../adapters/history.js';
 import type { BlockHandle } from '../ui/blocks/block.js';
@@ -106,6 +106,9 @@ export class DiagramStudio {
   private history!: HistoryAdapter;
   private hashTimer: ReturnType<typeof setTimeout> | undefined;
   private ui: 'light' | 'dark' | 'auto';
+  /** Bumps on every document opened: a slow load (an example, a file, a link) started before gives up. */
+  private openSeq = 0;
+  private destroyed = false;
 
   constructor(private readonly host: HTMLElement, opts: StudioOptions = {}) {
     this.o = { ...opts };
@@ -164,10 +167,14 @@ export class DiagramStudio {
       const src = this.editorEl.getSource();
       download(`${this.name}.mmdx`, src);
       this.recordVersion(src, `Saved ${this.name}.mmdx`);
-      this.editorEl.instance?.store.markSaved();
+      this.editorEl.instance?.markSaved();
     }, sig);
+    // files dropped on the editor or opened from its menu: the studio opens them (its name, versions, unsaved check)
+    const off = this.editorEl.instance?.core.provide('openFiles', (files) => this.openFiles(files));
+    if (off) this.cleanups.push(off);
+    // what the editor took (a drop on its canvas) is not opened again here
     root.addEventListener('dragover', (ev) => {
-      if (!ev.dataTransfer?.types.includes('Files')) return;
+      if (ev.defaultPrevented || !ev.dataTransfer?.types.includes('Files')) return;
       ev.preventDefault();
       root.classList.add('dragover');
     }, sig);
@@ -176,7 +183,7 @@ export class DiagramStudio {
     }, sig);
     root.addEventListener('drop', (ev) => {
       root.classList.remove('dragover');
-      if (!ev.dataTransfer?.files.length) return;
+      if (ev.defaultPrevented || !ev.dataTransfer?.files.length) return;
       ev.preventDefault();
       void this.openFiles(ev.dataTransfer.files);
     }, sig);
@@ -195,9 +202,11 @@ export class DiagramStudio {
   }
 
   destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
     this.ac.abort();
     clearTimeout(this.hashTimer);
-    for (const c of this.cleanups) c();
+    for (const c of this.cleanups.splice(0)) c();
     this.pops.close();
     this.toaster.destroy();
     this.shadow.replaceChildren();
@@ -210,9 +219,15 @@ export class DiagramStudio {
   }
 
   private async boot(): Promise<void> {
+    const seq = this.openSeq;
+    // the user may open something (or the studio go away) while the themes, the examples or the link load
+    const stale = (): boolean => this.destroyed || seq !== this.openSeq;
     await this.loadThemes();
+    if (stale()) return;
     await this.loadExamples();
+    if (stale()) return;
     if (await this.fromHash()) return;
+    if (stale()) return;
     const saved = this.persistModes().includes('local') ? this.storage.get<{ src: string; name?: string; key?: string }>(STORE_KEY) : undefined;
     if (saved && typeof saved.src === 'string' && saved.src.trim()) {
       // restoring the autosaved document is not an unsaved change
@@ -274,7 +289,9 @@ export class DiagramStudio {
     if (!this.persistModes().includes('hash')) return false;
     const m = /^#d=([\w-]+)$/.exec(location.hash);
     if (!m) return false;
+    const seq = this.openSeq;
     const src = await decodeHash(m[1]!);
+    if (this.destroyed || seq !== this.openSeq) return false;
     if (src === null) {
       this.toaster.show('The link does not contain a valid diagram', { error: true });
       return false;
@@ -309,20 +326,25 @@ export class DiagramStudio {
   // ---- documents --------------------------------------------------------------------------------------------------
 
   private open(src: string, name: string, opts: { markSaved?: boolean; key?: string | undefined } = {}): void {
+    if (this.destroyed) return;
+    this.openSeq++;
     this.name = name.replace(/\.(mmdx|mmd|md|txt)$/i, '') || 'diagram';
     this.docKey = opts.key ?? `file:${this.name}`;
     this.bundled = [];
     this.editorEl.instance?.toggleHistory(false);
     this.syncHistory();
-    void this.loadBundled().then(() => this.syncHistory());
+    void this.loadBundled().then(() => {
+      if (!this.destroyed) this.syncHistory();
+    });
     this.nameEl.textContent = this.name;
     this.editorEl.setSource(src, { history: 'reset' });
-    if (opts.markSaved === false) this.editorEl.instance?.store.markSaved('');
-    if (this.editorEl.instance) this.editorEl.instance.name = this.editorEl.instance.core.fileName = this.name;
+    if (opts.markSaved === false) this.editorEl.instance?.markSaved('');
+    if (this.editorEl.instance) this.editorEl.instance.fileName = this.name;
     this.nameEl.classList.toggle('dirty', this.editorEl.dirty);
   }
 
   private async openExample(ex: ExampleInfo): Promise<void> {
+    const seq = this.openSeq;
     if (this.editorEl.dirty && !(await this.dialogs.confirm('Discard changes?', 'The current diagram has unsaved changes.', { ok: 'Discard', danger: true }))) return;
     try {
       // an example with a history opens at its newest version (the example file is where the history starts)
@@ -334,6 +356,8 @@ export class DiagramStudio {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         src = await r.text();
       }
+      // something else was opened while the example loaded: it stays
+      if (this.destroyed || seq !== this.openSeq) return;
       this.open(src, ex.file.split('/').pop() ?? ex.id, { key });
     } catch (e) {
       this.toaster.show(`Could not open ${ex.title}: ${e instanceof Error ? e.message : String(e)}`, { error: true });
@@ -344,7 +368,9 @@ export class DiagramStudio {
     const item = (label: string, type: keyof typeof START) => ({
       label,
       run: async (): Promise<void> => {
+        const seq = this.openSeq;
         if (this.editorEl.dirty && !(await this.dialogs.confirm('Discard changes?', 'The current diagram has unsaved changes.', { ok: 'Discard', danger: true }))) return;
+        if (seq !== this.openSeq) return;
         this.open(START[type], `untitled-${type}`);
         this.toaster.show('New diagram — add shapes from the Shapes menu on the left');
       },
@@ -382,23 +408,21 @@ export class DiagramStudio {
     input.click();
   }
 
-  /** `.mmdx`, `.mmd`, `.md` (first ```mermaid block), `.txt`; a `.json` sidecar is merged (A.8 row 79). */
+  /**
+   * `.mmdx`, `.mmd`, `.md` (first ```mermaid block), `.txt`; a `.json` sidecar is merged (A.8 row 79). The one path for
+   * files in the studio: its Open button, drops anywhere (the editor's canvas included) and the editor's ⋯ menu.
+   */
   async openFiles(files: FileList | File[]): Promise<void> {
     const list = Array.from(files);
-    const json = list.find((f) => /\.json$/i.test(f.name));
-    const src = list.find((f) => !/\.json$/i.test(f.name));
-    if (!src && !json) return;
+    if (!list.length) return;
+    const seq = this.openSeq;
     if (this.editorEl.dirty && !(await this.dialogs.confirm('Discard changes?', 'The current diagram has unsaved changes.', { ok: 'Discard', danger: true }))) return;
     try {
-      let text = src ? await src.text() : this.editorEl.getSource();
-      const md = /```mermaid\s*\n([\s\S]*?)```/.exec(text);
-      if (src && /\.md$/i.test(src.name) && md) text = md[1]!;
-      if (json) {
-        const merged = mergeLegacySidecar(text, await json.text());
-        text = joinSource(merged.doc);
-        if (merged.diagnostics.length) this.toaster.show(`Layout ${json.name}: ${merged.diagnostics[0]!.message}`);
-      }
-      this.open(text, src?.name ?? this.name);
+      const read = await readDocumentFiles(list, () => this.editorEl.getSource());
+      if (!read || this.destroyed || seq !== this.openSeq) return;
+      const d = read.sidecar?.diagnostics[0];
+      if (d) this.toaster.show(`Layout ${read.sidecar!.name}: ${d.message}`);
+      this.open(read.source, read.name ?? this.name);
     } catch (e) {
       this.toaster.show(`Could not open: ${e instanceof Error ? e.message : String(e)}`, { error: true });
     }
@@ -432,7 +456,7 @@ export class DiagramStudio {
     const ex = key.startsWith('example:') ? this.examples.find((e) => `example:${e.id}` === key) : undefined;
     if (!ex) return;
     const list = await this.fetchHistory(ex);
-    if (key === this.docKey) this.bundled = list;
+    if (!this.destroyed && key === this.docKey) this.bundled = list;
   }
 
   private readonly histories = new Map<string, Promise<StaticVersion[]>>();
@@ -508,6 +532,7 @@ export class DiagramStudio {
 
   private async openThemeEditor(): Promise<void> {
     const mod = await import('./theme-editor.js').catch(() => null);
+    if (this.destroyed) return;
     if (!mod) {
       this.toaster.show('The theme editor is not available in this build', { error: true });
       return;
@@ -517,8 +542,9 @@ export class DiagramStudio {
     const store = localStorageThemeStore(this.storage, this.themeSource);
     te.store = store;
     te.setAttribute('ui', resolveUiScheme(this.ui === 'auto' ? null : this.ui));
-    const current = this.editorEl.instance?.core.meta.canvas.theme;
-    if (typeof current === 'string') te.setAttribute('theme', current);
+    // the theme the diagram is shown in (component state, §7.5; documents no longer carry one)
+    const current = this.editorEl.instance?.theme;
+    if (current) te.setAttribute('theme', current);
     const close = h('button', { type: 'button', 'aria-label': 'Close theme editor', onclick: () => void done() }, icon(ICONS.close));
     const back = h('div', { class: 'themes-dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Theme editor' },
       h('div', { class: 'box' }, h('div', { class: 'head' }, h('b', null, 'Diagram themes'), close), te));
@@ -526,13 +552,13 @@ export class DiagramStudio {
       const dirty = (te as HTMLElement & { dirty?: boolean }).dirty;
       if (dirty && !(await this.dialogs.confirm('Discard theme changes?', 'Unsaved changes to the theme will be lost.', { ok: 'Discard', danger: true }))) return;
       back.remove();
-      this.editorEl.instance?.core.afterChange();
+      this.editorEl.instance?.redraw();
     };
     back.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape' && !ev.defaultPrevented) void done();
     });
     // a saved theme is registered in the shared registry by the theme editor: redraw with it
-    te.addEventListener('mmdx-theme-saved', () => this.editorEl.instance?.core.afterChange());
+    te.addEventListener('mmdx-theme-saved', () => this.editorEl.instance?.redraw());
     this.shadow.append(back);
   }
 }
