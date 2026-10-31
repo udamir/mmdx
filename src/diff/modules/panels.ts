@@ -23,7 +23,22 @@ export const I_HISTORY = 'M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3 4.5V9h4.5M12 7.5V12l3 
 
 export const DIFF_PANELS_CSS = /* css */ `
 .code-diff { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.versions-body { display: flex; flex-direction: column; min-height: 100%; }
+.versions-body > .mmdx-version-list { flex: 1 1 auto; }
+.versions-foot { position: sticky; bottom: 0; padding: 10px 12px; background: var(--mmdx-panel); border-top: 1px solid var(--mmdx-border); }
+.versions-foot button { width: 100%; height: 34px; border-radius: 8px; }
 `;
+
+/** An action on the shown version at the foot of the version list (History's Restore). */
+export interface VersionAction {
+  id: string;
+  /** The button's text for the shown version (e.g. "Restore b884333"). */
+  label: (shown: string | null) => string;
+  title: string;
+  /** Enabled for the shown version. */
+  enabled: (shown: string | null) => boolean;
+  run: () => void;
+}
 
 /** The open state of a panel, its toggle (`setPanel`) and its key. */
 function toggleOf(scope: ModuleScope<ViewCore>, id: string): { open: () => boolean; toggle: () => void } {
@@ -34,12 +49,15 @@ function toggleOf(scope: ModuleScope<ViewCore>, id: string): { open: () => boole
   };
 }
 
-/** `dockButton: false` when the host's History button already stands for the panel (History in place). */
-export function versionsModule(session: DiffSession, o: { dockButton?: boolean } = {}): ViewModule<ViewCore> {
+/**
+ * `dockButton: false` when the host's History button already stands for the panel (History in place); `action`: a
+ * button at the foot of the list for the shown version (History's Restore).
+ */
+export function versionsModule(session: DiffSession, o: { dockButton?: boolean; action?: VersionAction } = {}): ViewModule<ViewCore> {
   return {
     id: 'versions',
     after: ['panel-stacks'],
-    css: [VERSION_LIST_CSS],
+    css: [VERSION_LIST_CSS, DIFF_PANELS_CSS],
     enabled: (core) => core.feature('history'),
     install(scope) {
       const core = scope.core;
@@ -59,9 +77,22 @@ export function versionsModule(session: DiffSession, o: { dockButton?: boolean }
         onRow: (id) => (session.mode.peek() === 'compare' ? session.compareWithPrevious(id) : session.viewVersion(id)),
         onMore: loadMore, t,
       });
+      // the shown version's action at the foot of the list
+      function versionsBody(): HTMLElement {
+        const a = o.action;
+        if (!a) return list.el;
+        const btn = h('button', { type: 'button', class: 'primary', title: a.title, 'data-action': a.id, 'data-f': `action-${a.id}` });
+        scope.listen(btn, 'click', () => a.run());
+        scope.effect(() => {
+          const shown = session.viewOnly() ? session.viewing() : session.head();
+          btn.textContent = a.label(shown);
+          btn.disabled = !a.enabled(shown);
+        });
+        return h('div', { class: 'versions-body' }, list.el, h('div', { class: 'versions-foot' }, btn));
+      }
       const panel = createSidePanel({
         side: 'left', head: tabs.el, label: t('diff.panel.history'), class: 'history', part: 'panel history',
-        closeLabel: t('diff.panel.hide'), closeKeys: 'v', onClose: () => void core.run('setPanel', 'history', false), body: list.el,
+        closeLabel: t('diff.panel.hide'), closeKeys: 'v', onClose: () => void core.run('setPanel', 'history', false), body: versionsBody(),
       });
       scope.contribute(core.panelItems, { id: 'history', side: 'left', order: 10, el: panel.el, visible: () => session.hasHistory() });
       if (o.dockButton !== false) {
