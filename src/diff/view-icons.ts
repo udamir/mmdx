@@ -1,6 +1,6 @@
 // The icons of the diff's views (the diff bar): the same frame for every view — Before fills its left half with the
 // removed colour, After its right half with the added colour, Merged crosses a Before and an After frame, Side by side
-// sets them apart. The fills follow the diff tokens (`.dx-fb`, `.dx-fa` in the diff bar's CSS).
+// sets them apart with a line between them. The fills follow the diff tokens (`.dx-fb`, `.dx-fa` in the diff bar's CSS).
 import { s } from '../ui/h.js';
 import type { DiffViewName } from './session.js';
 
@@ -15,5 +15,5 @@ export const VIEW_ICONS: Readonly<Record<DiffViewName, () => SVGElement>> = {
   before: () => svg(s('path', { d: LEFT, class: 'dx-fb', stroke: 'none' }), ...frame()),
   after: () => svg(s('path', { d: RIGHT, class: 'dx-fa', stroke: 'none' }), ...frame()),
   merged: () => svg(s('rect', { x: '2.5', y: '4', width: '13', height: '10', rx: '2', class: 'dx-fb' }), s('rect', { x: '8.5', y: '10', width: '13', height: '10', rx: '2', class: 'dx-fa' })),
-  side: () => svg(s('rect', { x: '3', y: '5', width: '7.5', height: '14', rx: '1.5', class: 'dx-fb' }), s('rect', { x: '13.5', y: '5', width: '7.5', height: '14', rx: '1.5', class: 'dx-fa' })),
+  side: () => svg(s('rect', { x: '2.5', y: '5', width: '7.5', height: '14', rx: '1.5', class: 'dx-fb' }), s('path', { d: 'M12 3v18' }), s('rect', { x: '14', y: '5', width: '7.5', height: '14', rx: '1.5', class: 'dx-fa' })),
 };
