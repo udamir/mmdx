@@ -15,5 +15,10 @@ export const VIEW_ICONS: Readonly<Record<DiffViewName, () => SVGElement>> = {
   before: () => svg(s('path', { d: LEFT, class: 'dx-fb', stroke: 'none' }), ...frame()),
   after: () => svg(s('path', { d: RIGHT, class: 'dx-fa', stroke: 'none' }), ...frame()),
   merged: () => svg(s('rect', { x: '2.5', y: '4', width: '13', height: '10', rx: '2', class: 'dx-fb' }), s('rect', { x: '8.5', y: '10', width: '13', height: '10', rx: '2', class: 'dx-fa' })),
-  side: () => svg(s('rect', { x: '2.5', y: '5', width: '7.5', height: '14', rx: '1.5', class: 'dx-fb' }), s('path', { d: 'M12 3v18' }), s('rect', { x: '14', y: '5', width: '7.5', height: '14', rx: '1.5', class: 'dx-fa' })),
+  // the panes are open towards the splitter: no border next to it
+  side: () => svg(
+    s('path', { d: 'M10 5H4a1.5 1.5 0 0 0-1.5 1.5v11A1.5 1.5 0 0 0 4 19h6z', class: 'dx-fb', stroke: 'none' }),
+    s('path', { d: 'M14 5h6a1.5 1.5 0 0 1 1.5 1.5v11A1.5 1.5 0 0 1 20 19h-6z', class: 'dx-fa', stroke: 'none' }),
+    s('path', { d: 'M10 5H4a1.5 1.5 0 0 0-1.5 1.5v11A1.5 1.5 0 0 0 4 19h6M14 5h6a1.5 1.5 0 0 1 1.5 1.5v11A1.5 1.5 0 0 1 20 19h-6M12 3v18' }),
+  ),
 };
