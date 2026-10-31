@@ -122,7 +122,7 @@ export function lazyModule<C>(stub: Omit<ViewModule<C>, 'install' | 'load' | 'cs
     ...stub,
     enabled: (core) => (stub.enabled?.(core) ?? true) && (real?.enabled?.(core) ?? true),
     install(scope) {
-      void scope.load();
+      scope.load().catch((e: unknown) => console.error(`[mmdx] module ${stub.id} failed to load`, e));
     },
     load: async () => {
       const m = (real = await load());

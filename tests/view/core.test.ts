@@ -237,6 +237,22 @@ describe('module scope', () => {
     expect(warn.mock.calls.map((c) => c[0])).toEqual(['a: "after" cycle', 'c: "after" zz missing']);
   });
 
+  it('a lazy part that failed to load is reported, not kept: the next load tries again', async () => {
+    const err = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    let fail = true;
+    const m = lazyModule<ViewCore>({ id: 'flaky' }, async () => {
+      if (fail) throw new Error('offline');
+      return { id: 'flaky', install: (scope) => scope.slot('overlay').append(h('i', { class: 'ok' })) };
+    });
+    const core = mount();
+    core.useModules([m]);
+    await vi.waitFor(() => expect(err).toHaveBeenCalledOnce());
+    fail = false;
+    await core.moduleScope('flaky')!.load();
+    expect(core.slots.overlay.querySelector('.ok')).not.toBeNull();
+    err.mockRestore();
+  });
+
   it('lazyModule applies the real module\'s own enabled() once loaded', async () => {
     let realOn = true;
     const m = lazyModule<ViewCore>({ id: 'lz' }, async () => ({ id: 'lz', enabled: () => realOn, install: () => undefined }));

@@ -322,6 +322,7 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
     else this.disposers.push(f);
   }
 
+  /** Loads and activates the lazy part once; a failed load is not kept (the next call tries again). */
   load(): Promise<void> {
     const load = this.module.load;
     if (!load) return Promise.resolve();
@@ -332,6 +333,9 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
         const off = part.activate(this);
         if (typeof off === 'function') this.onDispose(off);
       });
+    }, (e: unknown) => {
+      this.loaded = null;
+      throw e;
     });
     return this.loaded;
   }
