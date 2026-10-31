@@ -101,7 +101,11 @@ Dependency rule: a layer imports only from layers below it. Blocks never import 
 ### 4.1 Class and component tree
 
 ```
-ViewCore                                     src/view/core.ts      services, theme, scheme, shell, module host, canvases
+ViewCore                                     src/view/core.ts      services and state; puts together the parts below
+├─ Shell                                      src/view/shell.ts     root, slots, adopted CSS, insets, compact
+├─ SceneStack                                 src/view/scene.ts     canvas area, main + extra canvases, the scene stack
+├─ ModuleHost, Scope                          src/view/host.ts      install / suspend / resume / uninstall; events and actions (bus.ts)
+├─ ThemeState, schemeState, themeLoader       src/view/theme.ts     theme resolution, chrome scheme, theme loading
 ├─ scene: SceneSource                         src/view/scene.ts     what the main canvas shows (a stack: History pushes)
 │  ├─ TextScene      (viewer)                 src/view/scenes/text.ts
 │  ├─ StoreScene     (editor)                 src/editor/scene.ts
@@ -170,7 +174,7 @@ interface CanvasOptions {
   /** 'pan-zoom' (a Viewport) or 'static' (fit through the viewBox, no viewport; the viewer's interactive="false"). */
   interaction: 'pan-zoom' | 'static';
   wheel?: WheelMode; panOnDrag?: boolean; minK?: number; maxK?: number; pad?: number;
-  insets?: () => Insets; reducedMotion?: () => boolean;
+  insets?: () => Insets;
 }
 class DiagramCanvas {
   readonly el: HTMLElement;              // positioned container
@@ -206,7 +210,7 @@ Everything that is not editing, not diffing and not a rendering strategy, extrac
 - **Services**: `ctx` (instance context), `i18n`, `storage`, `popovers`, `toaster`, `emit` (bubbling, composed `mmdx-*` events). Loaded on first use (§10): `dialogs`, `shortcuts` (the keymap, key routing scoped to the shadow root), panel stacks.
 - **State (signals)**: `mode` (`'view'`; the editor adds `'edit'`), `stage` (`'document' | 'history'`, §8), `scheme` (chrome light / dark), `theme` (§7.5), `display` (labels, hover highlight, visible layers), `features`, `panels` (open panels by name), `tool` (hand / pen; the editor adds its tools), `compact` (§7.6).
 - **Scene stack**: `scene` is the active `SceneSource`; `pushScene` / `popScene` switch what the main canvas shows (§7.3).
-- **Kinds**: a `KindsProvider` given by the product — lazy (`elements/kinds.ts`) for the viewer and the diff, static (`ALL_KINDS`) for the editor, whose gestures and typing need synchronous renders. The core gains `…With(kinds)` variants of the diff functions so the diff uses the loaded kinds (§9).
+- **Kinds**: a `KindsProvider` given by the product — lazy (`view/kinds.ts`) for the viewer and the diff, static (`ALL_KINDS`) for the editor, whose gestures and typing need synchronous renders. The core gains `…With(kinds)` variants of the diff functions so the diff uses the loaded kinds (§9).
 - **Shell**: the element's shadow root with named **slots** that modules fill:
 
 ```
@@ -241,8 +245,12 @@ interface ViewModule<C extends ViewCore = ViewCore> {
 interface ModuleScope<C> {
   readonly core: C;
   slot(name: SlotName): { append(el: Element): void };
+  mount(parent: Element, el: Element): () => void;  // DOM placed at any time (also after install); returns an unmount
+  listen(target: EventTarget, type: string, f: (ev: Event) => void): void;
+  canvas(type: string, f: (ev: Event) => void): void;  // a listener on the main canvas's picture
   on<E extends keyof EventsOf<C>>(e: E, cb: (d: EventsOf<C>[E]) => void): void;
   effect(f: () => void): void;
+  computed<T>(f: () => T): ReadSignal<T>;     // disposed on uninstall
   shortcut(s: Shortcut): void;                 // keymap entries, scoped by `when`
   provide<A extends keyof ActionsOf<C>>(name: A, f: ActionsOf<C>[A]): void;
   gesture(s: GestureSource): void;             // editor only
@@ -251,8 +259,10 @@ interface ModuleScope<C> {
 ```
 
 - The scope records every registration, so the kernel can **suspend** a module (detach its slot DOM, mute its listeners, shortcuts, gestures and painters, keep its state) when `when` no longer matches, **resume** it, and **uninstall** it with nothing left behind. No module touches `core.dom.*` or the canvas DOM directly; the module-matrix test checks that after uninstall no listener, node or registration remains.
-- Actions and events are typed per product with generics (`ViewCore<Actions, Events>`, `EditorCore extends ViewCore<EditorActions, EditorEvents>`), not with global declaration merging. Events are an open, typed map, not a closed union.
-- The viewer's `controls`, the editor's `features` and the diff's `features` map to modules and are re-evaluated at runtime (the viewer's `controls` attribute can change after connect).
+- Actions and events are typed per product with generics (`ViewCore<Actions, Panels, Events>`, `EditorCore extends ViewCore<EditorActions, EditorPanels, EditorEvents>`), not with global declaration merging. Events are an open, typed map (`ViewEvents`: name → payload), not a closed union.
+- `core.on()` / `core.provide()` called while a module installs (or its lazy part activates) belong to that module, as does DOM it adds straight to the root or the canvas area; called by module code after install they would outlive the module, so the kernel warns — modules use `scope.on()` / `scope.provide()` / `scope.mount()`.
+- A lazy module's stub carries `id`, `after`, `when` and `enabled`; the real module's own `enabled` applies too once loaded. `after` naming a missing module, and cycles, are reported.
+- The viewer's `controls`, the editor's `features` and the diff's `features` map to modules and are re-evaluated at runtime (the viewer's `controls` attribute can change after connect): `refreshModules()` re-runs `enabled`, and a module that read `core.feature()` while installing is installed again when one of those features changed (the zoom bar's help and full screen, the view params' toggle, theme menu and Export).
 
 ### 7.3 Scene sources
 
@@ -298,7 +308,8 @@ Layers in the viewer and the diff are a view override (`visibleLayers`); in the 
 The theme is **component state, not document state**.
 
 - **Format**: `canvas.theme` is removed from the `.mmdx` format. A migration in `core/meta/migrations.ts` drops it on load (the editor's next save writes the file without it); `pickTheme` no longer reads it; the diff no longer reports theme changes (`core/diff/index.ts`). Pages that relied on a diagram's own theme set `theme` on the element, or the `theme` option of `renderToSvg` and the markdown plugins.
-- **Resolution** (one `theme` signal per component): the host's `theme` attribute (and `theme-dark` while the chrome is dark) → the user's pick → the default, which follows the chrome scheme (Default Light / Default Dark).
+- **Resolution** (one `theme` signal per component): a pick the user made in this component (this session) → the host's `theme` attribute (and `theme-dark` while the chrome is dark) → the pick remembered in storage → the default, which follows the chrome scheme (Default Light / Default Dark). So after a reload the host's attribute wins over a remembered pick, and the theme menu ticks the pick only when the shown theme comes from it (`themes.picked`).
+- **Chrome scheme**: an explicit `ui="light"` / `"dark"`; otherwise (`auto` or unset) the user's remembered toggle, else the page's scheme. A scheme flip that leaves the resolved theme unchanged repaints nothing.
 - **Theme and scheme are independent.** The sun / moon toggle changes only the chrome. While nothing is picked, the diagram follows the scheme (default theme, or `theme` / `theme-dark`); a picked theme stays when the scheme changes. The theme menu's first entry, "Follow light / dark", clears the pick. Picking a dark theme does not switch the chrome to dark.
 - **Persistence**: the pick is remembered in storage per product (`viewer.theme`, `editor.theme`, `diff.theme`), so a pick in a docs-page viewer does not change the editor. The chrome scheme is remembered per product the same way.
 - **Scope**: every canvas, stage and panel of the component uses it — main and side-by-side canvases, morph states, item previews, exports. History has no theme of its own; a pick in History is the component's pick and stays after Back.
@@ -350,7 +361,7 @@ Leaving History (Back pill, Esc at the end of the Esc chain, the History button,
 
 **Small hosts** (a docs-page viewer): the viewer grows to a minimum height (560 px) while History is open, and below the drawer width its panels open one at a time as drawers over the canvas (`PanelStack.drawerBelow`).
 
-The session's code (diff modules and the diff part of `core`) loads on first use; with kinds loaded through the provider the chunk graph stays stable, and History needs no `mmdx/diff` on the page.
+The session's code (diff modules and the diff part of `core`) loads on first use, through the `loadHistory` option the product gives the kernel (`() => import('…/diff/history.js')`), so the view layer never imports the diff; with kinds loaded through the provider the chunk graph stays stable, and History needs no `mmdx/diff` on the page.
 
 ### 8.3 History API and events
 
