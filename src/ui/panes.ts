@@ -1,5 +1,8 @@
 // Floating side panels shared by the editor and the diff (A.2 row 21): slide in / out honouring reduced motion, and
-// resize by dragging a panel's inner edge (double-click resets). Hosts keep the widths in CSS custom properties.
+// resize by dragging a panel's inner edge (double-click resets, arrow keys step). Hosts keep the widths in CSS custom
+// properties.
+import { Scope } from './blocks/block.js';
+import { createGrip } from './blocks/side-panel.js';
 
 const reducedMotion = (): boolean => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -55,53 +58,31 @@ export interface ResizerOptions {
   onCommit?: () => void;
 }
 
-/** Adds the drag-to-resize grip on a panel's inner edge. Returns a cleanup. */
+/**
+ * Adds the drag-to-resize grip on a panel's inner edge (SidePanel's `createGrip`: drag, double-click to reset,
+ * ArrowLeft / ArrowRight to step, `aria-valuenow`). The width lives in `o.root`'s custom property. Returns a cleanup.
+ */
 export function attachPaneResizer(pane: HTMLElement, side: 'left' | 'right', o: ResizerOptions): () => void {
-  const grip = document.createElement('div');
-  grip.className = 'pane-resizer';
-  grip.title = o.title;
-  grip.setAttribute('role', 'separator');
-  grip.setAttribute('aria-orientation', 'vertical');
-  pane.append(grip);
+  const scope = new Scope();
   const name = (): string => (typeof o.varName === 'function' ? o.varName() : o.varName);
-  const ac = new AbortController();
-  grip.addEventListener('pointerdown', (ev) => {
-    if (ev.button !== 0) return;
-    ev.preventDefault();
-    ev.stopPropagation();
-    try {
-      grip.setPointerCapture(ev.pointerId);
-    } catch {
-      // capture is best-effort
-    }
-    const v = name(), x0 = ev.clientX, w0 = pane.getBoundingClientRect().width;
-    grip.classList.add('dragging');
-    o.root.classList.add('resizing-panes');
-    const move = (e: PointerEvent): void => {
-      const max = typeof o.max === 'function' ? o.max() : o.max;
-      const w = side === 'left' ? w0 + (e.clientX - x0) : w0 - (e.clientX - x0);
-      o.root.style.setProperty(v, `${Math.round(Math.max(o.min, Math.min(Math.max(o.min, max), w)))}px`);
+  const grip = createGrip({
+    side, measure: pane, min: o.min, max: () => (typeof o.max === 'function' ? o.max() : o.max), title: o.title, dragRoot: () => o.root,
+    get: () => {
+      const px = parseFloat(o.root.style.getPropertyValue(name()));
+      return Number.isFinite(px) ? px : null;
+    },
+    set: (px) => {
+      if (px === null) o.root.style.removeProperty(name());
+      else o.root.style.setProperty(name(), `${px}px`);
       o.onResize?.();
-    };
-    const up = (): void => {
-      grip.classList.remove('dragging');
-      o.root.classList.remove('resizing-panes');
-      grip.removeEventListener('pointermove', move);
-      grip.removeEventListener('pointerup', up);
-      grip.removeEventListener('pointercancel', up);
-      o.onCommit?.();
-    };
-    grip.addEventListener('pointermove', move);
-    grip.addEventListener('pointerup', up);
-    grip.addEventListener('pointercancel', up);
-  }, { signal: ac.signal });
-  grip.addEventListener('dblclick', () => {
-    o.root.style.removeProperty(name());
-    o.onResize?.();
-    o.onCommit?.();
-  }, { signal: ac.signal });
+    },
+    ...(o.onCommit ? { onCommit: o.onCommit } : {}),
+  }, scope);
+  // the editor's stylesheet places `.pane-resizer`; `.mmdx-grip` brings the focus ring
+  grip.classList.add('pane-resizer');
+  pane.append(grip);
   return () => {
-    ac.abort();
+    scope.dispose();
     grip.remove();
   };
 }
