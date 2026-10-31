@@ -25,6 +25,9 @@ import { diffStageModule } from './modules/stage.js';
 import { DiffScene } from './scene.js';
 import { DiffSession } from './session.js';
 
+/** Swap: two arrows, left and right. */
+const I_SWAP = 'M7 7h13M16 3l4 4-4 4M17 17H4M8 13l-4 4 4 4';
+
 /** The id of the working copy among the versions. */
 export const WORKING_COPY = 'working';
 
@@ -32,6 +35,7 @@ const EN: Record<string, string> = {
   'history.working': 'Working copy (not saved as a version)',
   'history.workingShort': 'Working copy',
   'history.back': 'Back',
+  'history.swap': 'Swap Before and After',
   'history.label': 'History',
   'history.pill': 'History · {what}',
   'history.restore': 'Restore this version',
@@ -126,8 +130,18 @@ export function openHistory(core: ViewCore, o: { onClose(): void }): HistoryCont
     id: 'history-pill',
     css: [PILL_CSS],
     install(scope) {
-      const text = computed(() => t('history.pill', { what: session.viewOnly() ? label(session.viewing()) : `${label(session.base())} → ${label(session.head())}` }));
-      const pill = createPill({ text, action: { label: t('history.back'), keys: 'escape', onClick: () => close() }, t, label: t('history.label') });
+      // one version as it is: "History · v3"; a comparison: just its two versions, with a swap
+      const text = computed(() => (session.viewOnly() ? t('history.pill', { what: label(session.viewing()) }) : `${label(session.base())} → ${label(session.head())}`));
+      const swap = (): void => {
+        const { base, head } = session.pair;
+        if (base && head && !session.viewOnly.peek()) session.setPair(head, base);
+      };
+      const pill = createPill({
+        text, t, label: t('history.label'),
+        tools: [{ id: 'swap', icon: I_SWAP, label: t('history.swap'), keys: 'x', hidden: session.viewOnly, onClick: swap }],
+        action: { label: t('history.back'), keys: 'escape', onClick: () => close() },
+      });
+      scope.shortcut({ id: 'history-swap', keys: ['x'], label: t('history.swap'), group: t('history.label'), run: () => (session.viewOnly.peek() ? false : (swap(), true)) });
       scope.slot('top-center').append(pill.el);
       scope.shortcut({ id: 'history-back', keys: ['escape'], label: t('history.back'), group: t('history.label'), run: () => void close() });
       // copy an item of an old version (Before / After, or its side of a change), to paste after Back (§8.2)

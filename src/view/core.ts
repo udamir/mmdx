@@ -65,7 +65,8 @@ export const SHELL_CSS = /* css */ `
 .slot { display: contents; }
 .slot-top-center { display: flex; flex-direction: column; align-items: center; gap: 8px; position: absolute; top: 12px; left: calc(50% + (var(--inset-l, 0px) - var(--inset-r, 0px)) / 2); transform: translateX(-50%); z-index: 36; pointer-events: none; max-width: calc(100% - 24px); }
 .slot-top-center > * { pointer-events: auto; }
-.slot-top-center > .mmdx-pill { position: static; transform: none; }
+.slot-top-center { width: max-content; }
+.slot-top-center > .mmdx-pill { position: static; transform: none; max-width: 100%; }
 .slot-top-center:empty { display: none; }
 /* the right stack keeps clear of the view params (top right) and the zoom bar (bottom right) */
 .slot-right-stack > .mmdx-stack:not(.drawer) { top: 60px; bottom: 60px; }

@@ -1,12 +1,25 @@
 // Pill (§5.2, §8.2): the floating bar at the top centre that says where the component is and offers the way back —
-// History's "History · v3 → Working copy" with Back (Esc). The text is a status region, so changes are announced.
+// History's "v3 → Working copy" with a swap tool and Back (Esc). The text is a status region, so changes are
+// announced; tools are icon buttons between the text and the action.
 import { h, icon } from '../h.js';
 import { ICONS } from '../icons.js';
 import { formatKeys as defaultFormat } from '../shortcuts.js';
 import { ariaKeys, read, Scope, tipText, type BlockHandle, type Translate, type Value } from './block.js';
 
+/** An icon button of the pill, between the text and its action (e.g. swap Before and After). */
+export interface PillTool {
+  id: string;
+  /** Icon path (24 × 24). */
+  icon: string;
+  label: string;
+  keys?: string;
+  hidden?: Value<boolean>;
+  onClick(): void;
+}
+
 export interface PillProps {
   text: Value<string>;
+  tools?: readonly PillTool[];
   /** The button (Back); `keys` is its shortcut (`escape`), shown in the tooltip. */
   action: { label: string; keys?: string; onClick(): void };
   t: Translate;
@@ -24,6 +37,9 @@ export const PILL_CSS = /* css */ `
 .mmdx-pill-btn { flex: none; display: flex; align-items: center; gap: 4px; height: 30px; padding: 0 10px 0 6px; border: 0; border-radius: 8px; background: var(--mmdx-float-2); color: var(--mmdx-text); }
 .mmdx-pill-btn:hover:not(:disabled) { background: var(--mmdx-accent-2); color: var(--mmdx-accent); }
 .mmdx-pill-btn .mmdx-icon { width: 16px; height: 16px; }
+.mmdx-pill-tool { flex: none; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--mmdx-text); }
+.mmdx-pill-tool:hover:not(:disabled) { background: var(--mmdx-float-2); }
+.mmdx-pill-tool .mmdx-icon { width: 18px; height: 18px; }
 `;
 
 /** `escape` → `Escape` for `aria-keyshortcuts` (named keys are capitalised there). */
@@ -35,7 +51,8 @@ export function createPill(props: PillProps): BlockHandle<PillProps> {
   let fx = new Scope();
   const text = h('span', { class: 'mmdx-pill-text', role: 'status', 'aria-live': 'polite' });
   const button = h('button', { type: 'button', class: 'mmdx-pill-btn', 'data-f': 'pill-action' });
-  const el = h('div', { class: 'mmdx-pill', role: 'group' }, text, button);
+  const tools = h('span', { class: 'mmdx-pill-tools', style: 'display:contents' });
+  const el = h('div', { class: 'mmdx-pill', role: 'group' }, text, tools, button);
   scope.on(button, 'click', () => p.action.onClick());
 
   const render = (): void => {
@@ -49,6 +66,15 @@ export function createPill(props: PillProps): BlockHandle<PillProps> {
     fx = new Scope();
     const value = p.text;
     fx.effect(() => void (text.textContent = read(value)));
+    tools.replaceChildren(...(p.tools ?? []).map((tool) => {
+      const tip = tipText(tool.label, tool.keys, p.formatKeys ?? defaultFormat);
+      const b = h('button', { type: 'button', class: 'mmdx-pill-tool', title: tip, 'aria-label': tool.label, 'data-f': `pill-${tool.id}`, 'data-tool': tool.id }, icon(tool.icon, 18));
+      if (tool.keys) b.setAttribute('aria-keyshortcuts', ariaKey(tool.keys));
+      fx.on(b, 'click', () => tool.onClick());
+      const hidden = tool.hidden;
+      if (hidden !== undefined) fx.effect(() => void (b.hidden = read(hidden)));
+      return b;
+    }));
   };
   render();
 

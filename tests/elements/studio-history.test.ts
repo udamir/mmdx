@@ -64,7 +64,7 @@ describe('History in the editor (studio)', () => {
     expect(ed.querySelector('mmdx-diff')).toBeNull();
     expect(ed.querySelector('.pane.left')).toBeNull();
     expect(ed.querySelector('.vt-history')!.getAttribute('aria-pressed')).toBe('true');
-    expect(ed.querySelector('.mmdx-pill [role=status]')!.textContent).toContain('History');
+    expect(ed.querySelector('.mmdx-pill [role=status]')!.textContent).toMatch(/^\w+ → \w+$/);
     expect(editor.historySession).not.toBeNull();
     await wait(() => events.includes('mmdx-history-compare'));
     // Edit / View cannot switch while History is open
@@ -76,7 +76,7 @@ describe('History in the editor (studio)', () => {
     expect(modeBtn('diff').getAttribute('aria-pressed')).toBe('true');
 
     // Back closes it: the editor is back as it was
-    ed.querySelector<HTMLButtonElement>('.mmdx-pill button')!.click();
+    ed.querySelector<HTMLButtonElement>('.mmdx-pill .mmdx-pill-btn')!.click();
     expect(editor.core.stage.peek()).toBe('document');
     expect(editor.historySession).toBeNull();
     expect(ed.querySelector('.pane.left')).not.toBeNull();

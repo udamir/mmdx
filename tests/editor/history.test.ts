@@ -39,6 +39,14 @@ describe('History in the editor', () => {
     await wait(() => ed.historySession?.getDiff());
     const s = ed.historySession!;
     expect(s.pair).toMatchObject({ base: 'v1', head: 'v2' });
+    // the pill names the two versions; its swap button and X exchange Before and After
+    const pill = ed.core.root.querySelector('.mmdx-pill')!;
+    await wait(() => pill.querySelector('[role=status]')!.textContent === 'v1 → v2');
+    pill.querySelector<HTMLButtonElement>('[data-tool=swap]')!.click();
+    expect(s.pair).toMatchObject({ base: 'v2', head: 'v1' });
+    ed.core.root.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', bubbles: true, cancelable: true, composed: true }));
+    expect(s.pair).toMatchObject({ base: 'v1', head: 'v2' });
+    await wait(() => s.getDiff()?.items.some((c) => c.id === 'x' && c.status === 'removed'));
     // the removed node, on the Before side
     s.setView('before');
     // select it once the comparison is drawn (mmdx-history-select carries the change)

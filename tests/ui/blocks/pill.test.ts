@@ -44,6 +44,20 @@ describe('Pill', () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
+  it('tools: icon buttons between the text and the action, hidden by a signal', () => {
+    const onClick = vi.fn();
+    const hidden = signal(false);
+    const pill = createPill({ text: 'a → b', tools: [{ id: 'swap', icon: 'M0 0h1', label: 'Swap Before and After', keys: 'x', hidden, onClick }], action: { label: 'Back', onClick: () => undefined }, t });
+    const b = pill.el.querySelector<HTMLButtonElement>('.mmdx-pill-tool')!;
+    expect(b.getAttribute('aria-label')).toBe('Swap Before and After');
+    expect(b.title).toBe('Swap Before and After (X)');
+    expect(b.compareDocumentPosition(pill.el.querySelector('.mmdx-pill-btn')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    b.click();
+    expect(onClick).toHaveBeenCalledOnce();
+    hidden.set(true);
+    expect(b.hidden).toBe(true);
+  });
+
   it('destroy removes the pill and its listeners', () => {
     const text = signal('a');
     const onClick = vi.fn();
