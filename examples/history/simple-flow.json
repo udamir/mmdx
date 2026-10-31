@@ -1,0 +1,46 @@
+{
+ "versions": [
+  {
+   "id": "9fb38e6",
+   "message": "Remove a step",
+   "author": "Damir",
+   "date": "2026-10-30T16:25:00.000Z",
+   "source": "flowchart LR\n  subgraph edge [\"Edge\"]\n    user([\"User\"]) --> web[\"Web app\"]\n    n1(\"Cache\")\n  end\n  subgraph core [\"Core services\"]\n    api[\"API gateway\"]:::core\n    api --> orders[\"Orders\"]:::domain\n    db[(\"Primary DB\")]\n    orders --> db\n    orders -.->|\"events\"| bus[(\"Kafka\")]:::event-bus\n  end\n  web -->|\"HTTPS Read-only\"| api\n  bus -.-> notify[\"Notifier\"]:::service\n  notify --> mail{{\"Mail\"}}\n  web --> n1\n  orders --> mail\n"
+  },
+  {
+   "id": "d2eb0b1",
+   "message": "Recolour a service",
+   "author": "Priya",
+   "date": "2026-10-28T13:08:00.000Z",
+   "source": "flowchart LR\n  subgraph edge [\"Edge\"]\n    user([\"User\"]) --> web[\"Web app\"]\n    n1(\"Cache\")\n  end\n  subgraph core [\"Core services\"]\n    api[\"API gateway\"]:::core\n    auth[\"Auth\"]:::analytics\n    api --> orders[\"Orders\"]:::domain\n    db[(\"Primary DB\")]\n    orders --> db\n    orders -.->|\"events\"| bus[(\"Kafka\")]:::event-bus\n  end\n  web -->|\"HTTPS Read-only\"| api\n  bus -.-> notify[\"Notifier\"]:::service\n  notify --> mail{{\"Mail\"}}\n  web --> n1\n  orders --> mail\n\n%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----\n%%@ canvas {\"v\":1}\n%%@ node auth {\"fill\":\"@pale-rose\"}\n"
+  },
+  {
+   "id": "b326863",
+   "message": "Rewire a connection",
+   "author": "Chen",
+   "date": "2026-10-26T10:51:00.000Z",
+   "source": "flowchart LR\n  subgraph edge [\"Edge\"]\n    user([\"User\"]) --> web[\"Web app\"]\n    n1(\"Cache\")\n  end\n  subgraph core [\"Core services\"]\n    api[\"API gateway\"]:::core\n    auth[\"Auth\"]:::analytics\n    api --> orders[\"Orders\"]:::domain\n    db[(\"Primary DB\")]\n    orders --> db\n    orders -.->|\"events\"| bus[(\"Kafka\")]:::event-bus\n  end\n  web -->|\"HTTPS Read-only\"| api\n  bus -.-> notify[\"Notifier\"]:::service\n  notify --> mail{{\"Mail\"}}\n  web --> n1\n  orders --> mail\n"
+  },
+  {
+   "id": "acd1893",
+   "message": "Rename a step, label a connection",
+   "author": "Maria",
+   "date": "2026-10-24T15:34:00.000Z",
+   "source": "flowchart LR\n  subgraph edge [\"Edge\"]\n    user([\"User\"]) --> web[\"Web app\"]\n    n1(\"Cache\")\n  end\n  subgraph core [\"Core services\"]\n    api[\"API gateway\"]:::core --> auth[\"Auth\"]:::analytics\n    api --> orders[\"Orders\"]:::domain\n    db[(\"Primary DB\")]\n    orders --> db\n    orders -.->|\"events\"| bus[(\"Kafka\")]:::event-bus\n  end\n  web -->|\"HTTPS Read-only\"| api\n  bus -.-> notify[\"Notifier\"]:::service\n  notify --> mail{{\"Mail\"}}\n  web --> n1\n"
+  },
+  {
+   "id": "2ce7f1e",
+   "message": "Add a cache",
+   "author": "Alex",
+   "date": "2026-10-22T12:17:00.000Z",
+   "source": "flowchart LR\n  subgraph edge [\"Edge\"]\n    user([\"User\"]) --> web[\"Web app\"]\n    n1(\"Cache\")\n  end\n  subgraph core [\"Core services\"]\n    api[\"API gateway\"]:::core --> auth[\"Auth\"]:::analytics\n    api --> orders[\"Orders\"]:::domain\n    orders --> db[(\"Orders DB\")]\n    orders -.->|\"events\"| bus[(\"Kafka\")]:::event-bus\n  end\n  web -->|\"HTTPS\"| api\n  bus -.-> notify[\"Notifier\"]:::service\n  notify --> mail{{\"Mail\"}}\n  web --> n1\n"
+  },
+  {
+   "id": "242eaf9",
+   "message": "Initial version",
+   "author": "Damir",
+   "date": "2026-10-20T09:00:00.000Z",
+   "source": "flowchart LR\n  subgraph edge [\"Edge\"]\n    user([\"User\"]) --> web[\"Web app\"]\n  end\n  subgraph core [\"Core services\"]\n    api[\"API gateway\"]:::core --> auth[\"Auth\"]:::analytics\n    api --> orders[\"Orders\"]:::domain\n    orders --> db[(\"Orders DB\")]\n    orders -.->|\"events\"| bus[(\"Kafka\")]:::event-bus\n  end\n  web -->|\"HTTPS\"| api\n  bus -.-> notify[\"Notifier\"]:::service\n  notify --> mail{{\"Mail\"}}\n"
+  }
+ ]
+}

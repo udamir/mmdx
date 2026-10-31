@@ -26,7 +26,9 @@ const meta: Meta<StudioArgs> = {
       description: {
         component:
           '`<mmdx-studio>` is the standalone app (the GitHub Pages site): the editor with New / Open / examples, ' +
-          'Share (the document in the URL hash), Export, the theme editor, Plain Mermaid and the Edit / View switch. ' +
+          'Share (the document in the URL hash), Export, the theme editor, Plain Mermaid and the Edit / View / History switch: ' +
+          'History shows the versions of the diagram (an example\'s bundled history, versions saved with Save version or ⌘S, ' +
+          'and the working copy) in `<mmdx-diff>`, and Restore opens a version in the editor. ' +
           'Import `mmdx/studio`.',
       },
     },

@@ -1,5 +1,6 @@
 // <mmdx-studio> (§8.4, UC4): the standalone all-in-one app — editor, theme editor (dialog), file menu, examples
-// gallery, appearance toggle — the prototype's index.html, packaged as one element.
+// gallery, appearance toggle, and the document's history with <mmdx-diff> — the prototype's index.html, packaged as
+// one element.
 import { ElementBase } from './base.js';
 import { decodeHash, encodeHash } from '../adapters/share.js';
 import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
@@ -8,6 +9,8 @@ import { ensureBuiltinThemes, getShared } from '../config.js';
 import { mergeLegacySidecar, joinSource } from '../core/meta/index.js';
 import { defineEditor, type DiagramEditor, type MmdxEditorElement } from '../editor/editor.js';
 import { download } from '../dom/export.js';
+import { contentId, type StaticVersion } from '../adapters/history.js';
+import type { MmdxDiffElement } from './diff.js';
 import { h, icon } from '../ui/h.js';
 import { ICONS } from '../ui/icons.js';
 import { logoMark } from '../ui/logo.js';
@@ -21,6 +24,8 @@ export interface ExampleInfo {
   file: string;
   thumbnail?: string;
   tags?: string[];
+  /** A history file of the example: `{ versions: [{ id, message, author?, date?, source }] }`, newest first. */
+  history?: string;
 }
 
 export interface StudioOptions {
@@ -38,6 +43,10 @@ export interface StudioOptions {
 const START: Record<'flowchart' | 'sequence' | 'er', string> = { flowchart: 'flowchart TB\n', sequence: 'sequenceDiagram\n', er: 'erDiagram\n' };
 const HASH_LIMIT = 8 * 1024;
 const STORE_KEY = 'studio.doc';
+/** Versions saved in the studio, per document (browser storage, never the server). */
+const VERSIONS_KEY = 'studio.versions';
+const MAX_VERSIONS = 30;
+const WORKING = 'working';
 
 const STUDIO_CSS = /* css */ `
 :host { display: block; height: 100%; min-height: 480px; }
@@ -56,7 +65,10 @@ const STUDIO_CSS = /* css */ `
 .seg button { border: 0; border-radius: 0; padding: 4px 12px; }
 .seg button[aria-pressed=true] { background: var(--mmdx-accent); color: var(--mmdx-on-accent); }
 .main { flex: 1; min-height: 0; position: relative; }
-mmdx-editor { position: absolute; inset: 0; height: auto; min-height: 0; }
+mmdx-editor, mmdx-diff { position: absolute; inset: 0; height: auto; min-height: 0; }
+.studio.history mmdx-editor { visibility: hidden; }
+.history-only { display: none; }
+.studio.history .history-only { display: inline-flex; }
 .menu-pop { top: 40px; left: 0; }
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; max-height: 60vh; overflow: auto; padding: 2px; }
 .card { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 8px; border-radius: 10px; }
@@ -85,6 +97,13 @@ export class DiagramStudio {
   private examples: ExampleInfo[] = [];
   private themeSource: ThemeSource | undefined;
   private name = 'diagram';
+  /** Which document is open (`example:<id>`, `file:<name>`): the key of its saved versions. */
+  private docKey = 'file:diagram';
+  /** The bundled history of the open example, newest first. */
+  private bundled: StaticVersion[] = [];
+  private diffEl: MmdxDiffElement | null = null;
+  private mode: 'edit' | 'view' | 'history' = 'edit';
+  private restoreBtn!: HTMLButtonElement;
   private hashTimer: ReturnType<typeof setTimeout> | undefined;
   private ui: 'light' | 'dark' | 'auto';
 
@@ -105,6 +124,9 @@ export class DiagramStudio {
     const openBtn = h('button', { type: 'button', title: 'Open .mmdx / .mmd / .md / .layout.json', onclick: () => this.pickFiles() }, icon(ICONS.folder), 'Open');
     const modeEdit = h('button', { type: 'button', 'aria-pressed': 'true', onclick: () => this.setMode('edit') }, 'Edit');
     const modeView = h('button', { type: 'button', 'aria-pressed': 'false', onclick: () => this.setMode('view') }, 'View');
+    const modeHistory = h('button', { type: 'button', 'aria-pressed': 'false', title: 'Versions of this diagram and what changed between them', onclick: () => void this.setMode('history') }, 'History');
+    const saveVersion = h('button', { type: 'button', title: 'Record the current diagram as a version in its history', onclick: () => void this.saveVersion() }, icon(ICONS.save), 'Save version');
+    this.restoreBtn = h('button', { type: 'button', class: 'history-only', title: 'Open the shown version in the editor (undo brings the current one back)', onclick: () => void this.restoreVersion() }, icon(ICONS.undo), 'Restore this version');
     const share = h('button', { type: 'button', title: 'Copy a link with the diagram in it', onclick: () => void this.share() }, icon(ICONS.link), 'Share');
     const themesBtn = h('button', { type: 'button', title: 'Edit the diagram themes', onclick: () => void this.openThemeEditor() }, icon(ICONS.palette), 'Theme editor');
     const plainBtn = h('button', { type: 'button', title: 'Render with stock Mermaid (what YouTrack / GitHub show)', onclick: () => void this.editorEl.plainMermaid() }, icon(ICONS.eye), 'Plain Mermaid');
@@ -113,15 +135,16 @@ export class DiagramStudio {
       h('div', { class: 'grp' }, newBtn, exBtn, openBtn),
       this.nameEl,
       h('div', { class: 'spacer' }),
-      h('div', { class: 'grp seg', role: 'group', 'aria-label': 'Mode' }, modeEdit, modeView),
-      h('div', { class: 'grp' }, themesBtn, plainBtn, share));
+      h('div', { class: 'grp seg', role: 'group', 'aria-label': 'Mode' }, modeEdit, modeView, modeHistory),
+      h('div', { class: 'grp' }, this.restoreBtn, saveVersion, themesBtn, plainBtn, share));
     const main = h('div', { class: 'main' }, this.editorEl, h('div', { class: 'drop' }, 'Drop a .mmdx / .mmd / .md file'));
     const root = h('div', { class: 'studio' }, top, main);
     this.shadow.append(root);
     this.pops = new PopoverManager(this.shadow);
     this.toaster = new Toaster(root);
     this.dialogs = new Dialogs(this.shadow);
-    this.modeButtons = [modeEdit, modeView];
+    this.modeButtons = [modeEdit, modeView, modeHistory];
+    this.rootEl = root;
 
     const sig = { signal: this.ac.signal };
     this.editorEl.addEventListener('mmdx-change', () => this.persist(), sig);
@@ -133,10 +156,12 @@ export class DiagramStudio {
       this.storage.set('ui', ui);
       this.applyScheme();
     }, sig);
-    // save = download the styled file (the studio has no backend)
+    // save = download the styled file (the studio has no backend) and record a version in the history
     this.editorEl.addEventListener('mmdx-save', (ev) => {
       ev.preventDefault();
-      download(`${this.name}.mmdx`, this.editorEl.getSource());
+      const src = this.editorEl.getSource();
+      download(`${this.name}.mmdx`, src);
+      this.recordVersion(src, `Saved ${this.name}.mmdx`);
       this.editorEl.instance?.store.markSaved();
     }, sig);
     root.addEventListener('dragover', (ev) => {
@@ -160,6 +185,7 @@ export class DiagramStudio {
   }
 
   private readonly modeButtons: HTMLButtonElement[];
+  private readonly rootEl: HTMLElement;
 
   get editor(): DiagramEditor | undefined {
     return this.editorEl.instance;
@@ -184,10 +210,10 @@ export class DiagramStudio {
     await this.loadThemes();
     await this.loadExamples();
     if (await this.fromHash()) return;
-    const saved = this.persistModes().includes('local') ? this.storage.get<{ src: string; name?: string }>(STORE_KEY) : undefined;
+    const saved = this.persistModes().includes('local') ? this.storage.get<{ src: string; name?: string; key?: string }>(STORE_KEY) : undefined;
     if (saved && typeof saved.src === 'string' && saved.src.trim()) {
       // restoring the autosaved document is not an unsaved change
-      this.open(saved.src, saved.name ?? 'diagram');
+      this.open(saved.src, saved.name ?? 'diagram', { key: typeof saved.key === 'string' ? saved.key : undefined });
       return;
     }
     const ex = this.examples.find((e) => e.id === this.o.initial) ?? this.examples[0];
@@ -219,7 +245,7 @@ export class DiagramStudio {
       const m = (await r.json()) as { examples?: unknown };
       const list = Array.isArray(m.examples) ? m.examples : [];
       this.examples = list.filter((e): e is ExampleInfo => !!e && typeof e === 'object' && typeof (e as ExampleInfo).file === 'string')
-        .map((e) => ({ ...e, id: e.id ?? e.file, title: e.title ?? e.file, file: new URL(e.file, base).href }));
+        .map((e) => ({ ...e, id: e.id ?? e.file, title: e.title ?? e.file, file: new URL(e.file, base).href, ...(typeof e.history === 'string' ? { history: new URL(e.history, base).href } : {}) }));
     } catch {
       this.examples = [];
     }
@@ -227,7 +253,7 @@ export class DiagramStudio {
 
   private persist(): void {
     const src = this.editorEl.getSource();
-    if (this.persistModes().includes('local')) this.storage.set(STORE_KEY, { src, name: this.name });
+    if (this.persistModes().includes('local')) this.storage.set(STORE_KEY, { src, name: this.name, key: this.docKey });
     if (this.persistModes().includes('hash')) {
       clearTimeout(this.hashTimer);
       this.hashTimer = setTimeout(() => void this.toHash(src), 600);
@@ -250,7 +276,7 @@ export class DiagramStudio {
       this.toaster.show('The link does not contain a valid diagram', { error: true });
       return false;
     }
-    if (src !== this.editorEl.getSource()) this.open(src, 'shared-diagram');
+    if (src !== this.editorEl.getSource()) this.open(src, 'shared-diagram', { key: 'shared:shared-diagram' });
     return true;
   }
 
@@ -279,8 +305,12 @@ export class DiagramStudio {
 
   // ---- documents --------------------------------------------------------------------------------------------------
 
-  private open(src: string, name: string, opts: { markSaved?: boolean } = {}): void {
+  private open(src: string, name: string, opts: { markSaved?: boolean; key?: string | undefined } = {}): void {
     this.name = name.replace(/\.(mmdx|mmd|md|txt)$/i, '') || 'diagram';
+    this.docKey = opts.key ?? `file:${this.name}`;
+    this.bundled = [];
+    if (this.mode === 'history') void this.setMode('edit');
+    void this.loadBundled();
     this.nameEl.textContent = this.name;
     this.editorEl.setSource(src, { history: 'reset' });
     if (opts.markSaved === false) this.editorEl.instance?.store.markSaved('');
@@ -291,9 +321,16 @@ export class DiagramStudio {
   private async openExample(ex: ExampleInfo): Promise<void> {
     if (this.editorEl.dirty && !(await this.dialogs.confirm('Discard changes?', 'The current diagram has unsaved changes.', { ok: 'Discard', danger: true }))) return;
     try {
-      const r = await fetch(ex.file);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      this.open(await r.text(), ex.file.split('/').pop() ?? ex.id);
+      // an example with a history opens at its newest version (the example file is where the history starts)
+      const key = `example:${ex.id}`;
+      const newest = (await this.fetchHistory(ex))[0];
+      let src = newest?.source;
+      if (src === undefined) {
+        const r = await fetch(ex.file);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        src = await r.text();
+      }
+      this.open(src, ex.file.split('/').pop() ?? ex.id, { key });
     } catch (e) {
       this.toaster.show(`Could not open ${ex.title}: ${e instanceof Error ? e.message : String(e)}`, { error: true });
     }
@@ -362,16 +399,133 @@ export class DiagramStudio {
     }
   }
 
-  private setMode(m: 'edit' | 'view'): void {
-    this.editorEl.readOnly = m === 'view';
-    this.modeButtons[0]?.setAttribute('aria-pressed', String(m === 'edit'));
-    this.modeButtons[1]?.setAttribute('aria-pressed', String(m === 'view'));
+  private async setMode(m: 'edit' | 'view' | 'history'): Promise<void> {
+    if (m === 'history') {
+      const versions = this.versions();
+      if (versions.length < 2) {
+        this.toaster.show('No earlier versions yet — Save version (or ⌘S) records one');
+        return;
+      }
+      await this.showHistory(versions);
+    } else {
+      this.editorEl.readOnly = m === 'view';
+      this.diffEl?.remove();
+      this.diffEl = null;
+    }
+    this.mode = m;
+    this.rootEl.classList.toggle('history', m === 'history');
+    (['edit', 'view', 'history'] as const).forEach((x, i) => this.modeButtons[i]?.setAttribute('aria-pressed', String(m === x)));
+  }
+
+  // ---- history ------------------------------------------------------------------------------------------------------
+
+  /** The example's bundled history (when the open document is an example that has one). */
+  private async loadBundled(): Promise<void> {
+    const key = this.docKey;
+    const ex = key.startsWith('example:') ? this.examples.find((e) => `example:${e.id}` === key) : undefined;
+    if (!ex) return;
+    const list = await this.fetchHistory(ex);
+    if (key === this.docKey) this.bundled = list;
+  }
+
+  private readonly histories = new Map<string, Promise<StaticVersion[]>>();
+
+  /** An example's history file (fetched once), newest first; empty when it has none or it cannot be read. */
+  private fetchHistory(ex: ExampleInfo): Promise<StaticVersion[]> {
+    if (!ex.history) return Promise.resolve([]);
+    let p = this.histories.get(ex.history);
+    if (!p) {
+      p = fetch(ex.history).then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const m = (await r.json()) as { versions?: unknown };
+        return (Array.isArray(m.versions) ? m.versions : []).filter((v): v is StaticVersion =>
+          !!v && typeof v === 'object' && typeof (v as StaticVersion).id === 'string' && typeof (v as StaticVersion).source === 'string');
+      }).catch(() => []);
+      this.histories.set(ex.history, p);
+    }
+    return p;
+  }
+
+  private saved(): StaticVersion[] {
+    const all = this.storage.get<Record<string, StaticVersion[]>>(VERSIONS_KEY) ?? {};
+    const list = all[this.docKey];
+    return Array.isArray(list) ? list.filter((v) => v && typeof v.id === 'string' && typeof v.source === 'string') : [];
+  }
+
+  /** Records a version of the open document (newest first; the same source twice in a row is one version). */
+  private recordVersion(src: string, message: string): boolean {
+    const list = this.saved();
+    const newest = list[0]?.source ?? this.bundled[0]?.source;
+    if (newest === src) return false;
+    const all = this.storage.get<Record<string, StaticVersion[]>>(VERSIONS_KEY) ?? {};
+    const v: StaticVersion = { id: contentId(`${Date.now()}\n${src}`), message, author: 'You', date: new Date().toISOString(), source: src };
+    all[this.docKey] = [v, ...list].slice(0, MAX_VERSIONS);
+    this.storage.set(VERSIONS_KEY, all);
+    return true;
+  }
+
+  private async saveVersion(): Promise<void> {
+    const message = await this.dialogs.prompt('Save version', { label: 'What changed?', value: '', ok: 'Save version' });
+    if (message === null) return;
+    const ok = this.recordVersion(this.editorEl.getSource(), message.trim() || 'Saved version');
+    this.toaster.show(ok ? 'Version saved — see it in History' : 'Nothing changed since the last version');
+    if (ok && this.mode === 'history') await this.showHistory(this.versions());
+  }
+
+  /** Every version of the open document, newest first: the working copy, saved versions, the bundled history. */
+  private versions(): StaticVersion[] {
+    const list = [...this.saved(), ...this.bundled];
+    const src = this.editorEl.getSource();
+    if (list.length && list[0]!.source !== src)
+      list.unshift({ id: WORKING, message: 'Working copy (not saved as a version)', author: 'You', date: new Date().toISOString(), source: src });
+    return list;
+  }
+
+  private async showHistory(versions: StaticVersion[]): Promise<void> {
+    const { defineDiff } = await import('./diff.js');
+    defineDiff();
+    if (!this.diffEl) {
+      const el = document.createElement('mmdx-diff');
+      el.setAttribute('panels', 'history changes');
+      el.setAttribute('theme-dark', 'auto');
+      el.addEventListener('mmdx-version', () => this.syncRestore());
+      el.addEventListener('mmdx-view', () => this.syncRestore());
+      this.diffEl = el;
+      this.editorEl.after(el);
+    }
+    this.diffEl.setAttribute('ui', resolveUiScheme(this.ui === 'auto' ? null : this.ui));
+    this.diffEl.setAttribute('name', this.name);
+    await this.diffEl.setHistory(versions);
+    this.syncRestore();
+  }
+
+  /** The version Restore opens: the one viewed in History mode, else the After side of the comparison. */
+  private shownVersion(): string | null {
+    const pair = this.diffEl?.instance?.pair;
+    return pair ? pair.viewing ?? pair.head : null;
+  }
+
+  private syncRestore(): void {
+    const id = this.shownVersion();
+    this.restoreBtn.disabled = !id || id === WORKING;
+  }
+
+  private async restoreVersion(): Promise<void> {
+    const id = this.shownVersion();
+    const v = this.versions().find((x) => x.id === id);
+    if (!v || id === WORKING) return;
+    this.recordVersion(this.editorEl.getSource(), 'Before restoring an earlier version');
+    this.editorEl.setSource(v.source, { history: 'push' });
+    this.persist();
+    await this.setMode('edit');
+    this.toaster.show(`Restored ${v.id} — undo brings the previous diagram back`);
   }
 
   private applyScheme(): void {
     const s = resolveUiScheme(this.ui === 'auto' ? null : this.ui);
     this.host.setAttribute('data-ui', s);
     this.editorEl.setAttribute('ui', s);
+    this.diffEl?.setAttribute('ui', s);
   }
 
   // ---- theme editor (dialog) ----------------------------------------------------------------------------------------

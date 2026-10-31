@@ -16,7 +16,7 @@ function copyAssets(): Plugin {
       server.middlewares.use((req, res, next) => {
         // plain fetches only: module imports of the theme JSON (`?import`, `/@fs/…`) stay with Vite
         if ((req.url ?? '').includes('?')) return next();
-        const m = /^\/(?:[\w.-]+\/)?(examples|themes)\/([\w.-]+)$/.exec(decodeURIComponent(req.url ?? ''));
+        const m = /^\/(?:[\w.-]+\/)?(examples|themes)\/((?:history\/)?[\w.-]+)$/.exec(decodeURIComponent(req.url ?? ''));
         const file = m ? resolve(repo, m[1]!, m[2]!) : '';
         if (!file || !existsSync(file) || !statSync(file).isFile()) return next();
         res.setHeader('Content-Type', file.endsWith('.json') ? 'application/json' : 'text/plain; charset=utf-8');
@@ -46,14 +46,13 @@ export default defineConfig({
     target: 'es2022',
     // stock Mermaid (lazy: Plain Mermaid compare and the viewer fallback) is one large chunk by itself
     chunkSizeWarningLimit: 3000,
-    // the studio plus one demo page per component (UC1–UC3)
+    // the studio (with the history and diff of every example) plus one demo page per component (UC1–UC3)
     rollupOptions: {
       input: {
         index: resolve(here, 'index.html'),
         viewer: resolve(here, 'viewer.html'),
         editor: resolve(here, 'editor.html'),
         'theme-editor': resolve(here, 'theme-editor.html'),
-        diff: resolve(here, 'diff.html'),
       },
     },
   },
