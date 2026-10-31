@@ -3,12 +3,14 @@
 // collapsed unchanged runs ("⋯ N unchanged lines", expanded on click), and the narrowing to the lines of one item
 // (`sel`, with "Show all"). An optional Copy button copies the listing (diff: the after side). Replaces
 // `codeDiff` and `codeListing` of elements/diff/panels.ts (same DOM and classes, now highlighted) and the listing
-// of elements/viewer-code.ts. Highlighting is the dependency-free tokenizer of ui/code-editor (`highlightLine`,
-// `highlightMetaLine`); text goes in as text nodes only. The diff colours come from the `--mmdx-diff-*` tokens: in
-// diff mode the host adopts `DIFF_TOKENS` (ui/styles/diff.ts).
+// of elements/viewer-code.ts. Highlighting is the dependency-free tokenizer of ui/highlight.ts (`highlightLine`,
+// `highlightMetaLine`); text goes in as text nodes only. The line diff is core/diff/text's `diffLines` (a small, pure
+// Myers diff with no further imports, an L0 value function like the `core/diff` types §5.1 allows), or the host's
+// precomputed `ops`. The diff colours come from the `--mmdx-diff-*` tokens: in diff mode the host adopts
+// `DIFF_TOKENS` (ui/styles/diff.ts).
 import { diffLines, hunks, type LineOp } from '../../core/diff/text.js';
-import { highlightLine, highlightMetaLine } from '../code-editor.js';
 import { h } from '../h.js';
+import { highlightLine, highlightMetaLine } from '../highlight.js';
 import { registerMessages } from '../i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
 import { CODE_TOKENS_CSS } from '../styles/code-tokens.js';
@@ -44,6 +46,8 @@ export interface CodeViewDiffProps extends CodeViewCommon {
   mode: 'diff';
   a: readonly string[];
   b: readonly string[];
+  /** The line diff of `a` and `b`, when the host has it already (default: `diffLines(a, b)`). */
+  ops?: readonly LineOp[];
   /** Narrow the diff to these lines (null / absent: the whole file). */
   sel?: CodeSelection | null;
   /** Short notes in the header (facets left out of the diff). */
@@ -138,7 +142,7 @@ export function createCodeView(props: CodeViewProps): CodeViewHandle {
 
   const diff = (x: CodeViewDiffProps): HTMLElement[] => {
     const t = x.t;
-    const all = diffLines(x.a, x.b);
+    const all = x.ops ?? diffLines(x.a, x.b);
     const sel = x.sel ?? null;
     const ops = sel ? all.filter((o) => (o.a !== undefined && sel.a.has(o.a - 1)) || (o.b !== undefined && sel.b.has(o.b - 1))) : all;
     const adds = ops.filter((o) => o.op === 'add').length, dels = ops.filter((o) => o.op === 'del').length;
