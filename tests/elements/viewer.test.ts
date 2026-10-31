@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DiagramViewer, dedent } from '../../src/elements/viewer.js';
-import { hasKind, loadKind } from '../../src/elements/kinds.js';
+import { hasKind, loadKind } from '../../src/view/kinds.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
 
 const example = (f: string): string => readFileSync(resolve(__dirname, '../../examples', f), 'utf8');

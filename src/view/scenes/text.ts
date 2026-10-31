@@ -11,9 +11,9 @@ import { BUILTIN_IDS } from '../../core/theme/builtin-ids.js';
 import { diagnosticText, type Diagnostic, type Rect } from '../../core/types.js';
 import { cancelIdle, idle } from '../../dom/idle.js';
 import { renderInWorker, workerAvailable, WORKER_THRESHOLD_LINES } from '../../dom/worker-client.js';
-import { hasKind, loadedKinds, loadKind } from '../../elements/kinds.js';
 import { h } from '../../ui/h.js';
 import type { ViewCore } from '../core.js';
+import { lazyKinds, type KindsProvider } from '../kinds.js';
 import { BaseScene } from '../scene.js';
 
 export type FitMode = 'contain' | 'width' | 'none';
@@ -29,6 +29,8 @@ export interface TextSceneOptions {
   onRendered(r: Rendered, durationMs: number): void;
   onFallback(): void;
   onError(diags: Diagnostic[]): void;
+  /** Parsers and renderers of the diagram kinds (default: loaded on first use). */
+  kinds?: KindsProvider;
 }
 
 export class TextScene extends BaseScene {
@@ -41,11 +43,13 @@ export class TextScene extends BaseScene {
   private renderSeq = 0;
   private handle = 0;
   private destroyed = false;
+  private readonly kinds: KindsProvider;
   /** A message to show once attached again (an error that came while History had the canvas). */
   private deferred: (() => void) | null = null;
 
   constructor(private readonly core: ViewCore, private readonly o: TextSceneOptions) {
     super();
+    this.kinds = o.kinds ?? lazyKinds;
   }
 
   /** Shows a new source (renders now). */
@@ -106,8 +110,8 @@ export class TextScene extends BaseScene {
     };
     // the parser and renderer of this diagram type load on first use
     const type = detectType(text);
-    if (type && !hasKind(type)) {
-      loadKind(type).then(again, () => {
+    if (type && !this.kinds.has(type)) {
+      this.kinds.load(type).then(again, () => {
         if (!this.destroyed && text === this.text) this.showError([{ severity: 'error', code: 'load.failed', message: `Could not load the ${type} renderer` }], text);
       });
       return;
@@ -131,12 +135,12 @@ export class TextScene extends BaseScene {
       void renderInWorker(text, core.ctx, opts).then((wr) => {
         if (this.destroyed || seq !== this.renderSeq || text !== this.text) return;
         if (wr && 'error' in wr) this.showError([{ severity: 'error', code: 'doc.too-large', message: 'Rendering this diagram took too long' }], text);
-        else this.apply(wr ?? renderSourceWith(loadedKinds(), text, core.ctx, opts), t0, true);
+        else this.apply(wr ?? renderSourceWith(this.kinds.kinds(), text, core.ctx, opts), t0, true);
       });
       return;
     }
     ++this.renderSeq;
-    this.apply(renderSourceWith(loadedKinds(), text, core.ctx, opts), t0, true);
+    this.apply(renderSourceWith(this.kinds.kinds(), text, core.ctx, opts), t0, true);
   }
 
   private apply(r: Rendered, t0: number, announce: boolean): void {

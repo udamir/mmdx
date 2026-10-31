@@ -4,7 +4,7 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
-import { loadKind } from '../../src/elements/kinds.js';
+import { loadKind } from '../../src/view/kinds.js';
 import { changeKey } from '../../src/core/diff/merge.js';
 
 beforeAll(async () => {

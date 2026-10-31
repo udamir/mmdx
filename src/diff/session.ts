@@ -16,7 +16,7 @@ import { diffReport, sourcePart, unifiedDiff, type VersionInfo } from '../core/d
 import { renderSourceWith, standaloneSvg, type PipelineOptions, type Rendered } from '../core/pipeline-core.js';
 import { Lru } from '../core/text/measure.js';
 import type { Diagnostic } from '../core/types.js';
-import { loadedKinds } from '../elements/kinds.js';
+import { loadedKinds } from '../view/kinds.js';
 import type { Translate } from '../ui/blocks/block.js';
 import { batch, computed, signal, type ReadSignal, type Signal } from '../ui/signal.js';
 import { loadKindsOf } from './kinds.js';
