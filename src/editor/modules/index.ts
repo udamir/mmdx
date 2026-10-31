@@ -8,7 +8,15 @@ import { shapesModule } from './shapes/index.js';
 import { CHROME_MODULES, LAYOUT_MODULES } from './chrome/index.js';
 import { PANEL_MODULES } from './panels/index.js';
 
-export const DEFAULT_MODULES: readonly EditorModule[] = [
+/**
+ * The document stage only (component architecture §8.2): editing gestures, handles, panels, toolbars and editing
+ * shortcuts are suspended while History is open, with their state kept.
+ */
+const documentStage = (m: EditorModule): EditorModule => ({ ...m, when: { ...m.when, stage: ['document'] } });
+
+const ALWAYS = new Set(['history', 'tool-dock', 'pan', 'pen', 'zoom-bar', 'view-params']);
+
+export const DEFAULT_MODULES: readonly EditorModule[] = ([
   // first: while a table is edited its rows take the keys (Esc, Delete, ⌘A, Enter, arrows) before the canvas does
   erTableModule,
   ...CANVAS_MODULES,
@@ -18,4 +26,4 @@ export const DEFAULT_MODULES: readonly EditorModule[] = [
   ...LAYOUT_MODULES,
   ...PANEL_MODULES,
   ...CHROME_MODULES,
-];
+] as EditorModule[]).map((m) => (ALWAYS.has(m.id) ? m : documentStage(m)));

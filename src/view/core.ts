@@ -498,14 +498,22 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     const prevHook = this.shortcuts.hook;
     this.installing = scope;
     this.shortcuts.hook = (s, remove) => scope.wrapShortcut(s, remove);
+    // DOM a module puts straight into the root or the canvas area while installing (not through a slot) is still its
+    // own: it is detached while the module is suspended (records taken synchronously, nothing waits for the observer)
+    const mo = typeof MutationObserver !== 'undefined' ? new MutationObserver(() => undefined) : null;
+    mo?.observe(this.root, { childList: true });
+    mo?.observe(this.area, { childList: true });
     try {
       const off = m.install(scope);
       if (typeof off === 'function') scope.onDispose(off);
+      for (const r of mo?.takeRecords() ?? [])
+        for (const n of r.addedNodes) if (n instanceof Element && n.parentNode === r.target && !n.classList.contains('slot')) scope.adopt(n);
     } catch (e) {
       console.error(`[mmdx] module ${m.id} failed to install`, e);
       scope.dispose();
       return null;
     } finally {
+      mo?.disconnect();
       this.installing = prev;
       this.shortcuts.hook = prevHook;
     }
@@ -622,6 +630,12 @@ class Scope implements ModuleScope<never> {
   slot(name: SlotName): { append(...els: (Element | null | undefined | false)[]): void } {
     const parent = this.kernel.slots[name];
     return { append: (...els) => els.forEach((el) => el && this.mount(parent, el)) };
+  }
+
+  /** Takes an element the module already placed (detached while suspended, removed on uninstall). */
+  adopt(el: Element): void {
+    if (!el.parentNode || this.mounts.some((m) => m.el === el)) return;
+    this.mounts.push({ el, parent: el.parentNode as Element, marker: null });
   }
 
   mount(parent: Element, el: Element): void {

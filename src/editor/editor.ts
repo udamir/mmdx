@@ -146,7 +146,8 @@ export class DiagramEditor {
       this.core.pageSelected.set(false);
     }
     this.core.draw();
-    if (opts.fit !== false || before !== this.store.model.peek().type) this.core.viewport.setBounds(this.core.result.result.bounds, { fit: true });
+    // while History owns the canvas, the document's view is restored on the way back
+    if (this.core.scene === this.core.storeScene && (opts.fit !== false || before !== this.store.model.peek().type)) this.core.viewport.setBounds(this.core.result.result.bounds, { fit: true });
     this.core.fire('model');
     this.core.fire('panels');
   }
@@ -462,9 +463,10 @@ export class DiagramEditor {
   private addBaseShortcuts(): void {
     const core = this.core;
     core.shortcuts.add(
-      { id: 'undo', keys: ['mod+z'], label: 'Undo', group: 'Edit', editOnly: true, run: () => this.undo() },
-      { id: 'redo', keys: ['mod+shift+z', 'mod+y'], label: 'Redo', group: 'Edit', editOnly: true, run: () => this.redo() },
-      { id: 'save', keys: ['mod+s'], label: 'Save', group: 'File', inText: true, run: () => { void this.save(); } },
+      // the document is never written while History is open
+      { id: 'undo', keys: ['mod+z'], label: 'Undo', group: 'Edit', editOnly: true, when: { stage: ['document'] }, run: () => this.undo() },
+      { id: 'redo', keys: ['mod+shift+z', 'mod+y'], label: 'Redo', group: 'Edit', editOnly: true, when: { stage: ['document'] }, run: () => this.redo() },
+      { id: 'save', keys: ['mod+s'], label: 'Save', group: 'File', inText: true, when: { stage: ['document'] }, run: () => { void this.save(); } },
       { id: 'fit', keys: ['f'], label: 'Fit to view', group: 'View', run: () => this.fit() },
       { id: 'space-pan', keys: ['space'], label: 'Hold Space and drag to pan', group: 'View', hintOnly: true },
     );

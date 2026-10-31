@@ -501,13 +501,20 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     this.dom.root.classList.toggle('group-edit', !!this.enteredGroup.peek() && this.mode.peek() === 'edit');
   }
 
+  /** Adds an overlay painter; one added while a module installs is muted while the module is suspended. */
   addOverlay(p: OverlayPainter): () => void {
-    this.painters.push(p);
-    this.painters.sort((a, b) => a.order - b.order);
-    return () => {
+    const add = (): void => {
+      if (this.painters.includes(p)) return;
+      this.painters.push(p);
+      this.painters.sort((a, b) => a.order - b.order);
+    };
+    const remove = (): void => {
       const i = this.painters.indexOf(p);
       if (i >= 0) this.painters.splice(i, 1);
     };
+    add();
+    this.track({ set: (on) => (on ? add() : remove()), dispose: remove });
+    return remove;
   }
 
   /** Repaints the overlay layer (handles, dots, marquee) from the current geometry. */
@@ -530,13 +537,20 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   // ---- gestures ---------------------------------------------------------------------------------------------------
 
+  /** Adds a gesture source; one added while a module installs is muted while the module is suspended. */
   addGestureSource(s: GestureSource): () => void {
-    this.gestures.push(s);
-    this.gestures.sort((a, b) => b.priority - a.priority);
-    return () => {
+    const add = (): void => {
+      if (this.gestures.includes(s)) return;
+      this.gestures.push(s);
+      this.gestures.sort((a, b) => b.priority - a.priority);
+    };
+    const remove = (): void => {
       const i = this.gestures.indexOf(s);
       if (i >= 0) this.gestures.splice(i, 1);
     };
+    add();
+    this.track({ set: (on) => (on ? add() : remove()), dispose: remove });
+    return remove;
   }
 
   /** Runs the gesture sources in priority order; the first that returns a gesture wins. */
