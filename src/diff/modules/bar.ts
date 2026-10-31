@@ -78,6 +78,13 @@ export function diffBarModule(session: DiffSession): ViewModule<ViewCore> {
       }
 
       // ---- filters and dim
+      /** No filters shown: the separator next to the empty group goes too. */
+      const syncFilterSep = (): void => {
+        if (!filters) return;
+        const next = filters.el.nextElementSibling, prev = filters.el.previousElementSibling;
+        const sep = next?.classList.contains('mmdx-sep') ? next : prev?.classList.contains('mmdx-sep') ? prev : null;
+        if (sep instanceof HTMLElement) sep.hidden = !filters.el.childElementCount;
+      };
       const filters = core.feature('filters')
         ? createFilterToggles({ filters: [], dim: null, onToggle: (id) => session.toggleFilter(id as (typeof DIFF_FILTERS)[number]), onDim: () => session.setDim(!session.dim.peek()), t })
         : null;
@@ -86,10 +93,16 @@ export function diffBarModule(session: DiffSession): ViewModule<ViewCore> {
         scope.effect(() => {
           const raw = session.rendered()?.raw.counts;
           const hide = session.hide(), ignore = session.ignore(), dim = session.dim();
-          untracked(() => filters.update({
-            filters: DIFF_FILTERS.map((f) => ({ id: f, label: t(`diff.filter.${f}`), icon: FILTER_ICONS[f], on: f === 'added' || f === 'removed' ? !hide[f] : !ignore[f], count: raw?.[f] ?? 0 })),
-            dim: { on: dim, label: t('diff.filter.dim'), icon: FILTER_ICONS.dim },
-          }));
+          // only the kinds of change this comparison has (counts of the unfiltered diff: a filter turned off stays);
+          // Dim only when something changed
+          const shown = DIFF_FILTERS.filter((f) => (raw?.[f] ?? 0) > 0);
+          untracked(() => {
+            filters.update({
+              filters: shown.map((f) => ({ id: f, label: t(`diff.filter.${f}`), icon: FILTER_ICONS[f], on: f === 'added' || f === 'removed' ? !hide[f] : !ignore[f], count: raw?.[f] ?? 0 })),
+              dim: shown.length ? { on: dim, label: t('diff.filter.dim'), icon: FILTER_ICONS.dim } : null,
+            });
+            syncFilterSep();
+          });
         });
       }
 
@@ -113,6 +126,7 @@ export function diffBarModule(session: DiffSession): ViewModule<ViewCore> {
       for (const el of [views?.el, filters?.el, changes?.el]) if (el) items.push(...(items.length ? ['sep' as const] : []), el);
       const bar = createToolbar({ label: t('diff.views'), orientation: 'horizontal', items, tooltip: 'above', class: 'dbar', part: 'diff-bar' });
       scope.slot('bottom-center').append(bar.el);
+      syncFilterSep();
       scope.effect(() => {
         bar.el.hidden = !items.length || session.viewOnly();
         const p = core.panels();

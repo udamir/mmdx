@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DiagramDiff, defineDiff } from '../../src/elements/diff.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import type { StaticVersion } from '../../src/adapters/history.js';
@@ -63,6 +63,22 @@ describe('DiagramDiff: two versions', () => {
     expect(d.getDiff()!.items.some((c) => c.facets.includes('style'))).toBe(false);
     expect(root.querySelectorAll('.change').length).toBeLessThan(before);
     expect(events.some((e) => e.type === 'mmdx-filters')).toBe(true);
+  });
+
+  it('the bar shows only the kinds of change the comparison has', async () => {
+    const shown = (root: ShadowRoot): string[] => [...root.querySelectorAll<HTMLElement>('.dbar .flt')].map((b) => b.dataset['f']!);
+    const visibleSeps = (root: ShadowRoot): number => [...root.querySelectorAll<HTMLElement>('.dbar > .mmdx-sep')].filter((x) => !x.hidden).length;
+    const a = await mount({ beforeSource: 'flowchart LR\n  a[One] --> b', afterSource: 'flowchart LR\n  a[Two] --> b' });
+    expect(shown(a.root)).toEqual(['flt-content']);
+    expect(a.root.querySelector('.dbar .mmdx-dim')).not.toBeNull();
+    // switching it off keeps it (the counts are of the unfiltered diff)
+    a.root.querySelector<HTMLButtonElement>('.dbar .flt-content')!.click();
+    await vi.waitFor(() => expect(a.root.querySelector('.dbar .flt-content.off')).not.toBeNull());
+    expect(shown(a.root)).toEqual(['flt-content']);
+    const same = await mount({ beforeSource: 'flowchart LR\n  a --> b', afterSource: 'flowchart LR\n  a --> b' });
+    expect(shown(same.root)).toEqual([]);
+    expect(same.root.querySelector('.dbar .mmdx-dim')).toBeNull();
+    expect(visibleSeps(same.root)).toBe(1);
   });
 
   it('views: one canvas for before / merged / after, two linked canvases side by side', async () => {
