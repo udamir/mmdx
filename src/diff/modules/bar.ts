@@ -34,11 +34,9 @@ export const DIFF_BAR_CSS = /* css */ `
 .dbar .changes-btn .cnt { position: absolute; right: -3px; bottom: -2px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px;
   background: var(--mmdx-muted); color: var(--mmdx-surface); font-size: 9px; font-weight: 700; line-height: 14px; text-align: center; }
 .dbar .changes-btn.on .cnt { background: var(--mmdx-accent); }
-/* a narrow canvas: the views become a select */
-@container area (max-width: 620px) {
-  .dbar button.view { display: none; }
-  .dbar .mmdx-seg-select { display: block; }
-}
+/* a narrow canvas (the room between the open panels): the views become a select */
+.dbar.narrow button.view { display: none; }
+.dbar.narrow .mmdx-seg-select { display: block; }
 @media print { .dbar { display: none !important; } }
 `;
 
@@ -110,6 +108,23 @@ export function diffBarModule(session: DiffSession): ViewModule<ViewCore> {
         const p = core.panels();
         bar.el.classList.toggle('right-closed', !Object.entries(p).some(([id, on]) => on && core.panelItems.peek().some((x) => x.id === id && x.side === 'right')));
       });
+      // the views fold into a select when the canvas between the open panels is narrow
+      const NEEDS = 560;
+      const syncNarrow = (): void => {
+        const st = getComputedStyle(core.root);
+        const free = core.area.clientWidth - (parseFloat(st.getPropertyValue('--inset-l')) || 0) - (parseFloat(st.getPropertyValue('--inset-r')) || 0);
+        // with no panel on the right the bar also keeps clear of the zoom bar's corner
+        const room = free - (bar.el.classList.contains('right-closed') ? 220 : 24);
+        bar.el.classList.toggle('narrow', !!core.area.clientWidth && room < NEEDS);
+      };
+      core.on('view', syncNarrow);
+      core.on('panels', syncNarrow);
+      if (typeof ResizeObserver !== 'undefined') {
+        const ro = new ResizeObserver(syncNarrow);
+        ro.observe(core.area);
+        scope.onDispose(() => ro.disconnect());
+      }
+      syncNarrow();
 
       // ---- keys
       const g = t('diff.help.views');

@@ -272,7 +272,14 @@ export class DiagramViewer {
         return c.includes('theme');
       case 'history':
         return c.includes('history');
+      // History's own parts (the diff bar, the panels, selecting changes) are on while History is open
+      case 'views':
+      case 'filters':
+      case 'changes':
+      case 'select':
+        return true;
       default:
+        if (name === 'code' && this.core?.historyOpen.peek()) return true;
         return c.includes(name as ViewerControl);
     }
   }
