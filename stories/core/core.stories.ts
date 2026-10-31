@@ -79,7 +79,7 @@ export const SemanticDiff: Story = {
   name: 'Semantic diagram diff',
   parameters: {
     controls: { include: ['sample', 'ignoreContent', 'ignoreLayout', 'ignoreStyle'] },
-    docs: { description: { story: '`diffDiagrams(before, after)` matches items across versions (renames, shifted sequence ids) and classifies each change as content, layout or style; each facet can be ignored. The full review UI is the `diff.html` page of the studio site.' } },
+    docs: { description: { story: '`diffDiagrams(before, after)` matches items across versions (renames, shifted sequence ids) and classifies each change as content, layout or style; each facet can be ignored. The full review UI is `<mmdx-diff>` (Elements/Diff) and the History mode of the studio.' } },
   },
   render: (a) => {
     const before = diffSample(a.sample, 'before'), after = diffSample(a.sample, 'after');

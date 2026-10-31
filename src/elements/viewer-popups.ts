@@ -7,8 +7,11 @@ import { h, icon } from '../ui/h.js';
 import type { I18n } from '../ui/i18n.js';
 import { I_eye, I_eyeOff } from '../ui/icons.js';
 
+/** What the pen options read and set (the viewer's MagicPen, the diff's shared ink). */
+export type PenSettings = Pick<MagicPen, 'color' | 'size' | 'fade' | 'setColor' | 'setSize' | 'setFade' | 'clear'>;
+
 /** Pen colours, sizes, auto erase and Erase all; re-draws itself on every change. */
-export function penOptions(pen: MagicPen, t: I18n['t']): HTMLElement {
+export function penOptions(pen: PenSettings, t: I18n['t']): HTMLElement {
   const pop = h('div', { class: 'pop pen-opts', role: 'dialog', 'aria-label': t('pen.title') });
   const draw = (): void => {
     pop.replaceChildren(

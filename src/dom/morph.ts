@@ -1,0 +1,261 @@
+// Morph (diff §9.2): three states of one diagram (before → merged → after) shown in one canvas, with animated
+// transitions. Items are paired by their change key (`data-ck`); paired items with the same structure tween their
+// geometry, path data and colours, changed text flips, items only one side has fade, and the highlight layers
+// cross-fade. With reduced motion the switch is instant.
+
+const DURATION = 900;
+const NS = 'http://www.w3.org/2000/svg';
+const NUMERIC = new Set(['x', 'y', 'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'rx', 'ry', 'width', 'height', 'font-size', 'stroke-width', 'opacity', 'fill-opacity', 'stroke-opacity']);
+const LISTS = new Set(['d', 'points', 'transform', 'viewBox']);
+const COLORS = new Set(['fill', 'stroke', 'stop-color']);
+const LAYERS = ['dx-layer', 'dx-runs'];
+
+type Tween = (t: number) => void;
+
+const NUM = /-?\d*\.?\d+(?:e[-+]?\d+)?/gi;
+const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
+const ease = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+
+let colorCtx: CanvasRenderingContext2D | null | undefined;
+/** Any CSS colour → [r, g, b, a], or null (none, url(#…), invalid, or no canvas). */
+function rgba(v: string | null): [number, number, number, number] | null {
+  if (!v || v === 'none' || v.startsWith('url(')) return null;
+  try {
+    colorCtx ??= document.createElement('canvas').getContext('2d');
+  } catch {
+    colorCtx = null;
+  }
+  if (!colorCtx) return null;
+  colorCtx.fillStyle = '#000';
+  colorCtx.fillStyle = v;
+  const s = String(colorCtx.fillStyle);
+  if (s.startsWith('#')) return [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), parseInt(s.slice(5, 7), 16), 1];
+  const m = /rgba?\(([^)]+)\)/.exec(s);
+  if (!m) return null;
+  const p = m[1]!.split(',').map(Number);
+  return [p[0]!, p[1]!, p[2]!, p[3] ?? 1];
+}
+
+/** Tween of one attribute from `a` to `b` (the element starts at `a`); null when they cannot be paired at all. */
+function attrTween(el: Element, name: string, a: string | null, b: string | null): Tween | null | 'discrete' {
+  if (a === b) return null;
+  if (a !== null && b !== null && NUMERIC.has(name)) {
+    const x = parseFloat(a), y = parseFloat(b);
+    if (Number.isFinite(x) && Number.isFinite(y)) return (t) => el.setAttribute(name, String(lerp(x, y, t)));
+  }
+  if (a !== null && b !== null && LISTS.has(name)) {
+    if (a.replace(NUM, '#') !== b.replace(NUM, '#')) return name === 'd' || name === 'points' ? null : 'discrete';
+    const xs = a.match(NUM)!.map(Number), ys = b.match(NUM)!.map(Number);
+    const parts = b.split(NUM);
+    return (t) => el.setAttribute(name, parts.map((p, i) => p + (i < ys.length ? String(lerp(xs[i]!, ys[i]!, t)) : '')).join(''));
+  }
+  if (COLORS.has(name)) {
+    const x = rgba(a), y = rgba(b);
+    if (x && y) return (t) => el.setAttribute(name, `rgba(${x.map((v, i) => (i < 3 ? Math.round(lerp(v, y[i]!, t)) : lerp(v, y[i]!, t))).join(',')})`);
+  }
+  return 'discrete';
+}
+
+const attrNames = (a: Element, b: Element): Set<string> =>
+  new Set([...a.getAttributeNames(), ...b.getAttributeNames()].filter((n) => n !== 'class' && !n.startsWith('data-')));
+
+/** Pairs two item subtrees: their tweens, or null when the structure differs (they cross-fade instead). */
+function pair(a: Element, b: Element, flips: { a: Element; b: Element }[]): Tween[] | null {
+  if (a.tagName !== b.tagName) return null;
+  const out: Tween[] = [];
+  if (b.tagName === 'text' && (a.textContent !== b.textContent || a.children.length !== b.children.length)) {
+    flips.push({ a, b });
+    return out;
+  }
+  for (const n of attrNames(a, b)) {
+    const va = a.getAttribute(n), vb = b.getAttribute(n);
+    const tw = attrTween(b, n, va, vb);
+    if (tw === null && va !== vb) return null;
+    if (tw === 'discrete') out.push((t) => (t < 0.5 ? (va === null ? b.removeAttribute(n) : b.setAttribute(n, va)) : vb === null ? b.removeAttribute(n) : b.setAttribute(n, vb)));
+    else if (tw) out.push(tw);
+  }
+  const ca = [...a.children], cb = [...b.children];
+  if (ca.length !== cb.length) return null;
+  for (let i = 0; i < ca.length; i++) {
+    const r = pair(ca[i]!, cb[i]!, flips);
+    if (!r) return null;
+    out.push(...r);
+  }
+  return out;
+}
+
+/** Outermost item groups by pairing key. */
+function items(root: Element): Map<string, Element> {
+  const m = new Map<string, Element>();
+  for (const e of root.querySelectorAll('[data-ck]')) if (!e.parentElement?.closest('[data-ck]')) m.set(e.getAttribute('data-ck')!, e);
+  return m;
+}
+
+const firstPos = (t: Element): { x: number; y: number } => {
+  const s = t.querySelector('tspan[x]');
+  return { x: parseFloat(s?.getAttribute('x') ?? '0') || 0, y: parseFloat(s?.getAttribute('y') ?? '0') || 0 };
+};
+
+/** Moves every positioned line of a text by (dx, dy), towards its own place or away from it. */
+function slideText(t: Element, dx: number, dy: number, towards: boolean): Tween {
+  const lines = [...t.querySelectorAll('tspan[x]')].map((s) => ({ s, x: parseFloat(s.getAttribute('x')!), y: parseFloat(s.getAttribute('y')!) }));
+  return (k) => {
+    const f = towards ? 1 - k : k;
+    for (const l of lines) {
+      l.s.setAttribute('x', String(l.x + dx * f));
+      l.s.setAttribute('y', String(l.y + dy * f));
+    }
+  };
+}
+
+export interface MorphState {
+  /** `<defs>` children (markers, patterns) the state needs. */
+  defs: readonly Element[];
+  /** A detached group whose children are the state's layers (page, diagram, highlights). */
+  content: Element;
+}
+
+export class Morph {
+  current: number;
+  private running: { finish(): void } | null = null;
+
+  /** `defs` and `content` are the display elements the states are copied into; `reducedMotion` turns the animation off. */
+  constructor(
+    private readonly defs: Element,
+    private readonly content: Element,
+    private states: MorphState[],
+    start: number,
+    private readonly reducedMotion: () => boolean = () => false,
+  ) {
+    this.current = start;
+    this.show(start);
+  }
+
+  /** Replaces the states (new data): shows state `i` without animation. */
+  reset(states: MorphState[], i: number): void {
+    this.running?.finish();
+    this.states = states;
+    this.current = i;
+    this.show(i);
+  }
+
+  go(i: number, animate = true): void {
+    if (i === this.current || !this.states[i]) return;
+    this.running?.finish();
+    const from = this.states[this.current]!;
+    this.current = i;
+    this.show(i);
+    if (animate && !this.reducedMotion() && typeof requestAnimationFrame !== 'undefined') this.running = this.transition(from);
+  }
+
+  finish(): void {
+    this.running?.finish();
+  }
+
+  private show(i: number): void {
+    const s = this.states[i];
+    if (!s) return;
+    this.defs.replaceChildren(...s.defs.map((n) => n.cloneNode(true)));
+    this.content.replaceChildren(...[...s.content.childNodes].map((n) => n.cloneNode(true)));
+  }
+
+  private transition(from: MorphState): { finish(): void } {
+    const root = this.content;
+    const tweens: Tween[] = [];
+    const cleanup: (() => void)[] = [];
+    const flips: { a: Element; b: Element }[] = [];
+    const fade = (el: Element, a: number, b: number, after?: () => void): void => {
+      const s = (el as SVGElement).style;
+      tweens.push((t) => (s.opacity = String(lerp(a, b, t))));
+      cleanup.push(() => (after ? after() : s.removeProperty('opacity')));
+    };
+    // markers and patterns the old state needs while it fades out
+    const ids = new Set([...this.defs.querySelectorAll('[id]')].map((e) => e.id));
+    for (const d of from.defs) if (d.id && !ids.has(d.id)) this.defs.append(d.cloneNode(true));
+
+    const A = items(from.content), B = items(root);
+    const out = document.createElementNS(NS, 'g');
+    const top = root.querySelector(LAYERS.map((c) => `:scope > g.${c}`).join(', '));
+    if (top) top.before(out);
+    else root.append(out);
+    for (const [k, b] of B) {
+      const a = A.get(k);
+      if (!a) {
+        fade(b, 0, 1);
+        continue;
+      }
+      const local: { a: Element; b: Element }[] = [];
+      const tw = pair(a, b, local);
+      if (tw) {
+        tweens.push(...tw);
+        flips.push(...local);
+      } else {
+        const ghost = a.cloneNode(true) as Element;
+        b.before(ghost);
+        fade(ghost, 1, 0, () => ghost.remove());
+        fade(b, 0, 1);
+      }
+    }
+    for (const [k, a] of A) {
+      if (B.has(k)) continue;
+      const ghost = a.cloneNode(true) as Element;
+      out.append(ghost);
+      fade(ghost, 1, 0, () => ghost.remove());
+    }
+    for (const cls of LAYERS) {
+      const a = from.content.querySelector(`:scope > g.${cls}`), b = root.querySelector(`:scope > g.${cls}`);
+      if (b) fade(b, a ? 0.2 : 0, 1);
+      if (a && a.childElementCount) {
+        const ghost = a.cloneNode(true) as Element;
+        root.append(ghost);
+        fade(ghost, 1, 0, () => ghost.remove());
+      }
+    }
+    // changed text: the old text flips out where it was, the new one flips in, both sliding with the item
+    const anims: Animation[] = [];
+    for (const { a, b } of flips) {
+      const old = a.cloneNode(true) as Element;
+      b.before(old);
+      const pa = firstPos(a), pb = firstPos(b);
+      const dx = pb.x - pa.x, dy = pb.y - pa.y;
+      if (dx || dy) tweens.push(slideText(old, dx, dy, false), slideText(b, -dx, -dy, true));
+      if (typeof old.animate === 'function') {
+        old.classList.add('mx-flip');
+        b.classList.add('mx-flip');
+        anims.push(old.animate([{ scale: '1 1', opacity: 1 }, { scale: '1 0', opacity: 0 }], { duration: DURATION / 2, easing: 'ease-in', fill: 'forwards' }));
+        anims.push(b.animate([{ scale: '1 0', opacity: 0 }, { scale: '1 1', opacity: 1 }], { duration: DURATION / 2, delay: DURATION / 2, easing: 'ease-out', fill: 'backwards' }));
+      } else fade(old, 1, 0);
+      cleanup.push(() => {
+        old.remove();
+        b.classList.remove('mx-flip');
+      });
+    }
+
+    for (const tw of tweens) tw(0);
+    const t0 = performance.now();
+    let raf = 0, done = false;
+    const end = (): void => {
+      if (done) return;
+      done = true;
+      cancelAnimationFrame(raf);
+      for (const tw of tweens) tw(1);
+      for (const x of anims) x.finish();
+      for (const c of cleanup) c();
+      out.remove();
+      this.running = null;
+    };
+    const step = (now: number): void => {
+      const p = Math.min(1, (now - t0) / DURATION);
+      const e = ease(p);
+      for (const tw of tweens) tw(e);
+      if (p < 1) raf = requestAnimationFrame(step);
+      else end();
+    };
+    raf = requestAnimationFrame(step);
+    return { finish: end };
+  }
+
+  dispose(): void {
+    this.running?.finish();
+  }
+}

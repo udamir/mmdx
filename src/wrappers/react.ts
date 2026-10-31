@@ -13,7 +13,7 @@ interface ReactLike {
 type EventProps = Record<`onMmdx${string}`, ((ev: CustomEvent) => void) | undefined>;
 
 /** Attribute props are passed through; object props (`source`, `adapter`, `layers`, …) are set as properties. */
-const PROPERTY_PROPS = new Set(['source', 'loader', 'layers', 'themeSource', 'storage', 'adapter', 'features', 'panels', 'value', 'readOnly', 'store', 'modules']);
+const PROPERTY_PROPS = new Set(['source', 'loader', 'layers', 'themeSource', 'storage', 'adapter', 'features', 'panels', 'value', 'readOnly', 'store', 'modules', 'history', 'beforeSource', 'afterSource']);
 
 function wrap(React: ReactLike, tag: string): unknown {
   return React.forwardRef((props: Record<string, unknown>, ref) => {
@@ -52,6 +52,7 @@ export interface MmdxReactComponents {
   MmdxEditor: unknown;
   MmdxThemeEditor: unknown;
   MmdxStudio: unknown;
+  MmdxDiff: unknown;
 }
 
 export function createReactWrappers(React: ReactLike): MmdxReactComponents {
@@ -60,6 +61,7 @@ export function createReactWrappers(React: ReactLike): MmdxReactComponents {
     MmdxEditor: wrap(React, 'mmdx-editor'),
     MmdxThemeEditor: wrap(React, 'mmdx-theme-editor'),
     MmdxStudio: wrap(React, 'mmdx-studio'),
+    MmdxDiff: wrap(React, 'mmdx-diff'),
   };
 }
 

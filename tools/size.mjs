@@ -42,7 +42,9 @@ for (const k of ['flowchart', 'sequence', 'er']) {
   const extra = [...v.closure(f)].filter((x) => !v.base.has(x));
   report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), 45 * KB);
 }
-for (const [entry, budget] of [['core', 45], ['theme-editor', 120], ['editor', 165]]) {
+// core includes the diff engine (diffs, merged model, annotations, reports, renderDiffToSvg); the diff entry ships every
+// diagram kind statically (both versions may be any type) — lazy kinds and panels are the next size step
+for (const [entry, budget] of [['core', 55], ['theme-editor', 120], ['editor', 165], ['diff', 90]]) {
   const b = await bundle(entry);
   report(entry, b.size(b.base), budget * KB);
 }
