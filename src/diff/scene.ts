@@ -57,6 +57,8 @@ export interface DiffSceneOptions {
   label?: ReadSignal<string>;
   /** Options of the canvases the scene adds (the host's current wheel mode). */
   canvas?: () => Partial<CanvasOptions>;
+  /** The viewed version's id and details over the History mode picture (default on); off where the host names it already. */
+  versionTitle?: boolean;
 }
 
 type Kind = 'single' | 'side' | 'plain';
@@ -257,7 +259,8 @@ export class DiffScene extends BaseScene {
     const v = this.session.versions.peek().find((x) => x.id === id);
     const pair = `v:${id}`;
     const animate = this.morph !== null && this.painted.pair !== pair;
-    this.layout('plain', [{ side: 'single', title: v?.id ?? '', sub: [v?.message, v?.author, ago(v?.date, this.core.i18n.locale)].filter(Boolean).join(' · ') }]);
+    const title = this.o.versionTitle === false ? [] : [{ side: 'single', title: v?.id ?? '', sub: [v?.message, v?.author, ago(v?.date, this.core.i18n.locale)].filter(Boolean).join(' · ') }];
+    this.layout('plain', title);
     this.panes[0]!.style.background = paneBackground(r);
     this.showStates([this.plainState(r)], 0, animate);
     this.painted = { ...this.painted, kind: 'plain', D: null, plain: r, view: null, pair };

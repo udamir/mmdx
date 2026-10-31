@@ -67,6 +67,17 @@ describe('History in the editor (studio)', () => {
     expect(ed.querySelector('.mmdx-pill [role=status]')!.textContent).toMatch(/^\w+ → \w+$/);
     expect(editor.historySession).not.toBeNull();
     await wait(() => events.includes('mmdx-history-compare'));
+    // a version viewed as it is: the pill names it, the canvas carries no title of it
+    let draws = 0;
+    const off = editor.core.on('draw', () => draws++);
+    for (const v of [versions[2], versions[1]]) {
+      const n = draws;
+      editor.historySession!.viewVersion(v.id);
+      await wait(() => draws > n);
+      expect(ed.querySelector('.mmdx-pill')!.textContent).toContain(v.id);
+      expect(editor.core.area.querySelector('.pane-title')).toBeNull();
+    }
+    off();
     // Edit / View cannot switch while History is open
     editor.setMode('view');
     expect(editor.readOnly).toBe(false);

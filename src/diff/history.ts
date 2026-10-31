@@ -132,7 +132,8 @@ export function openHistory(core: ViewCore, o: { onClose(): void }): HistoryCont
     showVersions: () => void core.run('setPanel', 'history', true),
   });
   const sceneLabel = computed(() => (session.viewOnly() ? t('diff.labelVersion', { id: label(session.viewing()) }) : t('history.label')));
-  const scene = new DiffScene(core, session, { reducedMotion, label: sceneLabel, canvas: () => ({ panOnDrag: true }) });
+  // the Back pill names the viewed version: no title of it over the picture
+  const scene = new DiffScene(core, session, { reducedMotion, label: sceneLabel, canvas: () => ({ panOnDrag: true }), versionTitle: false });
 
   let closed = false;
 

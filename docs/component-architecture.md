@@ -339,7 +339,7 @@ The theme is **component state, not document state**.
 | `changeList` | right-stack · `ChangeList` |
 | `diffStage` | canvas area · morph states, linked second canvas, highlights and badges |
 | `diffExport` | formats for `export` (patch, reports, images of a view) |
-| `historyPill` | top-center · `Pill`: "History · v3 → Working copy" and **Back** (Esc); History only |
+| `historyPill` | top-center · `Pill`: "History · v3 → Working copy" and **Back** (Esc); History only. A version viewed as it is is named here only: the `DiffScene` draws no title over its picture (`versionTitle: false`; the standalone `<mmdx-diff>`, which has no pill, keeps it) |
 
 ### 8.2 The `history` stage
 
