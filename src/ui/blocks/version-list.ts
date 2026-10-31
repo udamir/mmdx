@@ -14,8 +14,8 @@ import { Scope, type BlockHandle, type Translate } from './block.js';
 import { focusedIn, keepFocus } from './focus.js';
 import { openMenu, type MenuEntry } from './menu.js';
 
-/** The row menu's "⋯" (three dots). */
-const I_DOTS = 'M5 12h.01M12 12h.01M19 12h.01';
+/** The row menu's "⋮" (three vertical dots). */
+const I_DOTS = 'M12 5h.01M12 12h.01M12 19h.01';
 
 /** Relative age of an ISO date (`3 days ago`), or '' without a valid date. */
 export const ago = (iso: string | undefined, locale: string): string => {
@@ -46,7 +46,7 @@ export interface VersionListProps {
   onPick: (side: 'before' | 'after', id: string) => void;
   onRow: (id: string) => void;
   onMore: () => void;
-  /** A "⋯" menu on each row with the version's actions (Restore, Compare…); `entries` is built when it opens. */
+  /** A "⋮" menu on each row with the version's actions (Restore, Compare…); `entries` is built when it opens. */
   menu?: { entries: (id: string, index: number) => readonly MenuEntry[]; popovers: PopoverManager; within?: () => Element | undefined };
   t: Translate;
   part?: string;

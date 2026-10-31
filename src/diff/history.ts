@@ -10,6 +10,7 @@ import { staticHistory, type HistoryAdapter, type StaticVersion, type VersionInf
 import { copyItems } from '../core/ops/clipboard.js';
 import type { ItemKind } from '../core/types.js';
 import { createPill, PILL_CSS } from '../ui/blocks/pill.js';
+import { h, icon } from '../ui/h.js';
 import { registerMessages } from '../ui/i18n.js';
 import { DIFF_MESSAGES } from '../ui/messages/diff.js';
 import { computed, effect, untracked } from '../ui/signal.js';
@@ -28,6 +29,19 @@ import { DiffSession } from './session.js';
 
 /** Swap: two arrows, left and right. */
 const I_SWAP = 'M7 7h13M16 3l4 4-4 4M17 17H4M8 13l-4 4 4 4';
+
+const I_CLOSE = 'M6 6l12 12M18 6L6 18';
+
+const HISTORY_PILL_CSS = /* css */ `
+.dx-pill-body { display: inline-flex; align-items: center; min-width: 0; }
+.dx-pair { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
+.dx-chip { font: 600 12.5px/1.4 var(--mmdx-mono); padding: 4px 9px; border-radius: 7px; white-space: nowrap; }
+.dx-chip.before { color: var(--mmdx-diff-del); background: var(--mmdx-diff-del-bg); }
+.dx-chip.after { color: var(--mmdx-diff-add); background: var(--mmdx-diff-add-bg); }
+.dx-swap { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--mmdx-muted); }
+.dx-swap:hover:not(:disabled) { background: var(--mmdx-float-2); color: var(--mmdx-text); }
+.dx-version { font-weight: 500; padding: 0 8px; white-space: nowrap; }
+`;
 
 /** The id of the working copy among the versions. */
 export const WORKING_COPY = 'working';
@@ -119,7 +133,7 @@ export function openHistory(core: ViewCore, o: { onClose(): void }): HistoryCont
     close();
     core.run('restoreVersion', source, info);
   };
-  // Restore (Edit mode) is in each version's "⋯" menu of the History panel
+  // Restore (Edit mode) is in each version's "⋮" menu of the History panel
   const canRestore = core.mode.peek() === 'edit' && core.has('restoreVersion');
   const rowActions = (id: string): MenuEntry[] =>
     canRestore ? [{ label: t('history.restoreId', { id: label(id) }), title: t('history.restoreTip'), disabled: id === WORKING_COPY, class: 'restore', run: () => void restore(id) }] : [];
@@ -127,18 +141,32 @@ export function openHistory(core: ViewCore, o: { onClose(): void }): HistoryCont
   // ---- the Back pill, top centre; Esc at the end of the Esc chain
   const pillModule: ViewModule<ViewCore> = {
     id: 'history-pill',
-    css: [PILL_CSS],
+    css: [PILL_CSS, HISTORY_PILL_CSS],
     install(scope) {
-      // one version as it is: "History · v3"; a comparison: just its two versions, with a swap
+      // one version as it is: "History · v3"; a comparison: its two versions as coloured chips (Before red, After
+      // green) with a flat swap between them. The text is what screen readers hear.
       const text = computed(() => (session.viewOnly() ? t('history.pill', { what: label(session.viewing()) }) : `${label(session.base())} → ${label(session.head())}`));
       const swap = (): void => {
         const { base, head } = session.pair;
         if (base && head && !session.viewOnly.peek()) session.setPair(head, base);
       };
+      const before = h('span', { class: 'dx-chip before', title: t('diff.view.before') });
+      const after = h('span', { class: 'dx-chip after', title: t('diff.view.after') });
+      const swapBtn = h('button', { type: 'button', class: 'dx-swap', 'data-tool': 'swap', 'data-f': 'pill-swap', title: `${t('history.swap')} (X)`, 'aria-label': t('history.swap'), 'aria-keyshortcuts': 'x' }, icon(I_SWAP, 16));
+      scope.listen(swapBtn, 'click', swap);
+      const pair = h('span', { class: 'dx-pair' }, before, swapBtn, after);
+      const version = h('span', { class: 'dx-version' });
+      scope.effect(() => {
+        const one = session.viewOnly();
+        pair.hidden = one;
+        version.hidden = !one;
+        version.textContent = one ? t('history.pill', { what: label(session.viewing()) }) : '';
+        before.textContent = label(session.base());
+        after.textContent = label(session.head());
+      });
       const pill = createPill({
-        text, t, label: t('history.label'),
-        tools: [{ id: 'swap', icon: I_SWAP, label: t('history.swap'), keys: 'x', hidden: session.viewOnly, onClick: swap }],
-        action: { label: t('history.back'), keys: 'escape', onClick: () => close() },
+        text, t, label: t('history.label'), content: h('span', { class: 'dx-pill-body' }, pair, version),
+        action: { label: t('history.back'), keys: 'escape', icon: I_CLOSE, onClick: () => close() },
       });
       scope.shortcut({ id: 'history-swap', keys: ['x'], label: t('history.swap'), group: t('history.label'), run: () => (session.viewOnly.peek() ? false : (swap(), true)) });
       scope.slot('top-center').append(pill.el);

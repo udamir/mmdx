@@ -39,7 +39,7 @@ function toggleOf(scope: ModuleScope<ViewCore>, id: string): { open: () => boole
 
 /**
  * `dockButton: false` when the host's History button already stands for the panel (History in place). Each row has a
- * "⋯" menu: the host's `rowActions` (History's Restore), then Compare with the previous version.
+ * "⋮" menu: the host's `rowActions` (History's Restore), then Compare with the previous version.
  */
 export function versionsModule(session: DiffSession, o: { dockButton?: boolean; rowActions?: (id: string) => readonly MenuEntry[] } = {}): ViewModule<ViewCore> {
   return {

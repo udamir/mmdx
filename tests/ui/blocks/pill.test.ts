@@ -58,6 +58,20 @@ describe('Pill', () => {
     expect(b.hidden).toBe(true);
   });
 
+  it('content replaces the text visually (the text stays for screen readers); an icon action is round and named', () => {
+    const content = document.createElement('span');
+    content.textContent = 'chips';
+    const pill = createPill({ text: 'a → b', content, action: { label: 'Back', keys: 'escape', icon: 'M6 6l12 12', onClick: () => undefined }, t, formatKeys: fmt });
+    expect(pill.el.classList.contains('has-content')).toBe(true);
+    expect(pill.el.querySelector('.mmdx-pill-text')!.classList.contains('mmdx-sr')).toBe(true);
+    expect(pill.el.querySelector('.mmdx-pill-content')!.textContent).toBe('chips');
+    const btn = pill.el.querySelector<HTMLButtonElement>('.mmdx-pill-btn')!;
+    expect(btn.classList.contains('icon-only')).toBe(true);
+    expect(btn.getAttribute('aria-label')).toBe('Back');
+    expect(btn.textContent).toBe('');
+    expect(btn.title).toBe('Back (Esc)');
+  });
+
   it('destroy removes the pill and its listeners', () => {
     const text = signal('a');
     const onClick = vi.fn();

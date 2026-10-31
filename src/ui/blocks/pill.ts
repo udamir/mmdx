@@ -18,10 +18,16 @@ export interface PillTool {
 }
 
 export interface PillProps {
+  /** What the pill says (a status region, announced on change). */
   text: Value<string>;
+  /** Shown instead of the text, which then stays for screen readers only (e.g. coloured version chips). */
+  content?: HTMLElement;
   tools?: readonly PillTool[];
-  /** The button (Back); `keys` is its shortcut (`escape`), shown in the tooltip. */
-  action: { label: string; keys?: string; onClick(): void };
+  /**
+   * The button (Back); `keys` is its shortcut (`escape`), shown in the tooltip. `icon`: an icon-only round button
+   * (the label is its accessible name).
+   */
+  action: { label: string; keys?: string; icon?: string; onClick(): void };
   t: Translate;
   /** Accessible name of the pill (default: `history.open`, "History"). */
   label?: string;
@@ -40,6 +46,11 @@ export const PILL_CSS = /* css */ `
 .mmdx-pill-tool { flex: none; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--mmdx-text); }
 .mmdx-pill-tool:hover:not(:disabled) { background: var(--mmdx-float-2); }
 .mmdx-pill-tool .mmdx-icon { width: 18px; height: 18px; }
+.mmdx-pill.has-content { padding-left: 6px; }
+.mmdx-pill-content { display: inline-flex; align-items: center; min-width: 0; }
+.mmdx-pill-btn.icon-only { width: 30px; padding: 0; justify-content: center; background: transparent; color: var(--mmdx-muted); }
+.mmdx-pill-btn.icon-only:hover:not(:disabled) { background: var(--mmdx-float-2); color: var(--mmdx-text); }
+.mmdx-pill-btn.icon-only .mmdx-icon { width: 18px; height: 18px; }
 `;
 
 /** `escape` → `Escape` for `aria-keyshortcuts` (named keys are capitalised there). */
@@ -52,13 +63,21 @@ export function createPill(props: PillProps): BlockHandle<PillProps> {
   const text = h('span', { class: 'mmdx-pill-text', role: 'status', 'aria-live': 'polite' });
   const button = h('button', { type: 'button', class: 'mmdx-pill-btn', 'data-f': 'pill-action' });
   const tools = h('span', { class: 'mmdx-pill-tools', style: 'display:contents' });
-  const el = h('div', { class: 'mmdx-pill', role: 'group' }, text, tools, button);
+  const content = h('span', { class: 'mmdx-pill-content' });
+  const el = h('div', { class: 'mmdx-pill', role: 'group' }, text, content, tools, button);
   scope.on(button, 'click', () => p.action.onClick());
 
   const render = (): void => {
     const { action } = p;
     el.setAttribute('aria-label', p.label ?? p.t('history.open'));
-    button.replaceChildren(icon(ICONS.chevronLeft, 16), h('span', null, action.label));
+    button.replaceChildren(...(action.icon ? [icon(action.icon, 18)] : [icon(ICONS.chevronLeft, 16), h('span', null, action.label)]));
+    button.classList.toggle('icon-only', !!action.icon);
+    if (action.icon) button.setAttribute('aria-label', action.label);
+    else button.removeAttribute('aria-label');
+    el.classList.toggle('has-content', !!p.content);
+    text.classList.toggle('mmdx-sr', !!p.content);
+    content.replaceChildren(...(p.content ? [p.content] : []));
+    content.hidden = !p.content;
     button.title = tipText(action.label, action.keys, p.formatKeys ?? defaultFormat);
     if (action.keys) button.setAttribute('aria-keyshortcuts', ariaKey(action.keys));
     else button.removeAttribute('aria-keyshortcuts');
