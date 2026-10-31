@@ -74,7 +74,7 @@ const STUDIO_CSS = /* css */ `
 .main { flex: 1; min-height: 0; position: relative; }
 mmdx-editor { position: absolute; inset: 0; height: auto; min-height: 0; }
 .gallery-box { position: relative; }
-.mmdx-dialog.examples { width: min(600px, calc(100% - 32px)); }
+.mmdx-dialog.examples { width: min(860px, calc(100% - 32px)); }
 .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; max-height: 70vh; overflow: auto; padding: 2px; }
 .card { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 8px; border-radius: 10px; }
 .card .thumb { aspect-ratio: 4 / 3; border-radius: 6px; background: var(--mmdx-surface-2); display: grid; place-items: center; overflow: hidden; position: relative; }
