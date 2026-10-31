@@ -30,6 +30,8 @@ export interface ChoiceButton<T> {
 
 export class Dialogs {
   private readonly t: I18n['t'];
+  /** The open dialogs, each with the way to cancel it. */
+  private readonly open = new Set<() => void>();
 
   /** `t`: the host's translation function (default: the English strings). */
   constructor(private readonly root: ShadowRoot, t?: I18n['t']) {
@@ -44,11 +46,14 @@ export class Dialogs {
   choose<T>(opts: { title: string; message?: string; buttons: ChoiceButton<T>[]; cancel: T; body?: HTMLElement }): Promise<T> {
     return new Promise((resolve) => {
       const prevFocus = this.root.activeElement as HTMLElement | null;
-      const done = (v: T): void => {
+      const done = (v: T, focus = true): void => {
+        this.open.delete(cancel);
         back.remove();
-        prevFocus?.focus?.();
+        if (focus) prevFocus?.focus?.();
         resolve(v);
       };
+      const cancel = (): void => done(opts.cancel, false);
+      this.open.add(cancel);
       const titleId = `dlg-${Math.random().toString(36).slice(2)}`;
       const box = h('div', { class: 'mmdx-dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId },
         h('h2', { id: titleId }, opts.title),
@@ -76,6 +81,11 @@ export class Dialogs {
       this.root.append(back);
       queueMicrotask(() => (box.querySelector<HTMLElement>('input') ?? box.querySelector<HTMLElement>('button.primary') ?? box.querySelector('button'))?.focus());
     });
+  }
+
+  /** Closes every open dialog, resolving each with its cancel value (the host is going away). */
+  destroy(): void {
+    for (const cancel of [...this.open]) cancel();
   }
 
   confirm(title: string, message: string, opts: { ok?: string; cancel?: string; danger?: boolean } = {}): Promise<boolean> {

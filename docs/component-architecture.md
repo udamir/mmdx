@@ -160,6 +160,9 @@ Composition rather than `DiffCore extends ViewCore`: the three products render i
 | `ChangeList` | Change rows with mark icons, kind, label; selection | `changes, selected, onSelect` | diff `changeList` |
 | `FilterToggles` | Icon toggle buttons for the change kinds (Added, Removed, Content, Layout, Style), coloured, with tooltips and accessible names | `filters, value, onChange` | diff filter chips |
 | `LayerList` | Layer rows (show / hide, lock, rename, counts) | `layers, editable, onToggle…` | `panels/layers.ts` DOM, viewer layers popup |
+| `Disclosure` | Collapsible section: head button (`aria-expanded`), caret, title, badge; body filled on first open | `title, open: Value<boolean>, onToggle?, fill?, badge?` | theme editor cards |
+| `TileGallery` | Picture tiles as a list of buttons (selected: `aria-current`), delete buttons beside them, an add tile; roving arrow keys, Delete; one tile redrawn in place | `label, tiles[], selected, onSelect, add?, readOnly?` | theme editor style and page-preset galleries |
+| `ColorPicker` | Palette swatches (`@name`), a custom colour and None in a dialog opened from a chip through `PopoverManager`, placed inside the viewport | `label, colors[], value, custom, onPick` | theme editor colour popover |
 | `StyleToolbar`, `PageToolbar`, `ItemPreview`, `ShapePreview` | (exist; already generic) | as today | — |
 | `Banner`, `ErrorCard`, `EmptyState`, `Toast`, `Dialog`, `Popover`, `Pill` | Messages and overlays (`Toast`, `Dialog`, `Popover` exist; `Pill` is the History "Back" pill) | | viewer error panel, diff banner / msg |
 
@@ -452,7 +455,7 @@ Phase 3 is the largest (the kernel split of `EditorCore`, ~700 lines, and `Diagr
 | 4b | Done | Stages, suspension (including DOM a module placed while installing, gestures and painters), scene ownership; `tests/editor/stage.test.ts` |
 | 4c | Done | History in the editor's own canvas and panels; working copy; Restore in each version's ⋮ menu in the History tab of the History panel, next to Compare with the previous version (rather than at the end of the diff bar); `historySession`; `mmdx-history-*`; ⌘C copies a selected change's item from Before / After. A read-only Properties card for old versions is not done |
 | 4d | Done | The viewer grows to 560 px; panels become drawers below 640 px; no `mmdx/diff` needed |
-| 5 | In part | Done: the studio's mode switch and New menu, the view-params bar, a **Canvas/** story, the README section. Open: the editor's Code / Properties / Layers panels and context menu, and the theme editor's tabs and menus, still build their own markup; `ui/panes.ts` stays for them; the element stories keep their **Elements/** title |
+| 5 | In part | Done: the studio's mode switch and New menu, the view-params bar, a **Canvas/** story, the README section; the theme editor, split into `src/theme-editor/` (a library without DOM, a draft on signals whose path setter tracks the undo patches and the changed paths, and views kept in step by effects; an edit redraws only the tiles it affects) and built on `Tabs`, `ToggleButton`, `Segmented`, `Toolbar`, `Menu` and the new `Disclosure`, `TileGallery` and `ColorPicker`. Open: the editor's Code / Properties / Layers panels and context menu still build their own markup; `ui/panes.ts` stays for them; the element stories keep their **Elements/** title |
 
 ## 13. Keyboard
 

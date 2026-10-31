@@ -261,10 +261,27 @@ describe('<mmdx-theme-editor>', () => {
     expect(el.theme).toBe('default-dark');
   });
 
+  it('a theme attribute switch the user cancels puts the attribute back to the open theme', async () => {
+    const { el, root } = await mount({ theme: 'default-dark' });
+    const name = root.querySelector<HTMLInputElement>('.te-name')!;
+    name.value = 'Unsaved';
+    name.dispatchEvent(new Event('change'));
+    el.setAttribute('theme', 'default-light');
+    await tick(10);
+    expect(root.querySelector('.mmdx-dialog')!.textContent).toContain('Save the changes to "Unsaved"?');
+    Array.from(root.querySelectorAll<HTMLButtonElement>('.mmdx-dialog button')).find((b) => b.textContent === 'Cancel')!.click();
+    await tick(10);
+    expect(el.theme).toBe('default-dark');
+    expect(el.getAttribute('theme')).toBe('default-dark');
+  });
+
   it('can-edit="false" is read only', async () => {
     const { el, root } = await mount({ attrs: { 'can-edit': 'false' } });
     expect(root.querySelector<HTMLInputElement>('.te-dot input')!.disabled).toBe(true);
-    expect(Array.from(root.querySelectorAll('.te-list-acts button')).map((b) => b.textContent)).toEqual(['Export']);
+    // no New; the actions menu offers Export only
+    expect(Array.from(root.querySelectorAll('.te-list-acts button')).map((b) => b.textContent)).toEqual(['More']);
+    root.querySelector<HTMLButtonElement>('.te-list-acts .te-more')!.click();
+    expect(Array.from(root.querySelectorAll('.te-menu [role=menuitem]')).map((b) => b.textContent)).toEqual(['Export']);
     expect(await el.save()).toBe(false);
   });
 
