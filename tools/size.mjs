@@ -44,10 +44,13 @@ for (const k of ['flowchart', 'sequence', 'er']) {
   // the zoom bar loaded on demand; 46 kB before). Provisional until the eager / lazy split of the kernel is decided.
   report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), 55 * KB);
 }
-// core includes the diff engine (diffs, merged model, annotations, reports, renderDiffToSvg); the diff entry ships every
-// diagram kind statically (both versions may be any type) — lazy kinds and panels are the next size step
+// core includes the diff engine (diffs, merged model, annotations, reports, renderDiffToSvg)
 // editor: 176 kB with the view kernel (173.2 kB measured; 165 kB before), provisional like the viewer's
-for (const [entry, budget] of [['core', 55], ['theme-editor', 120], ['editor', 176], ['diff', 90]]) {
+// diff: 93 kB on the view kernel (component architecture §10, phase 4a: 90.8 kB measured; 86.7 kB before with every
+// kind static). The renderers load on demand; the parsers stay in the entry for its synchronous `diffDiagrams`
+// export (8.5 kB), the kernel and the blocks replace the diff's own chrome. The 60 kB target needs the panels on
+// demand as in the viewer.
+for (const [entry, budget] of [['core', 55], ['theme-editor', 120], ['editor', 176], ['diff', 93]]) {
   const b = await bundle(entry);
   report(entry, b.size(b.base), budget * KB);
 }

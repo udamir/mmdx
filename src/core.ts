@@ -11,7 +11,7 @@ export { validateTheme, migrateTheme } from './core/theme/validate.js';
 export { resolveColor, relativeColor, createColorResolver } from './core/theme/colors.js';
 export type { ThemeFile, ThemeInfo, ResolvedTheme } from './core/theme/types.js';
 export { createContext, type CoreContext } from './core/context.js';
-export { renderSource, renderDocument, renderToSvg, standaloneSvg, type Rendered, type PipelineOptions } from './core/pipeline.js';
+export { renderSource, renderDocument, renderToSvg, standaloneSvg, ALL_KINDS, type Rendered, type PipelineOptions, type Kinds } from './core/pipeline.js';
 export type { RenderResult, GeometryIndex } from './core/render/types.js';
 export { serializeNode, serializeNodes, fmt } from './core/scene/serialize.js';
 export type { SceneNode } from './core/scene/types.js';
@@ -20,7 +20,8 @@ export { safeUrl, DEFAULT_LINK_POLICY, type LinkPolicy, type SafeUrl } from './c
 export { layerDefs, hiddenByLayers, DEFAULT_LAYER } from './core/layers.js';
 export { outline, summarize } from './core/outline.js';
 export {
-  diffDiagrams, diffModels, ignoreFacets, withoutStyle, withLayoutOf, mergeDiagrams, renderDiff, renderDiffToSvg, diffSvg, diffReport, unifiedDiff,
+  diffDiagrams, diffDiagramsWith, diffModels, ignoreFacets, withoutStyle, withLayoutOf, mergeDiagrams, renderDiff, renderDiffWith, renderDiffToSvg, renderDiffToSvgWith,
+  diffSvg, diffReport, unifiedDiff,
   diffWords, diffLines, mergeText, annotate, changeKey, FACETS, DIFF_COLORS,
   type DiagramDiff, type ItemChange, type FieldChange, type ChangeFacet, type ChangeStatus, type DiffIgnore, type DiffHide, type DiffRendered,
   type DiffRenderOptions, type DiffSvgOptions, type DiffView, type VersionInfo, type ReportOptions, type UnifiedDiffOptions, type Merged,

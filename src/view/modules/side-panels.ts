@@ -16,17 +16,20 @@ import type { ModuleScope, ViewModule } from '../module.js';
 
 const VIEW_SETTINGS_ICON = 'M2.5 11.5C4.6 7.4 8 5.5 12 5.5s7.4 1.9 9.5 6M2.5 11.5c2.1 4.1 5.5 6 9.5 6M12 14.3a2.8 2.8 0 1 0 0-5.6 2.8 2.8 0 0 0 0 5.6zM18.5 20.7a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4z';
 
-/** A dock toggle for a panel, and the panel's open state. */
-function panelToggle(scope: ModuleScope<ViewCore>, id: string, o: { icon: string; label: string; keys: string; help: string; order: number }): () => void {
+/** A dock toggle for a panel, and the panel's open state; no shortcut when `keys` is null. */
+function panelToggle(scope: ModuleScope<ViewCore>, id: string, o: { icon: string; label: string; keys: string | null; help: string; order: number }): () => void {
   const core = scope.core;
   const t = core.i18n.t;
   const open = computed(() => !!core.panels()[id]);
   const toggle = (): void => void core.run('setPanel', id, !core.panels.peek()[id]);
-  const btn = dockButton({ icon: o.icon, label: o.label, keys: o.keys, class: `vt-panel vt-${id}`, f: `panel-${id}`, pressed: open, onClick: toggle });
+  const btn = dockButton({ icon: o.icon, label: o.label, ...(o.keys ? { keys: o.keys } : {}), class: `vt-panel vt-${id}`, f: `panel-${id}`, pressed: open, onClick: toggle });
   scope.contribute(core.dockItems, { id, section: 'panels', order: o.order, el: btn.el });
-  scope.shortcut({ id: `panel-${id}`, keys: [o.keys], label: o.help, group: t('help.tools'), run: () => void toggle() });
+  if (o.keys) scope.shortcut({ id: `panel-${id}`, keys: [o.keys], label: o.help, group: t('help.tools'), run: () => void toggle() });
   return () => btn.destroy();
 }
+
+/** `key`, unless a module installed earlier owns it in the View mode (the diff's L is its change list, §13). */
+const freeKey = (core: ViewCore, key: string): string | null => (core.shortcuts.list({ mode: 'view', stage: core.stage.peek() }).some((s) => s.keys.includes(key)) ? null : key);
 
 export const viewSettingsModule: ViewModule<ViewCore> = {
   id: 'view-settings',
@@ -36,7 +39,8 @@ export const viewSettingsModule: ViewModule<ViewCore> = {
   install(scope) {
     const core = scope.core;
     const t = core.i18n.t;
-    const offBtn = panelToggle(scope, 'view-settings', { icon: VIEW_SETTINGS_ICON, label: t('tools.viewSettings'), keys: 'l', help: t('help.viewSettings'), order: 30 });
+    const keys = freeKey(core, 'l');
+    const offBtn = panelToggle(scope, 'view-settings', { icon: VIEW_SETTINGS_ICON, label: t('tools.viewSettings'), keys, help: t('help.viewSettings'), order: 30 });
     const display = core.display;
     const labels = computed(() => display().labels), hover = computed(() => display().hoverHighlight);
     const set = (patch: Partial<ReturnType<typeof display.peek>>): void => {
@@ -69,7 +73,7 @@ export const viewSettingsModule: ViewModule<ViewCore> = {
       list.update({ layers: rows });
     });
     const panel = createSidePanel({
-      side: 'right', title: t('layers.title'), label: t('layers.title'), class: 'view-settings', closeLabel: t('panel.close'), closeKeys: 'l',
+      side: 'right', title: t('layers.title'), label: t('layers.title'), class: 'view-settings', closeLabel: t('panel.close'), ...(keys ? { closeKeys: keys } : {}),
       onClose: () => void core.run('setPanel', 'view-settings', false), body: list.el,
     });
     scope.contribute(core.panelItems, { id: 'view-settings', side: 'right', order: 10, el: panel.el });

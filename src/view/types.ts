@@ -80,4 +80,6 @@ export interface PanelItem {
   order: number;
   /** The panel element (a SidePanel block's element). */
   el: HTMLElement;
+  /** Shown only while this is true (and the panel is open), e.g. the diff's change list outside History mode. */
+  visible?: () => boolean;
 }

@@ -386,9 +386,11 @@ Measured with `tools/size.mjs` once the viewer and the editor ran on the kernel:
 |---|---|---|---|---|
 | viewer (first flowchart) | 45.3 kB | 74.0 kB | 53.4 kB | 55 kB (provisional) |
 | editor | 162.8 kB | 173.2 kB | 173.2 kB | 176 kB (provisional) |
+| diff (phase 4a) | 86.5 kB | — | 90.8 kB (renderers on demand; pen, view params, view settings on demand) | 93 kB (provisional) |
 
 - The viewer loads only the kernel, `TextScene`, `zoomBar`, `links` and `hoverHighlight` eagerly; `panelStacks`, `toolDock`, `pan`, `pen`, `viewSettings`, `codeView`, `viewParams`, its export formats and History load when their control is on (`lazyModule`), the help popup on first `?`. One message table per block group and inlined zoom-bar icons keep the eager chunk free of the lazy blocks' strings and icons.
 - What remains is the kernel itself: `ViewCore` with the module host and scopes (≈ 3.8 kB gzip), `DiagramCanvas` (≈ 1.9 kB), the zoom bar block and module (≈ 2 kB), the keymap (≈ 0.8 kB).
+- The diff misses its 60 kB target: `mmdx/diff` re-exports the synchronous `diffDiagrams`, which keeps every parser in the entry (8.5 kB), and its panels (versions, code diff, change list) are eager. Dropping that re-export (it stays in `mmdx/core`) and loading the panels on demand would bring it near the target; the first is an API change.
 - The budgets above are provisional, to keep the gate meaningful. Decision 19 is still open: split the kernel further (keymap and help, suspension, panel stacks on demand) or keep the re-set budgets.
 
 ## 11. Public API and compatibility

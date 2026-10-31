@@ -8,11 +8,11 @@ import { ICONS } from '../../ui/icons.js';
 import { computed } from '../../ui/signal.js';
 import type { ViewCore } from '../core.js';
 import type { ViewModule } from '../module.js';
+import { strokesOf } from '../strokes.js';
 
 const reducedMotion = (): boolean => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** The component's stroke store (created by the pen module). */
-export const strokesOf = new WeakMap<object, StrokeStore>();
+export { strokesOf };
 
 export const penModule: ViewModule<ViewCore> = {
   id: 'pen',

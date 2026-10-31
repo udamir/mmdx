@@ -47,7 +47,7 @@ describe('DiagramDiff: two versions', () => {
     expect(root.querySelector('tspan.dx-ins')).not.toBeNull();
     expect(root.querySelector('.root')!.getAttribute('aria-label')).toMatch(/Diagram diff: \d+ added, \d+ removed, \d+ changed/);
     // no History tool without a history
-    expect(root.querySelector('[data-tip^="History"]')).toBeNull();
+    expect(root.querySelector('.vt-history:not([hidden])')).toBeNull();
   });
 
   it('filters: hiding added items and ignoring style updates the list and the counts', async () => {
@@ -94,7 +94,7 @@ describe('DiagramDiff: two versions', () => {
     key('4');
     expect(root.querySelectorAll('.pane svg').length).toBe(2);
     key('c');
-    expect(root.querySelector('.pane-side.left.open')).not.toBeNull();
+    expect(root.querySelector('.mmdx-stack[data-side=left].open .mmdx-panel.code:not([hidden])')).not.toBeNull();
     key('j');
     expect(root.querySelector('.change[aria-selected=true]')).not.toBeNull();
     key('Escape');
@@ -122,6 +122,49 @@ describe('DiagramDiff: two versions', () => {
   });
 });
 
+describe('DiagramDiff: the kernel chrome', () => {
+  const wait = async (f: () => unknown, ms = 3000): Promise<void> => {
+    const t0 = Date.now();
+    while (!f()) {
+      if (Date.now() - t0 > ms) throw new Error('timed out');
+      await new Promise((r) => setTimeout(r, 10));
+    }
+  };
+
+  it('has the theme menu and the light / dark toggle: the scheme is the chrome only, a pick re-renders both versions', async () => {
+    const { d, host, root } = await mount({ beforeSource: sample('architecture', 'before'), afterSource: sample('architecture', 'after'), ui: 'light' });
+    await wait(() => root.querySelector('.view-params .mmdx-theme-btn'));
+    const before = d.session.rendered.peek()!;
+    root.querySelector<HTMLButtonElement>('.view-params .vp-mode [data-ui=dark]')!.click();
+    expect(host.getAttribute('data-ui')).toBe('dark');
+    // the Export menu of the view params carries the diff's formats
+    expect(d.core.exportFormats.peek().map((f) => f.id)).toEqual(['png', 'svg', 'mmdx-before', 'mmdx-after', 'mmd', 'patch', 'md', 'json']);
+    const rendered = new Promise((r) => host.addEventListener('mmdx-render', r, { once: true }));
+    d.core.themes.choose('default-dark');
+    await rendered;
+    const after = d.session.rendered.peek()!;
+    expect(after).not.toBe(before);
+    expect(after.themeId).toBe('default-dark');
+    expect(after.before.themeId).toBe('default-dark');
+  });
+
+  it('has view settings: the dock toggle opens the card, connector labels off re-renders both versions', async () => {
+    const { d, host, root } = await mount({ beforeSource: sample('architecture', 'before'), afterSource: sample('architecture', 'after') });
+    await wait(() => root.querySelector('.vt-view-settings'));
+    root.querySelector<HTMLButtonElement>('.vt-view-settings')!.click();
+    expect(root.querySelector('.mmdx-stack[data-side=right] .mmdx-panel.view-settings:not([hidden])')).not.toBeNull();
+    // L stays the change list's key in the diff
+    expect(root.querySelector('.vt-view-settings')!.hasAttribute('aria-keyshortcuts')).toBe(false);
+    const labels = (): number => d.core.canvas.svg.querySelectorAll('.el.elabel').length;
+    expect(labels()).toBeGreaterThan(0);
+    const rendered = new Promise((r) => host.addEventListener('mmdx-render', r, { once: true }));
+    root.querySelector<HTMLButtonElement>('.view-settings [data-f=opt-labels]')!.click();
+    await rendered;
+    expect(d.core.display.peek().labels).toBe(false);
+    expect(labels()).toBe(0);
+  });
+});
+
 describe('DiagramDiff: history', () => {
   it('compares the newest version with the one before it, and keeps one version from being both sides', async () => {
     const versions = history('production-microservices');
@@ -144,21 +187,22 @@ describe('DiagramDiff: history', () => {
     const versions = history('production-microservices');
     const { root } = await mount({ history: versions, panels: ['history', 'code', 'changes'] });
     const shown = (sel: string): boolean => !root.querySelector<HTMLElement>(sel)!.hidden;
-    expect(shown('.lpanel.history') && shown('.lpanel.code')).toBe(true);
-    expect(root.querySelector('.left-stack')!.classList.contains('both')).toBe(true);
-    expect(root.querySelector('.pane-side.right.open')).not.toBeNull();
+    expect(shown('.mmdx-panel.history') && shown('.mmdx-panel.code')).toBe(true);
+    // one stack on the left, History above Code with a splitter between them
+    expect(root.querySelector('.mmdx-stack[data-side=left] > .mmdx-split:not([hidden])')).not.toBeNull();
+    expect(root.querySelector('.mmdx-stack[data-side=right].open')).not.toBeNull();
     // the code panel's own close button leaves History open
-    root.querySelector<HTMLButtonElement>('.lpanel.code .collapse-btn')!.click();
-    expect(shown('.lpanel.code')).toBe(false);
-    expect(shown('.lpanel.history')).toBe(true);
+    root.querySelector<HTMLButtonElement>('.mmdx-panel.code .collapse-btn')!.click();
+    expect(shown('.mmdx-panel.code')).toBe(false);
+    expect(shown('.mmdx-panel.history')).toBe(true);
     // the change list from the bottom bar
     const toggle = root.querySelector<HTMLButtonElement>('.dbar .changes-btn')!;
     expect(toggle.getAttribute('aria-pressed')).toBe('true');
     toggle.click();
-    expect(root.querySelector('.pane-side.right.open')).toBeNull();
+    expect(root.querySelector('.mmdx-stack[data-side=right].open')).toBeNull();
     expect(root.querySelector('.dbar .changes-btn')!.getAttribute('aria-pressed')).toBe('false');
     root.querySelector<HTMLButtonElement>('.dbar .changes-btn')!.click();
-    expect(root.querySelector('.pane-side.right.open')).not.toBeNull();
+    expect(root.querySelector('.mmdx-stack[data-side=right].open')).not.toBeNull();
   });
 
   it('History mode shows one version as it is, without diff controls', async () => {

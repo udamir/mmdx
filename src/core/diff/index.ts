@@ -13,7 +13,8 @@ import type {
   DiagramModel, Entity, ErModel, FlowEdge, FlowNode, FlowchartModel, MermaidStyle, Participant, SeqBlockStart,
   SeqMessage, SeqNote, SequenceModel,
 } from '../model.js';
-import { parse } from '../parse/index.js';
+import { parseWith, type ParserSet } from '../parse/dispatch.js';
+import { ALL_PARSERS } from '../parse/index.js';
 import type { DiagramType, ItemKind } from '../types.js';
 
 export type ChangeFacet = 'content' | 'layout' | 'style';
@@ -414,8 +415,16 @@ export function diffModels(a: DiagramModel, b: DiagramModel, ma: DiagramMeta, mb
 
 /** Diff of two sources (Mermaid with or without `%%@` lines). Never throws on bad input. */
 export function diffDiagrams(before: string, after: string): DiagramDiff {
+  return diffDiagramsWith({ parsers: ALL_PARSERS }, before, after);
+}
+
+/**
+ * The same diff, parsed with the given diagram kinds (component architecture §9.1): a bundle that loads kinds on
+ * demand passes the ones it loaded (a type without its parser diffs as unsupported).
+ */
+export function diffDiagramsWith(kinds: { parsers: ParserSet }, before: string, after: string): DiagramDiff {
   const sa = splitSource(before), sb = splitSource(after);
-  return diffModels(parse(sa.doc.code), parse(sb.doc.code), sa.doc.meta, sb.doc.meta);
+  return diffModels(parseWith(sa.doc.code, kinds.parsers), parseWith(sb.doc.code, kinds.parsers), sa.doc.meta, sb.doc.meta);
 }
 
 /**
@@ -441,5 +450,5 @@ export {
   annotate, shapeOf, centreOf, focusRect, markOf, marksOf, badgeOf, DIFF_COLORS, MARKS,
   type Mark, type DiffView, type DiffColors, type ItemShape, type AnnotateInput, type AnnotateOptions, type Annotated,
 } from './annotate.js';
-export { renderDiff, renderDiffToSvg, diffSvg, renderedOf, type DiffRendered, type DiffRenderOptions, type DiffSvgOptions, type DiffHide } from './render.js';
+export { renderDiff, renderDiffWith, renderDiffToSvg, renderDiffToSvgWith, diffSvg, renderedOf, type DiffRendered, type DiffRenderOptions, type DiffSvgOptions, type DiffHide } from './render.js';
 export { diffReport, unifiedDiff, sourcePart, REPORT_VERSION, type VersionInfo, type ReportOptions, type UnifiedDiffOptions } from './report.js';

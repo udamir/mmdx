@@ -43,7 +43,7 @@ export const panelStacksModule: ViewModule<ViewCore> = {
       const items = computed(() => core.panelItems().filter((p) => p.side === side).sort((a, b) => a.order - b.order));
       scope.effect(() => {
         const list = items();
-        const panels = list.map((p) => ({ id: p.id, panel: p.el, open: computed(() => !!core.panels()[p.id]) }));
+        const panels = list.map((p) => ({ id: p.id, panel: p.el, open: computed(() => !!core.panels()[p.id] && (p.visible?.() ?? true)) }));
         untracked(() => {
           let stack = stacks[side];
           if (!stack && !list.length) return;
