@@ -41,33 +41,33 @@ const STORE_KEY = 'studio.doc';
 
 const STUDIO_CSS = /* css */ `
 :host { display: block; height: 100%; min-height: 480px; }
-.studio { display: flex; flex-direction: column; height: 100%; background: var(--ds-bg); color: var(--ds-text); }
-.top { height: 48px; flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 0 12px; background: var(--ds-panel); border-bottom: 1px solid var(--ds-border); }
+.studio { display: flex; flex-direction: column; height: 100%; background: var(--mmdx-bg); color: var(--mmdx-text); }
+.top { height: 48px; flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 0 12px; background: var(--mmdx-panel); border-bottom: 1px solid var(--mmdx-border); }
 .brand { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .brand .logo { display: flex; --logo-ink: #061958; }
 :host([data-ui="dark"]) .brand .logo { --logo-ink: #eef0ff; }
 .grp { display: flex; align-items: center; gap: 6px; position: relative; }
 /* icon + label on one line */
 .top button { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-.name { color: var(--ds-muted); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.name.dirty::after { content: ' •'; color: var(--ds-warn); }
+.name { color: var(--mmdx-muted); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.name.dirty::after { content: ' •'; color: var(--mmdx-warn); }
 .spacer { flex: 1; }
-.seg { display: inline-flex; border: 1px solid var(--ds-border); border-radius: 7px; overflow: hidden; }
+.seg { display: inline-flex; border: 1px solid var(--mmdx-border); border-radius: 7px; overflow: hidden; }
 .seg button { border: 0; border-radius: 0; padding: 4px 12px; }
-.seg button[aria-pressed=true] { background: var(--ds-accent); color: var(--ds-on-accent); }
+.seg button[aria-pressed=true] { background: var(--mmdx-accent); color: var(--mmdx-on-accent); }
 .main { flex: 1; min-height: 0; position: relative; }
 mmdx-editor { position: absolute; inset: 0; height: auto; min-height: 0; }
 .menu-pop { top: 40px; left: 0; }
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; max-height: 60vh; overflow: auto; padding: 2px; }
 .card { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 8px; border-radius: 10px; }
-.card .thumb { height: 120px; border-radius: 6px; background: var(--ds-surface-2); display: grid; place-items: center; overflow: hidden; }
+.card .thumb { height: 120px; border-radius: 6px; background: var(--mmdx-surface-2); display: grid; place-items: center; overflow: hidden; }
 .card .thumb img { max-width: 100%; max-height: 100%; }
-.card .tags { color: var(--ds-muted); font-size: 12px; }
+.card .tags { color: var(--mmdx-muted); font-size: 12px; }
 .themes-dialog { position: absolute; inset: 0; z-index: 2000; background: rgba(10,12,20,.32); display: grid; place-items: center; }
-.themes-dialog > .box { width: min(1280px, calc(100% - 32px)); height: min(860px, calc(100% - 32px)); background: var(--ds-surface); border-radius: 12px; box-shadow: var(--ds-shadow-lg); display: flex; flex-direction: column; overflow: hidden; }
-.themes-dialog .head { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--ds-border); }
+.themes-dialog > .box { width: min(1280px, calc(100% - 32px)); height: min(860px, calc(100% - 32px)); background: var(--mmdx-surface); border-radius: 12px; box-shadow: var(--mmdx-shadow-lg); display: flex; flex-direction: column; overflow: hidden; }
+.themes-dialog .head { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--mmdx-border); }
 .themes-dialog mmdx-theme-editor { flex: 1; min-height: 0; }
-.drop { position: absolute; inset: 0; z-index: 50; display: none; place-items: center; background: rgba(79,70,229,.08); border: 2px dashed var(--ds-accent); font-size: 16px; color: var(--ds-accent); pointer-events: none; }
+.drop { position: absolute; inset: 0; z-index: 50; display: none; place-items: center; background: rgba(79,70,229,.08); border: 2px dashed var(--mmdx-accent); font-size: 16px; color: var(--mmdx-accent); pointer-events: none; }
 .studio.dragover .drop { display: grid; }
 `;
 
@@ -124,17 +124,17 @@ export class DiagramStudio {
     this.modeButtons = [modeEdit, modeView];
 
     const sig = { signal: this.ac.signal };
-    this.editorEl.addEventListener('ds-change', () => this.persist(), sig);
-    this.editorEl.addEventListener('ds-dirty', () => this.nameEl.classList.toggle('dirty', this.editorEl.dirty), sig);
-    this.editorEl.addEventListener('ds-edit-themes', () => void this.openThemeEditor(), sig);
-    this.editorEl.addEventListener('ds-ui', (ev) => {
+    this.editorEl.addEventListener('mmdx-change', () => this.persist(), sig);
+    this.editorEl.addEventListener('mmdx-dirty', () => this.nameEl.classList.toggle('dirty', this.editorEl.dirty), sig);
+    this.editorEl.addEventListener('mmdx-edit-themes', () => void this.openThemeEditor(), sig);
+    this.editorEl.addEventListener('mmdx-ui', (ev) => {
       const ui = (ev as CustomEvent<{ ui: 'light' | 'dark' }>).detail.ui;
       this.ui = ui;
       this.storage.set('ui', ui);
       this.applyScheme();
     }, sig);
     // save = download the styled file (the studio has no backend)
-    this.editorEl.addEventListener('ds-save', (ev) => {
+    this.editorEl.addEventListener('mmdx-save', (ev) => {
       ev.preventDefault();
       download(`${this.name}.mmdx`, this.editorEl.getSource());
       this.editorEl.instance?.store.markSaved();
@@ -200,7 +200,7 @@ export class DiagramStudio {
     const url = q ?? this.o.themes;
     const shared = getShared();
     const base = url ? fetchThemeSource(url) : undefined;
-    // themes edited in this browser layer over the files (A.12 `ds.themes`)
+    // themes edited in this browser layer over the files (A.12 `mmdx.themes`)
     const store = localStorageThemeStore(this.storage, base);
     this.themeSource = store;
     try {
@@ -307,7 +307,7 @@ export class DiagramStudio {
         this.open(START[type], `untitled-${type}`);
         this.toaster.show('New diagram — add shapes from the Shapes menu on the left');
       } }, label);
-    const pop = h('div', { class: 'ds-menu menu-pop', role: 'menu' },
+    const pop = h('div', { class: 'mmdx-menu menu-pop', role: 'menu' },
       item('Flowchart', 'flowchart'), item('Sequence diagram', 'sequence'), item('Entity–relationship (ER) diagram', 'er'));
     opener.parentElement?.append(pop);
     this.pops.open(pop, opener);
@@ -321,7 +321,7 @@ export class DiagramStudio {
     let picked: ExampleInfo | null = null;
     const grid = h('div', { class: 'gallery' }, ...this.examples.map((ex) => h('button', { type: 'button', class: 'card', onclick: (ev: Event) => {
       picked = ex;
-      (ev.currentTarget as HTMLElement).closest('.ds-dialog')?.querySelector<HTMLButtonElement>('button.primary')?.click();
+      (ev.currentTarget as HTMLElement).closest('.mmdx-dialog')?.querySelector<HTMLButtonElement>('button.primary')?.click();
     } },
       h('div', { class: 'thumb' }, ex.thumbnail ? h('img', { src: ex.thumbnail, alt: '' }) : icon(ICONS.file, 32)),
       h('b', null, ex.title),
@@ -402,7 +402,7 @@ export class DiagramStudio {
       if (ev.key === 'Escape' && !ev.defaultPrevented) void done();
     });
     // a saved theme is registered in the shared registry by the theme editor: redraw with it
-    te.addEventListener('ds-theme-saved', () => this.editorEl.instance?.core.afterChange());
+    te.addEventListener('mmdx-theme-saved', () => this.editorEl.instance?.core.afterChange());
     this.shadow.append(back);
   }
 }

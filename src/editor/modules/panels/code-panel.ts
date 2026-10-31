@@ -84,7 +84,7 @@ ${CODE_EDITOR_CSS}
 .tab-body[hidden] { display: none !important; }
 .code-search { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 0 6px 0 9px; background: var(--surface); color: var(--muted); flex-shrink: 0; }
 .code-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-2); color: var(--accent); }
-.code-search input { flex: 1; min-width: 0; border: 0 !important; outline: 0; padding: 7px 0; font: 12.5px var(--ds-mono); background: none; color: var(--ink); box-shadow: none !important; }
+.code-search input { flex: 1; min-width: 0; border: 0 !important; outline: 0; padding: 7px 0; font: 12.5px var(--mmdx-mono); background: none; color: var(--ink); box-shadow: none !important; }
 .code-search input::-webkit-search-cancel-button { display: none; }
 .code-search .count { font-size: 11px; white-space: nowrap; }
 .code-search button { border: 0; background: none; color: var(--faint); padding: 0 2px; font-size: 16px; }
@@ -108,7 +108,7 @@ button.link { border: 0; background: none; color: var(--accent); padding: 0; fon
 .pb-item:disabled { cursor: default; opacity: 1; }
 .pb-line1 { display: flex; align-items: flex-start; gap: 7px; min-width: 0; }
 .pb-ic { flex-shrink: 0; width: 15px; height: 15px; margin-top: 1px; border-radius: 50%; display: grid; place-items: center; font-size: 9.5px; font-weight: 800; color: #fff; background: var(--danger); }
-.pb-ln { flex-shrink: 0; color: var(--muted); font-family: var(--ds-mono); font-size: 11px; margin-top: 1px; }
+.pb-ln { flex-shrink: 0; color: var(--muted); font-family: var(--mmdx-mono); font-size: 11px; margin-top: 1px; }
 .pb-tag { flex-shrink: 0; padding: 0 6px; border-radius: 4px; background: var(--surface-2); color: var(--muted); font-size: 10.5px; line-height: 17px; }
 .pb-msg { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .pb-fix { display: block; margin: 2px 0 4px 30px; padding: 2px 10px; font-size: 12px; }
@@ -138,7 +138,7 @@ export const codePanelModule: EditorModule = {
     // ---- DOM
     const uid = Math.random().toString(36).slice(2, 8);
     const tab = (id: 'code' | 'meta', label: string): HTMLButtonElement =>
-      h('button', { type: 'button', role: 'tab', id: `ds-tab-${id}-${uid}`, 'aria-controls': `ds-panel-${id}-${uid}`, 'aria-selected': 'false', tabindex: '-1', dataset: { tab: id } }, label);
+      h('button', { type: 'button', role: 'tab', id: `mmdx-tab-${id}-${uid}`, 'aria-controls': `mmdx-panel-${id}-${uid}`, 'aria-selected': 'false', tabindex: '-1', dataset: { tab: id } }, label);
     const tabCode = tab('code', t('code.tabMermaid'));
     const tabMeta = metaTab ? tab('meta', t('code.tabMetadata')) : null;
     const closeBtn = h('button', { type: 'button', class: 'collapse-btn', title: t('code.close'), 'aria-label': t('code.close') }, '×');
@@ -163,13 +163,13 @@ export const codePanelModule: EditorModule = {
     const cs = search(t('code.filterPlaceholder'), t('code.filterLabel'));
     const cf = filterBar();
     const codeEd: CodeEditor = createCodeEditor({ lineNumbers: true, label: t('code.editorLabel'), tipHost, onInput: () => onCodeInput() });
-    const codeBody = h('div', { class: 'tab-body', role: 'tabpanel', id: `ds-panel-code-${uid}`, 'aria-labelledby': tabCode.id, dataset: { body: 'code' } }, cs.box, cf.bar, codeEd.el);
+    const codeBody = h('div', { class: 'tab-body', role: 'tabpanel', id: `mmdx-panel-code-${uid}`, 'aria-labelledby': tabCode.id, dataset: { body: 'code' } }, cs.box, cf.bar, codeEd.el);
 
     const ms = search(t('code.metaFilterPlaceholder'), t('code.metaFilterLabel'));
     const mf = filterBar();
     const metaEd: CodeEditor | null = metaTab ? createCodeEditor({ lineNumbers: true, label: t('code.metaEditorLabel'), highlightLine: highlightMetaLine, tipHost, onInput: () => onMetaInput() }) : null;
     const metaBody = metaEd && tabMeta
-      ? h('div', { class: 'tab-body', role: 'tabpanel', id: `ds-panel-meta-${uid}`, 'aria-labelledby': tabMeta.id, hidden: true, dataset: { body: 'meta' } }, ms.box, mf.bar, metaEd.el)
+      ? h('div', { class: 'tab-body', role: 'tabpanel', id: `mmdx-panel-meta-${uid}`, 'aria-labelledby': tabMeta.id, hidden: true, dataset: { body: 'meta' } }, ms.box, mf.bar, metaEd.el)
       : null;
 
     const problems = h('div', { class: 'problems', role: 'region', 'aria-label': t('problems.title') });
@@ -231,7 +231,7 @@ export const codePanelModule: EditorModule = {
       if (issues.length) {
         const head = h('button', { type: 'button', class: 'pb-head', 'aria-expanded': String(problemsOpen), title: problemsOpen ? t('problems.hide') : t('problems.show') },
           h('span', null, t('problems.title')), h('span', { class: 'pb-count' }, String(issues.length)), h('span', { class: 'pb-spacer' }), icon('M7 14l5-5 5 5', 14));
-        head.lastElementChild?.setAttribute('class', 'ds-icon pb-chev');
+        head.lastElementChild?.setAttribute('class', 'mmdx-icon pb-chev');
         head.addEventListener('click', () => {
           problemsOpen = !problemsOpen;
           renderProblems();
@@ -352,7 +352,7 @@ export const codePanelModule: EditorModule = {
     };
     let applying = false;
     const commitCode = (raw: string): void => {
-      if (!core.emit('ds-op', { type: 'code.replace', code: raw }, true)) {
+      if (!core.emit('mmdx-op', { type: 'code.replace', code: raw }, true)) {
         syncEditor();
         return;
       }

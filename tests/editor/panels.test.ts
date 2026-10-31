@@ -341,10 +341,10 @@ describe('export', () => {
     expect(String(svg.data)).toMatch(/^<svg /);
   });
 
-  test('exportAs dispatches a cancelable ds-export event', async () => {
+  test('exportAs dispatches a cancelable mmdx-export event', async () => {
     const e = mount(FLOW);
     const seen: string[] = [];
-    host.addEventListener('ds-export', (ev) => {
+    host.addEventListener('mmdx-export', (ev) => {
       seen.push((ev as CustomEvent<{ name: string }>).detail.name);
       ev.preventDefault();
     });

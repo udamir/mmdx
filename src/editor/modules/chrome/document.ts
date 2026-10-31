@@ -1,8 +1,8 @@
 // Document-level commands (A.1 row 12, A.8 rows 79, 82, 83; prototype app `doExport`, `plainPreview`, `readFiles`,
 // `#autoBtn`): export as styled .mmdx (pruned metadata), portable .mmd, SVG and PNG 2× (visible layers and the label
-// setting honoured; PNG failures raise `ds-error` and a toast), the Plain Mermaid compare modal, Auto layout and
+// setting honoured; PNG failures raise `mmdx-error` and a toast), the Plain Mermaid compare modal, Auto layout and
 // opening files (`features.open`: picker and drag-and-drop; `.mmdx`, `.mmd`, `.md` first mermaid block, `.txt`, `.json`
-// legacy sidecar). Every export first dispatches a cancelable `ds-export` event ({ kind, name, data }).
+// legacy sidecar). Every export first dispatches a cancelable `mmdx-export` event ({ kind, name, data }).
 import { getShared, renderWithMermaid } from '../../../config.js';
 import { toPortableMermaid } from '../../../core/export/portable.js';
 import { joinSource, mergeLegacySidecar, pruneMeta } from '../../../core/meta/index.js';
@@ -46,7 +46,7 @@ export async function buildExport(core: EditorCore, kind: ExportKind): Promise<E
   const w = Number(/width="([\d.]+)"/.exec(svg)?.[1] ?? 0), hh = Number(/height="([\d.]+)"/.exec(svg)?.[1] ?? 0);
   const png = await svgToPng(svg, w, hh, { scale: 2, fonts: getShared().fonts });
   if (png.missingFonts.length)
-    core.emit('ds-error', { diagnostics: [{ severity: 'warning', code: 'export.font-missing', message: `No font file for ${png.missingFonts.join(', ')}: local fonts were used`, params: { fonts: png.missingFonts.join(', ') } }] });
+    core.emit('mmdx-error', { diagnostics: [{ severity: 'warning', code: 'export.font-missing', message: `No font file for ${png.missingFonts.join(', ')}: local fonts were used`, params: { fonts: png.missingFonts.join(', ') } }] });
   return { name: `${name}.png`, data: png.blob, type: 'image/png' };
 }
 
@@ -55,12 +55,12 @@ export async function exportAs(core: EditorCore, kind: ExportKind): Promise<void
   if (!core.features.export || !core.features.exportFormats.includes(kind)) return;
   try {
     const file = await buildExport(core, kind);
-    if (!core.emit('ds-export', { kind, ...file }, true)) return;
+    if (!core.emit('mmdx-export', { kind, ...file }, true)) return;
     download(file.name, file.data, file.type);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     core.toast(t('export.failed', { kind: kind.toUpperCase(), msg }), { error: true });
-    core.emit('ds-error', { diagnostics: [{ severity: 'error', code: 'export.failed', message: msg, params: { kind } }] });
+    core.emit('mmdx-error', { diagnostics: [{ severity: 'error', code: 'export.failed', message: msg, params: { kind } }] });
   }
 }
 
@@ -88,9 +88,9 @@ export async function plainMermaid(core: EditorCore): Promise<void> {
   const body = h('div', { class: 'mm-body' }, h('div', { class: 'hint' }, t('plain.rendering')));
   const titleId = `mm-${Math.random().toString(36).slice(2, 8)}`;
   const close = h('button', { type: 'button', class: 'mm-close', title: t('plain.close'), 'aria-label': t('plain.close') }, '×');
-  const card = h('div', { class: 'ds-dialog mm-card', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId },
+  const card = h('div', { class: 'mmdx-dialog mm-card', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId },
     h('div', { class: 'mm-head' }, h('h2', { id: titleId }, t('plain.title')), close), body);
-  const back = h('div', { class: 'ds-dialog-back' }, card);
+  const back = h('div', { class: 'mmdx-dialog-back' }, card);
   const prev = core.dom.shadow.activeElement as HTMLElement | null;
   const done = (): void => {
     back.remove();
@@ -138,7 +138,7 @@ export function autoLayout(core: EditorCore): void {
 
 /** Replaces the document (an undoable step), like the prototype's `setSource` after opening a file. */
 export function loadDocument(core: EditorCore, src: string, name?: string): void {
-  if (!core.emit('ds-op', { type: 'doc.open', code: src }, true)) return;
+  if (!core.emit('mmdx-op', { type: 'doc.open', code: src }, true)) return;
   core.store.load(src, { history: 'push', reason: 'load', markSaved: false });
   if (name) core.fileName = name.replace(/\.(mmdx|mmd|md|txt|json)$/i, '') || core.fileName;
   core.enteredGroup.set(null);
@@ -177,13 +177,13 @@ export async function openFiles(core: EditorCore, files: FileList | File[]): Pro
 
 export const DOCUMENT_CSS = /* css */ `
 .mm-card { width: min(1200px, calc(100% - 48px)); height: min(860px, calc(100% - 48px)); padding: 0; gap: 0; }
-.mm-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--ds-border); }
+.mm-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--mmdx-border); }
 .mm-head h2 { margin: 0; font-size: 14px; }
-.mm-close { border: 0; background: none; font-size: 18px; line-height: 1; color: var(--ds-muted); }
+.mm-close { border: 0; background: none; font-size: 18px; line-height: 1; color: var(--mmdx-muted); }
 .mm-body { flex: 1; overflow: auto; padding: 16px; min-height: 0; }
 .mm-body svg { max-width: 100%; height: auto; }
-.mm-err { color: var(--ds-danger); }
-.canvas-wrap.drop-target { outline: 2px dashed var(--ds-accent); outline-offset: -8px; }
+.mm-err { color: var(--mmdx-danger); }
+.canvas-wrap.drop-target { outline: 2px dashed var(--mmdx-accent); outline-offset: -8px; }
 `;
 
 export const documentModule: EditorModule = {

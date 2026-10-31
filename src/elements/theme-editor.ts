@@ -67,13 +67,13 @@ export interface ThemeEditorOptions {
 
 export interface ThemeEditorEventMap {
   /** Before a theme is written to the store; cancelable. */
-  'ds-theme-save': CustomEvent<{ theme: ThemeFile }>;
-  'ds-theme-saved': CustomEvent<{ theme: ThemeFile; version: string }>;
+  'mmdx-theme-save': CustomEvent<{ theme: ThemeFile }>;
+  'mmdx-theme-saved': CustomEvent<{ theme: ThemeFile; version: string }>;
   /** The draft became dirty or clean. */
-  'ds-theme-dirty': CustomEvent<{ id: string; dirty: boolean }>;
-  'ds-theme-select': CustomEvent<{ id: string }>;
+  'mmdx-theme-dirty': CustomEvent<{ id: string; dirty: boolean }>;
+  'mmdx-theme-select': CustomEvent<{ id: string }>;
   /** Dialog presentation closed. */
-  'ds-theme-close': CustomEvent<{ id: string }>;
+  'mmdx-theme-close': CustomEvent<{ id: string }>;
 }
 
 // ---- constants -----------------------------------------------------------------------------------------------------
@@ -454,7 +454,7 @@ export class ThemeEditor {
     if (this.presentation() !== 'dialog') return true;
     if (!(await this.confirmLeave())) return false;
     this.frame.hidden = true;
-    emit(this.host, 'ds-theme-close', { id: this.id });
+    emit(this.host, 'mmdx-theme-close', { id: this.id });
     return true;
   }
 
@@ -547,7 +547,7 @@ export class ThemeEditor {
     );
     // keys typed in the editor never reach the page behind it
     this.dlg.addEventListener('keydown', (ev) => {
-      if (this.shadow.querySelector('.ds-dialog-back')) return;
+      if (this.shadow.querySelector('.mmdx-dialog-back')) return;
       this.keys.handle(ev, true);
     }, { signal: this.ac.signal });
   }
@@ -710,10 +710,10 @@ export class ThemeEditor {
     return true;
   }
 
-  /** Writes a validated file through the store (ds-theme-save first; conflict dialog on a version clash). */
+  /** Writes a validated file through the store (mmdx-theme-save first; conflict dialog on a version clash). */
   private async persist(file: ThemeFile, force = false): Promise<boolean> {
     const t = this.i18n.t;
-    if (!emit(this.host, 'ds-theme-save', { theme: clone(file) }, true)) {
+    if (!emit(this.host, 'mmdx-theme-save', { theme: clone(file) }, true)) {
       this.toaster.show(t('te.saveCancelled'));
       return false;
     }
@@ -750,7 +750,7 @@ export class ThemeEditor {
     this.setFiles(this.files);
     // open viewers and editors pick the saved theme up through the shared registry
     this.ctx.themes.register(clone(file));
-    emit(this.host, 'ds-theme-saved', { theme: clone(file), version: res.version });
+    emit(this.host, 'mmdx-theme-saved', { theme: clone(file), version: res.version });
     this.toaster.show(t('te.saved', { name: file.name ?? file.id }));
     this.renderList();
     return true;
@@ -760,7 +760,7 @@ export class ThemeEditor {
     const d = this.dirty;
     if (d === this.lastDirty) return;
     this.lastDirty = d;
-    emit(this.host, 'ds-theme-dirty', { id: this.id, dirty: d });
+    emit(this.host, 'mmdx-theme-dirty', { id: this.id, dirty: d });
   }
 
   private syncHeader(): void {
@@ -978,7 +978,7 @@ export class ThemeEditor {
     this.renderMain();
     this.drawPreview();
     this.syncHeader();
-    emit(this.host, 'ds-theme-select', { id: this.id });
+    emit(this.host, 'mmdx-theme-select', { id: this.id });
     return true;
   }
 
@@ -1866,7 +1866,7 @@ export class ThemeEditor {
       },
     });
     const mid = (): [number, number] => [viewport.size.w / 2, viewport.size.h / 2];
-    const zoomBar = h('div', { class: 'vw-zoom ds-float', role: 'toolbar', 'aria-label': t('te.preview') },
+    const zoomBar = h('div', { class: 'vw-zoom mmdx-float', role: 'toolbar', 'aria-label': t('te.preview') },
       h('button', { type: 'button', title: t('zoom.out'), 'aria-label': t('zoom.out'), onclick: () => viewport.zoomAt(1 / 1.2, ...mid()) }, '−'),
       pct,
       h('button', { type: 'button', title: t('zoom.in'), 'aria-label': t('zoom.in'), onclick: () => viewport.zoomAt(1.2, ...mid()) }, '+'),

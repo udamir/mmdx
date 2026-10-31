@@ -17,7 +17,7 @@ const MARKERS = new Map<number, readonly string[]>([
 ]);
 
 function codeEditor(a: CodeArgs): HTMLElement {
-  const { host, root } = chromeHost([CODE_EDITOR_CSS, '.box{position:relative;height:420px;border:1px solid var(--ds-border);background:var(--ds-surface);border-radius:8px;overflow:hidden;} .box .cm{height:100%;}'], { ui: a.ui });
+  const { host, root } = chromeHost([CODE_EDITOR_CSS, '.box{position:relative;height:420px;border:1px solid var(--mmdx-border);background:var(--mmdx-surface);border-radius:8px;overflow:hidden;} .box .cm{height:100%;}'], { ui: a.ui });
   const box = document.createElement('div');
   box.className = 'box';
   const ed = createCodeEditor({

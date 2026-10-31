@@ -3,13 +3,13 @@
 import { h } from './h.js';
 
 export const DIALOG_CSS = /* css */ `
-.ds-dialog-back { position: absolute; inset: 0; z-index: calc(var(--ds-z-popover) + 10); background: rgba(10, 12, 20, .32); display: grid; place-items: center; }
-.ds-dialog { background: var(--ds-surface); color: var(--ds-text); border: 1px solid var(--ds-border); border-radius: 12px; box-shadow: var(--ds-shadow-lg); padding: 18px 20px 16px; width: min(440px, calc(100% - 32px)); display: flex; flex-direction: column; gap: 12px; }
-.ds-dialog h2 { margin: 0; font-size: 15px; }
-.ds-dialog p { margin: 0; color: var(--ds-text-2); white-space: pre-wrap; }
-.ds-dialog input { width: 100%; padding: 6px 8px; }
-.ds-dialog .err { color: var(--ds-danger); font-size: 12px; min-height: 1em; }
-.ds-dialog .actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.mmdx-dialog-back { position: absolute; inset: 0; z-index: calc(var(--mmdx-z-popover) + 10); background: rgba(10, 12, 20, .32); display: grid; place-items: center; }
+.mmdx-dialog { background: var(--mmdx-surface); color: var(--mmdx-text); border: 1px solid var(--mmdx-border); border-radius: 12px; box-shadow: var(--mmdx-shadow-lg); padding: 18px 20px 16px; width: min(440px, calc(100% - 32px)); display: flex; flex-direction: column; gap: 12px; }
+.mmdx-dialog h2 { margin: 0; font-size: 15px; }
+.mmdx-dialog p { margin: 0; color: var(--mmdx-text-2); white-space: pre-wrap; }
+.mmdx-dialog input { width: 100%; padding: 6px 8px; }
+.mmdx-dialog .err { color: var(--mmdx-danger); font-size: 12px; min-height: 1em; }
+.mmdx-dialog .actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 `;
 
 export interface ChoiceButton<T> {
@@ -32,13 +32,13 @@ export class Dialogs {
         resolve(v);
       };
       const titleId = `dlg-${Math.random().toString(36).slice(2)}`;
-      const box = h('div', { class: 'ds-dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId },
+      const box = h('div', { class: 'mmdx-dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId },
         h('h2', { id: titleId }, opts.title),
         opts.message ? h('p', null, opts.message) : null,
         opts.body ?? null,
         h('div', { class: 'actions' }, ...opts.buttons.map((b) =>
           h('button', { type: 'button', class: b.primary ? 'primary' : b.danger ? 'danger' : '', onclick: () => done(b.value) }, b.label))));
-      const back = h('div', { class: 'ds-dialog-back' }, box);
+      const back = h('div', { class: 'mmdx-dialog-back' }, box);
       back.addEventListener('pointerdown', (ev) => {
         if (ev.target === back) done(opts.cancel);
       });

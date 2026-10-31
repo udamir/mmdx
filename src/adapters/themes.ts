@@ -106,7 +106,7 @@ export function fetchThemeSource(manifestUrl: string, init: RequestInit = { cred
 }
 
 /**
- * Themes edited in this browser, layered over a read-only source (the studio's `ds.themes`, A.12). Saving stores
+ * Themes edited in this browser, layered over a read-only source (the studio's `mmdx.themes`, A.12). Saving stores
  * the whole file; deleting a theme that exists in the source drops the browser edit (revert).
  */
 export function localStorageThemeStore(storage: StorageAdapter, base?: ThemeSource, key = 'themes'): ThemeStore {

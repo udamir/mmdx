@@ -12,13 +12,13 @@ const PALETTE: PaletteColor[] = [
 
 /** The page bar over a stand-in page whose background, border and size follow the bar's settings. */
 function pageToolbar(a: PageArgs): HTMLElement {
-  const { host, root } = chromeHost([TOOLBAR_CSS, '.stage{position:relative;height:480px;} .page{position:absolute;box-sizing:border-box;display:grid;place-items:center;font:13px system-ui;color:var(--ds-muted);}'], { ui: a.ui });
+  const { host, root } = chromeHost([TOOLBAR_CSS, '.stage{position:relative;height:480px;} .page{position:absolute;box-sizing:border-box;display:grid;place-items:center;font:13px system-ui;color:var(--mmdx-muted);}'], { ui: a.ui });
   const stage = document.createElement('div');
   stage.className = 'stage';
   const page = document.createElement('div');
   page.className = 'page';
   const log = document.createElement('pre');
-  log.style.cssText = 'font:12px/1.4 ui-monospace,monospace;color:var(--ds-muted);margin:0;position:absolute;left:0;right:0;bottom:0;white-space:pre-wrap;word-break:break-all;';
+  log.style.cssText = 'font:12px/1.4 ui-monospace,monospace;color:var(--mmdx-muted);margin:0;position:absolute;left:0;right:0;bottom:0;white-space:pre-wrap;word-break:break-all;';
   stage.append(page, log);
   root.append(stage);
 
@@ -43,7 +43,7 @@ function pageToolbar(a: PageArgs): HTMLElement {
     const r = rect();
     const border = resolve(state.page['border']);
     page.style.cssText += `left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px;background:${resolve(state.page['background']) ?? 'transparent'};` +
-      `border:${border && border !== 'transparent' ? `2px solid ${border}` : '1px dashed var(--ds-border)'};`;
+      `border:${border && border !== 'transparent' ? `2px solid ${border}` : '1px dashed var(--mmdx-border)'};`;
     page.textContent = `${state.type}${state.direction ? ` · ${state.direction}` : ''} · preset ${state.preset}`;
     log.textContent = JSON.stringify(state);
   };

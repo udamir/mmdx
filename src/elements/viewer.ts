@@ -59,10 +59,10 @@ export interface ViewerOptions {
 }
 
 export interface ViewerEventMap {
-  'ds-render': CustomEvent<{ bounds: Rect; type: string | null; durationMs: number }>;
-  'ds-error': CustomEvent<{ diagnostics: Diagnostic[] }>;
-  'ds-link': CustomEvent<{ href: string; id: string | null }>;
-  'ds-fullscreen': CustomEvent<{ active: boolean }>;
+  'mmdx-render': CustomEvent<{ bounds: Rect; type: string | null; durationMs: number }>;
+  'mmdx-error': CustomEvent<{ diagnostics: Diagnostic[] }>;
+  'mmdx-link': CustomEvent<{ href: string; id: string | null }>;
+  'mmdx-fullscreen': CustomEvent<{ active: boolean }>;
 }
 
 const DEFAULT_CONTROLS: readonly ViewerControl[] = ['zoom', 'fullscreen'];
@@ -130,9 +130,9 @@ export class DiagramViewer {
     this.vpEl.append(this.pageEl, this.bodyEl);
     this.svg.append(this.defsEl, this.vpEl);
     this.stage = h('div', { class: 'stage' }, this.svg);
-    this.bar = h('div', { class: 'bar ds-float', part: 'zoom-bar', role: 'toolbar' });
+    this.bar = h('div', { class: 'bar mmdx-float', part: 'zoom-bar', role: 'toolbar' });
     this.msg = h('div', { class: 'msg' });
-    this.live = h('div', { class: 'ds-sr', 'aria-live': 'polite' });
+    this.live = h('div', { class: 'mmdx-sr', 'aria-live': 'polite' });
     this.rootEl = h('div', { class: 'root', role: 'img', tabindex: '0' }, this.stage, this.bar, this.msg, this.live);
     this.shadow.append(this.rootEl);
     this.pops = new PopoverManager(this.shadow);
@@ -146,7 +146,7 @@ export class DiagramViewer {
     this.cleanups.push(this.ctx.themes.onChange(() => this.scheduleRender()));
     this.applyScheme(false);
 
-    const ssr = host.querySelector(':scope > svg[data-ds-ssr]');
+    const ssr = host.querySelector(':scope > svg[data-mmdx-ssr]');
     if (ssr instanceof SVGSVGElement) this.adoptSsr(ssr);
     if (this.o.lazy !== false && typeof IntersectionObserver !== 'undefined') {
       this.io = new IntersectionObserver((entries) => {
@@ -210,7 +210,7 @@ export class DiagramViewer {
     const b = r.result.bounds;
     const { svgToPng } = await import('../dom/export.js');
     const res = await svgToPng(this.toSvg(), b.w, b.h, { scale: opts.scale ?? 2, fonts: getShared().fonts });
-    if (res.missingFonts.length) emit(this.host, 'ds-error', { diagnostics: [{ severity: 'info', code: 'export.font-missing', message: `Fonts not embedded (no font source): ${res.missingFonts.join(', ')}` }] });
+    if (res.missingFonts.length) emit(this.host, 'mmdx-error', { diagnostics: [{ severity: 'info', code: 'export.font-missing', message: `Fonts not embedded (no font source): ${res.missingFonts.join(', ')}` }] });
     return res.blob;
   }
 
@@ -272,7 +272,7 @@ export class DiagramViewer {
     if (this.text === null) return;
     const { doc } = splitSource(this.text);
     const { w, h: hh } = doc.meta.canvas;
-    if (typeof w === 'number' && typeof hh === 'number' && w > 0 && hh > 0) this.stage.style.setProperty('--ds-aspect', `${w} / ${hh}`);
+    if (typeof w === 'number' && typeof hh === 'number' && w > 0 && hh > 0) this.stage.style.setProperty('--mmdx-aspect', `${w} / ${hh}`);
   }
 
   private scheduleRender(): void {
@@ -365,9 +365,9 @@ export class DiagramViewer {
     patchChildren(this.defsEl, res.defs);
     patchChildren(this.pageEl, pageScene(res, r.rctx));
     patchChildren(this.bodyEl, res.body);
-    this.rootEl.style.setProperty('--ds-page-bg', res.page.background);
+    this.rootEl.style.setProperty('--mmdx-page-bg', res.page.background);
     const b = res.bounds;
-    this.stage.style.setProperty('--ds-aspect', `${Math.max(1, b.w)} / ${Math.max(1, b.h)}`);
+    this.stage.style.setProperty('--mmdx-aspect', `${Math.max(1, b.w)} / ${Math.max(1, b.h)}`);
     if (this.o.fit === 'none') {
       this.stage.style.width = `${b.w}px`;
       this.stage.style.height = `${b.h}px`;
@@ -383,8 +383,8 @@ export class DiagramViewer {
     if (!this.viewport) this.staticFit(b);
     this.buildBar();
     const warn = r.diagnostics.filter((d) => d.severity !== 'info' || d.code === 'theme.missing');
-    if (warn.length) emit(this.host, 'ds-error', { diagnostics: warn });
-    emit(this.host, 'ds-render', { bounds: b, type: r.model.type, durationMs: Math.round((now() - t0) * 10) / 10 });
+    if (warn.length) emit(this.host, 'mmdx-error', { diagnostics: warn });
+    emit(this.host, 'mmdx-render', { bounds: b, type: r.model.type, durationMs: Math.round((now() - t0) * 10) / 10 });
   }
 
   /** Non-interactive viewers: the whole page fills the element through the viewBox. */
@@ -429,7 +429,7 @@ export class DiagramViewer {
       // stock Mermaid output, rendered with securityLevel "strict" (sanitised by Mermaid's DOMPurify)
       box.innerHTML = svg;
       this.msg.replaceChildren(box);
-      emit(this.host, 'ds-render', { bounds: { x: 0, y: 0, w: 0, h: 0 }, type: null, durationMs: 0 });
+      emit(this.host, 'mmdx-render', { bounds: { x: 0, y: 0, w: 0, h: 0 }, type: null, durationMs: 0 });
     } catch (e) {
       if (this.destroyed) return;
       this.showError([...r.diagnostics, { severity: 'error', code: 'mermaid.failed', message: e instanceof Error ? e.message : String(e) }], text);
@@ -455,7 +455,7 @@ export class DiagramViewer {
       h('ul', null, ...diags.slice(0, 20).map((d) => h('li', null, diagnosticText(d)))),
       source ? pre : null,
       source ? h('div', { class: 'actions' }, copy) : null));
-    emit(this.host, 'ds-error', { diagnostics: [...diags] });
+    emit(this.host, 'mmdx-error', { diagnostics: [...diags] });
   }
 
   /** Code view over the diagram: its Mermaid code without the layout metadata and without styling. */
@@ -480,7 +480,7 @@ export class DiagramViewer {
   /** Server-rendered SVG (build plugin, §11.4): shown immediately; interaction attaches on first render. */
   private adoptSsr(ssr: SVGSVGElement): void {
     const vb = ssr.viewBox.baseVal;
-    if (vb && vb.width && vb.height) this.stage.style.setProperty('--ds-aspect', `${vb.width} / ${vb.height}`);
+    if (vb && vb.width && vb.height) this.stage.style.setProperty('--mmdx-aspect', `${vb.width} / ${vb.height}`);
     const clone = ssr.cloneNode(true) as SVGSVGElement;
     clone.setAttribute('class', 'scene ssr');
     clone.removeAttribute('width');
@@ -492,7 +492,7 @@ export class DiagramViewer {
       this.svg.style.removeProperty('visibility');
     };
     // the server's pixels stay until the first client render replaces them in one swap
-    this.host.addEventListener('ds-render', reveal, { once: true, signal: this.ac.signal });
+    this.host.addEventListener('mmdx-render', reveal, { once: true, signal: this.ac.signal });
   }
 
   // ---- interaction ------------------------------------------------------------------------------------------------
@@ -534,7 +534,7 @@ export class DiagramViewer {
   }
 
   private wireLinks(): void {
-    // links open on click (not after a pan); hosts can route or veto them through the cancelable ds-link event
+    // links open on click (not after a pan); hosts can route or veto them through the cancelable mmdx-link event
     this.svg.addEventListener('click', (ev) => {
       const a = (ev.target as Element).closest('a');
       if (!a) return;
@@ -543,7 +543,7 @@ export class DiagramViewer {
       const href = a.getAttribute('href');
       if (!href) return;
       const item = a.closest('[data-id]');
-      if (!emit(this.host, 'ds-link', { href, id: item?.getAttribute('data-id') ?? null }, true)) return;
+      if (!emit(this.host, 'mmdx-link', { href, id: item?.getAttribute('data-id') ?? null }, true)) return;
       const target = this.ctx.linkPolicy.target ?? '_blank';
       if (target === '_blank') window.open(href, '_blank', 'noopener,noreferrer');
       else window.location.assign(href);
@@ -636,11 +636,11 @@ export class DiagramViewer {
       return;
     }
     this.host.requestFullscreen().then(() => {
-      emit(this.host, 'ds-fullscreen', { active: true });
+      emit(this.host, 'mmdx-fullscreen', { active: true });
       const off = (): void => {
         if (document.fullscreenElement === this.host) return;
         document.removeEventListener('fullscreenchange', off);
-        emit(this.host, 'ds-fullscreen', { active: false });
+        emit(this.host, 'mmdx-fullscreen', { active: false });
         this.buildBar();
         this.viewport?.fit();
       };
@@ -707,7 +707,7 @@ export class DiagramViewer {
     const item = (label: string, f: () => void | Promise<void>): HTMLElement =>
       h('button', { type: 'button', role: 'menuitem', onclick: () => { this.pops.close(); void Promise.resolve(f()).catch((e: unknown) => this.toaster.show(e instanceof Error ? e.message : String(e), { error: true })); } }, label);
     const download = async (file: string, data: string | Blob, type?: string): Promise<void> => (await import('../dom/export.js')).download(file, data, type);
-    const pop = h('div', { class: 'pop ds-menu', role: 'menu' },
+    const pop = h('div', { class: 'pop mmdx-menu', role: 'menu' },
       item(t('export.svg'), () => download(`${name}.svg`, this.toSvg(), 'image/svg+xml')),
       item(t('export.png'), async () => download(`${name}.png`, await this.toPng())),
       this.text ? item(t('export.mmdx'), () => download(`${name}.mmdx`, this.text ?? '')) : null);

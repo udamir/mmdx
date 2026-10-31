@@ -1,4 +1,4 @@
-// Optional React wrapper (§11.3): typed props and `onDs*` event wiring for React ≤ 18 (React 19 passes properties
+// Optional React wrapper (§11.3): typed props and `onMmdx*` event wiring for React ≤ 18 (React 19 passes properties
 // and custom events to custom elements natively, so the elements can be used directly there).
 // No logic and no React dependency: pass your React in — `const { MmdxViewer, MmdxEditor } = createReactWrappers(React)`.
 
@@ -10,7 +10,7 @@ interface ReactLike {
   useImperativeHandle(ref: unknown, init: () => unknown, deps?: unknown[]): void;
 }
 
-type EventProps = Record<`onDs${string}`, ((ev: CustomEvent) => void) | undefined>;
+type EventProps = Record<`onMmdx${string}`, ((ev: CustomEvent) => void) | undefined>;
 
 /** Attribute props are passed through; object props (`source`, `adapter`, `layers`, …) are set as properties. */
 const PROPERTY_PROPS = new Set(['source', 'loader', 'layers', 'themeSource', 'storage', 'adapter', 'features', 'panels', 'value', 'readOnly', 'store', 'modules']);
@@ -23,9 +23,9 @@ function wrap(React: ReactLike, tag: string): unknown {
     const events: [string, (ev: CustomEvent) => void][] = [];
     for (const [k, v] of Object.entries(props)) {
       if (k === 'children') continue;
-      if (/^onDs[A-Z]/.test(k) && typeof v === 'function') {
-        // onDsChange → ds-change, onDsThemeSaved → ds-theme-saved
-        events.push(['ds-' + k.slice(4).replace(/[A-Z]/g, (c, i: number) => (i ? '-' : '') + c.toLowerCase()), v as (ev: CustomEvent) => void]);
+      if (/^onMmdx[A-Z]/.test(k) && typeof v === 'function') {
+        // onMmdxChange → mmdx-change, onMmdxThemeSaved → mmdx-theme-saved
+        events.push(['mmdx-' + k.slice(6).replace(/[A-Z]/g, (c, i: number) => (i ? '-' : '') + c.toLowerCase()), v as (ev: CustomEvent) => void]);
       } else if (PROPERTY_PROPS.has(k)) propsToSet[k] = v;
       else attrs[k.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())] = v === true ? '' : v === false ? undefined : v;
     }

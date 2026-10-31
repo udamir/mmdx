@@ -24,7 +24,7 @@ export class PopoverManager {
     this.close();
     const ac = new AbortController();
     const host = this.root instanceof ShadowRoot ? this.root.host : this.root;
-    el.classList.add('ds-pop');
+    el.classList.add('mmdx-pop');
     if (!el.parentNode) (this.root instanceof ShadowRoot ? this.root : this.root).append(el);
     opener?.setAttribute('aria-expanded', 'true');
     const c: NonNullable<PopoverManager['current']> = { el, opener, ac };
@@ -41,7 +41,7 @@ export class PopoverManager {
         ev.stopPropagation();
         this.close(true);
       } else if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
-        const items = Array.from(el.querySelectorAll<HTMLElement>('[role^=menuitem]:not(:disabled), .ds-menu > button:not(:disabled)'));
+        const items = Array.from(el.querySelectorAll<HTMLElement>('[role^=menuitem]:not(:disabled), .mmdx-menu > button:not(:disabled)'));
         if (!items.length) return;
         ev.preventDefault();
         const i = items.indexOf(el.ownerDocument.activeElement === host ? (host.shadowRoot?.activeElement as HTMLElement) : (ev.target as HTMLElement));
@@ -71,14 +71,14 @@ export class Toaster {
   private readonly host: HTMLElement;
   constructor(parent: ShadowRoot | HTMLElement) {
     this.host = document.createElement('div');
-    this.host.className = 'ds-toast-host';
+    this.host.className = 'mmdx-toast-host';
     this.host.setAttribute('role', 'status');
     this.host.setAttribute('aria-live', 'polite');
     parent.append(this.host);
   }
   show(text: string, opts: { error?: boolean; ms?: number } = {}): void {
     const t = document.createElement('div');
-    t.className = 'ds-toast' + (opts.error ? ' error' : '');
+    t.className = 'mmdx-toast' + (opts.error ? ' error' : '');
     t.textContent = text;
     this.host.append(t);
     setTimeout(() => t.remove(), opts.ms ?? 3200);

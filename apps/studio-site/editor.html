@@ -41,7 +41,7 @@
     document.getElementById('save').onclick = () => ed.save().then((r) => (status.textContent = r));
     document.getElementById('ro').onchange = (e) => (ed.readOnly = e.target.checked);
     const status = document.getElementById('status');
-    ed.addEventListener('ds-dirty', (e) => (status.textContent = e.detail.dirty ? 'unsaved' : 'saved'));
+    ed.addEventListener('mmdx-dirty', (e) => (status.textContent = e.detail.dirty ? 'unsaved' : 'saved'));
     window.ed = ed;
   </script>
 </body>

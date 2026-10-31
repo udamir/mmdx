@@ -10,7 +10,7 @@ export const THEME_EDITOR_CSS = /* css */ `
 .seg.small button { padding: 2px 8px; font-size: 12px; }
 button.link { border: 0; background: none; padding: 2px 0; color: var(--accent); font-size: 12px; align-self: flex-start; }
 button.small { padding: 2px 8px; font-size: 12px; }
-.te-overlay { position: fixed; inset: 0; z-index: var(--ds-z-popover); background: rgba(20, 26, 40, .35); display: grid; place-items: center; }
+.te-overlay { position: fixed; inset: 0; z-index: var(--mmdx-z-popover); background: rgba(20, 26, 40, .35); display: grid; place-items: center; }
 .te-dialog { width: min(1320px, 95vw); height: min(880px, 92vh); background: var(--surface); color: var(--ink); border-radius: 16px; box-shadow: 0 20px 60px rgba(20,30,60,.3);
   display: flex; flex-direction: column; overflow: hidden; position: relative; outline: none; }
 .te-dialog.inline { width: 100%; height: 100%; border-radius: 12px; border: 1px solid var(--line); box-shadow: none; }
@@ -52,20 +52,20 @@ button.small { padding: 2px 8px; font-size: 12px; }
 .te-reset { border: 0; background: none; color: var(--faint); padding: 0 4px; font-size: 15px; }
 .te-reset:hover { color: var(--danger); }
 .te-chip { width: 26px; height: 22px; border-radius: 6px; border: 1px solid rgba(0,0,0,.18); padding: 0; flex: none; }
-.te-chip-label { font-size: 12px; font-family: var(--ds-mono); min-width: 140px; }
+.te-chip-label { font-size: 12px; font-family: var(--mmdx-mono); min-width: 140px; }
 .te-chip-label.inherited { color: var(--muted); }
 .te-f.invalid > label { color: var(--danger); font-weight: 600; }
 .te-f.invalid .te-ctl input, .te-f.invalid .te-ctl select, .te-f.invalid .te-chip { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
 .te-ferr { flex-basis: 100%; color: var(--danger); font-size: 11.5px; }
 .te-errors { border: 1px solid var(--danger); background: var(--danger-bg); color: var(--danger); border-radius: 8px; padding: 8px 12px; margin: 0 0 12px; font-size: 12.5px; }
 .te-errors ul { margin: 4px 0 0; padding-left: 18px; }
-.te-errors code { font-family: var(--ds-mono); font-size: 11.5px; }
+.te-errors code { font-family: var(--mmdx-mono); font-size: 11.5px; }
 /* palette circles */
 .te-palette { display: flex; flex-wrap: wrap; gap: 10px; }
 .te-dot { position: relative; width: 30px; height: 30px; border-radius: 50%; background: var(--c); cursor: pointer; flex: none;
   box-shadow: inset 0 0 0 1px rgba(0,0,0,.14); transition: transform .1s; }
 .te-dot:hover { transform: scale(1.12); }
-.te-dot:focus-within { box-shadow: inset 0 0 0 1px rgba(0,0,0,.14), var(--ds-focus); }
+.te-dot:focus-within { box-shadow: inset 0 0 0 1px rgba(0,0,0,.14), var(--mmdx-focus); }
 .te-dot.set { box-shadow: inset 0 0 0 1px rgba(0,0,0,.14), 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
 .te-dot input[type=color] { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; border: 0; padding: 0; }
 .te-dot-x { position: absolute; top: -6px; right: -6px; width: 16px; height: 16px; border-radius: 50%; border: 0; padding: 0; line-height: 15px;
@@ -81,7 +81,7 @@ button.small { padding: 2px 8px; font-size: 12px; }
 .toggle:checked::after { transform: translateX(14px); }
 .toggle.inherited { opacity: .55; }
 /* colour chip popover */
-.ds-pop.te-pop { position: fixed; z-index: calc(var(--ds-z-popover) + 5); width: 240px; background: var(--float); border: 1px solid var(--float-line); border-radius: 12px; padding: 10px; box-shadow: 0 10px 30px rgba(20,30,60,.2); }
+.mmdx-pop.te-pop { position: fixed; z-index: calc(var(--mmdx-z-popover) + 5); width: 240px; background: var(--float); border: 1px solid var(--float-line); border-radius: 12px; padding: 10px; box-shadow: 0 10px 30px rgba(20,30,60,.2); }
 .te-pop-title { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
 .te-pop-grid { display: grid; grid-template-columns: repeat(8, 22px); gap: 5px; }
 .te-pop-sw { width: 22px; height: 22px; border-radius: 50%; border: 0; padding: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
@@ -106,7 +106,7 @@ button.small { padding: 2px 8px; font-size: 12px; }
 .te-tile { position: relative; min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 6px; display: flex; flex-direction: column;
   gap: 5px; text-align: left; cursor: pointer; }
 .te-tile:hover { border-color: var(--accent); }
-.te-tile:focus-visible { outline: none; box-shadow: var(--ds-focus); }
+.te-tile:focus-visible { outline: none; box-shadow: var(--mmdx-focus); }
 .te-tile.on { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(66,98,255,.25); }
 .te-tile-pic { height: var(--tile-h); display: block; overflow: hidden; border-radius: 6px; }
 .te-tile-pic svg { display: block; border-radius: 6px; }
@@ -138,9 +138,9 @@ button.small { padding: 2px 8px; font-size: 12px; }
 .te-ptabs { display: flex; gap: 4px; }
 .te-ptabs button { border: 0; background: none; padding: 5px 10px; border-radius: 7px; font-size: 12.5px; }
 .te-ptabs button.on { background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.1); font-weight: 600; color: inherit; }
-.te-codebtn { margin-left: auto; border: 1px solid var(--line); background: var(--surface); border-radius: 7px; padding: 4px 9px; font-size: 12px; font-family: var(--ds-mono); }
+.te-codebtn { margin-left: auto; border: 1px solid var(--line); background: var(--surface); border-radius: 7px; padding: 4px 9px; font-size: 12px; font-family: var(--mmdx-mono); }
 .te-codebtn.on { background: var(--accent-2); border-color: var(--accent); color: var(--accent); }
-.te-code { width: 100%; height: 150px; min-height: 90px; resize: vertical; flex: none; font: 12px/1.45 var(--ds-mono); border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--surface); }
+.te-code { width: 100%; height: 150px; min-height: 90px; resize: vertical; flex: none; font: 12px/1.45 var(--mmdx-mono); border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--surface); }
 .te-perr:empty { display: none; }
 .te-perr { color: var(--danger); }
 .te-pbox { position: relative; flex: 1; min-height: 320px; background: var(--surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.06); overflow: hidden; }

@@ -46,7 +46,7 @@ function editor(a: Partial<EditorArgs>): HTMLElement {
   if (a.ui) el.setAttribute('ui', a.ui);
   if (a.name) el.setAttribute('name', a.name);
   el.style.cssText = `display:block;height:${a.height ?? 640}px;`;
-  for (const type of ['ds-change', 'ds-dirty', 'ds-save', 'ds-saved', 'ds-selection', 'ds-export', 'ds-conflict'])
+  for (const type of ['mmdx-change', 'mmdx-dirty', 'mmdx-save', 'mmdx-saved', 'mmdx-selection', 'mmdx-export', 'mmdx-conflict'])
     el.addEventListener(type, (e) => console.info(type, (e as CustomEvent).detail));
   return el;
 }

@@ -31,7 +31,7 @@ function styleToolbar(a: ToolbarArgs): HTMLElement {
   const item = document.createElement('div');
   item.className = 'item';
   const log = document.createElement('pre');
-  log.style.cssText = 'font:12px/1.4 ui-monospace,monospace;color:var(--ds-muted);margin:0;position:absolute;left:0;right:0;bottom:0;white-space:pre-wrap;word-break:break-all;';
+  log.style.cssText = 'font:12px/1.4 ui-monospace,monospace;color:var(--mmdx-muted);margin:0;position:absolute;left:0;right:0;bottom:0;white-space:pre-wrap;word-break:break-all;';
   stage.append(item, log);
   root.append(stage);
 

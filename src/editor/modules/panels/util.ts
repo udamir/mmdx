@@ -32,7 +32,7 @@ export function applyMeta(core: EditorCore, label: string, res: MetaResult): boo
 /** Replaces the code and metadata together without the core's sequence remap (the op remapped already). */
 export function applyDoc(core: EditorCore, label: string, doc: { code: string; meta: DiagramMeta }, select: Sel[] | null): boolean {
   if (doc.code === core.code && JSON.stringify(doc.meta) === JSON.stringify(core.meta)) return false;
-  if (!core.emit('ds-op', { type: label, code: doc.code }, true)) return false;
+  if (!core.emit('mmdx-op', { type: label, code: doc.code }, true)) return false;
   core.store.begin();
   try {
     core.store.meta.set(doc.meta);

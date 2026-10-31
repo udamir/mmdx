@@ -10,7 +10,7 @@ export interface FontSpec {
 
 export interface TextMeasurer {
   width(text: string, font: FontSpec): number;
-  /** 'static' for table-based estimates (recorded as data-ds-measure on SSR output), 'canvas' for real metrics. */
+  /** 'static' for table-based estimates (recorded as data-mmdx-measure on SSR output), 'canvas' for real metrics. */
   readonly kind: 'static' | 'canvas' | 'custom';
 }
 

@@ -452,7 +452,7 @@ export const canvasSelectModule: EditorModule = {
       else core.viewport.setBounds(core.result.result.bounds, { fit: true });
     };
 
-    // Links open in View mode on a plain click (not the end of a pan); the host can route or veto (`ds-link`).
+    // Links open in View mode on a plain click (not the end of a pan); the host can route or veto (`mmdx-link`).
     svg.addEventListener('click', (ev) => {
       const t = ev.target instanceof Element ? ev.target : null;
       const a = t?.closest('a');
@@ -463,7 +463,7 @@ export const canvasSelectModule: EditorModule = {
       const href = linked?.getAttribute('data-link') ?? a?.getAttribute('href');
       if (!href) return;
       const item = (linked ?? a)?.closest('[data-id]');
-      if (!core.emit('ds-link', { href, id: item?.getAttribute('data-id') ?? null }, true)) return;
+      if (!core.emit('mmdx-link', { href, id: item?.getAttribute('data-id') ?? null }, true)) return;
       const target = core.ctx.linkPolicy.target ?? '_blank';
       if (target === '_blank') window.open(href, '_blank', 'noopener,noreferrer');
       else window.location.assign(href);
@@ -584,7 +584,7 @@ export const canvasSelectModule: EditorModule = {
 
     let lastAnnounced = '';
     const announce = (): void => {
-      const live = root.querySelector('.ds-sr[aria-live]');
+      const live = root.querySelector('.mmdx-sr[aria-live]');
       if (!live) return;
       const sel = core.selection();
       let msg = '';

@@ -1,5 +1,5 @@
 // View parameters, top right (A.8 rows 72, 73, 81, 82, 83; index.html `#viewParams`; prototype app `setUi`,
-// `syncThemeSelect`, `setDiagramTheme`): the light / dark UI toggle (`ds-ui` event, remembered as `ui`), the diagram
+// `syncThemeSelect`, `setDiagramTheme`): the light / dark UI toggle (`mmdx-ui` event, remembered as `ui`), the diagram
 // theme menu 🎨 grouped light / dark with the current one ticked, the Export ▾ menu and a ⋯ menu with Open… and Auto
 // layout. The diagram type is shown on the page's own badge; the theme editor and Plain Mermaid live in the host's
 // shell (<mmdx-studio> top bar; `DiagramEditor.plainMermaid()`).
@@ -20,8 +20,8 @@ export const VIEW_PARAMS_CSS = /* css */ `
 .vp-btn:hover:not(:disabled), .vp-btn[aria-expanded=true] { background: var(--float-2); }
 .vp-caret { color: var(--muted); }
 .vp-export-btn { height: 32px; padding: 0 12px; border-radius: 8px; }
-.vp-menu.ds-pop { min-width: 210px; padding: 6px; background: var(--float); border: 1px solid var(--float-line); border-radius: 12px; box-shadow: 0 10px 30px rgba(20,30,60,.18); }
-.vp-menu .ds-sect { padding: 6px 8px 3px; }
+.vp-menu.mmdx-pop { min-width: 210px; padding: 6px; background: var(--float); border: 1px solid var(--float-line); border-radius: 12px; box-shadow: 0 10px 30px rgba(20,30,60,.18); }
+.vp-menu .mmdx-sect { padding: 6px 8px 3px; }
 .vp-menu [role^=menuitem] { color: var(--ink); border-radius: 7px; padding: 6px 8px; }
 .vp-menu [role^=menuitem]:hover:not(:disabled), .vp-menu [role^=menuitem]:focus-visible { background: var(--float-2); }
 .vp-menu [aria-checked=true] { color: var(--accent); font-weight: 600; }
@@ -39,11 +39,11 @@ type MenuEntry = MenuItem | { section: string } | 'sep';
 
 /** Opens a menu (ARIA menu pattern, Esc / outside click closes) under `opener`, right-aligned with it. */
 function openMenu(core: EditorCore, opener: HTMLElement, label: string, entries: readonly MenuEntry[]): void {
-  const menu = h('div', { class: 'ds-menu vp-menu', role: 'menu', 'aria-label': label });
+  const menu = h('div', { class: 'mmdx-menu vp-menu', role: 'menu', 'aria-label': label });
   const radio = entries.some((e) => typeof e === 'object' && 'checked' in e && e.checked !== undefined);
   for (const e of entries) {
     if (e === 'sep') menu.append(h('hr', { role: 'separator' }));
-    else if ('section' in e) menu.append(h('div', { class: 'ds-sect', role: 'presentation' }, e.section));
+    else if ('section' in e) menu.append(h('div', { class: 'mmdx-sect', role: 'presentation' }, e.section));
     else {
       const item = h('button', { type: 'button', role: e.checked !== undefined ? 'menuitemradio' : 'menuitem', title: e.title ?? '', tabindex: '-1' },
         radio ? h('span', { class: 'vp-check', 'aria-hidden': 'true' }, e.checked ? '✓' : '') : null, h('span', null, e.label));
@@ -94,7 +94,7 @@ export const viewParamsModule: EditorModule = {
         core.fire('theme');
       }
       syncUi();
-      if (emit) core.emit('ds-ui', { ui: v });
+      if (emit) core.emit('mmdx-ui', { ui: v });
     };
     for (const b of [light, dark]) b.addEventListener('click', () => setUi(b.dataset['ui'] === 'dark' ? 'dark' : 'light'), sig);
     const stored = core.storage.get<string>('ui');
@@ -130,7 +130,7 @@ export const viewParamsModule: EditorModule = {
     let themeBtn: HTMLButtonElement | null = null;
     if (f.themePicker) {
       const btn = h('button', { type: 'button', class: 'vp-btn', 'aria-haspopup': 'menu', 'aria-expanded': 'false' }, icon(ICONS.palette, 18), icon(ICONS.chevronDown, 12));
-      btn.lastElementChild?.setAttribute('class', 'ds-icon vp-caret');
+      btn.lastElementChild?.setAttribute('class', 'mmdx-icon vp-caret');
       themeBtn = btn;
       const syncThemeBtn = (): void => {
         const info = core.ctx.themes.list().find((x) => x.id === currentTheme());

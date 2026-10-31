@@ -15,7 +15,7 @@ export const TOOL_DOCK_CSS = /* css */ `
 .view-tools { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border-radius: 14px;
   background: var(--float); border: 1px solid var(--float-line); box-shadow: 0 4px 16px rgba(20,30,60,.10), 0 1px 3px rgba(20,30,60,.06); }
 .vt-tool, .vt-undo button { border: 0; background: none; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 10px; color: var(--ink); padding: 0; }
-.vt-tool .ds-icon, .vt-undo button .ds-icon { width: 24px; height: 24px; }
+.vt-tool .mmdx-icon, .vt-undo button .mmdx-icon { width: 24px; height: 24px; }
 .vt-tool:hover, .vt-undo button:hover:not(:disabled) { background: var(--float-2); }
 .vt-tool.on { background: var(--accent-2); color: var(--accent); }
 .vt-tool[hidden] { display: none !important; }

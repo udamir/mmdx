@@ -76,14 +76,14 @@ import { httpDocumentAdapter } from 'mmdx/adapters';
 
 const editor = document.querySelector('mmdx-editor')!;
 editor.adapter = httpDocumentAdapter('/api/diagrams/architecture.mmdx'); // load + save with If-Match conflict detection
-editor.addEventListener('ds-dirty', (e) => setUnsaved(e.detail.dirty));
+editor.addEventListener('mmdx-dirty', (e) => setUnsaved(e.detail.dirty));
 ```
 
 ```html
 <mmdx-editor guard-unload style="height: 640px"></mmdx-editor>
 ```
 
-Without an adapter, set `editor.value = source` and read changes from the `ds-change` event.
+Without an adapter, set `editor.value = source` and read changes from the `mmdx-change` event.
 
 ### Render on the server or at build time
 
@@ -134,7 +134,7 @@ const viewer = new DiagramViewer(hostElement, { source, controls: ['zoom', 'full
 | `label` | generated | Accessible name, e.g. "Flowchart: 12 nodes, 14 connections" |
 | `ui` | `auto` | Chrome colour scheme: `light`, `dark` or `auto` |
 
-Events (bubbling, composed): `ds-render` `{ bounds, type, durationMs }`, `ds-error` `{ diagnostics }`, `ds-link` `{ href, id }` (cancelable, to route links through your router), `ds-fullscreen` `{ active }`. Methods: `fit()`, `zoomTo(k)`, `reload()`, `toSvg()`, `toPng({ scale })`, `setLayers(ids)`.
+Events (bubbling, composed): `mmdx-render` `{ bounds, type, durationMs }`, `mmdx-error` `{ diagnostics }`, `mmdx-link` `{ href, id }` (cancelable, to route links through your router), `mmdx-fullscreen` `{ active }`. Methods: `fit()`, `zoomTo(k)`, `reload()`, `toSvg()`, `toPng({ scale })`, `setLayers(ids)`.
 
 Keyboard, while the viewer has focus: `+` / `-` zoom, `F` or `0` fits, arrows pan, `P` toggles the pen, `Esc` stops it. `controls="code"` adds a code view: the diagram's Mermaid code without the layout metadata and styles, highlighted, with a Copy button.
 
@@ -149,14 +149,14 @@ Each diagram type's parser and renderer load on first use, and diagrams over 300
 | `read-only` | `false` | View mode only |
 | `features` (property) | all on | Turn parts off: `codePanel`, `properties`, `layers`, `pen`, `styleToolbar`, `export`, `themePicker`, `help`, … |
 | `panels` (property) | remembered | Which side panels are open: `{ code, properties, layers }` |
-| `storage` (property) | `localStorage` (`ds.` keys) | Where UI preferences are kept; never the document |
+| `storage` (property) | `localStorage` (`mmdx.` keys) | Where UI preferences are kept; never the document |
 | `autosave` | off | Debounced save through the adapter, in ms |
 | `guard-unload` | off | Ask before leaving the page with unsaved changes |
 | `name` | `diagram` | File name for exports |
 
-Events: `ds-change` `{ source, reason }`, `ds-dirty` `{ dirty }`, `ds-save` (cancelable, to save yourself), `ds-saved`, `ds-conflict`, `ds-op` (cancelable, every edit), `ds-selection`, `ds-export` (cancelable), `ds-edit-themes`, `ds-ui`, `ds-error`. Methods: `getSource()`, `setSource(src, { history: 'reset' | 'push' })`, `save()`, `undo()`, `redo()`, `select(items)`, `focusCode(line)`, `exportAs('mmdx' | 'mmd' | 'svg' | 'png')`, `fit()`.
+Events: `mmdx-change` `{ source, reason }`, `mmdx-dirty` `{ dirty }`, `mmdx-save` (cancelable, to save yourself), `mmdx-saved`, `mmdx-conflict`, `mmdx-op` (cancelable, every edit), `mmdx-selection`, `mmdx-export` (cancelable), `mmdx-edit-themes`, `mmdx-ui`, `mmdx-error`. Methods: `getSource()`, `setSource(src, { history: 'reset' | 'push' })`, `save()`, `undo()`, `redo()`, `select(items)`, `focusCode(line)`, `exportAs('mmdx' | 'mmd' | 'svg' | 'png')`, `fit()`.
 
-Saving: `ds-save` → `adapter.save(source, { version })` → `ds-saved`; when the adapter reports a conflict, a dialog offers to keep yours, take theirs or compare both. Remote updates from `adapter.subscribe` apply directly (and can be undone) while the editor has no unsaved changes; otherwise a bar offers *Reload* or *Keep mine*.
+Saving: `mmdx-save` → `adapter.save(source, { version })` → `mmdx-saved`; when the adapter reports a conflict, a dialog offers to keep yours, take theirs or compare both. Remote updates from `adapter.subscribe` apply directly (and can be undone) while the editor has no unsaved changes; otherwise a bar offers *Reload* or *Keep mine*.
 
 Shortcuts work while focus is inside the editor: `V` `H` `S` `P` `C` `I` `L` switch tools and panels, `F` fits, `?` lists every shortcut, Space+drag pans, ⌘Z / ⇧⌘Z undo and redo, ⌘A / ⌘C / ⌘V / ⌘D select all, copy, paste and duplicate, ⌘⌥C / ⌘⌥V copy and paste a style, ⌘G / ⇧⌘G group and ungroup, ⌘[ / ⌘] change the order, Del deletes, arrows move by 1 px (Shift: 10 px), Enter edits text, Esc goes back. On Windows and Linux use Ctrl for ⌘.
 
@@ -181,7 +181,7 @@ te.store = localStorageThemeStore(localStorageAdapter(), base); // or your own T
 te.source = base;
 ```
 
-Attributes: `theme`, `can-edit`, `can-publish`, `can-delete`, `presentation="inline | dialog"`, `ui`. Events: `ds-theme-save` (cancelable), `ds-theme-saved`, `ds-theme-dirty`, `ds-theme-select`, `ds-theme-close`. Saved themes are validated and registered in the shared registry, so open viewers and editors redraw with them.
+Attributes: `theme`, `can-edit`, `can-publish`, `can-delete`, `presentation="inline | dialog"`, `ui`. Events: `mmdx-theme-save` (cancelable), `mmdx-theme-saved`, `mmdx-theme-dirty`, `mmdx-theme-select`, `mmdx-theme-close`. Saved themes are validated and registered in the shared registry, so open viewers and editors redraw with them.
 
 ### `<mmdx-studio>`
 
@@ -281,7 +281,7 @@ Each ` ```mermaid ` block becomes an `<mmdx-viewer>` with a pre-rendered SVG ins
 
 ## Frameworks
 
-The elements work in any framework that renders custom elements. Set object values (`source`, `adapter`, `features`, `store`) as properties and listen to the `ds-*` events. React 19 handles both natively; for React 18 and older, use the typed wrappers:
+The elements work in any framework that renders custom elements. Set object values (`source`, `adapter`, `features`, `store`) as properties and listen to the `mmdx-*` events. React 19 handles both natively; for React 18 and older, use the typed wrappers:
 
 ```tsx
 import React from 'react';
@@ -290,7 +290,7 @@ import { createReactWrappers } from 'mmdx/react';
 
 const { MmdxViewer } = createReactWrappers(React);
 
-<MmdxViewer source={source} controls="zoom fullscreen" onDsRender={(e) => console.log(e.detail)} />;
+<MmdxViewer source={source} controls="zoom fullscreen" onMmdxRender={(e) => console.log(e.detail)} />;
 ```
 
 ## Styling
@@ -299,14 +299,14 @@ The components render in shadow DOM and need no global CSS. Restyle the chrome w
 
 ```css
 mmdx-editor {
-  --ds-font: Inter, system-ui, sans-serif;
-  --ds-accent: #0b7285;
-  --ds-radius: 6px;
+  --mmdx-font: Inter, system-ui, sans-serif;
+  --mmdx-accent: #0b7285;
+  --mmdx-radius: 6px;
 }
 mmdx-viewer::part(canvas) { background: transparent; }
 ```
 
-Tokens include `--ds-font`, `--ds-accent`, `--ds-surface`, `--ds-surface-2`, `--ds-border`, `--ds-text`, `--ds-radius`, `--ds-shadow` and `--ds-z-popover`; parts include `canvas`, `toolbar` and `zoom-bar`. The `ui` attribute switches the chrome between light and dark, or follows the page and the OS (`auto`).
+Tokens include `--mmdx-font`, `--mmdx-accent`, `--mmdx-surface`, `--mmdx-surface-2`, `--mmdx-border`, `--mmdx-text`, `--mmdx-radius`, `--mmdx-shadow` and `--mmdx-z-popover`; parts include `canvas`, `toolbar` and `zoom-bar`. The `ui` attribute switches the chrome between light and dark, or follows the page and the OS (`auto`).
 
 ## Security
 

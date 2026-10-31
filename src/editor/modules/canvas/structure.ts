@@ -273,7 +273,7 @@ export const canvasStructureModule: EditorModule = {
       const locked = lockedItems(core.meta).length;
       if (locked) entries.push([`Unlock all (${locked})`, '', unlockAll]);
       if (!entries.length) entries.push(['Nothing to paste', '', null]);
-      const m = h('div', { class: 'ctx-menu ds-menu', role: 'menu', 'aria-label': 'Board' });
+      const m = h('div', { class: 'ctx-menu mmdx-menu', role: 'menu', 'aria-label': 'Board' });
       for (const [label, keys, fn] of entries) {
         const b = h('button', { type: 'button', class: 'ctx-item', role: 'menuitem' }, h('span', null, label), h('kbd', null, keys));
         b.disabled = !fn;

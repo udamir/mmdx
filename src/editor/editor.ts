@@ -91,7 +91,7 @@ export class DiagramEditor {
     vp.append(page, body, overlay);
     svg.append(defs, vp);
     const wrap = h('div', { class: 'canvas-wrap' }, svg);
-    const live = h('div', { class: 'ds-sr', 'aria-live': 'polite' });
+    const live = h('div', { class: 'mmdx-sr', 'aria-live': 'polite' });
     const root = h('div', { class: 'ed mode-edit', role: 'application', tabindex: '0', 'aria-roledescription': 'diagram editor' }, wrap, live);
     this.shadow.append(root);
 
@@ -273,7 +273,7 @@ export class DiagramEditor {
     return this.store.dirty.peek();
   }
 
-  /** Saves through the adapter (§8.2 flow): `ds-save` (cancelable) → adapter.save → `ds-saved` or conflict dialog. */
+  /** Saves through the adapter (§8.2 flow): `mmdx-save` (cancelable) → adapter.save → `mmdx-saved` or conflict dialog. */
   save(): Promise<SaveOutcome> {
     if (this.saving) return this.saving;
     this.saving = this.doSave().finally(() => {
@@ -315,13 +315,13 @@ export class DiagramEditor {
       }
     } catch (e) {
       this.core.toast(`Could not load the diagram: ${e instanceof Error ? e.message : String(e)}`, { error: true });
-      this.core.emit('ds-error', { diagnostics: [{ severity: 'error', code: 'load.failed', message: String(e) }] });
+      this.core.emit('mmdx-error', { diagnostics: [{ severity: 'error', code: 'load.failed', message: String(e) }] });
     }
   }
 
   private async doSave(): Promise<SaveOutcome> {
     const source = this.getSource();
-    if (!this.core.emit('ds-save', { source }, true)) return 'cancelled';
+    if (!this.core.emit('mmdx-save', { source }, true)) return 'cancelled';
     const a = this.o.adapter;
     if (!a) return 'no-adapter';
     try {
@@ -332,17 +332,17 @@ export class DiagramEditor {
       this.version = res.version ?? this.version;
       this.store.markSaved(source);
       this.hideRemoteBar();
-      this.core.emit('ds-saved', { source, version: this.version });
+      this.core.emit('mmdx-saved', { source, version: this.version });
       return 'saved';
     } catch (e) {
       this.core.toast(`Save failed: ${e instanceof Error ? e.message : String(e)}`, { error: true });
-      this.core.emit('ds-error', { diagnostics: [{ severity: 'error', code: 'save.failed', message: String(e) }] });
+      this.core.emit('mmdx-error', { diagnostics: [{ severity: 'error', code: 'save.failed', message: String(e) }] });
       return 'failed';
     }
   }
 
   private async resolveConflict(mine: string, theirs: { source: string; version: string }): Promise<SaveOutcome> {
-    this.core.emit('ds-conflict', { mine, theirs: theirs.source, version: theirs.version });
+    this.core.emit('mmdx-conflict', { mine, theirs: theirs.source, version: theirs.version });
     const choice = await this.core.dialogs.choose<'mine' | 'theirs' | 'both' | 'cancel'>({
       title: 'Someone else saved this diagram',
       message: 'The diagram was changed since you opened it. Keep your version (overwrites theirs), take theirs (drops your changes), or open both to compare.',
@@ -363,7 +363,7 @@ export class DiagramEditor {
       return 'conflict';
     }
     if (choice === 'both') {
-      const pre = (t: string): HTMLElement => h('pre', { style: 'max-height:260px;overflow:auto;font:12px/1.5 var(--ds-mono);background:var(--ds-surface-2);padding:8px;border-radius:6px;margin:0' }, t);
+      const pre = (t: string): HTMLElement => h('pre', { style: 'max-height:260px;overflow:auto;font:12px/1.5 var(--mmdx-mono);background:var(--mmdx-surface-2);padding:8px;border-radius:6px;margin:0' }, t);
       const c2 = await this.core.dialogs.choose<'mine' | 'theirs' | 'cancel'>({
         title: 'Compare versions',
         body: h('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0' }, h('div', null, h('b', null, 'Yours'), pre(mine)), h('div', null, h('b', null, 'Theirs'), pre(theirs.source))),
@@ -394,7 +394,7 @@ export class DiagramEditor {
       return;
     }
     this.hideRemoteBar();
-    const bar = h('div', { class: 'ds-float', role: 'status', style: 'position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:40;display:flex;gap:8px;align-items:center;padding:6px 8px 6px 14px' },
+    const bar = h('div', { class: 'mmdx-float', role: 'status', style: 'position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:40;display:flex;gap:8px;align-items:center;padding:6px 8px 6px 14px' },
       h('span', null, 'Changed by someone else'),
       h('button', { type: 'button', onclick: () => { this.version = version; this.setSource(src, { history: 'push', fit: false }); this.hideRemoteBar(); } }, 'Reload'),
       h('button', { type: 'button', class: 'primary', onclick: () => this.hideRemoteBar() }, 'Keep mine'));
@@ -408,8 +408,8 @@ export class DiagramEditor {
   }
 
   private onStoreChange(source: string, reason: ChangeReason): void {
-    this.core.emit('ds-change', { source, reason });
-    this.core.emit('ds-dirty', { dirty: this.store.dirty.peek() });
+    this.core.emit('mmdx-change', { source, reason });
+    this.core.emit('mmdx-dirty', { dirty: this.store.dirty.peek() });
     if (this.o.autosave && this.o.adapter && reason !== 'load' && reason !== 'remote' && this.store.dirty.peek()) {
       clearTimeout(this.autosaveTimer);
       this.autosaveTimer = setTimeout(() => void this.save(), this.o.autosave);

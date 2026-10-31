@@ -60,8 +60,8 @@
   <script type="module">
     import '../../src/viewer.ts';
     for (const v of document.querySelectorAll('mmdx-viewer')) {
-      v.addEventListener('ds-error', (e) => console.info('ds-error', e.detail.diagnostics.map((d) => d.message)));
-      v.addEventListener('ds-render', (e) => console.info('ds-render', e.detail));
+      v.addEventListener('mmdx-error', (e) => console.info('mmdx-error', e.detail.diagnostics.map((d) => d.message)));
+      v.addEventListener('mmdx-render', (e) => console.info('mmdx-render', e.detail));
     }
   </script>
 </body>

@@ -17,7 +17,7 @@ The component is built from what the prototype validated and from the existing a
 - Four views: **Before**, **Merged**, **After** (one canvas, animated transitions) and **Side by side**.
 - Word-level text changes (labels, messages, notes, ER attributes) in the merged picture.
 - A change list, a code / metadata diff narrowed to the selected item, and a version history with view and compare modes.
-- Light / dark chrome, diagram themes with automatic dark counterparts, host restyling through `--ds-*` tokens and `::part()`.
+- Light / dark chrome, diagram themes with automatic dark counterparts, host restyling through `--mmdx-*` tokens and `::part()`.
 - Export: SVG and PNG of any view (with or without highlights and ink), `.mmdx` / portable `.mmd` of a version, a unified source diff, a JSON change report and a Markdown summary for MR descriptions and bot comments.
 - Server-side rendering of a diff to SVG (`mmdx/core`) for CI bots, with no DOM.
 - Same security model, CSP, size discipline and accessibility bar as the other components.
@@ -264,13 +264,13 @@ All bubble and are composed, like the other components.
 
 | Event | Detail | Notes |
 |---|---|---|
-| `ds-diff` | `{ counts, typeChanged, base, head }` | After every (re)computation. |
-| `ds-select` | `{ key, change \| null }` | Change list / canvas selection. |
-| `ds-view` | `{ view, mode }` | View or history mode switched. |
-| `ds-filters` | `{ filters, dim }` | Filter change. |
-| `ds-version` | `{ base, head, viewing? }` | Compare pair or viewed version changed; hosts sync the URL. |
-| `ds-export` | `{ kind, name, data }` | Cancelable: host saves the file itself (as in the editor). |
-| `ds-render`, `ds-error`, `ds-link`, `ds-fullscreen` | as viewer | |
+| `mmdx-diff` | `{ counts, typeChanged, base, head }` | After every (re)computation. |
+| `mmdx-select` | `{ key, change \| null }` | Change list / canvas selection. |
+| `mmdx-view` | `{ view, mode }` | View or history mode switched. |
+| `mmdx-filters` | `{ filters, dim }` | Filter change. |
+| `mmdx-version` | `{ base, head, viewing? }` | Compare pair or viewed version changed; hosts sync the URL. |
+| `mmdx-export` | `{ kind, name, data }` | Cancelable: host saves the file itself (as in the editor). |
+| `mmdx-render`, `mmdx-error`, `mmdx-link`, `mmdx-fullscreen` | as viewer | |
 
 ### 8.4 Methods
 
@@ -310,7 +310,7 @@ Per-version change counts in the history list (`+2 −1 ~5`) are computed lazily
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Left tool panel** (viewer bar style, vertical, centred on the left edge of the canvas area): Pan (H), Magic pen (P), History (V), Code diff (C), Change list (L). Icon buttons with hover tooltips; pressed state uses `--ds-accent-2` / `--ds-accent`. The pen opens the viewer's pen options popup next to the panel.
+- **Left tool panel** (viewer bar style, vertical, centred on the left edge of the canvas area): Pan (H), Magic pen (P), History (V), Code diff (C), Change list (L). Icon buttons with hover tooltips; pressed state uses `--mmdx-accent-2` / `--mmdx-accent`. The pen opens the viewer's pen options popup next to the panel.
 - **Bottom diff bar** (same bar style, horizontal, centred at the bottom): views Before / Merged / After / Side by side (1–4), then the five filter icons (coloured like their highlights, count badge, struck out when off), then Dim. Tooltips above the buttons. Hidden in History mode.
 - **Zoom bar** (bottom right): exactly the editor / viewer zoom bar plus `?`. The help popup lists views, filters, panels and shortcuts, generated from the shortcut registry, as in the editor.
 - **Side panels**: the editor's floating cards (14 px radius, shadow, slide in / out, resize by the inner edge, double-click resets, widths remembered in `storage`). The canvas area is inset by the open panels (`Viewport.insets`) so nothing is hidden behind them. History and Code share the left slot.
@@ -370,13 +370,13 @@ Below 720 px the side panels become full-height overlays (one at a time) and the
 
 ### 9.8 Empty, error and loading states
 
-No changes ("No changes with the current filters" in the list; an unobtrusive toast on the canvas when everything is filtered out). Type changed (banner; views limited to Before / After; code panel still diffs). Unsupported diagram type (source-only diff, §12.4). Parse errors on a side (the viewer's error card for that side; the diff still shows the other one). Loading (skeleton canvas, history rows with skeleton counts). Adapter failures raise `ds-error` and a toast with Retry.
+No changes ("No changes with the current filters" in the list; an unobtrusive toast on the canvas when everything is filtered out). Type changed (banner; views limited to Before / After; code panel still diffs). Unsupported diagram type (source-only diff, §12.4). Parse errors on a side (the viewer's error card for that side; the diff still shows the other one). Loading (skeleton canvas, history rows with skeleton counts). Adapter failures raise `mmdx-error` and a toast with Retry.
 
 ## 10. Theming, dark mode and colours
 
 ### 10.1 Chrome scheme
 
-The element follows the existing pattern: `ui="light|dark|auto"`, `auto` resolved by `resolveUiScheme` (page `data-theme` / `data-ui`, then `prefers-color-scheme`), updated by `watchUiScheme`, reflected as `data-ui` on the host, all chrome colours from `--ds-*` tokens (`ui/styles/base.ts`). The prototype hard-coded light colours in page CSS; production moves every colour into tokens.
+The element follows the existing pattern: `ui="light|dark|auto"`, `auto` resolved by `resolveUiScheme` (page `data-theme` / `data-ui`, then `prefers-color-scheme`), updated by `watchUiScheme`, reflected as `data-ui` on the host, all chrome colours from `--mmdx-*` tokens (`ui/styles/base.ts`). The prototype hard-coded light colours in page CSS; production moves every colour into tokens.
 
 ### 10.2 Diff colour tokens
 
@@ -384,19 +384,19 @@ New tokens in `TOKENS` (light) and the dark block. Colour is never the only sign
 
 | Token | Light | Dark | Used for |
 |---|---|---|---|
-| `--ds-diff-add` | `#1a7f37` | `#3fb950` | added outlines, inserted words, count badges |
-| `--ds-diff-add-bg` | `#dafbe1` | `rgba(46,160,67,.22)` | added fills, highlighter |
-| `--ds-diff-del` | `#cf222e` | `#f85149` | removed outlines (dashed), deleted words |
-| `--ds-diff-del-bg` | `#ffebe9` | `rgba(248,81,73,.22)` | removed fills, highlighter |
-| `--ds-diff-content` | `#b35900` | `#e3a33b` | content facet |
-| `--ds-diff-content-bg` | `#fff1e0` | `rgba(227,163,59,.2)` | |
-| `--ds-diff-layout` | `#0969da` | `#58a6ff` | layout facet, move arrows |
-| `--ds-diff-layout-bg` | `#ddf4ff` | `rgba(56,139,253,.2)` | |
-| `--ds-diff-style` | `#8250df` | `#bc8cff` | style facet |
-| `--ds-diff-style-bg` | `#fbefff` | `rgba(163,113,247,.2)` | |
-| `--ds-diff-dim` | `.28` | `.35` | opacity of unchanged items |
+| `--mmdx-diff-add` | `#1a7f37` | `#3fb950` | added outlines, inserted words, count badges |
+| `--mmdx-diff-add-bg` | `#dafbe1` | `rgba(46,160,67,.22)` | added fills, highlighter |
+| `--mmdx-diff-del` | `#cf222e` | `#f85149` | removed outlines (dashed), deleted words |
+| `--mmdx-diff-del-bg` | `#ffebe9` | `rgba(248,81,73,.22)` | removed fills, highlighter |
+| `--mmdx-diff-content` | `#b35900` | `#e3a33b` | content facet |
+| `--mmdx-diff-content-bg` | `#fff1e0` | `rgba(227,163,59,.2)` | |
+| `--mmdx-diff-layout` | `#0969da` | `#58a6ff` | layout facet, move arrows |
+| `--mmdx-diff-layout-bg` | `#ddf4ff` | `rgba(56,139,253,.2)` | |
+| `--mmdx-diff-style` | `#8250df` | `#bc8cff` | style facet |
+| `--mmdx-diff-style-bg` | `#fbefff` | `rgba(163,113,247,.2)` | |
+| `--mmdx-diff-dim` | `.28` | `.35` | opacity of unchanged items |
 
-Blending: in light mode highlight fills and highlighter runs use `mix-blend-mode: multiply` (they tint without washing out text — a prototype fix); in dark mode multiply would darken a dark canvas, so they use the translucent `-bg` colours with `normal` blending and the outline at full opacity. Hosts override any token on the element (`mmdx-diff { --ds-diff-add: … }`).
+Blending: in light mode highlight fills and highlighter runs use `mix-blend-mode: multiply` (they tint without washing out text — a prototype fix); in dark mode multiply would darken a dark canvas, so they use the translucent `-bg` colours with `normal` blending and the outline at full opacity. Hosts override any token on the element (`mmdx-diff { --mmdx-diff-add: … }`).
 
 ### 10.3 Diagram themes
 
@@ -426,7 +426,7 @@ Blending: in light mode highlight fills and highlighter runs use `mix-blend-mode
 
 ### 11.2 Options and UI
 
-`exportAs(kind, { view?, version?: 'before' | 'after' | 'viewed', highlights?: boolean, ink?: boolean, legend?: boolean, scale?: number, background?: 'page' | 'transparent', scheme?: 'light' | 'dark', theme?: string, filtered?: boolean })`. The export menu (in the left panel's overflow or a download button in the zoom bar group, decided in design review) offers the common presets: "Image of this view (PNG)", "SVG", "Before / After source", "Patch (.diff)", "Report (Markdown)", "Report (JSON)". File names: `{name}-{baseId}..{headId}-{view}.{ext}`. `ds-export` is cancelable so hosts can upload instead of downloading. A legend (filter colours and badge letters, plus version ids) is added to image exports by default because the exported picture leaves the component's help behind.
+`exportAs(kind, { view?, version?: 'before' | 'after' | 'viewed', highlights?: boolean, ink?: boolean, legend?: boolean, scale?: number, background?: 'page' | 'transparent', scheme?: 'light' | 'dark', theme?: string, filtered?: boolean })`. The export menu (in the left panel's overflow or a download button in the zoom bar group, decided in design review) offers the common presets: "Image of this view (PNG)", "SVG", "Before / After source", "Patch (.diff)", "Report (Markdown)", "Report (JSON)". File names: `{name}-{baseId}..{headId}-{view}.{ext}`. `mmdx-export` is cancelable so hosts can upload instead of downloading. A legend (filter colours and badge letters, plus version ids) is added to image exports by default because the exported picture leaves the component's help behind.
 
 ### 11.3 SSR / CI
 
@@ -466,7 +466,7 @@ Unknown `%%@` lines (`meta.unknown`) are compared as text and shown in the Metad
 - Every tool and filter is a real `<button>` with `aria-pressed`; tooltips mirror `aria-label`; the bars are `role="toolbar"` with roving focus (arrow keys) like the editor's tool dock.
 - History rows are a listbox in History mode and rows with two toggle buttons in Compare mode; the disabled side has an explanation (`aria-describedby`).
 - Focus is never trapped; Esc closes popovers; the help popup is a labelled dialog.
-- Contrast: all diff tokens meet 3:1 against `--ds-surface` for graphics and 4.5:1 for text in both schemes (checked in tests with the existing contrast helper of the theme editor).
+- Contrast: all diff tokens meet 3:1 against `--mmdx-surface` for graphics and 4.5:1 for text in both schemes (checked in tests with the existing contrast helper of the theme editor).
 - `prefers-reduced-motion` turns off morph, panel slides and pen fade animations.
 
 ## 14. Security
@@ -478,7 +478,7 @@ Unchanged model: every source (both sides, every history version, adapter output
 - **Editor conflict dialog**: "Compare" opens an embedded `DiagramDiff` (Side by side, Mine vs Theirs) instead of two `<pre>` blocks.
 - **Editor / studio history**: when a `DocumentAdapter` also implements `HistoryAdapter`, the editor gets a History panel (same module) and the studio shows a "History" action.
 - **Markdown**: an optional fence ` ```mermaid-diff ` with two sources separated by a `%% ----- after -----` line becomes `<mmdx-diff>` through the rehype / markdown-it plugins, with a pre-rendered merged SVG.
-- **React**: `createReactWrappers` gains `MmdxDiff` with typed `onDsSelect`, `onDsVersion`, …
+- **React**: `createReactWrappers` gains `MmdxDiff` with typed `onMmdxSelect`, `onMmdxVersion`, …
 - **CI**: an example GitHub Action / GitLab job in the docs that comments the merged PNG and the Markdown report on MRs touching `*.mmdx`.
 
 ## 16. Packaging and budgets
@@ -533,7 +533,7 @@ The sample generator (`apps/studio-site/diff-samples/generate.ts`) stays as the 
 | `diff/ink.ts` | `dom/pen.ts` with a shared stroke store |
 | `diff/textdiff.ts` | `core/diff/text.ts` `diffLines` + `hunks` |
 | `diff/main.ts` panels / bars / help | `elements/diff/*` modules + shared `ui/panes.ts`, `ui/zoom-bar.ts` |
-| `diff.html` page CSS (light only) | `ui/styles/diff.ts` with `--ds-*` and `--ds-diff-*` tokens (light + dark) |
+| `diff.html` page CSS (light only) | `ui/styles/diff.ts` with `--mmdx-*` and `--mmdx-diff-*` tokens (light + dark) |
 | `diff-samples/*` + `generate.ts` | test fixtures and demo data |
 
 ## Appendix B. i18n keys (new)

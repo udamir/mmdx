@@ -25,7 +25,7 @@ export interface MmdxMarkdownOptions {
 /** Text safe inside <script type="text/mermaid">: only `</script` needs breaking; the viewer reverses it. */
 export const scriptSafe = (s: string): string => s.replace(/<\/(script)/gi, '<\\/$1');
 
-/** The HTML for one diagram: `<mmdx-viewer …><svg data-ds-ssr …/><script type="text/mermaid">…</script></mmdx-viewer>`. */
+/** The HTML for one diagram: `<mmdx-viewer …><svg data-mmdx-ssr …/><script type="text/mermaid">…</script></mmdx-viewer>`. */
 export function diagramHtml(source: string, opts: MmdxMarkdownOptions = {}, ctx: CoreContext = opts.ctx ?? createContext()): string {
   const attrs: Record<string, string> = { ...(opts.attrs ?? {}) };
   if (opts.theme) attrs['theme'] = opts.theme;

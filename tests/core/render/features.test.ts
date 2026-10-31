@@ -182,7 +182,7 @@ describe('page and export', () => {
 
   it('SSR output records how text was measured', () => {
     const { result, ctx } = renderProd('flowchart LR\n  A --> B');
-    expect(renderSvgString(result, ctx, { ssr: true })).toMatch(/^<svg xmlns="http:\/\/www.w3.org\/2000\/svg" [^>]*data-ds-ssr="1" data-ds-measure="static">/);
+    expect(renderSvgString(result, ctx, { ssr: true })).toMatch(/^<svg xmlns="http:\/\/www.w3.org\/2000\/svg" [^>]*data-mmdx-ssr="1" data-mmdx-measure="static">/);
   });
 
   it('auto layout goes through the caller-bounded layout cache', () => {

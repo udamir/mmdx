@@ -12,10 +12,10 @@ type Args = { ui: 'light' | 'dark'; size: number };
 
 const cell = (label: string, el: Element): HTMLElement => {
   const d = document.createElement('div');
-  d.style.cssText = 'display:grid;justify-items:center;gap:6px;padding:10px 4px;border-radius:8px;background:var(--ds-surface);border:1px solid var(--ds-border-2);';
+  d.style.cssText = 'display:grid;justify-items:center;gap:6px;padding:10px 4px;border-radius:8px;background:var(--mmdx-surface);border:1px solid var(--mmdx-border-2);';
   const cap = document.createElement('code');
   cap.textContent = label;
-  cap.style.cssText = 'font:11px ui-monospace,monospace;color:var(--ds-muted);';
+  cap.style.cssText = 'font:11px ui-monospace,monospace;color:var(--mmdx-muted);';
   d.append(el, cap);
   return d;
 };
@@ -41,7 +41,7 @@ const meta: Meta<Args> = {
     docs: {
       description: {
         component:
-          'The chrome building blocks shared by every component: design tokens (`--ds-*`, light and dark), the icon set, ' +
+          'The chrome building blocks shared by every component: design tokens (`--mmdx-*`, light and dark), the icon set, ' +
           'the logo, the shape outlines of the shape pickers, in-component dialogs (they replace `confirm()` / `prompt()`) and toasts.',
       },
     },
@@ -75,7 +75,7 @@ export const Shapes: Story = {
 
 export const Logo: Story = {
   render: (a) => {
-    const { host, root } = chromeHost([':host([data-ui="dark"]) .ds-logo{--logo-ink:#eef0ff;}'], { ui: a.ui });
+    const { host, root } = chromeHost([':host([data-ui="dark"]) .mmdx-logo{--logo-ink:#eef0ff;}'], { ui: a.ui });
     root.append(gallery([16, 22, 32, 64, 128].map((h) => cell(`${h}px`, logoMark(h))), 140));
     return host;
   },
@@ -88,8 +88,8 @@ export const Tokens: Story = {
     const names = ['accent', 'accent-2', 'bg', 'surface', 'surface-2', 'panel', 'border', 'border-2', 'text', 'text-2', 'muted', 'faint', 'danger', 'danger-bg', 'warn', 'warn-bg', 'ok', 'float', 'float-2'];
     root.append(gallery(names.map((n) => {
       const sw = document.createElement('div');
-      sw.style.cssText = `width:56px;height:36px;border-radius:6px;border:1px solid var(--ds-border);background:var(--ds-${n});`;
-      return cell(`--ds-${n}`, sw);
+      sw.style.cssText = `width:56px;height:36px;border-radius:6px;border:1px solid var(--mmdx-border);background:var(--mmdx-${n});`;
+      return cell(`--mmdx-${n}`, sw);
     }), 110));
     return host;
   },

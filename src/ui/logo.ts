@@ -12,7 +12,7 @@ const PENCIL = 'M-188,0L-37,-82H372Q422,-82 422,-32V32Q422,82 372,82H-37Z';
 /** The mark at `height` px (strokes a little heavier than the master drawing, for small sizes; the pencil's outline thinner). */
 export function logoMark(height = 22): SVGElement {
   const ink = { fill: 'none', stroke: 'var(--logo-ink, #061958)', 'stroke-width': '72', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
-  return s('svg', { viewBox: '175 146 1080 918', height: String(height), width: String(Math.round((height * 1080) / 918)), 'aria-hidden': 'true', class: 'ds-logo' },
+  return s('svg', { viewBox: '175 146 1080 918', height: String(height), width: String(Math.round((height * 1080) / 918)), 'aria-hidden': 'true', class: 'mmdx-logo' },
     s('g', ink, ...SPROUT.map((d) => s('path', { d }))),
     s('g', { transform: 'translate(899,821) rotate(-48.1)' },
       s('path', { d: 'M-135.6,0L-50,-46.5V46.5Z', fill: '#E7DDFD' }),

@@ -330,7 +330,7 @@ function renderStage(): void {
     morphStage(p, view);
     if (state.versions.length) p.append(h('div', { class: 'pane-title no-pan' }, h('b', { class: 'cmp' }, `${versionLabel(state.base)} → ${versionLabel(state.at)}`)));
   }
-  diffBar = h('div', { class: 'dbar ds-float no-pan', role: 'toolbar', 'aria-label': 'Diff' });
+  diffBar = h('div', { class: 'dbar mmdx-float no-pan', role: 'toolbar', 'aria-label': 'Diff' });
   stage.append(toolPanel(), diffBar);
   renderDiffBar();
   for (const svg of stage.querySelectorAll<SVGSVGElement>('.pane svg')) ink.attach(svg);
@@ -477,7 +477,7 @@ function toggleHelp(force?: boolean): void {
     h('div', { class: 'help-row' }, h('span', { class: 'help-keys' }, ...keys.flatMap((k, i) => [i ? ' · ' : '', /\s/.test(k) && k.length > 3 ? h('span', { class: 'help-gesture' }, k) : h('kbd', {}, k)])), h('span', {}, label));
   const section = (title: string, rows: HTMLElement[]) => [h('div', { class: 'help-title', role: 'heading', 'aria-level': '3' }, title), ...rows];
   const close = h('button', { title: 'Close (Esc)', 'aria-label': 'Close', onclick: () => toggleHelp(false) }, '×');
-  helpEl = h('div', { class: 'help-pop ds-pop', role: 'dialog', 'aria-label': 'Help' },
+  helpEl = h('div', { class: 'help-pop mmdx-pop', role: 'dialog', 'aria-label': 'Help' },
     h('div', { class: 'help-head' }, h('b', {}, 'Diagram diff — help'), close),
     h('div', { class: 'help-body' },
       ...section('Views (bottom panel)', [
@@ -719,7 +719,7 @@ function setTool(t: 'pan' | 'draw'): void {
 }
 
 function toolPanel(): HTMLElement {
-  tools = h('div', { class: 'vbar ds-float no-pan', role: 'toolbar', 'aria-label': 'Tools', 'aria-orientation': 'vertical' });
+  tools = h('div', { class: 'vbar mmdx-float no-pan', role: 'toolbar', 'aria-label': 'Tools', 'aria-orientation': 'vertical' });
   renderTools();
   return h('div', { class: 'vbar-wrap no-pan' }, tools);
 }
@@ -744,10 +744,10 @@ function renderTools(): void {
 
 /** The viewer's pen options: colours, sizes, auto erase and Erase all. */
 function penOptions(): HTMLElement {
-  return h('div', { class: 'pop pen-opts ds-float', role: 'dialog', 'aria-label': 'Magic pen' },
+  return h('div', { class: 'pop pen-opts mmdx-float', role: 'dialog', 'aria-label': 'Magic pen' },
     h('div', { class: 'line' }, ...INK_COLORS.map((c) => h('button', { type: 'button', class: 'swatch', style: `background:${c}`, 'aria-label': c, 'aria-pressed': String(state.inkColor === c), onclick: () => ((state.inkColor = c), renderTools()) }))),
     h('div', { class: 'line' }, ...INK_SIZES.map((sz) => h('button', { type: 'button', class: 'size', 'aria-label': `${sz}px`, 'aria-pressed': String(state.inkSize === sz), onclick: () => ((state.inkSize = sz), renderTools()) }, h('i', { style: `width:${sz + 2}px;height:${sz + 2}px` })))),
-    h('div', { class: 'line' }, h('span', { class: 'ds-sect' }, 'Auto erase'),
+    h('div', { class: 'line' }, h('span', { class: 'mmdx-sect' }, 'Auto erase'),
       ...INK_FADES.map((f) => h('button', { type: 'button', class: 'fade', 'aria-pressed': String(state.inkFade === f), onclick: () => ((state.inkFade = f), renderTools()) }, f ? `${f / 1000}s` : '∞'))),
     h('button', { type: 'button', class: 'erase', disabled: !ink.strokes.length, onclick: () => ink.clear() }, 'Erase all strokes'),
   );

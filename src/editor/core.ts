@@ -185,7 +185,7 @@ export interface CoreServices {
   toaster: Toaster;
   popovers: PopoverManager;
   shortcuts: ShortcutRegistry;
-  /** Dispatches a DOM event from the host element (`ds-*`). Returns false when a cancelable event was prevented. */
+  /** Dispatches a DOM event from the host element (`mmdx-*`). Returns false when a cancelable event was prevented. */
   emit(type: string, detail: unknown, cancelable?: boolean): boolean;
 }
 
@@ -364,7 +364,7 @@ export class EditorCore implements CoreServices {
     this.store.selection.set(list);
     this.fire('selection');
     this.drawOverlay();
-    this.emit('ds-selection', { items: list });
+    this.emit('mmdx-selection', { items: list });
   }
 
   toggleSelected(it: Sel): void {
@@ -545,12 +545,12 @@ export class EditorCore implements CoreServices {
 
   /**
    * Applies a code rewrite from an op (`edit.js` / `connect.js` results). Remaps positional sequence metadata, keeps
-   * the selection where items survive, fires the cancelable `ds-op` event, commits one history step. Returns false
+   * the selection where items survive, fires the cancelable `mmdx-op` event, commits one history step. Returns false
    * when nothing changed or the host vetoed the op.
    */
   applyCode(res: { code?: string | null; meta?: DiagramMeta } | null | undefined, label: string, opts: { select?: Sel[] | null } = {}): boolean {
     if (!res || res.code == null || (res.code === this.code && !res.meta)) return false;
-    if (!this.emit('ds-op', { type: label, code: res.code }, true)) return false;
+    if (!this.emit('mmdx-op', { type: label, code: res.code }, true)) return false;
     const oldModel = this.model, oldCode = this.code;
     this.store.begin();
     try {
@@ -572,7 +572,7 @@ export class EditorCore implements CoreServices {
 
   /**
    * Runs a metadata-only change as one history step (styles, positions): `f` mutates `this.meta` in place.
-   * Fires `ds-op`; a veto rolls the change back.
+   * Fires `mmdx-op`; a veto rolls the change back.
    */
   change(label: string, f: () => void): void {
     this.store.begin();
@@ -582,7 +582,7 @@ export class EditorCore implements CoreServices {
       this.store.rollback();
       throw e;
     }
-    if (!this.emit('ds-op', { type: label }, true)) {
+    if (!this.emit('mmdx-op', { type: label }, true)) {
       this.store.rollback();
       this.draw();
       return;
@@ -598,7 +598,7 @@ export class EditorCore implements CoreServices {
 
   commit(label: string): void {
     if (!this.store.inTransaction) return;
-    if (!this.emit('ds-op', { type: label }, true)) {
+    if (!this.emit('mmdx-op', { type: label }, true)) {
       this.rollback();
       return;
     }

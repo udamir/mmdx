@@ -55,6 +55,6 @@ export function frag(...children: Child[]): DocumentFragment {
 
 /** Inline SVG icon from a fixed, trusted path set (never user input). */
 export function icon(d: string, size = 16): SVGElement {
-  return s('svg', { viewBox: '0 0 24 24', width: String(size), height: String(size), 'aria-hidden': 'true', class: 'ds-icon' },
+  return s('svg', { viewBox: '0 0 24 24', width: String(size), height: String(size), 'aria-hidden': 'true', class: 'mmdx-icon' },
     s('path', { d, fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
 }

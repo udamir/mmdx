@@ -35,7 +35,7 @@ function viewer(a: Partial<ViewerArgs>, src?: string): HTMLElement {
   if (a.height) el.style.height = `${a.height}px`;
   if (src) el.setAttribute('src', src);
   else el.source = a.source ?? SMALL_FLOW;
-  for (const type of ['ds-render', 'ds-error', 'ds-link', 'ds-fullscreen'])
+  for (const type of ['mmdx-render', 'mmdx-error', 'mmdx-link', 'mmdx-fullscreen'])
     el.addEventListener(type, (e) => console.info(type, (e as CustomEvent).detail));
   return el;
 }
@@ -56,8 +56,8 @@ const meta: Meta<ViewerArgs> = {
         component:
           '`<mmdx-viewer>` renders a styled Mermaid diagram (flowchart, sequence, ER) read-only: pan and zoom, layers, ' +
           'a pen overlay, a code view (the Mermaid code without styles), export and fullscreen. Import `mmdx/viewer`; the source comes from an inline ' +
-          '`<script type="text/mermaid">`, the `src` attribute or the `source` property. Events: `ds-render`, `ds-error`, ' +
-          '`ds-link`, `ds-fullscreen` (logged to the console here).',
+          '`<script type="text/mermaid">`, the `src` attribute or the `source` property. Events: `mmdx-render`, `mmdx-error`, ' +
+          '`mmdx-link`, `mmdx-fullscreen` (logged to the console here).',
       },
     },
   },

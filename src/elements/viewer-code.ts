@@ -8,8 +8,8 @@ import { highlightLine } from '../ui/code-editor.js';
 import { CODE_TOKENS_CSS } from '../ui/styles/code-tokens.js';
 
 export const CODE_VIEW_CSS = /* css */ `
-.code-view { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; background: var(--ds-surface-2); }
-.code-view pre { margin: 0; flex: 1; min-height: 0; overflow: auto; padding: 12px 14px; font: 12.5px/1.55 var(--ds-mono); white-space: pre; tab-size: 2; color: var(--ds-text); }
+.code-view { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; background: var(--mmdx-surface-2); }
+.code-view pre { margin: 0; flex: 1; min-height: 0; overflow: auto; padding: 12px 14px; font: 12.5px/1.55 var(--mmdx-mono); white-space: pre; tab-size: 2; color: var(--mmdx-text); }
 .code-view pre code { font: inherit; }
 .code-view .copy { position: absolute; top: 8px; right: 8px; }
 ` + CODE_TOKENS_CSS;

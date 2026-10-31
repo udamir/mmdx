@@ -140,7 +140,7 @@ export async function switchDiagramType(core: EditorCore, type: DiagramType): Pr
   const label = t(`type.${type}`);
   if (core.model.type && !(await core.dialogs.confirm(t('type.switchTitle', { type: label }), t('type.switchMsg', { type: label.toLowerCase() }), { ok: t('type.switchOk'), danger: true }))) return;
   const doc = newDiagram(type);
-  if (!core.emit('ds-op', { type: 'doc.setType', code: doc.code }, true)) return;
+  if (!core.emit('mmdx-op', { type: 'doc.setType', code: doc.code }, true)) return;
   core.store.apply(doc, t('history.newDiagram'), []);
   core.select([]);
   core.enteredGroup.set(null);

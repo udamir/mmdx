@@ -14,7 +14,7 @@ export function penOptions(pen: MagicPen, t: I18n['t']): HTMLElement {
     pop.replaceChildren(
       h('div', { class: 'line' }, ...PEN_COLORS.map((c) => h('button', { type: 'button', class: 'swatch', style: `background:${c}`, 'aria-label': c, 'aria-pressed': String(pen.color === c), onclick: () => { pen.setColor(c); draw(); } }))),
       h('div', { class: 'line' }, ...PEN_SIZES.map((s) => h('button', { type: 'button', class: 'size', 'aria-label': `${s}px`, 'aria-pressed': String(pen.size === s), onclick: () => { pen.setSize(s); draw(); } }, h('i', { style: `width:${s + 2}px;height:${s + 2}px` })))),
-      h('div', { class: 'line' }, h('span', { class: 'ds-sect' }, t('pen.fade')),
+      h('div', { class: 'line' }, h('span', { class: 'mmdx-sect' }, t('pen.fade')),
         ...PEN_FADES.map((f) => h('button', { type: 'button', class: 'fade', 'aria-pressed': String(pen.fade === f), onclick: () => { pen.setFade(f); draw(); } }, f ? `${f / 1000}s` : '∞'))),
       h('button', { type: 'button', onclick: () => pen.clear() }, t('pen.erase')),
     );
@@ -42,7 +42,7 @@ export function viewSettings(s: ViewSettingsState, t: I18n['t']): HTMLElement {
     const visible = s.visible();
     const shown = (id: string, hidden: boolean): boolean => (visible ? visible.includes(id) : !hidden);
     const rows = defs.length > 1 || defs[0]?.hidden
-      ? [h('div', { class: 'ds-sect' }, t('layers.layers')), ...defs.map((l) => {
+      ? [h('div', { class: 'mmdx-sect' }, t('layers.layers')), ...defs.map((l) => {
         const on = shown(l.id, l.hidden);
         return h('div', { class: 'row' + (on ? '' : ' off') },
           h('button', { type: 'button', class: 'eye', 'aria-pressed': String(on), 'aria-label': on ? t('layers.hide') : t('layers.show'), onclick: () => {
@@ -55,9 +55,9 @@ export function viewSettings(s: ViewSettingsState, t: I18n['t']): HTMLElement {
       : [];
     const toggle = (label: string, value: boolean, set: (v: boolean) => void): HTMLElement =>
       h('div', { class: 'row' }, h('span', { class: 'name' }, label),
-        h('button', { type: 'button', role: 'switch', class: 'ds-toggle', 'aria-checked': String(value), 'aria-label': label, onclick: () => { set(!value); draw(); } }));
+        h('button', { type: 'button', role: 'switch', class: 'mmdx-toggle', 'aria-checked': String(value), 'aria-label': label, onclick: () => { set(!value); draw(); } }));
     pop.replaceChildren(...rows,
-      h('div', { class: 'ds-sect' }, t('layers.display')),
+      h('div', { class: 'mmdx-sect' }, t('layers.display')),
       toggle(t('layers.labels'), s.labels(), (v) => s.setLabels(v)),
       toggle(t('layers.hover'), s.hover(), (v) => s.setHover(v)));
   };

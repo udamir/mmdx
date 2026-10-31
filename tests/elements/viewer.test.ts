@@ -17,7 +17,7 @@ describe('kinds on demand', () => {
     expect(hasKind('er')).toBe(false);
     const host = document.createElement('div');
     document.body.append(host);
-    const rendered = new Promise((r) => host.addEventListener('ds-render', r, { once: true }));
+    const rendered = new Promise((r) => host.addEventListener('mmdx-render', r, { once: true }));
     new DiagramViewer(host, { lazy: false, source: 'erDiagram\n  A ||--o{ B : has' });
     expect(host.shadowRoot!.querySelectorAll('.el').length).toBe(0);
     await rendered;
@@ -43,12 +43,12 @@ afterEach(() => {
 });
 
 
-  it('renders a flowchart into its shadow root and fires ds-render', () => {
+  it('renders a flowchart into its shadow root and fires mmdx-render', () => {
     const host = document.createElement('div');
     document.body.append(host);
     hosts.push(host);
     let rendered: unknown = null;
-    host.addEventListener('ds-render', (e) => (rendered = (e as CustomEvent).detail));
+    host.addEventListener('mmdx-render', (e) => (rendered = (e as CustomEvent).detail));
     new DiagramViewer(host, { lazy: false, source: 'flowchart LR\n  a --> b' });
     const sr = host.shadowRoot!;
     expect(sr.querySelectorAll('.el[data-kind="node"]').length).toBe(2);

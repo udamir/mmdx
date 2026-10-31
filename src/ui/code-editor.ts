@@ -353,7 +353,7 @@ export function createCodeEditor(opts: CodeEditorOptions = {}): CodeEditor {
 const EDITOR_CSS = /* css */ `
 .cm { position: relative; flex: 1; min-height: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); overflow: hidden; }
 .cm:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-2); }
-.cm-hl, .cm-ta { margin: 0; padding: 8px 10px; font: 12.5px/1.55 var(--ds-mono); white-space: pre; tab-size: 2; letter-spacing: 0; word-wrap: normal; }
+.cm-hl, .cm-ta { margin: 0; padding: 8px 10px; font: 12.5px/1.55 var(--mmdx-mono); white-space: pre; tab-size: 2; letter-spacing: 0; word-wrap: normal; }
 .cm-hl { position: absolute; inset: 0; overflow: hidden; pointer-events: none; color: var(--ink); }
 .cm-hl code { font: inherit; display: block; will-change: transform; }
 .cm-ta { position: relative; display: block; width: 100%; height: 100%; resize: none; border: 0; outline: 0; background: transparent; color: transparent;
@@ -366,13 +366,13 @@ const EDITOR_CSS = /* css */ `
 .cm.with-gutter .cm-hl, .cm.with-gutter .cm-ta { padding-left: calc(var(--gutter, 34px) + 8px); }
 .cm-gutter { position: absolute; left: 0; top: 0; bottom: 0; width: var(--gutter, 34px); overflow: hidden; pointer-events: none; z-index: 1;
   background: var(--surface-2); border-right: 1px solid var(--line); color: var(--faint); text-align: right;
-  font: 12.5px/1.55 var(--ds-mono); padding: 8px 8px 8px 0; box-sizing: border-box; }
+  font: 12.5px/1.55 var(--mmdx-mono); padding: 8px 8px 8px 0; box-sizing: border-box; }
 .cm-gutter > div { will-change: transform; }
 .cm-gutter .fold { color: #c9a24a; }
 .cm-gutter .has-issue { position: relative; color: var(--danger); font-weight: 600; }
 .cm-issue { position: absolute; left: 4px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; border-radius: 50%; background: var(--danger); color: #fff;
   font: 800 9px/13px system-ui, sans-serif; text-align: center; pointer-events: auto; cursor: pointer; }
-.cm-tip { position: absolute; z-index: var(--ds-z-popover); max-width: 320px; padding: 6px 9px; border-radius: 6px; background: var(--float); color: var(--ink);
+.cm-tip { position: absolute; z-index: var(--mmdx-z-popover); max-width: 320px; padding: 6px 9px; border-radius: 6px; background: var(--float); color: var(--ink);
   border: 1px solid var(--danger); box-shadow: 0 4px 14px rgba(0,0,0,.18); font-size: 12px; line-height: 1.4; white-space: pre-wrap; pointer-events: none; }
 `;
 

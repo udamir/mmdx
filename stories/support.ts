@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 // Shared story fixtures: the shipped examples and themes, and a shadow-root host for the chrome pieces
-// (they are styled for the components' shadow roots, through the --ds-* tokens).
+// (they are styled for the components' shadow roots, through the --mmdx-* tokens).
 import { ALIASES, adoptStyles, BASE, TOKENS } from '../src/ui/styles/base.js';
 import { BUILTIN_THEMES } from '../src/core/theme/builtin.js';
 import type { ThemeFile } from '../src/core/theme/types.js';
@@ -81,7 +81,7 @@ export function chromeHost(css: readonly string[], opts: { ui?: 'light' | 'dark'
   host.dataset['ui'] = opts.ui ?? 'light';
   host.style.cssText = `display:block;position:relative;box-sizing:border-box;min-height:100vh;padding:24px;${opts.style ?? ''}`;
   const root = host.attachShadow({ mode: 'open' });
-  adoptStyles(root, [TOKENS, ALIASES, BASE, ':host{background:var(--ds-bg);}', ...css]);
+  adoptStyles(root, [TOKENS, ALIASES, BASE, ':host{background:var(--mmdx-bg);}', ...css]);
   return { host, root };
 }
 
