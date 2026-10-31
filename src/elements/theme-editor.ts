@@ -25,8 +25,8 @@ import { validateTheme } from '../core/theme/validate.js';
 import type { Diagnostic, DiagramType, Rect } from '../core/types.js';
 import { isColorLiteral } from '../core/validate.js';
 import { download } from '../dom/export.js';
-import { patchChildren } from '../dom/patch.js';
-import { Viewport } from '../dom/viewport.js';
+import { DiagramCanvas } from '../dom/canvas.js';
+import { createZoomBar, ZOOM_BAR_CSS } from '../ui/blocks/zoom-bar.js';
 import { DIALOG_CSS, Dialogs } from '../ui/dialog.js';
 import { h, icon } from '../ui/h.js';
 import { registerMessages, type I18n } from '../ui/i18n.js';
@@ -40,7 +40,6 @@ import { THEME_EDITOR_CSS } from '../ui/styles/theme-editor.js';
 import { TOOLBAR_CSS } from '../ui/styles/toolbar.js';
 import { ElementBase } from './base.js';
 
-const NS = 'http://www.w3.org/2000/svg';
 
 // ---- public types --------------------------------------------------------------------------------------------------
 
@@ -277,7 +276,8 @@ export class ThemeEditor {
   private showCode = false;
   private zoom = 1;
   private samples: Record<string, string> = {};
-  private viewer: { box: HTMLElement; svg: SVGSVGElement; defs: SVGDefsElement; vp: SVGGElement; page: SVGGElement; body: SVGGElement; viewport: Viewport; pct: HTMLOutputElement } | null = null;
+  /** The live preview: a DiagramCanvas drawn with the draft theme, and the zoom bar block. */
+  private viewer: { box: HTMLElement; canvas: DiagramCanvas; destroy(): void } | null = null;
 
   constructor(private readonly host: HTMLElement, options: ThemeEditorOptions = {}) {
     registerMessages(THEME_EDITOR_MESSAGES);
@@ -289,7 +289,7 @@ export class ThemeEditor {
     this.store = options.store ?? memoryThemeStore(BUILTIN_THEMES);
     this.storage = options.storage ?? (typeof localStorage !== 'undefined' ? localStorageAdapter() : memoryStorage());
     this.shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
-    adoptStyles(this.shadow, [TOKENS, ALIASES, BASE, DIALOG_CSS, TOOLBAR_CSS, THEME_EDITOR_CSS]);
+    adoptStyles(this.shadow, [TOKENS, ALIASES, BASE, DIALOG_CSS, TOOLBAR_CSS, ZOOM_BAR_CSS, THEME_EDITOR_CSS]);
     const t = this.i18n.t;
     this.readPrefs();
 
@@ -467,7 +467,7 @@ export class ThemeEditor {
     this.unsubStore?.();
     for (const o of this.observers) o.disconnect();
     for (const c of this.cleanups) c();
-    this.viewer?.viewport.destroy();
+    this.viewer?.destroy();
     this.toolbar.destroy();
     this.pops.close();
     this.toaster.destroy();
@@ -1846,34 +1846,21 @@ export class ThemeEditor {
   private ensureViewer(): NonNullable<ThemeEditor['viewer']> {
     if (this.viewer) return this.viewer;
     const t = this.i18n.t;
-    const svg = document.createElementNS(NS, 'svg');
-    svg.setAttribute('class', 'vw-svg');
-    svg.setAttribute('role', 'img');
-    svg.setAttribute('aria-label', t('te.samplePreview'));
-    const defs = document.createElementNS(NS, 'defs');
-    const vp = document.createElementNS(NS, 'g');
-    const page = document.createElementNS(NS, 'g');
-    const body = document.createElementNS(NS, 'g');
-    vp.append(page, body);
-    svg.append(defs, vp);
-    const pct = h('output', null, '100%');
-    const viewport = new Viewport(svg, {
-      wheel: 'always',
-      panOnDrag: true,
-      onChange: (v) => {
-        vp.setAttribute('transform', `translate(${v.tx},${v.ty}) scale(${v.k})`);
-        pct.textContent = `${Math.round(v.k * 100)}%`;
+    const box = h('div', { class: 'te-pbox' });
+    const canvas = new DiagramCanvas(box, { interaction: 'pan-zoom', wheel: 'always', panOnDrag: true, svgClass: 'vw-svg' });
+    canvas.svg.setAttribute('role', 'img');
+    canvas.svg.setAttribute('aria-label', t('te.samplePreview'));
+    canvas.svg.addEventListener('dblclick', () => canvas.fit(), { signal: this.ac.signal });
+    const zoom = createZoomBar({ view: canvas.view, onZoom: (f) => canvas.zoomBy(f), onFit: () => canvas.fit(), t });
+    zoom.el.querySelector('[role=toolbar]')?.setAttribute('aria-label', t('te.preview'));
+    box.append(zoom.el);
+    this.viewer = {
+      box, canvas,
+      destroy: () => {
+        zoom.destroy();
+        canvas.destroy();
       },
-    });
-    const mid = (): [number, number] => [viewport.size.w / 2, viewport.size.h / 2];
-    const zoomBar = h('div', { class: 'vw-zoom mmdx-float', role: 'toolbar', 'aria-label': t('te.preview') },
-      h('button', { type: 'button', title: t('zoom.out'), 'aria-label': t('zoom.out'), onclick: () => viewport.zoomAt(1 / 1.2, ...mid()) }, '−'),
-      pct,
-      h('button', { type: 'button', title: t('zoom.in'), 'aria-label': t('zoom.in'), onclick: () => viewport.zoomAt(1.2, ...mid()) }, '+'),
-      h('button', { type: 'button', title: t('zoom.fit'), onclick: () => viewport.fit() }, t('zoom.fitShort')));
-    svg.addEventListener('dblclick', () => viewport.fit(), { signal: this.ac.signal });
-    const box = h('div', { class: 'te-pbox' }, svg, zoomBar);
-    this.viewer = { box, svg, defs, vp, page, body, viewport, pct };
+    };
     return this.viewer;
   }
 
@@ -1950,10 +1937,8 @@ export class ThemeEditor {
       if (this.sel?.kind === 'page' && this.sel.preset && this.sel.type === this.preview) meta.canvas.preset = this.sel.preset;
       const rctx = renderContext(this.ctx, T, { code: doc.code, meta });
       const res = render(model, meta, T, rctx);
-      patchChildren(v.defs, res.defs);
-      patchChildren(v.page, pageScene(res, rctx));
-      patchChildren(v.body, res.body);
-      v.viewport.setBounds(res.bounds, { fit: this.refit });
+      v.canvas.show({ defs: res.defs, page: pageScene(res, rctx), body: res.body });
+      v.canvas.setBounds(res.bounds, { fit: this.refit });
       this.refit = false;
       err.textContent = '';
     } catch (e) {

@@ -143,13 +143,10 @@ button.small { padding: 2px 8px; font-size: 12px; }
 .te-code { width: 100%; height: 150px; min-height: 90px; resize: vertical; flex: none; font: 12px/1.45 var(--mmdx-mono); border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--surface); }
 .te-perr:empty { display: none; }
 .te-perr { color: var(--danger); }
+.te-pbox .bottom-bar { right: 8px; bottom: 8px; }
 .te-pbox { position: relative; flex: 1; min-height: 320px; background: var(--surface); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.06); overflow: hidden; }
 .vw-svg { display: block; width: 100%; height: 100%; position: absolute; inset: 0; cursor: grab; touch-action: none; user-select: none;
   background: var(--bg) radial-gradient(var(--dots) 1px, transparent 1px) 0 0 / 22px 22px; }
-.vw-zoom { position: absolute; right: 8px; bottom: 8px; z-index: 2; display: flex; align-items: center; gap: 2px; padding: 3px; }
-.vw-zoom button { border: 0; background: transparent; padding: 2px 6px; }
-.vw-zoom button:hover { background: var(--float-2); }
-.vw-zoom output { min-width: 40px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; }
 /* unsaved changes (amber) + header actions */
 .te-actions { display: flex; align-items: center; gap: 4px; }
 .te-actions .te-undo, .te-actions .te-redo { border: 1px solid var(--line); background: var(--surface); width: 28px; height: 26px; border-radius: 6px; padding: 0; display: grid; place-items: center; }
