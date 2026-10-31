@@ -1,7 +1,7 @@
 // <mmdx-studio> (§8.4, UC4): the standalone all-in-one app — editor, theme editor (dialog), file menu, examples
 // gallery, appearance toggle — the prototype's index.html, packaged as one element. The studio gives the editor the
 // open document's versions (an example's bundled history and the versions saved here), shown by the editor's History.
-import { ElementBase } from './base.js';
+import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
 import { decodeHash, encodeHash } from '../adapters/share.js';
 import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
 import { fetchThemeSource, localStorageThemeStore, type ThemeSource } from '../adapters/themes.js';
@@ -198,7 +198,7 @@ export class DiagramStudio {
   private readonly modeSwitch: BlockHandle<SegmentedProps<StudioMode>>;
 
   get editor(): DiagramEditor | undefined {
-    return this.editorEl.instance;
+    return this.editorEl.instance ?? undefined;
   }
 
   destroy(): void {
@@ -565,35 +565,38 @@ export class DiagramStudio {
 
 // ---- custom element ------------------------------------------------------------------------------------------------
 
-export class MmdxStudioElement extends ElementBase {
-  private studio: DiagramStudio | null = null;
-  storage?: StorageAdapter;
+/** Attributes, read when the studio is created. */
+const ATTRS: Readonly<Record<string, AttrSpec<StudioOptions>>> = {
+  examples: ['examples', (v) => v || undefined], themes: ['themes', (v) => v || undefined], initial: ['initial', (v) => v || undefined],
+  persist: ['persist', (v) => (v === null ? undefined : words(v).filter((p) => p === 'local' || p === 'hash'))],
+};
 
-  connectedCallback(): void {
-    const o: StudioOptions = {};
-    const ex = this.getAttribute('examples');
-    if (ex) o.examples = ex;
-    const th = this.getAttribute('themes');
-    if (th) o.themes = th;
-    const persist = this.getAttribute('persist');
-    if (persist !== null) o.persist = persist.split(/\s+/).filter((p): p is 'local' | 'hash' => p === 'local' || p === 'hash');
-    const initial = this.getAttribute('initial');
-    if (initial) o.initial = initial;
-    if (this.storage) o.storage = this.storage;
-    this.studio = new DiagramStudio(this, o);
+export class MmdxStudioElement extends MmdxElement<StudioOptions, DiagramStudio> {
+  protected attrs(): typeof ATTRS {
+    return ATTRS;
   }
 
-  disconnectedCallback(): void {
-    this.studio?.destroy();
-    this.studio = null;
+  protected create(o: StudioOptions): DiagramStudio {
+    return new DiagramStudio(this, o);
+  }
+
+  protected apply(_s: DiagramStudio, patch: Patch<StudioOptions>): void {
+    for (const k of Object.keys(patch)) warnOnce(`studio: \`${k}\` is read when the studio is created`);
+  }
+
+  get storage(): StorageAdapter | undefined {
+    return this.props.storage;
+  }
+  set storage(v: StorageAdapter | undefined) {
+    this.setOpt({ storage: v });
   }
 
   get editor(): DiagramEditor | undefined {
-    return this.studio?.editor;
+    return this.live?.editor;
   }
 
   openFiles(files: FileList | File[]): Promise<void> {
-    return this.studio?.openFiles(files) ?? Promise.resolve();
+    return this.live?.openFiles(files) ?? Promise.resolve();
   }
 }
 

@@ -13,7 +13,7 @@ interface ReactLike {
 type EventProps = Record<`onMmdx${string}`, ((ev: CustomEvent) => void) | undefined>;
 
 /** Attribute props are passed through; object props (`source`, `adapter`, `layers`, …) are set as properties. */
-const PROPERTY_PROPS = new Set(['source', 'loader', 'layers', 'themeSource', 'storage', 'adapter', 'features', 'panels', 'value', 'readOnly', 'store', 'modules', 'history', 'beforeSource', 'afterSource']);
+const PROPERTY_PROPS = new Set(['source', 'loader', 'layers', 'themeSource', 'storage', 'adapter', 'features', 'panels', 'value', 'readOnly', 'store', 'modules', 'history', 'beforeSource', 'afterSource', 'ctx', 'samples', 'actions']);
 
 function wrap(React: ReactLike, tag: string): unknown {
   return React.forwardRef((props: Record<string, unknown>, ref) => {

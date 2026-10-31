@@ -4,7 +4,7 @@ import { EDITOR_MESSAGES } from '../ui/messages/editor.js';
 import { registerMessages } from '../ui/i18n.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import { TOOLBAR_MESSAGES } from '../ui/messages/toolbar.js';
-import { ElementBase } from '../elements/base.js';
+import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from '../elements/base.js';
 import type { DocumentAdapter } from '../adapters/documents.js';
 import type { StorageAdapter } from '../adapters/storage.js';
 import type { ThemeSource } from '../adapters/themes.js';
@@ -613,142 +613,201 @@ const isTyping = (ev: KeyboardEvent): boolean => {
 
 // ---- custom element ------------------------------------------------------------------------------------------------
 
-export class MmdxEditorElement extends ElementBase {
-  static observedAttributes = ['read-only', 'ui', 'autosave', 'name', 'theme', 'theme-dark', 'compact'];
-  private editor: DiagramEditor | null = null;
-  private pending: EditorOptions = {};
+const text = (v: string | null): string | undefined => v ?? undefined;
+const FEATURE_NAMES = Object.keys(DEFAULT_FEATURES).filter((k) => k !== 'exportFormats') as (keyof EditorFeatures)[];
 
-  connectedCallback(): void {
-    const o: EditorOptions = { ...this.pending };
-    if (this.hasAttribute('read-only')) o.readOnly = this.getAttribute('read-only') !== 'false';
-    const ui = this.getAttribute('ui');
-    if (ui === 'light' || ui === 'dark' || ui === 'auto') o.ui = ui;
-    const as = this.getAttribute('autosave');
-    if (as !== null && as !== 'false') o.autosave = Number(as) || 1500;
-    if (this.hasAttribute('guard-unload')) o.guardUnload = true;
-    const name = this.getAttribute('name');
-    if (name) o.name = name;
-    const theme = this.getAttribute('theme'), themeDark = this.getAttribute('theme-dark'), compact = this.getAttribute('compact');
-    if (theme) o.theme = theme;
-    if (themeDark) o.themeDark = themeDark;
-    if (compact !== null) o.compact = compact === 'auto' ? 'auto' : compact !== 'false';
+/**
+ * Attributes and the option each one sets. `features` lists the features that are on, like the viewer's `controls`
+ * (`code-panel` or `codePanel`; `none`: all off); `exportFormats` keeps its default.
+ */
+const ATTRS: Readonly<Record<string, AttrSpec<EditorOptions>>> = {
+  'read-only': ['readOnly', (v) => (v === null ? undefined : v !== 'false')],
+  ui: ['ui', (v) => (v === 'light' || v === 'dark' || v === 'auto' ? v : undefined)],
+  autosave: ['autosave', (v) => (v === null ? undefined : v === 'false' ? false : Number(v) || 1500)],
+  'guard-unload': ['guardUnload', (v) => (v === null ? undefined : v !== 'false')],
+  name: ['name', (v) => v || undefined], theme: ['theme', text], 'theme-dark': ['themeDark', text],
+  compact: ['compact', (v) => (v === null ? undefined : v === 'auto' ? 'auto' : v !== 'false')],
+  features: ['features', (v) => {
+    if (v === null) return undefined;
+    const on = new Set(words(v).map((w) => w.replace(/-(\w)/g, (_, c: string) => c.toUpperCase())));
+    return Object.fromEntries(FEATURE_NAMES.map((f) => [f, on.has(f)]));
+  }],
+};
+
+export class MmdxEditorElement extends MmdxElement<EditorOptions, DiagramEditor> {
+  static observedAttributes = Object.keys(ATTRS);
+
+  protected attrs(): typeof ATTRS {
+    return ATTRS;
+  }
+
+  protected create(o: EditorOptions): DiagramEditor {
     if (o.value === undefined && !o.adapter) {
       const script = this.querySelector(':scope > script[type="text/mermaid"]');
       if (script?.textContent) o.value = script.textContent.replace(/^\s*\n/, '');
     }
-    this.editor = new DiagramEditor(this, o);
+    return new DiagramEditor(this, o);
   }
 
-  disconnectedCallback(): void {
-    this.editor?.destroy();
-    this.editor = null;
+  /** The next editor starts from this one's document (its undo history goes with it). */
+  protected override keep(e: DiagramEditor): void {
+    this.props.value = e.getSource();
   }
 
-  attributeChangedCallback(name: string, _old: string | null, v: string | null): void {
-    const e = this.editor;
-    if (!e) return;
-    if (name === 'read-only') e.readOnly = v !== null && v !== 'false';
-    else if (name === 'ui' && (v === 'light' || v === 'dark' || v === 'auto')) e.setUi(v);
-    else if (name === 'name' && v) e.name = e.core.fileName = v;
-    else if (name === 'theme') e.core.themes.attr.set(v);
-    else if (name === 'theme-dark') e.core.themes.attrDark.set(v);
-    else if (name === 'compact') e.core.setCompact(v === null || v === 'auto' ? 'auto' : v !== 'false');
-  }
-
-  private opt<K extends keyof EditorOptions>(k: K, v: EditorOptions[K]): void {
-    if (v === undefined) delete this.pending[k];
-    else this.pending[k] = v;
+  protected apply(e: DiagramEditor, patch: Patch<EditorOptions>): void {
+    const core = e.core;
+    const p = patch as EditorOptions;
+    for (const k of Object.keys(patch) as (keyof EditorOptions)[]) {
+      switch (k) {
+        case 'value':
+          e.setSource(p.value ?? '');
+          break;
+        case 'adapter':
+          e.adapter = p.adapter;
+          break;
+        case 'readOnly':
+          e.readOnly = !!p.readOnly;
+          break;
+        case 'history':
+          e.history = p.history ?? null;
+          break;
+        case 'ui':
+          e.setUi(p.ui ?? 'auto');
+          break;
+        case 'name':
+          e.fileName = p.name ?? 'diagram';
+          break;
+        case 'theme':
+          core.themes.attr.set(p.theme ?? null);
+          break;
+        case 'themeDark':
+          core.themes.attrDark.set(p.themeDark ?? null);
+          break;
+        case 'compact':
+          core.setCompact(p.compact ?? 'auto');
+          break;
+        case 'panels':
+          core.panels.set({ ...core.panels.peek(), ...p.panels });
+          break;
+        case 'storage':
+          core.setStorage(p.storage);
+          break;
+        case 'themeSource':
+          core.setThemeSource(p.themeSource);
+          break;
+        case 'features':
+          // modules read the features while installing: they are installed again (History, if open, stays)
+          Object.assign(core.features, DEFAULT_FEATURES, p.features);
+          if (this.props.toolbar === 'none') core.features.styleToolbar = false;
+          core.useModules((this.props.modules ?? DEFAULT_MODULES).map((m) => Object.create(m) as EditorModule));
+          core.panels.set({ ...core.panels.peek() });
+          break;
+        case 'modules':
+          core.useModules(p.modules ?? DEFAULT_MODULES);
+          break;
+        default:
+          warnOnce(`editor: \`${k}\` is read when the editor is created`);
+      }
+    }
   }
 
   get value(): string {
-    return this.editor?.getSource() ?? this.pending.value ?? '';
+    return this.live?.getSource() ?? this.props.value ?? '';
   }
   set value(v: string) {
-    if (this.editor) this.editor.setSource(v);
-    else this.opt('value', v);
+    this.setOpt({ value: v });
   }
   get adapter(): DocumentAdapter | undefined {
-    return this.editor?.adapter ?? this.pending.adapter;
+    return this.live?.adapter ?? this.props.adapter;
   }
   set adapter(a: DocumentAdapter | undefined) {
-    if (this.editor) this.editor.adapter = a;
-    else this.opt('adapter', a);
+    this.setOpt({ adapter: a });
   }
   get readOnly(): boolean {
-    return this.editor?.readOnly ?? !!this.pending.readOnly;
+    return this.live?.readOnly ?? !!(this.props.readOnly ?? this.attrOptions().readOnly);
   }
   set readOnly(v: boolean) {
-    if (this.editor) this.editor.readOnly = v;
-    else this.opt('readOnly', v);
+    this.setOpt({ readOnly: v });
   }
-  set features(f: Partial<EditorFeatures>) {
-    this.opt('features', f);
+  get features(): Partial<EditorFeatures> | undefined {
+    return this.props.features;
+  }
+  /** The features: an object, or a space-separated string like the attribute. */
+  set features(f: Partial<EditorFeatures> | string | undefined) {
+    this.setOpt({ features: typeof f === 'string' ? (ATTRS['features']![1](f) as Partial<EditorFeatures>) : f });
   }
   get history(): HistoryAdapter | readonly StaticVersion[] | null {
-    return this.editor?.history ?? this.pending.history ?? null;
+    return this.live?.history ?? this.props.history ?? null;
   }
   set history(h: HistoryAdapter | readonly StaticVersion[] | null) {
-    if (this.editor) this.editor.history = h;
-    else this.opt('history', h ?? undefined);
+    this.setOpt({ history: h ?? undefined });
+  }
+  get panels(): EditorOptions['panels'] {
+    return this.props.panels;
   }
   set panels(p: EditorOptions['panels']) {
-    this.opt('panels', p);
+    this.setOpt({ panels: p });
   }
-  set storage(s: StorageAdapter) {
-    this.opt('storage', s);
+  get storage(): StorageAdapter | undefined {
+    return this.props.storage;
   }
-  set themeSource(s: ThemeSource) {
-    this.opt('themeSource', s);
+  set storage(s: StorageAdapter | undefined) {
+    this.setOpt({ storage: s });
   }
-  set modules(m: readonly EditorModule[]) {
-    this.opt('modules', m);
+  get themeSource(): ThemeSource | undefined {
+    return this.props.themeSource;
+  }
+  set themeSource(s: ThemeSource | undefined) {
+    this.setOpt({ themeSource: s });
+  }
+  get modules(): readonly EditorModule[] | undefined {
+    return this.props.modules;
+  }
+  set modules(m: readonly EditorModule[] | undefined) {
+    this.setOpt({ modules: m });
   }
 
   getSource(): string {
     return this.value;
   }
   setSource(src: string, opts?: { history?: 'reset' | 'push' }): void {
-    if (this.editor) this.editor.setSource(src, opts);
-    else this.opt('value', src);
+    this.props.value = src;
+    this.live?.setSource(src, opts);
   }
   save(): Promise<SaveOutcome> {
-    return this.editor?.save() ?? Promise.resolve('no-adapter');
+    return this.live?.save() ?? Promise.resolve('no-adapter');
   }
   undo(): void {
-    this.editor?.undo();
+    this.live?.undo();
   }
   redo(): void {
-    this.editor?.redo();
+    this.live?.redo();
   }
   select(items: ItemRef[]): void {
-    this.editor?.select(items);
+    this.live?.select(items);
   }
   focusCode(line: number): void {
-    this.editor?.focusCode(line);
+    this.live?.focusCode(line);
   }
   exportAs(kind: 'mmdx' | 'mmd' | 'svg' | 'png'): Promise<void> {
-    return this.editor?.exportAs(kind) ?? Promise.resolve();
+    return this.live?.exportAs(kind) ?? Promise.resolve();
   }
   fit(): void {
-    this.editor?.fit();
+    this.live?.fit();
   }
   plainMermaid(): Promise<void> {
-    return this.editor?.plainMermaid() ?? Promise.resolve();
+    return this.live?.plainMermaid() ?? Promise.resolve();
   }
   /** Opens or closes the History view (when the editor has a `history`). */
   toggleHistory(on?: boolean): void {
-    this.editor?.toggleHistory(on);
+    this.live?.toggleHistory(on);
   }
   /** The open History's session, null while History is closed. */
   get historySession(): HistorySession | null {
-    return this.editor?.historySession ?? null;
+    return this.live?.historySession ?? null;
   }
   get dirty(): boolean {
-    return this.editor?.dirty ?? false;
-  }
-  /** The underlying editor (advanced use; undefined while disconnected). */
-  get instance(): DiagramEditor | undefined {
-    return this.editor ?? undefined;
+    return this.live?.dirty ?? false;
   }
 }
 

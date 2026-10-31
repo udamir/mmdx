@@ -2,3 +2,92 @@
 // Node build scripts import entry points). Elements extend this instead of HTMLElement directly.
 export const ElementBase: typeof HTMLElement =
   typeof HTMLElement !== 'undefined' ? HTMLElement : (class {} as unknown as typeof HTMLElement);
+
+/** Options to change; one set to `undefined` goes back to its default. */
+export type Patch<O> = { [K in keyof O]?: O[K] | undefined };
+
+/** An attribute: the option it sets and its value as that option (`null`: absent; `undefined`: the option's default). */
+export type AttrSpec<O> = readonly [key: keyof O, parse: (v: string | null) => unknown];
+
+const warned = new Set<string>();
+
+/** Warns once per message (an option that cannot change on a live component). */
+export function warnOnce(msg: string): void {
+  if (warned.has(msg)) return;
+  warned.add(msg);
+  console.warn(`[mmdx] ${msg}`);
+}
+
+/** A space-separated list attribute (`controls`, `features`): the named entries; `none` is the empty list. */
+export const words = (v: string): string[] => (v === 'none' ? [] : v.split(/[\s,]+/).filter(Boolean));
+
+/**
+ * The custom elements' common lifecycle. Options set as properties go to one store, connected or not, and are reused
+ * whenever the component is created; an attribute change applies just that option (`undefined` when removed) and
+ * replaces a value set earlier as a property. Moving the element in the DOM keeps its component: destroying waits a
+ * microtask and is skipped when the element is connected again by then (a move keeps the document, the undo history,
+ * the selection and an open History).
+ */
+export abstract class MmdxElement<O extends object, I extends { destroy(): void }> extends ElementBase {
+  /** The options set as properties (what is not an attribute). */
+  protected props: Partial<O> = {};
+  private inst: I | null = null;
+
+  /** Attribute name → option (the attributes observed). */
+  protected abstract attrs(): Readonly<Record<string, AttrSpec<O>>>;
+  /** Creates the component from the attributes and the properties. */
+  protected abstract create(o: Partial<O>): I;
+  /** Applies changed options to the live component. */
+  protected abstract apply(inst: I, patch: Patch<O>): void;
+  /** Called before the component is destroyed (not on a move): keep what the next one should start from. */
+  protected keep(_inst: I): void {}
+
+  connectedCallback(): void {
+    this.inst ??= this.create({ ...this.attrOptions(), ...this.props });
+  }
+
+  disconnectedCallback(): void {
+    queueMicrotask(() => {
+      const inst = this.inst;
+      if (this.isConnected || !inst) return;
+      this.inst = null;
+      this.keep(inst);
+      inst.destroy();
+    });
+  }
+
+  attributeChangedCallback(name: string, old: string | null, value: string | null): void {
+    const a = this.attrs()[name];
+    if (!a || old === value) return;
+    delete this.props[a[0]];
+    if (this.inst) this.apply(this.inst, { [a[0]]: a[1](value) } as Patch<O>);
+  }
+
+  /** The component (advanced use); null while the element is not connected. */
+  get instance(): I | null {
+    return this.isConnected ? this.inst : null;
+  }
+
+  /** The live component, also between a disconnect and its deferred destroy. */
+  protected get live(): I | null {
+    return this.inst;
+  }
+
+  /** Sets options as properties: remembered, and applied to the live component. */
+  protected setOpt(patch: Patch<O>): void {
+    for (const k of Object.keys(patch) as (keyof O)[]) {
+      if (patch[k] === undefined) delete this.props[k];
+      else this.props[k] = patch[k] as O[keyof O];
+    }
+    if (this.inst) this.apply(this.inst, patch);
+  }
+
+  protected attrOptions(): Partial<O> {
+    const o: Partial<O> = {};
+    for (const [name, [key, parse]] of Object.entries(this.attrs())) {
+      const v = parse(this.getAttribute(name));
+      if (v !== undefined) o[key] = v as O[keyof O];
+    }
+    return o;
+  }
+}

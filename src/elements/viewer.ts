@@ -4,7 +4,7 @@
 // Component architecture §4: the viewer is the view kernel (ViewCore) with a TextScene (source text → async render)
 // and the viewer's modules — the editor's chrome (tool dock, zoom bar with help, view params), every piece behind a
 // control of the `controls` attribute.
-import { ElementBase } from './base.js';
+import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
 import { fetchText } from '../adapters/fetch-text.js';
 import type { ThemeSource } from '../adapters/themes.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
@@ -160,12 +160,15 @@ export class DiagramViewer {
    * re-fetches or re-evaluates the controls as needed — a change elsewhere keeps History open, the pen's strokes and
    * the user's light / dark choice.
    */
-  set(patch: Partial<ViewerOptions>): void {
+  set(patch: Patch<ViewerOptions>): void {
     const prev = { ...this.o };
     const changed = (k: keyof ViewerOptions): boolean => k in patch && !sameOption(prev[k], patch[k]);
     Object.assign(this.o, patch);
     for (const k of Object.keys(patch) as (keyof ViewerOptions)[]) if (patch[k] === undefined) delete this.o[k];
     const core = this.core;
+    if (changed('storage')) core.setStorage(this.o.storage);
+    if (changed('themeSource')) core.setThemeSource(this.o.themeSource);
+    if (changed('ctx')) warnOnce('viewer: `ctx` is read when the viewer is created');
     if (changed('ui')) core.setUi(this.o.ui);
     if (changed('theme')) core.themes.attr.set(this.o.theme ?? null);
     if (changed('themeDark')) core.themes.attrDark.set(this.o.themeDark ?? null);
@@ -330,124 +333,97 @@ export class DiagramViewer {
 
 // ---- custom element ------------------------------------------------------------------------------------------------
 
-/** Attributes and the option each one sets. */
-const ATTRS: Readonly<Record<string, keyof ViewerOptions>> = {
-  src: 'src', theme: 'theme', 'theme-dark': 'themeDark', fit: 'fit', controls: 'controls', wheel: 'wheel', fallback: 'fallback', label: 'label',
-  ui: 'ui', compact: 'compact', interactive: 'interactive', lazy: 'lazy', labels: 'labels', 'hover-highlight': 'hoverHighlight',
-};
-const BOOL_ATTRS = new Set(['interactive', 'lazy', 'labels', 'hover-highlight']);
+const bool = (v: string | null): boolean | undefined => (v === null ? undefined : v !== 'false');
+const text = (v: string | null): string | undefined => v ?? undefined;
 
-/** An attribute's value as its option (`undefined`: the attribute is absent, the option's default applies). */
-function attrValue(name: string, v: string | null): ViewerOptions[keyof ViewerOptions] | undefined {
-  // the element's default fit is `width`
-  if (name === 'fit') return (v as FitMode | null) ?? 'width';
-  if (v === null) return undefined;
-  if (BOOL_ATTRS.has(name)) return v !== 'false';
-  if (name === 'compact') return v === 'auto' ? 'auto' : v !== 'false';
+/** Attributes and the option each one sets (absent: the option's default; the element's default fit is `width`). */
+const ATTRS: Readonly<Record<string, AttrSpec<ViewerOptions>>> = {
+  src: ['src', text], theme: ['theme', text], 'theme-dark': ['themeDark', text], fit: ['fit', (v) => v ?? 'width'], wheel: ['wheel', text],
+  fallback: ['fallback', text], label: ['label', text], ui: ['ui', text], interactive: ['interactive', bool], lazy: ['lazy', bool], labels: ['labels', bool],
+  'hover-highlight': ['hoverHighlight', bool], compact: ['compact', (v) => (v === null ? undefined : v === 'auto' ? 'auto' : v !== 'false')],
   // `list` (the former text outline) now opens the code view
-  if (name === 'controls') return v === 'none' ? [] : (v.split(/\s+/).filter(Boolean).map((c) => (c === 'list' ? 'code' : c)) as ViewerControl[]);
-  return v as ViewerOptions[keyof ViewerOptions];
-}
+  controls: ['controls', (v) => (v === null ? undefined : words(v).map((c) => (c === 'list' ? 'code' : c)))],
+};
 
-export class MmdxViewerElement extends ElementBase {
+export class MmdxViewerElement extends MmdxElement<ViewerOptions, DiagramViewer> {
   static observedAttributes = Object.keys(ATTRS);
-  private viewer: DiagramViewer | null = null;
-  private pending: Partial<ViewerOptions> = {};
 
-  connectedCallback(): void {
-    if (!this.hasAttribute('fit')) this.setAttribute('fit', 'width');
-    this.viewer = new DiagramViewer(this, { ...this.attrOptions(), ...this.pending });
+  protected attrs(): typeof ATTRS {
+    return ATTRS;
   }
 
-  disconnectedCallback(): void {
-    this.viewer?.destroy();
-    this.viewer = null;
+  protected create(o: ViewerOptions): DiagramViewer {
+    return new DiagramViewer(this, o);
   }
 
-  /** Only the attribute that changed reaches the viewer (removed: its option goes back to the default). */
-  attributeChangedCallback(name: string, old: string | null, value: string | null): void {
-    const key = ATTRS[name];
-    if (!this.viewer || !key || old === value) return;
-    this.viewer.set({ [key]: attrValue(name, value) });
-  }
-
-  private attrOptions(): Partial<ViewerOptions> {
-    const o: Partial<ViewerOptions> = {};
-    for (const [name, key] of Object.entries(ATTRS)) {
-      const v = attrValue(name, this.getAttribute(name));
-      if (v !== undefined) Object.assign(o, { [key]: v });
-    }
-    return o;
-  }
-
-  private setOpt(patch: Partial<ViewerOptions>): void {
-    if (this.viewer) this.viewer.set(patch);
-    else Object.assign(this.pending, patch);
+  protected apply(v: DiagramViewer, patch: Patch<ViewerOptions>): void {
+    v.set(patch);
   }
 
   get source(): string | undefined {
-    return this.viewer?.options.source ?? this.pending.source;
+    return this.live?.options.source ?? this.props.source;
   }
   set source(v: string | undefined) {
-    this.setOpt(v === undefined ? {} : { source: v });
+    this.setOpt({ source: v });
   }
   get loader(): ViewerOptions['loader'] {
-    return this.viewer?.options.loader ?? this.pending.loader;
+    return this.props.loader;
   }
   set loader(v: ViewerOptions['loader']) {
-    if (v) this.setOpt({ loader: v });
+    this.setOpt({ loader: v });
   }
   get layers(): readonly string[] | undefined {
-    return this.viewer?.options.layers ?? this.pending.layers;
+    return this.live?.options.layers ?? this.props.layers;
   }
   set layers(v: readonly string[] | undefined) {
-    if (this.viewer) this.viewer.setLayers(v);
-    else if (v) this.pending.layers = v;
+    this.setOpt({ layers: v });
   }
-  set themeSource(v: ThemeSource) {
+  get themeSource(): ThemeSource | undefined {
+    return this.props.themeSource;
+  }
+  set themeSource(v: ThemeSource | undefined) {
     this.setOpt({ themeSource: v });
   }
-  set storage(v: StorageAdapter) {
+  get storage(): StorageAdapter | undefined {
+    return this.props.storage;
+  }
+  set storage(v: StorageAdapter | undefined) {
     this.setOpt({ storage: v });
   }
   get history(): ViewerOptions['history'] {
-    return this.viewer?.options.history ?? this.pending.history;
+    return this.props.history;
   }
   set history(v: ViewerOptions['history']) {
-    if (v) this.setOpt({ history: v });
+    this.setOpt({ history: v });
   }
   toggleHistory(on?: boolean): void {
-    this.viewer?.toggleHistory(on);
+    this.live?.toggleHistory(on);
   }
   /** The open History's session, null while History is closed. */
   get historySession(): HistorySession | null {
-    return this.viewer?.historySession ?? null;
+    return this.live?.historySession ?? null;
   }
 
   fit(): void {
-    this.viewer?.fit();
+    this.live?.fit();
   }
   zoomTo(k: number): void {
-    this.viewer?.zoomTo(k);
+    this.live?.zoomTo(k);
   }
   reload(): Promise<void> {
-    return this.viewer?.reload() ?? Promise.resolve();
+    return this.live?.reload() ?? Promise.resolve();
   }
   toSvg(): string {
-    return this.viewer?.toSvg() ?? '';
+    return this.live?.toSvg() ?? '';
   }
   toPng(opts?: { scale?: number }): Promise<Blob> {
-    return this.viewer ? this.viewer.toPng(opts) : Promise.reject(new Error('Not connected'));
+    return this.live ? this.live.toPng(opts) : Promise.reject(new Error('Not connected'));
   }
   setLayers(ids: readonly string[] | undefined): void {
     this.layers = ids;
   }
   get diagnostics(): readonly Diagnostic[] {
-    return this.viewer?.diagnostics ?? [];
-  }
-  /** The underlying viewer (advanced use; undefined while disconnected). */
-  get instance(): DiagramViewer | undefined {
-    return this.viewer ?? undefined;
+    return this.live?.diagnostics ?? [];
   }
 }
 

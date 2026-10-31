@@ -6,7 +6,7 @@
 // behaviour, the export formats, the host's buttons — next to the standard ones: the zoom bar with help and full
 // screen, the tool dock with Hand and the pen, the view params with the theme menu and the light / dark toggle, and
 // view settings. Views: Before, Merged, After (one canvas; switching animates) and Side by side (two linked canvases).
-import { ElementBase } from './base.js';
+import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
 import { fetchText } from '../adapters/fetch-text.js';
 import type { ThemeSource } from '../adapters/themes.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
@@ -198,8 +198,9 @@ export class DiagramDiff {
   }
 
   /** Updates options; reloads or re-renders as needed. */
-  set(patch: Partial<DiffOptions>): void {
+  set(patch: Patch<DiffOptions>): void {
     const reload = ['before', 'after', 'beforeSource', 'afterSource', 'history'].some((k) => k in patch && (patch as Record<string, unknown>)[k] !== (this.o as Record<string, unknown>)[k]);
+    const ctx = this.o.ctx;
     Object.assign(this.o, patch);
     const core = this.core, s = this.session;
     // options and attributes set the state without an event, as the filters do
@@ -208,6 +209,9 @@ export class DiagramDiff {
     if ('filters' in patch) s.applyFilters(patch.filters);
     if ('dim' in patch && patch.dim !== undefined) s.dim.set(patch.dim);
     if ('panels' in patch) core.panels.set({ ...core.panels.peek(), ...panelState(patch.panels) });
+    if ('storage' in patch) core.setStorage(patch.storage);
+    if ('themeSource' in patch) core.setThemeSource(patch.themeSource);
+    if ('ctx' in patch && patch.ctx !== ctx) warnOnce('diff: `ctx` is read when the diff is created');
     if ('ui' in patch) core.setUi(patch.ui);
     if ('theme' in patch) core.themes.attr.set(patch.theme ?? null);
     if ('themeDark' in patch) core.themes.attrDark.set(patch.themeDark ?? null);
@@ -341,165 +345,151 @@ export class DiagramDiff {
 
 // ---- custom element ------------------------------------------------------------------------------------------------
 
-export class MmdxDiffElement extends ElementBase {
-  static observedAttributes = ['before', 'after', 'base', 'head', 'mode', 'view', 'filters', 'dim', 'panels', 'theme', 'theme-dark', 'ui', 'wheel', 'name', 'label', 'compact'];
-  private diff: DiagramDiff | null = null;
-  private pending: Partial<DiffOptions> = {};
+const DIFF_FEATURES: readonly DiffFeature[] = ['history', 'code', 'changes', 'views', 'filters', 'pen', 'export', 'help', 'fullscreen', 'select', 'theme', 'scheme', 'layers'];
+const DIFF_PANELS: readonly DiffPanel[] = ['history', 'code', 'changes'];
+const text = (v: string | null): string | undefined => v ?? undefined;
+/** The known entries of a list attribute. */
+const listOf = <T extends string>(known: readonly T[]) => (v: string | null): T[] | undefined => (v === null ? undefined : words(v).filter((x): x is T => known.includes(x as T)));
+const panelList = listOf(DIFF_PANELS);
 
-  connectedCallback(): void {
-    this.diff = new DiagramDiff(this, { ...this.attrOptions(), ...this.pending });
+/** Attributes and the option each one sets. `features` lists the parts that are on (like the viewer's `controls`). */
+const ATTRS: Readonly<Record<string, AttrSpec<DiffOptions>>> = {
+  before: ['before', text], after: ['after', text], base: ['base', text], head: ['head', text],
+  mode: ['mode', (v) => (v === 'history' || v === 'compare' ? v : undefined)],
+  view: ['view', (v) => (v && (DIFF_VIEWS as readonly string[]).includes(v) ? v : undefined)],
+  filters: ['filters', listOf(DIFF_FILTERS)], dim: ['dim', (v) => (v === null ? undefined : v !== 'false')], panels: ['panels', panelList],
+  features: ['features', (v) => (v === null ? undefined : Object.fromEntries(DIFF_FEATURES.map((f) => [f, words(v).includes(f)])))],
+  theme: ['theme', text], 'theme-dark': ['themeDark', text], ui: ['ui', text], wheel: ['wheel', text], name: ['name', text], label: ['label', text],
+  compact: ['compact', (v) => (v === null ? undefined : v === 'auto' ? 'auto' : v !== 'false')],
+};
+
+export class MmdxDiffElement extends MmdxElement<DiffOptions, DiagramDiff> {
+  static observedAttributes = Object.keys(ATTRS);
+
+  protected attrs(): typeof ATTRS {
+    return ATTRS;
   }
 
-  disconnectedCallback(): void {
-    this.diff?.destroy();
-    this.diff = null;
+  protected create(o: DiffOptions): DiagramDiff {
+    return new DiagramDiff(this, o);
   }
 
-  attributeChangedCallback(name: string, old: string | null, value: string | null): void {
-    if (!this.diff || old === value) return;
-    const o = this.attrOptions();
-    const key = name === 'theme-dark' ? 'themeDark' : name;
-    this.diff.set({ [key]: (o as Record<string, unknown>)[key] } as Partial<DiffOptions>);
-  }
-
-  private attrOptions(): Partial<DiffOptions> {
-    const o: Partial<DiffOptions> = {};
-    const a = (n: string): string | null => this.getAttribute(n);
-    const list = (n: string): string[] | undefined => (this.hasAttribute(n) ? (a(n) ?? '').split(/[\s,]+/).filter(Boolean) : undefined);
-    const set = <K extends keyof DiffOptions>(k: K, v: DiffOptions[K] | undefined | null): void => {
-      if (v !== undefined && v !== null) o[k] = v;
-    };
-    set('before', a('before'));
-    set('after', a('after'));
-    set('base', a('base'));
-    set('head', a('head'));
-    set('mode', a('mode') === 'history' ? 'history' : a('mode') === 'compare' ? 'compare' : undefined);
-    const view = a('view') as DiffViewName | null;
-    set('view', view && DIFF_VIEWS.includes(view) ? view : undefined);
-    set('filters', list('filters')?.filter((f): f is DiffFilter => (DIFF_FILTERS as readonly string[]).includes(f)));
-    set('dim', this.hasAttribute('dim') ? a('dim') !== 'false' : undefined);
-    set('panels', list('panels')?.filter((p): p is DiffPanel => p === 'history' || p === 'code' || p === 'changes'));
-    set('theme', a('theme'));
-    set('themeDark', a('theme-dark'));
-    set('ui', a('ui') as DiffOptions['ui'] | null);
-    set('wheel', a('wheel') as WheelMode | null);
-    set('name', a('name'));
-    set('label', a('label'));
-    const compact = a('compact');
-    if (compact !== null) o.compact = compact === 'auto' ? 'auto' : compact !== 'false';
-    return o;
-  }
-
-  private setOpt(patch: Partial<DiffOptions>): void {
-    if (this.diff) this.diff.set(patch);
-    else Object.assign(this.pending, patch);
-  }
-
-  /** The imperative instance (null while disconnected). */
-  get instance(): DiagramDiff | null {
-    return this.diff;
+  protected apply(d: DiagramDiff, patch: Patch<DiffOptions>): void {
+    d.set(patch);
   }
 
   get beforeSource(): string | undefined {
-    return this.diff?.options.beforeSource ?? this.pending.beforeSource;
+    return this.live?.options.beforeSource ?? this.props.beforeSource;
   }
   set beforeSource(v: string | undefined) {
-    if (v !== undefined) this.setOpt({ beforeSource: v });
+    this.setOpt({ beforeSource: v });
   }
   get afterSource(): string | undefined {
-    return this.diff?.options.afterSource ?? this.pending.afterSource;
+    return this.live?.options.afterSource ?? this.props.afterSource;
   }
   set afterSource(v: string | undefined) {
-    if (v !== undefined) this.setOpt({ afterSource: v });
+    this.setOpt({ afterSource: v });
   }
   get history(): DiffOptions['history'] {
-    return this.diff?.options.history ?? this.pending.history;
+    return this.live?.options.history ?? this.props.history;
   }
   set history(v: DiffOptions['history']) {
-    if (v) this.setOpt({ history: v });
+    this.setOpt({ history: v });
   }
   get features(): DiffOptions['features'] {
-    return this.diff?.options.features ?? this.pending.features;
+    return this.live?.options.features ?? this.props.features;
   }
-  set features(v: DiffOptions['features']) {
-    this.setOpt({ features: v ?? {} });
+  /** Parts on and off: an object, or a space-separated string like the attribute. */
+  set features(v: DiffOptions['features'] | string) {
+    this.setOpt({ features: typeof v === 'string' ? (ATTRS['features']![1](v) as DiffOptions['features']) : v });
   }
   /** Open panels: a list, or a space-separated string like the attribute. */
   get panels(): readonly DiffPanel[] | undefined {
-    return this.diff?.options.panels ?? this.pending.panels;
+    return this.live?.options.panels ?? this.props.panels;
   }
   set panels(v: readonly DiffPanel[] | string | undefined) {
-    const list = typeof v === 'string' ? v.split(/[\s,]+/).filter((p): p is DiffPanel => p === 'history' || p === 'code' || p === 'changes') : v;
-    if (list) this.setOpt({ panels: list });
+    this.setOpt({ panels: typeof v === 'string' ? panelList(v) : v });
+  }
+  get loader(): DiffOptions['loader'] {
+    return this.props.loader;
   }
   set loader(v: DiffOptions['loader']) {
-    if (v) this.setOpt({ loader: v });
+    this.setOpt({ loader: v });
   }
-  set storage(v: StorageAdapter) {
-    this.pending.storage = v;
+  get storage(): StorageAdapter | undefined {
+    return this.props.storage;
   }
-  set ctx(v: Partial<CoreContext>) {
-    this.pending.ctx = v;
+  set storage(v: StorageAdapter | undefined) {
+    this.setOpt({ storage: v });
   }
-  set themeSource(v: ThemeSource) {
+  /** Read when the component is created (a change while connected applies the next time it is). */
+  get ctx(): Partial<CoreContext> | undefined {
+    return this.props.ctx;
+  }
+  set ctx(v: Partial<CoreContext> | undefined) {
+    this.setOpt({ ctx: v });
+  }
+  get themeSource(): ThemeSource | undefined {
+    return this.props.themeSource;
+  }
+  set themeSource(v: ThemeSource | undefined) {
     this.setOpt({ themeSource: v });
   }
   /** Host buttons in the top right corner. */
   get actions(): readonly DiffAction[] | undefined {
-    return this.diff?.options.actions ?? this.pending.actions;
+    return this.live?.options.actions ?? this.props.actions;
   }
   set actions(v: readonly DiffAction[] | undefined) {
-    this.setOpt({ actions: v ?? [] });
+    this.setOpt({ actions: v });
   }
 
   compare(before: string, after: string): Promise<void> {
-    if (this.diff) return this.diff.compare(before, after);
-    Object.assign(this.pending, { beforeSource: before, afterSource: after });
-    return Promise.resolve();
+    Object.assign(this.props, { beforeSource: before, afterSource: after });
+    delete this.props.history;
+    return this.live?.compare(before, after) ?? Promise.resolve();
   }
   setHistory(history: HistoryAdapter | readonly StaticVersion[]): Promise<void> {
-    if (this.diff) return this.diff.setHistory(history);
-    this.pending.history = history;
-    return Promise.resolve();
+    this.props.history = history;
+    return this.live?.setHistory(history) ?? Promise.resolve();
   }
   setPair(baseId: string, headId: string): void {
-    this.diff?.setPair(baseId, headId);
+    this.live?.setPair(baseId, headId);
   }
   viewVersion(id: string): void {
-    this.diff?.viewVersion(id);
+    this.live?.viewVersion(id);
   }
   setView(view: DiffViewName): void {
-    this.diff?.setView(view);
+    this.live?.setView(view);
   }
   setFilters(filters: readonly DiffFilter[], dim?: boolean): void {
-    this.diff?.setFilters(filters, dim);
+    this.live?.setFilters(filters, dim);
   }
   select(key: string | null): void {
-    this.diff?.select(key);
+    this.live?.select(key);
   }
   next(): void {
-    this.diff?.next();
+    this.live?.next();
   }
   prev(): void {
-    this.diff?.prev();
+    this.live?.prev();
   }
   fit(): void {
-    this.diff?.fit();
+    this.live?.fit();
   }
   zoomTo(k: number): void {
-    this.diff?.zoomTo(k);
+    this.live?.zoomTo(k);
   }
   getDiff(): DiffResult | null {
-    return this.diff?.getDiff() ?? null;
+    return this.live?.getDiff() ?? null;
   }
   exportAs(kind: DiffExportKind, options?: DiffExportOptions): Promise<void> {
-    return this.diff ? this.diff.exportAs(kind, options) : Promise.reject(new Error('Not connected'));
+    return this.live ? this.live.exportAs(kind, options) : Promise.reject(new Error('Not connected'));
   }
   toSvg(options?: DiffExportOptions): string {
-    return this.diff?.toSvg(options) ?? '';
+    return this.live?.toSvg(options) ?? '';
   }
   toPng(options?: DiffExportOptions): Promise<Blob> {
-    return this.diff ? this.diff.toPng(options) : Promise.reject(new Error('Not connected'));
+    return this.live ? this.live.toPng(options) : Promise.reject(new Error('Not connected'));
   }
 }
 
