@@ -118,7 +118,12 @@ describe('History in the editor (studio)', () => {
     await wait(() => rows().length === 8);
     expect(editor.core.stage.peek()).toBe('history');
 
-    // each version's ⋯ menu: Restore (not for the working copy) and Compare with the previous version
+    // each version's ⋮ menu in the History tab (not in Compare): Restore (not for the working copy) and Compare
+    // with the previous version
+    expect(ed.querySelector('.mmdx-stack .version .vmenu')).toBeNull();
+    const historyTab = (): void => ed.querySelector<HTMLButtonElement>('.mmdx-panel.history [role=tab][data-tab=history]')!.click();
+    historyTab();
+    await wait(() => ed.querySelector('.mmdx-stack .version .vmenu'));
     const menuOf = (i: number): HTMLButtonElement => ed.querySelectorAll<HTMLButtonElement>('.mmdx-stack .version .vmenu')[i]!;
     const items = (): string[] => [...ed.querySelectorAll('[role=menu] [role=menuitem]')].map((b) => b.textContent!);
     menuOf(0).click();
@@ -128,6 +133,8 @@ describe('History in the editor (studio)', () => {
     [...ed.querySelectorAll<HTMLButtonElement>('[role=menu] [role=menuitem]')].find((b) => b.textContent === 'Compare with the previous version')!.click();
     expect(editor.historySession!.pair).toMatchObject({ base: versions[2].id, head: versions[1].id });
     // restore the newest bundled version: the editor gets it as an undoable change
+    historyTab();
+    await wait(() => ed.querySelector('.mmdx-stack .version .vmenu'));
     menuOf(2).click();
     expect(items()[0]).toBe(`Restore ${newest.id}`);
     ed.querySelector<HTMLButtonElement>('[role=menu] .restore')!.click();
@@ -168,7 +175,9 @@ describe('History in the viewer', () => {
     root.querySelector<HTMLButtonElement>('button[aria-label^="History"]')!.click();
     await wait(() => root.querySelectorAll('.mmdx-stack .version').length === 6);
     expect(v.core.stage.peek()).toBe('history');
-    // the version menu has no Restore in the viewer
+    // the version menu (History tab) has no Restore in the viewer
+    root.querySelector<HTMLButtonElement>('.mmdx-panel.history [role=tab][data-tab=history]')!.click();
+    await wait(() => root.querySelector('.mmdx-stack .version .vmenu'));
     root.querySelector<HTMLButtonElement>('.mmdx-stack .version .vmenu')!.click();
     expect(root.querySelector('[role=menu] .restore')).toBeNull();
     expect(root.querySelectorAll('[role=menu] [role=menuitem]')).toHaveLength(1);

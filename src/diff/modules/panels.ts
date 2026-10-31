@@ -38,8 +38,8 @@ function toggleOf(scope: ModuleScope<ViewCore>, id: string): { open: () => boole
 }
 
 /**
- * `dockButton: false` when the host's History button already stands for the panel (History in place). Each row has a
- * "⋮" menu: the host's `rowActions` (History's Restore), then Compare with the previous version.
+ * `dockButton: false` when the host's History button already stands for the panel (History in place). Each row of the
+ * History tab has a "⋮" menu: the host's `rowActions` (History's Restore), then Compare with the previous version.
  */
 export function versionsModule(session: DiffSession, o: { dockButton?: boolean; rowActions?: (id: string) => readonly MenuEntry[] } = {}): ViewModule<ViewCore> {
   return {
@@ -64,8 +64,9 @@ export function versionsModule(session: DiffSession, o: { dockButton?: boolean; 
         onPick: (side, id) => session.setPair(side === 'before' ? id : session.base.peek(), side === 'after' ? id : session.head.peek()),
         onRow: (id) => (session.mode.peek() === 'compare' ? session.compareWithPrevious(id) : session.viewVersion(id)),
         onMore: loadMore, t,
+        // the History tab's rows (one version each); the Compare tab has its Before / After picks
         menu: {
-          popovers: core.popovers, within: () => core.root,
+          popovers: core.popovers, within: () => core.root, modes: ['history'],
           entries: (id, i) => [
             ...(o.rowActions?.(id) ?? []),
             {

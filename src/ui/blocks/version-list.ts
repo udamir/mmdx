@@ -46,8 +46,11 @@ export interface VersionListProps {
   onPick: (side: 'before' | 'after', id: string) => void;
   onRow: (id: string) => void;
   onMore: () => void;
-  /** A "⋮" menu on each row with the version's actions (Restore, Compare…); `entries` is built when it opens. */
-  menu?: { entries: (id: string, index: number) => readonly MenuEntry[]; popovers: PopoverManager; within?: () => Element | undefined };
+  /**
+   * A "⋮" menu on each row with the version's actions (Restore, Compare…); `entries` is built when it opens; `modes`:
+   * the tabs that show it (default both).
+   */
+  menu?: { entries: (id: string, index: number) => readonly MenuEntry[]; popovers: PopoverManager; within?: () => Element | undefined; modes?: readonly ('compare' | 'history')[] };
   t: Translate;
   part?: string;
 }
@@ -152,7 +155,7 @@ export function createVersionList(props: VersionListProps): BlockHandle<VersionL
       fx.on(main, 'click', () => p.onRow(v.id));
       let dots: HTMLButtonElement | null = null;
       const m = p.menu;
-      if (m) {
+      if (m && (!m.modes || m.modes.includes(p.mode))) {
         const label = t('diff.history.actions', { id: v.id });
         const b = h('button', { type: 'button', class: 'vmenu', title: label, 'aria-label': label, 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'data-f': `menu:${v.id}`, 'data-col': 'menu' }, icon(I_DOTS, 18));
         fx.on(b, 'click', () => {

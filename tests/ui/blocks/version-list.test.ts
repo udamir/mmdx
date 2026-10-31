@@ -118,14 +118,14 @@ describe('VersionList', () => {
     expect((document.activeElement as HTMLElement).dataset['f']).toBe('v:c0');
   });
 
-  it('a ⋯ menu on each row opens the entries for that version through the popover manager', () => {
+  it('a ⋮ menu on each row opens the entries for that version through the popover manager', () => {
     const host = document.createElement('div');
     document.body.append(host);
     const root = host.attachShadow({ mode: 'open' });
     const popovers = new PopoverManager(root);
     const run = vi.fn();
     const entries = vi.fn((id: string, i: number) => [{ label: `Restore ${id} #${i}`, run }]);
-    const vl = createVersionList(props({ menu: { entries, popovers, within: () => host } }));
+    const vl = createVersionList(props({ mode: 'history', viewing: 'c3', menu: { entries, popovers, within: () => host, modes: ['history'] } }));
     root.append(vl.el);
     const dots = vl.el.querySelectorAll<HTMLButtonElement>('.vmenu');
     expect(dots).toHaveLength(3);
@@ -138,6 +138,8 @@ describe('VersionList', () => {
     expect(run).toHaveBeenCalledOnce();
     expect(popovers.isOpen).toBe(false);
     expect(createVersionList(props()).el.querySelector('.vmenu')).toBeNull();
+    // not in the tabs it is not for
+    expect(createVersionList(props({ menu: { entries, popovers, modes: ['history'] } })).el.querySelector('.vmenu')).toBeNull();
   });
 
   it('destroy() removes the element and its listeners', () => {
