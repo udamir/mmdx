@@ -23,6 +23,8 @@ export interface MenuProps {
   class?: string;
   /** Called after an item ran (the opener closes the popover here). */
   onPick?: (item: MenuItem) => void;
+  /** `part` of the menu (default none). */
+  part?: string;
 }
 
 export const MENU_CSS = /* css */ `
@@ -42,6 +44,8 @@ export function createMenu(props: MenuProps): BlockHandle<MenuProps> {
   const render = (): void => {
     el.className = ['mmdx-menu', 'mmdx-bmenu', p.class].filter(Boolean).join(' ');
     el.setAttribute('aria-label', p.label);
+    if (p.part) el.setAttribute('part', p.part);
+    else el.removeAttribute('part');
     const radio = p.entries.some((e) => typeof e === 'object' && 'checked' in e && e.checked !== undefined);
     el.replaceChildren(...p.entries.map((e) => {
       if (e === 'sep') return h('hr', { role: 'separator' });
@@ -82,11 +86,19 @@ export interface OpenMenuOptions {
   /** Opens below (default) or above the opener. */
   placement?: 'below' | 'above';
   class?: string;
+  part?: string;
 }
 
-/** Opens a menu under (or above) `opener`; picking an item closes it and returns the focus to the opener. */
+/**
+ * Opens a menu under (or above) `opener`; picking an item closes it and returns the focus to the opener. Opening it
+ * again from the same opener closes it (nothing is built then).
+ */
 export function openMenu(o: OpenMenuOptions): void {
-  const menu = createMenu({ label: o.label, entries: o.entries, ...(o.class ? { class: o.class } : {}), onPick: () => o.popovers.close(true) });
+  if (o.popovers.isOpenFor(o.opener)) {
+    o.popovers.close();
+    return;
+  }
+  const menu = createMenu({ label: o.label, entries: o.entries, ...(o.class ? { class: o.class } : {}), ...(o.part ? { part: o.part } : {}), onPick: () => o.popovers.close(true) });
   const box = (o.within ?? o.opener.offsetParent ?? o.opener.parentElement)?.getBoundingClientRect();
   const r = o.opener.getBoundingClientRect();
   if (box) {
