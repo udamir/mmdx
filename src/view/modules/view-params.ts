@@ -6,13 +6,14 @@ import { createExportMenu, EXPORT_MENU_CSS } from '../../ui/blocks/export-menu.j
 import { MENU_CSS } from '../../ui/blocks/menu.js';
 import { createSchemeToggle, SCHEME_TOGGLE_CSS } from '../../ui/blocks/scheme-toggle.js';
 import { createThemeButton, THEME_MENU_CSS } from '../../ui/blocks/theme-menu.js';
+import { createToolbar, TOOLBAR_CSS } from '../../ui/blocks/toolbar.js';
 import { h } from '../../ui/h.js';
 import { computed, signal } from '../../ui/signal.js';
 import type { ViewCore } from '../core.js';
 import type { ViewModule } from '../module.js';
 
 export const VIEW_PARAMS_CSS = /* css */ `
-.view-params { position: absolute; top: 12px; right: 12px; z-index: 32; display: flex; align-items: center; gap: 4px; padding: 4px;
+.mmdx-toolbar.view-params { position: absolute; top: 12px; right: 12px; z-index: 32; display: flex; align-items: center; gap: 4px; padding: 4px;
   background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: 12px; box-shadow: 0 4px 16px rgba(20,30,60,.10), 0 1px 3px rgba(20,30,60,.06); }
 .view-params .vp-sep { width: 1px; height: 22px; background: var(--mmdx-float-line); margin: 0 2px; }
 .compact .view-params { top: 8px; right: 8px; padding: 3px; gap: 2px; }
@@ -21,7 +22,7 @@ export const VIEW_PARAMS_CSS = /* css */ `
 
 export const viewParamsModule: ViewModule<ViewCore> = {
   id: 'view-params',
-  css: [VIEW_PARAMS_CSS, SCHEME_TOGGLE_CSS, THEME_MENU_CSS, EXPORT_MENU_CSS, MENU_CSS],
+  css: [TOOLBAR_CSS, VIEW_PARAMS_CSS, SCHEME_TOGGLE_CSS, THEME_MENU_CSS, EXPORT_MENU_CSS, MENU_CSS],
   install(scope) {
     const core = scope.core;
     const t = core.i18n.t;
@@ -72,7 +73,8 @@ export const viewParamsModule: ViewModule<ViewCore> = {
 
     const more = h('span', { class: 'vp-more', style: 'display:contents' });
     const sep = (): HTMLElement => h('span', { class: 'vp-sep', 'aria-hidden': 'true' });
-    const bar = h('div', { class: 'view-params', role: 'toolbar', 'aria-label': t('viewParams.title') });
+    const toolbar = createToolbar({ label: t('viewParams.title'), orientation: 'horizontal', items: [], class: 'view-params' });
+    const bar = toolbar.el;
     scope.slot('top-right').append(bar);
     scope.effect(() => {
       const formats = core.exportFormats();
@@ -84,13 +86,13 @@ export const viewParamsModule: ViewModule<ViewCore> = {
       if (theme) items.push(...(items.length ? [sep()] : []), theme.el);
       if (exp && formats.length) items.push(...(items.length ? [sep()] : []), exp.el);
       if (extra.length) items.push(more);
-      bar.replaceChildren(...items);
+      toolbar.setItems(items);
       bar.hidden = !items.length;
     });
 
     return () => {
       for (const p of parts) p.destroy();
-      bar.remove();
+      toolbar.destroy();
     };
   },
 };
