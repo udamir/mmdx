@@ -15,6 +15,7 @@ import type { CoreContext } from '../core/context.js';
 import type { DiagramDiff as DiffResult, ItemChange } from '../core/diff/index.js';
 import type { Rendered } from '../core/pipeline-core.js';
 import type { Diagnostic, Rect } from '../core/types.js';
+import { reducedMotion } from '../dom/motion.js';
 import type { WheelMode } from '../dom/viewport.js';
 import { registerMessages } from '../ui/i18n.js';
 import { DIFF_MESSAGES } from '../ui/messages/diff.js';
@@ -90,8 +91,6 @@ export interface DiffEventMap {
   'mmdx-ui': CustomEvent<{ ui: 'light' | 'dark' }>;
 }
 
-const reducedMotion = (): boolean => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-
 /** The open panels of the `panels` option (every key set, so remembered panels never override it). */
 const panelState = (list: readonly DiffPanel[] | undefined): Record<DiffPanel, boolean> => {
   const l = list ?? ['changes'];
@@ -119,7 +118,7 @@ export class DiagramDiff {
       css: [DIFF_TOKENS, DIFF_HOST_CSS, DIFF_CSS],
       root: { class: 'root', role: 'group' },
       areaClass: 'area',
-      canvas: { interaction: 'pan-zoom', wheel: o.wheel ?? 'always', panOnDrag: true, maxK: 8, reducedMotion, insets: () => this.scene?.insets() ?? { left: 8, right: 8, top: 8, bottom: 52 } },
+      canvas: { interaction: 'pan-zoom', wheel: o.wheel ?? 'always', panOnDrag: true, maxK: 8, insets: () => this.scene?.insets() ?? { left: 8, right: 8, top: 8, bottom: 52 } },
       feature: (name) => this.o.features?.[name as DiffFeature] !== false,
       ...(o.storage ? { storage: o.storage } : {}),
       ...(o.ctx ? { ctx: o.ctx } : {}),
@@ -173,7 +172,6 @@ export class DiagramDiff {
     core.provide('documentModel', () => shown()?.model ?? null);
     core.provide('documentMeta', () => shown()?.doc.meta ?? null);
     core.provide('documentCode', () => shown()?.doc.code ?? null);
-    core.provide('contentBounds', () => this.scene.bounds.peek());
     core.pushScene(this.scene);
 
     core.panels.set({ ...core.panels.peek(), ...panelState(o.panels) });

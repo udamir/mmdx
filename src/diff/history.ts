@@ -8,6 +8,7 @@
 // the host's scene repaints in full. Loaded on first use: the viewer and the editor bundles never contain the diff.
 import { staticHistory, type HistoryAdapter, type StaticVersion, type VersionInfo } from '../adapters/history.js';
 import type { ItemKind } from '../core/types.js';
+import { reducedMotion } from '../dom/motion.js';
 import { createPill, PILL_CSS } from '../ui/blocks/pill.js';
 import { h, icon } from '../ui/h.js';
 import { registerMessages } from '../ui/i18n.js';
@@ -101,8 +102,6 @@ export interface HistoryController {
   readonly api: HistorySession;
   close(): void;
 }
-
-const reducedMotion = (): boolean => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** Opens the `history` stage on a host (the viewer or the editor). */
 export function openHistory(core: ViewCore, o: { onClose(): void }): HistoryController {

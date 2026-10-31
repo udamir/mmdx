@@ -5,6 +5,7 @@
 // and the viewer's modules — the editor's chrome (tool dock, zoom bar with help, view params), every piece behind a
 // control of the `controls` attribute.
 import { ElementBase } from './base.js';
+import { fetchText } from '../adapters/fetch-text.js';
 import type { ThemeSource } from '../adapters/themes.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import type { StorageAdapter } from '../adapters/storage.js';
@@ -14,7 +15,6 @@ import { splitSource } from '../core/meta/index.js';
 import { standaloneSvg } from '../core/pipeline-core.js';
 import { summarize } from '../core/summary.js';
 import type { Diagnostic, Rect } from '../core/types.js';
-import { reducedMotion } from '../dom/motion.js';
 import type { WheelMode } from '../dom/viewport.js';
 import { h } from '../ui/h.js';
 import { VIEWER_CSS } from '../ui/styles/viewer.js';
@@ -88,7 +88,7 @@ export class DiagramViewer {
       css: [VIEWER_CSS],
       root: { class: 'root', role: 'img' },
       areaClass: 'stage',
-      canvas: { interaction: o.interactive === false ? 'static' : 'pan-zoom', wheel: o.wheel ?? 'ctrl', panOnDrag: true, svgClass: 'scene', part: 'canvas', reducedMotion },
+      canvas: { interaction: o.interactive === false ? 'static' : 'pan-zoom', wheel: o.wheel ?? 'ctrl', panOnDrag: true, svgClass: 'scene', part: 'canvas' },
       feature: (name) => this.feature(name),
       loadHistory: () => import('../diff/history.js'),
       ...(o.storage ? { storage: o.storage } : {}),
@@ -312,11 +312,7 @@ export class DiagramViewer {
     else if (this.o.src) {
       if (!this.scene.rendered) this.msg.replaceChildren(h('div', { class: 'loading' }, t('loading')));
       try {
-        const loader = this.o.loader ?? ((url: string) => fetch(url, { credentials: 'same-origin' }).then((r) => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.text();
-        }));
-        text = await loader(this.o.src);
+        text = await (this.o.loader ?? fetchText)(this.o.src);
         if (seq !== this.fetchSeq || this.destroyed) return;
       } catch (e) {
         if (seq !== this.fetchSeq || this.destroyed) return;

@@ -2,7 +2,6 @@
 // diagram component (viewer, editor, diff) has. Products extend the action and event maps with their own.
 import type { DiagramMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
-import type { Rect } from '../core/types.js';
 
 /** Edit or View. The viewer and the diff are always `view`. */
 export type Mode = 'edit' | 'view';
@@ -49,8 +48,6 @@ export interface ViewActions {
   toggleHistory(on?: boolean): void;
   /** Export formats of the installed modules, in menu order. */
   exportFormats(): ExportFormat[];
-  /** @deprecated Never run; the kernel's `contentBounds()` is the one answer (kept while a product still provides it). */
-  contentBounds(): Rect | null;
   setTool(tool: Tool): void;
   setPanel(name: string, open: boolean): void;
   /** The shown document's model (hover highlight, labels). */
