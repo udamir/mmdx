@@ -2,6 +2,43 @@
 
 All notable changes to `mmdx`. The project follows [semantic versioning](https://semver.org/); while it is below 1.0, a minor version may change public API, and such changes are listed under **Changed**.
 
+## Unreleased — One view kernel
+
+The viewer, the editor and the diff are rebuilt on one view kernel, with shared UI blocks and one canvas (design: `docs/component-architecture.md`). This release changes public API; see **Upgrading**.
+
+### Added
+
+- **History in place**: the History of the editor and the viewer opens in their own canvas and panels (a `history` stage) instead of covering them with `<mmdx-diff>`, and no longer needs `mmdx/diff` on the page (its code loads on first use). The working copy follows the document while History is open; ⌘C copies an item of an old version to paste after **Back** (a Back pill, Esc); editing pauses and comes back as it was. Events `mmdx-history-open`, `-close`, `-compare`, `-version`, `-select`, `-view`, `-filters`, `-export`, `-restore`, `-error`; `editor.historySession` / `viewer.historySession` give the `<mmdx-diff>` methods while it is open.
+- **The theme menu everywhere**: the editor, the diff and (with `controls="theme"`) the viewer have the light / dark toggle and a theme menu whose first entry, **Follow light / dark**, drops the pick. A pick is remembered per component kind.
+- **The viewer has the editor's chrome**: tool dock, zoom bar with the `?` help popup, view parameters with `Export ▾`; the code view and view settings are side panels. Only the zoom bar loads with the viewer; every other piece loads when its control is on.
+- **The diff** gains view settings (layers, connector labels, hover highlight), highlighted code in the code diff, the editor's `Export ▾` menu, and links (click selects the change, ⌘ / Ctrl-click opens the link).
+- The editor's View mode and the viewer run the same modules. `compact` attribute on every element: the same chrome, smaller and icon-only (automatic on small hosts). `<mmdx-editor>` takes `theme`, `theme-dark` and `compact` attributes.
+- **The clipboard carries content**: a copied item can be pasted into a document that no longer has it (fresh ids, the source's looks).
+- **Kernel API**: `ViewCore`, `ViewModule`, `ModuleScope`, `lazyModule`, `SceneSource`, `DiagramCanvas`, `StrokeStore`, `DiffSession`, `Stage`; core `renderDiffWith`, `diffDiagramsWith`, `renderDiffToSvgWith` take the loaded diagram kinds.
+- Storybook: **Blocks/** (every UI block) and **Canvas/**.
+
+### Changed (breaking)
+
+- **`canvas.theme` left the `.mmdx` format.** The theme belongs to the component: the host's `theme` / `theme-dark` attributes, else the user's pick, else Default Light or Default Dark following the chrome's light / dark scheme. Files that name a theme keep loading; the field is dropped and the next save writes the file without it. `pickTheme` and `renderToSvg` use the `theme` option only; the diff no longer reports theme changes.
+- **Theme and light / dark are independent**: the toggle changes the chrome only; picking a theme never writes the document and never flips the chrome.
+- **`EditorModule`** is `ViewModule<EditorCore>`: `install(scope)` (the core is `scope.core`; the cleanup it returns still runs), `enabled(core)`, `css: string[]`, optional `when`, `after` and `load`. No adapter for the old shape.
+- Remembered preferences move to per-component keys (`editor.ui`, `viewer.theme`, `diff.panels`, …); the diff's panel sizes are remembered by its panel stacks.
+- `<mmdx-diff>`: hover highlight starts off; a plain click on a linked item selects the change.
+
+### Removed
+
+- `history-view.ts` (the overlay `<mmdx-diff>` of History), the editor's own zoom bar module, `ui/zoom-bar.ts`, `elements/viewer-popups.ts`, `elements/viewer-code.ts`, the diff's own ink and panels, and `createMagicPen` (the pen draws into the canvases' ink layer through `StrokeStore`).
+
+### Size
+
+Gzip, `pnpm size`: viewer (first flowchart) 45.3 → 56.7 kB, editor 162.8 → 182.6 kB, diff 86.5 → 91.0 kB (renderers on demand). With History opened: viewer 113.9 kB and editor 224.6 kB, against 131.8 kB and 249.3 kB with `mmdx/diff` before. The viewer and editor budgets are re-set provisionally (58 kB, 184 kB) while a further split of the kernel is decided.
+
+### Upgrading from 0.2
+
+- Set the theme on the element (`theme`, `theme-dark`) or through the `theme` option of `renderToSvg` and the markdown plugins where pages relied on a diagram's own theme.
+- Rewrite custom editor modules as `{ id, install(scope) { const core = scope.core; … } }`.
+- History no longer needs `mmdx/diff` on the page; pages that loaded it only for History can drop it.
+
 ## 0.2.0 — History and diff
 
 How a diagram changed, at a glance: the editor and the viewer get a History of the diagram, the view behind it is a new `<mmdx-diff>` component, and a DOM-free diff API serves CI bots.

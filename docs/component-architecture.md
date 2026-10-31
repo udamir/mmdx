@@ -1,6 +1,6 @@
 # Component architecture: one viewer kernel, building blocks, products as scenes and modules
 
-Design document · status: proposed, review decisions in §15, every review question and answer in §16 · scope: `src/ui`, `src/dom`, `src/editor`, `src/elements`, `src/view` (new), `src/diff` (new), and three changes in `src/core` (§9)
+Design document · status: implemented through phase 4d, phase 5 in part (§12.1); review decisions in §15, every review question and answer in §16 · scope: `src/ui`, `src/dom`, `src/editor`, `src/elements`, `src/view` (new), `src/diff` (new), and three changes in `src/core` (§9)
 
 ## 1. Summary
 
@@ -423,19 +423,39 @@ Each phase keeps the test suite, Storybook and size gate green and ships nothing
 
 Phase 3 is the largest (the kernel split of `EditorCore`, ~700 lines, and `DiagramViewer`, ~900 lines); phase 4a shrinks `elements/diff.ts` (1 740 lines) into a session, a scene and modules.
 
+### 12.1 Implementation status
+
+| Phase | Status | Notes |
+|---|---|---|
+| 0 | Measured with phase 3 (§10.1) | Budgets re-set provisionally; decision 19 still open |
+| 1 | Done | Every block of §5.2 with a jsdom test and a story under **Blocks/**. The products moved onto the blocks with phase 3 and 4a instead of through thin wrappers first |
+| 2 | Done | `DiagramCanvas`, `StrokeStore`; the viewer's pen SVG and `diff/ink.ts` removed; the theme editor's preview is a canvas with the zoom bar block |
+| 3 | Done | `ViewCore`, scopes, `ViewModule`, `lazyModule`, `TextScene`, `StoreScene`, `EditorCore extends ViewCore`, the theme rule and the `canvas.theme` migration, `compact`. The editor keeps its own Code / Properties / Layers panels in the document stage; its View mode uses its Layers card as view settings |
+| 4a | Done | `<mmdx-diff>` on the kernel; 91 kB, not 60 kB (§10.1) |
+| 4b | Done | Stages, suspension (including DOM a module placed while installing, gestures and painters), scene ownership; `tests/editor/stage.test.ts` |
+| 4c | Done | History in the editor's own canvas and panels; working copy; Restore (top right, with the view params, rather than at the end of the diff bar); `historySession`; `mmdx-history-*`; ⌘C copies a selected change's item from Before / After. A read-only Properties card for old versions is not done |
+| 4d | Done | The viewer grows to 560 px; panels become drawers below 640 px; no `mmdx/diff` needed |
+| 5 | In part | Done: the studio's mode switch and New menu, the view-params bar, a **Canvas/** story, the README section. Open: the editor's Code / Properties / Layers panels and context menu, and the theme editor's tabs and menus, still build their own markup; `ui/panes.ts` stays for them; the element stories keep their **Elements/** title |
+
 ## 13. Keyboard
 
-One keymap table covers every product, mode and stage; shortcuts carry `when` (§7.2) instead of `editOnly`. The table is designed before phase 3. Collisions to resolve:
+One keymap table covers every product, mode and stage; shortcuts carry `when` (§7.2) instead of `editOnly` (which still works and means `mode: ['edit']`). The collisions resolve by stage: the editor's editing modules live in the `document` stage only, the diff modules join the editor and the viewer for the `history` stage only, so the same key never means two things at once.
 
-| Key | Editor | Diff / History |
-|---|---|---|
-| `V` | pointer tool | History panel |
-| `L` | Layers panel | Changes panel |
-| `C` | editor Code panel | diff Code panel |
-| `⌘Z` | undo the document | undo the last pen stroke |
-| History toggle | `Shift+H` | `V` (panel) |
+| Key | Editor, document stage (Edit / View) | History stage (editor, viewer) | `<mmdx-diff>` |
+|---|---|---|---|
+| `V` | pointer tool (Edit) | — | History panel |
+| `H` | Hand | Hand | Hand |
+| `P` | pen | pen | pen |
+| `C` | Code panel (Edit); code view (View, viewer) | Code diff panel | Code diff panel |
+| `I` | Properties panel (Edit) | — | — |
+| `L` | Layers (Edit) / view settings (View) | Changes panel | Changes panel |
+| `⌘Z` | undo the document (Edit) | undo the last pen stroke | undo the last pen stroke |
+| `⌘C` | copy the selection (Edit) | copy the selected change's item of that version | — |
+| `⇧H` | open History | leave History | — |
+| `1`–`4`, `←` `→`, `J` / `K` | — (arrows: move the selection in Edit, pan in View) | views, step views, next / previous change | the same |
+| `+` `−` `0` / `F`, `?` | zoom, fit, help | the same | the same |
 
-The viewer's keys (`+` `−` `0` arrows `P`) move onto the same table. Esc runs one chain: close popover → cancel gesture → drop pen → clear change selection → leave History.
+Esc runs one chain, first match wins: close popover → cancel gesture → drop the pen → clear the change selection → leave History (the Back pill's key, registered last).
 
 ## 14. Testing
 

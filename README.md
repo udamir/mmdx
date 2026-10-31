@@ -33,7 +33,7 @@ Mermaid is great for keeping diagrams in docs and repos, but its auto-layout and
 - **Styling:** a floating toolbar and a Properties panel for fill, border, text, font, shape, stacking, arrows, line shape and more; named style presets from the theme or saved per diagram.
 - **Themes:** separate theme files with a colour palette, per-type styles and presets. Colours are stored as palette references, so a diagram follows theme switches. Light and dark themes are linked, so a diagram switches with the page.
 - **Viewer for documentation:** pan, zoom, layers, full screen, export, lazy rendering, a text outline for screen readers, and server-side rendering to SVG.
-- **History and diff:** see how a diagram changed between two versions — Before, Merged (removed items kept in place, text changes marked word by word, arrows for moved items) and After on one animated canvas, or side by side — filter out layout or style noise, step through every change with its source lines, and browse a diagram's version history. Built into the editor and the viewer (their History button over the versions you give them), available on its own as `<mmdx-diff>` for merge request reviews, and as `renderDiffToSvg()` / `diffReport()` for CI bots.
+- **History and diff:** see how a diagram changed between two versions — Before, Merged (removed items kept in place, text changes marked word by word, arrows for moved items) and After on one animated canvas, or side by side — filter out layout or style noise, step through every change with its source lines, and browse a diagram's version history. Built into the editor and the viewer (their History button shows the versions you give them in place), available on its own as `<mmdx-diff>` for merge request reviews, and as `renderDiffToSvg()` / `diffReport()` for CI bots.
 - **Theme editor:** edit the palette and every item type's style with live previews, check text contrast, import and export `.theme.json` files.
 - **Export:** `.mmdx` (Mermaid + layout), portable `.mmd` (`classDef` / `linkStyle` so stock renderers keep the colours), SVG and PNG.
 - **Framework-agnostic:** custom elements in shadow DOM, usable from plain HTML, React, Vue, Angular or Svelte, plus imperative classes where custom elements are not allowed.
@@ -151,10 +151,10 @@ const viewer = new DiagramViewer(hostElement, { source, controls: ['zoom', 'full
 | Attribute / property | Default | Meaning |
 |---|---|---|
 | `src` / `source` (property) / inline `<script type="text/mermaid">` | — | The diagram. `src` is fetched through `loader` (property, default `fetch`) |
-| `theme` | the diagram's own | Forces a theme over the diagram's `canvas.theme` |
-| `theme-dark` | — | Theme used on dark pages; `auto` picks the dark theme linked to the diagram's theme |
+| `theme` | Default Light / Dark | The diagram theme; without it the theme follows the chrome (Default Light, Default Dark). Diagrams do not carry a theme |
+| `theme-dark` | — | Theme used while the chrome is dark; `auto` picks the dark theme linked to `theme` |
 | `fit` | `width` | `width` (height follows), `contain` (fit a fixed box) or `none` (natural size) |
-| `controls` | `zoom fullscreen` | Any of `zoom layers pen code history export fullscreen`, or `none` |
+| `controls` | `zoom fullscreen` | Any of `zoom layers pen code history export theme fullscreen`, or `none`. `theme` adds the light / dark toggle and the theme menu |
 | `history` (property) | — | The diagram's versions (a `HistoryAdapter` or `[{ id, message, author?, date?, source }]`, newest first): with the `history` control, a History button shows how the diagram changed |
 | `interactive` | `true` | `false` turns off pan and zoom (thumbnails, print) |
 | `lazy` | `true` | Render when scrolled near; the box keeps the diagram's aspect ratio meanwhile |
@@ -164,10 +164,11 @@ const viewer = new DiagramViewer(hostElement, { source, controls: ['zoom', 'full
 | `labels`, `hover-highlight` | `true` | Show connector labels; highlight connected items on hover |
 | `label` | generated | Accessible name, e.g. "Flowchart: 12 nodes, 14 connections" |
 | `ui` | `auto` | Chrome colour scheme: `light`, `dark` or `auto` |
+| `compact` | `auto` | The compact chrome (smaller, icon-only); automatic on small hosts |
 
-Events (bubbling, composed): `mmdx-render` `{ bounds, type, durationMs }`, `mmdx-error` `{ diagnostics }`, `mmdx-link` `{ href, id }` (cancelable, to route links through your router), `mmdx-fullscreen` `{ active }`. Methods: `fit()`, `zoomTo(k)`, `reload()`, `toSvg()`, `toPng({ scale })`, `setLayers(ids)`, `toggleHistory(on?)`.
+Events (bubbling, composed): `mmdx-render` `{ bounds, type, durationMs }`, `mmdx-error` `{ diagnostics }`, `mmdx-link` `{ href, id }` (cancelable, to route links through your router), `mmdx-fullscreen` `{ active }`. Methods: `fit()`, `zoomTo(k)`, `reload()`, `toSvg()`, `toPng({ scale })`, `setLayers(ids)`, `toggleHistory(on?)`, and `historySession` while History is open.
 
-Keyboard, while the viewer has focus: `+` / `-` zoom, `F` or `0` fits, arrows pan, `P` toggles the pen, `Esc` stops it. `controls="code"` adds a code view: the diagram's Mermaid code without the layout metadata and styles, highlighted, with a Copy button.
+The viewer has the editor's chrome: the tool dock (Hand, pen, the code and view-settings panels, History), the zoom bar with the `?` help, and the view parameters top right (Export, and with `controls="theme"` the light / dark toggle and the theme menu); on a docs page they show while the pointer or the focus is in the viewer. Only the zoom bar loads with the viewer; every other piece loads when its control is on. Keyboard, while the viewer has focus: `+` / `-` zoom, `F` or `0` fits, arrows pan, `P` toggles the pen, `Esc` stops it, `?` help. `controls="code"` adds a code panel: the diagram's Mermaid code without the layout metadata and styles, highlighted, with a Copy button.
 
 Each diagram type's parser and renderer load on first use, and diagrams over 300 lines render in a module worker (`setWorkerUrl(url)` lets a strict-CSP host serve the worker file).
 
@@ -188,7 +189,7 @@ Each diagram type's parser and renderer load on first use, and diagrams over 300
 
 Events: `mmdx-change` `{ source, reason }`, `mmdx-dirty` `{ dirty }`, `mmdx-save` (cancelable, to save yourself), `mmdx-saved`, `mmdx-conflict`, `mmdx-op` (cancelable, every edit), `mmdx-selection`, `mmdx-export` (cancelable), `mmdx-edit-themes`, `mmdx-ui`, `mmdx-error`. Methods: `getSource()`, `setSource(src, { history: 'reset' | 'push' })`, `save()`, `undo()`, `redo()`, `select(items)`, `focusCode(line)`, `exportAs('mmdx' | 'mmd' | 'svg' | 'png')`, `fit()`, `toggleHistory(on?)`.
 
-**History**: with a `history`, the History button of the tool dock (⇧H) covers the editor with the diff of the document's versions — the ones you give it, plus the working copy when it differs from the newest one. Compare any two versions (Before, Merged, After, Side by side, filters, code diff, change list) or view one as it was; **Restore this version** opens it in the editor as an undoable change (Edit mode), and **Back to the diagram** or Esc returns. The viewer's `history` control does the same, without Restore. The view is `<mmdx-diff>`, so load `mmdx/diff` on the page (any time — the History button appears once it is defined; the editor and viewer bundles never include it). Where the versions come from is up to the host — a Git history, your backend's revisions, or snapshots you keep:
+**History**: with a `history`, the History button of the tool dock (⇧H) shows the document's versions in the editor itself — the ones you give it, plus the working copy when it differs from the newest one, which follows the document while History is open. Compare any two versions (Before, Merged, After, Side by side, filters, code diff, change list) or view one as it was; select an item of an old version and ⌘C copies it, to paste into the document after **Back** (Esc). **Restore this version** opens the shown version in the editor as an undoable change (Edit mode). Editing is paused while History is open and comes back as it was. The viewer's `history` control does the same, without Restore. History's code loads on first use; no `mmdx/diff` is needed on the page. Events: `mmdx-history-open`, `-close`, `-compare`, `-version`, `-select`, `-view`, `-filters`, `-export`, `-restore`, `-error`; `historySession` gives the `<mmdx-diff>` methods while it is open. Where the versions come from is up to the host — a Git history, your backend's revisions, or snapshots you keep:
 
 ```ts
 editor.history = httpHistoryAdapter('/api/diagrams/arch/versions'); // or a list, or your own { list, load }
@@ -236,7 +237,7 @@ How a diagram changed between two versions, item by item (not line by line): nod
 | `dim` | `true` | Fade unchanged items |
 | `panels` | `changes` | Open panels, any combination: `history` and `code` (stacked on the left, a splitter between them) and `changes` (right) |
 | `features` (property) | all on | Turn parts off: `history`, `code`, `changes`, `views`, `filters`, `pen`, `export`, `help`, `fullscreen`, `select` |
-| `theme`, `theme-dark` | the after version's own | Both versions are drawn with one theme; `theme-dark="auto"` picks its dark counterpart on dark pages |
+| `theme`, `theme-dark` | Default Light / Dark | Both versions are drawn with the component's theme (also from the theme menu); `theme-dark` while the chrome is dark, `auto` its counterpart |
 | `ui` | `auto` | Chrome colour scheme: `light`, `dark` or `auto` |
 | `wheel` | `always` | `always`: the wheel pans and ⌘ / Ctrl + wheel or pinch zooms; `ctrl`: only ⌘ / Ctrl + wheel zooms; `never` |
 | `name` | `diagram` | File name stem of exports |
@@ -327,7 +328,7 @@ Default Light and Default Dark are bundled; the others are loaded from `mmdx/the
 | `sequence` | `participant`, `message`, `note`, `block`, `box`, `lifeline`, `activation`, their `…Presets`, `participantShapes`, `layout` and `pagePresets` |
 | `er` | `entity`, `rel`, their `…Presets` and `pagePresets` |
 
-Every theme names a linked theme of the other appearance (`counterpart`), and the editor's light / dark toggle shows a diagram in the linked theme of its own; a theme without a link falls back to Default Light ↔ Default Dark. This is a display choice: the file keeps its theme. Theme files are validated when loaded or saved, and invalid values are dropped with a diagnostic.
+A diagram does not carry a theme: the theme belongs to the component that shows it — the host's `theme` / `theme-dark` attributes, else the user's pick in the theme menu (remembered per component kind), else Default Light or Default Dark following the chrome's light / dark scheme. The light / dark toggle only changes the chrome; a picked theme stays, and "Follow light / dark" drops the pick. Every theme names a linked theme of the other appearance (`counterpart`), which `theme-dark="auto"` uses. Files that still name a theme (`canvas.theme`) keep loading; the field is dropped and the next save writes the file without it. Theme files are validated when loaded or saved, and invalid values are dropped with a diagnostic.
 
 ## Configuration
 
@@ -406,6 +407,15 @@ Current Chrome, Edge and Firefox, and Safari 16.4 or newer (the components need 
 - PNG export uses fonts installed locally unless they are registered with `configure({ fonts })`.
 - The diff draws flowchart, sequence and ER diagrams; for other types (and a change of diagram type) it shows the code diff. It runs on the main thread, also for large diagrams, and it never writes history: the studio keeps the versions you save in browser storage, and hosts provide history through an adapter.
 
+## Architecture
+
+Every diagram component is built on one view kernel (`src/view`, design in [docs/component-architecture.md](docs/component-architecture.md)):
+
+- **Blocks** (`src/ui/blocks`): small UI pieces with no diagram knowledge — tool dock, zoom bar, menus, panels and panel stacks, code view, version and change lists… — each with a test and a story.
+- **Canvas** (`src/dom/canvas.ts`): one `DiagramCanvas` for every picture — layers, pan / zoom or a static fit, keyed patching, hit testing, the pen's ink, linked canvases, morphing.
+- **Kernel** (`ViewCore`): services, the theme (component state: host attribute, the user's pick, or the default following light / dark), the chrome scheme, the shell with named slots, the scene stack and the module host. Features are modules (`ViewModule`) installed through a scope, so the kernel can suspend, resume and uninstall them.
+- **Products**: the viewer is the kernel with a `TextScene`; the editor's `EditorCore` extends it with a `StoreScene`; `<mmdx-diff>` is the kernel with a `DiffScene`. History is a stage of the viewer and the editor: a `DiffScene` pushed onto their own canvas.
+
 ## Development
 
 ```bash
@@ -422,9 +432,11 @@ pnpm size           # gzip size budgets per entry point
 | Folder | Contents |
 |---|---|
 | `src/core` | Parsers, layout, renderers, metadata, themes — pure TypeScript, no DOM |
-| `src/dom` | DOM patcher, viewport, pen, worker client, export |
-| `src/ui` | Signals, toolbars, dialogs, styles and UI strings |
-| `src/editor` | The editor core and its feature modules |
+| `src/dom` | DOM patcher, viewport, `DiagramCanvas`, pen strokes, worker client, export |
+| `src/ui` | Signals, the UI blocks (`src/ui/blocks`), toolbars, dialogs, styles and UI strings |
+| `src/view` | The view kernel (`ViewCore`), module host, scene sources and the standard view modules |
+| `src/diff` | The diff session, scene and modules (`<mmdx-diff>` and History) |
+| `src/editor` | The editor core (on the kernel), its store scene and its feature modules |
 | `src/elements` | The five web components |
 | `src/adapters`, `src/markdown`, `src/wrappers` | Host adapters, Markdown plugins, React wrappers |
 | `themes/` | Built-in theme files (`node tools/build-themes.mjs` regenerates the generated ones) |
