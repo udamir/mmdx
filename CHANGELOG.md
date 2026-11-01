@@ -30,6 +30,10 @@ Generic hooks for hosts that embed mmdx in sandboxed (opaque-origin) iframes: no
 - **Restoring drafts in `<mmdx-editor>`**: the element's `setSource(src, { history, fit, markSaved })` passes `fit` and `markSaved` through (type `SetSourceOptions`), so `{ history: 'push', markSaved: false }` restores a draft as unsaved, undoable changes. `whenLoaded()` (element and `DiagramEditor`) resolves once the adapter's document is in and rejects when the load failed, and an `mmdx-load` event `{ source, version }` follows every load from the adapter.
 - **Hiding the light / dark toggle**: the editor's `schemeToggle` feature and the viewer's `scheme-toggle` attribute (`schemeToggle` option) turn off the toggle and keep the theme menu, for hosts that control the chrome scheme themselves through `ui` (an app inside YouTrack follows YouTrack's theme).
 
+### Fixed
+
+- **Bundling mmdx**: the library build's asset URLs are relative, so the render worker is found next to the chunk that starts it (`../assets/render-worker-….js`). Apps that bundle mmdx with Vite or Rollup failed to build on the absolute `/assets/…` URL before.
+
 ## 0.2.0 — History and diff
 
 How a diagram changed, at a glance: the editor and the viewer get a History of the diagram, a new `<mmdx-diff>` component compares any two versions, and a DOM-free diff API serves CI bots. Every component now shares one look: the editor's tool dock, zoom bar, panels and theme menu.
