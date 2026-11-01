@@ -7,6 +7,7 @@ import { registerMessages } from '../i18n.js';
 import { BLOCK_MESSAGES_CHROME } from '../messages/blocks.js';
 import { formatKeys, type Shortcut } from '../shortcuts.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
+import { createOverlayScroll, OVERLAY_SCROLL_CSS } from './overlay-scroll.js';
 
 export interface HelpGroup {
   title: string;
@@ -22,6 +23,7 @@ export interface HelpPopupProps {
 }
 
 export const HELP_POPUP_CSS = /* css */ `
+${OVERLAY_SCROLL_CSS}
 .help-pop { position: absolute; right: 12px; bottom: 60px; z-index: var(--mmdx-z-popover, 1000); }
 .help-pop, .help-pop.mmdx-pop { width: 380px; max-width: calc(100% - 24px); max-height: min(560px, calc(100% - 120px)); display: flex; flex-direction: column;
   background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: 14px; box-shadow: var(--mmdx-shadow-card); color: var(--mmdx-text); font-size: 12.5px; padding: 0; }
@@ -74,7 +76,10 @@ export function createHelpPopup(props: HelpPopupProps): BlockHandle<HelpPopupPro
   const heading = h('b', { id: titleId });
   const close = h('button', { type: 'button', 'data-f': 'close' }, '×');
   const body = h('div', { class: 'help-body' });
-  const el = h('div', { class: 'help-pop', role: 'dialog', 'aria-labelledby': titleId }, h('div', { class: 'help-head' }, heading, close), body);
+  // the panels' thin scrollbar over the shortcut list (mmdx-oscroll: the native one hidden)
+  const el = h('div', { class: 'help-pop mmdx-oscroll', role: 'dialog', 'aria-labelledby': titleId }, h('div', { class: 'help-head' }, heading, close), body);
+  const scroll = createOverlayScroll(el);
+  el.append(...scroll.thumbs);
   scope.on(close, 'click', () => p.onClose());
   scope.on(el, 'keydown', (ev: KeyboardEvent) => {
     if (ev.key !== 'Escape') return;
@@ -103,6 +108,7 @@ export function createHelpPopup(props: HelpPopupProps): BlockHandle<HelpPopupPro
     },
     destroy() {
       scope.dispose();
+      scroll.destroy();
       el.remove();
     },
   };
