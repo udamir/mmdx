@@ -1,11 +1,11 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="brand/logo-dark.svg">
-    <img src="brand/logo.svg" alt="Diagram Studio" width="120">
+    <img src="brand/logo.svg" alt="Mermaid Studio" width="120">
   </picture>
 </p>
 
-<h1 align="center">Diagram Studio (mmdx)</h1>
+<h1 align="center">Mermaid Studio (mmdx)</h1>
 
 <p align="center">Visual editor, viewer, theme editor and visual diff for Mermaid diagrams, as framework-agnostic web components.<br>Mermaid stays the source of truth — layout and styling live in comment lines every Mermaid renderer ignores.</p>
 
@@ -17,13 +17,13 @@
 
 <p align="center"><a href="https://udamir.github.io/mmdx/"><b>Live demo</b></a></p>
 
-<p align="center"><a href="https://udamir.github.io/mmdx/"><img src=".github/screenshot.webp" alt="Diagram Studio editing an ER diagram of an archive database in the dark theme" width="900"></a></p>
+<p align="center"><a href="https://udamir.github.io/mmdx/"><img src=".github/screenshot.webp" alt="Mermaid Studio editing an ER diagram of an archive database in the dark theme" width="900"></a></p>
 
 ---
 
 ## Why
 
-Mermaid is great for keeping diagrams in docs and repos, but its auto-layout and styling are hard to control. Diagram Studio lets you lay out and style a Mermaid diagram by hand — drag boxes, route connectors, pick colours and presets — and stores the result as `%%@` comment lines appended to the same Mermaid text. The file stays valid Mermaid: GitHub, GitLab, YouTrack, Notion or any stock Mermaid renderer still draws it (with its own layout), and Diagram Studio draws it exactly as you arranged it.
+Mermaid is great for keeping diagrams in docs and repos, but its auto-layout and styling are hard to control. Mermaid Studio lets you lay out and style a Mermaid diagram by hand — drag boxes, route connectors, pick colours and presets — and stores the result as `%%@` comment lines appended to the same Mermaid text. The file stays valid Mermaid: GitHub, GitLab, YouTrack, Notion or any stock Mermaid renderer still draws it (with its own layout), and Mermaid Studio draws it exactly as you arranged it.
 
 ## Features
 
@@ -33,7 +33,7 @@ Mermaid is great for keeping diagrams in docs and repos, but its auto-layout and
 - **Styling:** a floating toolbar and a Properties panel for fill, border, text, font, shape, stacking, arrows, line shape and more; named style presets from the theme or saved per diagram.
 - **Themes:** separate theme files with a colour palette, per-type styles and presets. Colours are stored as palette references, so a diagram follows theme switches. Light and dark themes are linked, so a diagram switches with the page.
 - **Viewer for documentation:** pan, zoom, layers, full screen, export, lazy rendering, a text outline for screen readers, and server-side rendering to SVG.
-- **History and diff:** see how a diagram changed between two versions — Before, Merged (removed items kept in place, text changes marked word by word, arrows for moved items) and After on one animated canvas, or side by side — filter out layout or style noise, step through every change with its source lines, and browse a diagram's version history. Built into the editor and the viewer (their History button shows the versions you give them in place), available on its own as `<mmdx-diff>` for merge request reviews, and as `renderDiffToSvg()` / `diffReport()` for CI bots.
+- **History and diff:** see how a diagram changed between two versions — Before, Merged (removed items kept in place, text changes marked word by word, arrows for moved items) and After on one animated canvas, or side by side — filter out layout or style noise, step through every change with its source lines, and browse a diagram's version history. Built into the editor and the viewer: their History panel lists the versions you give them, shows any of them as it was (in the editor, drawn by the editor itself, read-only: select, copy, export) and compares any of them with the current one, right on the same canvas; every switch animates (items move, others fade in or out). Available on its own as `<mmdx-diff>` for merge request reviews, and as `renderDiffToSvg()` / `diffReport()` for CI bots.
 - **Theme editor:** edit the palette and every item type's style with live previews, check text contrast, import and export `.theme.json` files.
 - **Export:** `.mmdx` (Mermaid + layout), portable `.mmd` (`classDef` / `linkStyle` so stock renderers keep the colours), SVG and PNG.
 - **Framework-agnostic:** custom elements in shadow DOM, usable from plain HTML, React, Vue, Angular or Svelte, plus imperative classes where custom elements are not allowed.
@@ -166,7 +166,7 @@ const viewer = new DiagramViewer(hostElement, { source, controls: ['zoom', 'full
 | `ui` | `auto` | Chrome colour scheme: `light`, `dark` or `auto` |
 | `compact` | `auto` | The compact chrome (smaller, icon-only); automatic on small hosts |
 
-Events (bubbling, composed): `mmdx-render` `{ bounds, type, durationMs }`, `mmdx-error` `{ diagnostics }`, `mmdx-link` `{ href, id }` (cancelable, to route links through your router), `mmdx-fullscreen` `{ active }`. Methods: `fit()`, `zoomTo(k)`, `reload()`, `toSvg()`, `toPng({ scale })`, `setLayers(ids)`, `toggleHistory(on?)`, and `historySession` while History is open.
+Events (bubbling, composed): `mmdx-render` `{ bounds, type, durationMs }`, `mmdx-error` `{ diagnostics }`, `mmdx-link` `{ href, id }` (cancelable, to route links through your router), `mmdx-fullscreen` `{ active }`. Methods: `fit()`, `zoomTo(k)`, `reload()`, `toSvg()`, `toPng({ scale })`, `setLayers(ids)`, `toggleHistory(on?, { compare? })`, and `historySession` while History is open.
 
 The viewer has the editor's chrome: the tool dock (Hand, pen, the code and view-settings panels, History), the zoom bar with the `?` help, and the view parameters top right (Export, and with `controls="theme"` the light / dark toggle and the theme menu); on a docs page they show while the pointer or the focus is in the viewer. Only the zoom bar loads with the viewer; every other piece loads when its control is on. Keyboard, while the viewer has focus: `+` / `-` zoom, `F` or `0` fits, arrows pan, `P` toggles the pen, `Esc` stops it, `?` help. `controls="code"` adds a code panel: the diagram's Mermaid code without the layout metadata and styles, highlighted, with a Copy button.
 
@@ -189,9 +189,17 @@ Each diagram type's parser and renderer load on first use, and diagrams over 300
 | `theme`, `theme-dark`, `ui`, `compact` | — | As on the viewer |
 | `modules`, `themeSource` (properties) | — | The editor's modules (default `DEFAULT_MODULES`); where unknown themes are loaded from |
 
-Events: `mmdx-change` `{ source, reason }`, `mmdx-dirty` `{ dirty }`, `mmdx-save` (cancelable, to save yourself), `mmdx-saved`, `mmdx-conflict`, `mmdx-op` (cancelable, every edit), `mmdx-selection`, `mmdx-export` (cancelable), `mmdx-edit-themes`, `mmdx-ui`, `mmdx-error`. Methods: `getSource()`, `setSource(src, { history: 'reset' | 'push' })`, `save()`, `undo()`, `redo()`, `select(items)`, `focusCode(line)`, `exportAs('mmdx' | 'mmd' | 'svg' | 'png')`, `fit()`, `toggleHistory(on?)`.
+Events: `mmdx-change` `{ source, reason }`, `mmdx-dirty` `{ dirty }`, `mmdx-save` (cancelable, to save yourself), `mmdx-saved`, `mmdx-conflict`, `mmdx-op` (cancelable, every edit), `mmdx-selection`, `mmdx-export` (cancelable), `mmdx-edit-themes`, `mmdx-ui`, `mmdx-error`. Methods: `getSource()`, `setSource(src, { history: 'reset' | 'push' })`, `save()`, `undo()`, `redo()`, `select(items)`, `focusCode(line)`, `exportAs('mmdx' | 'mmd' | 'svg' | 'png')`, `fit()`, `toggleHistory(on?, { compare? })` (`compare` opens on the newest change compared).
 
-**History**: with a `history`, the History button of the tool dock (⇧H) shows the document's versions in the editor itself — the ones you give it, plus the working copy when it differs from the newest one, which follows the document while History is open. Compare any two versions (Before, Merged, After, Side by side, filters, code diff, change list) or view one as it was; select an item of an old version and ⌘C copies it, to paste into the document after **Back** (Esc). **Restore this version** opens the shown version in the editor as an undoable change (Edit mode). Editing is paused while History is open and comes back as it was. The viewer's `history` control does the same, without Restore. History's code loads on first use; no `mmdx/diff` is needed on the page. Events: `mmdx-history-open`, `-close`, `-compare`, `-version`, `-select`, `-view`, `-filters`, `-export`, `-restore`, `-error`; `historySession` gives the `<mmdx-diff>` methods while it is open. Where the versions come from is up to the host — a Git history, your backend's revisions, or snapshots you keep:
+**History**: with a `history`, the History button of the tool dock (⇧H) opens the version panel next to the Code panel — the versions you give it, plus the working copy when it differs from the newest one (it follows the document). Opening it changes nothing else: the current version is selected and the diagram stays editable.
+
+- **History tab**: pick an older version and the editor shows it as it was, drawn exactly like the document (page, canvas, theme) but read-only: Shapes, Properties and Undo / Redo leave the dock, Code and Layers stay (read-only), items can be selected and the bar over them has **Copy** (⌘C; paste into the document later), and Export exports that version (its id in the file name). Picking the current version again brings editing back.
+- **Compare tab**: pick a version and it is compared with the current one (Before, Merged, After, Side by side, filters, change list, code diff in the Code panel's place), on the editor's own canvas and page; the timeline's dots and Swap change the pair. Switching tabs alone shows nothing new, and the panels stay as they were (an open Code panel stays open, Layers keeps its place, the widths do not change).
+- Every switch — document, version, comparison — animates from where things are on screen.
+- **Back** (the pill at the top, or Esc) returns to the current version and keeps the panel; closing the panel only hides it while a version or comparison shows (the History button brings it back), and leaves History otherwise.
+- **Restore this version** (Edit mode, in an older version's ⋯ menu) opens it in the editor as an undoable change.
+
+The viewer's `history` control does the same without editing, Restore or the read-only editor (a version shows in the diff's canvas). History's code loads on first use; no `mmdx/diff` is needed on the page. Events: `mmdx-history-open`, `-close`, `-show` `{ shown: 'none' | 'version' | 'compare' }`, `-compare`, `-version`, `-select`, `-view`, `-filters`, `-export`, `-restore`, `-error`; `historySession` gives the `<mmdx-diff>` methods while it is open (`pair` is all `null` while nothing older is picked). Where the versions come from is up to the host — a Git history, your backend's revisions, or snapshots you keep:
 
 ```ts
 editor.history = httpHistoryAdapter('/api/diagrams/arch/versions'); // or a list, or your own { list, load }
@@ -245,7 +253,7 @@ How a diagram changed between two versions, item by item (not line by line): nod
 | `name` | `diagram` | File name stem of exports |
 | `label` | generated | Accessible name, e.g. "Diagram diff: 2 added, 1 removed, 5 changed" |
 
-The views: **Before** (the old version with its removed and changed items highlighted), **Merged** (the new version plus every removed item kept where it was, removed words struck out and added words in bold, an arrow from the old place of each moved item), **After**, and **Side by side** (two canvases panned and zoomed together). Switching between Before, Merged and After animates: moved items glide, colours blend and changed text flips. The left tool panel has Pan, the magic pen (strokes show in every view), the History and Code panels and Export; the bottom bar has the views (icon buttons), a filter for each kind of change the comparison has (with its count), Dim and, at its right end, the change list toggle. History and Code stack on the left like the editor's Properties and Layers, so all three panels can be open at once. The code panel shows the unified diff of the Mermaid code and of the `%%@` metadata, and narrows to the lines of the selected change.
+The views: **Before** (the old version with its removed and changed items highlighted), **Merged** (the new version plus every removed item kept where it was, removed words struck out and added words in bold, an arrow from the old place of each moved item), **After**, and **Side by side** (two canvases panned and zoomed together). Switching between Before, Merged and After animates: moved items glide, colours blend and changed text flips; switching to another pair or version animates the same way, and the view glides to the new fit. The left tool panel has Pan, the magic pen (strokes show in every view), the Code, Layers and History panels and Export; the bottom bar has the views (icon buttons), a filter for each kind of change the comparison has (with its count), Dim and, at its right end, the change list toggle. Code and History stack on the left (Code on top, as in the editor), so all three panels can be open at once. The code panel looks like the editor's (the Mermaid and Metadata tabs, the same code box): the unified diff of the Mermaid code and of the `%%@` metadata, narrowed to the lines of the selected change. Layers lists the diagram's layers to show or hide; what is compared is always drawn as it is (no display settings). Every panel scrolls with a thin scrollbar over its content.
 
 Events (bubbling, composed): `mmdx-compare` `{ counts, typeChanged, base, head }` after every comparison, `mmdx-select` `{ key, change }`, `mmdx-view` `{ view, mode }`, `mmdx-mode` `{ mode, viewOnly }` (the History panel's tab), `mmdx-filters` `{ filters, dim }`, `mmdx-version` `{ base, head, viewing? }` (sync your URL), `mmdx-export` `{ kind, name, data }` (cancelable, to upload instead of downloading), `mmdx-render`, `mmdx-error`, `mmdx-fullscreen`. Methods: `compare(before, after)`, `setHistory(adapterOrList)`, `setPair(baseId, headId)`, `viewVersion(id)`, `setView(view)`, `setFilters(filters, dim?)`, `select(key)`, `next()`, `prev()`, `fit()`, `zoomTo(k)`, `getDiff()`, `exportAs('png' | 'svg' | 'mmdx' | 'mmd' | 'diff' | 'md' | 'json', options)`, `toSvg(options)`, `toPng(options)`.
 
@@ -264,15 +272,15 @@ const adapter: HistoryAdapter = {
 
 ### `<mmdx-studio>`
 
-The complete app — editor, examples, file open, theme editor and share links — in one element:
+The complete app, **Mermaid Studio** — editor, examples, file open, theme editor and share links — in one element:
 
 ```html
 <mmdx-studio examples="./examples/index.json" themes="./themes/index.json" persist="local hash"></mmdx-studio>
 ```
 
-`persist="local"` keeps the last document in browser storage; `persist="hash"` keeps it in the URL, which the Share button copies.
+`persist="local"` keeps the last document in browser storage; `persist="hash"` keeps it in the URL, which the Share button copies. A link whose diagram is an example (or this browser's own document) opens as that document, with its name and history. **Examples** shows a preview of every example (its newest version, in the current theme), two to a row.
 
-The studio gives the editor the versions of the open diagram, so its **History** button works in the studio: an example's own history (the `history` file of its manifest entry, `{ versions: [{ id, message, author, date, source }] }` newest first) and the versions you record with **Save version** or ⌘S (kept in browser storage, per document). The bundled examples each come with six versions that touch every kind of change, and open at their newest version. The mode switch in the top bar has **Edit**, **View** and **Diff**: Diff opens the editor's History on the newest change (the working copy, or the newest version, against the version before), and Edit or View leave it.
+The studio gives the editor the versions of the open diagram, so its **History** button works in the studio: an example's own history (the `history` file of its manifest entry, `{ versions: [{ id, message, author, date, source }] }` newest first) and the versions you record with **Save version** or ⌘S (kept in browser storage, per document). The bundled examples each come with six versions that touch every kind of change, and open at their newest version. The mode switch in the top bar has **Edit**, **View** and **Diff**: Diff opens the editor's History on the newest change compared (the working copy, or the newest version, against the version before) and shows while a comparison does; Edit or View leave it.
 
 ## The `.mmdx` format
 
@@ -416,7 +424,7 @@ Every diagram component is built on one view kernel (`src/view`, design in [docs
 - **Blocks** (`src/ui/blocks`): small UI pieces with no diagram knowledge — tool dock, zoom bar, menus, panels and panel stacks, code view, version and change lists… — each with a test and a story.
 - **Canvas** (`src/dom/canvas.ts`): one `DiagramCanvas` for every picture — layers, pan / zoom or a static fit, keyed patching, hit testing, the pen's ink, linked canvases, morphing.
 - **Kernel** (`ViewCore`): services, the theme (component state: host attribute, the user's pick, or the default following light / dark), the chrome scheme, the shell with named slots, the scene stack and the module host. Features are modules (`ViewModule`) installed through a scope, so the kernel can suspend, resume and uninstall them.
-- **Products**: the viewer is the kernel with a `TextScene`; the editor's `EditorCore` extends it with a `StoreScene`; `<mmdx-diff>` is the kernel with a `DiffScene`. History is a stage of the viewer and the editor: a `DiffScene` pushed onto their own canvas.
+- **Products**: the viewer is the kernel with a `TextScene`; the editor's `EditorCore` extends it with a `StoreScene`; `<mmdx-diff>` is the kernel with a `DiffScene`. History runs inside the viewer and the editor: its version panel joins their panels; an old version is the editor's `version` stage (its own scene draws the version read-only, nothing writes the store); a comparison is the `history` stage, a `DiffScene` pushed onto their own canvas in their own look.
 
 ## Development
 
