@@ -1,4 +1,4 @@
-// mmdx/core — the pure API (§5.5): parse, render to SVG, metadata, themes, ops. Runs in Node, workers and browsers.
+// @mmdx/studio/core — the pure API (§5.5): parse, render to SVG, metadata, themes, ops. Runs in Node, workers and browsers.
 export * from './core/types.js';
 export * from './core/model.js';
 export type { StyleProps, ArrowType, Routing, Side } from './core/style.js';

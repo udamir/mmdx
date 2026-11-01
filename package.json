@@ -1,5 +1,5 @@
 {
-  "name": "mmdx",
+  "name": "@mmdx/studio",
   "version": "0.2.0",
   "description": "Styled Mermaid viewer, editor, theme editor and diagram diff as framework-agnostic web components",
   "license": "MIT",
@@ -41,6 +41,10 @@
     "./src/diff.ts"
   ],
   "exports": {
+    ".": {
+      "types": "./dist/types/studio.d.ts",
+      "default": "./dist/studio.js"
+    },
     "./core": {
       "types": "./dist/types/core.d.ts",
       "default": "./dist/core.js"
@@ -85,6 +89,9 @@
     "README.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "vite --config apps/studio-site/vite.config.ts",
     "storybook": "storybook dev -p 6006 --no-open",

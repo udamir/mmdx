@@ -58,7 +58,7 @@ for (const k of ['flowchart', 'sequence', 'er']) {
   // 61 kB since 0.2.1 (+0.2 kB: own-key reads and writes in the metadata parser, the patcher drawing the diff's styled runs itself instead of through a hook the diff installed). 60.8 kB with the view kernel (component architecture §10.1: 60.3 kB once the kernel was split into modules, the blocks gained roving focus and the elements a shared lifecycle; 53.4 kB with every chrome module but the zoom bar on demand; 46 kB before). Provisional (decision 19 is open).
   report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), 61 * KB);
 }
-// the viewer with History opened on a flowchart (no `mmdx/diff` on the page any more)
+// the viewer with History opened on a flowchart (no `@mmdx/studio/diff` on the page any more)
 {
   const loaded = new Set([...v.base, ...flow]);
   const hist = lazy(v, 'src/diff/history.ts', loaded);

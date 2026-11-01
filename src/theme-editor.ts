@@ -1,4 +1,4 @@
-// mmdx/theme-editor — defines <mmdx-theme-editor> on import (guarded) and exports the imperative class.
+// @mmdx/studio/theme-editor — defines <mmdx-theme-editor> on import (guarded) and exports the imperative class.
 import { defineThemeEditor } from './elements/theme-editor.js';
 
 export {

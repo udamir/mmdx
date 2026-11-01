@@ -59,7 +59,7 @@ const meta: Meta<ViewerArgs> = {
       description: {
         component:
           '`<mmdx-viewer>` renders a styled Mermaid diagram (flowchart, sequence, ER) read-only: pan and zoom, layers, ' +
-          'a pen overlay, a code view (the Mermaid code without styles), export and fullscreen. Import `mmdx/viewer`; the source comes from an inline ' +
+          'a pen overlay, a code view (the Mermaid code without styles), export and fullscreen. Import `@mmdx/studio/viewer`; the source comes from an inline ' +
           '`<script type="text/mermaid">`, the `src` attribute or the `source` property. Events: `mmdx-render`, `mmdx-error`, ' +
           '`mmdx-link`, `mmdx-fullscreen` (logged to the console here).',
       },

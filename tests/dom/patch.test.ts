@@ -48,10 +48,10 @@ describe('patchChildren', () => {
     const line = root.firstElementChild!.children[0]!;
     expect([...line.children].map((c) => [c.getAttribute('class'), c.textContent])).toEqual([['dx-del', 'old'], ['dx-ins', 'new']]);
     expect(line.textContent).toBe('a oldnew');
-    patchChildren(root, [text({}, [{ text: 'family \u{1F468}‍\u{1F469}', x: 0, y: 0 }], 't')]);
+    patchChildren(root, [text({}, [{ text: 'family \u{1F468}\u200d\u{1F469}', x: 0, y: 0 }], 't')]);
     const plain = root.firstElementChild!.children[0]!;
     expect(plain.childElementCount).toBe(0);
-    expect(plain.textContent).toBe('family \u{1F468}‍\u{1F469}');
+    expect(plain.textContent).toBe('family \u{1F468}\u200d\u{1F469}');
   });
   it('drops non-local url() references', () => {
     const root = svg();
