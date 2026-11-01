@@ -185,7 +185,7 @@ Each diagram type's parser and renderer load on first use, and diagrams over 300
 | `features` | all on | The parts that are on, like the viewer's `controls` (`features="pen code-panel layers"`, or `none`); the property takes an object to turn parts off: `codePanel`, `properties`, `layers`, `pen`, `styleToolbar`, `export`, `themePicker`, `schemeToggle` (the light / dark toggle; turn it off when the host sets `ui`), `help`, `history`, … |
 | `history` (property) | — | The document's versions (a `HistoryAdapter` or `[{ id, message, author?, date?, source }]`, newest first): the tool dock gets a History button |
 | `panels` (property) | remembered | Which side panels are open: `{ code, properties, layers }` |
-| `storage` (property) | `localStorage` (`mmdx.` keys) | Where UI preferences are kept; never the document |
+| `storage` (property) | `localStorage` (`mmdx.` keys) | Where UI preferences are kept; never the document. `memoryStorage()`, `localStorageAdapter()` and `preloadedStorage(read, write)` (an async store) come from `mmdx/adapters` |
 | `autosave` | off | Debounced save through the adapter, in ms |
 | `guard-unload` | off | Ask before leaving the page with unsaved changes |
 | `name` | `diagram` | File name for exports |
