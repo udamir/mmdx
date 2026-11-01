@@ -59,7 +59,7 @@ const STUDIO_CSS = /* css */ `
 :host { display: block; height: 100%; min-height: 480px; }
 .studio { display: flex; flex-direction: column; height: 100%; background: var(--mmdx-bg); color: var(--mmdx-text); }
 .top { height: 48px; flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 0 12px; background: var(--mmdx-panel); border-bottom: 1px solid var(--mmdx-border); }
-.brand { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.brand { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 10px; padding-left: 8px; white-space: nowrap; }
 .brand .logo { display: flex; --logo-ink: #061958; }
 :host([data-ui="dark"]) .brand .logo { --logo-ink: #eef0ff; }
 .grp { display: flex; align-items: center; gap: 6px; position: relative; }
