@@ -33,7 +33,8 @@ Mermaid is great for keeping diagrams in docs and repos, but its auto-layout and
 - **Styling:** a floating toolbar and a Properties panel for fill, border, text, font, shape, stacking, arrows, line shape and more; named style presets from the theme or saved per diagram.
 - **Themes:** separate theme files with a colour palette, per-type styles and presets. Colours are stored as palette references, so a diagram follows theme switches. Light and dark themes are linked, so a diagram switches with the page.
 - **Viewer for documentation:** pan, zoom, layers, full screen, export, lazy rendering, a text outline for screen readers, and server-side rendering to SVG.
-- **History and diff:** see how a diagram changed between two versions — Before, Merged (removed items kept in place, text changes marked word by word, arrows for moved items) and After on one animated canvas, or side by side — filter out layout or style noise, step through every change with its source lines, and browse a diagram's version history. Built into the editor and the viewer: their History panel lists the versions you give them, shows any of them as it was (in the editor, drawn by the editor itself, read-only: select, copy, export) and compares any of them with the current one, right on the same canvas; every switch animates (items move, others fade in or out). Available on its own as `<mmdx-diff>` for merge request reviews, and as `renderDiffToSvg()` / `diffReport()` for CI bots.
+- **Visual diff:** see how a diagram changed between two versions, item by item — Before, Merged (removed items kept in place, text changes marked word by word, arrows for moved items) and After on one animated canvas, or side by side — filter out layout or style noise and step through every change with its source lines. Available as `<mmdx-diff>` for merge request reviews, and as `renderDiffToSvg()` / `diffReport()` for CI bots.
+- **History:** give the editor or the viewer a diagram's versions and their History panel lists them, shows any of them as it was (in the editor: drawn by the editor itself, read-only — select, copy, export) and compares any of them with the current one with the visual diff, right on the same canvas; every switch animates (items move, others fade in or out). **Restore** brings an old version back as an undoable change.
 - **Theme editor:** edit the palette and every item type's style with live previews, check text contrast, import and export `.theme.json` files.
 - **Export:** `.mmdx` (Mermaid + layout), portable `.mmd` (`classDef` / `linkStyle` so stock renderers keep the colours), SVG and PNG.
 - **Framework-agnostic:** custom elements in shadow DOM, usable from plain HTML, React, Vue, Angular or Svelte, plus imperative classes where custom elements are not allowed.
@@ -419,8 +420,6 @@ Current Chrome, Edge and Firefox, and Safari 16.4 or newer (the components need 
 
 ## Architecture
 
-Every diagram component is built on one view kernel (`src/view`, design in [docs/component-architecture.md](docs/component-architecture.md)):
-
 - **Blocks** (`src/ui/blocks`): small UI pieces with no diagram knowledge — tool dock, zoom bar, menus, panels and panel stacks, code view, version and change lists… — each with a test and a story.
 - **Canvas** (`src/dom/canvas.ts`): one `DiagramCanvas` for every picture — layers, pan / zoom or a static fit, keyed patching, hit testing, the pen's ink, linked canvases, morphing.
 - **Kernel** (`ViewCore`): services, the theme (component state: host attribute, the user's pick, or the default following light / dark), the chrome scheme, the shell with named slots, the scene stack and the module host. Features are modules (`ViewModule`) installed through a scope, so the kernel can suspend, resume and uninstall them.
@@ -453,7 +452,6 @@ pnpm size           # gzip size budgets per entry point
 | `examples/` | Example diagrams used by the studio and the golden tests, and their version histories (`examples/history`) |
 | `apps/studio-site/` | The demo site deployed to GitHub Pages |
 | `stories/`, `.storybook/` | Storybook: the elements (the diff included), the UI pieces with mock APIs, core rendering and the semantic diff |
-| `docs/` | Design documents and the release notes (`CHANGELOG.md` at the root) |
 | `brand/` | Logo files |
 
 Pull requests are welcome. Please run `pnpm typecheck` and `pnpm test` before opening one; CI also checks the build and the size budgets.
