@@ -5,3 +5,5 @@ dist/
 apps/studio-site/dist/
 .claude
 storybook-static/
+temp
+.DS_Store

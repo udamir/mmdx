@@ -1,18 +1,18 @@
 // Generates the "after" side of the diff samples with few / medium / many changes, by applying the editor's own
 // ops (src/core/ops) to an example with a seeded random choice of edits, and the version history of every example
 // (examples/history/<id>.json: the initial version plus five commits). Re-run after changing it:
-//   npx esbuild apps/studio-site/diff-samples/generate.ts --bundle --platform=node --format=esm --outfile=/tmp/gen.mjs && node /tmp/gen.mjs
+//   npx esbuild tools/generate-changes.ts --bundle --platform=node --format=esm --outfile=/tmp/gen.mjs && node /tmp/gen.mjs
 // `node /tmp/gen.mjs history` writes the example histories only.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { joinSource, pruneMeta, splitSource } from '../../../src/core/meta/index.js';
-import type { DiagramMeta, ItemMeta } from '../../../src/core/meta/types.js';
-import type { ErModel, FlowchartModel, SequenceModel } from '../../../src/core/model.js';
+import { joinSource, pruneMeta, splitSource } from '../src/core/meta/index.js';
+import type { DiagramMeta, ItemMeta } from '../src/core/meta/types.js';
+import type { ErModel, FlowchartModel, SequenceModel } from '../src/core/model.js';
 import {
   addERRel, addFlowEdge, addFlowNode, addNote, addSeqMessageAt, deleteER, deleteFlow, deleteSeq, relabelFlowEdge,
   relabelFlowNode, relabelSeq, updateEntity, updateRel, usedIds,
-} from '../../../src/core/ops/index.js';
-import { remapSequenceMeta } from '../../../src/core/ops/remap.js';
-import { parse } from '../../../src/core/parse/index.js';
+} from '../src/core/ops/index.js';
+import { remapSequenceMeta } from '../src/core/ops/remap.js';
+import { parse } from '../src/core/parse/index.js';
 
 const OUT = 'apps/studio-site/diff-samples/';
 
@@ -369,7 +369,7 @@ type Commit = [message: string, ops: string[]];
 
 const HISTORIES: { id: string; file: string; ops: Record<string, (d: Doc) => boolean>; seed: number; commits: Commit[] }[] = [
   {
-    id: 'production-microservices', file: 'production-microservices.mmd', ops: FLOW_OPS, seed: 101, commits: [
+    id: 'production-microservices', file: 'production-microservices.mmdx', ops: FLOW_OPS, seed: 101, commits: [
       ['Add a search service behind the gateway', ['addNode:Search service', 'addEdge']],
       ['Rename services to the new naming scheme', ['relabelNode', 'relabelNode', 'relabelNode']],
       ['Tidy up the layout', ['moveNode', 'moveNode', 'moveNode', 'moveNode']],
@@ -378,7 +378,7 @@ const HISTORIES: { id: string; file: string; ops: Record<string, (d: Doc) => boo
     ],
   },
   {
-    id: 'docker-deploy-sequence', file: 'docker-deploy-sequence.mmd', ops: SEQ_OPS, seed: 102, commits: [
+    id: 'docker-deploy-sequence', file: 'docker-deploy-sequence.mmdx', ops: SEQ_OPS, seed: 102, commits: [
       ['Document the build step', ['addNote', 'relabelMessage', 'relabelMessage']],
       ['Add health checks to the rollout', ['addMessage', 'addMessage']],
       ['Remove steps that are no longer needed', ['removeMessage', 'removeMessage']],
@@ -387,7 +387,7 @@ const HISTORIES: { id: string; file: string; ops: Record<string, (d: Doc) => boo
     ],
   },
   {
-    id: 'atom-schema-er', file: 'atom-schema-er.mmd', ops: ER_OPS, seed: 103, commits: [
+    id: 'atom-schema-er', file: 'atom-schema-er.mmdx', ops: ER_OPS, seed: 103, commits: [
       ['Add audit and status columns', ['addAttr', 'addAttr', 'addAttr', 'addAttr']],
       ['Widen id and text columns', ['changeType', 'changeType', 'changeType', 'changeType']],
       ['Add a tags table', ['addEntity:tag', 'relabelRel']],
@@ -396,7 +396,7 @@ const HISTORIES: { id: string; file: string; ops: Record<string, (d: Doc) => boo
     ],
   },
   {
-    id: 'microservice-patterns', file: 'microservice-patterns.mmd', ops: FLOW_OPS, seed: 104, commits: [
+    id: 'microservice-patterns', file: 'microservice-patterns.mmdx', ops: FLOW_OPS, seed: 104, commits: [
       ['Add observability patterns', ['addNode:Tracing service', 'addNode:Metrics store', 'addEdge', 'addEdge']],
       ['Reword pattern names', ['relabelNode', 'relabelNode', 'relabelNode', 'relabelNode']],
       ['Rearrange the deployment section', ['moveNode', 'moveNode', 'moveNode', 'moveNode', 'moveNode']],
@@ -405,7 +405,7 @@ const HISTORIES: { id: string; file: string; ops: Record<string, (d: Doc) => boo
     ],
   },
   {
-    id: 'fusion-services', file: 'fusion-services.mmd', ops: FLOW_OPS, seed: 105, commits: [
+    id: 'fusion-services', file: 'fusion-services.mmdx', ops: FLOW_OPS, seed: 105, commits: [
       ['Add a caching layer', ['addNode:Cache store', 'addEdge']],
       ['Rename services', ['relabelNode', 'relabelNode', 'relabelNode']],
       ['Rearrange the services', ['moveNode', 'moveNode', 'moveNode']],
@@ -414,7 +414,7 @@ const HISTORIES: { id: string; file: string; ops: Record<string, (d: Doc) => boo
     ],
   },
   {
-    id: 'simple-flow', file: 'simple-flow.mmd', ops: FLOW_OPS, seed: 106, commits: [
+    id: 'simple-flow', file: 'simple-flow.mmdx', ops: FLOW_OPS, seed: 106, commits: [
       ['Add a cache', ['addNodeAuto:Cache']],
       ['Rename a step, label a connection', ['relabelNode', 'relabelEdge']],
       ['Rewire a connection', ['addEdge', 'removeEdge']],
@@ -456,9 +456,9 @@ function generateHistory(h: (typeof HISTORIES)[number]): void {
 for (const h of HISTORIES) generateHistory(h);
 if (onlyHistory) process.exit(0);
 
-generate('flow-few', 'production-microservices.mmd', 11, FLOW_OPS, { relabelNode: 1, addNode: 1, moveNode: 1, restyleEdge: 1 }, 2);
-generate('flow-many', 'microservice-patterns.mmd', 7, FLOW_OPS, { relabelNode: 12, relabelEdge: 5, removeNode: 5, removeEdge: 3, addNode: 7, addEdge: 4, moveNode: 16, restyleNode: 10, restyleEdge: 6 }, 6);
-generate('seq-medium', 'docker-deploy-sequence.mmd', 5, SEQ_OPS, { relabelMessage: 4, removeMessage: 2, addMessage: 3, addNote: 2, relabelParticipant: 1, moveParticipant: 2, restyleParticipant: 2 }, 4);
-generate('seq-many', 'docker-deploy-sequence.mmd', 9, SEQ_OPS, { relabelMessage: 12, removeMessage: 6, addMessage: 8, addNote: 5, relabelParticipant: 3, moveParticipant: 5, restyleParticipant: 5 }, 6);
-generate('er-medium', 'atom-schema-er.mmd', 3, ER_OPS, { changeType: 3, renameAttr: 3, addAttr: 3, removeAttr: 2, removeEntity: 1, addEntity: 1, relabelRel: 1, moveEntity: 3, restyleEntity: 2 }, 4);
-generate('er-many', 'atom-schema-er.mmd', 13, ER_OPS, { changeType: 10, renameAttr: 10, addAttr: 10, removeAttr: 8, removeEntity: 4, addEntity: 4, relabelRel: 5, moveEntity: 15, restyleEntity: 8 }, 6);
+generate('flow-few', 'production-microservices.mmdx', 11, FLOW_OPS, { relabelNode: 1, addNode: 1, moveNode: 1, restyleEdge: 1 }, 2);
+generate('flow-many', 'microservice-patterns.mmdx', 7, FLOW_OPS, { relabelNode: 12, relabelEdge: 5, removeNode: 5, removeEdge: 3, addNode: 7, addEdge: 4, moveNode: 16, restyleNode: 10, restyleEdge: 6 }, 6);
+generate('seq-medium', 'docker-deploy-sequence.mmdx', 5, SEQ_OPS, { relabelMessage: 4, removeMessage: 2, addMessage: 3, addNote: 2, relabelParticipant: 1, moveParticipant: 2, restyleParticipant: 2 }, 4);
+generate('seq-many', 'docker-deploy-sequence.mmdx', 9, SEQ_OPS, { relabelMessage: 12, removeMessage: 6, addMessage: 8, addNote: 5, relabelParticipant: 3, moveParticipant: 5, restyleParticipant: 5 }, 6);
+generate('er-medium', 'atom-schema-er.mmdx', 3, ER_OPS, { changeType: 3, renameAttr: 3, addAttr: 3, removeAttr: 2, removeEntity: 1, addEntity: 1, relabelRel: 1, moveEntity: 3, restyleEntity: 2 }, 4);
+generate('er-many', 'atom-schema-er.mmdx', 13, ER_OPS, { changeType: 10, renameAttr: 10, addAttr: 10, removeAttr: 8, removeEntity: 4, addEntity: 4, relabelRel: 5, moveEntity: 15, restyleEntity: 8 }, 6);
