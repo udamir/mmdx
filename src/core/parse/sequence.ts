@@ -13,13 +13,22 @@ const ARROWS = ['<<-->>', '<<->>', '-->>', '->>', '--x', '-x', '--)', '-)', '-->
 // reads it; found by a scan rather than that regex, which backtracks quadratically on long runs of spaces.
 const ARROW = new RegExp(ARROWS.map((a) => a.replace(/[)]/g, '\\)')).join('|'), 'g');
 
-interface RawMessage { from: string; arrow: string; act: string; to: string; text: string }
-function splitMessage(t: string): RawMessage | null {
-  ARROW.lastIndex = 1;
-  const a = ARROW.exec(t);
+/** The first message arrow of a line after at least one character that is not a space (leading spaces allowed). */
+export function findArrow(line: string): { index: number; arrow: string } | null {
+  const start = line.search(/\S/);
+  if (start < 0) return null;
+  ARROW.lastIndex = start + 1;
+  const a = ARROW.exec(line);
+  return a ? { index: a.index, arrow: a[0] } : null;
+}
+
+export interface RawMessage { from: string; arrow: string; act: string; to: string; text: string }
+/** One trimmed line as a message (`from arrow [+|-] to : text`), or null. The ops read lines through it too. */
+export function splitMessage(t: string): RawMessage | null {
+  const a = findArrow(t);
   if (!a) return null;
   const from = t.slice(0, a.index).trim();
-  const arrow = a[0];
+  const { arrow } = a;
   let r = t.slice(a.index + arrow.length).trimStart();
   let act = '';
   if (r[0] === '+' || r[0] === '-') { act = r[0]; r = r.slice(1).trimStart(); }
@@ -113,7 +122,8 @@ export function parseSequence(code: string): SequenceModel {
       push({ kind: m[1] === 'activate' ? 'activate' : 'deactivate', who, src: li });
       continue;
     }
-    if ((m = /^note\s+(left of|right of|over)\s+([^:]+):(.*)$/i.exec(t))) {
+    // the targets start at a character that is not a space: `\s+` and the targets never compete for the same spaces
+    if ((m = /^note\s+(left of|right of|over)\s+([^\s:][^:]*):(.*)$/i.exec(t))) {
       const targets = (m[2] ?? '').split(',').map((s) => s.trim());
       for (const x of targets) touch(x);
       const pos = (m[1] ?? '').toLowerCase() as 'left of' | 'right of' | 'over';

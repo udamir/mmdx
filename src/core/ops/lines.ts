@@ -17,7 +17,7 @@ export function splice(code: string, at: number, del: number, ins: readonly stri
 }
 
 /** Appends lines after the code (trailing blank lines dropped), ending with a newline. */
-export const append = (code: string, lines: readonly string[]): string => `${code.replace(/\s+$/, '')}\n${lines.join('\n')}\n`;
+export const append = (code: string, lines: readonly string[]): string => `${code.trimEnd()}\n${lines.join('\n')}\n`;
 
 /** Applies several edits computed against the original line numbers (bottom-up, so they do not shift each other). */
 export function applyEdits(code: string, edits: readonly LineEdit[]): string {

@@ -1,6 +1,6 @@
 // Activation balance of sequence code, apart from the sequence ops so that the line reordering (reorder.ts) can check it without importing them (sequence.ts imports reorder.ts).
-
-const MSG_MARK = /^(.+?)\s*(?:<<-->>|<<->>|-->>|->>|--x|-x|--\)|-\)|-->|->)\s*([+-])?\s*([^:]+?)\s*:/;
+// Messages are read by the parser's own scan: a regex for them backtracked for seconds on a long run of spaces.
+import { splitMessage } from '../parse/sequence.js';
 
 /** Mermaid rejects a deactivation (`-` or `deactivate X`) of a participant that is not active. */
 export function activationsBalanced(code: string): boolean {
@@ -23,11 +23,10 @@ export function activationsBalanced(code: string): boolean {
       if (!off((m[1] ?? '').trim())) return false;
       continue;
     }
-    m = MSG_MARK.exec(t);
-    if (!m) continue;
-    const [, from = '', mark, to = ''] = m;
-    if (mark === '+') on(to.trim());
-    if (mark === '-' && !off(from.trim())) return false;
+    const msg = splitMessage(t);
+    if (!msg) continue;
+    if (msg.act === '+') on(msg.to);
+    if (msg.act === '-' && !off(msg.from)) return false;
   }
   return true;
 }

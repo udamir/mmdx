@@ -4,6 +4,7 @@ import { maxOf, minOf } from '../geom.js';
 import { activationsOf } from '../ids.js';
 import type { BlockKind, Participant, SeqBlockStart, SeqItem, SeqMessage, SequenceModel } from '../model.js';
 import { encodeLabel } from '../parse/label.js';
+import { findArrow } from '../parse/sequence.js';
 import type { ItemRef } from '../types.js';
 import { activationsBalanced } from './activations.js';
 import { blocksOf } from './reorder.js';
@@ -306,10 +307,27 @@ export function resizeBlockStep(code: string, model: SequenceModel, blockId: str
 // For any other arrangement the pair is wrapped in `activate P` / `deactivate P` lines.
 // Applying it to an already-activated pair removes the activation instead.
 
-const MSG_ARROW = /^(\s*.+?\s*(?:<<-->>|<<->>|-->>|->>|--x|-x|--\)|-\)|-->|->))\s*([+-])?\s*(.+)$/;
-const setMarker = (line: string | undefined, mark: '' | '+' | '-'): string =>
-  (line ?? '').replace(MSG_ARROW, (_m, head: string, _mk: string | undefined, rest: string) => `${head}${mark}${rest}`);
-const markerOf = (line: string | undefined): string => MSG_ARROW.exec(line ?? '')?.[2] ?? '';
+/**
+ * A message line as its head (through the arrow, found by the parser's scan), its `+` / `-` marker and the rest; the
+ * spaces around the marker are dropped. A regex for this backtracked on long runs of spaces.
+ */
+function markerParts(line: string): { head: string; mark: string; rest: string } | null {
+  const a = findArrow(line);
+  if (!a) return null;
+  const head = line.slice(0, a.index + a.arrow.length);
+  let rest = line.slice(head.length).trimStart();
+  let mark = '';
+  if (rest[0] === '+' || rest[0] === '-') {
+    mark = rest[0];
+    rest = rest.slice(1).trimStart();
+  }
+  return rest ? { head, mark, rest } : null;
+}
+const setMarker = (line: string | undefined, mark: '' | '+' | '-'): string => {
+  const p = markerParts(line ?? '');
+  return p ? `${p.head}${mark}${p.rest}` : line ?? '';
+};
+const markerOf = (line: string | undefined): string => markerParts(line ?? '')?.mark ?? '';
 const UNBALANCED = 'That would deactivate a participant that is not active (+/− markers)';
 const BLOCK_HEAD = /^\s*(loop|alt|opt|par|critical|break|rect|else|and|option)\b/;
 

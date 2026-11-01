@@ -2,12 +2,13 @@
 
 All notable changes to `mmdx`. The project follows [semantic versioning](https://semver.org/); while it is below 1.0, a minor version may change public API, and such changes are listed under **Changed (breaking)**.
 
-## Unreleased
+## 0.2.1 — Fixes
 
 ### Fixed
 
 - **Ids such as `__proto__`, `constructor` or `toString`** are ordinary names everywhere. Mermaid accepts them as node, participant and entity ids, and `%%@` lines may use them as a style kind, an item id or a JSON key; such a line, or moving or styling such a node in the editor, changed objects shared by the whole page, and such nodes were not placed where their metadata said. A `__proto__` key inside the JSON of a `%%@` line is dropped with a `meta.bad-value` warning.
 - **Emoji and Persian or Indic text** keep their joiners (ZWJ, ZWNJ). Once the diff code had loaded (always, through `mmdx/core`), every rendered label took these characters for word-level change marks and split emoji sequences and words into styled fragments; the Merged view of a diff did the same. The marks are now Unicode noncharacters, read only by the diff: a diff's text lines carry `runs` of removed and added words, which the SVG serializer and the DOM patcher draw. `MARK` holds the new characters.
+- **Long runs of spaces no longer freeze the page.** A sequence message such as `A-->` followed by a few hundred spaces took seconds to minutes in the editor's activation check, and a note line with many spaces took seconds to parse; ER attribute comments and trailing spaces of the code were slow the same way. These lines are now read by linear scans (the activation check and the `+` / `-` markers use the parser's own message scan). A note without a target (`note over : text`) is reported as `seq.cannot-parse` instead of adding a participant with an empty name.
 
 ## 0.2.0 — History and diff
 

@@ -21,5 +21,5 @@ export function stripMermaidStyles(code: string): string {
     .map(withoutShorthand)
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
-    .replace(/\s+$/, '');
+    .trimEnd();
 }
