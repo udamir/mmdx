@@ -67,10 +67,12 @@ export function svgIcon(name: string, extra: readonly SVGElement[] = []): SVGSVG
 }
 
 
+/** Stacked boxes, filled with the toolbar's surface (light or dark), outlined in the text colour. */
 export function stackPreview(lv: number, size: number): SVGSVGElement {
-  const el = s('svg', { viewBox: '0 0 26 26', width: String(size), height: String(size), fill: '#fff', stroke: 'currentColor', 'stroke-width': '1.7', 'aria-hidden': 'true' }) as SVGSVGElement;
-  for (let k = lv; k >= 1; k--) el.append(s('rect', { x: String(4 + 3 * k), y: String(9 - 3 * k), width: '15', height: '12', rx: '3', fill: '#fff' }));
-  el.append(s('rect', { x: '4', y: '9', width: '15', height: '12', rx: '3' }));
+  const fill = 'fill: var(--float, var(--mmdx-float, #fff))';
+  const el = s('svg', { viewBox: '0 0 26 26', width: String(size), height: String(size), stroke: 'currentColor', 'stroke-width': '1.7', 'aria-hidden': 'true' }) as SVGSVGElement;
+  for (let k = lv; k >= 1; k--) el.append(s('rect', { x: String(4 + 3 * k), y: String(9 - 3 * k), width: '15', height: '12', rx: '3', style: fill }));
+  el.append(s('rect', { x: '4', y: '9', width: '15', height: '12', rx: '3', style: fill }));
   return el;
 }
 
