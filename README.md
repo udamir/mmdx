@@ -165,6 +165,7 @@ const viewer = new DiagramViewer(hostElement, { source, controls: ['zoom', 'full
 | `labels`, `hover-highlight` | `true` | Show connector labels; highlight connected items on hover |
 | `label` | generated | Accessible name, e.g. "Flowchart: 12 nodes, 14 connections" |
 | `ui` | `auto` | Chrome colour scheme: `light`, `dark` or `auto` |
+| `scheme-toggle` | `true` | With the `theme` control: the light / dark toggle next to the theme menu. `false` keeps the theme menu and hides the toggle, for hosts that set `ui` themselves |
 | `compact` | `auto` | The compact chrome (smaller, icon-only); automatic on small hosts |
 
 Events (bubbling, composed): `mmdx-render` `{ bounds, type, durationMs }`, `mmdx-error` `{ diagnostics }`, `mmdx-link` `{ href, id }` (cancelable, to route links through your router), `mmdx-fullscreen` `{ active }`. Methods: `fit()`, `zoomTo(k)`, `reload()`, `toSvg()`, `toPng({ scale })`, `setLayers(ids)`, `toggleHistory(on?, { compare? })`, and `historySession` while History is open.

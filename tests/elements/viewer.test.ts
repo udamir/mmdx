@@ -214,3 +214,27 @@ describe('<mmdx-viewer> attributes', () => {
     el.remove();
   });
 });
+
+describe('schemeToggle option', () => {
+  const settle = async (host: HTMLElement, sel: string): Promise<void> => {
+    for (let i = 0; i < 100 && !host.shadowRoot?.querySelector(sel); i++) await new Promise((r) => setTimeout(r, 10));
+  };
+  it('with the theme control, the light / dark toggle shows next to the theme menu by default', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    new DiagramViewer(host, { lazy: false, source: 'flowchart LR\n  a --> b', controls: ['theme'], storage: memoryStorage() });
+    await settle(host, '.view-params .mmdx-theme-btn');
+    expect(host.shadowRoot!.querySelector('.view-params .mmdx-theme-btn')).not.toBeNull();
+    expect(host.shadowRoot!.querySelector('.view-params .vp-mode')).not.toBeNull();
+    host.remove();
+  });
+  it('schemeToggle: false keeps the theme menu and drops the toggle (the host sets ui)', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    new DiagramViewer(host, { lazy: false, source: 'flowchart LR\n  a --> b', controls: ['theme', 'export'], schemeToggle: false, ui: 'dark', storage: memoryStorage() });
+    await settle(host, '.view-params .mmdx-theme-btn');
+    expect(host.shadowRoot!.querySelector('.view-params .mmdx-theme-btn')).not.toBeNull();
+    expect(host.shadowRoot!.querySelector('.view-params .vp-mode')).toBeNull();
+    host.remove();
+  });
+});

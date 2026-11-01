@@ -45,6 +45,8 @@ export interface ViewerOptions {
   hoverHighlight?: boolean;
   /** `light` | `dark` | `auto` chrome scheme. */
   ui?: 'light' | 'dark' | 'auto';
+  /** With the `theme` control: the light / dark toggle next to the theme menu (default on). Off when the host sets `ui`. */
+  schemeToggle?: boolean;
   /** The `compact` preset (§7.6): smaller, icon-only chrome; automatic below a host size by default. */
   compact?: boolean | 'auto';
   /** @deprecated Ignored (server-rendered SVG is always replaced by the first client render). */
@@ -277,8 +279,9 @@ export class DiagramViewer {
       case 'pen':
         return interactive && c.includes('pen');
       case 'theme':
-      case 'scheme':
         return c.includes('theme');
+      case 'scheme':
+        return c.includes('theme') && this.o.schemeToggle !== false;
       case 'history':
         return c.includes('history');
       // History's own parts (the diff bar, the panels, selecting changes) are on while History is open
@@ -340,7 +343,7 @@ const text = (v: string | null): string | undefined => v ?? undefined;
 const ATTRS: Readonly<Record<string, AttrSpec<ViewerOptions>>> = {
   src: ['src', text], theme: ['theme', text], 'theme-dark': ['themeDark', text], fit: ['fit', (v) => v ?? 'width'], wheel: ['wheel', text],
   fallback: ['fallback', text], label: ['label', text], ui: ['ui', text], interactive: ['interactive', bool], lazy: ['lazy', bool], labels: ['labels', bool],
-  'hover-highlight': ['hoverHighlight', bool], compact: ['compact', (v) => (v === null ? undefined : v === 'auto' ? 'auto' : v !== 'false')],
+  'hover-highlight': ['hoverHighlight', bool], 'scheme-toggle': ['schemeToggle', bool], compact: ['compact', (v) => (v === null ? undefined : v === 'auto' ? 'auto' : v !== 'false')],
   // `list` (the former text outline) now opens the code view
   controls: ['controls', (v) => (v === null ? undefined : words(v).map((c) => (c === 'list' ? 'code' : c)))],
 };

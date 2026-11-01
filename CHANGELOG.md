@@ -20,7 +20,7 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.2.1). The project f
 
 ### Added
 
-- **`schemeToggle` editor feature**: turns off the light / dark toggle in the editor's view bar, for hosts that control the chrome scheme themselves through `ui` (an app inside YouTrack follows YouTrack's theme). The viewer already hides it when `controls` has no `theme`.
+- **Hiding the light / dark toggle**: the editor's `schemeToggle` feature and the viewer's `scheme-toggle` attribute (`schemeToggle` option) turn off the toggle and keep the theme menu, for hosts that control the chrome scheme themselves through `ui` (an app inside YouTrack follows YouTrack's theme).
 
 ## 0.2.0 — History and diff
 
