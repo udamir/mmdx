@@ -16,15 +16,6 @@ interface Bound {
 
 const bound = new WeakMap<Element, Bound>();
 
-/**
- * Writes the lines of a text with diff-marked words (core/text/marks.ts) as styled runs; returns false for plain text.
- * Registered by the diff component, so pages that never show a diff do not ship it.
- */
-let markedLines: ((el: Element, lines: readonly TextLine[]) => boolean) | null = null;
-export const setMarkedLines = (f: typeof markedLines): void => {
-  markedLines = f;
-};
-
 const keyOf = (n: SceneNode, i: number): string => (n.key !== undefined ? `k:${n.key}` : `i:${n.t}:${i}`);
 
 /** Replaces the children of `parent` with `next`, reusing elements by key. */
@@ -80,8 +71,29 @@ function setAttrs(el: Element, prev: SvgAttrs | null, next: SvgAttrs): void {
   }
 }
 
+/** Lines with runs of removed and added words (a diff's merged picture): styled `<tspan>`s, fixed class tokens. */
+function setRunLines(el: Element, lines: readonly TextLine[]): void {
+  el.replaceChildren(...lines.map((l) => {
+    const span = document.createElementNS(NS, 'tspan');
+    span.setAttribute('x', fmt(l.x));
+    span.setAttribute('y', fmt(l.y));
+    const runs = l.runs?.length ? l.runs : [{ text: l.text || '\u00a0', mark: null }];
+    span.append(...runs.map((r) => {
+      if (!r.mark) return document.createTextNode(r.text);
+      const run = document.createElementNS(NS, 'tspan');
+      run.setAttribute('class', r.mark === 'ins' ? 'dx-ins' : 'dx-del');
+      run.textContent = r.text;
+      return run;
+    }));
+    return span;
+  }));
+}
+
 function setLines(el: Element, lines: readonly TextLine[]): void {
-  if (markedLines?.(el, lines)) return;
+  if (lines.some((l) => l.runs)) {
+    setRunLines(el, lines);
+    return;
+  }
   const spans = Array.from(el.children);
   lines.forEach((l, i) => {
     let span = spans[i];

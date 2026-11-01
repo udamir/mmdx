@@ -7,7 +7,7 @@
 // Shapes carry explicit colours (exports have no stylesheet); on screen, the element's CSS restyles them by class.
 import { el, g, text } from '../scene/build.js';
 import type { AttrValue, SceneNode } from '../scene/types.js';
-import { markRuns, hasMarks } from '../text/marks.js';
+import { markRuns, hasMarks, stripMarks } from '../text/marks.js';
 import type { FontSpec, TextMeasurer } from '../text/measure.js';
 import type { GeometryIndex, RenderResult } from '../render/types.js';
 import type { ItemKind, Rect } from '../types.js';
@@ -172,11 +172,22 @@ function decorateBody(nodes: readonly SceneNode[], keyIn: (kind: string, id: str
       const attrs: Record<string, AttrValue> = { ...n.attrs, class: cls, 'data-ck': ck };
       if (keep && !keep.has(key)) attrs['opacity'] = dim;
       else if (gone.has(key)) attrs['opacity'] = 0.6;
-      return { ...n, attrs };
+      return { ...n, attrs, children: n.children.map(markedRuns) };
     }
     if (n.t === 'g' || n.t === 'a') return { ...n, children: decorateBody(n.children, keyIn, keep, gone, dim) };
-    return n;
+    return markedRuns(n);
   });
+}
+
+/** Text with change marks (the merged picture) as runs of removed and added words, its `text` without them. */
+function markedRuns(n: SceneNode): SceneNode {
+  if (n.t === 'text') {
+    if (!n.lines.some((l) => hasMarks(l.text))) return n;
+    const runs = markRuns(n.lines.map((l) => l.text));
+    return { ...n, lines: n.lines.map((l, i) => ({ ...l, text: stripMarks(l.text), runs: runs[i] ?? [] })) };
+  }
+  if (n.t === 'g' || n.t === 'a') return { ...n, children: n.children.map(markedRuns) };
+  return n;
 }
 
 function highlight(key: string, s: ItemShape, mark: Mark, badge: string, dashed: boolean, colors: DiffColors, badgeScale?: number): SceneNode {

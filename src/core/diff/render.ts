@@ -4,8 +4,8 @@ import { isSupported } from '../model.js';
 import { renderDocumentWith, renderSourceWith, type Kinds, type PipelineOptions, type Rendered } from '../pipeline-core.js';
 import { pageScene } from '../render/page.js';
 import { el, g, text } from '../scene/build.js';
-import { escAttr, escText, fmt, serializeNodes, setMarkedText } from '../scene/serialize.js';
-import { hasMarks, markRuns } from '../text/marks.js';
+import { escAttr, fmt, serializeNodes } from '../scene/serialize.js';
+import { withoutMarks } from '../text/marks.js';
 import type { SceneNode } from '../scene/types.js';
 import type { Rect } from '../types.js';
 import { annotate, centreOf, DIFF_COLORS, MARKS, shapeOf, type DiffColors, type DiffView, type Mark } from './annotate.js';
@@ -14,17 +14,14 @@ import type { DiagramDiff, DiffIgnore, ItemChange } from './types.js';
 import { withLayoutOf, withoutStyle } from './transform.js';
 import { mergeDiagrams, type Merged } from './merge.js';
 
-// word-level change marks of the merged picture become styled runs (fixed class tokens) in serialized SVG
-setMarkedText((lines) => {
-  if (!lines.some((l) => hasMarks(l.text))) return null;
-  const runs = markRuns(lines.map((l) => l.text));
-  return lines
-    .map((l, i) => {
-      const body = runs[i]!.map((r) => (r.mark ? `<tspan class="dx-${r.mark}">${escText(r.text)}</tspan>` : escText(r.text))).join('') || '&#160;';
-      return `<tspan x="${fmt(l.x)}" y="${fmt(l.y)}">${body}</tspan>`;
-    })
-    .join('');
-});
+// The merged picture measures its labels without the change marks (annotate turns them into styled runs). One derived
+// context per context, so its layout cache lives as long as the caller's.
+const marklessContexts = new WeakMap<CoreContext, CoreContext>();
+const marklessContext = (ctx: CoreContext): CoreContext => {
+  let m = marklessContexts.get(ctx);
+  if (!m) marklessContexts.set(ctx, (m = { ...ctx, measure: withoutMarks(ctx.measure) }));
+  return m;
+};
 
 export interface DiffHide {
   added?: boolean;
@@ -105,7 +102,7 @@ export function renderDiffWith(kinds: Kinds, before: string, after: string, ctx:
   const m = isSupported(rb.model) && isSupported(ra.model) ? mergeDiagrams(diff, rb.model, ra.model, rb.doc.meta, ra.doc.meta) : null;
   if (m) {
     const doc = { code: '', meta: m.meta };
-    merged = { ...renderDocumentWith(kinds, doc, m.model, ctx, popts), doc, model: m.model, tooLarge: false, diagnostics: [], status: m.status };
+    merged = { ...renderDocumentWith(kinds, doc, m.model, marklessContext(ctx), popts), doc, model: m.model, tooLarge: false, diagnostics: [], status: m.status };
   }
   let bounds = union(rb.result.bounds, ra.result.bounds);
   if (merged) bounds = union(bounds, merged.result.bounds);

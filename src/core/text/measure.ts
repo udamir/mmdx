@@ -58,8 +58,8 @@ const ADV: readonly number[] = [
 const MONO = /mono|courier|consolas|menlo/i;
 
 /**
- * Advance-width estimate; deterministic across machines. Bold adds ~6 %; non-ASCII uses an average glyph; the
- * zero-width diff marks (text/marks.ts) count as nothing.
+ * Advance-width estimate; deterministic across machines. Bold adds ~6 %; non-ASCII uses an average glyph; zero-width
+ * characters (ZWSP, ZWNJ, ZWJ, word joiner) count as nothing.
  */
 export function createStaticMeasurer(): TextMeasurer {
   const cache = new Lru<string, number>(5000);

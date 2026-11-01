@@ -81,17 +81,11 @@ export function serializeNode(n: SceneNode): string {
   }
 }
 
-/**
- * The `<tspan>`s of a text with diff-marked words (styled runs), or null for plain text. Registered by the diff
- * renderer (core/diff/render.ts), so bundles without diffs do not ship it.
- */
-let markedText: ((lines: readonly TextLine[]) => string | null) | null = null;
-export const setMarkedText = (f: typeof markedText): void => {
-  markedText = f;
-};
+/** A line's content: its text, or its runs of removed and added words as styled `<tspan>`s (fixed class tokens). */
+const lineBody = (l: TextLine): string =>
+  (l.runs ? l.runs.map((r) => (r.mark ? `<tspan class="dx-${r.mark === 'ins' ? 'ins' : 'del'}">${escText(r.text)}</tspan>` : escText(r.text))).join('') : l.text && escText(l.text)) || '&#160;';
 
 /** One `<tspan>` per line. */
-const textSpans = (lines: readonly TextLine[]): string =>
-  markedText?.(lines) ?? lines.map((l) => `<tspan x="${fmt(l.x)}" y="${fmt(l.y)}">${l.text ? escText(l.text) : '&#160;'}</tspan>`).join('');
+const textSpans = (lines: readonly TextLine[]): string => lines.map((l) => `<tspan x="${fmt(l.x)}" y="${fmt(l.y)}">${lineBody(l)}</tspan>`).join('');
 
 export const serializeNodes = (ns: readonly SceneNode[]): string => ns.map(serializeNode).join('');

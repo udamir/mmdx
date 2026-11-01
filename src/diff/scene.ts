@@ -10,11 +10,9 @@ import { changeKey } from '../core/diff/merge.js';
 import { renderedOf, type DiffRendered } from '../core/diff/render.js';
 import type { Rendered } from '../core/pipeline-core.js';
 import { pageScene } from '../core/render/page.js';
-import { fmt } from '../core/scene/serialize.js';
-import { hasMarks, markRuns } from '../core/text/marks.js';
 import type { CanvasOptions, CanvasPicture, DiagramCanvas, Insets } from '../dom/canvas.js';
 import { Morph, transitionFrom, type MorphState } from '../dom/morph.js';
-import { patchChildren, setMarkedLines } from '../dom/patch.js';
+import { patchChildren } from '../dom/patch.js';
 import type { StrokeStore } from '../dom/pen.js';
 import { createBanner, MESSAGES_CSS } from '../ui/blocks/messages.js';
 import { ago } from '../ui/blocks/version-list.js';
@@ -28,28 +26,6 @@ const NS = 'http://www.w3.org/2000/svg';
 const STATE_OF: Record<DiffView, number> = { before: 0, merged: 1, after: 2 };
 /** Margins a selected change is brought inside (clear of the tool dock and the bars). */
 const FOCUS_MARGINS: Insets = { left: 56, top: 8, right: 8, bottom: 56 };
-
-// word-level change marks in the merged picture become styled runs when patched into the DOM (fixed class tokens;
-// the text only ever goes through text nodes)
-setMarkedLines((el, lines) => {
-  if (!lines.some((l) => hasMarks(l.text))) return false;
-  const runs = markRuns(lines.map((l) => l.text));
-  el.replaceChildren(...lines.map((l, i) => {
-    const span = document.createElementNS(NS, 'tspan');
-    span.setAttribute('x', fmt(l.x));
-    span.setAttribute('y', fmt(l.y));
-    const rs = runs[i]!;
-    span.append(...(rs.length ? rs : [{ text: ' ', mark: null }]).map((r) => {
-      if (!r.mark) return document.createTextNode(r.text);
-      const run = document.createElementNS(NS, 'tspan');
-      run.setAttribute('class', `dx-${r.mark}`);
-      run.textContent = r.text;
-      return run;
-    }));
-    return span;
-  }));
-  return true;
-});
 
 export interface DiffSceneOptions {
   reducedMotion: () => boolean;

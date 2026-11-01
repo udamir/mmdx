@@ -2,6 +2,13 @@
 
 All notable changes to `mmdx`. The project follows [semantic versioning](https://semver.org/); while it is below 1.0, a minor version may change public API, and such changes are listed under **Changed (breaking)**.
 
+## Unreleased
+
+### Fixed
+
+- **Ids such as `__proto__`, `constructor` or `toString`** are ordinary names everywhere. Mermaid accepts them as node, participant and entity ids, and `%%@` lines may use them as a style kind, an item id or a JSON key; such a line, or moving or styling such a node in the editor, changed objects shared by the whole page, and such nodes were not placed where their metadata said. A `__proto__` key inside the JSON of a `%%@` line is dropped with a `meta.bad-value` warning.
+- **Emoji and Persian or Indic text** keep their joiners (ZWJ, ZWNJ). Once the diff code had loaded (always, through `mmdx/core`), every rendered label took these characters for word-level change marks and split emoji sequences and words into styled fragments; the Merged view of a diff did the same. The marks are now Unicode noncharacters, read only by the diff: a diff's text lines carry `runs` of removed and added words, which the SVG serializer and the DOM patcher draw. `MARK` holds the new characters.
+
 ## 0.2.0 — History and diff
 
 How a diagram changed, at a glance: the editor and the viewer get a History of the diagram, a new `<mmdx-diff>` component compares any two versions, and a DOM-free diff API serves CI bots. Every component now shares one look: the editor's tool dock, zoom bar, panels and theme menu.
