@@ -28,7 +28,7 @@ function themeEditor(a: Partial<ThemeEditorArgs>): HTMLElement {
   if (a.presentation) el.setAttribute('presentation', a.presentation);
   if (a.ui) el.setAttribute('ui', a.ui);
   el.style.cssText = 'display:block;height:720px;';
-  for (const type of ['ds-theme-save', 'ds-theme-saved', 'ds-theme-dirty', 'ds-theme-select', 'ds-theme-close'])
+  for (const type of ['mmdx-theme-save', 'mmdx-theme-saved', 'mmdx-theme-dirty', 'mmdx-theme-select', 'mmdx-theme-close'])
     el.addEventListener(type, (e) => console.info(type, (e as CustomEvent).detail));
   return el;
 }

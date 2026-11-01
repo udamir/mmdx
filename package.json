@@ -1,7 +1,7 @@
 {
   "name": "mmdx",
-  "version": "0.1.0",
-  "description": "Styled Mermaid viewer, editor and theme editor as framework-agnostic web components",
+  "version": "0.2.0",
+  "description": "Styled Mermaid viewer, editor, theme editor and diagram diff as framework-agnostic web components",
   "license": "MIT",
   "author": "Damir Yusipov",
   "homepage": "https://udamir.github.io/mmdx/",
@@ -22,7 +22,10 @@
     "er-diagram",
     "web-components",
     "svg",
-    "themes"
+    "themes",
+    "diff",
+    "history",
+    "code-review"
   ],
   "type": "module",
   "sideEffects": [
@@ -30,10 +33,12 @@
     "./dist/editor.js",
     "./dist/theme-editor.js",
     "./dist/studio.js",
+    "./dist/diff.js",
     "./src/viewer.ts",
     "./src/editor.ts",
     "./src/theme-editor.ts",
-    "./src/studio.ts"
+    "./src/studio.ts",
+    "./src/diff.ts"
   ],
   "exports": {
     "./core": {
@@ -55,6 +60,10 @@
     "./studio": {
       "types": "./dist/types/studio.d.ts",
       "default": "./dist/studio.js"
+    },
+    "./diff": {
+      "types": "./dist/types/diff.d.ts",
+      "default": "./dist/diff.js"
     },
     "./adapters": {
       "types": "./dist/types/adapters.d.ts",
@@ -102,6 +111,7 @@
     "@storybook/addon-docs": "^10.6.5",
     "@storybook/web-components-vite": "^10.6.5",
     "@types/node": "^24.19.2",
+    "diff": "^9.0.0",
     "esbuild": "^0.28.2",
     "jsdom": "^26.1.0",
     "lit": "^3.3.3",

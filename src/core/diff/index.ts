@@ -13,51 +13,13 @@ import type {
   DiagramModel, Entity, ErModel, FlowEdge, FlowNode, FlowchartModel, MermaidStyle, Participant, SeqBlockStart,
   SeqMessage, SeqNote, SequenceModel,
 } from '../model.js';
-import { parse } from '../parse/index.js';
-import type { DiagramType, ItemKind } from '../types.js';
+import { parseWith, type ParserSet } from '../parse/dispatch.js';
+import type { ItemKind } from '../types.js';
+import type { ChangeFacet, DiagramDiff, DiffIgnore, FieldChange, ItemChange } from './types.js';
 
-export type ChangeFacet = 'content' | 'layout' | 'style';
-export type ChangeStatus = 'added' | 'removed' | 'changed' | 'unchanged';
+export type { ChangeFacet, ChangeStatus, FieldChange, ItemChange, DiagramDiff, DiffIgnore } from './types.js';
 
 export const FACETS: readonly ChangeFacet[] = ['content', 'layout', 'style'];
-
-export interface FieldChange {
-  facet: ChangeFacet;
-  /** Human-readable field name (`label`, `position`, `fill`, `attribute email`…). */
-  field: string;
-  before?: unknown;
-  after?: unknown;
-}
-
-export interface ItemChange {
-  kind: ItemKind;
-  /** Id in the after version (the before id for removed items). */
-  id: string;
-  /** Id in the before version, when it differs (renamed node, shifted sequence message). */
-  beforeId?: string;
-  /** Short human-readable name of the item. */
-  label: string;
-  status: ChangeStatus;
-  /** Facets with at least one change (empty for added / removed / unchanged). */
-  facets: ChangeFacet[];
-  fields: FieldChange[];
-}
-
-export interface DiagramDiff {
-  type: DiagramType | null;
-  /** The two versions are different diagram types (the item lists are then added / removed wholesale). */
-  typeChanged: boolean;
-  items: ItemChange[];
-  /** Diagram-wide changes: theme, page settings, local presets, `classDef`, direction. */
-  doc: FieldChange[];
-  counts: Record<Exclude<ChangeStatus, 'unchanged'>, number> & Record<ChangeFacet, number>;
-}
-
-export interface DiffIgnore {
-  content?: boolean;
-  layout?: boolean;
-  style?: boolean;
-}
 
 // ---- facet of a metadata key ------------------------------------------------------------------------------------
 
@@ -394,7 +356,6 @@ function count(items: readonly ItemChange[], doc: readonly FieldChange[]): Diagr
 export function diffModels(a: DiagramModel, b: DiagramModel, ma: DiagramMeta, mb: DiagramMeta): DiagramDiff {
   const items: ItemChange[] = [];
   const doc: FieldChange[] = [];
-  field(doc, 'style', 'theme', ma.canvas.theme, mb.canvas.theme);
   const { theme: _ta, v: _va, ...ca } = ma.canvas;
   const { theme: _tb, v: _vb, ...cb } = mb.canvas;
   for (const k of new Set([...Object.keys(ca), ...Object.keys(cb)]))
@@ -413,20 +374,20 @@ export function diffModels(a: DiagramModel, b: DiagramModel, ma: DiagramMeta, mb
   return { type: b.type, typeChanged, items, doc, counts: count(items, doc) };
 }
 
-/** Diff of two sources (Mermaid with or without `%%@` lines). Never throws on bad input. */
-export function diffDiagrams(before: string, after: string): DiagramDiff {
+/** Diff of two sources (Mermaid with or without `%%@` lines), parsed with the given diagram kinds (component architecture §9.1): a bundle that loads kinds on demand passes the ones it loaded (a type without its parser diffs as unsupported). Never throws on bad input. `diffDiagrams` (core/diff/all.ts) parses with every kind. */
+export function diffDiagramsWith(kinds: { parsers: ParserSet }, before: string, after: string): DiagramDiff {
   const sa = splitSource(before), sb = splitSource(after);
-  return diffModels(parse(sa.doc.code), parse(sb.doc.code), sa.doc.meta, sb.doc.meta);
+  return diffModels(parseWith(sa.doc.code, kinds.parsers), parseWith(sb.doc.code, kinds.parsers), sa.doc.meta, sb.doc.meta);
 }
 
 /**
  * The same diff with some facets ignored: their field changes are dropped, and an item whose every change was
- * ignored becomes unchanged. Added and removed items always stay (unless content itself is ignored).
+ * ignored becomes unchanged. Facets describe how a kept item changed, so added and removed items always stay.
  */
 export function ignoreFacets(diff: DiagramDiff, ignore: DiffIgnore): DiagramDiff {
   const keep = (f: FieldChange) => !ignore[f.facet];
   const items = diff.items.map((it): ItemChange => {
-    if (it.status === 'added' || it.status === 'removed') return ignore.content ? { ...it, status: 'unchanged' } : it;
+    if (it.status === 'added' || it.status === 'removed') return it;
     const fields = it.fields.filter(keep);
     const facets = it.facets.filter((f) => !ignore[f]);
     return { ...it, fields, facets, status: facets.length ? 'changed' : 'unchanged' };
@@ -436,3 +397,10 @@ export function ignoreFacets(diff: DiagramDiff, ignore: DiffIgnore): DiagramDiff
 }
 
 export { withoutStyle, withLayoutOf } from './transform.js';
+export { diffArrays, diffWords, diffLines, mergeText, hunks, words, MARK, hasMarks, stripMarks, markRuns, type DiffRun, type DiffOp, type TextOp, type LineOp, type Hunk, type MarkedRun } from './text.js';
+export { mergeDiagrams, changeKey, beforeKey, REMOVED, type Merged } from './merge.js';
+export {
+  annotate, shapeOf, centreOf, focusRect, markOf, marksOf, badgeOf, DIFF_COLORS, MARKS,
+  type Mark, type DiffView, type DiffColors, type ItemShape, type AnnotateInput, type AnnotateOptions, type Annotated,
+} from './annotate.js';
+export { diffReport, unifiedDiff, sourcePart, REPORT_VERSION, type VersionInfo, type ReportOptions, type UnifiedDiffOptions } from './report.js';

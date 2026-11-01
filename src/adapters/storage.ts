@@ -24,10 +24,10 @@ export function memoryStorage(initial: Record<string, unknown> = {}): StorageAda
 }
 
 /**
- * localStorage under a namespace (`ds.` by default, the prototype's keys). Falls back to memory when storage is
+ * localStorage under a namespace (`mmdx.` by default, the prototype's keys). Falls back to memory when storage is
  * unavailable (private mode, sandboxed iframes, quota errors).
  */
-export function localStorageAdapter(namespace = 'ds.'): StorageAdapter {
+export function localStorageAdapter(namespace = 'mmdx.'): StorageAdapter {
   let ls: Storage | null = null;
   try {
     ls = typeof localStorage !== 'undefined' ? localStorage : null;

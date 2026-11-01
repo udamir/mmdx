@@ -2,8 +2,9 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { DiagramViewer, dedent } from '../../src/elements/viewer.js';
-import { hasKind, loadKind } from '../../src/elements/kinds.js';
+import { DiagramViewer, dedent, defineViewer, type MmdxViewerElement } from '../../src/elements/viewer.js';
+import { hasKind, loadKind } from '../../src/view/kinds.js';
+import { memoryStorage } from '../../src/adapters/storage.js';
 
 const example = (f: string): string => readFileSync(resolve(__dirname, '../../examples', f), 'utf8');
 
@@ -17,7 +18,7 @@ describe('kinds on demand', () => {
     expect(hasKind('er')).toBe(false);
     const host = document.createElement('div');
     document.body.append(host);
-    const rendered = new Promise((r) => host.addEventListener('ds-render', r, { once: true }));
+    const rendered = new Promise((r) => host.addEventListener('mmdx-render', r, { once: true }));
     new DiagramViewer(host, { lazy: false, source: 'erDiagram\n  A ||--o{ B : has' });
     expect(host.shadowRoot!.querySelectorAll('.el').length).toBe(0);
     await rendered;
@@ -43,12 +44,12 @@ afterEach(() => {
 });
 
 
-  it('renders a flowchart into its shadow root and fires ds-render', () => {
+  it('renders a flowchart into its shadow root and fires mmdx-render', () => {
     const host = document.createElement('div');
     document.body.append(host);
     hosts.push(host);
     let rendered: unknown = null;
-    host.addEventListener('ds-render', (e) => (rendered = (e as CustomEvent).detail));
+    host.addEventListener('mmdx-render', (e) => (rendered = (e as CustomEvent).detail));
     new DiagramViewer(host, { lazy: false, source: 'flowchart LR\n  a --> b' });
     const sr = host.shadowRoot!;
     expect(sr.querySelectorAll('.el[data-kind="node"]').length).toBe(2);
@@ -58,7 +59,7 @@ afterEach(() => {
   });
 
   it('renders every example without errors', () => {
-    for (const f of ['simple-flow.mmd', 'docker-deploy-sequence.mmd', 'atom-schema-er.mmd', 'production-microservices.mmd']) {
+    for (const f of ['simple-flow.mmdx', 'docker-deploy-sequence.mmdx', 'atom-schema-er.mmdx', 'production-microservices.mmdx']) {
       const { host, v } = mount({ source: example(f) });
       expect(host.shadowRoot!.querySelectorAll('.el').length).toBeGreaterThan(3);
       expect(v.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
@@ -123,19 +124,93 @@ describe('code view (controls="code")', () => {
       '%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----',
       '%%@ node a {"x":10,"y":10,"w":80,"h":40}',
     ].join('\n');
-    new DiagramViewer(host, { lazy: false, source, controls: ['code'] });
+    new DiagramViewer(host, { lazy: false, source, controls: ['code'], storage: memoryStorage() });
     const sr = host.shadowRoot!;
-    const btn = (): HTMLButtonElement => sr.querySelector<HTMLButtonElement>('.bar button[aria-label="Show Mermaid code"], .bar button[aria-label="Show diagram"]')!;
-    expect(btn().getAttribute('aria-label')).toBe('Show Mermaid code');
+    // the code view is a panel of the left stack, toggled from the tool dock
+    const btn = (): HTMLButtonElement => sr.querySelector<HTMLButtonElement>('.tool-dock .vt-code-view')!;
+    const panel = (): HTMLElement | null => sr.querySelector<HTMLElement>('.mmdx-stack .code-panel');
+    // the tool dock, the panel stacks and the code view load on demand
+    await vi.waitFor(() => expect(btn()).not.toBeNull());
+    await vi.waitFor(() => expect(panel()).not.toBeNull());
+    expect(btn().getAttribute('aria-pressed')).toBe('false');
+    expect(sr.querySelector('.mmdx-stack.open')).toBeNull();
     btn().click();
-    await vi.waitFor(() => expect(sr.querySelector('.code-view')).not.toBeNull());
-    const text = sr.querySelector('.code-view pre')!.textContent!;
-    expect(text).toBe('flowchart LR\n  a[Start] --> b[End]\n');
+    expect(sr.querySelector('.mmdx-stack.open')).not.toBeNull();
+    const lines = [...panel()!.querySelectorAll('table.code td.txt')].map((td) => td.textContent);
+    expect(lines).toEqual(['flowchart LR', '  a[Start] --> b[End]']);
     expect(sr.querySelector('.root')!.getAttribute('role')).toBe('group');
-    expect(btn().getAttribute('aria-label')).toBe('Show diagram');
+    expect(btn().getAttribute('aria-pressed')).toBe('true');
     btn().click();
-    expect(sr.querySelector('.code-view')).toBeNull();
+    expect(sr.querySelector('.mmdx-stack.open')).toBeNull();
     expect(sr.querySelector('.root')!.getAttribute('role')).toBe('img');
     host.remove();
+  });
+});
+
+describe('<mmdx-viewer> attributes', () => {
+  beforeAll(async () => {
+    await loadKind('flowchart');
+    defineViewer();
+  });
+
+  const element = async (attrs: Record<string, string>): Promise<MmdxViewerElement> => {
+    const el = document.createElement('mmdx-viewer');
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    el.storage = memoryStorage();
+    el.source = 'flowchart LR\n  a --> b';
+    const rendered = new Promise((r) => el.addEventListener('mmdx-render', r, { once: true }));
+    document.body.append(el);
+    await rendered;
+    return el;
+  };
+
+  it('a change of one attribute keeps the modules, the pen and the user\'s light / dark choice', async () => {
+    const el = await element({ interactive: '', ui: 'auto', controls: 'zoom pen', lazy: 'false' });
+    const v = el.instance!;
+    await vi.waitFor(() => expect(v.core.moduleScope('pen')).not.toBeNull());
+    const pen = v.core.moduleScope('pen');
+    v.core.tool.set('pen');
+    // the diagram follows the chrome to dark (nothing picked)
+    const dark = new Promise((r) => el.addEventListener('mmdx-render', r, { once: true }));
+    v.core.chooseScheme('dark');
+    await dark;
+    const renders = vi.fn();
+    el.addEventListener('mmdx-render', renders);
+    el.setAttribute('label', 'Deploy flow');
+    el.setAttribute('wheel', 'always');
+    expect(v.core.moduleScope('pen')).toBe(pen);
+    expect(v.core.tool.peek()).toBe('pen');
+    expect(v.core.scheme.peek()).toBe('dark');
+    expect(v.core.root.getAttribute('aria-label')).toBe('Deploy flow');
+    await new Promise((r) => setTimeout(r, 200));
+    expect(renders).not.toHaveBeenCalled();
+    el.remove();
+  });
+
+  it('a removed attribute resets its option', async () => {
+    const el = await element({ theme: 'default-dark', labels: 'false', lazy: 'false' });
+    const v = el.instance!;
+    expect(v.core.themes.attr.peek()).toBe('default-dark');
+    expect(v.core.display.peek().labels).toBe(false);
+    el.removeAttribute('theme');
+    el.removeAttribute('labels');
+    expect(v.core.themes.attr.peek()).toBeNull();
+    expect(v.core.display.peek().labels).toBe(true);
+    expect(v.options.theme).toBeUndefined();
+    el.remove();
+  });
+
+  it('controls changed at runtime re-evaluate the zoom bar (help appears) without reinstalling the rest', async () => {
+    const el = await element({ controls: 'fullscreen', lazy: 'false' });
+    const v = el.instance!;
+    const sr = el.shadowRoot!;
+    expect(sr.querySelector('.help-btn')).toBeNull();
+    const links = v.core.moduleScope('links');
+    el.setAttribute('controls', 'zoom fullscreen');
+    expect(sr.querySelector('.help-btn')).not.toBeNull();
+    expect(v.core.moduleScope('links')).toBe(links);
+    el.setAttribute('controls', 'fullscreen');
+    expect(sr.querySelector('.help-btn')).toBeNull();
+    el.remove();
   });
 });

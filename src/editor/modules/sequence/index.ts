@@ -143,9 +143,9 @@ export function applyActivation(core: EditorCore): void {
 
 export const sequenceModule: EditorModule = {
   id: 'sequence',
-  css: SEQUENCE_CSS,
-  install(core) {
-    const ac = new AbortController();
+  css: [SEQUENCE_CSS],
+  install(scope) {
+    const core = scope.core;
     const offs: (() => void)[] = [];
     let linking: SeqLinking | null = null;
     let actPreview: ActPreview | null = null;
@@ -611,7 +611,7 @@ export const sequenceModule: EditorModule = {
         core.drawOverlay();
       }
     };
-    svg.addEventListener('pointermove', (ev) => {
+    scope.listen(svg, 'pointermove', (ev) => {
       if (ev.buttons || busy()) return;
       const gm = seqGeom(core);
       if (!gm || core.mode.peek() !== 'edit' || core.tool.peek() !== 'pointer' || !(ev.target instanceof Element)) {
@@ -637,17 +637,16 @@ export const sequenceModule: EditorModule = {
       llHover = ll;
       hoverMsg = msg;
       core.drawOverlay();
-    }, { signal: ac.signal });
-    svg.addEventListener('pointerleave', () => {
+    });
+    scope.listen(svg, 'pointerleave', () => {
       if (!busy()) clear();
-    }, { signal: ac.signal });
+    });
     offs.push(core.on('model', () => {
       llHover = null;
       hoverMsg = null;
     }));
 
     return () => {
-      ac.abort();
       for (const off of offs) off();
       linking = null;
       actPreview = null;

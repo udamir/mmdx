@@ -3,7 +3,7 @@ import '../../src/editor.js';
 import { memoryDocumentAdapter } from '../../src/adapters/documents.js';
 import { DEFAULT_FEATURES, type EditorFeatures } from '../../src/editor/core.js';
 import type { MmdxEditorElement } from '../../src/editor/editor.js';
-import { example, SMALL_ER, SMALL_FLOW, SMALL_SEQUENCE, uiArg } from '../support.js';
+import { example, exampleHistory, SMALL_ER, SMALL_FLOW, SMALL_SEQUENCE, uiArg } from '../support.js';
 
 type Toggle = Exclude<keyof EditorFeatures, 'exportFormats'>;
 const TOGGLES = Object.keys(DEFAULT_FEATURES).filter((k): k is Toggle => k !== 'exportFormats');
@@ -15,6 +15,8 @@ type EditorArgs = {
   name: string;
   height: number;
   exportFormats: string[];
+  /** An example whose version history the editor gets (its History button), or none. */
+  historyOf: string;
 } & Record<Toggle, boolean>;
 
 const FEATURE_DOCS: Readonly<Record<Toggle, string>> = {
@@ -33,6 +35,7 @@ const FEATURE_DOCS: Readonly<Record<Toggle, string>> = {
   export: 'Export menu.',
   help: 'Shortcut help popup.',
   fullscreen: 'Fullscreen toggle.',
+  history: 'History button in the tool dock (shown when the editor has a `history`): the version panel — an older version read-only, a comparison with the current one, Restore.',
 };
 
 function editor(a: Partial<EditorArgs>): HTMLElement {
@@ -41,12 +44,14 @@ function editor(a: Partial<EditorArgs>): HTMLElement {
   for (const k of TOGGLES) if (a[k] !== undefined) features[k] = a[k];
   if (a.exportFormats) features.exportFormats = a.exportFormats as EditorFeatures['exportFormats'];
   el.features = features;
-  el.adapter = memoryDocumentAdapter(a.source ?? SMALL_FLOW, a.name || 'diagram');
+  const versions = a.historyOf ? exampleHistory(a.historyOf) : null;
+  el.adapter = memoryDocumentAdapter(versions ? versions[0]!.source : a.source ?? SMALL_FLOW, a.name || 'diagram');
+  if (versions) el.history = versions;
   if (a.readOnly) el.setAttribute('read-only', '');
   if (a.ui) el.setAttribute('ui', a.ui);
   if (a.name) el.setAttribute('name', a.name);
   el.style.cssText = `display:block;height:${a.height ?? 640}px;`;
-  for (const type of ['ds-change', 'ds-dirty', 'ds-save', 'ds-saved', 'ds-selection', 'ds-export', 'ds-conflict'])
+  for (const type of ['mmdx-change', 'mmdx-dirty', 'mmdx-save', 'mmdx-saved', 'mmdx-selection', 'mmdx-export', 'mmdx-conflict'])
     el.addEventListener(type, (e) => console.info(type, (e as CustomEvent).detail));
   return el;
 }
@@ -61,7 +66,11 @@ const meta: Meta<EditorArgs> = {
         component:
           '`<mmdx-editor>` is the visual editor: drag shapes from the left toolbar, connect, group, restyle, edit the Mermaid ' +
           'and the layout metadata side by side, with undo / redo and export. Import `mmdx/editor`; give it a document ' +
-          'through `adapter` (here `memoryDocumentAdapter`) or `value`. Every feature can be switched off with `features`.',
+          'through `adapter` (here `memoryDocumentAdapter`) or `value`. Every feature can be switched off with `features`. ' +
+          'Give it the document\'s versions through `history` and the tool dock gets a History button: the version panel ' +
+          'opens next to the Code panel (the diagram stays editable); an older version shows read-only in the editor itself ' +
+          '(select, copy, export), the Compare tab compares a version with the current one on the same canvas, and Restore ' +
+          'brings one back.',
       },
     },
   },
@@ -71,6 +80,7 @@ const meta: Meta<EditorArgs> = {
     ui: uiArg,
     height: { control: { type: 'number', min: 320, step: 40 } },
     exportFormats: { control: 'check', options: ['mmdx', 'mmd', 'svg', 'png'] },
+    historyOf: { control: 'select', options: ['', 'production-microservices', 'docker-deploy-sequence', 'atom-schema-er', 'microservice-patterns', 'fusion-services', 'simple-flow'], description: 'Give the editor the version history of an example (overrides `source` with its newest version): the History button in the tool dock.' },
     ...Object.fromEntries(TOGGLES.map((k) => [k, { control: 'boolean', description: FEATURE_DOCS[k], table: { category: 'features' } }])),
   },
   args: {
@@ -80,6 +90,7 @@ const meta: Meta<EditorArgs> = {
     name: 'diagram',
     height: 640,
     exportFormats: [...DEFAULT_FEATURES.exportFormats],
+    historyOf: '',
     ...Object.fromEntries(TOGGLES.map((k) => [k, DEFAULT_FEATURES[k] as boolean])),
   },
 };
@@ -124,6 +135,16 @@ export const WithProblems: Story = {
   },
   parameters: { docs: { description: { story: 'Invalid style statements: gutter markers, the problems panel, the issues bar on the canvas and the badge on the code icon.' } } },
 };
+
+export const WithHistory: Story = {
+  name: 'With history',
+  args: { historyOf: 'production-microservices' },
+  parameters: { docs: { description: { story: 'The editor has the six versions of the example: History in the tool dock (or ⇧H) opens the version panel. Pick an older version to see it read-only, or the Compare tab to see what changed against the current one; Back (Esc) returns to the current version, and Restore opens an older one in the editor (undo brings the current diagram back).' } } },
+};
+
+export const SequenceHistory: Story = { name: 'With history: sequence diagram', args: { historyOf: 'docker-deploy-sequence' } };
+
+export const ErHistory: Story = { name: 'With history: ER diagram', args: { historyOf: 'atom-schema-er' } };
 
 export const ReadOnly: Story = { name: 'Read-only', args: { readOnly: true } };
 

@@ -5,7 +5,7 @@ import type { ItemRef } from '../types.js';
 import { relText } from './connect.js';
 import { copyIds, uniqueId } from './ids.js';
 import { append, applyEdits, escapeRegExp, indentOf, splice, type LineEdit } from './lines.js';
-import type { CloneResult, CodeResult, SelectResult } from './types.js';
+import type { CloneInto, CloneResult, CodeResult, SelectResult } from './types.js';
 
 /** A new table `ENTITY_<k> { string id PK }` at the end of the code. */
 export function addEntity(code: string, model: ErModel): SelectResult & { select: ItemRef } {
@@ -85,10 +85,10 @@ export function updateRel(code: string, model: ErModel, relId: string, patch: Re
 }
 
 /** Copies ER tables (their attribute blocks) and the relationships between copied tables. */
-export function cloneER(code: string, model: ErModel, items: readonly ItemRef[]): CloneResult {
+export function cloneER(code: string, model: ErModel, items: readonly ItemRef[], o: CloneInto = {}): CloneResult {
   const ids = items.filter((s) => s.kind === 'entity' && model.entities.has(s.id)).map((s) => s.id);
-  if (!ids.length) return { code };
-  const map = copyIds(model, ids);
+  if (!ids.length) return { code: o.into ?? code };
+  const map = copyIds(model, ids, o.taken);
   const L = code.split('\n');
   const out: string[] = [];
   for (const id of ids) {
@@ -102,5 +102,5 @@ export function cloneER(code: string, model: ErModel, items: readonly ItemRef[])
     out.push(...block);
   }
   for (const r of model.rels) if (Object.hasOwn(map, r.from) && Object.hasOwn(map, r.to)) out.push('  ' + relText(r, map[r.from]!, map[r.to]!));
-  return { code: append(code, out), map };
+  return { code: append(o.into ?? code, out), map };
 }

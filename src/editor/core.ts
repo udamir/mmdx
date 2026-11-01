@@ -2,13 +2,19 @@
 // and the free functions of app.js that everything called (draw, drawOverlay, commit, toast, ensure / getM / tidy,
 // selection helpers). Feature modules (canvas gestures, panels, toolbars) are installed on it and talk to each other
 // only through it: its signals, its events, and its registries for gestures, overlay painters and shortcuts.
+//
+// Component architecture §4.1: EditorCore extends the view kernel (ViewCore) — services, theme, chrome scheme,
+// shell, module host and canvas come from it — and adds the document store, the selection, gestures and overlay
+// painters. What the canvas shows is the StoreScene (src/editor/scene.ts); `draw()` invalidates it.
 import type { StorageAdapter } from '../adapters/storage.js';
+import type { ThemeSource } from '../adapters/themes.js';
 import type { CoreContext } from '../core/context.js';
+import { normalizeMeta, splitSource, type DiagramDocument } from '../core/meta/index.js';
 import { KIND_TO_COLL, type DiagramMeta, type ItemMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
+import { parse } from '../core/parse/index.js';
+import type { ClipboardData } from '../core/ops/clipboard.js';
 import { remapSequenceMeta } from '../core/ops/remap.js';
-import { counterpartTheme } from '../core/theme/pairs.js';
-import { BASELINE, canonicalId } from '../core/theme/registry.js';
 import { currentPreset, type StyleEnv } from '../core/ops/style-env.js';
 import { renderDocument, type Rendered } from '../core/pipeline.js';
 import { pageScene } from '../core/render/index.js';
@@ -16,17 +22,18 @@ import type { BoxGeom, GeometryIndex } from '../core/render/types.js';
 import type { SceneNode } from '../core/scene/types.js';
 import type { ItemKind, ItemRef, Rect } from '../core/types.js';
 import { itemKey } from '../core/types.js';
-import { patchChildren } from '../dom/patch.js';
+import { HIGHLIGHT_CSS } from '../dom/highlight.js';
 import type { Viewport } from '../dom/viewport.js';
-import type { Dialogs } from '../ui/dialog.js';
-import type { I18n } from '../ui/i18n.js';
-import type { PopoverManager, Toaster } from '../ui/popover.js';
-import type { ShortcutRegistry } from '../ui/shortcuts.js';
+import { Dialogs, DIALOG_CSS } from '../ui/dialog.js';
 import { signal, type Signal } from '../ui/signal.js';
-import type { DocStore } from './store.js';
+import { ALIASES } from '../ui/styles/base.js';
+import { EDITOR_CSS } from '../ui/styles/editor.js';
+import { ViewCore } from '../view/core.js';
+import type { Mode, Tool, ViewActions } from '../view/types.js';
+import { StoreScene } from './scene.js';
+import { itemExists, type ChangeReason, type DocStore } from './store.js';
 
-export type Mode = 'edit' | 'view';
-export type Tool = 'pointer' | 'hand' | 'pen' | 'shapes' | 'paint';
+export type { Mode, Tool };
 
 /** Feature flags (§8.2 `features`): every group of Appendix A rows can be turned off; all on by default. */
 export interface EditorFeatures {
@@ -46,13 +53,23 @@ export interface EditorFeatures {
   exportFormats: readonly ('mmdx' | 'mmd' | 'svg' | 'png')[];
   help: boolean;
   fullscreen: boolean;
+  /** The History button (shown when the editor has a `history`). */
+  history: boolean;
 }
 
 export const DEFAULT_FEATURES: EditorFeatures = {
   codePanel: true, metadataTab: true, properties: true, layers: true, pen: true, copyStyle: true, styleToolbar: true,
   pageToolbar: true, autoLayout: true, plainMermaid: true, open: false, themePicker: true, export: true,
-  exportFormats: ['mmdx', 'mmd', 'svg', 'png'], help: true, fullscreen: true,
+  exportFormats: ['mmdx', 'mmd', 'svg', 'png'], help: true, fullscreen: true, history: true,
 };
+
+/** An old version shown read-only in the editor's canvas (History): read and drawn instead of the store's document. */
+export interface VersionView {
+  id: string;
+  source: string;
+  doc: DiagramDocument;
+  model: DiagramModel;
+}
 
 /** A selected item; `foot` marks the mirrored copy of a participant at the bottom of a sequence diagram. */
 export interface Sel extends ItemRef {
@@ -74,8 +91,6 @@ export interface Gesture {
   click?(ev: PointerEvent): void;
   /** Movement threshold in screen px before move() starts (default 3; 0 = immediately). */
   threshold?: number;
-  /** Label for the history step when the core commits for the gesture (default: the gesture commits itself). */
-  label?: string;
 }
 
 /** What is under the pointer: the closest scene item and/or overlay handle. */
@@ -146,8 +161,10 @@ export interface EditorActions {
   gotoCodeLine(line: number): void;
   /** Opens the Metadata tab at a (1-based) line of the metadata text. */
   gotoMetaLine(line: number): void;
-  setPanel(name: 'code' | 'properties' | 'layers', open: boolean): void;
+  setPanel(name: PanelName, open: boolean): void;
   toggleHelp(on?: boolean): void;
+  /** Opens or closes the History of the document (when the editor has a history); `compare`: on the newest change. */
+  toggleHistory(on?: boolean, opts?: { compare?: boolean }): void;
   exportAs(kind: 'mmdx' | 'mmd' | 'svg' | 'png'): Promise<void>;
   setTheme(id: string): void;
   openFiles(files: FileList | File[]): Promise<void>;
@@ -155,8 +172,6 @@ export interface EditorActions {
   plainMermaid(): Promise<void>;
   refreshToolbar(): void;
 }
-
-export type CoreEvent = 'draw' | 'selection' | 'panels' | 'mode' | 'tool' | 'view' | 'model' | 'theme' | 'overlay';
 
 export interface CoreDom {
   shadow: ShadowRoot;
@@ -173,46 +188,35 @@ export interface CoreDom {
   overlay: SVGGElement;
 }
 
-export interface CoreServices {
+export interface EditorCoreOptions {
   store: DocStore;
-  ctx: CoreContext;
-  i18n: I18n;
-  storage: StorageAdapter;
   features: EditorFeatures;
-  dom: CoreDom;
-  viewport: Viewport;
-  dialogs: Dialogs;
-  toaster: Toaster;
-  popovers: PopoverManager;
-  shortcuts: ShortcutRegistry;
-  /** Dispatches a DOM event from the host element (`ds-*`). Returns false when a cancelable event was prevented. */
-  emit(type: string, detail: unknown, cancelable?: boolean): boolean;
+  storage?: StorageAdapter;
+  ctx?: Partial<CoreContext>;
+  themeSource?: ThemeSource;
+  ui?: 'light' | 'dark' | 'auto';
+  theme?: string;
+  themeDark?: string;
+  compact?: boolean | 'auto';
+  /** CSS of the installed modules' that is not in their `css` (adopted after the editor's own). */
+  css?: readonly string[];
 }
 
-export class EditorCore implements CoreServices {
+/** The editor's own panels (History brings its own while it is open). */
+export type PanelName = 'code' | 'properties' | 'layers';
+export type EditorPanels = Readonly<Record<PanelName, boolean> & Record<string, boolean>>;
+
+export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPanels> {
   readonly store: DocStore;
-  readonly ctx: CoreContext;
-  readonly i18n: I18n;
-  readonly storage: StorageAdapter;
   readonly features: EditorFeatures;
-  readonly dom: CoreDom;
-  readonly viewport: Viewport;
   readonly dialogs: Dialogs;
-  readonly toaster: Toaster;
-  readonly popovers: PopoverManager;
-  readonly shortcuts: ShortcutRegistry;
-  readonly emit: CoreServices['emit'];
+  /** The scene that draws the document (the canvas shows it unless History is open). */
+  readonly storeScene: StoreScene;
 
   // ---- UI state (never saved into the document) -------------------------------------------------------------------
-  readonly mode: Signal<Mode> = signal<Mode>('edit');
-  readonly tool: Signal<Tool> = signal<Tool>('pointer');
   readonly enteredGroup: Signal<string | null> = signal<string | null>(null);
   readonly pageSelected: Signal<boolean> = signal(false);
-  readonly panels = signal({ code: true, properties: true, layers: true });
   readonly codeFilter = signal('');
-  readonly display = signal({ labels: true, hoverHighlight: true });
-  /** The chrome's light / dark scheme. The diagram is shown in the counterpart of its theme that matches it. */
-  readonly scheme: Signal<'light' | 'dark'> = signal<'light' | 'dark'>('light');
   /** Problems in the Mermaid code and the metadata (code panel → canvas issue bar, badge on the Code tool). */
   readonly issueCount = signal(0);
   /** Base name for exports (no extension); files opened through `openFiles` set it. */
@@ -229,76 +233,155 @@ export class EditorCore implements CoreServices {
   hover: Sel | null = null;
   /** A gesture is running. */
   dragging = false;
+  /** Cancels the running pointer gesture, if any (set by the editor's pointer wiring). */
+  cancelPointer: (() => void) | null = null;
   /** Space is held: drag pans. */
   spaceDown = false;
   /** Last pointer position (client coordinates), for paste-at-pointer and menus. */
   pointer: { clientX: number; clientY: number } | null = null;
+  /** The item clipboard (UI state, never saved): copies carry their content (§9), so History can fill it too. */
+  clipboard: ClipboardData | null = null;
+  /**
+   * An old version shown read-only (History, `showVersion`): the getters, the render and the selection read it instead
+   * of the store, and nothing writes (changes, transactions, undo are refused) while it shows.
+   */
+  readonly version: Signal<VersionView | null> = signal<VersionView | null>(null);
+  /** The selection while a version shows (the document's own selection is kept in the store meanwhile). */
+  private versionSel: ItemRef[] = [];
+  /** What showing a version put aside (the document's entered group and layer override), given back after it. */
+  private beforeVersion: { group: string | null; layers: readonly string[] | undefined } | null = null;
 
-  private readonly actionMap = new Map<keyof EditorActions, (...args: never[]) => unknown>();
   private rendered: Rendered | null = null;
   private readonly gestures: GestureSource[] = [];
   private readonly painters: OverlayPainter[] = [];
-  private readonly listeners = new Map<CoreEvent, Set<() => void>>();
   private drawQueued = 0;
+  private readonly domCache: CoreDom;
 
-  constructor(s: CoreServices) {
-    this.store = s.store;
-    this.ctx = s.ctx;
-    this.i18n = s.i18n;
-    this.storage = s.storage;
-    this.features = s.features;
-    this.dom = s.dom;
-    this.viewport = s.viewport;
-    this.dialogs = s.dialogs;
-    this.toaster = s.toaster;
-    this.popovers = s.popovers;
-    this.shortcuts = s.shortcuts;
-    this.emit = s.emit;
+  constructor(host: HTMLElement, o: EditorCoreOptions) {
+    super(host, {
+      product: 'editor',
+      css: [ALIASES, DIALOG_CSS, EDITOR_CSS, HIGHLIGHT_CSS, ...(o.css ?? [])],
+      root: { class: 'ed mode-edit', role: 'application', roleDescription: 'diagram editor' },
+      areaClass: 'canvas-wrap',
+      initialMode: 'edit',
+      canvas: {
+        interaction: 'pan-zoom', wheel: 'always', panOnDrag: false, minK: 0.05, maxK: 6, pad: 40, svgClass: 'canvas', part: 'canvas',
+        pageClass: 'page-layer page-shadow',
+        onView: () => {
+          this.fire('view');
+          this.drawOverlay();
+        },
+      },
+      feature: (name) => this.featureOn(name),
+      loadHistory: () => import('../diff/history.js'),
+      ...(o.storage ? { storage: o.storage } : {}),
+      ...(o.ctx ? { ctx: o.ctx } : {}),
+      ...(o.themeSource ? { themeSource: o.themeSource } : {}),
+      ...(o.ui ? { ui: o.ui } : {}),
+      ...(o.theme ? { theme: o.theme } : {}),
+      ...(o.themeDark ? { themeDark: o.themeDark } : {}),
+      ...(o.compact !== undefined ? { compact: o.compact } : {}),
+    });
+    this.store = o.store;
+    this.features = o.features;
+    this.dialogs = new Dialogs(this.shadow, this.i18n.t);
+    this.tool.set('pointer');
+    this.panels.set({ code: true, properties: true, layers: true });
+    const c = this.canvas;
+    this.domCache = { shadow: this.shadow, root: this.root, wrap: this.area, svg: c.svg, defs: c.defs, vp: c.vp, page: c.page, body: c.body, overlay: c.overlay };
+    this.storeScene = new StoreScene(this);
+    this.pushScene(this.storeScene);
   }
 
-  // ---- events -----------------------------------------------------------------------------------------------------
-
-  on(ev: CoreEvent, cb: () => void): () => void {
-    let set = this.listeners.get(ev);
-    if (!set) this.listeners.set(ev, (set = new Set()));
-    set.add(cb);
-    return () => set.delete(cb);
+  /** The editor's DOM (the shell's root and canvas area, the main canvas's layers). */
+  get dom(): CoreDom {
+    return this.domCache;
   }
 
-  fire(ev: CoreEvent): void {
-    for (const cb of [...(this.listeners.get(ev) ?? [])]) cb();
+  /** Pan and zoom of the main canvas. */
+  get viewport(): Viewport {
+    return this.canvas.viewport!;
   }
 
-  // ---- actions ----------------------------------------------------------------------------------------------------
-
-  provide<K extends keyof EditorActions>(name: K, f: EditorActions[K]): () => void {
-    this.actionMap.set(name, f as (...args: never[]) => unknown);
-    return () => {
-      if (this.actionMap.get(name) === (f as unknown)) this.actionMap.delete(name);
-    };
-  }
-
-  has(name: keyof EditorActions): boolean {
-    return this.actionMap.has(name);
-  }
-
-  run<K extends keyof EditorActions>(name: K, ...args: Parameters<EditorActions[K]>): ReturnType<EditorActions[K]> | undefined {
-    const f = this.actionMap.get(name) as ((...a: Parameters<EditorActions[K]>) => ReturnType<EditorActions[K]>) | undefined;
-    return f ? f(...args) : undefined;
+  private featureOn(name: string): boolean {
+    const f = this.features;
+    switch (name) {
+      case 'help':
+        return f.help;
+      case 'fullscreen':
+        return f.fullscreen;
+      case 'pen':
+        return f.pen;
+      case 'theme':
+        return f.themePicker;
+      case 'export':
+        return f.export && f.exportFormats.length > 0;
+      case 'code':
+        return f.codePanel;
+      case 'layers':
+        return f.layers;
+      case 'history':
+        return f.history;
+      default:
+        return true;
+    }
   }
 
   // ---- document access --------------------------------------------------------------------------------------------
 
   get model(): DiagramModel {
-    return this.store.model.peek();
+    return this.version.peek()?.model ?? this.store.model.peek();
   }
 
   get meta(): DiagramMeta {
-    return this.store.meta.peek();
+    return this.version.peek()?.doc.meta ?? this.store.meta.peek();
   }
 
   get code(): string {
-    return this.store.code.peek();
+    return this.version.peek()?.doc.code ?? this.store.code.peek();
+  }
+
+  /** The full source of what is shown: the version, or the document. */
+  shownSource(): string {
+    return this.version.peek()?.source ?? this.store.source();
+  }
+
+  /**
+   * Shows an old version read-only (History) or the document again (null). The document's selection, entered group
+   * and layer visibility are kept for when it is back; the view stays where it is.
+   */
+  showVersion(v: { id: string; source: string } | null): void {
+    const cur = this.version.peek();
+    if ((v?.id ?? null) === (cur?.id ?? null) && v?.source === cur?.source) return;
+    this.cancelGesture();
+    this.inlineEditing = null;
+    if (v) {
+      const split = splitSource(v.source);
+      const doc: DiagramDocument = { code: split.doc.code, meta: normalizeMeta(split.doc.meta) };
+      if (!cur) {
+        this.beforeVersion = { group: this.enteredGroup.peek(), layers: this.visibleLayers.peek() };
+        this.enteredGroup.set(null);
+        this.pageSelected.set(false);
+      }
+      // the same item stays selected from version to version while it is there
+      const model = parse(doc.code);
+      this.versionSel = cur ? this.versionSel.filter((r) => itemExists(model, r, doc.meta)) : [];
+      this.version.set({ id: v.id, source: v.source, doc, model });
+    } else {
+      this.version.set(null);
+      this.versionSel = [];
+      const back = this.beforeVersion;
+      this.beforeVersion = null;
+      if (back) {
+        this.enteredGroup.set(back.group);
+        this.visibleLayers.set(back.layers);
+      }
+    }
+    this.rendered = null;
+    this.draw();
+    this.fire('model');
+    this.fire('selection');
+    this.fire('panels');
   }
 
   /** The last render (scene, geometry, theme). */
@@ -336,7 +419,7 @@ export class EditorCore implements CoreServices {
   // ---- selection --------------------------------------------------------------------------------------------------
 
   selection(): Sel[] {
-    const sel = this.store.selection.peek();
+    const sel = this.version.peek() ? this.versionSel : this.store.selection.peek();
     return sel.map((r, i) => (i === 0 && this.foot && r.kind === 'participant' ? { ...r, foot: true } : r));
   }
 
@@ -347,7 +430,7 @@ export class EditorCore implements CoreServices {
   }
 
   isSelected(r: ItemRef): boolean {
-    return this.store.selection.peek().some((x) => x.kind === r.kind && x.id === r.id);
+    return (this.version.peek() ? this.versionSel : this.store.selection.peek()).some((x) => x.kind === r.kind && x.id === r.id);
   }
 
   select(items: readonly Sel[]): void {
@@ -361,10 +444,12 @@ export class EditorCore implements CoreServices {
     }
     this.foot = !!items[0]?.foot;
     if (list.length) this.pageSelected.set(false);
-    this.store.selection.set(list);
+    // a version's items are selected to copy them: the document's selection and its event stay as they are
+    if (this.version.peek()) this.versionSel = list;
+    else this.store.selection.set(list);
     this.fire('selection');
     this.drawOverlay();
-    this.emit('ds-selection', { items: list });
+    if (!this.version.peek()) this.emit('mmdx-selection', { items: list });
   }
 
   toggleSelected(it: Sel): void {
@@ -395,43 +480,43 @@ export class EditorCore implements CoreServices {
     return null;
   }
 
-  /** The diagram's own theme (`canvas.theme`), or baseline when it names none or one that is not registered. */
-  documentTheme(): string {
-    const id = canonicalId(typeof this.meta.canvas.theme === 'string' ? this.meta.canvas.theme : null);
-    return this.ctx.themes.has(id) ? id : BASELINE;
-  }
-
-  /** The theme the diagram is drawn with: its own theme, or that theme's counterpart for the current UI scheme. */
-  shownTheme(): string {
-    return counterpartTheme(this.ctx.themes, this.documentTheme(), this.scheme.peek());
-  }
-
   // ---- rendering --------------------------------------------------------------------------------------------------
 
   /** Renders the current document (no DOM work). */
   render(): Rendered {
-    const doc = this.store.doc();
+    const v = this.version.peek();
+    const doc = v?.doc ?? this.store.doc();
     const model = this.model;
     const opts: Parameters<typeof renderDocument>[3] = {};
     if (this.mode.peek() === 'view' && !this.display.peek().labels) opts.hideLabels = true;
     opts.theme = this.shownTheme();
-    if (this.tableView && this.mode.peek() === 'edit') opts.tableView = [this.tableView];
+    // a version's layers are a view override too (its Layers panel hides and shows them without writing)
+    const layers = this.mode.peek() === 'view' || v ? this.visibleLayers.peek() : undefined;
+    if (layers) opts.visibleLayers = layers;
+    if (this.tableView && this.mode.peek() === 'edit' && !v) opts.tableView = [this.tableView];
     const r = renderDocument(doc, model, this.ctx, opts);
     this.rendered = { doc, model, tooLarge: false, ...r, diagnostics: [...model.diagnostics, ...r.diagnostics] };
     return this.rendered;
   }
 
-  /** Re-renders and patches the scene, then the overlay. Synchronous (gestures preview through it). */
+  /**
+   * Re-renders and patches the document, then the overlay. Synchronous (gestures preview through it). While another
+   * scene owns the canvas (History), the store scene only becomes dirty and repaints in full when it is back.
+   */
   draw(): void {
     if (this.drawQueued) {
       cancelAnimationFrame(this.drawQueued);
       this.drawQueued = 0;
     }
+    this.storeScene.invalidate();
+  }
+
+  /** Paints the document into the main canvas (the store scene calls it while attached). */
+  paintDocument(): void {
     const r = this.render();
     const res = r.result;
-    patchChildren(this.dom.defs, res.defs);
-    patchChildren(this.dom.page, pageScene(res, r.rctx));
-    patchChildren(this.dom.body, res.body);
+    this.canvas.show({ defs: res.defs, page: pageScene(res, r.rctx), body: res.body });
+    this.storeScene.bounds.set(res.bounds);
     this.decorate();
     this.drawOverlay();
     this.fire('draw');
@@ -460,13 +545,20 @@ export class EditorCore implements CoreServices {
     this.dom.root.classList.toggle('group-edit', !!this.enteredGroup.peek() && this.mode.peek() === 'edit');
   }
 
+  /** Adds an overlay painter; one added while a module installs is muted while the module is suspended. */
   addOverlay(p: OverlayPainter): () => void {
-    this.painters.push(p);
-    this.painters.sort((a, b) => a.order - b.order);
-    return () => {
+    const add = (): void => {
+      if (this.painters.includes(p)) return;
+      this.painters.push(p);
+      this.painters.sort((a, b) => a.order - b.order);
+    };
+    const remove = (): void => {
       const i = this.painters.indexOf(p);
       if (i >= 0) this.painters.splice(i, 1);
     };
+    add();
+    this.track({ set: (on) => (on ? add() : remove()), dispose: remove });
+    return remove;
   }
 
   /** Repaints the overlay layer (handles, dots, marquee) from the current geometry. */
@@ -483,19 +575,26 @@ export class EditorCore implements CoreServices {
           console.error(`[mmdx] overlay painter ${p.id}`, e);
         }
       }
-    patchChildren(this.dom.overlay, nodes);
+    if (this.scene === this.storeScene) this.canvas.setOverlay(nodes);
     this.fire('overlay');
   }
 
   // ---- gestures ---------------------------------------------------------------------------------------------------
 
+  /** Adds a gesture source; one added while a module installs is muted while the module is suspended. */
   addGestureSource(s: GestureSource): () => void {
-    this.gestures.push(s);
-    this.gestures.sort((a, b) => b.priority - a.priority);
-    return () => {
+    const add = (): void => {
+      if (this.gestures.includes(s)) return;
+      this.gestures.push(s);
+      this.gestures.sort((a, b) => b.priority - a.priority);
+    };
+    const remove = (): void => {
       const i = this.gestures.indexOf(s);
       if (i >= 0) this.gestures.splice(i, 1);
     };
+    add();
+    this.track({ set: (on) => (on ? add() : remove()), dispose: remove });
+    return remove;
   }
 
   /** Runs the gesture sources in priority order; the first that returns a gesture wins. */
@@ -544,37 +643,69 @@ export class EditorCore implements CoreServices {
   // ---- changes ----------------------------------------------------------------------------------------------------
 
   /**
-   * Applies a code rewrite from an op (`edit.js` / `connect.js` results). Remaps positional sequence metadata, keeps
-   * the selection where items survive, fires the cancelable `ds-op` event, commits one history step. Returns false
-   * when nothing changed or the host vetoed the op.
+   * Applies a code rewrite from an op (`edit.js` / `connect.js` results) or typed into the code panel. Remaps
+   * positional sequence metadata, keeps the selection where items survive, fires the cancelable `mmdx-op` event
+   * (`type`, default the label), commits one history step (`reason` of the `mmdx-change`, default `op`). `%%@` lines
+   * in the code move into the metadata. Returns false when nothing changed or the host vetoed the op.
    */
-  applyCode(res: { code?: string | null; meta?: DiagramMeta } | null | undefined, label: string, opts: { select?: Sel[] | null } = {}): boolean {
+  applyCode(res: { code?: string | null; meta?: DiagramMeta } | null | undefined, label: string, opts: { select?: Sel[] | null; type?: string; reason?: ChangeReason } = {}): boolean {
+    // a version shown read-only is never written (and the store is not what is shown)
+    if (this.version.peek()) return false;
     if (!res || res.code == null || (res.code === this.code && !res.meta)) return false;
-    if (!this.emit('ds-op', { type: label, code: res.code }, true)) return false;
+    if (!this.emit('mmdx-op', { type: opts.type ?? label, code: res.code }, true)) return false;
     const oldModel = this.model, oldCode = this.code;
     this.store.begin();
     try {
       if (res.meta) this.store.meta.set(res.meta);
-      this.store.code.set(res.code);
+      this.store.setCode(res.code, label);
       const model = this.model;
       // ops that return metadata have already carried it over to the new positional ids
       if (!res.meta && model.type === 'sequence' && oldModel.type === 'sequence')
-        this.store.meta.set(remapSequenceMeta(this.meta, oldModel, oldCode, model, res.code));
+        this.store.meta.set(remapSequenceMeta(this.meta, oldModel, oldCode, model, this.code));
       const keep = (r: Sel): boolean => this.store.exists(r);
       if (opts.select !== undefined) this.select((opts.select ?? []).filter(keep));
-      else this.select(this.selection().filter(keep));
+      else {
+        const cur = this.selection(), kept = cur.filter(keep);
+        if (kept.length !== cur.length) this.select(kept);
+      }
     } finally {
-      this.store.commit(label);
+      this.store.commit(label, opts.reason);
     }
     this.afterChange();
     return true;
   }
 
   /**
+   * Replaces the document (a host's `setSource`, a remote update, an opened file). A gesture or transaction in flight
+   * is cancelled first (rolled back, like Esc). `reset` clears the history, `push` makes it an undoable step. A load
+   * (not a remote update) leaves group editing and the page selection; the view fits the new document unless `fit` is
+   * false and the diagram type stayed (while History owns the canvas, the document's view is restored on the way back).
+   */
+  loadSource(src: string, opts: { history: 'reset' | 'push'; reason: 'load' | 'remote'; fit?: boolean; markSaved?: boolean }): void {
+    this.cancelGesture();
+    const before = this.store.model.peek().type;
+    this.store.load(src, { history: opts.history, reason: opts.reason, markSaved: opts.markSaved !== false });
+    if (opts.reason === 'load') {
+      this.enteredGroup.set(null);
+      this.pageSelected.set(false);
+    }
+    this.draw();
+    if (this.scene === this.storeScene && !this.version.peek() && (opts.fit !== false || before !== this.store.model.peek().type)) this.viewport.setBounds(this.result.result.bounds, { fit: true });
+    this.fire('model');
+    this.fire('panels');
+  }
+
+  /** Replaces the metadata as one history step (`mmdx-op`; a veto rolls it back). */
+  setMeta(label: string, meta: DiagramMeta): void {
+    this.change(label, () => this.store.meta.set(meta));
+  }
+
+  /**
    * Runs a metadata-only change as one history step (styles, positions): `f` mutates `this.meta` in place.
-   * Fires `ds-op`; a veto rolls the change back.
+   * Fires `mmdx-op`; a veto rolls the change back.
    */
   change(label: string, f: () => void): void {
+    if (this.version.peek()) return;
     this.store.begin();
     try {
       f();
@@ -582,7 +713,7 @@ export class EditorCore implements CoreServices {
       this.store.rollback();
       throw e;
     }
-    if (!this.emit('ds-op', { type: label }, true)) {
+    if (!this.emit('mmdx-op', { type: label }, true)) {
       this.store.rollback();
       this.draw();
       return;
@@ -593,12 +724,13 @@ export class EditorCore implements CoreServices {
 
   /** Starts a gesture transaction (live preview through draw(); commit or roll back at the end). */
   begin(): void {
+    if (this.version.peek()) return;
     this.store.begin();
   }
 
   commit(label: string): void {
     if (!this.store.inTransaction) return;
-    if (!this.emit('ds-op', { type: label }, true)) {
+    if (!this.emit('mmdx-op', { type: label }, true)) {
       this.rollback();
       return;
     }
@@ -611,18 +743,40 @@ export class EditorCore implements CoreServices {
     this.afterChange();
   }
 
+  /**
+   * Ends whatever edit is in flight, like Esc: the running pointer gesture is cancelled and an open transaction
+   * (a drag, coalesced nudges, a live field edit) is rolled back. Called before undo / redo, a load, and when the
+   * stage or the mode changes, so nothing keeps writing the store from a state captured before.
+   */
+  cancelGesture(): void {
+    this.cancelPointer?.();
+    if (this.store.inTransaction) this.rollback();
+  }
+
+  /** Undo, after cancelling the edit in flight (its later commit would record a stale start and drop the redo steps). */
+  undo(): void {
+    if (this.version.peek()) return;
+    this.cancelGesture();
+    this.store.undo();
+    this.afterChange();
+  }
+
+  redo(): void {
+    if (this.version.peek()) return;
+    this.cancelGesture();
+    this.store.redo();
+    this.afterChange();
+  }
+
   /** Redraw + panels after a committed change. */
   afterChange(): void {
     this.draw();
     this.fire('panels');
   }
 
-  toast(msg: string, opts: { error?: boolean } = {}): void {
-    this.toaster.show(msg, opts);
-  }
-
   setMode(m: Mode): void {
-    if (this.mode.peek() === m) return;
+    // no Edit / View switching while History is open (§8.2)
+    if (this.mode.peek() === m || this.stage.peek() !== 'document') return;
     this.mode.set(m);
     this.tool.set(m === 'edit' ? 'pointer' : 'hand');
     if (m === 'view') {

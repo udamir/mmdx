@@ -1,0 +1,676 @@
+erDiagram
+  acl_group {
+    INT(11) id PK
+    INT(11) parent_id FK
+    INT(11) lft
+    INT(11) rgt
+    DATETIME created_at
+    DATETIME updated_at
+    VARCHAR(7) source_culture
+    INT(11) serial_number
+  }
+  acl_group_i18n {
+    VARCHAR(255) name
+    TEXT description_v2
+    INT(11) id PK
+    VARCHAR(7) culture PK
+  }
+  acl_permission {
+    INT(11) id PK
+    INT(11) user_id FK
+    INT(11) group_id FK
+    INT(11) object_id FK
+    VARCHAR(255) action
+    INT(11) grant_deny
+    TEXT conditional
+    TEXT constants
+    DATETIME created_at
+    DATETIME updated_at
+    INT(11) serial_number
+  }
+  acl_user_group {
+    INT(11) id PK
+    INT(11) user_id FK
+    INT(11) group_id FK
+    INT(11) serial_number_v2
+  }
+  user {
+    INT(11) id PK
+    VARCHAR(255) username
+    VARCHAR(255) sha1_password
+    VARCHAR(255) salt
+  }
+  other_name {
+    INT(11) object_id FK
+    INT(11) type_id FK
+    DATETIME updated_at
+    VARCHAR(7) source_culture
+    INT(11) id PK
+    INT(11) serial_number
+  }
+  other_name_i18n {
+    VARCHAR(255) name
+    VARCHAR(255) note
+    INT(11) id PK
+    VARCHAR(7) culture PK
+  }
+  repository {
+    INT(11) id PK
+    VARCHAR(255) identifier
+    INT(11) desc_status_id FK
+    INT(11) desc_detail_id FK
+    VARCHAR(255) legacy_desc_identifier
+    VARCHAR(7) source_culture
+  }
+  repository_i18n {
+    TEXT geocultural_context
+    TEXT collecting_policies
+    TEXT buildings
+    TEXT holdings
+    TEXT finding_aids
+    TEXT opening_times
+    TEXT access_conditions
+    TEXT disabled_access
+    TEXT research_services
+    TEXT reproduction_services
+    TEXT public_facilities
+    VARCHAR(255) desc_institution_identifier
+    TEXT desc_rules_utc
+    TEXT desc_sources
+    TEXT desc_revision_history
+    INT(11) id PK
+    VARCHAR(7) culture PK
+    INT(11) version
+    BOOLEAN is_public
+  }
+  contact_information {
+    INT(11) actor_id FK
+    TINYINT(4) primary_contact
+    VARCHAR(255) contact_person
+    VARCHAR(255) street_address
+    VARCHAR(255) website
+    VARCHAR(255) email
+    VARCHAR(255) telephone
+    VARCHAR(255) fax
+    VARCHAR(255) postal_code
+    VARCHAR(255) country_code
+    FLOAT longitude
+    FLOAT latitude
+    DATETIME created_at
+    DATETIME updated_at
+    VARCHAR(7) source_culture
+    INT(11) id PK
+    INT(11) serial_number
+  }
+  contact_information_i18n {
+    VARCHAR(255) contact_type
+    VARCHAR(255) city
+    VARCHAR(255) region
+    TEXT note
+    INT(11) id PK
+    VARCHAR(7) culture PK
+  }
+  function {
+    INT(11) id PK
+    BIGINT type_id FK
+    INT(11) parent_id FK
+    INT(11) description_status_id FK
+    INT(11) description_detail_id FK
+    VARCHAR(255) description_identifier
+    VARCHAR(255) source_standard
+    INT(11) lft
+    INT(11) rgt
+    VARCHAR(7) source_culture
+    VARCHAR(64) external_ref
+  }
+  function_i18n {
+    VARCHAR(255) authorized_form_of_name
+    VARCHAR(255) classification
+    VARCHAR(255) dates
+    TEXT description
+    TEXT history
+    TEXT legislation
+    TEXT institution_identifier
+    TEXT revision_history
+    TEXT rules
+    TEXT sources
+    INT(11) id PK
+    VARCHAR(7) culture PK
+    TEXT notes
+  }
+  menu {
+    INT(11) parent_id FK
+    VARCHAR(255) name
+    VARCHAR(255) path
+    INT(11) lft
+    INT(11) rgt
+    DATETIME created_at
+    DATETIME updated_at
+    VARCHAR(7) source_culture
+    INT(11) id PK
+    INT(11) serial_number
+  }
+  menu_i18n {
+    VARCHAR(512) label
+    TEXT description
+    INT(11) id PK
+    VARCHAR(7) culture PK
+    INT(11) tenant_id FK
+  }
+  oai_repository {
+    INT(11) id PK
+    VARCHAR(512) name
+    VARCHAR(255) uri
+    VARCHAR(255) admin_email
+    DATETIME earliest_timestamp
+    DATETIME created_at
+    DATETIME updated_at
+    INT(11) serial_number
+  }
+  oai_harvest {
+    INT(11) id PK
+    BIGINT oai_repository_id FK
+    DATETIME start_timestamp
+    DATETIME end_timestamp
+    DATETIME last_harvest
+    DATETIME last_harvest_attempt
+    VARCHAR(255) metadataPrefix
+    VARCHAR(255) set
+    DATETIME created_at
+    INT(11) serial_number
+  }
+  actor {
+    INT(11) id PK
+    VARCHAR(512) corporate_body_identifiers
+    BIGINT entity_type_id FK
+    INT(11) description_status_id FK
+    INT(11) description_detail_id FK
+    VARCHAR(255) description_identifier
+    VARCHAR(255) source_standard
+    INT(11) parent_id FK
+    INT(11) lft
+    INT(11) rgt
+    VARCHAR(7) source_culture
+  }
+  actor_i18n {
+    VARCHAR(255) authorized_form_of_name
+    VARCHAR(255) dates_of_existence
+    TEXT history
+    TEXT places
+    TEXT legal_status
+    TEXT functions
+    TEXT mandates
+    TEXT internal_structures
+    TEXT general_context
+    VARCHAR(255) institution_responsible_identifier
+    TEXT rules
+    TEXT sources
+    TEXT revision_history
+    INT(11) id PK
+    VARCHAR(7) culture PK
+  }
+  place_map_relation {
+    INT(11) id PK
+    INT(11) place_id_utc FK
+    INT(11) map_id FK
+    INT(11) map_icon_image_id FK
+    TEXT map_icon_description
+    INT(11) type_id FK
+  }
+  map {
+    TIMESTAMP created_at
+    DATETIME updated_at
+    VARCHAR(7) source_culture
+    INT(11) id PK
+    INT(11) serial_number
+  }
+  map_i18n {
+    VARCHAR(255) title
+    TEXT legacy_description
+    INT(11) id PK
+    VARCHAR(7) culture PK
+  }
+  place {
+    INT(11) id PK
+    INT(11) country_id FK
+    INT(11) type_id FK
+    FLOAT longitude
+    FLOAT latitude
+    FLOAT altitude
+    VARCHAR(7) source_culture
+  }
+  place_i18n {
+    TEXT street_address
+    VARCHAR(255) city
+    VARCHAR(255) region
+    VARCHAR(255) postal_code
+    INT(11) id PK
+    VARCHAR(7) culture PK
+  }
+  event {
+    INT(11) id PK
+    DATE start_date
+    TIME start_time
+    DATE end_date
+    TIME end_time
+    INT(11) type_id FK
+    INT(11) information_object_id FK
+    INT(11) actor_id FK
+    VARCHAR(7) source_culture
+  }
+  event_i18n {
+    TEXT description
+    VARCHAR(255) date
+    INT(11) id PK
+    VARCHAR(7) culture PK
+  }
+  status {
+    BIGINT object_id FK
+    INT(11) type_id FK
+    INT(11) status_id FK
+    DATETIME created_at
+    DATETIME updated_at
+    INT(11) id PK
+    INT(11) serial_number
+  }
+  information_object {
+    INT(11) id PK
+    VARCHAR(255) identifier
+    INT(11) oai_local_identifier
+    INT(11) level_of_description_id FK
+    INT(11) collection_type_id FK
+    INT(11) repository_id FK
+    INT(11) parent_id FK
+    INT(11) description_status_id FK
+    INT(11) description_detail_id FK
+    VARCHAR(255) description_identifier
+    VARCHAR(255) source_standard
+    INT(11) lft
+    INT(11) rgt
+    VARCHAR(7) source_culture
+  }
+  information_object_i18n {
+    VARCHAR(255) title
+    VARCHAR(255) alternate_title
+    VARCHAR(255) edition
+    TEXT extent_and_medium
+    TEXT archival_history
+    TEXT acquisition
+    TEXT scope_and_content
+    TEXT appraisal
+    TEXT accruals
+    TEXT arrangement
+    TEXT access_conditions
+    TEXT reproduction_conditions
+    TEXT physical_characteristics
+    TEXT finding_aids
+    TEXT location_of_originals
+    TEXT location_of_copies
+    TEXT related_units_of_description
+    VARCHAR(255) institution_responsible_identifier
+    TEXT rules
+    TEXT sources
+    TEXT revision_history
+    INT(11) id PK
+    VARCHAR(7) culture PK
+    DATETIME deleted_at
+  }
+  digital_object {
+    INT(11) id PK
+    INT(11) information_object_id FK
+    INT(11) usage_id FK
+    VARCHAR(50) mime_type
+    INT(11) media_type_id FK
+    VARCHAR(255) name
+    VARCHAR(1000) path
+    INT(11) sequence
+    INT(11) byte_size
+    VARCHAR(255) checksum
+    INT(11) checksum_type_id FK
+    INT(11) parent_id FK
+    INT(11) lft
+    INT(11) rgt
+  }
+  note {
+    INT(11) object_id FK
+    INT(11) type_id FK
+    VARCHAR(255) scope
+    INT(11) user_id FK
+    INT(11) parent_id FK
+    INT(11) lft_utc
+    INT(11) rgt
+    DATETIME created_at
+    DATETIME updated_at
+    VARCHAR(7) source_culture
+    INT(11) id PK
+    INT(11) serial_number
+  }
+  note_i18n {
+    TEXT content
+    INT(11) id PK
+    VARCHAR(7) culture PK
+  }
+  slug {
+    INT(11) object_id FK
+    VARCHAR(255) slug
+    INT(11) id PK
+    INT(11) serial_number
+  }
+  object {
+    INT(11) id PK
+    VARCHAR(255) class_name
+    DATETIME created_at
+    DATETIME updated_at
+    INT(11) serial_number
+  }
+  relation {
+    INT(11) id PK
+    INT(11) subject_id FK
+    INT(11) object_id FK
+    INT(11) type_id FK
+    DATE end_date
+  }
+  object_term_relation {
+    INT(11) id PK
+    INT(11) object_id FK
+    INT(11) term_id FK
+    DATE start_date
+    DATE end_date
+    VARCHAR(32) status
+  }
+  property {
+    INT(11) object_id FK
+    VARCHAR(255) scope
+    VARCHAR(255) name
+    DATETIME created_at
+    DATETIME updated_at
+    VARCHAR(7) source_culture
+    INT(11) id PK
+    INT(11) serial_number
+  }
+  property_i18n {
+    VARCHAR(255) value_utc
+    INT(11) id PK
+    VARCHAR(7) culture PK
+  }
+  static_page {
+    INT(11) id PK
+    VARCHAR(7) source_culture
+  }
+  static_page_i18n {
+    TEXT content
+    INT(11) id PK
+    VARCHAR(7) culture PK
+  }
+  term {
+    INT(11) id PK
+    INT(11) taxonomy_id FK
+    VARCHAR(255) code
+    INT(11) parent_id FK
+    INT(11) lft
+    INT(11) rgt
+    VARCHAR(7) source_culture
+  }
+  historical_event {
+    INT(11) id PK
+    INT(11) type_id FK
+    DATE start_date
+    TIME start_time
+    DATE end_date
+    TIME end_time
+    DATETIME deleted_at
+  }
+  rights_actor_relation {
+    INT(11) id PK
+    INT(11) rights_id FK
+    INT(11) actor_id FK
+    INT(11) type_id FK
+  }
+  rights_i18n {
+    TEXT description
+    INT(11) id PK
+    VARCHAR(7) culture PK
+  }
+  rights_term_relation {
+    INT(11) rights_id FK
+    INT(11) term_id FK
+    INT(11) type_id FK
+    TEXT description
+    DATETIME updated_at
+    INT(11) id PK
+    INT(11) serial_number
+  }
+  physical_object_i18n {
+    VARCHAR(255) name
+    TEXT description
+    TEXT location
+    INT(11) id PK
+    VARCHAR(7) culture PK
+  }
+  taxonomy {
+    INT(11) id PK
+    VARCHAR(512) usage
+    DATETIME created_at
+    DATETIME updated_at
+    INT(11) parent_id FK
+    INT(11) lft
+    INT(11) rgt
+    VARCHAR(7) source_culture
+  }
+  taxonomy_i18n {
+    VARCHAR(255) name
+    TEXT note
+    INT(11) id PK
+    VARCHAR(7) culture PK
+  }
+  setting {
+    VARCHAR(255) name
+    VARCHAR(255) scope
+    TINYINT(4) editable
+    TINYINT(4) deleteable
+    VARCHAR(7) source_culture
+    INT(11) id PK
+    INT(11) serial_number
+  }
+  setting_i18n {
+    TEXT value
+    INT(11) id PK
+    VARCHAR(7) culture PK
+  }
+
+  acl_group ||--|{ acl_group_i18n : "translations"
+  other_name ||--|{ other_name_i18n : "translations HA"
+  repository ||--|{ repository_i18n : "translations"
+  contact_information ||--|{ contact_information_i18n : "translations"
+  function ||--|{ function_i18n : "translations"
+  menu ||--|{ menu_i18n : "translations"
+  actor ||--|{ actor_i18n : "translations"
+  map ||--|{ map_i18n : "translations"
+  place ||--|{ place_i18n : "translations Core"
+  event ||--|{ event_i18n : "translations"
+  information_object ||--|{ information_object_i18n : "translations Cluster"
+  note ||--|{ note_i18n : "translations"
+  property ||--|{ property_i18n : "translations"
+  static_page ||--|{ static_page_i18n : "translations"
+  taxonomy ||--|{ taxonomy_i18n : "translations"
+  setting ||--|{ setting_i18n : "translations Cluster"
+  object ||--o| actor : "is a"
+  object ||--o| information_object : "is a"
+  object ||--o| term : "is a"
+  object ||--o| taxonomy : "is a"
+  object ||--o| event : "is a"
+  object ||--o| function : "is a"
+  object ||--o| place : "is a"
+  object ||--o| digital_object : "is a"
+  object ||--o| relation : "is a"
+  object ||--o| object_term_relation : "is a"
+  object ||--o| static_page : "is a"
+  object ||--o| place_map_relation : "is a"
+  object ||--o| rights_actor_relation : "Batch a"
+  actor ||--o| repository : "is a"
+  actor ||--o| user : "is a"
+  term ||--o| historical_event : "is a"
+  acl_group ||--o{ acl_permission : "group"
+  acl_group ||--o{ acl_user_group : "members"
+  user ||--o{ acl_permission : "user"
+  user ||--o{ acl_user_group : "groups"
+  object ||--o{ acl_permission : "object"
+  object ||--o{ other_name : "names"
+  object ||--o{ status : "status"
+  object ||--o{ slug : "slugs"
+  object ||--o{ note : "notes"
+  object ||--o{ property : "properties"
+  user ||--o{ note : "author"
+  actor ||--o{ contact_information : "contacts"
+  actor ||--o{ event : "actor"
+  information_object ||--o{ event : "events"
+  information_object ||--o{ digital_object : "digital objects"
+  repository ||--o{ information_object : "holds"
+  taxonomy ||--o{ term : "terms"
+  term ||--o{ object_term_relation : "term"
+  object ||--o{ object_term_relation : "object"
+  place ||--o{ place_map_relation : "place"
+  map ||--o{ place_map_relation : "map"
+  object ||--o{ relation : "subject"
+  oai_repository ||--o{ oai_harvest : "harvests"
+  actor ||--o{ rights_actor_relation : "actor"
+  term ||--o{ rights_term_relation : "term"
+  term ||--o{ other_name : "type"
+  term ||--o{ status : "status"
+  attachment {
+    INT(11) id PK
+    INT(11) function_id FK
+    DATETIME created_at
+  }
+  function ||--o{ attachment : ""
+  comment {
+    INT(11) id PK
+    BIGINT rights_i18n_id FK
+    DATETIME created_at_utc
+  }
+  rights_i18n ||--o{ comment : ""
+  api_token {
+    INT(11) id PK
+    INT(11) rights_i18n_id FK
+    DATETIME created_at
+  }
+  rights_i18n ||--o{ api_token : ""
+  saved_search {
+    INT(11) id PK
+    INT(11) slug_id FK
+    DATETIME created_at
+  }
+  slug ||--o{ saved_search : ""
+
+%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----
+%%@ canvas {"v":1,"routing":"orthogonal"}
+%%@ style.entity workbench {"fill":"@paper","stroke":"@silver","strokeWidth":1,"radius":4,"mode":"table","showTypes":true,"showComments":false,"attrSize":11,"titleSize":12,"titleWeight":700,"padX":8,"padY":6,"minW":150,"maxW":420}
+%%@ entity acl_group_i18n {"preset":"workbench","x":580,"y":540,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@brown"}
+%%@ entity acl_group {"preset":"workbench","x":575,"y":690,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@brown"}
+%%@ entity acl_permission {"preset":"workbench","x":735,"y":865,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@brown"}
+%%@ entity acl_user_group {"preset":"workbench","x":620,"y":981,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@brown"}
+%%@ entity user {"preset":"workbench","x":565,"y":1090,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@blue"}
+%%@ entity other_name_i18n {"preset":"workbench","x":2475,"y":2165,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
+%%@ entity other_name {"preset":"workbench","x":2156,"y":1985,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@sky"}
+%%@ entity repository_i18n {"preset":"workbench","x":1637,"y":591,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
+%%@ entity repository {"preset":"workbench","x":1340,"y":625,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@violet"}
+%%@ entity contact_information_i18n {"preset":"workbench","x":1520,"y":475,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
+%%@ entity contact_information {"preset":"workbench","x":1165,"y":475,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
+%%@ entity function_i18n {"preset":"workbench","x":2435,"y":545,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@brown"}
+%%@ entity function {"preset":"workbench","x":2493,"y":821,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
+%%@ entity menu {"preset":"workbench","x":555,"y":2150,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
+%%@ entity menu_i18n {"preset":"workbench","x":854,"y":2144,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
+%%@ entity oai_repository {"preset":"workbench","x":626,"y":2016,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
+%%@ entity oai_harvest {"preset":"workbench","x":806,"y":1975,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
+%%@ entity actor_i18n {"preset":"workbench","x":905,"y":475,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
+%%@ entity actor {"preset":"workbench","x":1003,"y":1226,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@violet"}
+%%@ entity place_map_relation {"preset":"workbench","x":2470,"y":890,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@lavender"}
+%%@ entity map {"preset":"workbench","x":2730,"y":890,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@lavender"}
+%%@ entity map_i18n {"preset":"workbench","x":2725,"y":745,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
+%%@ entity place {"preset":"workbench","x":2470,"y":1045,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
+%%@ entity place_i18n {"preset":"workbench","x":2470,"y":1185,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
+%%@ entity event {"preset":"workbench","x":1390,"y":1005,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@green"}
+%%@ entity event_i18n {"preset":"workbench","x":1395,"y":860,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
+%%@ entity status {"preset":"workbench","x":1660,"y":1830,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@apricot"}
+%%@ entity information_object_i18n {"preset":"workbench","x":2270,"y":580,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
+%%@ entity information_object {"preset":"workbench","x":1845,"y":965,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@green"}
+%%@ entity digital_object {"preset":"workbench","x":1585,"y":1130,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@green"}
+%%@ entity note {"preset":"workbench","x":450,"y":1540,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
+%%@ entity note_i18n {"preset":"workbench","x":455,"y":1700,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
+%%@ entity slug {"preset":"workbench","x":2335,"y":1275,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
+%%@ entity object {"preset":"workbench","x":1490,"y":1520,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@lime"}
+%%@ entity relation {"preset":"workbench","x":2340,"y":1375,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
+%%@ entity object_term_relation {"preset":"workbench","x":1375,"y":1795,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
+%%@ entity property {"preset":"workbench","x":2340,"y":1715,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@mint"}
+%%@ entity property_i18n {"preset":"workbench","x":2345,"y":1855,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
+%%@ entity static_page {"preset":"workbench","x":2489,"y":1656,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
+%%@ entity static_page_i18n {"preset":"workbench","x":2532,"y":1584,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
+%%@ entity term {"preset":"workbench","x":1515,"y":2015,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
+%%@ entity historical_event {"preset":"workbench","x":1705,"y":2220,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@silver"}
+%%@ entity rights_actor_relation {"preset":"workbench","x":1050,"y":1600,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true}
+%%@ entity physical_object_i18n {"preset":"workbench","x":2670,"y":1300,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
+%%@ entity taxonomy {"preset":"workbench","x":1910,"y":1830,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@peach"}
+%%@ entity taxonomy_i18n {"preset":"workbench","x":1815,"y":1969,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
+%%@ entity setting {"preset":"workbench","x":2879,"y":1864,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@sky"}
+%%@ entity setting_i18n {"preset":"workbench","x":2892,"y":2076,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
+%%@ entity rights_term_relation {"preset":"workbench","x":1120,"y":2015,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@peach"}
+%%@ entity rights_i18n {"preset":"workbench","x":740,"y":1780,"mode":"compact","w":200,"showTypes":false,"pkUnderline":true,"fill":"@gold"}
+%%@ rel acl_group--acl_group_i18n {"routing":"curved","curve":1}
+%%@ rel other_name--other_name_i18n {"routing":"curved","curve":1}
+%%@ rel repository--repository_i18n {"routing":"curved","curve":1}
+%%@ rel contact_information--contact_information_i18n {"routing":"curved","curve":1}
+%%@ rel function--function_i18n {"routing":"curved","curve":1}
+%%@ rel menu--menu_i18n {"routing":"curved","curve":1}
+%%@ rel actor--actor_i18n {"routing":"curved","curve":1}
+%%@ rel map--map_i18n {"routing":"curved","curve":1}
+%%@ rel place--place_i18n {"routing":"curved","curve":1}
+%%@ rel event--event_i18n {"routing":"curved","curve":1}
+%%@ rel information_object--information_object_i18n {"routing":"curved","curve":1}
+%%@ rel note--note_i18n {"routing":"curved","curve":1}
+%%@ rel property--property_i18n {"routing":"curved","curve":1}
+%%@ rel static_page--static_page_i18n {"routing":"curved","curve":1}
+%%@ rel taxonomy--taxonomy_i18n {"routing":"curved","curve":1}
+%%@ rel setting--setting_i18n {"routing":"curved","curve":1}
+%%@ rel object--actor {"routing":"curved","curve":1}
+%%@ rel object--information_object {"routing":"curved","curve":1}
+%%@ rel object--term {"routing":"curved","curve":1}
+%%@ rel object--taxonomy {"routing":"curved","curve":1}
+%%@ rel object--event {"routing":"curved","curve":1}
+%%@ rel object--function {"routing":"curved","curve":1}
+%%@ rel object--place {"routing":"curved","curve":1}
+%%@ rel object--digital_object {"routing":"curved","curve":1}
+%%@ rel object--relation {"routing":"curved","curve":1}
+%%@ rel object--object_term_relation {"routing":"curved","curve":1}
+%%@ rel object--static_page {"routing":"curved","curve":1}
+%%@ rel object--place_map_relation {"routing":"curved","curve":1}
+%%@ rel object--rights_actor_relation {"routing":"curved","curve":1}
+%%@ rel actor--repository {"routing":"curved","curve":1}
+%%@ rel actor--user {"routing":"curved","curve":1}
+%%@ rel term--historical_event {"routing":"curved","curve":1}
+%%@ rel acl_group--acl_permission {"routing":"curved","curve":1}
+%%@ rel acl_group--acl_user_group {"routing":"curved","curve":1}
+%%@ rel user--acl_permission {"routing":"curved","curve":1}
+%%@ rel user--acl_user_group {"routing":"curved","curve":1}
+%%@ rel object--acl_permission {"routing":"curved","curve":1,"toSide":"b","toAt":0.667,"fromSide":"l","fromAt":0.167}
+%%@ rel object--other_name {"routing":"curved","curve":1}
+%%@ rel object--status {"routing":"curved","curve":1}
+%%@ rel object--slug {"routing":"curved","curve":1}
+%%@ rel object--note {"routing":"curved","curve":1}
+%%@ rel object--property {"routing":"curved","curve":1}
+%%@ rel user--note {"routing":"curved","curve":1}
+%%@ rel actor--contact_information {"routing":"curved","curve":1}
+%%@ rel actor--event {"routing":"curved","curve":1}
+%%@ rel information_object--event {"routing":"curved","curve":1}
+%%@ rel information_object--digital_object {"routing":"curved","curve":1}
+%%@ rel repository--information_object {"routing":"curved","curve":1}
+%%@ rel taxonomy--term {"routing":"curved","curve":1,"fromSide":"b","fromAt":0.167}
+%%@ rel term--object_term_relation {"routing":"curved","curve":1}
+%%@ rel object--object_term_relation#2 {"routing":"curved","curve":1}
+%%@ rel place--place_map_relation {"routing":"curved","curve":1}
+%%@ rel map--place_map_relation {"routing":"curved","curve":1}
+%%@ rel object--relation#2 {"routing":"curved","curve":1}
+%%@ rel oai_repository--oai_harvest {"routing":"curved","curve":1}
+%%@ rel actor--rights_actor_relation {"routing":"curved","curve":1}
+%%@ rel term--rights_term_relation {"routing":"curved","curve":1}
+%%@ rel term--other_name {"routing":"curved","curve":1}
+%%@ rel term--status {"routing":"curved","curve":1}

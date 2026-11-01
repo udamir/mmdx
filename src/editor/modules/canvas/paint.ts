@@ -4,7 +4,6 @@
 // prototype app.js (`copyStyle`, `pasteStyle`, `setPainting`); the look rules live in `core/ops/meta-ops.ts`.
 import { copyStyle as copyStyleOp, pasteStyle as pasteStyleOp, type StyleClip } from '../../../core/ops/index.js';
 import type { ItemKind } from '../../../core/types.js';
-import { effect } from '../../../ui/signal.js';
 import type { EditorCore, Gesture, Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 
@@ -14,9 +13,10 @@ export const PAINT_CSS = /* css */ `
 
 export const canvasPaintModule: EditorModule = {
   id: 'canvas-paint',
-  css: PAINT_CSS,
-  enabled: (f) => f.copyStyle,
-  install(core: EditorCore) {
+  css: [PAINT_CSS],
+  enabled: ({ features: f }) => f.copyStyle,
+  install(scope) {
+    const core = scope.core;
     const offs: (() => void)[] = [];
     let clip: StyleClip | null = null;
     let paintFrom: Sel | null = null;
@@ -54,9 +54,9 @@ export const canvasPaintModule: EditorModule = {
     };
 
     // the paint tool ends however the tool changes (tool bar, V / H…)
-    offs.push(effect(() => {
+    scope.effect(() => {
       if (core.tool() !== 'paint') paintFrom = null;
-    }));
+    });
 
     offs.push(core.addGestureSource({
       id: 'canvas-paint',

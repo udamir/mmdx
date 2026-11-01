@@ -77,3 +77,9 @@ export interface MetaResult {
   meta: DiagramMeta;
   reason?: string;
 }
+
+/** Where copies go: by default next to the originals; `into` another document's code, avoiding its ids (`taken`). */
+export interface CloneInto {
+  into?: string;
+  taken?: Iterable<string>;
+}

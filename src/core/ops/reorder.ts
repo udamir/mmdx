@@ -5,7 +5,7 @@
 import { minOf } from '../geom.js';
 import type { DiagramModel } from '../model.js';
 import type { ItemRef } from '../types.js';
-import { activationsBalanced } from './sequence.js';
+import { activationsBalanced } from './activations.js';
 import type { LineSpan, MoveResult } from './types.js';
 
 /** Multi-line blocks of a model: subgraphs, entity bodies, boxes and sequence blocks. */

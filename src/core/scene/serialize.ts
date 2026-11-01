@@ -1,5 +1,5 @@
 // Scene → SVG string. The one place where escaping happens (§7.1, §12).
-import type { AttrValue, SceneNode, SvgAttrs } from './types.js';
+import type { AttrValue, SceneNode, SvgAttrs, TextLine } from './types.js';
 
 /** Deterministic number formatting: one decimal, no `-0`, no exponent. */
 export function fmt(v: number): string {
@@ -31,9 +31,11 @@ export const ALLOWED_ATTRS: ReadonlySet<string> = new Set([
 /** `data-*` attributes the renderers set; the editor's hit-testing reads them. */
 export const DATA_ATTRS: ReadonlySet<string> = new Set([
   'data-kind', 'data-id', 'data-part', 'data-from', 'data-to', 'data-link', 'data-index', 'data-layer',
-  'data-ds-ssr', 'data-ds-measure', 'data-attr', 'data-participant', 'data-mirror', 'data-end', 'data-foot', 'data-handle',
+  'data-mmdx-ssr', 'data-mmdx-measure', 'data-attr', 'data-participant', 'data-mirror', 'data-end', 'data-foot', 'data-handle',
   // editor overlay handles (connections, bend points, sequence handles)
   'data-side', 'data-dir', 'data-msg', 'data-pid', 'data-edge', 'data-i', 'data-j',
+  // diff overlays: the change a highlight belongs to, and the key that pairs an item across the diff views
+  'data-key', 'data-ck',
 ]);
 
 export const isAllowedAttr = (name: string): boolean => ALLOWED_ATTRS.has(name) || DATA_ATTRS.has(name);
@@ -72,15 +74,24 @@ export function serializeNode(n: SceneNode): string {
       return `<${n.t}${attrsToString(n.attrs)}>${n.children.map(serializeNode).join('')}</${n.t}>`;
     case 'a':
       return `<a href="${escAttr(n.href)}" rel="noopener noreferrer">${n.children.map(serializeNode).join('')}</a>`;
-    case 'text': {
-      const spans = n.lines
-        .map((l) => `<tspan x="${fmt(l.x)}" y="${fmt(l.y)}">${l.text ? escText(l.text) : '&#160;'}</tspan>`)
-        .join('');
-      return `<text${attrsToString(n.attrs)}>${spans}</text>`;
-    }
+    case 'text':
+      return `<text${attrsToString(n.attrs)}>${textSpans(n.lines)}</text>`;
     default:
       return `<${n.t}${attrsToString(n.attrs)}/>`;
   }
 }
+
+/**
+ * The `<tspan>`s of a text with diff-marked words (styled runs), or null for plain text. Registered by the diff
+ * renderer (core/diff/render.ts), so bundles without diffs do not ship it.
+ */
+let markedText: ((lines: readonly TextLine[]) => string | null) | null = null;
+export const setMarkedText = (f: typeof markedText): void => {
+  markedText = f;
+};
+
+/** One `<tspan>` per line. */
+const textSpans = (lines: readonly TextLine[]): string =>
+  markedText?.(lines) ?? lines.map((l) => `<tspan x="${fmt(l.x)}" y="${fmt(l.y)}">${l.text ? escText(l.text) : '&#160;'}</tspan>`).join('');
 
 export const serializeNodes = (ns: readonly SceneNode[]): string => ns.map(serializeNode).join('');

@@ -81,7 +81,7 @@ export interface SvgStringOptions {
 export function renderSvgString(result: RenderResult, ctx: RenderContext, opts: SvgStringOptions = {}): string {
   const s = exportScene(result, ctx);
   const b = s.bounds;
-  const extra = opts.ssr ? ` data-ds-ssr="1" data-ds-measure="${escAttr(ctx.measure.kind)}"` : '';
+  const extra = opts.ssr ? ` data-mmdx-ssr="1" data-mmdx-measure="${escAttr(ctx.measure.kind)}"` : '';
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${fmt(b.x)} ${fmt(b.y)} ${fmt(b.w)} ${fmt(b.h)}" width="${fmt(b.w)}" height="${fmt(b.h)}"${extra}>` +
     `<defs>${serializeNodes(s.defs)}</defs>${serializeNodes(s.body)}</svg>`

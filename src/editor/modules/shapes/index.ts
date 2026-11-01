@@ -35,10 +35,10 @@ export function addShape(core: EditorCore, kind: string, opts: { preset?: string
 
 export const shapesModule: EditorModule = {
   id: 'shapes',
-  css: SHAPES_CSS,
-  install(core) {
+  css: [SHAPES_CSS],
+  install(scope) {
+    const core = scope.core;
     const ac = new AbortController();
-    const sig = { signal: ac.signal };
     const offs: (() => void)[] = [];
     const root = core.dom.root;
     const menu = h('div', { class: 'shapes-menu edit-only', hidden: true });
@@ -257,22 +257,22 @@ export const shapesModule: EditorModule = {
     });
 
     // close on a press anywhere else in the editor (the dock button toggles it itself)
-    root.addEventListener('pointerdown', (ev) => {
+    scope.listen(root, 'pointerdown', (ev) => {
       const path = ev.composedPath();
       const keep = path.includes(menu) || path.includes(sub) || (!!anchor && path.includes(anchor));
       if (keep) return;
       if (!menu.hidden) setMenu(false);
       else if (subShape === 'entity') hideTablePresets();
-    }, { capture: true, ...sig });
+    }, { capture: true });
     // Esc closes the menu first (before it clears the selection or changes the tool)
-    root.addEventListener('keydown', (ev) => {
+    scope.listen(root, 'keydown', (ev) => {
       if (ev.key !== 'Escape' || (menu.hidden && sub.hidden)) return;
       setMenu(false);
       hideTablePresets();
       hideSub();
       ev.stopPropagation();
       ev.preventDefault();
-    }, { capture: true, ...sig });
+    }, { capture: true });
     offs.push(core.on('mode', () => {
       if (core.mode.peek() !== 'edit') {
         setMenu(false);

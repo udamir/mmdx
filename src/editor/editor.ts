@@ -2,29 +2,24 @@
 // its feature modules; the custom element is a thin wrapper around it.
 import { EDITOR_MESSAGES } from '../ui/messages/editor.js';
 import { registerMessages } from '../ui/i18n.js';
+import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import { TOOLBAR_MESSAGES } from '../ui/messages/toolbar.js';
-import { ElementBase } from '../elements/base.js';
+import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from '../elements/base.js';
 import type { DocumentAdapter } from '../adapters/documents.js';
-import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
+import type { StorageAdapter } from '../adapters/storage.js';
 import type { ThemeSource } from '../adapters/themes.js';
-import { ensureBuiltinThemes, getShared, instanceContext } from '../config.js';
+import { ensureBuiltinThemes } from '../config.js';
 import type { CoreContext } from '../core/context.js';
-import { Viewport } from '../dom/viewport.js';
-import { HIGHLIGHT_CSS } from '../dom/highlight.js';
-import { Dialogs, DIALOG_CSS } from '../ui/dialog.js';
 import { h } from '../ui/h.js';
-import { PopoverManager, Toaster } from '../ui/popover.js';
-import { ShortcutRegistry } from '../ui/shortcuts.js';
-import { effect } from '../ui/signal.js';
-import { adoptStyles, ALIASES, BASE, resolveUiScheme, TOKENS, watchUiScheme } from '../ui/styles/base.js';
-import { EDITOR_CSS } from '../ui/styles/editor.js';
+import { effect, untracked } from '../ui/signal.js';
 import { DEFAULT_FEATURES, EditorCore, type EditorFeatures, type Gesture, type Mode } from './core.js';
 import type { EditorModule } from './module.js';
 import { DEFAULT_MODULES } from './modules/index.js';
 import { DocStore, type ChangeReason } from './store.js';
 import type { ItemRef } from '../core/types.js';
-
-const NS = 'http://www.w3.org/2000/svg';
+import type { HistorySession } from '../view/history.js';
+import type { BlockHandle } from '../ui/blocks/block.js';
+import type { PillProps } from '../ui/blocks/pill.js';
 
 export interface EditorOptions {
   value?: string;
@@ -38,12 +33,20 @@ export interface EditorOptions {
   storage?: StorageAdapter;
   themeSource?: ThemeSource;
   ui?: 'light' | 'dark' | 'auto';
+  /** The diagram theme the host sets (the user's pick in the theme menu wins; component architecture §7.5). */
+  theme?: string;
+  /** The theme while the chrome is dark (`auto`: the dark counterpart of `theme`). */
+  themeDark?: string;
+  /** The `compact` preset (§7.6): the same chrome, smaller and icon-only; automatic below a host size by default. */
+  compact?: boolean | 'auto';
   /** Ask before leaving the page with unsaved changes (opt-in; SPAs handle this themselves). */
   guardUnload?: boolean;
   /** File name used for exports. */
   name?: string;
   ctx?: Partial<CoreContext>;
   modules?: readonly EditorModule[];
+  /** The document's versions (a HistoryAdapter or a list with sources): shows the History button. */
+  history?: HistoryAdapter | readonly StaticVersion[];
 }
 
 export type SaveOutcome = 'saved' | 'cancelled' | 'conflict' | 'failed' | 'no-adapter';
@@ -58,7 +61,13 @@ export class DiagramEditor {
   private version: string | undefined;
   private saving: Promise<SaveOutcome> | null = null;
   private autosaveTimer: ReturnType<typeof setTimeout> | undefined;
-  private remoteBar: HTMLElement | null = null;
+  /** The remote-change pill (top centre), and the count of the bars asked for (the pill block loads on first use). */
+  private remoteBar: BlockHandle<PillProps> | null = null;
+  private remoteAsked = 0;
+  /** The adapter's subscription to remote changes (one at a time; replaced when the adapter changes). */
+  private unsubscribe: (() => void) | null = null;
+  /** The latest remote update that arrived during a gesture or a transaction; applied when it ends. */
+  private pendingRemote: { src: string; version: string } | null = null;
   private gesture: { g: Gesture; x: number; y: number; p0: { x: number; y: number }; moved: boolean; id: number } | null = null;
   private destroyed = false;
   name: string;
@@ -68,80 +77,31 @@ export class DiagramEditor {
     registerMessages(TOOLBAR_MESSAGES);
     this.o = { ...options };
     this.name = options.name ?? 'diagram';
-    const shared = getShared();
     const features: EditorFeatures = { ...DEFAULT_FEATURES, ...(options.features ?? {}) };
     if (options.toolbar === 'none') features.styleToolbar = false;
-    const storage = options.storage ?? (typeof localStorage !== 'undefined' ? localStorageAdapter() : memoryStorage());
-    this.shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open', delegatesFocus: false });
-    const modules = (options.modules ?? DEFAULT_MODULES).filter((m) => !m.enabled || m.enabled(features));
-    adoptStyles(this.shadow, [TOKENS, ALIASES, BASE, DIALOG_CSS, EDITOR_CSS, HIGHLIGHT_CSS, ...modules.map((m) => m.css ?? '').filter(Boolean)]);
-
-    // ---- DOM
-    const svg = document.createElementNS(NS, 'svg');
-    svg.setAttribute('class', 'canvas');
-    svg.setAttribute('part', 'canvas');
-    const defs = document.createElementNS(NS, 'defs');
-    const vp = document.createElementNS(NS, 'g');
-    const page = document.createElementNS(NS, 'g');
-    const body = document.createElementNS(NS, 'g');
-    const overlay = document.createElementNS(NS, 'g');
-    page.setAttribute('class', 'page-shadow');
-    body.setAttribute('class', 'body-layer');
-    overlay.setAttribute('class', 'overlay');
-    vp.append(page, body, overlay);
-    svg.append(defs, vp);
-    const wrap = h('div', { class: 'canvas-wrap' }, svg);
-    const live = h('div', { class: 'ds-sr', 'aria-live': 'polite' });
-    const root = h('div', { class: 'ed mode-edit', role: 'application', tabindex: '0', 'aria-roledescription': 'diagram editor' }, wrap, live);
-    this.shadow.append(root);
-
-    this.store = new DocStore({ onChange: (src, reason) => this.onStoreChange(src, reason) });
-    const popovers = new PopoverManager(this.shadow);
-    const toaster = new Toaster(root);
-    const viewport = new Viewport(svg, {
-      wheel: 'always',
-      panOnDrag: false,
-      minK: 0.05,
-      maxK: 6,
-      pad: 40,
-      // fit keeps clear of the open side panels and the tool dock (measured: their widths are user-resizable)
-      insets: () => {
-        const box = root.getBoundingClientRect();
-        const edge = (sel: string, side: 'left' | 'right'): number => {
-          const el = root.querySelector<HTMLElement>(sel);
-          if (!el || !el.offsetParent) return 0;
-          const r = el.getBoundingClientRect();
-          return side === 'left' ? Math.max(0, r.right - box.left) : Math.max(0, box.right - r.left);
-        };
-        const left = Math.max(edge('.pane.left', 'left'), edge('.tool-dock', 'left'));
-        return { left: left + 8, right: edge('.pane.right', 'right') + 8, top: 56, bottom: 56 };
-      },
-      onChange: (v) => {
-        vp.setAttribute('transform', `translate(${v.tx},${v.ty}) scale(${v.k})`);
-        this.core?.fire('view');
-        this.core?.drawOverlay();
-      },
+    this.store = new DocStore({
+      onChange: (src, reason) => this.onStoreChange(src, reason),
+      // a remote update waits for the transaction to end (after the caller of commit / rollback is done)
+      onIdle: () => queueMicrotask(() => this.applyPendingRemote()),
     });
-    this.core = new EditorCore({
+    this.core = new EditorCore(host, {
       store: this.store,
-      ctx: instanceContext(options.ctx),
-      i18n: shared.i18n,
-      storage,
       features,
-      dom: { shadow: this.shadow, root, wrap, svg, defs, vp, page, body, overlay },
-      viewport,
-      dialogs: new Dialogs(this.shadow),
-      toaster,
-      popovers,
-      shortcuts: new ShortcutRegistry(),
-      emit: (type, detail, cancelable = false) =>
-        this.host.dispatchEvent(new CustomEvent(type, { detail, bubbles: true, composed: true, cancelable })),
+      ...(options.storage ? { storage: options.storage } : {}),
+      ...(options.ctx ? { ctx: options.ctx } : {}),
+      ...(options.themeSource ? { themeSource: options.themeSource } : {}),
+      ...(options.ui && options.ui !== 'auto' ? { ui: options.ui } : {}),
+      ...(options.theme ? { theme: options.theme } : {}),
+      ...(options.themeDark ? { themeDark: options.themeDark } : {}),
+      ...(options.compact !== undefined ? { compact: options.compact } : {}),
     });
+    this.shadow = this.core.shadow;
     const core = this.core;
-    this.cleanups.push(() => viewport.destroy(), () => toaster.destroy(), () => popovers.close());
+    const root = core.root;
+    this.cleanups.push(() => core.destroy());
 
     // panel visibility from storage, then options
-    const savedPanels = storage.get<{ code?: boolean; properties?: boolean; layers?: boolean }>('panels') ?? {};
+    const savedPanels = core.storage.get<{ code?: boolean; properties?: boolean; layers?: boolean }>('panels') ?? {};
     core.panels.set({ code: true, properties: true, layers: true, ...savedPanels, ...(options.panels ?? {}) });
     this.cleanups.push(effect(() => {
       const p = core.panels();
@@ -155,6 +115,23 @@ export class DiagramEditor {
       root.classList.toggle('mode-edit', m === 'edit');
       root.classList.toggle('mode-view', m === 'view');
     }));
+    // switching the stage (History) or the mode ends the edit in flight: nothing keeps writing the store from a state
+    // captured before, and a gesture's release never commits while History is open (§8.2)
+    let firstSwitch = true;
+    this.cleanups.push(effect(() => {
+      core.stage();
+      core.mode();
+      if (firstSwitch) {
+        firstSwitch = false;
+        return;
+      }
+      untracked(() => core.cancelGesture());
+    }));
+    // the remote-change bar waits while History is open
+    this.cleanups.push(effect(() => {
+      const history = core.stage() === 'history';
+      if (this.remoteBar) this.remoteBar.el.hidden = history;
+    }));
     this.cleanups.push(effect(() => {
       const t = core.tool();
       for (const c of Array.from(root.classList)) if (c.startsWith('tool-')) root.classList.remove(c);
@@ -164,16 +141,23 @@ export class DiagramEditor {
     this.wirePointer();
     this.wireKeys();
     this.addBaseShortcuts();
-    this.cleanups.push(watchUiScheme(() => this.applyScheme()));
-    this.applyScheme();
 
-    for (const m of modules) {
-      try {
-        this.cleanups.push(m.install(core));
-      } catch (e) {
-        console.error(`[mmdx] module ${m.id} failed to install`, e);
-      }
-    }
+    // what History needs from the document (component architecture §8.2)
+    core.provide('documentSource', () => this.store.source());
+    core.provide('documentName', () => core.fileName || 'diagram');
+    core.provide('setClipboard', (data) => void (core.clipboard = data as typeof core.clipboard));
+    core.provide('showVersion', (v) => core.showVersion(v));
+    core.provide('restoreVersion', (source, v) => {
+      core.cancelGesture();
+      core.store.load(source, { history: 'push', reason: 'remote', markSaved: false });
+      core.draw();
+      core.viewport.setBounds(core.result.result.bounds, { fit: true });
+      core.fire('model');
+      core.fire('panels');
+      core.toast(core.i18n.t('history.restored', { id: v.id }));
+    });
+
+    core.useModules(options.modules ?? DEFAULT_MODULES);
 
     core.fileName = this.name;
     // built-in themes besides baseline load on demand; redraw when they (or a theme saved elsewhere) arrive
@@ -183,11 +167,8 @@ export class DiagramEditor {
       core.fire('theme');
     }));
     void ensureBuiltinThemes();
-    // a module may have set the host's `ui` (the remembered light / dark choice) while installing: adopt it
-    const hostUi = host.getAttribute('ui');
-    if (!options.ui && (hostUi === 'light' || hostUi === 'dark')) this.o.ui = hostUi;
-    this.applyScheme();
     if (options.readOnly) core.setMode('view');
+    if (options.history) core.history.set(options.history);
     if (options.guardUnload) {
       const onBeforeUnload = (ev: BeforeUnloadEvent): void => {
         if (this.store.dirty.peek()) ev.preventDefault();
@@ -205,26 +186,47 @@ export class DiagramEditor {
     return this.store.source();
   }
 
+  /**
+   * Replaces the document. A gesture or transaction in flight is cancelled first (rolled back, like Esc): the call is
+   * synchronous, so the new source is what `getSource()` returns right after it, and the gesture cannot write state
+   * captured before the load over it. (Remote updates from the adapter wait for the gesture to end instead.)
+   */
   setSource(src: string, opts: { history?: 'reset' | 'push'; fit?: boolean; markSaved?: boolean } = {}): void {
-    const before = this.store.model.peek().type;
-    this.store.load(src, { history: opts.history ?? 'reset', reason: opts.history === 'push' ? 'remote' : 'load', markSaved: opts.markSaved !== false });
-    if (opts.history !== 'push') {
-      this.core.enteredGroup.set(null);
-      this.core.pageSelected.set(false);
-    }
-    this.core.draw();
-    if (opts.fit !== false || before !== this.store.model.peek().type) this.core.viewport.setBounds(this.core.result.result.bounds, { fit: true });
-    this.core.fire('model');
-    this.core.fire('panels');
+    this.core.loadSource(src, { history: opts.history ?? 'reset', reason: opts.history === 'push' ? 'remote' : 'load', ...(opts.fit !== undefined ? { fit: opts.fit } : {}), markSaved: opts.markSaved !== false });
   }
 
   get adapter(): DocumentAdapter | undefined {
     return this.o.adapter;
   }
   set adapter(a: DocumentAdapter | undefined) {
+    if (a === this.o.adapter) return;
+    // the old adapter stops reporting remote changes, and what it reported is dropped
+    this.unsubscribe?.();
+    this.unsubscribe = null;
+    this.pendingRemote = null;
+    this.hideRemoteBar();
+    this.version = undefined;
     if (a) this.o.adapter = a;
     else delete this.o.adapter;
     if (a) void this.loadFromAdapter();
+  }
+
+  /** The document's versions; null hides the History button. */
+  get history(): HistoryAdapter | readonly StaticVersion[] | null {
+    return this.core.history.peek();
+  }
+  set history(h: HistoryAdapter | readonly StaticVersion[] | null) {
+    this.core.history.set(h ?? null);
+  }
+
+  /** Opens or closes History (when there is a history): the version panel; `compare` opens on the newest change compared. */
+  toggleHistory(on?: boolean, opts?: { compare?: boolean }): void {
+    this.core.run('toggleHistory', on, opts);
+  }
+
+  /** The open History's session (the `<mmdx-diff>` methods), null while History is closed (§8.3). */
+  get historySession(): HistorySession | null {
+    return this.core.historySession.peek();
   }
 
   get readOnly(): boolean {
@@ -238,13 +240,35 @@ export class DiagramEditor {
     this.core.setMode(m);
   }
 
+  /** Undo; a gesture or transaction in flight is cancelled first. */
   undo(): void {
-    this.store.undo();
-    this.core.afterChange();
+    this.core.undo();
   }
 
   redo(): void {
-    this.store.redo();
+    this.core.redo();
+  }
+
+  /** Marks the current source (or `source`) as saved: `dirty` is false until the document changes again. */
+  markSaved(source?: string): void {
+    this.store.markSaved(source);
+  }
+
+  /** The base name of exports (no extension). */
+  get fileName(): string {
+    return this.core.fileName;
+  }
+  set fileName(v: string) {
+    this.name = this.core.fileName = v;
+  }
+
+  /** The id of the theme the diagram is shown in (the host's, the user's pick or the default; §7.5). */
+  get theme(): string {
+    return this.core.shownTheme();
+  }
+
+  /** Repaints the document and the panels (e.g. after a theme was edited elsewhere). */
+  redraw(): void {
     this.core.afterChange();
   }
 
@@ -273,7 +297,7 @@ export class DiagramEditor {
     return this.store.dirty.peek();
   }
 
-  /** Saves through the adapter (§8.2 flow): `ds-save` (cancelable) → adapter.save → `ds-saved` or conflict dialog. */
+  /** Saves through the adapter (§8.2 flow): `mmdx-save` (cancelable) → adapter.save → `mmdx-saved` or conflict dialog. */
   save(): Promise<SaveOutcome> {
     if (this.saving) return this.saving;
     this.saving = this.doSave().finally(() => {
@@ -286,6 +310,9 @@ export class DiagramEditor {
     if (this.destroyed) return;
     this.destroyed = true;
     clearTimeout(this.autosaveTimer);
+    this.unsubscribe?.();
+    this.unsubscribe = null;
+    this.pendingRemote = null;
     this.ac.abort();
     for (const c of this.cleanups.reverse()) {
       try {
@@ -295,7 +322,6 @@ export class DiagramEditor {
       }
     }
     this.cleanups.length = 0;
-    this.shadow.replaceChildren();
   }
 
   // ---- adapter ----------------------------------------------------------------------------------------------------
@@ -309,19 +335,19 @@ export class DiagramEditor {
       this.version = r.version;
       if (r.name) this.name = this.core.fileName = r.name.replace(/\.(mmdx|mmd|md|txt)$/i, '');
       this.setSource(r.source, { history: 'reset' });
-      if (a.subscribe) {
-        const off = a.subscribe((src, version) => this.onRemote(src, version));
-        this.cleanups.push(off);
-      }
+      this.unsubscribe?.();
+      this.unsubscribe = a.subscribe?.((src, version) => {
+        if (!this.destroyed && this.o.adapter === a) this.onRemote(src, version);
+      }) ?? null;
     } catch (e) {
       this.core.toast(`Could not load the diagram: ${e instanceof Error ? e.message : String(e)}`, { error: true });
-      this.core.emit('ds-error', { diagnostics: [{ severity: 'error', code: 'load.failed', message: String(e) }] });
+      this.core.emit('mmdx-error', { diagnostics: [{ severity: 'error', code: 'load.failed', message: String(e) }] });
     }
   }
 
   private async doSave(): Promise<SaveOutcome> {
     const source = this.getSource();
-    if (!this.core.emit('ds-save', { source }, true)) return 'cancelled';
+    if (!this.core.emit('mmdx-save', { source }, true)) return 'cancelled';
     const a = this.o.adapter;
     if (!a) return 'no-adapter';
     try {
@@ -332,17 +358,17 @@ export class DiagramEditor {
       this.version = res.version ?? this.version;
       this.store.markSaved(source);
       this.hideRemoteBar();
-      this.core.emit('ds-saved', { source, version: this.version });
+      this.core.emit('mmdx-saved', { source, version: this.version });
       return 'saved';
     } catch (e) {
       this.core.toast(`Save failed: ${e instanceof Error ? e.message : String(e)}`, { error: true });
-      this.core.emit('ds-error', { diagnostics: [{ severity: 'error', code: 'save.failed', message: String(e) }] });
+      this.core.emit('mmdx-error', { diagnostics: [{ severity: 'error', code: 'save.failed', message: String(e) }] });
       return 'failed';
     }
   }
 
   private async resolveConflict(mine: string, theirs: { source: string; version: string }): Promise<SaveOutcome> {
-    this.core.emit('ds-conflict', { mine, theirs: theirs.source, version: theirs.version });
+    this.core.emit('mmdx-conflict', { mine, theirs: theirs.source, version: theirs.version });
     const choice = await this.core.dialogs.choose<'mine' | 'theirs' | 'both' | 'cancel'>({
       title: 'Someone else saved this diagram',
       message: 'The diagram was changed since you opened it. Keep your version (overwrites theirs), take theirs (drops your changes), or open both to compare.',
@@ -363,10 +389,11 @@ export class DiagramEditor {
       return 'conflict';
     }
     if (choice === 'both') {
-      const pre = (t: string): HTMLElement => h('pre', { style: 'max-height:260px;overflow:auto;font:12px/1.5 var(--ds-mono);background:var(--ds-surface-2);padding:8px;border-radius:6px;margin:0' }, t);
+      const side = (title: string, text: string): HTMLElement => h('div', null, h('b', null, title), h('pre', null, text));
       const c2 = await this.core.dialogs.choose<'mine' | 'theirs' | 'cancel'>({
         title: 'Compare versions',
-        body: h('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0' }, h('div', null, h('b', null, 'Yours'), pre(mine)), h('div', null, h('b', null, 'Theirs'), pre(theirs.source))),
+        class: 'compare',
+        body: h('div', { class: 'compare-sides' }, side('Yours', mine), side('Theirs', theirs.source)),
         cancel: 'cancel',
         buttons: [{ label: 'Take theirs', value: 'theirs' }, { label: 'Keep mine', value: 'mine', primary: true }],
       });
@@ -382,8 +409,28 @@ export class DiagramEditor {
     return 'conflict';
   }
 
-  /** Remote update (§8.2): applied when clean (undoable), otherwise a non-blocking bar offers Reload / Keep mine. */
+  /** A gesture is running or a transaction is open: the store holds an uncommitted state. */
+  private get busy(): boolean {
+    return !!this.gesture || this.store.inTransaction;
+  }
+
+  private applyPendingRemote(): void {
+    const r = this.pendingRemote;
+    if (!r || this.busy || this.destroyed) return;
+    this.pendingRemote = null;
+    this.onRemote(r.src, r.version);
+  }
+
+  /**
+   * Remote update (§8.2): applied when clean (undoable), otherwise a non-blocking bar offers Reload / Keep mine. During
+   * a gesture or a transaction it waits (the latest one wins) and is handled when the edit ends — committed (the
+   * document is then dirty: the bar) or rolled back (clean again: applied).
+   */
   private onRemote(src: string, version: string): void {
+    if (this.busy) {
+      this.pendingRemote = { src, version };
+      return;
+    }
     if (src === this.getSource()) {
       this.version = version;
       return;
@@ -394,26 +441,50 @@ export class DiagramEditor {
       return;
     }
     this.hideRemoteBar();
-    const bar = h('div', { class: 'ds-float', role: 'status', style: 'position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:40;display:flex;gap:8px;align-items:center;padding:6px 8px 6px 14px' },
-      h('span', null, 'Changed by someone else'),
-      h('button', { type: 'button', onclick: () => { this.version = version; this.setSource(src, { history: 'push', fit: false }); this.hideRemoteBar(); } }, 'Reload'),
-      h('button', { type: 'button', class: 'primary', onclick: () => this.hideRemoteBar() }, 'Keep mine'));
-    this.remoteBar = bar;
-    this.core.dom.root.append(bar);
+    // a pill at the top centre (the block loads the first time); the latest bar asked for wins
+    const asked = ++this.remoteAsked;
+    const reload = (): void => {
+      this.version = version;
+      this.setSource(src, { history: 'push', fit: false });
+      this.hideRemoteBar();
+    };
+    void import('../ui/blocks/pill.js').then((m) => {
+      if (this.destroyed || asked !== this.remoteAsked) return;
+      this.core.addCss([m.PILL_CSS]);
+      const bar = m.createPill({
+        text: 'Changed by someone else', label: 'Remote change', class: 'remote', t: this.core.i18n.t,
+        tools: [{ id: 'reload', label: 'Reload', onClick: reload }], action: { label: 'Keep mine', plain: true, onClick: () => this.hideRemoteBar() },
+      });
+      bar.el.hidden = this.core.stage.peek() === 'history';
+      this.remoteBar = bar;
+      this.core.slots['top-center'].append(bar.el);
+    });
   }
 
   private hideRemoteBar(): void {
-    this.remoteBar?.remove();
+    this.remoteAsked++;
+    this.remoteBar?.destroy();
     this.remoteBar = null;
   }
 
   private onStoreChange(source: string, reason: ChangeReason): void {
-    this.core.emit('ds-change', { source, reason });
-    this.core.emit('ds-dirty', { dirty: this.store.dirty.peek() });
+    this.core.fire('document');
+    this.core.emit('mmdx-change', { source, reason });
+    this.core.emit('mmdx-dirty', { dirty: this.store.dirty.peek() });
     if (this.o.autosave && this.o.adapter && reason !== 'load' && reason !== 'remote' && this.store.dirty.peek()) {
-      clearTimeout(this.autosaveTimer);
-      this.autosaveTimer = setTimeout(() => void this.save(), this.o.autosave);
+      this.scheduleAutosave();
     }
+  }
+
+  /** Debounced save; while a gesture or transaction is open it waits (the source would be uncommitted). */
+  private scheduleAutosave(): void {
+    clearTimeout(this.autosaveTimer);
+    if (!this.o.autosave) return;
+    this.autosaveTimer = setTimeout(() => {
+      if (this.destroyed) return;
+      if (this.busy) this.scheduleAutosave();
+      else void this.save();
+    }, this.o.autosave);
   }
 
   // ---- input ------------------------------------------------------------------------------------------------------
@@ -472,7 +543,21 @@ export class DiagramEditor {
         d.g.click?.(ev);
       }
       core.drawOverlay();
+      this.applyPendingRemote();
     };
+    /** Cancels the running gesture (Esc, undo, a load, a stage or mode switch); true when there was one. */
+    const cancel = (): boolean => {
+      const d = this.gesture;
+      if (!d) return false;
+      this.gesture = null;
+      core.dragging = false;
+      core.dom.root.classList.remove('dragging');
+      d.g.cancel?.();
+      core.drawOverlay();
+      return true;
+    };
+    core.cancelPointer = () => void cancel();
+    this.cleanups.push(() => (core.cancelPointer = null));
     svg.addEventListener('pointerup', (ev) => finish(ev, false), sig);
     svg.addEventListener('pointercancel', (ev) => finish(ev, true), sig);
     svg.addEventListener('lostpointercapture', (ev) => {
@@ -480,13 +565,8 @@ export class DiagramEditor {
     }, sig);
     // Esc during a gesture cancels it (one level of the Esc chain, A.11)
     core.dom.root.addEventListener('keydown', (ev) => {
-      if (ev.key !== 'Escape' || !this.gesture) return;
-      const g = this.gesture.g;
-      this.gesture = null;
-      core.dragging = false;
-      core.dom.root.classList.remove('dragging');
-      g.cancel?.();
-      core.drawOverlay();
+      if (ev.key !== 'Escape' || !cancel()) return;
+      this.applyPendingRemote();
       ev.stopPropagation();
       ev.preventDefault();
     }, { capture: true, signal: this.ac.signal });
@@ -501,7 +581,6 @@ export class DiagramEditor {
         core.spaceDown = true;
         root.classList.add('space-pan');
       }
-      core.shortcuts.handle(ev, core.mode.peek() === 'edit');
     }, sig);
     root.addEventListener('keyup', (ev) => {
       if (ev.key === ' ') {
@@ -518,29 +597,19 @@ export class DiagramEditor {
   private addBaseShortcuts(): void {
     const core = this.core;
     core.shortcuts.add(
-      { id: 'undo', keys: ['mod+z'], label: 'Undo', group: 'Edit', editOnly: true, run: () => this.undo() },
-      { id: 'redo', keys: ['mod+shift+z', 'mod+y'], label: 'Redo', group: 'Edit', editOnly: true, run: () => this.redo() },
-      { id: 'save', keys: ['mod+s'], label: 'Save', group: 'File', inText: true, run: () => { void this.save(); } },
+      // the document is never written while History is open
+      { id: 'undo', keys: ['mod+z'], label: 'Undo', group: 'Edit', editOnly: true, when: { stage: ['document'] }, run: () => this.undo() },
+      { id: 'redo', keys: ['mod+shift+z', 'mod+y'], label: 'Redo', group: 'Edit', editOnly: true, when: { stage: ['document'] }, run: () => this.redo() },
+      { id: 'save', keys: ['mod+s'], label: 'Save', group: 'File', inText: true, when: { stage: ['document'] }, run: () => { void this.save(); } },
       { id: 'fit', keys: ['f'], label: 'Fit to view', group: 'View', run: () => this.fit() },
       { id: 'space-pan', keys: ['space'], label: 'Hold Space and drag to pan', group: 'View', hintOnly: true },
     );
   }
 
-  private applyScheme(): void {
-    const scheme = resolveUiScheme(this.o.ui === 'auto' || !this.o.ui ? null : this.o.ui);
-    this.host.setAttribute('data-ui', scheme);
-    // the diagram follows: shown in its theme's light or dark counterpart (the file keeps its own theme)
-    if (this.core && this.core.scheme.peek() !== scheme) {
-      this.core.scheme.set(scheme);
-      this.core.draw();
-      this.core.fire('theme');
-      this.core.fire('panels');
-    }
-  }
-
+  /** The chrome scheme: `light`, `dark`, or `auto` (the remembered choice, else the page). */
   setUi(ui: 'light' | 'dark' | 'auto'): void {
     this.o.ui = ui;
-    this.applyScheme();
+    this.core.setUi(ui === 'auto' ? undefined : ui);
   }
 }
 
@@ -551,120 +620,201 @@ const isTyping = (ev: KeyboardEvent): boolean => {
 
 // ---- custom element ------------------------------------------------------------------------------------------------
 
-export class MmdxEditorElement extends ElementBase {
-  static observedAttributes = ['read-only', 'ui', 'autosave', 'name'];
-  private editor: DiagramEditor | null = null;
-  private pending: EditorOptions = {};
+const text = (v: string | null): string | undefined => v ?? undefined;
+const FEATURE_NAMES = Object.keys(DEFAULT_FEATURES).filter((k) => k !== 'exportFormats') as (keyof EditorFeatures)[];
 
-  connectedCallback(): void {
-    const o: EditorOptions = { ...this.pending };
-    if (this.hasAttribute('read-only')) o.readOnly = this.getAttribute('read-only') !== 'false';
-    const ui = this.getAttribute('ui');
-    if (ui === 'light' || ui === 'dark' || ui === 'auto') o.ui = ui;
-    const as = this.getAttribute('autosave');
-    if (as !== null && as !== 'false') o.autosave = Number(as) || 1500;
-    if (this.hasAttribute('guard-unload')) o.guardUnload = true;
-    const name = this.getAttribute('name');
-    if (name) o.name = name;
+/**
+ * Attributes and the option each one sets. `features` lists the features that are on, like the viewer's `controls`
+ * (`code-panel` or `codePanel`; `none`: all off); `exportFormats` keeps its default.
+ */
+const ATTRS: Readonly<Record<string, AttrSpec<EditorOptions>>> = {
+  'read-only': ['readOnly', (v) => (v === null ? undefined : v !== 'false')],
+  ui: ['ui', (v) => (v === 'light' || v === 'dark' || v === 'auto' ? v : undefined)],
+  autosave: ['autosave', (v) => (v === null ? undefined : v === 'false' ? false : Number(v) || 1500)],
+  'guard-unload': ['guardUnload', (v) => (v === null ? undefined : v !== 'false')],
+  name: ['name', (v) => v || undefined], theme: ['theme', text], 'theme-dark': ['themeDark', text],
+  compact: ['compact', (v) => (v === null ? undefined : v === 'auto' ? 'auto' : v !== 'false')],
+  features: ['features', (v) => {
+    if (v === null) return undefined;
+    const on = new Set(words(v).map((w) => w.replace(/-(\w)/g, (_, c: string) => c.toUpperCase())));
+    return Object.fromEntries(FEATURE_NAMES.map((f) => [f, on.has(f)]));
+  }],
+};
+
+export class MmdxEditorElement extends MmdxElement<EditorOptions, DiagramEditor> {
+  static observedAttributes = Object.keys(ATTRS);
+
+  protected attrs(): typeof ATTRS {
+    return ATTRS;
+  }
+
+  protected create(o: EditorOptions): DiagramEditor {
     if (o.value === undefined && !o.adapter) {
       const script = this.querySelector(':scope > script[type="text/mermaid"]');
       if (script?.textContent) o.value = script.textContent.replace(/^\s*\n/, '');
     }
-    this.editor = new DiagramEditor(this, o);
+    return new DiagramEditor(this, o);
   }
 
-  disconnectedCallback(): void {
-    this.editor?.destroy();
-    this.editor = null;
+  /** The next editor starts from this one's document (its undo history goes with it). */
+  protected override keep(e: DiagramEditor): void {
+    this.props.value = e.getSource();
   }
 
-  attributeChangedCallback(name: string, _old: string | null, v: string | null): void {
-    const e = this.editor;
-    if (!e) return;
-    if (name === 'read-only') e.readOnly = v !== null && v !== 'false';
-    else if (name === 'ui' && (v === 'light' || v === 'dark' || v === 'auto')) e.setUi(v);
-    else if (name === 'name' && v) e.name = e.core.fileName = v;
-  }
-
-  private opt<K extends keyof EditorOptions>(k: K, v: EditorOptions[K]): void {
-    if (v === undefined) delete this.pending[k];
-    else this.pending[k] = v;
+  protected apply(e: DiagramEditor, patch: Patch<EditorOptions>): void {
+    const core = e.core;
+    const p = patch as EditorOptions;
+    for (const k of Object.keys(patch) as (keyof EditorOptions)[]) {
+      switch (k) {
+        case 'value':
+          e.setSource(p.value ?? '');
+          break;
+        case 'adapter':
+          e.adapter = p.adapter;
+          break;
+        case 'readOnly':
+          e.readOnly = !!p.readOnly;
+          break;
+        case 'history':
+          e.history = p.history ?? null;
+          break;
+        case 'ui':
+          e.setUi(p.ui ?? 'auto');
+          break;
+        case 'name':
+          e.fileName = p.name ?? 'diagram';
+          break;
+        case 'theme':
+          core.themes.attr.set(p.theme ?? null);
+          break;
+        case 'themeDark':
+          core.themes.attrDark.set(p.themeDark ?? null);
+          break;
+        case 'compact':
+          core.setCompact(p.compact ?? 'auto');
+          break;
+        case 'panels':
+          core.panels.set({ ...core.panels.peek(), ...p.panels });
+          break;
+        case 'storage':
+          core.setStorage(p.storage);
+          break;
+        case 'themeSource':
+          core.setThemeSource(p.themeSource);
+          break;
+        case 'features':
+          // modules read the features while installing: they are installed again (History, if open, stays)
+          Object.assign(core.features, DEFAULT_FEATURES, p.features);
+          if (this.props.toolbar === 'none') core.features.styleToolbar = false;
+          core.useModules((this.props.modules ?? DEFAULT_MODULES).map((m) => Object.create(m) as EditorModule));
+          core.panels.set({ ...core.panels.peek() });
+          break;
+        case 'modules':
+          core.useModules(p.modules ?? DEFAULT_MODULES);
+          break;
+        default:
+          warnOnce(`editor: \`${k}\` is read when the editor is created`);
+      }
+    }
   }
 
   get value(): string {
-    return this.editor?.getSource() ?? this.pending.value ?? '';
+    return this.live?.getSource() ?? this.props.value ?? '';
   }
   set value(v: string) {
-    if (this.editor) this.editor.setSource(v);
-    else this.opt('value', v);
+    this.setOpt({ value: v });
   }
   get adapter(): DocumentAdapter | undefined {
-    return this.editor?.adapter ?? this.pending.adapter;
+    return this.live?.adapter ?? this.props.adapter;
   }
   set adapter(a: DocumentAdapter | undefined) {
-    if (this.editor) this.editor.adapter = a;
-    else this.opt('adapter', a);
+    this.setOpt({ adapter: a });
   }
   get readOnly(): boolean {
-    return this.editor?.readOnly ?? !!this.pending.readOnly;
+    return this.live?.readOnly ?? !!(this.props.readOnly ?? this.attrOptions().readOnly);
   }
   set readOnly(v: boolean) {
-    if (this.editor) this.editor.readOnly = v;
-    else this.opt('readOnly', v);
+    this.setOpt({ readOnly: v });
   }
-  set features(f: Partial<EditorFeatures>) {
-    this.opt('features', f);
+  get features(): Partial<EditorFeatures> | undefined {
+    return this.props.features;
+  }
+  /** The features: an object, or a space-separated string like the attribute. */
+  set features(f: Partial<EditorFeatures> | string | undefined) {
+    this.setOpt({ features: typeof f === 'string' ? (ATTRS['features']![1](f) as Partial<EditorFeatures>) : f });
+  }
+  get history(): HistoryAdapter | readonly StaticVersion[] | null {
+    return this.live?.history ?? this.props.history ?? null;
+  }
+  set history(h: HistoryAdapter | readonly StaticVersion[] | null) {
+    this.setOpt({ history: h ?? undefined });
+  }
+  get panels(): EditorOptions['panels'] {
+    return this.props.panels;
   }
   set panels(p: EditorOptions['panels']) {
-    this.opt('panels', p);
+    this.setOpt({ panels: p });
   }
-  set storage(s: StorageAdapter) {
-    this.opt('storage', s);
+  get storage(): StorageAdapter | undefined {
+    return this.props.storage;
   }
-  set themeSource(s: ThemeSource) {
-    this.opt('themeSource', s);
+  set storage(s: StorageAdapter | undefined) {
+    this.setOpt({ storage: s });
   }
-  set modules(m: readonly EditorModule[]) {
-    this.opt('modules', m);
+  get themeSource(): ThemeSource | undefined {
+    return this.props.themeSource;
+  }
+  set themeSource(s: ThemeSource | undefined) {
+    this.setOpt({ themeSource: s });
+  }
+  get modules(): readonly EditorModule[] | undefined {
+    return this.props.modules;
+  }
+  set modules(m: readonly EditorModule[] | undefined) {
+    this.setOpt({ modules: m });
   }
 
   getSource(): string {
     return this.value;
   }
   setSource(src: string, opts?: { history?: 'reset' | 'push' }): void {
-    if (this.editor) this.editor.setSource(src, opts);
-    else this.opt('value', src);
+    this.props.value = src;
+    this.live?.setSource(src, opts);
   }
   save(): Promise<SaveOutcome> {
-    return this.editor?.save() ?? Promise.resolve('no-adapter');
+    return this.live?.save() ?? Promise.resolve('no-adapter');
   }
   undo(): void {
-    this.editor?.undo();
+    this.live?.undo();
   }
   redo(): void {
-    this.editor?.redo();
+    this.live?.redo();
   }
   select(items: ItemRef[]): void {
-    this.editor?.select(items);
+    this.live?.select(items);
   }
   focusCode(line: number): void {
-    this.editor?.focusCode(line);
+    this.live?.focusCode(line);
   }
   exportAs(kind: 'mmdx' | 'mmd' | 'svg' | 'png'): Promise<void> {
-    return this.editor?.exportAs(kind) ?? Promise.resolve();
+    return this.live?.exportAs(kind) ?? Promise.resolve();
   }
   fit(): void {
-    this.editor?.fit();
+    this.live?.fit();
   }
   plainMermaid(): Promise<void> {
-    return this.editor?.plainMermaid() ?? Promise.resolve();
+    return this.live?.plainMermaid() ?? Promise.resolve();
+  }
+  /** Opens or closes History (when the editor has a `history`); `compare` opens on the newest change compared. */
+  toggleHistory(on?: boolean, opts?: { compare?: boolean }): void {
+    this.live?.toggleHistory(on, opts);
+  }
+  /** The open History's session, null while History is closed. */
+  get historySession(): HistorySession | null {
+    return this.live?.historySession ?? null;
   }
   get dirty(): boolean {
-    return this.editor?.dirty ?? false;
-  }
-  /** The underlying editor (advanced use; undefined while disconnected). */
-  get instance(): DiagramEditor | undefined {
-    return this.editor ?? undefined;
+    return this.live?.dirty ?? false;
   }
 }
 

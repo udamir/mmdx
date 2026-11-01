@@ -1,44 +1,10 @@
 // Inline text editing (A.3 row 32): a text box over the item's label, styled like it. Enter applies (Shift+Enter =
 // new line where Mermaid allows several lines), Esc cancels, clicking away applies. Writes through the ops'
-// relabel functions. Ported from prototype app.js (`labelSpec`, `inlineEdit`, `focusLabel`).
-import type { CodeResult } from '../../../core/ops/index.js';
-import { relabelBox, relabelFlowEdge, relabelFlowNode, relabelGroup, relabelSeq, updateEntity, updateRel } from '../../../core/ops/index.js';
-import type { ItemRef } from '../../../core/types.js';
-import type { EditorCore, Sel } from '../../core.js';
+// relabel functions (`labelSpec`, shared with Properties). Ported from prototype app.js (`inlineEdit`, `focusLabel`).
+import type { Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
+import { labelSpec } from '../../ops/label.js';
 import { itemEls } from './shared.js';
-
-export interface LabelSpec {
-  value: string;
-  /** Several lines allowed (flowchart nodes). */
-  multi: boolean;
-  title: string;
-  apply(v: string): CodeResult;
-}
-
-/** How an item's text is read and written back to Mermaid (prototype `labelSpec`). */
-export function labelSpec(core: EditorCore, { kind, id }: ItemRef): LabelSpec | null {
-  const M = core.model, code = core.code;
-  if (M.type === 'flowchart') {
-    if (kind === 'node') return { value: M.nodes.get(id)?.label ?? '', multi: true, title: 'Text', apply: (v) => relabelFlowNode(code, M, id, v) };
-    if (kind === 'group') return { value: M.groups.get(id)?.label ?? '', multi: false, title: 'Title', apply: (v) => relabelGroup(code, M, id, v) };
-    if (kind === 'edge') return { value: M.edges.find((e) => e.id === id)?.label ?? '', multi: false, title: 'Label', apply: (v) => relabelFlowEdge(code, M, id, v) };
-  } else if (M.type === 'sequence') {
-    const seqItem = M.items.find((x) => 'id' in x && x.id === id && (x.kind === 'message' || x.kind === 'note' || x.kind === 'blockStart'));
-    const rel = (v: string): CodeResult => relabelSeq(code, M, { kind, id }, v);
-    if (kind === 'participant') return { value: M.participants.find((p) => p.id === id)?.label ?? '', multi: false, title: 'Name', apply: rel };
-    if (kind === 'message' || kind === 'note') return { value: seqItem && 'text' in seqItem ? seqItem.text : '', multi: false, title: 'Text', apply: rel };
-    if (kind === 'block') {
-      const b = seqItem?.kind === 'blockStart' ? seqItem : null;
-      return { value: b?.label ?? '', multi: false, title: `${b?.block ?? 'Block'} condition`, apply: rel };
-    }
-    if (kind === 'box') return { value: M.boxes.find((b) => b.id === id)?.label ?? '', multi: false, title: 'Title', apply: (v) => relabelBox(code, M, id, v) };
-  } else if (M.type === 'er') {
-    if (kind === 'rel') return { value: M.rels.find((r) => r.id === id)?.label ?? '', multi: false, title: 'Label', apply: (v) => updateRel(code, M, id, { label: v }) };
-    if (kind === 'entity') return { value: M.entities.get(id)?.label ?? '', multi: false, title: 'Name', apply: (v) => updateEntity(code, M, id, { label: v }) };
-  }
-  return null;
-}
 
 export const INLINE_EDIT_CSS = /* css */ `
 .inline-edit { position: absolute; z-index: 30; box-sizing: border-box; resize: none; overflow: hidden; margin: 0;
@@ -51,15 +17,15 @@ export const INLINE_EDIT_CSS = /* css */ `
 
 export const canvasInlineEditModule: EditorModule = {
   id: 'canvas-inline-edit',
-  css: INLINE_EDIT_CSS,
-  install(core) {
-    const ac = new AbortController();
+  css: [INLINE_EDIT_CSS],
+  install(scope) {
+    const core = scope.core;
     let close: ((apply: boolean) => void) | null = null;
     const wrap = core.dom.wrap;
 
     const inlineEdit = (item: Sel): boolean => {
       close?.(true);
-      const spec = labelSpec(core, item);
+      const spec = labelSpec(core, item.kind, item.id);
       if (!spec || core.mode.peek() !== 'edit') return false;
       const els = itemEls(core, item);
       const main = els.find((e) => !e.hasAttribute('data-part')), part = els.find((e) => e.getAttribute('data-part') === 'label');
@@ -84,7 +50,7 @@ export const canvasInlineEditModule: EditorModule = {
       ta.className = 'inline-edit';
       ta.value = spec.value;
       ta.spellcheck = false;
-      ta.setAttribute('aria-label', spec.title);
+      ta.setAttribute('aria-label', core.i18n.t(spec.title));
       Object.assign(ta.style, {
         left: `${cx - wr.left - width / 2}px`, width: `${width}px`,
         fontSize: `${fs}px`, lineHeight: `${lhPx}px`, fontFamily: text?.getAttribute('font-family') || core.result.theme.font,
@@ -160,10 +126,11 @@ export const canvasInlineEditModule: EditorModule = {
     };
 
     // pressing on the canvas applies the open editor first (prototype: S.inlineClose?.(true) on pointerdown)
-    core.dom.svg.addEventListener('pointerdown', () => close?.(true), { capture: true, signal: ac.signal });
+    scope.listen(core.dom.svg, 'pointerdown', () => close?.(true), { capture: true });
     const off = core.provide('inlineEdit', inlineEdit);
+    // suspended (History opens): the open editor is cancelled — the document is not written in History (§8.2)
+    scope.register({ set: (on) => void (on || close?.(false)), dispose: () => undefined });
     return () => {
-      ac.abort();
       off();
       close?.(false);
     };

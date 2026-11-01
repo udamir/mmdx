@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { diffDiagrams, ignoreFacets, withLayoutOf, withoutStyle } from '../../../src/core/diff/index.js';
+import { diffDiagrams } from '../../../src/core/diff/all.js';
+import { ignoreFacets, withLayoutOf, withoutStyle } from '../../../src/core/diff/index.js';
 import { splitSource } from '../../../src/core/meta/index.js';
 
 const sample = (name: string) => [0, 1].map((i) => readFileSync(`apps/studio-site/diff-samples/${name}.${i ? 'after' : 'before'}.mmd`, 'utf8')) as [string, string];
@@ -44,6 +45,13 @@ describe('diffDiagrams', () => {
     expect(f.doc).toEqual([]);
   });
 
+  it('ignoring content keeps added and removed items (they have their own filters)', () => {
+    const f = ignoreFacets(diffDiagrams(...sample('architecture')), { content: true });
+    expect(find(f, 'node', 'tracing')?.status).toBe('added');
+    expect(find(f, 'node', 'desktop')?.status).toBe('removed');
+    expect(find(f, 'node', 'lb')?.status).toBe('unchanged');
+  });
+
   it('aligns sequence messages by content, not position', () => {
     const d = diffDiagrams(...sample('sequence'));
     const changed = d.items.filter((i) => i.kind === 'message' && i.status !== 'unchanged');
@@ -79,5 +87,7 @@ describe('diff transforms', () => {
     const d = diffDiagrams(withLayoutOf(a, b), b);
     expect(find(d, 'node', 'cache')?.status).toBe('unchanged');
     expect(find(d, 'node', 'lb')?.facets).toEqual(['content']);
+    // an item only the old version has keeps its own place
+    expect(splitSource(withLayoutOf(a, b)).doc.meta.nodes?.['desktop']).toEqual({ x: 665, y: 110, w: 150, h: 60 });
   });
 });

@@ -9,13 +9,15 @@ import { createCanvasMeasurer } from './measure.js';
 import type { WorkerRequest, WorkerResponse } from './worker-protocol.js';
 
 const measure = createCanvasMeasurer() ?? createStaticMeasurer();
-const contexts = new Map<string, { ctx: CoreContext; themesKey: string }>();
+/** Contexts by id prefix and theme registry revision (most recently used last). */
+const contexts = new Map<string, CoreContext>();
 
 function contextFor(idPrefix: string, themes: readonly ThemeFile[], themesKey: string): CoreContext {
-  const hit = contexts.get(idPrefix);
-  if (hit && hit.themesKey === themesKey) return hit.ctx;
-  const ctx = createContext({ themes: new ThemeRegistry(themes), measure, idPrefix });
-  contexts.set(idPrefix, { ctx, themesKey });
+  const key = `${idPrefix}|${themesKey}`;
+  let ctx = contexts.get(key);
+  if (ctx) contexts.delete(key);
+  else ctx = createContext({ themes: new ThemeRegistry(themes), measure, idPrefix });
+  contexts.set(key, ctx);
   if (contexts.size > 32) contexts.delete(contexts.keys().next().value!);
   return ctx;
 }

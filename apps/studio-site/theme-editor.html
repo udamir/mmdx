@@ -33,7 +33,7 @@
     const te = document.querySelector('mmdx-theme-editor');
     te.store = memoryThemeStore(BUILTIN_THEMES);
     const log = document.getElementById('log');
-    for (const type of ['ds-theme-save', 'ds-theme-saved', 'ds-theme-dirty', 'ds-theme-select']) {
+    for (const type of ['mmdx-theme-save', 'mmdx-theme-saved', 'mmdx-theme-dirty', 'mmdx-theme-select']) {
       te.addEventListener(type, (e) => {
         log.textContent = `${type} ${JSON.stringify(e.detail.id ?? e.detail.theme?.id ?? '')}${'dirty' in e.detail ? ` dirty=${e.detail.dirty}` : ''}`;
         console.info(type, e.detail);

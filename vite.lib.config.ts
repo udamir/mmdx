@@ -19,6 +19,7 @@ export default defineConfig({
         editor: 'src/editor.ts',
         'theme-editor': 'src/theme-editor.ts',
         studio: 'src/studio.ts',
+        diff: 'src/diff.ts',
         adapters: 'src/adapters.ts',
         markdown: 'src/markdown.ts',
         react: 'src/react.ts',

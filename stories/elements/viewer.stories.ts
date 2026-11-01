@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import '../../src/viewer.js';
-import { example, SMALL_ER, SMALL_FLOW, SMALL_SEQUENCE, THEME_IDS, uiArg } from '../support.js';
+import { example, exampleHistory, SMALL_ER, SMALL_FLOW, SMALL_SEQUENCE, THEME_IDS, uiArg } from '../support.js';
 
 type ViewerArgs = {
   source: string;
@@ -16,11 +16,13 @@ type ViewerArgs = {
   ui: 'light' | 'dark' | 'auto';
   height: number;
   label: string;
+  /** An example whose version history the viewer gets (with the `history` control), or none. */
+  historyOf: string;
 };
 
 /** Builds an `<mmdx-viewer>` from the args (attributes for options, the `source` property for the diagram). */
 function viewer(a: Partial<ViewerArgs>, src?: string): HTMLElement {
-  const el = document.createElement('mmdx-viewer') as HTMLElement & { source?: string };
+  const el = document.createElement('mmdx-viewer') as HTMLElement & { source?: string; history?: unknown };
   if (a.theme) el.setAttribute('theme', a.theme);
   if (a.themeDark) el.setAttribute('theme-dark', a.themeDark);
   if (a.fit) el.setAttribute('fit', a.fit);
@@ -33,9 +35,11 @@ function viewer(a: Partial<ViewerArgs>, src?: string): HTMLElement {
   if (a.ui) el.setAttribute('ui', a.ui);
   if (a.label) el.setAttribute('label', a.label);
   if (a.height) el.style.height = `${a.height}px`;
+  const versions = a.historyOf ? exampleHistory(a.historyOf) : null;
+  if (versions) el.history = versions;
   if (src) el.setAttribute('src', src);
-  else el.source = a.source ?? SMALL_FLOW;
-  for (const type of ['ds-render', 'ds-error', 'ds-link', 'ds-fullscreen'])
+  else el.source = versions ? versions[0]!.source : a.source ?? SMALL_FLOW;
+  for (const type of ['mmdx-render', 'mmdx-error', 'mmdx-link', 'mmdx-fullscreen'])
     el.addEventListener(type, (e) => console.info(type, (e as CustomEvent).detail));
   return el;
 }
@@ -56,8 +60,8 @@ const meta: Meta<ViewerArgs> = {
         component:
           '`<mmdx-viewer>` renders a styled Mermaid diagram (flowchart, sequence, ER) read-only: pan and zoom, layers, ' +
           'a pen overlay, a code view (the Mermaid code without styles), export and fullscreen. Import `mmdx/viewer`; the source comes from an inline ' +
-          '`<script type="text/mermaid">`, the `src` attribute or the `source` property. Events: `ds-render`, `ds-error`, ' +
-          '`ds-link`, `ds-fullscreen` (logged to the console here).',
+          '`<script type="text/mermaid">`, the `src` attribute or the `source` property. Events: `mmdx-render`, `mmdx-error`, ' +
+          '`mmdx-link`, `mmdx-fullscreen` (logged to the console here).',
       },
     },
   },
@@ -102,6 +106,12 @@ export const AllControls: Story = {
   name: 'All controls',
   args: { source: example('production-microservices'), controls: ['zoom', 'layers', 'pen', 'code', 'export', 'fullscreen'] },
   parameters: { docs: { description: { story: 'Zoom, layers, pen (draw on top of the diagram), code view (the Mermaid code without metadata and styles, with Copy), export (SVG / PNG / Mermaid) and fullscreen.' } } },
+};
+
+export const WithHistory: Story = {
+  name: 'With history',
+  args: { historyOf: 'atom-schema-er', controls: ['zoom', 'history', 'fullscreen'] },
+  parameters: { docs: { description: { story: '`controls="history"` and a `history` (the versions of the diagram): the History button opens the version panel — one version as it was, or a comparison with the current one; Back returns to the diagram.' } } },
 };
 
 export const ContainInFixedBox: Story = {
@@ -151,7 +161,7 @@ export const ThemeGallery: Story = {
 
 export const FromSrc: Story = {
   name: 'Loaded from src',
-  render: (a) => frame(viewer(a, 'static/examples/microservice-patterns.mmd')),
+  render: (a) => frame(viewer(a, 'static/examples/microservice-patterns.mmdx')),
   args: { controls: ['zoom', 'layers', 'fullscreen'] },
 };
 

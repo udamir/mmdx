@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
-import { createToolbar, TOOLBAR_KINDS, type PaletteColor, type ToolbarApi, type ToolbarControl } from '../../src/ui/style-toolbar.js';
+import { createStyleToolbar, TOOLBAR_KINDS, type PaletteColor, type ToolbarApi, type ToolbarControl } from '../../src/ui/style-toolbar.js';
 import { TOOLBAR_CSS } from '../../src/ui/styles/toolbar.js';
 import { chromeHost } from '../support.js';
 
@@ -31,7 +31,7 @@ function styleToolbar(a: ToolbarArgs): HTMLElement {
   const item = document.createElement('div');
   item.className = 'item';
   const log = document.createElement('pre');
-  log.style.cssText = 'font:12px/1.4 ui-monospace,monospace;color:var(--ds-muted);margin:0;position:absolute;left:0;right:0;bottom:0;white-space:pre-wrap;word-break:break-all;';
+  log.style.cssText = 'font:12px/1.4 ui-monospace,monospace;color:var(--mmdx-muted);margin:0;position:absolute;left:0;right:0;bottom:0;white-space:pre-wrap;word-break:break-all;';
   stage.append(item, log);
   root.append(stage);
 
@@ -101,7 +101,7 @@ function styleToolbar(a: ToolbarArgs): HTMLElement {
       : {}),
   };
   const exclude: ToolbarControl[] = a.themeEditorMode ? ['more', 'lock', 'link'] : [];
-  const tb = createToolbar(stage, api, { exclude, reset: a.themeEditorMode });
+  const tb = createStyleToolbar(stage, api, { exclude, reset: a.themeEditorMode });
   tb.refresh();
   // placement needs the host in the document
   requestAnimationFrame(() => tb.place());

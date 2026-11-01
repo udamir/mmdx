@@ -128,9 +128,9 @@ export function reconnect(core: EditorCore, kind: LineKind, id: string, which: '
 
 export const connectModule: EditorModule = {
   id: 'connect',
-  css: CONNECT_CSS,
-  install(core) {
-    const ac = new AbortController();
+  css: [CONNECT_CSS],
+  install(scope) {
+    const core = scope.core;
     const offs: (() => void)[] = [];
     let linking: Linking | null = null;
     let magnets: Magnets | null = null;
@@ -475,26 +475,25 @@ export const connectModule: EditorModule = {
       hoverEdge = it;
       core.drawOverlay();
     };
-    svg.addEventListener('pointermove', (ev) => {
+    scope.listen(svg, 'pointermove', (ev) => {
       if (ev.buttons || busy() || core.mode.peek() !== 'edit' || !(ev.target instanceof Element)) return;
       hoverConnect(ev, ev.target);
       hoverBend(ev, ev.target);
-    }, { signal: ac.signal });
+    });
     // a double press on a bend point / end handle is handled on pointerdown: the browser's own dblclick that follows
     // must not reach the text editor (it would edit the line's label)
-    svg.addEventListener('dblclick', (ev) => {
+    scope.listen(svg, 'dblclick', (ev) => {
       const onHandle = ev.target instanceof Element && ev.target.closest('[data-handle="bend"], [data-handle="bendNew"], [data-handle="end"]');
       if (onHandle || ev.timeStamp - Math.max(bendPress.at, endPress.at) < 800) {
         ev.stopImmediatePropagation();
         ev.preventDefault();
       }
-    }, { capture: true, signal: ac.signal });
+    }, { capture: true });
     offs.push(core.on('model', () => {
       hoverEdge = null;
     }));
 
     return () => {
-      ac.abort();
       for (const off of offs) off();
       linking = null;
       magnets = null;

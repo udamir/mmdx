@@ -6,7 +6,7 @@ import type { ItemRef } from '../types.js';
 import { edgeText, nodeDef } from './connect.js';
 import { copyIds, uniqueId } from './ids.js';
 import { append, applyEdits, contentEnd, indentOf, splice, type LineEdit } from './lines.js';
-import type { CloneResult, CodeResult, SelectResult } from './types.js';
+import type { CloneInto, CloneResult, CodeResult, SelectResult } from './types.js';
 
 /** Per-line indexes of a model, built once per op so line regeneration stays linear. */
 interface LineIndex {
@@ -214,7 +214,7 @@ export function ungroupFlow(code: string, model: FlowchartModel, gid: string): C
  * Copies flowchart nodes and subgraphs (with everything inside them) next to the originals, in the same parent
  * subgraph, plus the edges running between copied nodes. `map`: old id → new id.
  */
-export function cloneFlow(code: string, model: FlowchartModel, items: readonly ItemRef[]): CloneResult {
+export function cloneFlow(code: string, model: FlowchartModel, items: readonly ItemRef[], o: CloneInto = {}): CloneResult {
   const roots: ItemRef[] = [], nodes = new Set<string>(), groups = new Set<string>();
   const walk = (gid: string): void => {
     for (const c of model.groups.get(gid)?.children ?? []) {
@@ -244,7 +244,7 @@ export function cloneFlow(code: string, model: FlowchartModel, items: readonly I
   };
   const tops = roots.filter((r) => !inside(parentOf(r)));
   if (!tops.length) return { code };
-  const map = copyIds(model, [...groups, ...nodes]);
+  const map = copyIds(model, [...groups, ...nodes], o.taken);
   const nodeLines = (id: string, ind: string): string[] => {
     const n = model.nodes.get(id)!;
     const cls = n.classes;
@@ -262,12 +262,14 @@ export function cloneFlow(code: string, model: FlowchartModel, items: readonly I
     if (g.classes?.length) out.push(`${ind}class ${map[gid]} ${g.classes.join(',')}`);
     return out;
   };
+  // into another document (a paste from another version): every copy goes to its end
+  const target = o.into ?? code;
   const L = code.split('\n');
   const edits: LineEdit[] = [];
-  const end = contentEnd(L);
+  const end = contentEnd(target.split('\n'));
   const atEnd: string[] = [];
   for (const r of tops) {
-    const parent = parentOf(r);
+    const parent = o.into === undefined ? parentOf(r) : null;
     const pg = parent ? model.groups.get(parent) : undefined;
     const ind = pg ? indentOf(L[pg.line]) + '  ' : '  ';
     const lines = r.kind === 'node' ? nodeLines(r.id, ind) : groupLines(r.id, ind);
@@ -276,5 +278,5 @@ export function cloneFlow(code: string, model: FlowchartModel, items: readonly I
   }
   for (const e of model.edges) if (nodes.has(e.from) && nodes.has(e.to)) atEnd.push('  ' + edgeText(e, map[e.from]!, map[e.to]!));
   if (atEnd.length) edits.push({ at: end, del: 0, ins: atEnd });
-  return { code: applyEdits(code, edits).replace(/\s+$/, '') + '\n', map };
+  return { code: applyEdits(target, edits).replace(/\s+$/, '') + '\n', map };
 }

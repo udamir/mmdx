@@ -1,22 +1,32 @@
 /// <reference types="vite/client" />
 // Shared story fixtures: the shipped examples and themes, and a shadow-root host for the chrome pieces
-// (they are styled for the components' shadow roots, through the --ds-* tokens).
+// (they are styled for the components' shadow roots, through the --mmdx-* tokens).
 import { ALIASES, adoptStyles, BASE, TOKENS } from '../src/ui/styles/base.js';
 import { BUILTIN_THEMES } from '../src/core/theme/builtin.js';
 import type { ThemeFile } from '../src/core/theme/types.js';
+import type { VersionInfo } from '../src/core/diff/report.js';
 import themeIndex from '../themes/index.json';
 
-const raw = import.meta.glob<string>('../examples/*.mmd', { eager: true, query: '?raw', import: 'default' });
+const raw = import.meta.glob<string>('../examples/*.mmdx', { eager: true, query: '?raw', import: 'default' });
 
 /** Example sources by file name without the extension (`production-microservices`, …). */
 export const EXAMPLES: Readonly<Record<string, string>> = Object.fromEntries(
-  Object.entries(raw).map(([path, src]) => [path.replace(/^.*\/|\.mmd$/g, ''), src]),
+  Object.entries(raw).map(([path, src]) => [path.replace(/^.*\/|\.mmdx$/g, ''), src]),
 );
 
 export const example = (name: string): string => {
   const src = EXAMPLES[name];
   if (src === undefined) throw new Error(`No example "${name}"`);
   return src;
+};
+
+const histories = import.meta.glob<{ versions: (VersionInfo & { source: string })[] }>('../examples/history/*.json', { eager: true, import: 'default' });
+
+/** An example's version history (newest first, each version with its source), as the editor and viewer take it. */
+export const exampleHistory = (name: string): (VersionInfo & { source: string })[] => {
+  const h = histories[`../examples/history/${name}.json`];
+  if (!h) throw new Error(`No history for "${name}"`);
+  return h.versions;
 };
 
 /** Every shipped theme: the two built-ins plus the theme files (the built-ins' JSON is imported by src already). */
@@ -81,7 +91,7 @@ export function chromeHost(css: readonly string[], opts: { ui?: 'light' | 'dark'
   host.dataset['ui'] = opts.ui ?? 'light';
   host.style.cssText = `display:block;position:relative;box-sizing:border-box;min-height:100vh;padding:24px;${opts.style ?? ''}`;
   const root = host.attachShadow({ mode: 'open' });
-  adoptStyles(root, [TOKENS, ALIASES, BASE, ':host{background:var(--ds-bg);}', ...css]);
+  adoptStyles(root, [TOKENS, ALIASES, BASE, ':host{background:var(--mmdx-bg);}', ...css]);
   return { host, root };
 }
 

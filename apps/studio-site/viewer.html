@@ -17,7 +17,7 @@
 </head>
 <body>
   <h1>mmdx-viewer playground</h1>
-  <p>Inline source, a fetched <code>.mmdx</code> file, a fixed-height <code>contain</code> box, an unsupported type and a broken diagram.</p>
+  <p>Inline source, a fetched <code>.mmdx</code> file, a fixed-height <code>contain</code> box, a diagram with its version history, an unsupported type and a broken diagram.</p>
 
   <h2>Inline</h2>
   <mmdx-viewer controls="zoom layers pen code export fullscreen">
@@ -31,13 +31,17 @@
   </mmdx-viewer>
 
   <h2>Fetched architecture (src)</h2>
-  <mmdx-viewer src="/examples/production-microservices.mmd" controls="zoom layers pen fullscreen export"></mmdx-viewer>
+  <mmdx-viewer src="/examples/production-microservices.mmdx" controls="zoom layers pen fullscreen export"></mmdx-viewer>
 
   <h2>Sequence, contain in 360px</h2>
-  <mmdx-viewer class="fixed" fit="contain" src="/examples/docker-deploy-sequence.mmd" controls="zoom layers code"></mmdx-viewer>
+  <mmdx-viewer class="fixed" fit="contain" src="/examples/docker-deploy-sequence.mmdx" controls="zoom layers code"></mmdx-viewer>
 
   <h2>ER, non-interactive</h2>
-  <mmdx-viewer interactive="false" controls="none" src="/examples/atom-schema-er.mmd"></mmdx-viewer>
+  <mmdx-viewer interactive="false" controls="none" src="/examples/atom-schema-er.mmdx"></mmdx-viewer>
+
+  <h2>With history</h2>
+  <p>The History button shows the versions of the diagram and what changed between them.</p>
+  <mmdx-viewer id="with-history" controls="zoom history fullscreen"></mmdx-viewer>
 
   <h2>Unsupported type (source fallback)</h2>
   <mmdx-viewer fallback="source">
@@ -59,9 +63,17 @@
   </mmdx-viewer>
   <script type="module">
     import '../../src/viewer.ts';
+    // History shows <mmdx-diff>: load it (lazily here, it is only needed when History is opened)
+    import('../../src/diff.ts');
+    // a viewer with the version history of an example (newest first, each version with its source)
+    const withHistory = document.getElementById('with-history');
+    fetch('./examples/history/production-microservices.json').then((r) => r.json()).then(({ versions }) => {
+      withHistory.history = versions;
+      withHistory.source = versions[0].source;
+    });
     for (const v of document.querySelectorAll('mmdx-viewer')) {
-      v.addEventListener('ds-error', (e) => console.info('ds-error', e.detail.diagnostics.map((d) => d.message)));
-      v.addEventListener('ds-render', (e) => console.info('ds-render', e.detail));
+      v.addEventListener('mmdx-error', (e) => console.info('mmdx-error', e.detail.diagnostics.map((d) => d.message)));
+      v.addEventListener('mmdx-render', (e) => console.info('mmdx-render', e.detail));
     }
   </script>
 </body>

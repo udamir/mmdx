@@ -58,4 +58,32 @@ describe('signals', () => {
     y.set(2);
     expect(runs).toBe(3);
   });
+  it('an effect reading a signal and a computed of it sees both new values and runs once (glitch-free)', () => {
+    const a = signal(1);
+    const dbl = computed(() => a() * 2);
+    const quad = computed(() => dbl() * 2);
+    const log: string[] = [];
+    effect(() => { log.push(`a=${a()} dbl=${dbl()} quad=${quad()}`); });
+    a.set(2);
+    expect(log).toEqual(['a=1 dbl=2 quad=4', 'a=2 dbl=4 quad=8']);
+    batch(() => { a.set(3); a.set(4); });
+    expect(log.at(-1)).toBe('a=4 dbl=8 quad=16');
+    expect(log).toHaveLength(3);
+  });
+  it('a disposed computed lets go of its inputs; reads still compute, and readers follow the inputs', () => {
+    const a = signal(1);
+    let runs = 0;
+    const dbl = computed(() => { runs++; return a() * 2; });
+    const seen: number[] = [];
+    const stop = effect(() => { seen.push(dbl()); });
+    stop();
+    dbl.dispose();
+    runs = 0;
+    a.set(2);
+    expect(runs).toBe(0);
+    expect(dbl()).toBe(4);
+    effect(() => { seen.push(dbl()); });
+    a.set(3);
+    expect(seen).toEqual([2, 4, 6]);
+  });
 });

@@ -10,7 +10,6 @@ import type { SceneNode } from '../../../core/scene/types.js';
 import type { ItemKind, ItemRef } from '../../../core/types.js';
 import { clearHighlight, hoverHighlight } from '../../../dom/highlight.js';
 import { h } from '../../../ui/h.js';
-import { effect } from '../../../ui/signal.js';
 import type { EditorCore, Gesture, Hit, Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { connectionCount, elementAt, inArea, itemLabel, LINE_KINDS, markSelection, samePrimary, selectable, selKey, sizeBadge } from './shared.js';
@@ -46,10 +45,9 @@ export const SELECT_CSS = /* css */ `
 
 export const canvasSelectModule: EditorModule = {
   id: 'canvas-select',
-  css: SELECT_CSS,
-  install(core) {
-    const ac = new AbortController();
-    const sig = { signal: ac.signal };
+  css: [SELECT_CSS],
+  install(scope) {
+    const core = scope.core;
     const offs: (() => void)[] = [];
     const svg = core.dom.svg;
     let marquee: { x0: number; y0: number; x1: number; y1: number } | null = null;
@@ -59,6 +57,8 @@ export const canvasSelectModule: EditorModule = {
 
     const isLane = (gid: string): boolean => core.isLane(gid);
     const editing = (): boolean => core.mode.peek() === 'edit';
+    /** An old version shows (History): its items are selected to copy them, never moved, resized or cloned. */
+    const readOnly = (): boolean => !!core.version.peek();
 
     // ---- group editing ------------------------------------------------------------------------------------------
 
@@ -107,6 +107,16 @@ export const canvasSelectModule: EditorModule = {
       );
     };
 
+    // suspended (History): the bar goes; it comes back with the group-edit effect when the module resumes
+    scope.register({
+      set: (on) => {
+        if (on) return;
+        bar?.remove();
+        bar = null;
+      },
+      dispose: () => undefined,
+    });
+
     // ---- overlay: selection boxes, resize handle, entered group, page, marquee -----------------------------------
 
     offs.push(core.addOverlay({
@@ -148,7 +158,7 @@ export const canvasSelectModule: EditorModule = {
         }
         const one = core.primary();
         const b = one && core.boxOf(one);
-        if (one && b && !b.hidden && one.kind !== 'note' && one.kind !== 'block' && one.kind !== 'activation' && one.kind !== 'box') {
+        if (one && b && !b.hidden && !readOnly() && one.kind !== 'note' && one.kind !== 'block' && one.kind !== 'activation' && one.kind !== 'box') {
           const r = rect(b), hs = 9 / k;
           out.push(el('rect', { class: 'sel-handle', 'data-handle': 'resize', x: r.x + r.w - hs / 2, y: r.y + r.h - hs / 2, width: hs, height: hs, 'stroke-width': 1.5 / k }, 'resize'));
         }
@@ -293,7 +303,7 @@ export const canvasSelectModule: EditorModule = {
       id: 'canvas-resize',
       priority: 100,
       down(ev, hit) {
-        if (!editing() || hit.handle?.getAttribute('data-handle') !== 'resize') return null;
+        if (!editing() || readOnly() || hit.handle?.getAttribute('data-handle') !== 'resize') return null;
         return resizeGesture();
       },
     }));
@@ -323,14 +333,14 @@ export const canvasSelectModule: EditorModule = {
         }
         const cur = core.selection();
         const multi = cur.length > 1;
-        if (ev.altKey && !part) {
+        if (ev.altKey && !part && !readOnly()) {
           const items = multi && core.isSelected(sel) ? cur : [sel];
           const d = cloneGesture(items);
           if (d) return d;
         }
         if (multi && core.isSelected(sel)) {
           if (redraw) core.draw();
-          return multiMoveGesture();
+          return readOnly() ? NOOP : multiMoveGesture();
         }
         if (!samePrimary(core.primary(), sel) || multi) {
           core.select([sel]);
@@ -340,7 +350,7 @@ export const canvasSelectModule: EditorModule = {
           core.draw();
           core.fire('panels');
         }
-        return moveGesture(sel, part);
+        return readOnly() ? NOOP : moveGesture(sel, part);
       },
     }));
 
@@ -396,27 +406,27 @@ export const canvasSelectModule: EditorModule = {
     const altCopy = (on: boolean): void => {
       core.dom.root.classList.toggle('alt-copy', on && editing() && (core.model.type === 'flowchart' || core.model.type === 'er'));
     };
-    svg.addEventListener('pointermove', (ev) => altCopy(ev.altKey), sig);
-    svg.addEventListener('pointerleave', () => altCopy(false), sig);
-    core.dom.root.addEventListener('keydown', (ev) => {
+    scope.listen(svg, 'pointermove', (ev) => altCopy(ev.altKey));
+    scope.listen(svg, 'pointerleave', () => altCopy(false));
+    scope.listen(core.dom.root, 'keydown', (ev) => {
       if (ev.key === 'Alt') altCopy(true);
-    }, sig);
-    core.dom.root.addEventListener('keyup', (ev) => {
+    });
+    scope.listen(core.dom.root, 'keyup', (ev) => {
       if (ev.key === 'Alt') altCopy(false);
-    }, sig);
+    });
     offs.push(() => core.dom.root.classList.remove('alt-copy', 'copying'));
 
     let down: { x: number; y: number } | null = null;
-    svg.addEventListener('pointerdown', (ev) => {
+    scope.listen(svg, 'pointerdown', (ev) => {
       down = { x: ev.clientX, y: ev.clientY };
       if (core.pageSelected.peek()) {
         core.pageSelected.set(false);
         core.drawOverlay();
         core.fire('panels');
       }
-    }, { capture: true, signal: ac.signal });
+    }, { capture: true });
 
-    svg.addEventListener('dblclick', (ev) => {
+    scope.listen(svg, 'dblclick', (ev) => {
       if (core.tool.peek() === 'hand' && editing()) return;
       const t = ev.target instanceof Element ? ev.target : null;
       if (t?.closest('[data-handle]')) return; // handles (connector ends, bend points) handle their own double-click
@@ -445,15 +455,15 @@ export const canvasSelectModule: EditorModule = {
         return;
       }
       if (!itemEl) fit();
-    }, sig);
+    });
 
     const fit = (): void => {
       if (core.has('fitView')) core.run('fitView');
       else core.viewport.setBounds(core.result.result.bounds, { fit: true });
     };
 
-    // Links open in View mode on a plain click (not the end of a pan); the host can route or veto (`ds-link`).
-    svg.addEventListener('click', (ev) => {
+    // Links open in View mode on a plain click (not the end of a pan); the host can route or veto (`mmdx-link`).
+    scope.listen(svg, 'click', (ev) => {
       const t = ev.target instanceof Element ? ev.target : null;
       const a = t?.closest('a');
       const linked = t?.closest('[data-link]');
@@ -463,32 +473,34 @@ export const canvasSelectModule: EditorModule = {
       const href = linked?.getAttribute('data-link') ?? a?.getAttribute('href');
       if (!href) return;
       const item = (linked ?? a)?.closest('[data-id]');
-      if (!core.emit('ds-link', { href, id: item?.getAttribute('data-id') ?? null }, true)) return;
+      if (!core.emit('mmdx-link', { href, id: item?.getAttribute('data-id') ?? null }, true)) return;
       const target = core.ctx.linkPolicy.target ?? '_blank';
       if (target === '_blank') window.open(href, '_blank', 'noopener,noreferrer');
       else window.location.assign(href);
-    }, sig);
+    });
 
     let hoverKey = '';
-    svg.addEventListener('pointermove', (ev) => {
+    scope.listen(svg, 'pointermove', (ev) => {
       if (editing() || !core.display.peek().hoverHighlight || core.viewport.panning) return;
       hoverKey = hoverHighlight(core.dom.body, ev.target instanceof Element ? ev.target : null, core.model);
-    }, sig);
-    svg.addEventListener('pointerleave', () => {
+    });
+    scope.listen(svg, 'pointerleave', () => {
       if (!hoverKey) return;
       hoverKey = '';
       clearHighlight(core.dom.body);
-    }, sig);
+    });
 
     // ---- keyboard: nudge (one history step per burst of key presses) -------------------------------------------
 
     let nudgeOpen = false;
+    // the transaction the nudges run in (a cancel — undo, a load, a stage switch — may have ended it)
+    let nudgeTx = 0;
     let nudgeTimer: ReturnType<typeof setTimeout> | undefined;
     const flushNudge = (): void => {
       clearTimeout(nudgeTimer);
       if (!nudgeOpen) return;
       nudgeOpen = false;
-      core.commit('Nudge');
+      if (core.store.txId === nudgeTx) core.commit('Nudge');
     };
     const nudge = (ux: number, uy: number, step: number): boolean => {
       const sel = core.selection();
@@ -506,9 +518,10 @@ export const canvasSelectModule: EditorModule = {
         if (core.getM(kind, id).locked && !part) return true;
         next = moveItem(model, meta, geom, { kind, id }, ux * step, uy * step, part ? { part, snap: 0 } : { snap: 0 }).meta; // no snapping
       }
-      if (!nudgeOpen) {
+      if (!nudgeOpen || core.store.txId !== nudgeTx) {
         core.begin();
         nudgeOpen = true;
+        nudgeTx = core.store.txId;
       }
       core.store.meta.set(next);
       core.draw();
@@ -517,13 +530,13 @@ export const canvasSelectModule: EditorModule = {
       return true;
     };
     const root = core.dom.root;
-    root.addEventListener('keyup', (ev) => {
+    scope.listen(root, 'keyup', (ev) => {
       if (ev.key.startsWith('Arrow')) flushNudge();
-    }, sig);
-    root.addEventListener('keydown', (ev) => {
+    });
+    scope.listen(root, 'keydown', (ev) => {
       if (nudgeOpen && !ev.key.startsWith('Arrow') && ev.key !== 'Shift') flushNudge();
-    }, { capture: true, signal: ac.signal });
-    svg.addEventListener('pointerdown', () => flushNudge(), { capture: true, signal: ac.signal });
+    }, { capture: true });
+    scope.listen(svg, 'pointerdown', () => flushNudge(), { capture: true });
 
     // ---- selection helpers -------------------------------------------------------------------------------------
 
@@ -584,7 +597,7 @@ export const canvasSelectModule: EditorModule = {
 
     let lastAnnounced = '';
     const announce = (): void => {
-      const live = root.querySelector('.ds-sr[aria-live]');
+      const live = root.querySelector('.mmdx-sr[aria-live]');
       if (!live) return;
       const sel = core.selection();
       let msg = '';
@@ -611,10 +624,10 @@ export const canvasSelectModule: EditorModule = {
       hoverKey = '';
       decorateGroupEdit();
     }));
-    offs.push(effect(() => {
+    scope.effect(() => {
       core.enteredGroup();
       decorateGroupEdit();
-    }));
+    });
 
     offs.push(core.provide('selectAll', selectAll));
     offs.push(core.provide('enterGroup', enterGroup));
@@ -628,9 +641,9 @@ export const canvasSelectModule: EditorModule = {
       return !!d && nudge(d[0], d[1], step);
     };
     core.shortcuts.add(
-      { id: 'tool-pointer', keys: ['v'], label: 'Select & edit', group: 'Tools', editOnly: true, run: () => core.setTool('pointer') },
+      { id: 'tool-pointer', keys: ['v'], label: 'Select & edit', group: 'Tools', editOnly: true, readOnly: true, run: () => core.setTool('pointer') },
       { id: 'tool-hand', keys: ['h'], label: 'Hand — drag to move around', group: 'Tools', run: () => core.setTool('hand') },
-      { id: 'select-all', keys: ['mod+a'], label: 'Select all', group: 'Edit', editOnly: true, run: () => selectAll() },
+      { id: 'select-all', keys: ['mod+a'], label: 'Select all', group: 'Edit', editOnly: true, readOnly: true, run: () => selectAll() },
       { id: 'nudge', keys: ['arrowleft', 'arrowright', 'arrowup', 'arrowdown'], label: 'Move the selection 1 px', group: 'Edit', editOnly: true, run: arrow(1) },
       { id: 'nudge10', keys: ['shift+arrowleft', 'shift+arrowright', 'shift+arrowup', 'shift+arrowdown'], label: 'Move the selection 10 px', group: 'Edit', editOnly: true, run: arrow(10) },
       { id: 'focus-next', keys: ['tab'], label: 'Select the next item', group: 'Edit', editOnly: true, run: (ev) => tab(ev, 1) },
@@ -648,10 +661,11 @@ export const canvasSelectModule: EditorModule = {
       { id: 'alt-drag', keys: ['alt'], label: 'Alt-drag: drag a copy · Alt while dragging: no snapping', group: 'Edit', editOnly: true, hintOnly: true },
     );
     // The end of the Esc chain (A.11: help → paint → shapes menu → tool → group → selection / page) is registered
-    // after every module installed, so the earlier links of the chain come first in the registry.
+    // after every module installed, so the earlier links of the chain come first in the registry. Through the scope:
+    // muted while the module is suspended (History) and removed when it is uninstalled.
     queueMicrotask(() => {
       if (destroyed) return;
-      core.shortcuts.add(
+      scope.shortcut(
         {
           id: 'exit-group', keys: ['escape'], label: 'Leave the group being edited', group: 'Edit', editOnly: true,
           run: () => {
@@ -677,7 +691,6 @@ export const canvasSelectModule: EditorModule = {
     return () => {
       destroyed = true;
       flushNudge();
-      ac.abort();
       for (const off of offs) off();
       bar?.remove();
       bar = null;

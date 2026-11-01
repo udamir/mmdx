@@ -8,24 +8,16 @@ import type { DiagramModel } from '../../../core/model.js';
 import {
   alignItems, boxParticipants, cloneMeta, copyItems, deleteER, deleteFlow, deleteSeq, duplicateItems, edgeText, groupFlow,
   lockedItems, moveOrder, nodeDef, pasteable, pasteItems, relabelBox, relabelGroup, relText, removeActivation, ungroupFlow,
-  unboxParticipants, unlockAll as unlockAllOp, type AlignOp, type ClipboardData,
+  unboxParticipants, unlockAll as unlockAllOp, type AlignOp,
 } from '../../../core/ops/index.js';
 import type { ItemRef } from '../../../core/types.js';
-import { h } from '../../../ui/h.js';
-import { formatKeys } from '../../../ui/shortcuts.js';
+import { MENU_CSS, openMenu, type MenuItem } from '../../../ui/blocks/menu.js';
 import type { EditorActions, EditorCore, Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { items as nItems } from './shared.js';
 
-export const STRUCTURE_CSS = /* css */ `
-.ctx-menu { min-width: 190px; padding: 5px; background: var(--float); border: 1px solid var(--float-line); border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(20,30,60,.2); }
-.ctx-menu .ctx-item { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; background: none; text-align: left; padding: 6px 10px; border-radius: 7px; color: var(--ink); }
-.ctx-item span { flex: 1; }
-.ctx-item kbd { border: 0; background: none; color: var(--muted); font-size: 11px; font-family: inherit; }
-.ctx-menu .ctx-item:hover:not(:disabled), .ctx-menu .ctx-item:focus-visible { background: var(--float-2); box-shadow: none; }
-.ctx-item:disabled { color: var(--muted); cursor: default; }
-`;
+/** The board's right-click menu is the Menu block. */
+export const STRUCTURE_CSS = MENU_CSS;
 
 /** Clipboard MIME type of the editor's own format (§8.2); `web ` prefix = custom format of the async clipboard API. */
 export const MMDX_CLIPBOARD_TYPE = 'web application/x-mmdx+json';
@@ -102,12 +94,11 @@ const ALIGN: Record<Parameters<EditorActions['arrange']>[0], AlignOp> = {
 
 export const canvasStructureModule: EditorModule = {
   id: 'canvas-structure',
-  css: STRUCTURE_CSS,
-  install(core: EditorCore) {
-    const ac = new AbortController();
+  css: [STRUCTURE_CSS],
+  install(scope) {
+    const core = scope.core;
     const offs: (() => void)[] = [];
-    /** The copy buffer (UI state, never saved): the source of truth for paste. */
-    let clip: ClipboardData | null = null;
+    /** The copy buffer is the core's (`core.clipboard`, UI state, never saved): the source of truth for paste. */
     const editing = (): boolean => core.mode.peek() === 'edit';
 
     // ---- delete ------------------------------------------------------------------------------------------------
@@ -207,22 +198,22 @@ export const canvasStructureModule: EditorModule = {
     // ---- copy / paste / duplicate (§8.2 clipboard) -------------------------------------------------------------
 
     const copySelection = (): boolean => {
-      const data = copyItems(core.model, core.meta, core.selection());
+      const data = copyItems(core.model, core.meta, core.selection(), { code: core.code, geom: core.geom });
       if (!data) {
         core.toast(core.model.type === 'sequence' ? 'Copy works for flowchart shapes / groups and ER tables' : 'Nothing to copy');
         return false;
       }
-      clip = data;
+      core.clipboard = data;
       core.toast(`Copied ${nItems(data.items.length)}`);
-      const json = JSON.stringify({ format: 'mmdx-items', version: 1, type: data.type, items: data.items, source: core.store.source() });
+      const json = JSON.stringify({ format: 'mmdx-items', version: 2, type: data.type, items: data.items, content: data.content, source: core.shownSource() });
       void writeSystemClipboard(mermaidFragment(core.model, core.code, data.items), json);
       return true;
     };
 
-    const canPaste = (): boolean => !!pasteable(core.model, clip);
+    const canPaste = (): boolean => !!pasteable(core.model, core.clipboard);
 
     const pasteAt = (at?: { x: number; y: number }): void => {
-      const res = pasteItems(core.code, core.meta, core.model, core.geom, clip, at ?? null, core.snap);
+      const res = pasteItems(core.code, core.meta, core.model, core.geom, core.clipboard, at ?? null, core.snap);
       if (!res) return;
       core.applyCode({ code: res.code, meta: res.meta }, 'Paste', { select: res.selection ?? [] });
     };
@@ -268,39 +259,26 @@ export const canvasStructureModule: EditorModule = {
     // ---- right-click on the board ------------------------------------------------------------------------------
 
     const showContextMenu = (clientX: number, clientY: number, at: { x: number; y: number }): void => {
-      const entries: [string, string, (() => void) | null][] = [];
-      if (canPaste()) entries.push(['Paste', formatKeys('mod+v'), () => pasteAt(at)]);
+      const entries: MenuItem[] = [];
+      if (canPaste()) entries.push({ label: 'Paste', keys: 'mod+v', run: () => pasteAt(at) });
       const locked = lockedItems(core.meta).length;
-      if (locked) entries.push([`Unlock all (${locked})`, '', unlockAll]);
-      if (!entries.length) entries.push(['Nothing to paste', '', null]);
-      const m = h('div', { class: 'ctx-menu ds-menu', role: 'menu', 'aria-label': 'Board' });
-      for (const [label, keys, fn] of entries) {
-        const b = h('button', { type: 'button', class: 'ctx-item', role: 'menuitem' }, h('span', null, label), h('kbd', null, keys));
-        b.disabled = !fn;
-        b.addEventListener('click', () => {
-          core.popovers.close();
-          fn?.();
-        });
-        m.append(b);
-      }
-      core.dom.wrap.append(m);
-      core.popovers.open(m, null, { onClose: () => core.dom.root.focus({ preventScroll: true }) });
-      const wr = core.dom.wrap.getBoundingClientRect();
-      const x = Math.min(clientX - wr.left, wr.width - m.offsetWidth - 8);
-      const y = Math.min(clientY - wr.top, wr.height - m.offsetHeight - 8);
-      m.style.left = `${Math.max(0, x)}px`;
-      m.style.top = `${Math.max(0, y)}px`;
+      if (locked) entries.push({ label: `Unlock all (${locked})`, run: unlockAll });
+      if (!entries.length) entries.push({ label: 'Nothing to paste', disabled: true, run: () => undefined });
+      openMenu({
+        popovers: core.popovers, opener: null, label: 'Board', entries, within: core.area, at: { clientX, clientY }, class: 'ctx-menu',
+        onClose: () => core.root.focus({ preventScroll: true }),
+      });
     };
 
-    core.dom.svg.addEventListener('contextmenu', (ev) => {
+    scope.listen(core.dom.svg, 'contextmenu', (ev) => {
       ev.preventDefault();
-      if (!editing() || (ev.target instanceof Element && ev.target.closest('.el'))) return;
+      if (!editing() || core.version.peek() || (ev.target instanceof Element && ev.target.closest('.el'))) return;
       showContextMenu(ev.clientX, ev.clientY, core.toDiagram(ev));
-    }, { signal: ac.signal });
+    });
 
     /** Shift+F10 / the context-menu key: the board menu at the selection (or the middle of the canvas). */
     const keyboardMenu = (): boolean => {
-      if (!editing()) return false;
+      if (!editing() || core.version.peek()) return false;
       const p = core.primary();
       const b = p ? core.boxOf(p) : null;
       const sr = core.dom.svg.getBoundingClientRect();
@@ -326,7 +304,7 @@ export const canvasStructureModule: EditorModule = {
     if (!core.has('moveSelection')) offs.push(core.provide('moveSelection', moveSelection));
 
     core.shortcuts.add(
-      { id: 'copy', keys: ['mod+c'], label: 'Copy', group: 'Edit', editOnly: true, run: () => (core.selection().length ? copySelection() : false) },
+      { id: 'copy', keys: ['mod+c'], label: 'Copy', group: 'Edit', editOnly: true, readOnly: true, run: () => (core.selection().length ? copySelection() : false) },
       {
         id: 'paste', keys: ['mod+v'], label: 'Paste (at the pointer)', group: 'Edit', editOnly: true,
         run: () => {
@@ -345,9 +323,7 @@ export const canvasStructureModule: EditorModule = {
     );
 
     return () => {
-      ac.abort();
       for (const off of offs) off();
-      clip = null;
     };
   },
 };

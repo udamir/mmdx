@@ -6,7 +6,7 @@ describe('markdown plugins', () => {
   it('pre-renders supported diagrams with the source for hydration', () => {
     const html = diagramHtml('flowchart LR\n  a --> b', { theme: 'clean' });
     expect(html).toMatch(/^<mmdx-viewer theme="clean" style="aspect-ratio:\d+ \/ \d+"><svg xmlns="http:\/\/www.w3.org\/2000\/svg"/);
-    expect(html).toContain('data-ds-ssr');
+    expect(html).toContain('data-mmdx-ssr');
     expect(html).toContain('<script type="text/mermaid">flowchart LR\n  a --> b</script>');
   });
   it('leaves unsupported types to the viewer fallback', () => {

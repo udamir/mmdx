@@ -18,12 +18,12 @@ import type { SceneNode } from '../../../core/scene/types.js';
 import { relativeColor } from '../../../core/theme/colors.js';
 import type { Rect } from '../../../core/types.js';
 import { h } from '../../../ui/h.js';
-import type { KindSpec, ToolbarApi, ToolbarHandle } from '../../../ui/style-toolbar.js';
+import type { KindSpec, ToolbarApi, StyleToolbarHandle } from '../../../ui/style-toolbar.js';
 import type { EditorCore, Gesture } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { elementAt } from '../canvas/shared.js';
 import { freeStrip } from '../chrome/toolbars.js';
-import { applyMeta, styleEnv } from '../panels/util.js';
+import { applyMeta, styleEnv } from '../../ops/doc.js';
 import { writeAttrLook } from './look.js';
 
 export const ER_TABLE_CSS = /* css */ `
@@ -55,11 +55,10 @@ type RowHit = { i: number; add: boolean } | 'title' | null;
 
 export const erTableModule: EditorModule = {
   id: 'er-table',
-  css: ER_TABLE_CSS,
-  install(core) {
+  css: [ER_TABLE_CSS],
+  install(scope) {
+    const core = scope.core;
     const t = core.i18n.t;
-    const ac = new AbortController();
-    const sig = { signal: ac.signal };
     const offs: (() => void)[] = [];
     const wrap = core.dom.wrap;
     let destroyed = false;
@@ -311,11 +310,11 @@ export const erTableModule: EditorModule = {
         }
       },
     };
-    let tb: ToolbarHandle | null = null;
+    let tb: StyleToolbarHandle | null = null;
     let tbLoading: Promise<void> | null = null;
-    const ensureToolbar = (): Promise<void> => (tbLoading ??= import('../../../ui/style-toolbar.js').then(({ createToolbar }) => {
+    const ensureToolbar = (): Promise<void> => (tbLoading ??= import('../../../ui/style-toolbar.js').then(({ createStyleToolbar }) => {
       if (destroyed || tb) return;
-      tb = createToolbar(wrap, api, { i18n: core.i18n, kinds: { attr: ATTR_SPEC } });
+      tb = createStyleToolbar(wrap, api, { i18n: core.i18n, kinds: { attr: ATTR_SPEC } });
       tb.refresh();
     }));
     /** Repaints the row selection and rebuilds the attribute toolbar. */
@@ -450,7 +449,7 @@ export const erTableModule: EditorModule = {
     };
     // double-click: a table has two sections, its title (renames it in place) and its attributes (attribute editing;
     // inside it, the row is edited in place)
-    core.dom.svg.addEventListener('dblclick', (ev) => {
+    scope.listen(core.dom.svg, 'dblclick', (ev) => {
       if (!editing() || core.model.type !== 'er' || core.tool.peek() === 'hand') return;
       if (table) {
         const at = rowAt(core.toDiagram(ev));
@@ -471,11 +470,13 @@ export const erTableModule: EditorModule = {
       ev.stopPropagation();
       ev.preventDefault();
       enter(id);
-    }, { capture: true, signal: ac.signal });
+    }, { capture: true });
 
     // ---- editing a row in place -------------------------------------------------------------------------------
 
     const closeEditor = (apply: boolean): void => editor?.close(apply);
+    // suspended (History opens): the row's text box is cancelled — the document is not written in History (§8.2)
+    scope.register({ set: (on) => void (on || closeEditor(false)), dispose: () => undefined });
     /** Opens the text box over row i (-1: the empty last row, a new attribute). */
     const editRow = (i: number): void => {
       closeEditor(true);
@@ -557,7 +558,7 @@ export const erTableModule: EditorModule = {
       inp.select();
     };
     // pressing on the canvas applies the open row editor first
-    core.dom.svg.addEventListener('pointerdown', () => closeEditor(true), { capture: true, signal: ac.signal });
+    scope.listen(core.dom.svg, 'pointerdown', () => closeEditor(true), { capture: true });
 
     // ---- keys ------------------------------------------------------------------------------------------------
 
@@ -647,7 +648,6 @@ export const erTableModule: EditorModule = {
     return () => {
       destroyed = true;
       closeEditor(false);
-      ac.abort();
       for (const off of offs) off();
       tb?.destroy();
       bar?.remove();

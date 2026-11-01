@@ -9,13 +9,13 @@ import { createDefaultRegistry } from '../../../src/core/theme/builtin.js';
 import { createColorResolver, diagramPaletteOf } from '../../../src/core/theme/colors.js';
 
 const ROOT = join(__dirname, '../../..');
-const EXAMPLES = readdirSync(join(ROOT, 'examples')).filter((f) => f.endsWith('.mmd')).sort()
+const EXAMPLES = readdirSync(join(ROOT, 'examples')).filter((f) => f.endsWith('.mmdx')).sort()
   .map((name) => ({ name, src: readFileSync(join(ROOT, 'examples', name), 'utf8') }));
 const registry = createDefaultRegistry();
 
 function portable(src: string, themeId?: string): string {
   const { doc } = splitSource(src);
-  const theme = registry.get(themeId ?? (typeof doc.meta.canvas.theme === 'string' ? doc.meta.canvas.theme : 'default-light'));
+  const theme = registry.get(themeId ?? 'default-light');
   return toPortableMermaid(doc.code, doc.meta, parse(doc.code), theme, createColorResolver(theme, diagramPaletteOf(doc.meta.styles)));
 }
 

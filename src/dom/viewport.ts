@@ -1,6 +1,7 @@
 // Pan and zoom (A.2 rows 17–18), shared by the viewer and the editor canvas. Instance-scoped; destroy() removes
 // every listener and observer.
 import type { Rect } from '../core/types.js';
+import { ease, reducedMotion, TRANSITION_MS } from './motion.js';
 
 export interface ViewState {
   k: number;
@@ -25,7 +26,6 @@ export interface ViewportOptions {
   /** Extra insets (open side panels) that fit() keeps clear, in screen px. */
   insets?: () => { left: number; right: number; top: number; bottom: number };
   onChange?: (v: ViewState) => void;
-  reducedMotion?: boolean;
 }
 
 export class Viewport {
@@ -35,6 +35,8 @@ export class Viewport {
   private bounds: Rect | null = null;
   private drag: { x: number; y: number; tx: number; ty: number; id: number } | null = null;
   private gestureScale = 1;
+  /** The animation frame of a fit gliding to its place (0: none). */
+  private glide = 0;
   private readonly ro: ResizeObserver | null;
   private readonly ac = new AbortController();
   private readonly o: Required<Omit<ViewportOptions, 'insets' | 'onChange'>> & {
@@ -49,7 +51,6 @@ export class Viewport {
       pad: opts.pad ?? 20,
       wheel: opts.wheel ?? 'ctrl',
       panOnDrag: opts.panOnDrag ?? true,
-      reducedMotion: opts.reducedMotion ?? false,
       insets: opts.insets,
       onChange: opts.onChange,
     };
@@ -68,7 +69,8 @@ export class Viewport {
       this.zoomAt(g.scale / this.gestureScale, p.x, p.y);
       this.gestureScale = g.scale;
     }, sig);
-    this.ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => { if (this.auto) this.fit(); }) : null;
+    // a resize while the view glides to a fit (panels sliding) goes on gliding to the new fit
+    this.ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => { if (this.auto) this.fit(!!this.glide); }) : null;
     this.ro?.observe(el);
   }
 
@@ -82,14 +84,17 @@ export class Viewport {
     return { w: r.width || (this.el as HTMLElement).clientWidth || 0, h: r.height || (this.el as HTMLElement).clientHeight || 0 };
   }
 
-  /** Sets the content box; fits when it is the first content, when `fit` is asked, or while in auto mode. */
-  setBounds(b: Rect, opts: { fit?: boolean } = {}): void {
+  /**
+   * Sets the content box; fits when it is the first content, when `fit` is asked, or while in auto mode. `animate`: the
+   * view glides to the new fit (a picture switching to another version) instead of jumping.
+   */
+  setBounds(b: Rect, opts: { fit?: boolean; animate?: boolean } = {}): void {
     const first = !this.bounds;
     this.bounds = b;
-    if (first || opts.fit || this.auto) this.fit();
+    if (first || opts.fit || this.auto) this.fit(!first && !!opts.animate);
   }
 
-  fit(): void {
+  fit(animate = false): void {
     const b = this.bounds;
     if (!b || !b.w || !b.h) return;
     const { w, h } = this.size;
@@ -99,11 +104,30 @@ export class Viewport {
     const ah = Math.max(40, h - ins.top - ins.bottom - 2 * this.o.pad);
     const k = clampK(Math.min(aw / b.w, ah / b.h), this.o.minK, this.o.maxK);
     this.auto = true;
-    this.set({
-      k,
-      tx: ins.left + this.o.pad + (aw - b.w * k) / 2 - b.x * k,
-      ty: ins.top + this.o.pad + (ah - b.h * k) / 2 - b.y * k,
-    });
+    const to = { k, tx: ins.left + this.o.pad + (aw - b.w * k) / 2 - b.x * k, ty: ins.top + this.o.pad + (ah - b.h * k) / 2 - b.y * k };
+    if (animate && typeof requestAnimationFrame !== 'undefined' && !reducedMotion()) this.glideTo(to);
+    else this.set(to);
+  }
+
+  /** Moves the view to `to` over a transition; any other change of the view (pan, zoom, fit) stops it. */
+  private glideTo(to: ViewState): void {
+    this.stopGlide();
+    const from = { ...this.state };
+    let t0 = -1;
+    const step = (now: number): void => {
+      if (t0 < 0) t0 = now;
+      const p = Math.min(1, (now - t0) / TRANSITION_MS);
+      const e = ease(p);
+      this.apply({ k: from.k + (to.k - from.k) * e, tx: from.tx + (to.tx - from.tx) * e, ty: from.ty + (to.ty - from.ty) * e });
+      this.glide = p < 1 ? requestAnimationFrame(step) : 0;
+    };
+    this.glide = requestAnimationFrame(step);
+  }
+
+  private stopGlide(): void {
+    if (!this.glide) return;
+    cancelAnimationFrame(this.glide);
+    this.glide = 0;
   }
 
   zoomAt(f: number, x: number, y: number): void {
@@ -124,6 +148,11 @@ export class Viewport {
   }
 
   set(v: ViewState): void {
+    this.stopGlide();
+    this.apply(v);
+  }
+
+  private apply(v: ViewState): void {
     this.state.k = v.k;
     this.state.tx = v.tx;
     this.state.ty = v.ty;
@@ -152,6 +181,7 @@ export class Viewport {
   }
 
   destroy(): void {
+    this.stopGlide();
     this.ac.abort();
     this.ro?.disconnect();
   }

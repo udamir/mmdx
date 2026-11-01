@@ -15,7 +15,7 @@ export interface CoreContext {
 
 let counter = 0;
 /** A short unique prefix; deterministic within one process run (ids only need to be unique on the page). */
-export const nextIdPrefix = (): string => `ds${(++counter).toString(36)}-`;
+export const nextIdPrefix = (): string => `mmdx${(++counter).toString(36)}-`;
 
 /** Like createContext, with the theme registry given (no built-in themes are bundled through this path). */
 export function createContextWith(opts: Partial<CoreContext> & { themes: ThemeRegistry }): CoreContext {

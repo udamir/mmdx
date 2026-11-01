@@ -15,18 +15,17 @@ import type { Direction, DiagramType } from '../../../core/model.js';
 import type { DiagramMeta } from '../../../core/meta/types.js';
 import type { ItemRef, Rect } from '../../../core/types.js';
 import type { PageToolbarApi, PageToolbarHandle, SequenceLayoutState } from '../../../ui/page-toolbar.js';
-import type { ArrangeOp, ToolbarApi, ToolbarHandle, ToolbarOptions } from '../../../ui/style-toolbar.js';
+import type { ArrangeOp, ToolbarApi, StyleToolbarHandle, StyleToolbarOptions } from '../../../ui/style-toolbar.js';
 import { TOOLBAR_CSS } from '../../../ui/styles/toolbar.js';
 import { h } from '../../../ui/h.js';
 import type { EditorCore, Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { saveItemAsPreset, presetPicker } from '../panels/presets.js';
-import {
-  choosePagePreset, DIAGRAM_TYPES, FLOW_DIRS, pageEff, RATIOS, setAutonumberOn, setFlowDirection, setPageRatio, setPageSizeMode, setPageValue, switchDiagramType,
-} from '../panels/properties.js';
-import { applyDoc, applyMeta, canGroup, LiveEdit, styleEnv } from '../panels/util.js';
+import { applyDoc, applyMeta, DIAGRAM_TYPES, FLOW_DIRS, setAutonumberOn, setFlowDirection, styleEnv, switchDiagramType } from '../../ops/doc.js';
+import { canGroup } from '../../ops/group.js';
+import { LiveEdit } from '../../ops/live.js';
+import { choosePagePreset, pageEff, RATIOS, setPageRatio, setPageSizeMode, setPageValue } from '../../ops/page.js';
 import { LINE_KINDS } from '../canvas/shared.js';
-import { setPanel } from './panes.js';
 
 export const TOOLBARS_CSS = /* css */ `
 ${TOOLBAR_CSS}
@@ -43,21 +42,21 @@ const BOX_LOOK: ReadonlySet<string> = new Set(['fill', 'fillOpacity', 'stroke', 
 
 const selKey = (sel: readonly ItemRef[]): string => sel.map((x) => `${x.kind}:${x.id}`).join('|');
 
-/** Horizontal strip of the canvas not covered by the tool dock, the code panel or the right panels (wrap coords). */
+/** Horizontal strip of the canvas not covered by the tool dock or the open panel stacks (wrap coords). */
 export function freeStrip(core: EditorCore): [number, number] {
-  const wrap = core.dom.wrap, root = core.dom.root;
+  const wrap = core.dom.wrap;
   const wr = wrap.getBoundingClientRect();
   const shown = (e: Element | null): e is HTMLElement => !!e && e instanceof HTMLElement && e.offsetParent !== null && getComputedStyle(e).visibility !== 'hidden' && getComputedStyle(e).display !== 'none';
-  const dock = wrap.querySelector('.tool-dock'), lp = root.querySelector('.pane.left'), rp = root.querySelector('.pane.right');
+  const dock = wrap.querySelector('.tool-dock'), stacks = core.stackInsets.peek();
   let lo = shown(dock) ? dock.getBoundingClientRect().right - wr.left : 0;
-  if (shown(lp)) lo = Math.max(lo, lp.getBoundingClientRect().right - wr.left);
-  const hi = (shown(rp) ? rp.getBoundingClientRect().left - wr.left : wr.width) - 10;
+  if (stacks) lo = Math.max(lo, stacks.left);
+  const hi = wr.width - (stacks?.right ?? 0) - 10;
   lo += 10;
   return hi - lo > 200 ? [lo, hi] : [8, wr.width - 8];
 }
 
 /** The selected item's box on screen (wrap coords): connectors take their path, label and bend points. */
-function anchorRect(core: EditorCore, s: Sel): Rect | null {
+export function anchorRect(core: EditorCore, s: Sel): Rect | null {
   const wr = core.dom.wrap.getBoundingClientRect();
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   const add = (l: number, t: number, r: number, b: number): void => {
@@ -106,8 +105,9 @@ function anchorRect(core: EditorCore, s: Sel): Rect | null {
 
 export const toolbarsModule: EditorModule = {
   id: 'toolbars',
-  css: TOOLBARS_CSS,
-  install(core) {
+  css: [TOOLBARS_CSS],
+  install(scope) {
+    const core = scope.core;
     const t = core.i18n.t;
     const f = core.features;
     const ac = new AbortController();
@@ -140,6 +140,7 @@ export const toolbarsModule: EditorModule = {
     // ---- order slider: every position the item can reach in the code, previewed live, committed once
     let ord: (OrderPositions & { key: string; base: { code: string; meta: DiagramMeta; model: typeof core.model; participants: ReadonlyMap<string, { x: number }> | null }; shown: number | null }) | null = null;
     let ordering = false;
+    let orderTx = 0;
     const orderInfo = (): typeof ord => {
       const sel = core.selection();
       if (sel.length !== 1) return null;
@@ -154,9 +155,10 @@ export const toolbarsModule: EditorModule = {
       const o = ord;
       const st = o?.states[i];
       if (!o || !st) return;
-      if (!ordering) {
+      if (!ordering || core.store.txId !== orderTx) {
         core.begin();
         ordering = true;
+        orderTx = core.store.txId;
       }
       const doc = applyOrderState(o.base, st);
       core.store.meta.set(doc.meta);
@@ -169,6 +171,11 @@ export const toolbarsModule: EditorModule = {
       const o = ord;
       if (!ordering) return;
       ordering = false;
+      if (core.store.txId !== orderTx) {
+        // cancelled meanwhile (undo, a load, a stage switch): the base is stale
+        ord = null;
+        return;
+      }
       if (!o || o.shown == null || core.code === o.base.code) {
         core.rollback();
         return;
@@ -235,15 +242,16 @@ export const toolbarsModule: EditorModule = {
       left: 'left', hcenter: 'center', right: 'right', top: 'top', vcenter: 'middle', bottom: 'bottom', hdist: 'hdist', vdist: 'vdist',
     };
     let destroyed = false;
-    let style: ToolbarHandle | null = null;
-    let styleArgs: [ToolbarApi, ToolbarOptions] | null = null;
+    let style: StyleToolbarHandle | null = null;
+    let styleArgs: [ToolbarApi, StyleToolbarOptions] | null = null;
     let styleLoading: Promise<void> | null = null;
     // the style toolbar code loads with the first selection (prefetched when the browser is idle)
-    const ensureStyleBar = (): Promise<void> => (styleLoading ??= import('../../../ui/style-toolbar.js').then(({ createToolbar }) => {
+    const ensureStyleBar = (): Promise<void> => (styleLoading ??= import('../../../ui/style-toolbar.js').then(({ createStyleToolbar }) => {
       if (!styleArgs || style || destroyed) return;
-      style = createToolbar(wrap, ...styleArgs);
+      style = createStyleToolbar(wrap, ...styleArgs);
       cleanups.push(() => style?.destroy());
-      sync(true);
+      if (!scope.active) style.el.remove();
+      else sync(true);
     }));
     if (f.styleToolbar) {
       styleArgs = [{
@@ -380,7 +388,7 @@ export const toolbarsModule: EditorModule = {
           const s = primary();
           if (s) void saveItemAsPreset(core, s);
         },
-        inspect: () => setPanel(core, 'properties', true),
+        inspect: () => void core.run('setPanel', 'properties', true),
         bendCount: () => sameKind().reduce((n, s) => {
           const pts = core.getM(s.kind, s.id).points;
           return n + (Array.isArray(pts) ? pts.length : 0);
@@ -423,7 +431,8 @@ export const toolbarsModule: EditorModule = {
       if (!pageApi || page) return;
       page = createPageToolbar(wrap, pageApi, { i18n: core.i18n });
       cleanups.push(() => page?.destroy());
-      page.refresh();
+      if (!scope.active) page.el.remove();
+      else page.refresh();
     }));
     let pageApi: PageToolbarApi | null = null;
     if (f.pageToolbar) {
@@ -569,6 +578,23 @@ export const toolbarsModule: EditorModule = {
       } else style.place();
     };
     // after a committed change the values shown may differ: rebuild unless a popover (slider) is in use
+    // the toolbars are created after install (on first use): detached while the module is suspended (History, where
+    // their popovers would edit the document), back and placed again when it resumes
+    scope.register({
+      set: (on) => {
+        for (const bar of [style, page]) {
+          if (!bar) continue;
+          if (on) {
+            if (!bar.el.parentNode) wrap.append(bar.el);
+          } else {
+            bar.close();
+            bar.el.remove();
+          }
+        }
+        if (on) sync(true);
+      },
+      dispose: () => undefined,
+    });
     const afterCommit = (): void => {
       if (ordering) return;
       if (style && !style.isOpen()) {

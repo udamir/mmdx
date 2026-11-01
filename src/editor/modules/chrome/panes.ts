@@ -1,157 +1,125 @@
-// Floating side panels (A.2 row 21): open / close with a slide that honours reduced motion, remembered visibility
-// (`panels`) and widths (`panes`), resize by dragging a panel's inner edge (double-click resets). The panel modules
-// (code, properties, layers) build their own DOM and call `attachResizer`; this module provides `setPanel`.
-import type { EditorCore } from '../../core.js';
+// The editor's panel stacks (A.2 row 21; component architecture §7.1): the panel modules contribute SidePanels to
+// `core.panelItems` — the Code panel on the left, Properties and Layers on the right — and this module shows them in
+// two PanelStacks (splitter between Properties and Layers, inner-edge width grip, slide out when empty), provides
+// `setPanel` (open panels remembered under `panels`) and insets the canvas and the chrome by the open stacks
+// (`core.stackInsets`). The right stack is narrower in View mode, where only Layers (View settings) shows. Sizes keep
+// the keys the editor always used: the widths in `panes`, the Layers height in `layersH`.
+//
+// The kernel's `panelStacks` module (view/modules/panels.ts) does the same for the viewer and the diff, under
+// per-product keys. These stacks stay while History shows a comparison (its panels go into them, at the same widths).
+import type { StorageAdapter } from '../../../adapters/storage.js';
+import { createPanelStack, PANEL_STACK_CSS, type PanelStackHandle, type StackStorage } from '../../../ui/blocks/panel-stack.js';
+import { SIDE_PANEL_CSS } from '../../../ui/blocks/side-panel.js';
+import { TABS_CSS } from '../../../ui/blocks/tabs.js';
+import { computed, untracked } from '../../../ui/signal.js';
 import type { EditorModule } from '../../module.js';
 
-export type PanelName = 'code' | 'properties' | 'layers';
-type WidthVar = '--left-w' | '--right-w' | '--right-vw';
+type StackKey = 'left' | 'right' | 'right-view';
 
-/** Default, min and max width of each panel. */
-const PANE_W: Record<WidthVar, readonly [number, number, number]> = { '--left-w': [360, 220, 760], '--right-w': [340, 240, 640], '--right-vw': [260, 200, 520] };
+/** Per stack: the remembered width's key in `panes`, then the initial, min and max width. */
+const WIDTH: Record<StackKey, readonly [string, number, number, number]> = {
+  left: ['--left-w', 360, 220, 760], right: ['--right-w', 340, 240, 640], 'right-view': ['--right-vw', 260, 200, 520],
+};
+/** Room always left for the canvas. */
 const MIN_CANVAS = 360;
 
-const reducedMotion = (): boolean => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-function setPaneWidth(core: EditorCore, v: WidthVar, px: number): number {
-  const [, lo, hi] = PANE_W[v];
-  const avail = core.dom.root.getBoundingClientRect().width || 1e4;
-  const max = Math.max(lo, Math.min(hi, avail - MIN_CANVAS)); // always leave room for the canvas
-  const w = Math.round(Math.max(lo, Math.min(max, px)));
-  core.dom.root.style.setProperty(v, `${w}px`);
-  return w;
-}
-
-function savePaneWidths(core: EditorCore): void {
-  const st = core.dom.root.style, out: Partial<Record<WidthVar, number>> = {};
-  for (const v of Object.keys(PANE_W) as WidthVar[]) {
-    const val = st.getPropertyValue(v);
-    if (val) out[v] = parseInt(val, 10);
-  }
-  core.storage.set('panes', out);
-}
-
-/** Restores remembered panel widths (called once per editor). */
-export function restorePaneWidths(core: EditorCore): void {
-  const saved = core.storage.get<Partial<Record<string, number>>>('panes') ?? {};
-  for (const [v, px] of Object.entries(saved))
-    if (Object.hasOwn(PANE_W, v) && typeof px === 'number' && Number.isFinite(px)) {
-      const [, lo, hi] = PANE_W[v as WidthVar];
-      core.dom.root.style.setProperty(v, `${Math.round(Math.max(lo, Math.min(hi, px)))}px`);
-    }
-}
-
-/** Adds the drag-to-resize grip on a panel's inner edge. Returns a cleanup. */
-export function attachResizer(core: EditorCore, pane: HTMLElement, side: 'left' | 'right'): () => void {
-  const grip = document.createElement('div');
-  grip.className = 'pane-resizer';
-  grip.title = core.i18n.t('panes.resize');
-  grip.setAttribute('role', 'separator');
-  grip.setAttribute('aria-orientation', 'vertical');
-  pane.append(grip);
-  const varName = (): WidthVar => (side === 'left' ? '--left-w' : core.mode.peek() === 'view' ? '--right-vw' : '--right-w');
-  const ac = new AbortController();
-  grip.addEventListener('pointerdown', (ev) => {
-    if (ev.button !== 0) return;
-    ev.preventDefault();
-    ev.stopPropagation();
-    try {
-      grip.setPointerCapture(ev.pointerId);
-    } catch {
-      // capture is best-effort
-    }
-    const v = varName(), x0 = ev.clientX, w0 = pane.getBoundingClientRect().width;
-    grip.classList.add('dragging');
-    core.dom.root.classList.add('resizing-panes');
-    const move = (e: PointerEvent): void => {
-      setPaneWidth(core, v, side === 'left' ? w0 + (e.clientX - x0) : w0 - (e.clientX - x0));
-      core.fire('view');
-    };
-    const up = (): void => {
-      grip.classList.remove('dragging');
-      core.dom.root.classList.remove('resizing-panes');
-      grip.removeEventListener('pointermove', move);
-      grip.removeEventListener('pointerup', up);
-      grip.removeEventListener('pointercancel', up);
-      savePaneWidths(core);
-    };
-    grip.addEventListener('pointermove', move);
-    grip.addEventListener('pointerup', up);
-    grip.addEventListener('pointercancel', up);
-  }, { signal: ac.signal });
-  grip.addEventListener('dblclick', () => {
-    core.dom.root.style.removeProperty(varName());
-    savePaneWidths(core);
-    core.fire('view');
-  }, { signal: ac.signal });
-  return () => {
-    ac.abort();
-    grip.remove();
+/** The stacks' remembered sizes (`<stack>.w`, `<stack>.h`) under the editor's keys: `panes` widths and `layersH`. */
+function paneStorage(st: StorageAdapter): StackStorage {
+  const parse = (key: string): [StackKey, string] => {
+    const i = key.lastIndexOf('.');
+    return [key.slice(0, i) as StackKey, key.slice(i + 1)];
   };
-}
-
-/**
- * Slides a floating panel out past its screen edge (close) or back in (open). `apply` switches the state; on close
- * it runs once the panel has left the screen.
- */
-export function slidePanel(el: HTMLElement | null, side: 'left' | 'right', open: boolean, apply: () => void): void {
-  if (!el || el.dataset['sliding']) {
-    if (!el) apply();
-    return;
-  }
-  const canAnimate = typeof el.animate === 'function';
-  const away = `translateX(calc(${side === 'left' ? '-' : ''}100% ${side === 'left' ? '-' : '+'} 24px))`;
-  const hidden = !el.offsetParent; // not rendered (e.g. another mode hides it): no animation to show
-  if (!canAnimate || reducedMotion() || document.hidden || (!open && hidden)) {
-    apply();
-    return;
-  }
-  el.getAnimations?.().forEach((x) => x.cancel());
-  if (open) {
-    apply();
-    if (!el.offsetParent) return;
-    el.animate([{ transform: away, opacity: 0.4 }, { transform: 'none', opacity: 1 }], { duration: 240, easing: 'cubic-bezier(.2,.8,.2,1)' });
-    return;
-  }
-  el.dataset['sliding'] = '1';
-  const a = el.animate([{ transform: 'none', opacity: 1 }, { transform: away, opacity: 0.4 }], { duration: 200, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' });
-  let done = false;
-  const finish = (): void => {
-    if (done) return;
-    done = true;
-    delete el.dataset['sliding'];
-    apply();
-    a.cancel();
+  const widths = (): Record<string, number> => {
+    const v = st.get<Record<string, number>>('panes');
+    return v && typeof v === 'object' ? { ...v } : {};
   };
-  a.finished.then(finish, finish);
-  setTimeout(finish, 400); // animations can stall (e.g. a background page): close anyway
-}
-
-/** The element each panel slides. */
-function panelEl(core: EditorCore, name: PanelName): HTMLElement | null {
-  const sel = name === 'code' ? '.pane.left' : name === 'properties' ? '.rpanel.props' : '.rpanel.layers';
-  return core.dom.root.querySelector<HTMLElement>(sel);
-}
-
-/** Opens or closes a panel (remembered). */
-export function setPanel(core: EditorCore, name: PanelName, open: boolean): void {
-  const cur = core.panels.peek();
-  if (cur[name] === open) return;
-  slidePanel(panelEl(core, name), name === 'code' ? 'left' : 'right', open, () => {
-    core.panels.set({ ...core.panels.peek(), [name]: open });
-    core.storage.set('panels', core.panels.peek());
-    core.fire('panels');
-    core.fire('view');
-  });
+  return {
+    get<T>(key: string): T | null {
+      const [k, f] = parse(key);
+      const [name, , lo, hi] = WIDTH[k];
+      if (f === 'w') {
+        const w = widths()[name];
+        return (typeof w === 'number' && Number.isFinite(w) ? Math.round(Math.max(lo, Math.min(hi, w))) : null) as T | null;
+      }
+      const lh = k === 'right' ? st.get<number>('layersH') : null;
+      return (typeof lh === 'number' && lh > 0 ? { layers: lh } : null) as T | null;
+    },
+    set(key, value) {
+      const [k, f] = parse(key);
+      if (f === 'w') st.set('panes', { ...widths(), [WIDTH[k][0]]: value });
+      else if (k === 'right') {
+        const lh = (value as Record<string, number> | null)?.['layers'];
+        if (typeof lh === 'number') st.set('layersH', lh);
+        else st.remove('layersH');
+      }
+    },
+    remove(key) {
+      const [k, f] = parse(key);
+      if (f === 'w') {
+        const w = widths();
+        delete w[WIDTH[k][0]];
+        st.set('panes', w);
+      } else if (k === 'right') st.remove('layersH');
+    },
+  };
 }
 
 export const panesModule: EditorModule = {
   id: 'panes',
-  install(core) {
-    restorePaneWidths(core);
-    const off = core.provide('setPanel', (name, open) => setPanel(core, name, open));
+  css: [PANEL_STACK_CSS, SIDE_PANEL_CSS, TABS_CSS],
+  install(scope) {
+    const core = scope.core;
+    scope.provide('setPanel', (name, open) => {
+      if (core.panels.peek()[name] === open) return;
+      core.panels.set({ ...core.panels.peek(), [name]: open });
+      core.storage.set('panels', core.panels.peek());
+      core.fire('panels');
+      core.fire('view');
+    });
+
+    const storage = paneStorage(core.storage);
+    const stacks: Partial<Record<'left' | 'right', PanelStackHandle>> = {};
+    let gone = false;
+    const syncInsets = (): void => {
+      if (gone || !scope.active) return;
+      const inset = (side: 'left' | 'right'): number => {
+        const w = stacks[side]?.width() ?? 0;
+        return w ? w + 12 : 0;
+      };
+      core.stackInsets.set({ left: inset('left'), right: inset('right') });
+      core.fire('view');
+    };
+    for (const side of ['left', 'right'] as const) {
+      const items = scope.computed(() => core.panelItems().filter((p) => p.side === side).sort((a, b) => a.order - b.order));
+      scope.effect(() => {
+        const list = items();
+        const key: StackKey = side === 'right' && core.mode() === 'view' ? 'right-view' : side;
+        // one open state per panel and run: the next run (or uninstall) disposes this run's
+        const opens = list.map((p) => computed(() => !!core.panels()[p.id] && (p.visible?.() ?? true)));
+        const panels = list.map((p, i) => ({ id: p.id, panel: p.el, open: opens[i]! }));
+        const [, initial, min, hi] = WIDTH[key];
+        const width = { initial, min, max: () => Math.max(min, Math.min(hi, (core.root.getBoundingClientRect().width || 1e4) - MIN_CANVAS)) };
+        untracked(() => {
+          let stack = stacks[side];
+          if (!stack && !list.length) return;
+          if (!stack) {
+            stack = stacks[side] = createPanelStack({ side, panels, storage, storageKey: key, width, onChange: syncInsets, part: 'panel', t: core.i18n.t });
+            scope.slot(`${side}-stack`).append(stack.el);
+          } else stack.update({ panels, storageKey: key, width });
+        });
+        return () => opens.forEach((o) => o.dispose());
+      });
+    }
+    scope.effect(() => {
+      core.panels();
+      core.panelItems();
+      core.mode();
+      queueMicrotask(syncInsets);
+    });
     return () => {
-      off();
+      gone = true;
+      for (const s of Object.values(stacks)) s?.destroy();
+      core.stackInsets.set(null);
     };
   },
 };

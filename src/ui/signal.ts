@@ -1,7 +1,10 @@
 // A tiny reactive core (§4.3): signal, computed, effect, batch. Replaces the prototype's ad hoc refresh*() calls
 // without a framework. Effects run synchronously after the outermost batch; dependencies are re-tracked each run.
+// A change marks the computeds that depend on it stale at once (before any effect runs), so an effect that reads a
+// signal and a computed of it sees both new values and runs once (glitch-free).
 
-type Sub = { run(): void; deps: Set<Set<Sub>> };
+/** An effect (`run` queued) or a computed (`mark` called synchronously: stale, and its own readers notified). */
+type Sub = { run(): void; mark?(): void; deps: Set<Set<Sub>> };
 
 let current: Sub | null = null;
 let depth = 0;
@@ -40,11 +43,19 @@ export function signal<T>(initial: T, equals: (a: T, b: T) => boolean = Object.i
   read.set = (v: T) => {
     if (equals(value, v)) return;
     value = v;
-    for (const s of [...subs]) queue.add(s);
+    notify(subs);
     if (!depth) flush();
   };
   read.update = (f) => read.set(f(value));
   return read;
+}
+
+/** Marks dependent computeds stale (recursively, now) and queues dependent effects. */
+function notify(subs: Set<Sub>): void {
+  for (const s of [...subs]) {
+    if (s.mark) s.mark();
+    else queue.add(s);
+  }
 }
 
 function cleanup(s: Sub): void {
@@ -79,20 +90,34 @@ export function effect(f: () => void | (() => void)): () => void {
   };
 }
 
-/** A derived value, recomputed lazily when one of its inputs changed. */
-export function computed<T>(f: () => T): ReadSignal<T> {
+export interface Computed<T> extends ReadSignal<T> {
+  /** Stops following its inputs (it no longer stays subscribed to them); later reads compute afresh. */
+  dispose(): void;
+}
+
+/**
+ * A derived value, recomputed lazily when one of its inputs changed. It stays subscribed to its inputs until
+ * `dispose()`: a computed made per run of something (an effect, a module) is disposed with it.
+ */
+export function computed<T>(f: () => T): Computed<T> {
   let dirty = true;
+  let disposed = false;
   let value: T;
   const subs = new Set<Sub>();
   const self: Sub = {
     deps: new Set(),
     run() {
+      self.mark!();
+    },
+    mark() {
       if (dirty) return;
       dirty = true;
-      for (const s of [...subs]) queue.add(s);
+      notify(subs);
     },
   };
   const read = (() => {
+    // disposed: the reader follows the inputs itself
+    if (disposed) return f();
     if (current) {
       subs.add(current);
       current.deps.add(subs);
@@ -109,7 +134,7 @@ export function computed<T>(f: () => T): ReadSignal<T> {
       dirty = false;
     }
     return value;
-  }) as ReadSignal<T>;
+  }) as Computed<T>;
   read.peek = () => {
     const prev = current;
     current = null;
@@ -118,6 +143,11 @@ export function computed<T>(f: () => T): ReadSignal<T> {
     } finally {
       current = prev;
     }
+  };
+  read.dispose = () => {
+    disposed = true;
+    cleanup(self);
+    subs.clear();
   };
   return read;
 }

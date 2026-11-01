@@ -277,7 +277,7 @@ describe('canvas selection', () => {
     const s = mount(SEQ).core;
     s.select([{ kind: 'participant', id: 'P' }]);
     key(s, 'c', { mod: true });
-    expect(s.dom.root.querySelector('.ds-toast')?.textContent).toBe('Copy works for flowchart shapes / groups and ER tables');
+    expect(s.dom.root.querySelector('.mmdx-toast')?.textContent).toBe('Copy works for flowchart shapes / groups and ER tables');
   });
 
   it('the clipboard text is a Mermaid fragment', () => {
@@ -369,10 +369,10 @@ describe('canvas selection', () => {
     core.select([]);
     key(core, 'Tab');
     expect(sel(core)).toEqual(['node:A']);
-    expect(core.dom.root.querySelector('.ds-sr')?.textContent).toBe('Selected node Alpha, 1 connection');
+    expect(core.dom.root.querySelector('.mmdx-sr')?.textContent).toBe('Selected node Alpha, 1 connection');
     key(core, 'Tab');
     expect(sel(core)).toEqual(['node:B']);
-    expect(core.dom.root.querySelector('.ds-sr')?.textContent).toBe('Selected node Beta, 2 connections');
+    expect(core.dom.root.querySelector('.mmdx-sr')?.textContent).toBe('Selected node Beta, 2 connections');
     key(core, 'Tab', { shift: true });
     expect(sel(core)).toEqual(['node:A']);
   });
@@ -380,7 +380,7 @@ describe('canvas selection', () => {
   it('right-click on the board offers Paste / Unlock all, else a disabled "Nothing to paste"', () => {
     const { core } = mount(FLOW);
     core.dom.svg.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: -300, clientY: -300 }));
-    let menu = core.dom.wrap.querySelector('.ctx-menu');
+    let menu = core.area.querySelector('[role=menu][aria-label=Board]');
     expect(menu?.textContent).toMatch(/Nothing to paste/);
     expect((menu?.querySelector('button') as HTMLButtonElement).disabled).toBe(true);
     core.popovers.close();
@@ -388,7 +388,7 @@ describe('canvas selection', () => {
       core.ensure('node', 'A').locked = true;
     });
     core.dom.svg.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: -300, clientY: -300 }));
-    menu = core.dom.wrap.querySelector('.ctx-menu');
+    menu = core.area.querySelector('[role=menu][aria-label=Board]');
     expect(menu?.textContent).toMatch(/Unlock all \(1\)/);
     (menu?.querySelector('button') as HTMLButtonElement).click();
     expect(core.getM('node', 'A').locked).toBeUndefined();
@@ -436,14 +436,14 @@ describe('canvas selection', () => {
     expect((core.dom.wrap.querySelector('.empty-hint') as HTMLElement).hidden).toBe(false);
   });
 
-  it('View mode: links raise a cancelable ds-link event', () => {
+  it('View mode: links raise a cancelable mmdx-link event', () => {
     const { ed, core } = mount('flowchart TB\n  A[Docs]\n  click A href "https://example.com/docs"\n');
     ed.setMode('view');
     const target = core.dom.body.querySelector('[data-link]');
     expect(target).toBeTruthy();
     let got: unknown = null;
     core.dom.root.getRootNode();
-    (core.dom.shadow.host as HTMLElement).addEventListener('ds-link', (ev) => {
+    (core.dom.shadow.host as HTMLElement).addEventListener('mmdx-link', (ev) => {
       got = (ev as CustomEvent).detail;
       ev.preventDefault();
     });

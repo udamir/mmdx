@@ -5,6 +5,13 @@ export { DiagramEditor, MmdxEditorElement, defineEditor, type EditorOptions, typ
 export { EditorCore, DEFAULT_FEATURES, type EditorFeatures, type Gesture, type GestureSource, type OverlayPainter } from './editor/core.js';
 export type { EditorModule } from './editor/module.js';
 export { DEFAULT_MODULES } from './editor/modules/index.js';
+// the kernel types the component exposes (`.core`, modules, scenes, History; component architecture §11)
+export type { ViewCore } from './view/core.js';
+export type { ViewModule, ModuleScope } from './view/module.js';
+export type { SceneSource } from './view/scene.js';
+export type { Stage } from './view/types.js';
+export type { DiagramCanvas } from './dom/canvas.js';
+export type { HistorySession } from './view/history.js';
 export { configure, type Config } from './config.js';
 export * from './adapters/documents.js';
 

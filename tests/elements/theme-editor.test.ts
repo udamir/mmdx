@@ -48,8 +48,8 @@ describe('<mmdx-theme-editor>', () => {
     const { el, store, root } = await mount();
     const dirty = vi.fn();
     const saved = vi.fn();
-    el.addEventListener('ds-theme-dirty', (e) => dirty((e as CustomEvent).detail));
-    el.addEventListener('ds-theme-saved', (e) => saved((e as CustomEvent).detail));
+    el.addEventListener('mmdx-theme-dirty', (e) => dirty((e as CustomEvent).detail));
+    el.addEventListener('mmdx-theme-saved', (e) => saved((e as CustomEvent).detail));
     const dot = root.querySelector<HTMLElement>('.te-dot[data-dirty="palette.lime"]')!;
     const input = dot.querySelector<HTMLInputElement>('input[type=color]')!;
     input.value = '#123456';
@@ -75,9 +75,9 @@ describe('<mmdx-theme-editor>', () => {
     expect(getShared().themes.raw('default-light')?.palette?.['lime']).toBe('#123456');
   });
 
-  it('⌘/Ctrl+S saves; ds-theme-save is cancelable', async () => {
+  it('⌘/Ctrl+S saves; mmdx-theme-save is cancelable', async () => {
     const { el, store, root } = await mount({ theme: 'default-dark' });
-    el.addEventListener('ds-theme-save', (e) => e.preventDefault(), { once: true });
+    el.addEventListener('mmdx-theme-save', (e) => e.preventDefault(), { once: true });
     const name = root.querySelector<HTMLInputElement>('.te-name')!;
     name.value = 'Renamed';
     name.dispatchEvent(new Event('change'));
@@ -130,7 +130,7 @@ describe('<mmdx-theme-editor>', () => {
     const bad = { id: 'evil', name: 'Evil', palette: { red: 'url(javascript:alert(1))' }, flowchart: { node: { fill: 'red" onload="x' } } };
     const p = el.instance!.importText(JSON.stringify(bad));
     await tick(10);
-    const dlg = root.querySelector('.ds-dialog')!;
+    const dlg = root.querySelector('.mmdx-dialog')!;
     expect(dlg.textContent).toContain('Not a valid theme file');
     expect(dlg.textContent).toContain('palette.red');
     expect(dlg.textContent).toContain('flowchart.node.fill');
@@ -141,8 +141,8 @@ describe('<mmdx-theme-editor>', () => {
     // not JSON at all
     const q = el.instance!.importText('{ nope');
     await tick(10);
-    expect(root.querySelector('.ds-dialog')!.textContent).toContain('Not JSON');
-    root.querySelector<HTMLButtonElement>('.ds-dialog button.primary')!.click();
+    expect(root.querySelector('.mmdx-dialog')!.textContent).toContain('Not JSON');
+    root.querySelector<HTMLButtonElement>('.mmdx-dialog button.primary')!.click();
     expect(await q).toBe(false);
 
     // a valid file is saved and opened
@@ -220,9 +220,9 @@ describe('<mmdx-theme-editor>', () => {
     // + Preset: a named page preset
     card.querySelector<HTMLButtonElement>('.te-tile-add')!.click();
     await tick(10);
-    const input = root.querySelector<HTMLInputElement>('.ds-dialog input')!;
+    const input = root.querySelector<HTMLInputElement>('.mmdx-dialog input')!;
     input.value = 'Poster';
-    root.querySelector<HTMLButtonElement>('.ds-dialog button.primary')!.click();
+    root.querySelector<HTMLButtonElement>('.mmdx-dialog button.primary')!.click();
     await tick(10);
     expect(el.instance!.draftTheme!.flowchart!.pagePresets!['poster']).toEqual({ label: 'Poster' });
     // sequence page presets offer the sequence layout fields
@@ -245,7 +245,7 @@ describe('<mmdx-theme-editor>', () => {
     await store.save({ ...(await store.get('default-dark')), name: 'Theirs' }, {});
     const p = el.save();
     await tick(10);
-    const dlg = root.querySelector('.ds-dialog')!;
+    const dlg = root.querySelector('.mmdx-dialog')!;
     expect(dlg.textContent).toContain('changed elsewhere');
     Array.from(dlg.querySelectorAll('button')).find((b) => b.textContent === 'Overwrite')!.click();
     expect(await p).toBe(true);
@@ -255,16 +255,33 @@ describe('<mmdx-theme-editor>', () => {
     name.dispatchEvent(new Event('change'));
     const sw = el.select('default-light');
     await tick(10);
-    expect(root.querySelector('.ds-dialog')!.textContent).toContain('Save the changes to "Again"?');
-    Array.from(root.querySelectorAll<HTMLButtonElement>('.ds-dialog button')).find((b) => b.textContent === 'Cancel')!.click();
+    expect(root.querySelector('.mmdx-dialog')!.textContent).toContain('Save the changes to "Again"?');
+    Array.from(root.querySelectorAll<HTMLButtonElement>('.mmdx-dialog button')).find((b) => b.textContent === 'Cancel')!.click();
     expect(await sw).toBe(false);
     expect(el.theme).toBe('default-dark');
+  });
+
+  it('a theme attribute switch the user cancels puts the attribute back to the open theme', async () => {
+    const { el, root } = await mount({ theme: 'default-dark' });
+    const name = root.querySelector<HTMLInputElement>('.te-name')!;
+    name.value = 'Unsaved';
+    name.dispatchEvent(new Event('change'));
+    el.setAttribute('theme', 'default-light');
+    await tick(10);
+    expect(root.querySelector('.mmdx-dialog')!.textContent).toContain('Save the changes to "Unsaved"?');
+    Array.from(root.querySelectorAll<HTMLButtonElement>('.mmdx-dialog button')).find((b) => b.textContent === 'Cancel')!.click();
+    await tick(10);
+    expect(el.theme).toBe('default-dark');
+    expect(el.getAttribute('theme')).toBe('default-dark');
   });
 
   it('can-edit="false" is read only', async () => {
     const { el, root } = await mount({ attrs: { 'can-edit': 'false' } });
     expect(root.querySelector<HTMLInputElement>('.te-dot input')!.disabled).toBe(true);
-    expect(Array.from(root.querySelectorAll('.te-list-acts button')).map((b) => b.textContent)).toEqual(['Export']);
+    // no New; the actions menu offers Export only
+    expect(Array.from(root.querySelectorAll('.te-list-acts button')).map((b) => b.textContent)).toEqual(['More']);
+    root.querySelector<HTMLButtonElement>('.te-list-acts .te-more')!.click();
+    expect(Array.from(root.querySelectorAll('.te-menu [role=menuitem]')).map((b) => b.textContent)).toEqual(['Export']);
     expect(await el.save()).toBe(false);
   });
 

@@ -16,7 +16,7 @@ import { DEFAULT_LINK_POLICY } from '../../../src/core/validate.js';
 const ROOT = join(__dirname, '../../..');
 
 export const EXAMPLES: { name: string; src: string }[] = readdirSync(join(ROOT, 'examples'))
-  .filter((f) => f.endsWith('.mmd'))
+  .filter((f) => f.endsWith('.mmdx'))
   .sort()
   .map((name) => ({ name, src: readFileSync(join(ROOT, 'examples', name), 'utf8') }));
 
@@ -53,7 +53,7 @@ export function renderProd(
 ): ProdRender {
   const { doc } = splitSource(src);
   const model = parse(doc.code);
-  const theme = registry.get(themeId ?? (typeof doc.meta.canvas.theme === 'string' ? doc.meta.canvas.theme : 'default-light'));
+  const theme = registry.get(themeId ?? 'default-light');
   const ctx = makeCtx(theme, doc.meta, o);
   if (o.layoutCache) ctx.layoutCache = o.layoutCache;
   const result = render(model, doc.meta, theme, ctx, o.opts ?? {});

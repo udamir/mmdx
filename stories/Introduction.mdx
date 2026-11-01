@@ -9,10 +9,11 @@ shipped examples (`examples/`) and themes (`themes/`).
 
 ## Elements
 
-- **`<mmdx-viewer>`** (`mmdx/viewer`): read-only diagram with pan and zoom, layers, pen, code view, export, fullscreen and fallbacks.
-- **`<mmdx-editor>`** (`mmdx/editor`): visual editor with the Mermaid code and layout metadata side by side; every feature can be switched off.
+- **`<mmdx-viewer>`** (`mmdx/viewer`): read-only diagram with pan and zoom, layers, pen, code view, history, export, fullscreen and fallbacks.
+- **`<mmdx-editor>`** (`mmdx/editor`): visual editor with the Mermaid code and layout metadata side by side, and the diagram's history (older versions read-only, comparisons with the current one); every feature can be switched off.
+- **`<mmdx-diff>`** (`mmdx/diff`): how a diagram changed between two versions, and its version history, for merge request reviews; the editor and the viewer show the same comparisons in their History.
 - **`<mmdx-theme-editor>`** (`mmdx/theme-editor`): edits themes (palette, fonts, item and page presets) with live previews.
-- **`<mmdx-studio>`** (`mmdx/studio`): the standalone app, with editor, examples, share, export, theme editor and Plain Mermaid.
+- **`<mmdx-studio>`** (`mmdx/studio`): Mermaid Studio, the standalone app, with editor, examples (each with a six-version history and a preview), share, export, theme editor, Plain Mermaid and Diff.
 - **Markdown** (`mmdx/markdown`): build-time HTML with server-rendered SVG, and the run-time upgrade of Mermaid code blocks.
 
 ## UI
@@ -22,10 +23,10 @@ page toolbar, item previews and presets, icons, shapes, the logo, design tokens,
 
 ## Core
 
-`renderToSvg()` (DOM-free rendering for SSR and exports) and the semantic diagram diff.
+`renderToSvg()` (DOM-free rendering for SSR and exports) and the semantic diagram diff (`renderDiffToSvg()`, `diffReport()` for CI).
 
 ## Conventions
 
 - Every element takes `ui="light|dark|auto"` for its chrome; diagrams take any theme id (`theme`).
-- Events are `ds-*` `CustomEvent`s; the stories log them to the browser console.
+- Events are `mmdx-*` `CustomEvent`s; the stories log them to the browser console.
 - Documents and themes are in memory here: nothing is saved.

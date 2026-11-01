@@ -1,6 +1,14 @@
 // @vitest-environment jsdom
-import { describe, expect, test } from 'vitest';
-import { parseMermaidSvg } from '../../src/editor/modules/chrome/document.js';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+import { memoryStorage } from '../../src/adapters/storage.js';
+import { DiagramEditor } from '../../src/editor/editor.js';
+import { documentModule, parseMermaidSvg } from '../../src/editor/modules/chrome/document.js';
+
+// stock Mermaid is not loaded in the tests: its render returns a small SVG saying which scheme it was asked for
+vi.mock('../../src/config.js', async (orig) => ({
+  ...(await orig<typeof import('../../src/config.js')>()),
+  renderWithMermaid: vi.fn(async (_code: string, dark: boolean) => `<svg xmlns="http://www.w3.org/2000/svg" data-dark="${dark}"><rect width="5" height="5"/></svg>`),
+}));
 
 // Mermaid's output: labels are HTML inside <foreignObject>, with void tags such as <br> (not valid XML)
 const LABEL_WITH_BREAK =
@@ -30,5 +38,24 @@ describe('Plain Mermaid: parsing Mermaid’s SVG', () => {
   test('no SVG in the output gives null', () => {
     expect(parseMermaidSvg('<div>Syntax error</div>')).toBeNull();
     expect(parseMermaidSvg('')).toBeNull();
+  });
+});
+
+describe('Plain Mermaid: the dialog', () => {
+  afterEach(() => document.body.replaceChildren());
+
+  test('opens as an in-component dialog with the stock render; Close closes it', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const ed = new DiagramEditor(host, { value: 'flowchart LR\n  A --> B\n', modules: [documentModule], storage: memoryStorage(), ui: 'dark' });
+    await ed.core.run('plainMermaid');
+    const card = host.shadowRoot!.querySelector<HTMLElement>('.mmdx-dialog.mm-card')!;
+    expect(card.getAttribute('role')).toBe('dialog');
+    expect(card.querySelector('h2')!.textContent).toBe('Plain Mermaid render');
+    expect(card.querySelector('.mm-body svg')!.getAttribute('data-dark')).toBe('true');
+    const close = [...card.querySelectorAll('button')].find((b) => b.textContent === 'Close')!;
+    close.click();
+    expect(host.shadowRoot!.querySelector('.mmdx-dialog')).toBeNull();
+    ed.destroy();
   });
 });

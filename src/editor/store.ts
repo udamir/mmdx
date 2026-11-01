@@ -25,6 +25,8 @@ export interface StoreOptions {
   /** History byte budget (default 5 MB). */
   historyBytes?: number;
   onChange?: (source: string, reason: ChangeReason) => void;
+  /** The outermost transaction ended (committed, rolled back or abandoned by a load). */
+  onIdle?: () => void;
 }
 
 const clone = <T>(v: T): T => (v === undefined ? v : (JSON.parse(JSON.stringify(v)) as T));
@@ -54,6 +56,7 @@ export class DocStore {
   private saved = '';
   private txDepth = 0;
   private txStart: { source: string; selection: ItemRef[] } | null = null;
+  private txSerial = 0;
   private readonly budget: number;
 
   constructor(private readonly opts: StoreOptions = {}) {
@@ -70,8 +73,15 @@ export class DocStore {
     return { code: this.code.peek(), meta: this.meta.peek() };
   }
 
-  /** Loads a document. `reset` clears history (new file); `push` makes it an undoable step (remote update). */
+  /**
+   * Loads a document. `reset` clears history (new file); `push` makes it an undoable step (remote update) and drops the
+   * redo steps. An open transaction is abandoned: the loaded document replaces its uncommitted state, which is never
+   * recorded (the editor cancels the gesture that opened it before loading).
+   */
   load(src: string, opts: { history?: 'reset' | 'push'; reason?: ChangeReason; markSaved?: boolean } = {}): void {
+    const abandoned = this.txDepth > 0;
+    this.txDepth = 0;
+    this.txStart = null;
     const before = this.last;
     const beforeSel = this.selection.peek();
     const split = splitSource(src);
@@ -79,8 +89,10 @@ export class DocStore {
     this.meta.set(normalizeMeta(split.doc.meta));
     this.metaDiagnostics.set(split.diagnostics);
     const now = this.source();
-    if (opts.history === 'push' && before && before !== now) this.pushHistory({ source: before, selection: beforeSel, label: 'Reload' });
-    else if (opts.history !== 'push') {
+    if (opts.history === 'push' && before && before !== now) {
+      this.pushHistory({ source: before, selection: beforeSel, label: 'Reload' });
+      this.future = [];
+    } else if (opts.history !== 'push') {
       this.history = [];
       this.future = [];
       this.bytes = 0;
@@ -89,6 +101,7 @@ export class DocStore {
     if (opts.markSaved !== false) this.saved = now;
     this.selection.set(this.selection.peek().filter((r) => this.exists(r)));
     this.sync(opts.reason ?? 'load');
+    if (abandoned) this.opts.onIdle?.();
   }
 
   /** Replaces the code (typing in the code panel, ops). %%@ lines pasted into the code move into metadata (A.1 row 5). */
@@ -126,7 +139,19 @@ export class DocStore {
 
   /** Opens a transaction (drags, slider moves, key repeats). Nested calls join the outer one. */
   begin(): void {
-    if (this.txDepth++ === 0) this.txStart = { source: this.last || this.source(), selection: this.selection.peek() };
+    if (this.txDepth++ === 0) {
+      this.txSerial++;
+      this.txStart = { source: this.last || this.source(), selection: this.selection.peek() };
+    }
+  }
+
+  /**
+   * The open outermost transaction (0 when none): a caller that keeps a transaction open across events (coalesced
+   * nudges, live field edits) checks it is still the one it opened before committing — a cancel (Esc, undo, a stage
+   * switch) or a load may have ended it, and a later transaction must not be committed by the stale owner.
+   */
+  get txId(): number {
+    return this.txDepth > 0 ? this.txSerial : 0;
   }
 
   /** Live preview inside a transaction: re-derive and redraw without recording. */
@@ -148,6 +173,7 @@ export class DocStore {
       this.last = now;
       this.sync(reason);
     } else this.revision.update((n) => n + 1);
+    this.opts.onIdle?.();
   }
 
   /** Abandons a transaction and restores the state before it (Esc during a drag, vetoed op). */
@@ -156,12 +182,14 @@ export class DocStore {
     this.txDepth = 0;
     const start = this.txStart;
     this.txStart = null;
-    if (!start) return;
-    const split = splitSource(start.source);
-    this.code.set(split.doc.code);
-    this.meta.set(normalizeMeta(split.doc.meta));
-    this.selection.set(start.selection);
-    this.revision.update((n) => n + 1);
+    if (start) {
+      const split = splitSource(start.source);
+      this.code.set(split.doc.code);
+      this.meta.set(normalizeMeta(split.doc.meta));
+      this.selection.set(start.selection);
+      this.revision.update((n) => n + 1);
+    }
+    this.opts.onIdle?.();
   }
 
   get inTransaction(): boolean {
@@ -175,7 +203,9 @@ export class DocStore {
     return this.future[this.future.length - 1]?.label ?? null;
   }
 
+  /** Steps back. A no-op while a transaction is open (its later commit would record a stale start). */
   undo(): void {
+    if (this.txDepth > 0) return;
     const prev = this.history.pop();
     if (!prev) return;
     this.bytes -= prev.source.length * 2;
@@ -183,7 +213,9 @@ export class DocStore {
     this.restore(prev, 'undo');
   }
 
+  /** Steps forward. A no-op while a transaction is open. */
   redo(): void {
+    if (this.txDepth > 0) return;
     const next = this.future.pop();
     if (!next) return;
     this.pushHistory({ source: this.source(), selection: this.selection.peek(), label: next.label });

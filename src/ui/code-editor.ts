@@ -3,97 +3,10 @@
 // Ported from prototype/editor.js without innerHTML: highlighting produces tokens that become text nodes and spans.
 // The design names CodeMirror; v1 keeps this dependency-free editor behind a small API so it can be swapped later.
 
+import { HIDDEN_LINE, highlightLine, type LineHighlighter } from './highlight.js';
 import { CODE_TOKENS_CSS } from './styles/code-tokens.js';
 
-/** One highlighted piece of a line: a `t-*` class (null = plain text) and its text. */
-export type Token = readonly [cls: string | null, text: string];
-export type LineHighlighter = (line: string) => Token[];
-
-const KEYWORDS = new RegExp(
-  '^(flowchart|graph|subgraph|end|direction|classDef|class|style|linkStyle|click|sequenceDiagram|erDiagram|participant|actor|create|destroy|' +
-  'activate|deactivate|autonumber|title|loop|alt|else|opt|par|and|critical|option|break|rect|box|Note|note)\\b',
-);
-const RULES: readonly (readonly [string, RegExp])[] = [
-  ['str', /"[^"\n]*"?/y],
-  ['card', /(?:\|o|\|\||\}o|\}\|)(?:--|\.\.)(?:o\||\|\||o\{|\|\{)/y],
-  ['arrow', /<<-->>|<<->>|<-->|<-\.->|<==>|-->>|->>|-\.+->|-\.+-|={2,}>|={3,}|-{2,}>|-{3,}|--[xo](?![\w])|--\)|-x(?![\w])|-\)|->|--(?=\s)/y],
-  ['label', /\|[^|\n]*\|/y],
-  ['cls', /:::[\w-]+/y],
-  ['dir', /\b(?:TB|TD|BT|LR|RL)\b/y],
-  ['key', /\b(?:PK|FK|UK)\b/y],
-  ['pos', /\b(?:left of|right of|over|as)\b/y],
-  ['punct', /[[\](){}>\\/,&;]+/y],
-  ['word', /[\wÀ-￿.#]+(?:-(?=[\wÀ-￿])[\wÀ-￿.#]+)*/y],
-  ['space', /\s+/y],
-];
-
-const HIDDEN_LINE = /^%% - (\d+) hidden$/;
-
-/** Mermaid line → tokens (flowchart, sequence and ER keywords, arrows, labels, classes…). */
-export function highlightLine(line: string): Token[] {
-  const t = line.trimStart();
-  if (t.startsWith('%% ⋯') || HIDDEN_LINE.test(t)) return [['t-fold', line]];
-  if (t.startsWith('%%@')) return [['t-meta', line]];
-  if (t.startsWith('%%')) return [['t-comment', line]];
-  const out: Token[] = [];
-  const lead = /^\s*/.exec(line)?.[0] ?? '';
-  if (lead) out.push([null, lead]);
-  let i = lead.length;
-  const kw = KEYWORDS.exec(line.slice(i));
-  if (kw) {
-    out.push(['t-kw', kw[0]]);
-    i += kw[0].length;
-  }
-  let sawArrow = false;
-  const isNote = /^\s*note\b/i.test(line);
-  while (i < line.length) {
-    // message / relationship text after ":" once an arrow was seen (sequence, ER) or after Note targets
-    if (line[i] === ':' && line[i + 1] !== ':' && (sawArrow || isNote)) {
-      out.push(['t-punct', ':'], ['t-text', line.slice(i + 1)]);
-      break;
-    }
-    let cls = 'plain';
-    let txt = line[i]!;
-    for (const [c, re] of RULES) {
-      re.lastIndex = i;
-      const m = re.exec(line);
-      if (m && m[0].length) {
-        cls = c;
-        txt = m[0];
-        break;
-      }
-    }
-    if (cls === 'arrow' || cls === 'card') sawArrow = true;
-    out.push([cls === 'space' || cls === 'plain' || cls === 'word' ? null : `t-${cls}`, txt]);
-    i += txt.length;
-  }
-  return out;
-}
-
-// Metadata line: `%%@ kind id {json}` with the same colours as the Mermaid code.
-const META_RE = /^(\s*)(%%@)(\s+)([\w.]+)?(\s+)?([^\s{]+)?(\s*)(.*)$/;
-const JSON_TOKENS = /("(?:[^"\\]|\\.)*"?)(\s*:)?|(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)|\b(true|false|null)\b|([{}[\],:])|(\s+)|([^\s"{}[\],:]+)/gi;
-
-/** `%%@` metadata line → tokens. */
-export function highlightMetaLine(line: string): Token[] {
-  const m = META_RE.exec(line);
-  if (!m) return highlightLine(line);
-  const [, lead = '', at = '', s1 = '', kind = '', s2 = '', id = '', s3 = '', rest = ''] = m;
-  const out: Token[] = [[null, lead], ['t-punct', at], [null, s1], ['t-kw', kind], [null, s2]];
-  if (id) out.push(['t-cls', id]);
-  out.push([null, s3]);
-  for (const t of rest.matchAll(JSON_TOKENS)) {
-    const [all, str, colon, num, lit, punct] = t;
-    if (str) {
-      if (colon) out.push(['t-label', str], ['t-punct', colon]);
-      else out.push(['t-str', str]);
-    } else if (num) out.push(['t-key', num]);
-    else if (lit) out.push(['t-dir', lit]);
-    else if (punct) out.push(['t-punct', punct]);
-    else out.push([null, all]);
-  }
-  return out.filter(([, s]) => s !== '');
-}
+export { highlightLine, highlightMetaLine, type LineHighlighter, type Token } from './highlight.js';
 
 /**
  * Line numbers for an editor view. `%% - N hidden` lines (filtered view) get `⋯` and advance the counter by N, so
@@ -351,29 +264,29 @@ export function createCodeEditor(opts: CodeEditorOptions = {}): CodeEditor {
 
 /** Code editor CSS (scoped to the component that hosts it). Syntax colours follow the host's `data-ui` scheme. */
 const EDITOR_CSS = /* css */ `
-.cm { position: relative; flex: 1; min-height: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); overflow: hidden; }
-.cm:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-2); }
-.cm-hl, .cm-ta { margin: 0; padding: 8px 10px; font: 12.5px/1.55 var(--ds-mono); white-space: pre; tab-size: 2; letter-spacing: 0; word-wrap: normal; }
-.cm-hl { position: absolute; inset: 0; overflow: hidden; pointer-events: none; color: var(--ink); }
+.cm { position: relative; flex: 1; min-height: 0; border: 1px solid var(--mmdx-border); border-radius: 6px; background: var(--mmdx-surface-2); overflow: hidden; }
+.cm:focus-within { border-color: var(--mmdx-accent); box-shadow: 0 0 0 3px var(--mmdx-accent-2); }
+.cm-hl, .cm-ta { margin: 0; padding: 8px 10px; font: 12.5px/1.55 var(--mmdx-mono); white-space: pre; tab-size: 2; letter-spacing: 0; word-wrap: normal; }
+.cm-hl { position: absolute; inset: 0; overflow: hidden; pointer-events: none; color: var(--mmdx-text); }
 .cm-hl code { font: inherit; display: block; will-change: transform; }
 .cm-ta { position: relative; display: block; width: 100%; height: 100%; resize: none; border: 0; outline: 0; background: transparent; color: transparent;
-  caret-color: var(--ink); overflow: auto; overscroll-behavior: contain; box-shadow: none !important; }
+  caret-color: var(--mmdx-text); overflow: auto; overscroll-behavior: contain; box-shadow: none !important; }
 .cm-ta::-webkit-scrollbar { width: 9px; height: 9px; }
-.cm-ta::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 6px; border: 2px solid var(--surface-2); }
+.cm-ta::-webkit-scrollbar-thumb { background: var(--mmdx-faint); border-radius: 6px; border: 2px solid var(--mmdx-surface-2); }
 .cm-ta::-webkit-scrollbar-corner { background: transparent; }
-.cm-ta::selection { background: rgba(79,70,229,.22); color: transparent; }
+.cm-ta::selection { background: color-mix(in srgb, var(--mmdx-accent) 22%, transparent); color: transparent; }
 .cm.auto { flex: none; }
 .cm.with-gutter .cm-hl, .cm.with-gutter .cm-ta { padding-left: calc(var(--gutter, 34px) + 8px); }
 .cm-gutter { position: absolute; left: 0; top: 0; bottom: 0; width: var(--gutter, 34px); overflow: hidden; pointer-events: none; z-index: 1;
-  background: var(--surface-2); border-right: 1px solid var(--line); color: var(--faint); text-align: right;
-  font: 12.5px/1.55 var(--ds-mono); padding: 8px 8px 8px 0; box-sizing: border-box; }
+  background: var(--mmdx-surface-2); border-right: 1px solid var(--mmdx-border); color: var(--mmdx-faint); text-align: right;
+  font: 12.5px/1.55 var(--mmdx-mono); padding: 8px 8px 8px 0; box-sizing: border-box; }
 .cm-gutter > div { will-change: transform; }
-.cm-gutter .fold { color: #c9a24a; }
-.cm-gutter .has-issue { position: relative; color: var(--danger); font-weight: 600; }
-.cm-issue { position: absolute; left: 4px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; border-radius: 50%; background: var(--danger); color: #fff;
+.cm-gutter .fold { color: var(--mmdx-code-fold); }
+.cm-gutter .has-issue { position: relative; color: var(--mmdx-danger); font-weight: 600; }
+.cm-issue { position: absolute; left: 4px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; border-radius: 50%; background: var(--mmdx-danger); color: var(--mmdx-on-danger);
   font: 800 9px/13px system-ui, sans-serif; text-align: center; pointer-events: auto; cursor: pointer; }
-.cm-tip { position: absolute; z-index: var(--ds-z-popover); max-width: 320px; padding: 6px 9px; border-radius: 6px; background: var(--float); color: var(--ink);
-  border: 1px solid var(--danger); box-shadow: 0 4px 14px rgba(0,0,0,.18); font-size: 12px; line-height: 1.4; white-space: pre-wrap; pointer-events: none; }
+.cm-tip { position: absolute; z-index: var(--mmdx-z-popover); max-width: 320px; padding: 6px 9px; border-radius: 6px; background: var(--mmdx-float); color: var(--mmdx-text);
+  border: 1px solid var(--mmdx-danger); box-shadow: var(--mmdx-shadow-lg); font-size: 12px; line-height: 1.4; white-space: pre-wrap; pointer-events: none; }
 `;
 
 /** The editor's styles, highlight colours included. */
