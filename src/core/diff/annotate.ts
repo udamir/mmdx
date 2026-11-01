@@ -202,12 +202,15 @@ function highlight(key: string, s: ItemShape, mark: Mark, badge: string, dashed:
   } else {
     parts.push(el('path', { class: 'dx-stroke', d: s.d, fill: 'none', stroke: c, 'stroke-width': 9, 'stroke-opacity': 0.35, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-dasharray': dashed ? '14 8' : undefined }));
     if (s.label) parts.push(outline(s.label, 4, 6));
-    anchor = s.mid;
+    // at the label's corner, not its middle: the badge never covers the label's text
+    anchor = s.label ? { x: s.label.x + s.label.w + 4, y: s.label.y - 4 } : s.mid;
   }
+  // the pill grows up and right from its anchor (an outline's corner), off the item: the CSS keeps it at a constant
+  // screen size, so centred on the corner it covered the text of small or zoomed-out items
   const w = Math.max(18, badge.length * 9 + 9);
   const pill = g({ class: 'dx-badge', transform: badgeScale && badgeScale !== 1 ? `scale(${badgeScale})` : undefined }, [
-    el('rect', { x: -w / 2, y: -9, width: w, height: 18, rx: 9, fill: c, stroke: '#ffffff', 'stroke-width': 1.5 }),
-    text({ 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-family': 'system-ui, sans-serif', 'font-size': 10.5, 'font-weight': 700, fill: '#ffffff' }, [{ text: badge, x: 0, y: 0.5 }]),
+    el('rect', { x: -3, y: -15, width: w, height: 18, rx: 9, fill: c, stroke: '#ffffff', 'stroke-width': 1.5 }),
+    text({ 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-family': 'system-ui, sans-serif', 'font-size': 10.5, 'font-weight': 700, fill: '#ffffff' }, [{ text: badge, x: w / 2 - 3, y: -5.5 }]),
   ]);
   parts.push(g({ transform: `translate(${anchor.x} ${anchor.y})` }, [pill]));
   return g({ class: `dx-hl dx-${mark}${dashed ? ' dx-dashed' : ''}`, 'data-key': key }, parts, { key: `hl:${key}` });

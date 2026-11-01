@@ -5,7 +5,9 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createContext } from '../../../src/core/context.js';
 import { diffDiagrams, renderDiff, renderDiffToSvg } from '../../../src/core/diff/all.js';
+import { annotate } from '../../../src/core/diff/annotate.js';
 import { diffReport, unifiedDiff } from '../../../src/core/diff/index.js';
+import type { SceneGroup } from '../../../src/core/scene/types.js';
 import { createStaticMeasurer } from '../../../src/core/text/measure.js';
 
 const sample = (name: string) => [0, 1].map((i) => readFileSync(`apps/studio-site/diff-samples/${name}.${i ? 'after' : 'before'}.mmd`, 'utf8')) as [string, string];
@@ -30,6 +32,28 @@ describe('renderDiff', () => {
     expect(some.changes.some((c) => c.facets.includes('style'))).toBe(false);
     expect(some.raw.counts).toEqual(all.raw.counts);
     expect(some.sources.after).not.toContain('classDef');
+  });
+});
+
+describe('change badges', () => {
+  it('sit off the item at its outline corner, growing up and right: never over a label or node text', () => {
+    const d = renderDiff('flowchart LR\n  A[Alpha] -->|old| B[Beta]\n  C[Gamma]', 'flowchart LR\n  A[Alpha] -->|new| B[Beta]\n  C[Gamma Ray]', createContext());
+    const a = annotate({ view: 'merged', result: d.merged!.result, before: d.before.result, changes: d.changes, measure: d.merged!.rctx.measure });
+    const hls = a.overlay.filter((n): n is SceneGroup => n.t === 'g' && String(n.attrs['class']).includes('dx-hl'));
+    expect(hls.map((h) => h.attrs['data-key']).sort()).toEqual(['edge:A->B', 'node:C']);
+    for (const h of hls) {
+      // the item's outline (a node's box, an edge's label) and the badge's anchor
+      const outline = h.children.find((c) => c.t === 'rect' && c.attrs['class'] === 'dx-outline')!;
+      const wrap = h.children.find((c): c is SceneGroup => c.t === 'g' && String(c.attrs['transform']).startsWith('translate('))!;
+      const [ax, ay] = String(wrap.attrs['transform']).slice(10, -1).split(' ').map(Number);
+      const o = outline.t === 'rect' ? outline.attrs : {};
+      expect([ax, ay]).toEqual([Number(o['x']) + Number(o['width']), Number(o['y'])]);
+      // the pill: right of and above its anchor (3 px overlap with the outline's corner)
+      const pill = (wrap.children[0] as SceneGroup).children.find((c) => c.t === 'rect')!;
+      const p = pill.t === 'rect' ? pill.attrs : {};
+      expect(Number(p['x'])).toBeGreaterThanOrEqual(-3);
+      expect(Number(p['y']) + Number(p['height'])).toBeLessThanOrEqual(3);
+    }
   });
 });
 
