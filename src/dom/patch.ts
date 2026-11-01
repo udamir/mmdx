@@ -71,29 +71,15 @@ function setAttrs(el: Element, prev: SvgAttrs | null, next: SvgAttrs): void {
   }
 }
 
-/** Lines with runs of removed and added words (a diff's merged picture): styled `<tspan>`s, fixed class tokens. */
-function setRunLines(el: Element, lines: readonly TextLine[]): void {
-  el.replaceChildren(...lines.map((l) => {
-    const span = document.createElementNS(NS, 'tspan');
-    span.setAttribute('x', fmt(l.x));
-    span.setAttribute('y', fmt(l.y));
-    const runs = l.runs?.length ? l.runs : [{ text: l.text || '\u00a0', mark: null }];
-    span.append(...runs.map((r) => {
-      if (!r.mark) return document.createTextNode(r.text);
-      const run = document.createElementNS(NS, 'tspan');
-      run.setAttribute('class', r.mark === 'ins' ? 'dx-ins' : 'dx-del');
-      run.textContent = r.text;
-      return run;
-    }));
-    return span;
-  }));
+/** A removed or added run of words (a diff's merged picture): a styled `<tspan>`, fixed class tokens. */
+function runSpan(text: string, mark: 'ins' | 'del'): Element {
+  const run = document.createElementNS(NS, 'tspan');
+  run.setAttribute('class', `dx-${mark}`);
+  run.textContent = text;
+  return run;
 }
 
 function setLines(el: Element, lines: readonly TextLine[]): void {
-  if (lines.some((l) => l.runs)) {
-    setRunLines(el, lines);
-    return;
-  }
   const spans = Array.from(el.children);
   lines.forEach((l, i) => {
     let span = spans[i];
@@ -104,7 +90,8 @@ function setLines(el: Element, lines: readonly TextLine[]): void {
     const x = fmt(l.x), y = fmt(l.y), t = l.text || '\u00a0';
     if (span.getAttribute('x') !== x) span.setAttribute('x', x);
     if (span.getAttribute('y') !== y) span.setAttribute('y', y);
-    if (span.textContent !== t || span.childElementCount) span.textContent = t;
+    if (l.runs?.length) span.replaceChildren(...l.runs.map((r) => (r.mark ? runSpan(r.text, r.mark) : r.text)));
+    else if (span.textContent !== t || span.childElementCount) span.textContent = t;
   });
   for (let i = lines.length; i < spans.length; i++) spans[i]!.remove();
 }

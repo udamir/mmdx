@@ -141,22 +141,16 @@ export function layered(nodes: readonly LayoutNode[], edges: readonly LayoutEdge
     if (!u) adjUp.set(b, (u = []));
     u.push(a);
   };
-  let vc = 0;
-  // virtual ids skip the ids of real nodes: `__v0` is a valid Mermaid id, and a quoted ER entity name can be anything
-  let vn = 0;
-  const virtualId = (): string => {
-    let id: string;
-    do id = `__v${vn++}`;
-    while (byId.has(id));
-    return id;
-  };
+  let vc = 0, vn = 0;
   for (const e of DE) {
     let prev = e.from;
     const r0 = rank.get(e.from)!, r1 = rank.get(e.to)!;
     if (r1 - r0 - 1 > 0 && vc + (r1 - r0 - 1) <= MAX_VIRTUAL) {
-      for (let r = r0 + 1; r < r1; r++) {
-        const vid = virtualId();
-        vc++;
+      for (let r = r0 + 1; r < r1; r++, vc++) {
+        // virtual ids skip the ids of real nodes: `__v0` is a valid Mermaid id, a quoted ER entity name can be anything
+        let vid: string;
+        do vid = `__v${vn++}`;
+        while (byId.has(vid));
         vnodes.set(vid, byId.get(e.from)!.path ?? EMPTY);
         put(vid, r);
         link(prev, vid);
