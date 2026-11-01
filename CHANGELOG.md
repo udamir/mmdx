@@ -2,6 +2,24 @@
 
 All notable changes to `@mmdx/studio` (named `mmdx` before 0.2.1). The project follows [semantic versioning](https://semver.org/); while it is below 1.0, a minor version may change public API, and such changes are listed under **Changed (breaking)**.
 
+## 0.3.0 (unreleased) — Hooks for sandboxed hosts
+
+Generic hooks for hosts that embed mmdx in sandboxed (opaque-origin) iframes: no `allowfullscreen`, no `localStorage`, no relative fetches, no module workers from URLs.
+
+### Added
+
+- **Host full screen for the viewer**: a `fullscreen` property (`ViewerOptions.fullscreen`, type `HostFullscreen` from `@mmdx/studio/viewer`) `{ available(), enter(), exit(), active?() }`. When the browser's full screen is unavailable (a sandboxed iframe without `allowfullscreen`), the zoom bar's full-screen button shows and calls the host, which can show the frame in a modal; the viewer then fills its frame (`data-fullscreen` on the element). A cancelable `mmdx-fullscreen-request` `{ enter }` comes before the button does anything, for hosts that handle full screen themselves. `setControls(list)` on `<mmdx-viewer>` and `DiagramViewer` changes the controls at run time, like the attribute.
+- **`preloadedStorage(read, write, { onError? })`** (`@mmdx/studio/adapters`): the sync `StorageAdapter` over an async key-value store, for hosts without `localStorage`. It awaits `read()` once, serves reads from memory and writes through in the background (`remove` writes `undefined`), in order per key; failed writes are ignored or reported to `onError`.
+- **`registerThemes(files)` and `registerBuiltinThemes()`** (`@mmdx/studio/viewer`, `@mmdx/studio/editor`, `@mmdx/studio/diff`, `@mmdx/studio/theme-editor`, `@mmdx/studio`): register theme files the host bundles (`@mmdx/studio/themes/*.theme.json`) into the shared registry without any fetch, and wait for the built-in pair. After `registerThemes(BUILTIN_THEMES)` (from `@mmdx/studio/core`) the components load nothing for the built-in themes.
+- **`starterSource(type)`** (`@mmdx/studio/core`, type `StarterType`: `flowchart`, `sequence` or `er`): the source a new diagram starts from, the same as the studio's New menu.
+- **`@mmdx/studio/worker-inline`**: the render worker as one classic script in a string (`workerSource`), and `useInlineWorker()`, which starts it from a `blob:` URL through `setWorkerUrl` (false when `Blob` or `URL.createObjectURL` is unavailable). Diagrams over 300 lines then render off the main thread in sandboxed iframes too. Only hosts that import it carry the extra 39 kB (gzip). `setWorkerUrl(url, { type })` takes the worker type (`module` by default, `classic` for the inline worker).
+- **Restoring drafts in `<mmdx-editor>`**: the element's `setSource(src, { history, fit, markSaved })` passes `fit` and `markSaved` through (type `SetSourceOptions`), so `{ history: 'push', markSaved: false }` restores a draft as unsaved, undoable changes. `whenLoaded()` (element and `DiagramEditor`) resolves once the adapter's document is in and rejects when the load failed, and an `mmdx-load` event `{ source, version }` follows every load from the adapter.
+- **Hiding the light / dark toggle**: the editor's `schemeToggle` feature and the viewer's `scheme-toggle` attribute (`schemeToggle` option) turn off the toggle and keep the theme menu, for hosts that control the chrome scheme themselves through `ui` (an app inside YouTrack follows YouTrack's theme).
+
+### Fixed
+
+- **Bundling mmdx**: the library build's asset URLs are relative, so the render worker is found next to the chunk that starts it (`../assets/render-worker-….js`). Apps that bundle mmdx with Vite or Rollup failed to build on the absolute `/assets/…` URL before.
+
 ## 0.2.1 — Fixes
 
 ### Changed
@@ -15,24 +33,6 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.2.1). The project f
 - **A node named `__v0`, `__v1`…** is laid out like any other node. The automatic layout gave its helper points on long edges these names, so such a node (or a quoted ER entity of that name) took the place of a helper point and was drawn on top of another node.
 - **Change badges no longer cover what changed.** The `C`, `L`, `S`, `+` and `−` badges of a diff sat on the middle of an edge, which is where its label is, and were centred on a node's corner; as they keep their size on screen, they hid labels and small or zoomed-out items. They now sit just outside the item: at the corner of an edge's label, and above and to the right of a node.
 - **Side by side in the editor's History looks like the editor.** Its panes were white boxes with the version's page filling them and titles pinned to their corners. Both versions are now drawn on the editor's board with the page as the editor draws it, and each page has badges at its corner, like the editor's own page: the diagram type, then Before or After with the version's id, author and age (shortened when the pane is narrow). They move with the page as you pan and zoom.
-
-## 0.3.0 (unreleased) — Hooks for sandboxed hosts
-
-Generic hooks for hosts that embed mmdx in sandboxed (opaque-origin) iframes: no `allowfullscreen`, no `localStorage`, no relative fetches, no module workers from URLs.
-
-### Added
-
-- **Host full screen for the viewer**: a `fullscreen` property (`ViewerOptions.fullscreen`, type `HostFullscreen` from `mmdx/viewer`) `{ available(), enter(), exit(), active?() }`. When the browser's full screen is unavailable (a sandboxed iframe without `allowfullscreen`), the zoom bar's full-screen button shows and calls the host, which can show the frame in a modal; the viewer then fills its frame (`data-fullscreen` on the element). A cancelable `mmdx-fullscreen-request` `{ enter }` comes before the button does anything, for hosts that handle full screen themselves. `setControls(list)` on `<mmdx-viewer>` and `DiagramViewer` changes the controls at run time, like the attribute.
-- **`preloadedStorage(read, write, { onError? })`** (`mmdx/adapters`): the sync `StorageAdapter` over an async key-value store, for hosts without `localStorage`. It awaits `read()` once, serves reads from memory and writes through in the background (`remove` writes `undefined`), in order per key; failed writes are ignored or reported to `onError`.
-- **`registerThemes(files)` and `registerBuiltinThemes()`** (`mmdx/viewer`, `mmdx/editor`, `mmdx/diff`, `mmdx/theme-editor`, `mmdx/studio`): register theme files the host bundles (`mmdx/themes/*.theme.json`) into the shared registry without any fetch, and wait for the built-in pair. After `registerThemes(BUILTIN_THEMES)` (from `mmdx/core`) the components load nothing for the built-in themes.
-- **`starterSource(type)`** (`mmdx/core`, type `StarterType`: `flowchart`, `sequence` or `er`): the source a new diagram starts from, the same as the studio's New menu.
-- **`mmdx/worker-inline`**: the render worker as one classic script in a string (`workerSource`), and `useInlineWorker()`, which starts it from a `blob:` URL through `setWorkerUrl` (false when `Blob` or `URL.createObjectURL` is unavailable). Diagrams over 300 lines then render off the main thread in sandboxed iframes too. Only hosts that import it carry the extra 39 kB (gzip). `setWorkerUrl(url, { type })` takes the worker type (`module` by default, `classic` for the inline worker).
-- **Restoring drafts in `<mmdx-editor>`**: the element's `setSource(src, { history, fit, markSaved })` passes `fit` and `markSaved` through (type `SetSourceOptions`), so `{ history: 'push', markSaved: false }` restores a draft as unsaved, undoable changes. `whenLoaded()` (element and `DiagramEditor`) resolves once the adapter's document is in and rejects when the load failed, and an `mmdx-load` event `{ source, version }` follows every load from the adapter.
-- **Hiding the light / dark toggle**: the editor's `schemeToggle` feature and the viewer's `scheme-toggle` attribute (`schemeToggle` option) turn off the toggle and keep the theme menu, for hosts that control the chrome scheme themselves through `ui` (an app inside YouTrack follows YouTrack's theme).
-
-### Fixed
-
-- **Bundling mmdx**: the library build's asset URLs are relative, so the render worker is found next to the chunk that starts it (`../assets/render-worker-….js`). Apps that bundle mmdx with Vite or Rollup failed to build on the absolute `/assets/…` URL before.
 
 ## 0.2.0 — History and diff
 

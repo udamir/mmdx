@@ -82,7 +82,7 @@ export function instanceContext(over: Partial<CoreContext> = {}): CoreContext {
 
 /**
  * Registers theme files into the shared registry every component reads (the theme menus list them), with no loading:
- * themes bundled by the host (`import github from 'mmdx/themes/github-light.theme.json'`), for pages that cannot fetch
+ * themes bundled by the host (`import github from '@mmdx/studio/themes/github-light.theme.json'`), for pages that cannot fetch
  * theme files (sandboxed iframes). A file with the id of a registered theme replaces it. Returns the validation
  * diagnostics (invalid values are dropped).
  */

@@ -1,6 +1,6 @@
-// mmdx/worker-inline — the render worker as a string, for pages that cannot start it from a URL (sandboxed iframes
+// @mmdx/studio/worker-inline — the render worker as a string, for pages that cannot start it from a URL (sandboxed iframes
 // with an opaque origin, where module workers from URLs fail): `useInlineWorker()` starts it from a `blob:` URL, so
-// diagrams over 300 lines render off the main thread there too. Import it next to `mmdx/viewer` or `mmdx/editor`.
+// diagrams over 300 lines render off the main thread there too. Import it next to `@mmdx/studio/viewer` or `@mmdx/studio/editor`.
 import source from 'virtual:mmdx-render-worker-source';
 import { setWorkerUrl } from './dom/worker-client.js';
 

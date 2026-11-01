@@ -174,7 +174,7 @@ Events (bubbling, composed): `mmdx-render` `{ bounds, type, durationMs }`, `mmdx
 
 The viewer has the editor's chrome: the tool dock (Hand, pen, the code and view-settings panels, History), the zoom bar with the `?` help, and the view parameters top right (Export, and with `controls="theme"` the light / dark toggle and the theme menu); on a docs page they show while the pointer or the focus is in the viewer. Only the zoom bar loads with the viewer; every other piece loads when its control is on. Keyboard, while the viewer has focus: `+` / `-` zoom, `F` or `0` fits, arrows pan, `P` toggles the pen, `Esc` stops it, `?` help. `controls="code"` adds a code panel: the diagram's Mermaid code without the layout metadata and styles, highlighted, with a Copy button.
 
-Each diagram type's parser and renderer load on first use, and diagrams over 300 lines render in a module worker (`setWorkerUrl(url)` lets a strict-CSP host serve the worker file; `useInlineWorker()` from `mmdx/worker-inline` starts it from a `blob:` URL where workers cannot start from URLs).
+Each diagram type's parser and renderer load on first use, and diagrams over 300 lines render in a module worker (`setWorkerUrl(url)` lets a strict-CSP host serve the worker file; `useInlineWorker()` from `@mmdx/studio/worker-inline` starts it from a `blob:` URL where workers cannot start from URLs).
 
 ### `<mmdx-editor>`
 
@@ -186,7 +186,7 @@ Each diagram type's parser and renderer load on first use, and diagrams over 300
 | `features` | all on | The parts that are on, like the viewer's `controls` (`features="pen code-panel layers"`, or `none`); the property takes an object to turn parts off: `codePanel`, `properties`, `layers`, `pen`, `styleToolbar`, `export`, `themePicker`, `schemeToggle` (the light / dark toggle; turn it off when the host sets `ui`), `help`, `history`, … |
 | `history` (property) | — | The document's versions (a `HistoryAdapter` or `[{ id, message, author?, date?, source }]`, newest first): the tool dock gets a History button |
 | `panels` (property) | remembered | Which side panels are open: `{ code, properties, layers }` |
-| `storage` (property) | `localStorage` (`mmdx.` keys) | Where UI preferences are kept; never the document. `memoryStorage()`, `localStorageAdapter()` and `preloadedStorage(read, write)` (an async store) come from `mmdx/adapters` |
+| `storage` (property) | `localStorage` (`mmdx.` keys) | Where UI preferences are kept; never the document. `memoryStorage()`, `localStorageAdapter()` and `preloadedStorage(read, write)` (an async store) come from `@mmdx/studio/adapters` |
 | `autosave` | off | Debounced save through the adapter, in ms |
 | `guard-unload` | off | Ask before leaving the page with unsaved changes |
 | `name` | `diagram` | File name for exports |
@@ -364,11 +364,11 @@ configure({
 Hosts that run mmdx in a sandboxed iframe with an opaque origin (an app inside another product, a plugin frame) usually have no `allowfullscreen`, no `localStorage`, no relative `fetch` and no module workers from URLs. The diagram types and the chrome's pieces still load as JavaScript chunks of your bundle (`import()`), like the rest of your app's code; these hooks replace the rest:
 
 ```ts
-import { registerThemes, type HostFullscreen } from 'mmdx/viewer';
-import { starterSource, BUILTIN_THEMES } from 'mmdx/core';
-import { preloadedStorage } from 'mmdx/adapters';
-import { useInlineWorker } from 'mmdx/worker-inline';
-import github from 'mmdx/themes/github-light.theme.json';
+import { registerThemes, type HostFullscreen } from '@mmdx/studio/viewer';
+import { starterSource, BUILTIN_THEMES } from '@mmdx/studio/core';
+import { preloadedStorage } from '@mmdx/studio/adapters';
+import { useInlineWorker } from '@mmdx/studio/worker-inline';
+import github from '@mmdx/studio/themes/github-light.theme.json';
 
 // themes: registered from your bundle, nothing is fetched (the menus list them)
 registerThemes([...BUILTIN_THEMES, github]);
@@ -396,11 +396,11 @@ const blank = starterSource('sequence'); // 'flowchart' | 'sequence' | 'er'
 ```
 
 - **Full screen**: the viewer's `fullscreen` property `{ available(), enter(), exit(), active?() }` (type `HostFullscreen`). When the browser's full screen is unavailable, the zoom bar's full-screen button shows and calls `enter()` / `exit()` within the click, and the viewer fills its frame while the host shows it full screen (`data-fullscreen` on the element). Give `active()` when the host can leave full screen by itself; it is read on the next click and when the window resizes. `mmdx-fullscreen-request` `{ enter }` comes first and is cancelable, to handle full screen yourself. `setControls(list)` (or the `controls` attribute) changes the controls at run time.
-- **Storage**: `preloadedStorage(read, write, { onError? })` from `mmdx/adapters` awaits `read()` once, then serves the components' synchronous `StorageAdapter` from memory and writes each change through in the background (`remove(key)` writes `undefined`); failed writes are ignored or go to `onError`. Without any store, `memoryStorage()` keeps preferences for the page's life.
-- **Themes**: `registerThemes(files)` (from every element entry) registers theme files into the shared registry, with no fetch; import the files you want from `mmdx/themes/*`. Default Light is part of every component; Default Dark loads as a chunk of the library on first use, or not at all after `registerThemes(BUILTIN_THEMES)`. `registerBuiltinThemes()` resolves once both are registered. Do not set a `themeSource` that fetches.
-- **Worker**: `mmdx/worker-inline` exports the render worker as one classic script (`workerSource`) and `useInlineWorker()`, which starts it from a `blob:` URL through `setWorkerUrl(url, { type: 'classic' })` and returns false when `Blob` or `URL.createObjectURL` is unavailable (diagrams then render on the main thread). The CSP needs `worker-src blob:`. Only pages that import it download the extra 39 kB (gzip).
+- **Storage**: `preloadedStorage(read, write, { onError? })` from `@mmdx/studio/adapters` awaits `read()` once, then serves the components' synchronous `StorageAdapter` from memory and writes each change through in the background (`remove(key)` writes `undefined`); failed writes are ignored or go to `onError`. Without any store, `memoryStorage()` keeps preferences for the page's life.
+- **Themes**: `registerThemes(files)` (from every element entry) registers theme files into the shared registry, with no fetch; import the files you want from `@mmdx/studio/themes/*`. Default Light is part of every component; Default Dark loads as a chunk of the library on first use, or not at all after `registerThemes(BUILTIN_THEMES)`. `registerBuiltinThemes()` resolves once both are registered. Do not set a `themeSource` that fetches.
+- **Worker**: `@mmdx/studio/worker-inline` exports the render worker as one classic script (`workerSource`) and `useInlineWorker()`, which starts it from a `blob:` URL through `setWorkerUrl(url, { type: 'classic' })` and returns false when `Blob` or `URL.createObjectURL` is unavailable (diagrams then render on the main thread). The CSP needs `worker-src blob:`. Only pages that import it download the extra 39 kB (gzip).
 - **Drafts**: `<mmdx-editor>`'s `setSource(src, { history, fit, markSaved })` with `markSaved: false` keeps the source as unsaved changes; with `history: 'push'` the user can undo back to the saved document. `whenLoaded()` resolves once the adapter's document is in (`mmdx-load` `{ source, version }` fires then), so a restored draft is not overwritten by the load.
-- **Starters**: `starterSource('flowchart' | 'sequence' | 'er')` from `mmdx/core` is the source a new diagram starts from, as in the studio's New menu.
+- **Starters**: `starterSource('flowchart' | 'sequence' | 'er')` from `@mmdx/studio/core` is the source a new diagram starts from, as in the studio's New menu.
 
 ## Markdown and documentation sites
 

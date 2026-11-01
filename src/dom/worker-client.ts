@@ -32,7 +32,7 @@ let workerType: WorkerType = 'module';
 
 /**
  * Hosts with a strict CSP can serve the worker file themselves (`worker-src 'self'`). `type: 'classic'` starts a
- * classic worker: the `blob:` URL of `mmdx/worker-inline`'s source, for pages that cannot start module workers.
+ * classic worker: the `blob:` URL of `@mmdx/studio/worker-inline`'s source, for pages that cannot start module workers.
  */
 export function setWorkerUrl(url: URL | string, opts: { type?: WorkerType } = {}): void {
   workerUrl = url;
