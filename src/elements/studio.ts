@@ -11,6 +11,7 @@ import { defineEditor, type DiagramEditor, type MmdxEditorElement } from '../edi
 import { readDocumentFiles } from '../editor/modules/chrome/document.js';
 import { download } from '../dom/export.js';
 import { renderSource, standaloneSvg } from '../core/pipeline.js';
+import { starterSource, type StarterType } from '../core/starter.js';
 import { contentId, type HistoryAdapter, type StaticVersion } from '../adapters/history.js';
 import type { BlockHandle } from '../ui/blocks/block.js';
 import { createSegmented, type SegmentedOption, type SegmentedProps } from '../ui/blocks/segmented.js';
@@ -48,7 +49,6 @@ export interface StudioOptions {
   storage?: StorageAdapter;
 }
 
-const START: Record<'flowchart' | 'sequence' | 'er', string> = { flowchart: 'flowchart TB\n', sequence: 'sequenceDiagram\n', er: 'erDiagram\n' };
 const HASH_LIMIT = 8 * 1024;
 const STORE_KEY = 'studio.doc';
 /** Versions saved in the studio, per document (browser storage, never the server). */
@@ -243,7 +243,7 @@ export class DiagramStudio {
     }
     const ex = this.examples.find((e) => e.id === this.o.initial) ?? this.examples[0];
     if (ex) await this.openExample(ex);
-    else this.open(START.flowchart, 'untitled-flowchart');
+    else this.open(starterSource('flowchart'), 'untitled-flowchart');
   }
 
   private async loadThemes(): Promise<void> {
@@ -393,13 +393,13 @@ export class DiagramStudio {
   }
 
   private openNewMenu(opener: HTMLElement): void {
-    const item = (label: string, type: keyof typeof START) => ({
+    const item = (label: string, type: StarterType) => ({
       label,
       run: async (): Promise<void> => {
         const seq = this.openSeq;
         if (this.editorEl.dirty && !(await this.dialogs.confirm('Discard changes?', 'The current diagram has unsaved changes.', { ok: 'Discard', danger: true }))) return;
         if (seq !== this.openSeq) return;
-        this.open(START[type], `untitled-${type}`);
+        this.open(starterSource(type), `untitled-${type}`);
         this.toaster.show('New diagram — add shapes from the Shapes menu on the left');
       },
     });

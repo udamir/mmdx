@@ -18,6 +18,7 @@ export type { SceneNode } from './core/scene/types.js';
 export { createStaticMeasurer, type TextMeasurer, type FontSpec } from './core/text/measure.js';
 export { safeUrl, DEFAULT_LINK_POLICY, type LinkPolicy, type SafeUrl } from './core/validate.js';
 export { layerDefs, hiddenByLayers, DEFAULT_LAYER } from './core/layers.js';
+export { starterSource, type StarterType } from './core/starter.js';
 export { outline, summarize } from './core/outline.js';
 export {
   diffDiagramsWith, diffModels, ignoreFacets, withoutStyle, withLayoutOf, mergeDiagrams, diffReport, unifiedDiff,
