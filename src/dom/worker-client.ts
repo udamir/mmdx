@@ -28,10 +28,15 @@ const queue: Job[] = [];
 /** The job the worker is on, and its timeout. */
 let running: { job: Job; timer: ReturnType<typeof setTimeout> } | null = null;
 let workerUrl: URL | string | null = null;
+let workerType: WorkerType = 'module';
 
-/** Hosts with a strict CSP can serve the worker file themselves (`worker-src 'self'`). */
-export function setWorkerUrl(url: URL | string): void {
+/**
+ * Hosts with a strict CSP can serve the worker file themselves (`worker-src 'self'`). `type: 'classic'` starts a
+ * classic worker: the `blob:` URL of `mmdx/worker-inline`'s source, for pages that cannot start module workers.
+ */
+export function setWorkerUrl(url: URL | string, opts: { type?: WorkerType } = {}): void {
   workerUrl = url;
+  workerType = opts.type ?? 'module';
   worker?.terminate();
   worker = null;
   failed = false;
@@ -47,7 +52,7 @@ function getWorker(): Worker | null {
   }
   try {
     const w = workerUrl
-      ? new Worker(workerUrl, { type: 'module', name: 'mmdx-render' })
+      ? new Worker(workerUrl, { type: workerType, name: 'mmdx-render' })
       : new Worker(new URL('./render-worker.js', import.meta.url), { type: 'module', name: 'mmdx-render' });
     w.addEventListener('message', (ev: MessageEvent<WorkerResponse>) => {
       if (w !== worker || !running || running.job.req.id !== ev.data.id) return;

@@ -136,6 +136,7 @@ const md = diffReport(diffDiagrams(before, after), { format: 'markdown', before:
 | `@mmdx/studio/adapters` | Storage, theme sources and stores, document adapters, history adapters, share links |
 | `@mmdx/studio/markdown` | rehype and markdown-it plugins that turn ` ```mermaid ` blocks into viewers |
 | `@mmdx/studio/react` | Optional typed wrappers for React ≤ 18 |
+| `@mmdx/studio/worker-inline` | The render worker as a string (`workerSource`) and `useInlineWorker()`, for pages that cannot start workers from URLs (sandboxed iframes) |
 | `@mmdx/studio/themes/*` | The built-in theme files (`default-light.theme.json`, …) |
 
 Importing an element entry registers its tag once (importing it twice is safe), and importing any entry in Node does not throw, so server-side rendering frameworks can import them. Properties can be set before or after the element is connected: they are kept, apply to the live component, and come back when the element is connected again; an attribute set later replaces a property of the same option, and the other way round. Moving an element in the DOM (re-parenting, a framework reordering a list) keeps its component as it is — the editor keeps its document, undo history, selection and an open History; an element removed for good is destroyed, and the editor connected again starts from its last document. `element.instance` is the component behind the element, `null` while it is not connected. `theme` and `theme-dark` are attributes (the theme editor also has a `theme` property). Options read only when the component is created (`ctx`, the editor's `autosave` and `guard-unload`) warn once when changed on a live one. Each element is also an imperative class you can mount on any element, for hosts where `customElements.define` is not allowed:
@@ -173,7 +174,7 @@ Events (bubbling, composed): `mmdx-render` `{ bounds, type, durationMs }`, `mmdx
 
 The viewer has the editor's chrome: the tool dock (Hand, pen, the code and view-settings panels, History), the zoom bar with the `?` help, and the view parameters top right (Export, and with `controls="theme"` the light / dark toggle and the theme menu); on a docs page they show while the pointer or the focus is in the viewer. Only the zoom bar loads with the viewer; every other piece loads when its control is on. Keyboard, while the viewer has focus: `+` / `-` zoom, `F` or `0` fits, arrows pan, `P` toggles the pen, `Esc` stops it, `?` help. `controls="code"` adds a code panel: the diagram's Mermaid code without the layout metadata and styles, highlighted, with a Copy button.
 
-Each diagram type's parser and renderer load on first use, and diagrams over 300 lines render in a module worker (`setWorkerUrl(url)` lets a strict-CSP host serve the worker file).
+Each diagram type's parser and renderer load on first use, and diagrams over 300 lines render in a module worker (`setWorkerUrl(url)` lets a strict-CSP host serve the worker file; `useInlineWorker()` from `mmdx/worker-inline` starts it from a `blob:` URL where workers cannot start from URLs).
 
 ### `<mmdx-editor>`
 

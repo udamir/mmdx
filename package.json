@@ -81,6 +81,10 @@
       "types": "./dist/types/react.d.ts",
       "default": "./dist/react.js"
     },
+    "./worker-inline": {
+      "types": "./dist/types/worker-inline.d.ts",
+      "default": "./dist/worker-inline.js"
+    },
     "./themes/*": "./themes/*"
   },
   "files": [
