@@ -32,7 +32,7 @@ export function diffModules(scene: DiffScene, o: { actions: ReadSignal<readonly 
     panModule,
     lazyModule({ id: 'pen', enabled: (c) => c.feature('pen') }, () => import('../../view/modules/pen.js').then((m) => m.penModule)),
     lazyModule({ id: 'view-params', enabled: (c) => c.feature('theme') || c.feature('scheme') || c.feature('export') }, () => import('../../view/modules/view-params.js').then((m) => m.viewParamsModule)),
-    lazyModule({ id: 'view-settings', after: ['panel-stacks'], enabled: (c) => c.feature('layers') }, () => import('../../view/modules/side-panels.js').then((m) => m.viewSettingsModule)),
+    lazyModule({ id: 'view-settings', after: ['panel-stacks'], enabled: (c) => c.feature('layers') }, () => import('../../view/modules/side-panels.js').then((m) => m.diffLayersModule)),
     diffStageModule(scene),
     diffExportModule(session),
     hostActionsModule(session, o.actions),

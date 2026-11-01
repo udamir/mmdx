@@ -162,6 +162,36 @@ describe('History: a version as it is', () => {
   });
 });
 
+describe('History: the panel closed', () => {
+  it('closing the panel keeps the version or comparison shown; the History button brings it back; Back then leaves History', async () => {
+    host = document.createElement('div');
+    document.body.append(host);
+    ed = new DiagramEditor(host, { value: NOW, storage: memoryStorage(), ui: 'light', history: [{ id: 'v2', message: 'Now', source: NOW }, { id: 'v1', message: 'Old', source: OLD }] });
+    ed.toggleHistory(true);
+    await wait(() => ed.historySession);
+    ed.historySession!.viewVersion('v1');
+    await wait(() => ed.core.version.peek()?.id === 'v1');
+    ed.core.run('setPanel', 'history', false);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(ed.core.stage.peek()).toBe('version');
+    expect(ed.historySession).not.toBeNull();
+    // the History button: the panel again, nothing else changes
+    ed.toggleHistory();
+    expect(ed.core.panels.peek()['history']).toBe(true);
+    expect(ed.core.version.peek()?.id).toBe('v1');
+    // a comparison stays too
+    ed.historySession!.setPair('v1', 'v2');
+    await wait(() => ed.historySession!.getDiff());
+    ed.core.run('setPanel', 'history', false);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(ed.core.stage.peek()).toBe('history');
+    // Back with the panel closed: the document, History left
+    ed.core.root.querySelector<HTMLButtonElement>('.mmdx-pill .mmdx-pill-btn')!.click();
+    expect(ed.core.stage.peek()).toBe('document');
+    expect(ed.historySession).toBeNull();
+  });
+});
+
 describe('History: Restore, the working copy, destroy', () => {
   /** An adapter whose v1 source waits for `gate`; `loads` counts the source requests. */
   const gated = (gate: Promise<void>): HistoryAdapter & { loads: string[]; lists: number } => {

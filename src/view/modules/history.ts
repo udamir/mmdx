@@ -42,6 +42,8 @@ export const historyModule: ViewModule<ViewCore> = {
       }
     };
     scope.provide('toggleHistory', (on, opts) => {
+      // open with its panel closed (a version or a comparison still shown): the toggle brings the panel back
+      if (on === undefined && ctl && !core.panels.peek()['history']) return void core.run('setPanel', 'history', true);
       if (on ?? !(ctl || pending)) void open(!!opts?.compare);
       else {
         // closing while it still loads cancels the open
@@ -50,7 +52,7 @@ export const historyModule: ViewModule<ViewCore> = {
       }
     });
     const btn = dockButton({
-      icon: I_HISTORY, label: t('tools.versions'), keys: 'shift+h', class: 'vt-history', f: 'history', pressed: core.historyOpen,
+      icon: I_HISTORY, label: t('tools.versions'), keys: 'shift+h', class: 'vt-history', f: 'history', pressed: scope.computed(() => core.historyOpen() && !!core.panels()['history']),
       hidden: scope.computed(() => !core.history()), onClick: () => core.run('toggleHistory'),
     });
     scope.contribute(core.dockItems, { id: 'history', section: 'panels', order: 40, el: btn.el });

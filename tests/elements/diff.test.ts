@@ -175,20 +175,18 @@ describe('DiagramDiff: the kernel chrome', () => {
     expect(after.before.themeId).toBe('default-dark');
   });
 
-  it('has view settings: the dock toggle opens the card, connector labels off re-renders both versions', async () => {
-    const { d, host, root } = await mount({ beforeSource: sample('architecture', 'before'), afterSource: sample('architecture', 'after') });
+  it('has Layers: the dock toggle opens the card, its layers only (no display settings)', async () => {
+    const { root } = await mount({ beforeSource: sample('architecture', 'before'), afterSource: sample('architecture', 'after') });
     await wait(() => root.querySelector('.vt-view-settings'));
     root.querySelector<HTMLButtonElement>('.vt-view-settings')!.click();
-    expect(root.querySelector('.mmdx-stack[data-side=right] .mmdx-panel.view-settings:not([hidden])')).not.toBeNull();
+    const card = root.querySelector('.mmdx-stack[data-side=right] .mmdx-panel.view-settings:not([hidden])');
+    expect(card).not.toBeNull();
     // L stays the change list's key in the diff
     expect(root.querySelector('.vt-view-settings')!.hasAttribute('aria-keyshortcuts')).toBe(false);
-    const labels = (): number => d.core.canvas.svg.querySelectorAll('.el.elabel').length;
-    expect(labels()).toBeGreaterThan(0);
-    const rendered = new Promise((r) => host.addEventListener('mmdx-render', r, { once: true }));
-    root.querySelector<HTMLButtonElement>('.view-settings [data-f=opt-labels]')!.click();
-    await rendered;
-    expect(d.core.display.peek().labels).toBe(false);
-    expect(labels()).toBe(0);
+    expect(card!.querySelector('.mmdx-panel-title')!.textContent).toBe('Layers');
+    // every layer of the diagram, Default included; no connector labels or hover toggles
+    await wait(() => card!.querySelectorAll('.mmdx-layer').length > 0);
+    expect(card!.querySelector('[data-f=opt-labels]')).toBeNull();
   });
 });
 

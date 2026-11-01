@@ -6,8 +6,9 @@
 // - a version on the Compare tab: compared with the working copy (the top row), in a DiffScene over the host's canvas
 //   (the `history` stage: the diff bar, the code diff, Changes open, the exports).
 // Switching tabs shows nothing new. Restore (Edit mode) is in each version's "⋯" menu; the Back pill (top centre) and
-// Esc go back to the document (the panel stays open); closing the panel leaves History. The working copy follows the
-// document.
+// Esc go back to the document (the panel stays open). Closing the panel hides it: what is shown stays (the History
+// button brings the panel back); with nothing older shown, or on Back without the panel, History is left. The working
+// copy follows the document.
 // Session events reach the host as `mmdx-history-*`. Loaded on first use: the viewer and the editor bundles never
 // contain the diff.
 import { staticHistory, type HistoryAdapter, type StaticVersion, type VersionInfo } from '../adapters/history.js';
@@ -24,7 +25,7 @@ import type { ViewCore } from '../view/core.js';
 import type { HistorySession } from '../view/history.js';
 import type { ViewModule } from '../view/module.js';
 import { panelStacksModule } from '../view/modules/panels.js';
-import { viewSettingsModule } from '../view/modules/side-panels.js';
+import { diffLayersModule } from '../view/modules/side-panels.js';
 import type { Rendered } from '../core/pipeline-core.js';
 import { diffBarModule } from './modules/bar.js';
 import { diffExportModule } from './modules/export.js';
@@ -239,6 +240,8 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
     core.stage.set('document');
     viewing.set(null);
     shown.set('none');
+    // nothing shown and the panel closed: History is left
+    if (!core.panels.peek()['history']) close();
   };
 
   /** The current version: the top row (the working copy, or the newest version while the document is that one). */
@@ -342,8 +345,10 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
   };
   // Restore (Edit mode) is in each version's "⋮" menu of the History panel
   const canRestore = core.mode.peek() === 'edit' && core.has('restoreVersion');
+  // not for the current version (the top row: the document as it is)
   const rowActions = (id: string): MenuEntry[] =>
-    canRestore ? [{ label: t('history.restoreId', { id: label(id) }), title: t('history.restoreTip'), disabled: id === WORKING_COPY, class: 'restore', run: () => void restore(id) }] : [];
+    canRestore && id !== WORKING_COPY && id !== session.versions.peek()[0]?.id
+      ? [{ label: t('history.restoreId', { id: label(id) }), title: t('history.restoreTip'), class: 'restore', run: () => void restore(id) }] : [];
 
   // ---- the Back pill, top centre, while something is shown; Esc at the end of the Esc chain
   const swap = (): void => {
@@ -418,6 +423,9 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
   };
 
   const inHistory = (m: ViewModule<ViewCore>): ViewModule<ViewCore> => ({ ...m, when: { ...m.when, stage: ['history'] } });
+  // a host with panel stacks of its own (the editor's) has no `panel-stacks` module to install after
+  const ownStacks = core.has('setPanel');
+  const inHostStacks = (m: ViewModule<ViewCore>): ViewModule<ViewCore> => (ownStacks && m.after ? { ...m, after: m.after.filter((a) => a !== 'panel-stacks') } : m);
   const controls: VersionControls = {
     tab,
     base: computed(() => (shown() === 'compare' ? session.base() : null)),
@@ -445,13 +453,13 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
       scope.provide('documentCode', () => after()?.doc.code ?? null);
     },
   };
-  const modules: ViewModule<ViewCore>[] = [
-    // the version panel shows whatever History shows (in the host's own panel stacks until a comparison)
+  const modules: ViewModule<ViewCore>[] = ([
+    // the version panel, whatever History shows (in the host's own panel stacks)
     versionsModule(session, { dockButton: false, rowActions, controls }),
     pillModule,
     // the host's own panel stacks hold the comparison's panels too (same widths); one without them gets the kernel's
-    ...[...(core.has('setPanel') ? [] : [panelStacksModule]), diffBarModule(session), codeDiffModule(session), changeListModule(session), diffStageModule(scene), diffExportModule(session), documentModule, viewSettingsModule].map(inHistory),
-  ];
+    ...[...(ownStacks ? [] : [panelStacksModule]), diffBarModule(session), codeDiffModule(session), changeListModule(session), diffStageModule(scene), diffExportModule(session), documentModule, diffLayersModule].map(inHistory),
+  ] as ViewModule<ViewCore>[]).map(inHostStacks);
 
   // ---- open: the version panel only
   core.historyOpen.set(true);
@@ -463,10 +471,11 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
   const offs: (() => void)[] = [
     // the working copy follows the document (edits, remote updates, host setSource, undo())
     core.on('document', () => session.sourceChanged(WORKING_COPY)),
-    // closing the version panel leaves History
+    // closing the version panel leaves History when it shows nothing older; a version or a comparison stays (the
+    // History button brings the panel back, Back / Esc leave)
     effect(() => {
       const on = !!core.panels()['history'];
-      if (!on) untracked(() => queueMicrotask(close));
+      if (!on) untracked(() => queueMicrotask(() => shown.peek() === 'none' && close()));
     }),
     // the history went away
     effect(() => {

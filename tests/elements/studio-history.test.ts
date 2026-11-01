@@ -135,7 +135,7 @@ describe('History in the editor (studio)', () => {
     await wait(() => rows().length === 8);
     expect(editor.historySession).not.toBeNull();
 
-    // each version's ⋮ menu, on both tabs: Restore (not for the working copy) and Compare with the previous version
+    // each version's ⋮ menu, on both tabs: Restore (not for the current version) and Compare with the previous version
     ed.querySelector<HTMLButtonElement>('.mmdx-panel.history [role=tab][data-tab=compare]')!.click();
     await wait(() => ed.querySelector('.mmdx-stack .version .vrail ~ .vmenu'));
     const historyTab = (): void => ed.querySelector<HTMLButtonElement>('.mmdx-panel.history [role=tab][data-tab=history]')!.click();
@@ -143,9 +143,9 @@ describe('History in the editor (studio)', () => {
     await wait(() => ed.querySelector('.mmdx-stack .version .vmenu'));
     const menuOf = (i: number): HTMLButtonElement => ed.querySelectorAll<HTMLButtonElement>('.mmdx-stack .version .vmenu')[i]!;
     const items = (): string[] => [...ed.querySelectorAll('[role=menu] [role=menuitem]')].map((b) => b.textContent!);
+    // the current version (the working copy here) has nothing to restore
     menuOf(0).click();
-    expect(items()).toEqual(['Restore Working copy', 'Compare with the previous version']);
-    expect(ed.querySelector<HTMLButtonElement>('[role=menu] .restore')!.disabled).toBe(true);
+    expect(items()).toEqual(['Compare with the previous version']);
     menuOf(3).click(); // the same popover manager: another opener replaces the menu
     [...ed.querySelectorAll<HTMLButtonElement>('[role=menu] [role=menuitem]')].find((b) => b.textContent === 'Compare with the previous version')!.click();
     await wait(() => editor.historySession!.pair.base === versions[2].id);

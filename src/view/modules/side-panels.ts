@@ -31,16 +31,22 @@ function panelToggle(scope: ModuleScope<ViewCore>, id: string, o: { icon: string
 /** `key`, unless a module installed earlier owns it in the View mode (the diff's L is its change list, §13). */
 const freeKey = (core: ViewCore, key: string): string | null => (core.shortcuts.list({ mode: 'view', stage: core.stage.peek() }).some((s) => s.keys.includes(key)) ? null : key);
 
-export const viewSettingsModule: ViewModule<ViewCore> = {
+/**
+ * View settings: the layers shown and, with `display`, the display toggles. Without them (a diff: what is compared is
+ * drawn as it is) the card is "Layers" and lists every layer of the diagram, Default included.
+ */
+const viewSettings = (o: { display: boolean }): ViewModule<ViewCore> => ({
   id: 'view-settings',
   after: ['panel-stacks'],
-  css: [LAYER_LIST_CSS],
+  // the card's title says "Layers" already: the list's heading is not repeated
+  css: [LAYER_LIST_CSS, '.mmdx-panel.layers-only .mmdx-layers > .mmdx-sect:first-child { display: none; }'],
   enabled: (core) => core.feature('layers'),
   install(scope) {
     const core = scope.core;
     const t = core.i18n.t;
     const keys = freeKey(core, 'l');
-    const offBtn = panelToggle(scope, 'view-settings', { icon: VIEW_SETTINGS_ICON, label: t('tools.viewSettings'), keys, help: t('help.viewSettings'), order: 30 });
+    const title = o.display ? t('layers.title') : t('layers.layers');
+    const offBtn = panelToggle(scope, 'view-settings', { icon: o.display ? VIEW_SETTINGS_ICON : ICONS.layers, label: o.display ? t('tools.viewSettings') : title, keys, help: o.display ? t('help.viewSettings') : title, order: 30 });
     const display = core.display;
     const labels = scope.computed(() => display().labels), hover = scope.computed(() => display().hoverHighlight);
     const set = (patch: Partial<ReturnType<typeof display.peek>>): void => {
@@ -56,10 +62,10 @@ export const viewSettingsModule: ViewModule<ViewCore> = {
         core.visibleLayers.set(visible ? [...shown, id] : shown.filter((x) => x !== id));
         core.invalidate();
       },
-      display: [
+      display: o.display ? [
         { id: 'labels', label: t('layers.labels'), value: labels, onChange: (v) => set({ labels: v }) },
         { id: 'hover', label: t('layers.hover'), value: hover, onChange: (v) => set({ hoverHighlight: v }) },
-      ],
+      ] : [],
       t,
     });
     const rev = signal(0);
@@ -68,12 +74,12 @@ export const viewSettingsModule: ViewModule<ViewCore> = {
       rev();
       const visible = core.visibleLayers();
       const defs = layerDefs(core.run('documentMeta') ?? { canvas: {}, styles: {} });
-      // only a diagram with layers of its own lists them
-      const rows = defs.length > 1 || defs[0]?.hidden ? defs.map((d) => ({ id: d.id, name: d.id === 'default' && d.name === 'Default' ? t('layers.default') : d.name, visible: visible ? visible.includes(d.id) : !d.hidden })) : [];
+      // next to the display toggles only a diagram with layers of its own lists them; alone, every layer is listed
+      const rows = defs.length > 1 || defs[0]?.hidden || (!o.display && defs.length) ? defs.map((d) => ({ id: d.id, name: d.id === 'default' && d.name === 'Default' ? t('layers.default') : d.name, visible: visible ? visible.includes(d.id) : !d.hidden })) : [];
       list.update({ layers: rows });
     });
     const panel = createSidePanel({
-      side: 'right', title: t('layers.title'), label: t('layers.title'), class: 'view-settings', closeLabel: t('panel.close'), ...(keys ? { closeKeys: keys } : {}),
+      side: 'right', title, label: title, class: o.display ? 'view-settings' : 'view-settings layers-only', closeLabel: t('panel.close'), ...(keys ? { closeKeys: keys } : {}),
       onClose: () => void core.run('setPanel', 'view-settings', false), body: list.el,
     });
     scope.contribute(core.panelItems, { id: 'view-settings', side: 'right', order: 10, el: panel.el });
@@ -83,7 +89,12 @@ export const viewSettingsModule: ViewModule<ViewCore> = {
       panel.destroy();
     };
   },
-};
+});
+
+/** View settings of the viewer: layers and display. */
+export const viewSettingsModule: ViewModule<ViewCore> = viewSettings({ display: true });
+/** The diff's: layers only (what is compared is drawn as it is). */
+export const diffLayersModule: ViewModule<ViewCore> = viewSettings({ display: false });
 
 export const codeViewModule: ViewModule<ViewCore> = {
   id: 'code-view',
