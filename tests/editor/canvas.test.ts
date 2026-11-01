@@ -327,7 +327,10 @@ describe('canvas selection', () => {
     expect(sel(core)).toEqual(['group:G']);
     core.run('enterGroup', 'G');
     expect(core.enteredGroup.peek()).toBe('G');
-    expect(core.dom.wrap.querySelector('.group-edit-bar')?.textContent).toMatch(/Editing group Team/);
+    // no bar: what is inside the group is marked, the rest fades; Esc or a click outside leaves
+    expect(core.dom.wrap.querySelector('.group-edit-bar')).toBeNull();
+    await settle();
+    expect([...core.dom.body.querySelectorAll('.el.in-edit')].map((n) => n.getAttribute('data-id'))).toContain('A');
     drag(core, itemEl(core, 'node', 'A'), center(core, 'A'));
     expect(sel(core)).toEqual(['node:A']);
     core.run('setPainting', true);

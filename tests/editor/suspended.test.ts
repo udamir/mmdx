@@ -57,18 +57,18 @@ describe('a suspended module does not react', () => {
     ed.core.stage.set('document');
   });
 
-  it('the group-edit bar leaves in History and comes back; entering a group there shows nothing', () => {
+  it('group editing marks the group\'s items, shows no bar, and does not react in History', () => {
     const ed = mount();
-    const bar = (): Element | null => ed.core.root.querySelector('.group-edit-bar');
+    const marked = (): number => ed.core.dom.body.querySelectorAll('.el.in-edit').length;
     ed.core.run('enterGroup', 'G');
-    expect(bar()).not.toBeNull();
+    expect(marked()).toBeGreaterThan(0);
+    expect(ed.core.root.querySelector('.group-edit-bar')).toBeNull();
     ed.core.stage.set('history');
-    expect(bar()).toBeNull();
     ed.core.enteredGroup.set(null);
     ed.core.enteredGroup.set('G');
-    expect(bar()).toBeNull();
+    ed.core.fire('draw');
+    expect(ed.core.root.querySelector('.group-edit-bar')).toBeNull();
     ed.core.stage.set('document');
-    expect(bar()).not.toBeNull();
   });
 
   it('an open inline text box is cancelled when History opens', () => {

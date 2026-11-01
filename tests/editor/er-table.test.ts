@@ -105,7 +105,8 @@ describe('ER attribute editing (table view)', () => {
     expect(rows.map((r) => r.name)).toEqual(['id', 'name', 'age', '']);
     expect(rows[3]!.add).toBe(true);
     expect(core.selection()).toEqual([]);
-    expect(core.dom.wrap.querySelector('.table-edit-bar')?.textContent).toMatch(/Editing table CUSTOMER/);
+    // no bar: the table's own empty last row says how to add one
+    expect(core.dom.wrap.querySelector('.table-edit-bar')).toBeNull();
   });
 
   it('two sections: double-click the title renames the table, the attributes edit them', () => {
