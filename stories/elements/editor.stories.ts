@@ -1,7 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import '../../src/editor.js';
-// the History button shows <mmdx-diff>: the page loads it
-import '../../src/diff.js';
 import { memoryDocumentAdapter } from '../../src/adapters/documents.js';
 import { DEFAULT_FEATURES, type EditorFeatures } from '../../src/editor/core.js';
 import type { MmdxEditorElement } from '../../src/editor/editor.js';
@@ -37,7 +35,7 @@ const FEATURE_DOCS: Readonly<Record<Toggle, string>> = {
   export: 'Export menu.',
   help: 'Shortcut help popup.',
   fullscreen: 'Fullscreen toggle.',
-  history: 'History button in the tool dock (shown when the editor has a `history`): the versions of the diagram in a diff view, Restore and Back.',
+  history: 'History button in the tool dock (shown when the editor has a `history`): the version panel — an older version read-only, a comparison with the current one, Restore.',
 };
 
 function editor(a: Partial<EditorArgs>): HTMLElement {
@@ -69,8 +67,10 @@ const meta: Meta<EditorArgs> = {
           '`<mmdx-editor>` is the visual editor: drag shapes from the left toolbar, connect, group, restyle, edit the Mermaid ' +
           'and the layout metadata side by side, with undo / redo and export. Import `mmdx/editor`; give it a document ' +
           'through `adapter` (here `memoryDocumentAdapter`) or `value`. Every feature can be switched off with `features`. ' +
-          'Give it the document\'s versions through `history` and the tool dock gets a History button: the diff of any two ' +
-          'versions (and the working copy), and Restore to bring one back.',
+          'Give it the document\'s versions through `history` and the tool dock gets a History button: the version panel ' +
+          'opens next to the Code panel (the diagram stays editable); an older version shows read-only in the editor itself ' +
+          '(select, copy, export), the Compare tab compares a version with the current one on the same canvas, and Restore ' +
+          'brings one back.',
       },
     },
   },
@@ -139,7 +139,7 @@ export const WithProblems: Story = {
 export const WithHistory: Story = {
   name: 'With history',
   args: { historyOf: 'production-microservices' },
-  parameters: { docs: { description: { story: 'The editor has the six versions of the example: History in the tool dock (or ⇧H) shows what changed between any two of them, and Restore opens one in the editor (undo brings the current diagram back).' } } },
+  parameters: { docs: { description: { story: 'The editor has the six versions of the example: History in the tool dock (or ⇧H) opens the version panel. Pick an older version to see it read-only, or the Compare tab to see what changed against the current one; Back (Esc) returns to the current version, and Restore opens an older one in the editor (undo brings the current diagram back).' } } },
 };
 
 export const SequenceHistory: Story = { name: 'With history: sequence diagram', args: { historyOf: 'docker-deploy-sequence' } };

@@ -1,7 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import '../../src/viewer.js';
-// the History button shows <mmdx-diff>: the page loads it
-import '../../src/diff.js';
 import { example, exampleHistory, SMALL_ER, SMALL_FLOW, SMALL_SEQUENCE, THEME_IDS, uiArg } from '../support.js';
 
 type ViewerArgs = {
@@ -113,7 +111,7 @@ export const AllControls: Story = {
 export const WithHistory: Story = {
   name: 'With history',
   args: { historyOf: 'atom-schema-er', controls: ['zoom', 'history', 'fullscreen'] },
-  parameters: { docs: { description: { story: '`controls="history"` and a `history` (the versions of the diagram): the History button shows what changed between any two versions, or one version as it was; Back returns to the diagram.' } } },
+  parameters: { docs: { description: { story: '`controls="history"` and a `history` (the versions of the diagram): the History button opens the version panel — one version as it was, or a comparison with the current one; Back returns to the diagram.' } } },
 };
 
 export const ContainInFixedBox: Story = {
