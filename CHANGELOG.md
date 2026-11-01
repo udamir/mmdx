@@ -2,7 +2,7 @@
 
 All notable changes to `@mmdx/studio` (named `mmdx` before 0.2.1). The project follows [semantic versioning](https://semver.org/); while it is below 1.0, a minor version may change public API, and such changes are listed under **Changed (breaking)**.
 
-## 0.3.0 (unreleased) — Hooks for sandboxed hosts
+## 0.3.0 — Hooks for sandboxed hosts
 
 Generic hooks for hosts that embed mmdx in sandboxed (opaque-origin) iframes: no `allowfullscreen`, no `localStorage`, no relative fetches, no module workers from URLs.
 
