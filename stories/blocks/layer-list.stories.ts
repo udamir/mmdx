@@ -73,4 +73,5 @@ type Story = StoryObj<Args>;
 
 export const ViewSettings: Story = { name: 'View settings' };
 export const Editing: Story = { args: { editable: true, display: false } };
+export const LayersOnly: Story = { name: 'Layers only (the diff)', args: { editable: false, display: false } };
 export const Dark: Story = { args: { ui: 'dark' } };

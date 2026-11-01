@@ -36,11 +36,12 @@ import { DiffScene } from './scene.js';
 import { DiffSession, type DiffMode } from './session.js';
 
 /** Swap: two arrows, left and right. */
-const I_SWAP = 'M7 7h13M16 3l4 4-4 4M17 17H4M8 13l-4 4 4 4';
+export const I_SWAP = 'M7 7h13M16 3l4 4-4 4M17 17H4M8 13l-4 4 4 4';
 
-const I_CLOSE = 'M6 6l12 12M18 6L6 18';
+export const I_CLOSE = 'M6 6l12 12M18 6L6 18';
 
-const HISTORY_PILL_CSS = /* css */ `
+/** The History pill's own look: the pair as coloured chips with a swap between them, or the viewed version. */
+export const HISTORY_PILL_CSS = /* css */ `
 .dx-pill-body { display: inline-flex; align-items: center; min-width: 0; }
 .dx-pair { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
 .dx-chip { font: 600 12.5px/1.4 var(--mmdx-mono); padding: 4px 9px; border-radius: 7px; white-space: nowrap; }

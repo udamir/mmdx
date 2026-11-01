@@ -7,13 +7,13 @@ import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; inPanel: boolean };
 
-/** Code / Metadata tabs, alone or as a side panel's head; the body follows the selected tab. */
+/** Mermaid / Metadata tabs (the Code panel's head), alone or in a side panel; the body follows the selected tab. */
 function tabs(a: Args): HTMLElement {
   const { host, root } = chromeHost([TABS_CSS, SIDE_PANEL_CSS, '.mmdx-panel{width:340px;height:260px;} .body{padding:12px;}'], { ui: a.ui });
   const value = signal<'code' | 'meta'>('code');
   const body = document.createElement('div');
   body.className = 'body';
-  const tb = createTabs({ label: 'Code', tabs: [{ value: 'code', label: 'Code' }, { value: 'meta', label: 'Metadata', title: 'The %%@ lines' }], value, onChange: (v) => {
+  const tb = createTabs({ label: 'Code', tabs: [{ value: 'code', label: 'Mermaid' }, { value: 'meta', label: 'Metadata', title: 'The %%@ lines' }], value, onChange: (v) => {
     value.set(v);
     body.textContent = v === 'code' ? 'flowchart LR …' : '%%@ node a {…}';
   } });

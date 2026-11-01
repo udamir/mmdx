@@ -28,7 +28,7 @@ function panelStack(a: Args): HTMLElement {
   };
   const toggles = document.createElement('div');
   toggles.className = 'toggles';
-  const defs: [string, string, Signal<boolean>, number][] = [['history', 'History', signal(true), 14], ['code', 'Code', signal(true), 24], ['meta', 'Metadata', signal(false), 8]];
+  const defs: [string, string, Signal<boolean>, number][] = [['code', 'Mermaid', signal(true), 24], ['history', 'History', signal(true), 14], ['meta', 'Metadata', signal(false), 8]];
   const panels = defs.map(([id, name, open, n]) => {
     const p = createSidePanel({ side: a.side, title: name, label: name, closeLabel: `Close ${name}`, onClose: () => open.set(false), body: rows(n) });
     const b = document.createElement('button');

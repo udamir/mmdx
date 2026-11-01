@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { diffDiagrams } from '../../src/core/diff/all.js';
+import { MENU_CSS } from '../../src/ui/blocks/menu.js';
 import { createVersionList, VERSION_LIST_CSS, type VersionCounts } from '../../src/ui/blocks/version-list.js';
 import { createI18n } from '../../src/ui/i18n.js';
+import { PopoverManager } from '../../src/ui/popover.js';
 import { DIFF_TOKENS } from '../../src/ui/styles/diff.js';
 import { chromeHost, exampleHistory } from '../support.js';
 
@@ -9,8 +11,9 @@ type Args = { example: string; mode: 'compare' | 'history'; timeline: boolean; h
 
 /** An example history; Before / After picks, rows and "Load more" update the list as the diff would. */
 function versionList(a: Args): HTMLElement {
-  const { host, root } = chromeHost([DIFF_TOKENS, VERSION_LIST_CSS, '.card{width:400px;max-height:560px;overflow:auto;background:var(--mmdx-surface);border:1px solid var(--mmdx-border);border-radius:14px;box-shadow:var(--mmdx-shadow);}'], { ui: a.ui });
+  const { host, root } = chromeHost([DIFF_TOKENS, VERSION_LIST_CSS, MENU_CSS, '.log{font:12px ui-monospace,monospace;color:var(--mmdx-muted);margin-top:8px;} .card{width:400px;max-height:560px;overflow:auto;background:var(--mmdx-surface);border:1px solid var(--mmdx-border);border-radius:14px;box-shadow:var(--mmdx-shadow);}'], { ui: a.ui });
   const all = exampleHistory(a.example);
+  const log = Object.assign(document.createElement('div'), { className: 'log' });
   // change counts against the version before; the newest three are "computing" until a moment later
   const counts = new Map<string, VersionCounts | null>();
   const fill = (from: number): void => {
@@ -26,6 +29,14 @@ function versionList(a: Args): HTMLElement {
   const props = () => ({ versions: all.slice(0, shown), hasMore: shown < all.length, ...state });
   const vl = createVersionList({
     ...props(), counts: (id) => counts.get(id), mode: a.mode, locale: 'en', t: createI18n().t, part: 'history',
+    // each row's "⋮": Restore (not the current version) and Compare with the previous version, as History has them
+    menu: {
+      popovers: new PopoverManager(root), within: () => root.host,
+      entries: (id, i) => [
+        ...(i > 0 ? [{ label: `Restore ${id}`, class: 'restore', run: () => void (log.textContent = `Restore ${id}`) }] : []),
+        { label: 'Compare with the previous version', disabled: i === all.length - 1, run: () => void (log.textContent = `Compare ${id} with the previous version`) },
+      ],
+    },
     onPick: (side, id) => {
       if (side === 'before') state.base = id;
       else state.head = id;
@@ -60,7 +71,7 @@ function versionList(a: Args): HTMLElement {
   const card = document.createElement('div');
   card.className = 'card';
   card.append(vl.el);
-  root.append(card);
+  root.append(card, log);
   return host;
 }
 
@@ -74,7 +85,9 @@ const meta: Meta<Args> = {
           'Version rows of a history: message, id, the "current" tag, author and relative age, change counts against the version ' +
           'before as coloured badges (a skeleton while they are computed). Compare mode adds Before / After picks (one version ' +
           'cannot be both), or a timeline: the pair is a range of dots, a dot moves the nearer end, the pair\'s own dot swaps ' +
-          'them; History mode marks the viewed version. Arrow keys move between rows, to the same control.',
+          'them; History mode marks the viewed version (in History in place, the current one until another is picked). Each row ' +
+          'has a "⋮" menu (here Restore, not for the current version, and Compare with the previous version). Arrow keys ' +
+          'move between rows, to the same control.',
       },
     },
   },
