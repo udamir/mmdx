@@ -163,7 +163,7 @@ describe('History: a version as it is', () => {
 });
 
 describe('History: the panel closed', () => {
-  it('closing the panel keeps the version or comparison shown; the History button brings it back; Back then leaves History', async () => {
+  it('closing the panel keeps the version or comparison shown; the History button shows and hides the panel; Back then leaves History', async () => {
     host = document.createElement('div');
     document.body.append(host);
     ed = new DiagramEditor(host, { value: NOW, storage: memoryStorage(), ui: 'light', history: [{ id: 'v2', message: 'Now', source: NOW }, { id: 'v1', message: 'Old', source: OLD }] });
@@ -179,6 +179,14 @@ describe('History: the panel closed', () => {
     ed.toggleHistory();
     expect(ed.core.panels.peek()['history']).toBe(true);
     expect(ed.core.version.peek()?.id).toBe('v1');
+    // and hides it again: the History button is the panel's toggle while something is shown
+    ed.toggleHistory();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(ed.core.panels.peek()['history']).toBe(false);
+    expect(ed.core.version.peek()?.id).toBe('v1');
+    expect(ed.historySession).not.toBeNull();
+    ed.toggleHistory();
+    expect(ed.core.panels.peek()['history']).toBe(true);
     // a comparison stays too
     ed.historySession!.setPair('v1', 'v2');
     await wait(() => ed.historySession!.getDiff());
