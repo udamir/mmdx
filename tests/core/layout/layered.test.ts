@@ -101,6 +101,21 @@ describe('layered layout', () => {
     expect(MAX_VIRTUAL).toBe(20_000);
   });
 
+  it('nodes named like its virtual nodes (`__v0`) are laid out as nodes', () => {
+    // A → C spans two ranks, so the layout adds a virtual node on that edge, next to B
+    const nodes: LayoutNode[] = ['A', 'B', 'C', '__v0', '__v1'].map((id) => ({ id, w: id.startsWith('__') ? 300 : 50, h: 30 }));
+    const edges: LayoutEdge[] = [{ from: 'A', to: 'B' }, { from: 'B', to: 'C' }, { from: 'A', to: 'C' }];
+    const pos = layered(nodes, edges, {});
+    expect([...pos.keys()].sort()).toEqual(['A', 'B', 'C', '__v0', '__v1']);
+    const box = (n: LayoutNode) => ({ ...pos.get(n.id)!, w: n.w, h: n.h });
+    for (const [i, a] of nodes.entries())
+      for (const b of nodes.slice(i + 1)) {
+        const p = box(a), q = box(b);
+        const apart = Math.abs(p.x - q.x) >= (p.w + q.w) / 2 || Math.abs(p.y - q.y) >= (p.h + q.h) / 2;
+        expect(apart, `${a.id} overlaps ${b.id}`).toBe(true);
+      }
+  });
+
   it('is deterministic and ignores dangling / self edges', () => {
     const { nodes, edges } = graph(7, { dag: false, groups: true });
     const extra: LayoutEdge[] = [...edges, { from: 'n0', to: 'n0' }, { from: 'n0', to: 'missing' }, { from: null, to: 'n1' }];
