@@ -51,6 +51,16 @@ export interface EditorOptions {
 
 export type SaveOutcome = 'saved' | 'cancelled' | 'conflict' | 'failed' | 'no-adapter';
 
+/** How `setSource` replaces the document. */
+export interface SetSourceOptions {
+  /** `reset` (default): a new undo history; `push`: an undoable change. */
+  history?: 'reset' | 'push';
+  /** Fit the view to the new document (default `true`). */
+  fit?: boolean;
+  /** The new source is the saved one (default `true`); `false` keeps it as unsaved changes (a restored draft). */
+  markSaved?: boolean;
+}
+
 export class DiagramEditor {
   readonly core: EditorCore;
   readonly store: DocStore;
@@ -70,6 +80,8 @@ export class DiagramEditor {
   private pendingRemote: { src: string; version: string } | null = null;
   private gesture: { g: Gesture; x: number; y: number; p0: { x: number; y: number }; moved: boolean; id: number } | null = null;
   private destroyed = false;
+  /** The adapter's latest load (resolved without an adapter). */
+  private loading: Promise<void> = Promise.resolve();
   name: string;
 
   constructor(private readonly host: HTMLElement, options: EditorOptions = {}) {
@@ -176,7 +188,7 @@ export class DiagramEditor {
       window.addEventListener('beforeunload', onBeforeUnload, { signal: this.ac.signal });
     }
 
-    if (options.adapter) void this.loadFromAdapter();
+    if (options.adapter) this.startLoad();
     else this.setSource(options.value ?? '', { history: 'reset' });
   }
 
@@ -191,7 +203,7 @@ export class DiagramEditor {
    * synchronous, so the new source is what `getSource()` returns right after it, and the gesture cannot write state
    * captured before the load over it. (Remote updates from the adapter wait for the gesture to end instead.)
    */
-  setSource(src: string, opts: { history?: 'reset' | 'push'; fit?: boolean; markSaved?: boolean } = {}): void {
+  setSource(src: string, opts: SetSourceOptions = {}): void {
     this.core.loadSource(src, { history: opts.history ?? 'reset', reason: opts.history === 'push' ? 'remote' : 'load', ...(opts.fit !== undefined ? { fit: opts.fit } : {}), markSaved: opts.markSaved !== false });
   }
 
@@ -208,7 +220,7 @@ export class DiagramEditor {
     this.version = undefined;
     if (a) this.o.adapter = a;
     else delete this.o.adapter;
-    if (a) void this.loadFromAdapter();
+    if (a) this.startLoad();
   }
 
   /** The document's versions; null hides the History button. */
@@ -324,7 +336,23 @@ export class DiagramEditor {
     this.cleanups.length = 0;
   }
 
+  /**
+   * Resolves once the document is in: right away without an adapter, else when the adapter's latest load finished
+   * (after `mmdx-load`); rejects when that load failed. A host that restores a draft waits for it, then calls
+   * `setSource(draft, { history: 'push', markSaved: false })`.
+   */
+  whenLoaded(): Promise<void> {
+    return this.loading;
+  }
+
   // ---- adapter ----------------------------------------------------------------------------------------------------
+
+  private startLoad(): void {
+    const p = this.loadFromAdapter();
+    // a failed load is reported (toast, mmdx-error); whenLoaded() rejects for whoever waits
+    p.catch(() => undefined);
+    this.loading = p;
+  }
 
   private async loadFromAdapter(): Promise<void> {
     const a = this.o.adapter;
@@ -339,9 +367,12 @@ export class DiagramEditor {
       this.unsubscribe = a.subscribe?.((src, version) => {
         if (!this.destroyed && this.o.adapter === a) this.onRemote(src, version);
       }) ?? null;
+      this.core.emit('mmdx-load', { source: r.source, version: r.version ?? null });
     } catch (e) {
+      if (this.destroyed || this.o.adapter !== a) return;
       this.core.toast(`Could not load the diagram: ${e instanceof Error ? e.message : String(e)}`, { error: true });
       this.core.emit('mmdx-error', { diagnostics: [{ severity: 'error', code: 'load.failed', message: String(e) }] });
+      throw e;
     }
   }
 
@@ -777,9 +808,17 @@ export class MmdxEditorElement extends MmdxElement<EditorOptions, DiagramEditor>
   getSource(): string {
     return this.value;
   }
-  setSource(src: string, opts?: { history?: 'reset' | 'push' }): void {
+  /**
+   * Replaces the document (see `SetSourceOptions`; `{ history: 'push', markSaved: false }` restores a draft as unsaved,
+   * undoable changes). Before the element is connected, the source becomes its initial value.
+   */
+  setSource(src: string, opts?: SetSourceOptions): void {
     this.props.value = src;
     this.live?.setSource(src, opts);
+  }
+  /** Resolves once the editor's document is in (the adapter's load; see `DiagramEditor.whenLoaded`). */
+  whenLoaded(): Promise<void> {
+    return this.live ? this.live.whenLoaded() : Promise.reject(new Error('Not connected'));
   }
   save(): Promise<SaveOutcome> {
     return this.live?.save() ?? Promise.resolve('no-adapter');
