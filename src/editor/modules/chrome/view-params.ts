@@ -1,5 +1,5 @@
 // The editor's part of the view parameters (A.8 rows 72, 73, 81, 82, 83): its export formats in the kernel's
-// `Export ▾` menu (.mmdx and .mmd, then SVG and PNG) and `setTheme` (no menu of its own: opening files and Auto
+// `Export` menu (.mmdx and .mmd, then SVG and PNG) and `setTheme` (no menu of its own: opening files and Auto
 // layout are the `openFiles` and `autoLayout` actions, for hosts to offer where they want). The bar,
 // the light / dark toggle and the theme menu are the standard `viewParams` module: the theme is the component's state
 // and never touches the document (component architecture §7.5). The diagram type is shown on the page's own badge;
@@ -19,7 +19,7 @@ export const editorParamsModule: EditorModule = {
 
     core.provide('setTheme', (id) => core.themes.choose(id));
 
-    // ---- export formats (the Export ▾ menu of the view params)
+    // ---- export formats (the Export menu of the view params)
     if (f.export)
       for (const kind of f.exportFormats) {
         const [k, tip] = LABELS[kind]!;

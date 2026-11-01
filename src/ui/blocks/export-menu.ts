@@ -1,4 +1,4 @@
-// ExportMenu (§5.2, §7.6): the labelled `Export ▾` primary button of the view params (an icon-only download button in
+// ExportMenu (§5.2, §7.6): the labelled `Export` primary button of the view params (an icon-only download button in
 // the compact preset) and its menu. Entries come from the host (each product exports its own formats); a change of
 // `section` between two entries inserts a separator (or a section header). Async exports that fail are reported
 // through `onError`. Replaces the export menus of editor/modules/chrome/view-params.ts, the viewer's `openExport`
@@ -96,7 +96,7 @@ export function createExportMenu(props: ExportMenuProps): ExportMenuHandle {
     fx.effect(() => {
       const small = compact !== undefined && read(compact);
       el.classList.toggle('compact', small);
-      el.replaceChildren(small ? icon(I_download, 18) : `${t('export.title')} ▾`);
+      el.replaceChildren(small ? icon(I_download, 18) : t('export.title'));
     });
   };
   render();

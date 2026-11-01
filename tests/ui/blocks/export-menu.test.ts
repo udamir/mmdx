@@ -46,7 +46,7 @@ describe('createExportMenu', () => {
     root.append(m.el);
     expect(m.el.classList.contains('primary')).toBe(true);
     expect(m.el.classList.contains('vp-export-btn')).toBe(true);
-    expect(m.el.textContent).toBe('Export ▾');
+    expect(m.el.textContent).toBe('Export');
     expect(m.el.getAttribute('aria-label')).toBe('Export');
     expect(m.el.title).toBe('Export the diagram');
     expect(m.el.getAttribute('aria-haspopup')).toBe('menu');
@@ -72,7 +72,7 @@ describe('createExportMenu', () => {
     expect(m.el.textContent).toBe('');
     expect(m.el.getAttribute('aria-label')).toBe('Export');
     compact.set(false);
-    expect(m.el.textContent).toBe('Export ▾');
+    expect(m.el.textContent).toBe('Export');
   });
 
   it('reports sync and async failures through onError', async () => {

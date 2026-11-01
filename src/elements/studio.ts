@@ -127,7 +127,7 @@ export class DiagramStudio {
     this.editorEl.features = { open: true };
     this.editorEl.setAttribute('ui', this.ui);
     this.nameEl = h('span', { class: 'name', title: 'File name' });
-    const newBtn = h('button', { type: 'button', class: 'primary', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: () => this.openNewMenu(newBtn) }, '＋ New ▾');
+    const newBtn = h('button', { type: 'button', class: 'primary', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: () => this.openNewMenu(newBtn) }, '＋ New');
     const exBtn = h('button', { type: 'button', onclick: () => void this.openGallery() }, 'Examples');
     const openBtn = h('button', { type: 'button', title: 'Open .mmdx / .mmd / .md / .layout.json', onclick: () => this.pickFiles() }, icon(ICONS.folder), 'Open');
     const modeSwitch = (this.modeSwitch = createSegmented<StudioMode>({

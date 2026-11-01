@@ -53,7 +53,7 @@ const meta: Meta<DiffArgs> = {
           'Side by side. Filters hide added / removed items and ignore content / layout / style changes. Panels: History ' +
           '(compare two versions, or view one), the code / metadata diff narrowed to the selected change, and the change ' +
           'list. The view kernel\'s chrome: Pan and the magic pen in the tool dock, the zoom bar with help, the theme menu, the ' +
-          'light / dark toggle and Export ▾ (PNG, SVG, sources, patch, Markdown / JSON report) top right, view settings. Import `mmdx/diff`. The editor ' +
+          'light / dark toggle and Export (PNG, SVG, sources, patch, Markdown / JSON report) top right, view settings. Import `mmdx/diff`. The editor ' +
           'and the viewer show it as their History (Elements/Editor → With history); here it stands alone, as a merge ' +
           'request review would embed it.',
       },

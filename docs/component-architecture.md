@@ -149,7 +149,7 @@ Composition rather than `DiffCore extends ViewCore`: the three products render i
 | `HelpPopup` | Help dialog generated from the keymap of the active modules | `registry, title` | editor help, diff help |
 | `SchemeToggle` | Light / dark chrome toggle | `scheme: Signal, onChange` | view-params `vp-mode` |
 | `ThemeMenu` | "Follow light / dark" entry, then themes grouped light / dark, current ticked, "edit themes" entry | `themes: ThemeInfo[], picked: string \| null, shown, onPick, onFollow, onEdit?` | view-params theme menu |
-| `ExportMenu` | Labelled `Export ▾` button (icon-only when compact) and its entries | `entries: { id, label, section?, run }[], compact?` | three export menus |
+| `ExportMenu` | Labelled `Export` button (icon-only when compact) and its entries | `entries: { id, label, section?, run }[], compact?` | three export menus |
 | `PenOptions` | Colours, sizes, auto erase, erase all | `pen: PenSettings` | editor flyout, viewer popup |
 | `SidePanel` | Floating card: header (title or `Tabs`), close, body, resize grip | `side, title \| tabs, onClose, width: Signal` | editor code panel shell, right panel cards, diff panels |
 | `PanelStack` | Column of `SidePanel`s with splitters, remembered sizes, empty-collapse, drawer form below a width | `side, panels[], storageKey, drawerBelow?` | `right-panels.ts` stack, diff left stack |
@@ -293,7 +293,7 @@ interface SceneSource {
 |---|---|---|---|---|
 | `zoomBar` | bottom-right · `ZoomBar`, `HelpPopup` | ✓ (help popup new) | ✓ | ✓ |
 | `toolDock` | left-dock · `ToolDock` | ✓ | ✓ | ✓ |
-| `viewParams` | top-right · `SchemeToggle`, `ThemeMenu`, `ExportMenu` | opt-in theme menu (`controls="theme"`); Export ▾ | ✓ | ✓ (**theme selector**) |
+| `viewParams` | top-right · `SchemeToggle`, `ThemeMenu`, `ExportMenu` | opt-in theme menu (`controls="theme"`); Export | ✓ | ✓ (**theme selector**) |
 | `pan` | left-dock · `IconButton`; Space-drag, wheel | ✓ | ✓ | ✓ |
 | `pen` | left-dock + flyout · `PenOptions`, `StrokeStore` | ✓ | ✓ | ✓ (all canvases) |
 | `export` | `ExportMenu`; formats contributed by modules (`exportFormats` action) | ✓ | ✓ | ✓ (+ patch, reports) |
@@ -319,7 +319,7 @@ The theme is **component state, not document state**.
 
 ### 7.6 Chrome look and the `compact` preset
 
-- One look everywhere: the editor's chrome (tool dock, zoom bar bottom-right, view params top-right with the light / dark toggle, theme menu and a labelled `Export ▾`). The viewer adopts it; the editor's View mode and `<mmdx-viewer>` look the same because they run the same modules.
+- One look everywhere: the editor's chrome (tool dock, zoom bar bottom-right, view params top-right with the light / dark toggle, theme menu and a labelled `Export`). The viewer adopts it; the editor's View mode and `<mmdx-viewer>` look the same because they run the same modules.
 - **Code view**: a panel in the left stack (`CodeView`), in every product.
 - **Scrollbars**: every side panel (and the studio's examples gallery) scrolls with thin overlay scrollbars (`OverlayScroll`): the native ones are hidden, the thumb of the area under the pointer floats over the content while the pointer is over it, while it scrolls and while it is dragged.
 - **View settings**: a side card in the right stack (display toggles and layers).
@@ -502,7 +502,7 @@ Esc runs one chain, first match wins: close popover → cancel gesture → drop 
 | 12 | History from code | `historySession` with the `<mmdx-diff>` methods. |
 | 13 | `EditorModule` compatibility | New shape in a breaking release, no adapter. |
 | 14 | New features | Diff: view settings, clickable links (click selects, ⌘ / Ctrl-click opens). Editor View mode: read-only code panel. Viewer: help popup. |
-| 15 | Chrome look | The editor's everywhere; Code view as a left panel; `Export ▾` top-right; view settings as a right side card. |
+| 15 | Chrome look | The editor's everywhere; Code view as a left panel; `Export` top-right; view settings as a right side card. |
 | 16 | Compact | A global `compact` preset: the same pieces, smaller and icon-only. |
 | 17 | History controls | A Back pill top-center; Restore in the diff bar; filters as icon buttons; Code / History panels at the left edge, the tool dock to their right. |
 | 18 | History in a small viewer | The viewer grows to 560 px; panels become drawers below a width threshold. |
@@ -558,7 +558,7 @@ Every question asked in the architecture review, with the answer as given and wh
 | L3 | Compact preset: everything in one bar (A), or the same pieces smaller and icon-only (B)? | B: the same pieces, smaller. | §7.6 |
 | L4 | View settings (layers, labels, hover highlight): side card or popover? | Side card in the right stack. | §7.4, §7.6 |
 | L5 | Read-only code view: left panel or over the canvas? | Left panel, as in the editor and the diff. | §7.4, §7.6 |
-| L6 | Export: `Export ▾` top-right or an icon in the bar? | `Export ▾` top-right, as in the editor (an icon in the `compact` preset). | §7.6 |
+| L6 | Export: `Export` top-right or an icon in the bar? | `Export` top-right, as in the editor (an icon in the `compact` preset). | §7.6 |
 | L7 | History mode: where do Back and Restore live (a mode strip, the History panel header, or a pill on top)? | Back pill on top; Restore in the diff bar. | §8.1, §8.2 |
 | L8 | Layout correction on the canvas | The tool dock sits after (to the right of) the Code / History panels, not before them. | §7.1, §8.2 |
 | L9 | Layout correction on the canvas | The diff bar's filters are icon buttons (Added, Removed, Content, Layout, Style), not text labels. | §5.2, §8.1 |

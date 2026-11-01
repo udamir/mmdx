@@ -1,5 +1,5 @@
 // diffExport and hostActions (component architecture §8.1, §8.4). diffExport contributes the diff's formats to the
-// kernel's `Export ▾` menu: an image of the view (PNG, SVG), the sources (Before / After .mmdx, or the viewed
+// kernel's `Export` menu: an image of the view (PNG, SVG), the sources (Before / After .mmdx, or the viewed
 // version in History mode; Portable Mermaid), the patch and the reports (Markdown, JSON). hostActions shows the
 // host's buttons (`DiffAction`, e.g. History's Restore and Back) at the end of the view params, top right. Replace
 // `openExport` and `renderActions` of elements/diff.ts.

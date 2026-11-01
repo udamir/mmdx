@@ -46,7 +46,7 @@ const meta: Meta<Args> = {
     docs: {
       description: {
         component:
-          'The labelled `Export ▾` button and its menu (`createExportMenu`), with the entries of the editor, the viewer ' +
+          'The labelled `Export` button and its menu (`createExportMenu`), with the entries of the editor, the viewer ' +
           'or the diff. A change of section between entries inserts a separator (or a header). Compact turns the ' +
           'button into a download icon. Failed exports go to `onError` (here a toast: try "Patch" in the diff).',
       },

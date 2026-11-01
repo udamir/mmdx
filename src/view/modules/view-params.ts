@@ -1,5 +1,5 @@
 // viewParams (component architecture §7.4, §7.5): the bar top right — the light / dark chrome toggle, the theme
-// menu (Follow light / dark, then the themes grouped light / dark), the labelled `Export ▾` menu with the formats the
+// menu (Follow light / dark, then the themes grouped light / dark), the labelled `Export` menu with the formats the
 // modules contribute (`core.exportFormats`), then the controls other modules add (`core.paramItems`, e.g. the
 // editor's ⋯ menu). The theme is the component's state: a pick never touches the document or the chrome scheme.
 import { createExportMenu, EXPORT_MENU_CSS } from '../../ui/blocks/export-menu.js';
