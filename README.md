@@ -329,7 +329,7 @@ Built-in themes, as light / dark pairs:
 | Catppuccin Latte (`catppuccin-latte`) | Catppuccin Mocha (`catppuccin-mocha`) |
 | Rosé Pine Dawn (`rose-pine-dawn`) | Dracula (`dracula`) |
 
-Default Light and Default Dark are bundled; the others are loaded from `@mmdx/studio/themes/*` or any manifest you point `configure({ themeSource })` at. Colours in diagrams are stored as palette references (`@sky`) or as a palette colour plus a shift (`@sand~=349.3,+53.5,-5.7`), so a diagram restyles itself when its theme changes. 
+Default Light and Default Dark are bundled; the others are loaded from `@mmdx/studio/themes/*` or any manifest you point `configure({ themeSource })` at, or registered directly with `registerThemes(files)` (no fetch; see [Embedding in sandboxed iframes](#embedding-in-sandboxed-iframes)). Colours in diagrams are stored as palette references (`@sky`) or as a palette colour plus a shift (`@sand~=349.3,+53.5,-5.7`), so a diagram restyles itself when its theme changes. 
 
 | Theme key | Holds |
 |---|---|

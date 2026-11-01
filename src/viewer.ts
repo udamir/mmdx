@@ -10,7 +10,7 @@ export type { SceneSource } from './view/scene.js';
 export type { Stage } from './view/types.js';
 export type { DiagramCanvas } from './dom/canvas.js';
 export type { HistorySession } from './view/history.js';
-export { configure, type Config } from './config.js';
+export { configure, registerThemes, registerBuiltinThemes, type Config } from './config.js';
 export { upgradeMermaidBlocks } from './markdown/upgrade.js';
 export { setWorkerUrl } from './dom/worker-client.js';
 

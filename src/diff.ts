@@ -18,6 +18,6 @@ export type { DiagramCanvas } from './dom/canvas.js';
 export { diffDiagrams, renderDiffToSvg } from './diff/kinds.js';
 export { staticHistory, httpHistoryAdapter, contentId, type HistoryAdapter, type StaticVersion, type VersionInfo } from './adapters/history.js';
 export { ignoreFacets, diffReport, unifiedDiff, type DiagramDiff as DiffResult, type ItemChange, type FieldChange, type ChangeFacet } from './core/diff/index.js';
-export { configure, type Config } from './config.js';
+export { configure, registerThemes, registerBuiltinThemes, type Config } from './config.js';
 
 defineDiff();

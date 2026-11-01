@@ -5,7 +5,7 @@ export {
   ThemeEditor, MmdxThemeEditorElement, defineThemeEditor, contrastRatio,
   type ThemeEditorOptions, type ThemeEditorEventMap, type ThemeSamples,
 } from './elements/theme-editor.js';
-export { configure, type Config } from './config.js';
+export { configure, registerThemes, registerBuiltinThemes, type Config } from './config.js';
 export * from './adapters/themes.js';
 export * from './adapters/storage.js';
 export { BUILTIN_THEMES } from './core/theme/builtin.js';
