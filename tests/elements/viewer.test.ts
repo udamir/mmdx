@@ -353,7 +353,7 @@ describe('host full screen', () => {
     const sr = el.shadowRoot!;
     expect(sr.querySelector<HTMLButtonElement>('.fs-btn')!.hidden).toBe(false);
     el.setControls(['zoom']);
-    expect(el.controls).toEqual(['zoom']);
+    expect(el.instance!.options.controls).toEqual(['zoom']);
     expect(sr.querySelector('.fs-btn')).toBeNull();
     el.setControls(['zoom', 'fullscreen']);
     expect(sr.querySelector<HTMLButtonElement>('.fs-btn')!.hidden).toBe(false);

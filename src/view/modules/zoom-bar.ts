@@ -110,29 +110,14 @@ export const zoomBarModule: ViewModule<ViewCore> = {
       syncHost();
       const native = document.fullscreenElement === host;
       if (!core.emit('mmdx-fullscreen-request', { enter: !(native || viaHost) }, true)) return;
-      if (native) {
-        void document.exitFullscreen?.();
-        return;
-      }
+      if (native) return void document.exitFullscreen?.();
+      const failed = (): void => void (gone || core.toast(t('fullscreen.failed'), { error: true }));
+      if (!viaHost && canFullscreen(host)) return void host.requestFullscreen().catch(failed);
       const f = core.hostFullscreen.peek();
-      const failed = (): void => {
-        if (!gone) core.toast(t('fullscreen.failed'), { error: true });
-      };
-      if (viaHost || (!canFullscreen(host) && hostAvailable(f))) {
-        if (!f) return setViaHost(false);
-        const enter = !viaHost;
-        // called within the click: the host may need the user's activation
-        let p: Promise<void>;
-        try {
-          p = Promise.resolve(enter ? f.enter() : f.exit());
-        } catch (e) {
-          p = Promise.reject(e);
-        }
-        p.then(() => {
-          if (!gone) setViaHost(enter);
-        }, failed);
-      } else if (canFullscreen(host)) host.requestFullscreen().catch(failed);
-      else failed();
+      if (!f || !(viaHost || hostAvailable(f))) return viaHost ? setViaHost(false) : failed();
+      const enter = !viaHost;
+      // called within the click (the host may need the user's activation); a throw rejects
+      new Promise<void>((ok) => ok(enter ? f.enter() : f.exit())).then(() => void (gone || setViaHost(enter)), failed);
     };
     scope.listen(host, 'fullscreenchange', () => changed(document.fullscreenElement === host));
     if (typeof window !== 'undefined') scope.listen(window, 'resize', syncHost);
@@ -150,13 +135,10 @@ export const zoomBarModule: ViewModule<ViewCore> = {
     });
     scope.slot('bottom-right').append(bar.el);
     // a host handler set or replaced later shows or hides the button
-    let fsHandler = core.hostFullscreen.peek();
     scope.effect(() => {
       const f = core.hostFullscreen();
-      if (f === fsHandler) return;
-      fsHandler = f;
       untracked(() => {
-        if (viaHost && !f) setViaHost(false);
+        if (!f) setViaHost(false);
         bar.update({ fullscreen: fullscreenProps() });
       });
     });

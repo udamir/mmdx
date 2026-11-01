@@ -425,15 +425,9 @@ export class MmdxViewerElement extends MmdxElement<ViewerOptions, DiagramViewer>
   set fullscreen(v: HostFullscreen | undefined) {
     this.setOpt({ fullscreen: v });
   }
-  get controls(): readonly ViewerControl[] | undefined {
-    return this.live?.options.controls ?? this.props.controls ?? this.attrOptions().controls;
-  }
-  set controls(v: readonly ViewerControl[] | undefined) {
-    this.setOpt({ controls: v });
-  }
-  /** Changes the controls at run time, like setting the `controls` attribute or property. */
+  /** Changes the controls at run time, like the `controls` attribute (undefined: the default). */
   setControls(controls: readonly ViewerControl[] | undefined): void {
-    this.controls = controls;
+    this.setOpt({ controls });
   }
 
   fit(): void {
