@@ -43,11 +43,13 @@ describe('History in the editor', () => {
     // opening shows the version panel only: nothing is compared until a version is picked
     expect(s.pair).toEqual({ base: null, head: null, viewing: null });
     expect(ed.core.stage.peek()).toBe('document');
+    const panels = { ...ed.core.panels.peek() };
     s.setPair('v1', 'v2');
     await wait(() => s.getDiff());
     expect(s.pair).toMatchObject({ base: 'v1', head: 'v2' });
-    // a comparison opens the Changes panel
-    expect(ed.core.panels.peek()['changes']).toBe(true);
+    // a comparison leaves the panels as they are (Code open stays open, as the diff's code; Changes stays closed);
+    // Layers shows as its view settings
+    expect(ed.core.panels.peek()).toEqual({ ...panels, 'view-settings': !!panels['layers'] });
     // the pill names the two versions; its swap button and X exchange Before and After
     const pill = ed.core.root.querySelector('.mmdx-pill')!;
     await wait(() => pill.querySelector('[role=status]')!.textContent === 'v1 → v2');

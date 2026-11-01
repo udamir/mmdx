@@ -24,6 +24,8 @@ import type { ViewCore } from '../view/core.js';
 import type { HistorySession } from '../view/history.js';
 import type { ViewModule } from '../view/module.js';
 import { panelStacksModule } from '../view/modules/panels.js';
+import { viewSettingsModule } from '../view/modules/side-panels.js';
+import type { Rendered } from '../core/pipeline-core.js';
 import { diffBarModule } from './modules/bar.js';
 import { diffExportModule } from './modules/export.js';
 import { changeListModule, codeDiffModule, versionsModule, type VersionControls } from './modules/panels.js';
@@ -153,8 +155,8 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
   let closed = false;
   /** Bumped by every pick: a version that loads after a newer pick is not shown. */
   let seq = 0;
-  /** While the DiffScene is over the host's canvas: what it put aside (the panels, the tool). */
-  let diff: { panels: ReturnType<typeof core.panels.peek>; tool: ReturnType<typeof core.tool.peek> } | null = null;
+  /** While the DiffScene is over the host's canvas: what it put aside (the tool; the panels stay as they are). */
+  let diff: { tool: ReturnType<typeof core.tool.peek> } | null = null;
 
   // ---- every switch of what the canvas shows (the document, a version, a comparison) animates: items keep their
   // place and move to the new one, the others fade in or out, the view stays and glides to a comparison's fit
@@ -201,14 +203,17 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
     morph?.finish();
     // the comparison's first picture morphs from the one shown, from the same place on screen
     scene.continueFrom(snapshot());
-    diff = { panels: core.panels.peek(), tool: core.tool.peek() };
+    diff = { tool: core.tool.peek() };
+    // the host's Layers card shows over a comparison as its view settings (layers and display), open as it was
+    const p = core.panels.peek();
+    if ('layers' in p) core.panels.set({ ...p, 'view-settings': !!p['layers'] });
     keepingFocus(() => inPlace(() => {
       core.stage.set('history');
       if (core.tool.peek() !== 'hand' && core.tool.peek() !== 'pen') core.tool.set('hand');
       core.pushScene(scene);
     }));
   };
-  /** The host's scene, panels and tool back (History stays open); the view stays where the comparison left it. */
+  /** The host's scene and tool back (History stays open); the view stays where the comparison left it, the panels as they are. */
   const leaveDiff = (): void => {
     const d = diff;
     if (!d) return;
@@ -216,7 +221,8 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
     keepingFocus(() => inPlace(() => {
       core.popScene();
       core.stage.set('document');
-      core.panels.set({ ...d.panels, history: !!core.panels.peek()['history'] });
+      const p = core.panels.peek();
+      if ('view-settings' in p && 'layers' in p) core.panels.set({ ...p, layers: !!p['view-settings'] });
     }));
     core.tool.set(d.tool);
   };
@@ -271,16 +277,14 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
     core.emit('mmdx-history-version', { base: null, head: null, viewing: id });
   };
 
-  /** Compares two versions in the DiffScene; Changes opens with the first comparison. */
+  /** Compares two versions in the DiffScene; the panels stay as they are (Code open stays open, as the diff's code). */
   const compare = (base: string | null | undefined, head: string | null | undefined): void => {
     if (!base || !head || base === head || closed) return;
     seq++;
     const version = ownScene && shown.peek() === 'version';
-    const first = !diff;
     // the comparison morphs from the version on the canvas; the document is put back under it (not painted meanwhile)
     enterDiff();
     if (version) core.run('showVersion', null);
-    if (first || shown.peek() !== 'compare') core.panels.set({ ...core.panels.peek(), history: true, code: false, changes: true });
     viewing.set(null);
     shown.set('compare');
     session.setPair(base, head);
@@ -431,11 +435,22 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
       void previousOf(id).then((prev) => compare(prev, id));
     },
   };
+  // what view settings (layers, display) read over a comparison: its After version
+  const documentModule: ViewModule<ViewCore> = {
+    id: 'history-document',
+    install(scope) {
+      const after = (): Rendered | null => session.rendered.peek()?.after ?? null;
+      scope.provide('documentModel', () => after()?.model ?? null);
+      scope.provide('documentMeta', () => after()?.doc.meta ?? null);
+      scope.provide('documentCode', () => after()?.doc.code ?? null);
+    },
+  };
   const modules: ViewModule<ViewCore>[] = [
     // the version panel shows whatever History shows (in the host's own panel stacks until a comparison)
     versionsModule(session, { dockButton: false, rowActions, controls }),
     pillModule,
-    ...[panelStacksModule, diffBarModule(session), codeDiffModule(session), changeListModule(session), diffStageModule(scene), diffExportModule(session)].map(inHistory),
+    // the host's own panel stacks hold the comparison's panels too (same widths); one without them gets the kernel's
+    ...[...(core.has('setPanel') ? [] : [panelStacksModule]), diffBarModule(session), codeDiffModule(session), changeListModule(session), diffStageModule(scene), diffExportModule(session), documentModule, viewSettingsModule].map(inHistory),
   ];
 
   // ---- open: the version panel only

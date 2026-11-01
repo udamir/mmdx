@@ -107,7 +107,8 @@ export function versionsModule(session: DiffSession, o: { dockButton?: boolean; 
         side: 'left', head: tabs.el, label: t('diff.panel.history'), class: 'history', part: 'panel history',
         closeLabel: t('diff.panel.hide'), closeKeys: 'v', onClose: () => void core.run('setPanel', 'history', false), body: list.el,
       });
-      scope.contribute(core.panelItems, { id: 'history', side: 'left', order: 10, el: panel.el, visible: () => session.hasHistory() });
+      // under the code panels, in every product and stage
+      scope.contribute(core.panelItems, { id: 'history', side: 'left', order: 30, el: panel.el, visible: () => session.hasHistory() });
       if (o.dockButton !== false) {
         const btn = dockButton({
           icon: I_HISTORY, label: t('diff.tool.history'), keys: 'v', class: 'vt-panel vt-history', f: 'panel-history',
@@ -162,7 +163,7 @@ export function codeDiffModule(session: DiffSession): ViewModule<ViewCore> {
         side: 'left', head: tabs.el, label: t('diff.tool.code'), class: 'code', part: 'panel',
         closeLabel: t('diff.panel.hide'), closeKeys: 'c', onClose: () => void core.run('setPanel', 'code', false), body,
       });
-      scope.contribute(core.panelItems, { id: 'code', side: 'left', order: 20, el: panel.el });
+      scope.contribute(core.panelItems, { id: 'code', side: 'left', order: 10, el: panel.el });
       const btn = dockButton({ icon: I_code, label: t('diff.tool.code'), keys: 'c', class: 'vt-panel vt-code', f: 'panel-code', pressed: computed(open), onClick: toggle });
       scope.contribute(core.dockItems, { id: 'code', section: 'panels', order: 20, el: btn.el });
       scope.shortcut({ id: 'code', keys: ['c'], label: t('diff.help.code'), group: t('diff.help.panels'), run: () => toggle() });

@@ -21,8 +21,9 @@ const documentStage = (m: EditorModule): EditorModule => ({ ...m, when: { ...m.w
  */
 const versionToo = (m: EditorModule): EditorModule => ({ ...m, when: { ...m.when, stage: ['document', 'version'] } });
 
-const ALWAYS = new Set(['history', 'tool-dock', 'pan', 'pen', 'zoom-bar', 'view-params']);
-const VERSION = new Set(['canvas-select', 'canvas-structure', 'panes', 'code-panel', 'right-panels', 'editor-tools', 'editor-params', 'document']);
+// the panel stacks too: the same stacks (and widths) whatever History shows; a comparison's panels go into them
+const ALWAYS = new Set(['history', 'tool-dock', 'pan', 'pen', 'zoom-bar', 'view-params', 'panes']);
+const VERSION = new Set(['canvas-select', 'canvas-structure', 'code-panel', 'right-panels', 'editor-tools', 'editor-params', 'document']);
 
 export const DEFAULT_MODULES: readonly EditorModule[] = ([
   // first: while a table is edited its rows take the keys (Esc, Delete, ⌘A, Enter, arrows) before the canvas does

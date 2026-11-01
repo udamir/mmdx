@@ -32,7 +32,7 @@ export const DIFF_MESSAGES: Messages = {
   'diff.tool.changes': 'Change list',
   'diff.panel.history': 'History',
   'diff.panel.compare': 'Compare',
-  'diff.panel.code': 'Code',
+  'diff.panel.code': 'Mermaid',
   'diff.panel.meta': 'Metadata',
   'diff.panel.changes': 'Changes',
   'diff.panel.hide': 'Hide',

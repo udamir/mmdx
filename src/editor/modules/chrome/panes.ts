@@ -6,7 +6,7 @@
 // the keys the editor always used: the widths in `panes`, the Layers height in `layersH`.
 //
 // The kernel's `panelStacks` module (view/modules/panels.ts) does the same for the viewer and the diff, under
-// per-product keys; History installs that one over these stacks while it is open.
+// per-product keys. These stacks stay while History shows a comparison (its panels go into them, at the same widths).
 import type { StorageAdapter } from '../../../adapters/storage.js';
 import { createPanelStack, PANEL_STACK_CSS, type PanelStackHandle, type StackStorage } from '../../../ui/blocks/panel-stack.js';
 import { SIDE_PANEL_CSS } from '../../../ui/blocks/side-panel.js';
@@ -81,7 +81,6 @@ export const panesModule: EditorModule = {
     const stacks: Partial<Record<'left' | 'right', PanelStackHandle>> = {};
     let gone = false;
     const syncInsets = (): void => {
-      // while History is open its own stacks inset the canvas
       if (gone || !scope.active) return;
       const inset = (side: 'left' | 'right'): number => {
         const w = stacks[side]?.width() ?? 0;
