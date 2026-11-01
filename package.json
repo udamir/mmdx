@@ -98,12 +98,16 @@
   },
   "scripts": {
     "dev": "vite --config apps/studio-site/vite.config.ts",
+    "docs:dev": "vitepress dev docs --port 8791",
     "storybook": "storybook dev -p 6006 --no-open",
     "build:storybook": "storybook build -o storybook-static",
     "build": "npm run build:lib && npm run build:types && npm run build:site",
     "build:lib": "vite build --config vite.lib.config.ts",
     "build:types": "tsc -p tsconfig.build.json",
     "build:site": "vite build --config apps/studio-site/vite.config.ts",
+    "build:docs": "vitepress build docs",
+    "build:pages": "npm run build:docs && npm run build:site && npm run build:storybook && node tools/pages.mjs",
+    "preview:pages": "vite preview --outDir _site --base /mmdx/ --port 8792",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.core.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -130,6 +134,7 @@
     "storybook": "^10.6.5",
     "typescript": "^5.9.3",
     "vite": "^7.3.7",
+    "vitepress": "^1.6.4",
     "vitest": "^3.2.7"
   },
   "packageManager": "pnpm@12.16.1+sha512.091d1dee7927575661b25dab3c2ae31cafc1c54d6b71ed6a6600cf0c1cb10434a447eae14015f1b23e2e6bedeed79df94a932e2164d2832280dce3fb32f656d1"

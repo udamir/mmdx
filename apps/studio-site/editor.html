@@ -30,10 +30,10 @@
     import { memoryDocumentAdapter } from '../../src/adapters/documents.ts';
     const ed = document.getElementById('ed');
     const sel = document.getElementById('ex');
-    const manifest = await (await fetch('/examples/index.json')).json();
+    const manifest = await (await fetch('./examples/index.json')).json();
     for (const e of manifest.examples) sel.append(new Option(e.title, e.file));
     const open = async (file) => {
-      const src = await (await fetch(`/examples/${file}`)).text();
+      const src = await (await fetch(`./examples/${file}`)).text();
       ed.adapter = memoryDocumentAdapter(src, file);
     };
     sel.onchange = () => open(sel.value);

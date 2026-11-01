@@ -15,9 +15,9 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
 </p>
 
-<p align="center"><a href="https://udamir.github.io/mmdx/"><b>Live demo</b></a></p>
+<p align="center"><a href="https://udamir.github.io/mmdx/"><b>Documentation</b></a> · <a href="https://udamir.github.io/mmdx/studio/"><b>Live demo</b></a> · <a href="https://udamir.github.io/mmdx/storybook/"><b>Storybook</b></a></p>
 
-<p align="center"><a href="https://udamir.github.io/mmdx/"><img src=".github/screenshot.png" alt="Mermaid Studio editing an ER diagram of an archive database in the dark theme" width="900"></a></p>
+<p align="center"><a href="https://udamir.github.io/mmdx/studio/"><img src=".github/screenshot.png" alt="Mermaid Studio editing an ER diagram of an archive database in the dark theme" width="900"></a></p>
 
 ---
 
@@ -481,6 +481,9 @@ pnpm test           # unit, geometry and golden SVG snapshots, security and DOM 
 pnpm typecheck      # strict TypeScript, plus a DOM-free check of src/core
 pnpm build          # library (dist/), type declarations (dist/types) and the demo site
 pnpm build:storybook  # static Storybook in storybook-static/
+pnpm docs:dev       # the documentation portal at http://localhost:8791/mmdx/
+pnpm build:pages    # the GitHub Pages site in _site/: the portal, the studio at studio/ and Storybook at storybook/
+pnpm preview:pages  # serves _site at http://localhost:8792/mmdx/
 pnpm size           # gzip size budgets per entry point
 ```
 
@@ -496,7 +499,8 @@ pnpm size           # gzip size budgets per entry point
 | `src/adapters`, `src/markdown`, `src/wrappers` | Host adapters, Markdown plugins, React wrappers |
 | `themes/` | Built-in theme files (`node tools/build-themes.mjs` regenerates the generated ones) |
 | `examples/` | Example diagrams used by the studio and the golden tests, and their version histories (`examples/history`) |
-| `apps/studio-site/` | The demo site deployed to GitHub Pages |
+| `apps/studio-site/` | The studio demo and one demo page per component, deployed to GitHub Pages at `/studio/` |
+| `docs/` | The documentation portal (VitePress), deployed to GitHub Pages at `/` |
 | `stories/`, `.storybook/` | Storybook: the elements (the diff included), the UI pieces with mock APIs, core rendering and the semantic diff |
 | `brand/` | Logo files |
 
