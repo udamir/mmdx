@@ -8,6 +8,9 @@ import { workerSourcePlugin } from './tools/worker-source.mjs';
 // except what core needs (none). `mermaid` stays external (optional peer, loaded lazily).
 export default defineConfig({
   plugins: [cssTemplatesPlugin(), workerSourcePlugin()],
+  // relative asset URLs: the render worker is found next to the chunk that starts it (`../assets/…`), so apps that
+  // bundle mmdx resolve and emit it; an absolute `/assets/…` URL only works on a site that serves mmdx's dist at its root
+  base: './',
   build: {
     outDir: 'dist',
     emptyOutDir: true,
