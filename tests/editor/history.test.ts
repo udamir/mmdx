@@ -84,6 +84,45 @@ describe('History in the editor', () => {
   });
 });
 
+describe('History: side by side in the editor', () => {
+  it('draws both versions like the editor (its board, its page) and names each on badges at its page corner', async () => {
+    host = document.createElement('div');
+    document.body.append(host);
+    ed = new DiagramEditor(host, { value: NOW, storage: memoryStorage(), ui: 'light', history: [{ id: 'v2', message: 'Now', author: 'Ann', source: NOW }, { id: 'v1', message: 'Old', author: 'Bob', source: OLD }] });
+    ed.toggleHistory(true);
+    await wait(() => ed.historySession);
+    const s = ed.historySession!;
+    s.setPair('v1', 'v2');
+    await wait(() => s.getDiff());
+    s.setView('side');
+    const stage = ed.core.area.querySelector<HTMLElement>('.dx-stage')!;
+    await wait(() => stage.querySelectorAll(':scope > .pane').length === 2);
+    expect(stage.className).toBe('dx-stage side host-look');
+    const panes = [...stage.querySelectorAll<HTMLElement>(':scope > .pane')];
+    // no pane background: the editor's board shows through, and each page is drawn as the editor draws its own
+    expect(panes.map((p) => p.style.background)).toEqual(['', '']);
+    expect(panes.map((p) => p.querySelector('svg .page-layer')?.getAttribute('class'))).toEqual(['page-layer page-shadow', 'page-layer page-shadow']);
+    // no title pinned to the pane: the diagram type and the version on badges at the page's corner
+    expect(stage.querySelector('.pane-title')).toBeNull();
+    const badges = panes.map((p) => p.querySelector<HTMLElement>(':scope > .dx-page-badges')!);
+    await wait(() => badges.every((b) => !b.hidden));
+    const t = ed.core.i18n.t;
+    expect(badges.map((b) => b.querySelector('.dx-page-badge')!.textContent)).toEqual([t('type.flowchart'), t('type.flowchart')]);
+    expect(badges.map((b) => b.querySelector('.dx-page-version b')!.textContent)).toEqual([t('diff.view.before'), t('diff.view.after')]);
+    expect(badges.map((b) => b.querySelector('.dx-page-version span')!.textContent!.split(' · ').slice(0, 2))).toEqual([['v1', 'Bob'], ['v2', 'Ann']]);
+    // they move with the page
+    const was = badges.map((b) => b.style.transform);
+    ed.core.canvas.viewport!.panBy(40, 25);
+    ed.core.fire('view');
+    expect(badges.map((b) => b.style.transform)).not.toEqual(was);
+    // the single views keep the type badge only
+    s.setView('merged');
+    await wait(() => stage.querySelectorAll(':scope > .pane').length === 1);
+    const single = stage.querySelector<HTMLElement>(':scope > .pane > .dx-page-badges')!;
+    expect(single.querySelector('.dx-page-version')).toBeNull();
+  });
+});
+
 describe('History: a version as it is', () => {
   const key = (k: string, mod = false): void =>
     void ed.core.root.dispatchEvent(new KeyboardEvent('keydown', { key: k, ctrlKey: mod, metaKey: mod, bubbles: true, cancelable: true, composed: true }));

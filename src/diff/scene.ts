@@ -36,9 +36,9 @@ export interface DiffSceneOptions {
   /** The viewed version's id and details over the History mode picture (default on); off where the host names it already. */
   versionTitle?: boolean;
   /**
-   * The host's own look (History in the editor): one pane spans the canvas area under the panels, with the host's
-   * canvas showing through (no pane background), fit keeps clear of the panels like the host's, and the diagram type is
-   * on a badge at the page's corner. Side by side keeps its framed panes.
+   * The host's own look (History in the editor): the panes span the canvas area under the panels, with the host's
+   * canvas showing through (no pane background, the page drawn as the host draws it), fit keeps clear of the panels like
+   * the host's, and badges at each page's corner name the diagram type and, side by side, the version shown.
    */
   hostLook?: boolean;
 }
@@ -47,11 +47,23 @@ type Kind = 'single' | 'side' | 'plain';
 
 /** The CSS a DiffScene needs besides the diff tokens and canvas styles (its banner). */
 export const DIFF_SCENE_CSS: readonly string[] = [MESSAGES_CSS, /* css */ `
-.dx-stage.host-look { left: 0; right: 0; }
+.dx-stage.host-look { gap: 0; background: transparent; }
+.dx-stage.host-look.single { left: 0; right: 0; }
 .dx-stage.host-look .pane { background: transparent; }
-.dx-page-badge { position: absolute; left: 0; top: 0; z-index: 3; border: 1px solid var(--mmdx-border); border-radius: 6px; background: var(--mmdx-surface); color: var(--mmdx-muted);
-  font-size: 11px; font-weight: 600; letter-spacing: .02em; padding: 2px 8px; line-height: 16px; white-space: nowrap; pointer-events: none; }
-.dx-page-badge[hidden] { display: none; }
+.dx-stage.host-look.side .pane + .pane { border-left: 1px solid var(--mmdx-border); }
+.dx-page-badges { position: absolute; left: 0; top: 0; z-index: 3; display: flex; gap: 6px; align-items: center; white-space: nowrap; pointer-events: none; }
+.dx-page-badges[hidden] { display: none; }
+.dx-page-badge, .dx-page-version { border: 1px solid var(--mmdx-border); border-radius: 6px; background: var(--mmdx-surface); color: var(--mmdx-muted);
+  font-size: 11px; font-weight: 600; letter-spacing: .02em; padding: 2px 8px; line-height: 16px; }
+.dx-page-badge { flex: none; }
+.dx-page-version { display: flex; gap: 6px; min-width: 0; overflow: hidden; font-weight: 400; letter-spacing: 0; }
+.dx-page-version b { flex: none; font-weight: 600; }
+.dx-page-version span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pane.before .dx-page-version b { color: var(--mmdx-diff-del); }
+.pane.after .dx-page-version b { color: var(--mmdx-diff-add); }
+@container area (max-width: 480px) {
+  .dx-stage.host-look.side .pane + .pane { border-left: 0; border-top: 1px solid var(--mmdx-border); }
+}
 `];
 
 export class DiffScene extends BaseScene {
@@ -63,8 +75,6 @@ export class DiffScene extends BaseScene {
   private panes: HTMLElement[] = [];
   private second: { canvas: DiagramCanvas; unlink: () => void; ink: { store: StrokeStore; off: () => void } | null } | null = null;
   private morph: Morph | null = null;
-  /** The diagram type at the page's corner (`hostLook`). */
-  private badge: HTMLElement | null = null;
   /** The picture shown before the scene was pushed (History: a version, the document): its first picture morphs from it. */
   private carry: MorphState | null = null;
   private offs: (() => void)[] = [];
@@ -80,7 +90,10 @@ export class DiffScene extends BaseScene {
     return this.area ? [this.area.main, ...(this.second ? [this.second.canvas] : [])] : [];
   }
 
-  /** What fit() keeps clear of in each pane: the tool dock, the pane titles, the bars. */
+  /**
+   * What fit() keeps clear of in each pane: the tool dock, the pane titles (the page badges), the bars. The panes of
+   * side by side share one view, so they share these too: their stage sits between the panel stacks.
+   */
   insets(): Insets {
     if (this.o.hostLook && this.painted.kind !== 'side') {
       // the host's: the panel stacks and the dock, and the diff bar at the bottom
@@ -124,7 +137,7 @@ export class DiffScene extends BaseScene {
     this.banner?.destroy();
     this.banner = null;
     this.stage?.remove();
-    this.stage = this.msg = this.badge = null;
+    this.stage = this.msg = null;
     this.panes = [];
     this.painted = { kind: null, D: null, plain: null, dim: false, view: null, pair: '' };
     super.detach();
@@ -145,9 +158,8 @@ export class DiffScene extends BaseScene {
     const s = this.session;
     this.msg = h('div', { class: 'msg' });
     this.banner = createBanner({ text: s.banner });
-    this.badge = h('div', { class: 'dx-page-badge', hidden: true, 'aria-hidden': 'true' });
-    this.stage = h('div', { class: 'dx-stage', part: 'canvas' }, this.banner.el, this.msg, this.badge);
-    if (this.o.hostLook) this.offs.push(this.core.on('view', () => this.placeBadge()), this.core.on('draw', () => this.placeBadge()));
+    this.stage = h('div', { class: 'dx-stage', part: 'canvas' }, this.banner.el, this.msg);
+    if (this.o.hostLook) this.offs.push(this.core.on('view', () => this.placeBadges()), this.core.on('draw', () => this.placeBadges()));
     area.el.prepend(this.stage);
     this.layout('single');
     const label = this.o.label;
@@ -237,8 +249,10 @@ export class DiffScene extends BaseScene {
       ]);
       main.show(this.picture(D, 'before', dim));
       this.second?.canvas.show(this.picture(D, 'after', dim));
-      this.panes[0]!.style.background = paneBackground(D.before);
-      if (this.panes[1]) this.panes[1].style.background = paneBackground(D.after);
+      if (!this.o.hostLook) {
+        this.panes[0]!.style.background = paneBackground(D.before);
+        if (this.panes[1]) this.panes[1].style.background = paneBackground(D.after);
+      }
     }
     this.painted = { ...this.painted, kind, D, plain: null, dim, view, pair };
     for (const c of this.canvases()) {
@@ -289,19 +303,29 @@ export class DiffScene extends BaseScene {
     this.carry = from && !this.o.reducedMotion() ? from : null;
   }
 
-  /** The diagram type on a badge over the page's top-left corner, as the host's own page shows it (`hostLook`). */
-  private placeBadge(): void {
-    const b = this.badge;
-    if (!b) return;
-    const p = this.painted;
-    const vp = this.area?.main.viewport, r = this.bounds.peek();
-    const type = (p.D?.after ?? p.plain)?.model.type;
-    b.hidden = !(p.kind && p.kind !== 'side' && vp && r && type);
-    if (b.hidden || !vp || !r || !type) return;
+  /**
+   * The badges over each page's top-left corner (`hostLook`), as the host's own page shows its type: the diagram type,
+   * and side by side the version of the pane. They move with the page.
+   */
+  private placeBadges(): void {
+    const p = this.painted, D = p.D;
+    const type = (D?.after ?? p.plain)?.model.type;
     const t = this.core.i18n.t, key = `type.${type}`, label = t(key);
-    b.textContent = label === key ? type : label;
-    const { k, tx, ty } = vp.state;
-    b.style.transform = `translate(${Math.round(tx + r.x * k)}px, ${Math.round(ty + r.y * k - (b.offsetHeight || 22) - 6)}px)`;
+    this.panes.forEach((pane, i) => {
+      const b = pane.querySelector<HTMLElement>(':scope > .dx-page-badges');
+      if (!b) return;
+      const vp = (i === 0 ? this.area?.main : this.second?.canvas)?.viewport;
+      // side by side, each pane shows its own version's page
+      const r = p.kind === 'side' && D ? renderedOf(D, i === 0 ? 'before' : 'after').result.bounds : this.bounds.peek();
+      b.hidden = !(p.kind && vp && r && type);
+      if (b.hidden || !vp || !r || !type) return;
+      b.firstElementChild!.textContent = label === key ? type : label;
+      const { k, tx, ty } = vp.state;
+      const x = Math.round(tx + r.x * k);
+      // the version details shorten (ellipsis) rather than run past the pane's edge
+      b.style.maxWidth = `${Math.max(120, pane.clientWidth - x - 8)}px`;
+      b.style.transform = `translate(${x}px, ${Math.round(ty + r.y * k - (b.offsetHeight || 22) - 6)}px)`;
+    });
   }
 
   /** Nothing to compare: an empty pane. */
@@ -315,14 +339,14 @@ export class DiffScene extends BaseScene {
 
   /**
    * The panes of a layout: one (Before / Merged / After, History mode) with the main canvas, or two side by side with
-   * a second canvas linked to it. Pane titles name the versions.
+   * a second canvas linked to it. Pane titles name the versions; in the host's look they are badges at the page's corner.
    */
   private layout(kind: Kind, titles: { side: string; title: string; sub: string }[] = []): void {
     const area = this.area!;
     const stage = this.stage!;
     const two = kind === 'side';
     if (!two) this.dropSecond();
-    stage.className = `dx-stage ${two ? 'side' : 'single'}${this.o.hostLook && !two ? ' host-look' : ''}`;
+    stage.className = `dx-stage ${two ? 'side' : 'single'}${this.o.hostLook ? ' host-look' : ''}`;
     const want = two ? 2 : 1;
     while (this.panes.length > want) this.panes.pop()!.remove();
     while (this.panes.length < want) {
@@ -334,8 +358,11 @@ export class DiffScene extends BaseScene {
       const tt = titles[i];
       pane.className = `pane ${tt ? tt.side : 'single'}`;
       pane.style.removeProperty('background');
-      pane.querySelector(':scope > .pane-title')?.remove();
-      if (tt) pane.prepend(h('div', { class: 'pane-title' }, h('b', null, tt.title), tt.sub ? h('span', null, tt.sub) : null));
+      for (const old of pane.querySelectorAll(':scope > .pane-title, :scope > .dx-page-badges')) old.remove();
+      if (this.o.hostLook) {
+        const version = tt ? h('span', { class: 'dx-page-version' }, h('b', null, tt.title), tt.sub ? h('span', null, tt.sub) : null) : null;
+        pane.prepend(h('div', { class: 'dx-page-badges', hidden: true, 'aria-hidden': 'true' }, h('span', { class: 'dx-page-badge' }), version));
+      } else if (tt) pane.prepend(h('div', { class: 'pane-title' }, h('b', null, tt.title), tt.sub ? h('span', null, tt.sub) : null));
     });
     const main = area.main;
     if (main.svg.parentNode !== this.panes[0]) this.panes[0]!.append(main.svg);
