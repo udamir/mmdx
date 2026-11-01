@@ -17,7 +17,7 @@
 
 <p align="center"><a href="https://udamir.github.io/mmdx/"><b>Live demo</b></a></p>
 
-<p align="center"><a href="https://udamir.github.io/mmdx/"><img src=".github/screenshot.webp" alt="Mermaid Studio editing an ER diagram of an archive database in the dark theme" width="900"></a></p>
+<p align="center"><a href="https://udamir.github.io/mmdx/"><img src=".github/screenshot.png" alt="Mermaid Studio editing an ER diagram of an archive database in the dark theme" width="900"></a></p>
 
 ---
 
