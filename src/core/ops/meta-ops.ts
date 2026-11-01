@@ -6,6 +6,7 @@ import { activationsOf } from '../ids.js';
 import type { DiagramMeta, ItemMeta } from '../meta/types.js';
 import { COLLECTIONS, KIND_TO_COLL } from '../meta/types.js';
 import type { Direction, DiagramModel, FlowchartModel, SequenceModel } from '../model.js';
+import { own, setOwn } from '../own.js';
 import { renameClashingSubgraph } from '../parse/flowchart.js';
 import { DEFAULT_LAYER } from '../layers.js';
 import { parse } from '../parse/index.js';
@@ -404,7 +405,7 @@ export function resetItemStyle(meta: DiagramMeta, { kind, id }: ItemRef): MetaRe
   const out = cloneMeta(meta);
   const m = getM(out, kind, id);
   const keep = Object.fromEntries(Object.entries(m).filter(([k]) => LAYOUT_KEYS.includes(k)));
-  (out[KIND_TO_COLL[kind]] ??= {})[id] = keep;
+  setOwn((out[KIND_TO_COLL[kind]] ??= {}), id, keep);
   tidy(out, kind, id);
   return { meta: out };
 }
@@ -551,7 +552,7 @@ export function saveAsPreset(env: StyleEnv, ref: ItemRef, rawName: string): Meta
   const preset: Record<string, unknown> = { ...cloneJson(baseLook), ...cloneJson(ownLook(env.meta, ref)) };
   if (kind === 'node' && !preset['shape']) preset['for'] = nodeShapeOf(env, ref.id);
   if (kind === 'participant' && !preset['shape']) preset['for'] = participantShapeOf(env, ref.id);
-  (out.styles[kind] ??= {})[name] = preset;
+  setOwn((out.styles[kind] ??= {}), name, preset);
   dropOwnLook(out, ref);
   ensure(out, kind, ref.id).preset = name;
   return { meta: out, name };
@@ -563,7 +564,7 @@ export function updatePreset(env: StyleEnv, ref: ItemRef): MetaResult & { name?:
   if (!name || !isLocalPreset(env, ref.kind, name)) return { meta: env.meta, reason: 'Only presets of this diagram can be updated' };
   const out = cloneMeta(env.meta);
   const presets = out.styles[ref.kind]!;
-  presets[name] = { ...presets[name], ...cloneJson(ownLook(env.meta, ref)) };
+  setOwn(presets, name, { ...own(presets, name), ...cloneJson(ownLook(env.meta, ref)) });
   dropOwnLook(out, ref);
   return { meta: out, name };
 }
@@ -605,9 +606,9 @@ export function fixIdClash(code: string, meta: DiagramMeta, model: FlowchartMode
   const next = renameClashingSubgraph(code, id);
   if (next === code) return { code, meta };
   const out = cloneMeta(meta);
-  const g = out.groups?.[id];
+  const g = own(out.groups, id);
   if (out.groups && g) {
-    out.groups[nid] = g;
+    setOwn(out.groups, nid, g);
     delete out.groups[id];
   }
   return { code: next, meta: out, selection: [{ kind: 'group', id: nid }] };

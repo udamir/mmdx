@@ -2,6 +2,7 @@
 // goes through the same validators as `%%@` metadata, fonts must be family names, palette entries must be colour
 // literals. Invalid values are dropped with a diagnostic; unknown keys are kept (renderers never read them).
 import { sanitizeStyleObject } from '../meta/sanitize.js';
+import { setOwn } from '../own.js';
 import { currentThemeId } from './builtin-ids.js';
 import { diag } from '../types.js';
 import type { Diagnostic } from '../types.js';
@@ -46,7 +47,7 @@ function cleanRecord(v: unknown, path: string, out: Diagnostic[]): Record<string
   const res: Record<string, unknown> = {};
   for (const [name, s] of Object.entries(v)) {
     const c = cleanStyle(s, `${path}.${name}`, out);
-    if (c) res[name] = c;
+    if (c) setOwn(res, name, c);
   }
   return res;
 }

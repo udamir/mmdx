@@ -3,6 +3,7 @@
 // < the item's own metadata. Pure: everything comes in through a StyleEnv instead of the prototype's globals.
 import type { DiagramMeta } from '../meta/types.js';
 import type { DiagramModel } from '../model.js';
+import { own } from '../own.js';
 import { edgePreset, flowPresets, groupPreset, nodePreset } from '../render/flowchart.js';
 import { erPresets } from '../render/er.js';
 import { effectivePage } from '../render/page.js';
@@ -67,7 +68,7 @@ export function themePresetsOf(env: StyleEnv, kind: ItemKind, raw = false): Pres
 
 /** A preset defined in this diagram (and not in the theme). */
 export const isLocalPreset = (env: StyleEnv, kind: ItemKind, name: string): boolean =>
-  !!env.meta.styles[kind]?.[name] && !Object.hasOwn(themePresetsOf(env, kind), name);
+  !!own(env.meta.styles[kind], name) && !Object.hasOwn(themePresetsOf(env, kind), name);
 
 /** The preset an item is drawn with: its own, else (flowchart) one derived from its Mermaid classes / shape / line. */
 export function currentPreset(env: StyleEnv, { kind, id }: ItemRef): string {

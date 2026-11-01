@@ -6,6 +6,7 @@ import { DEFAULT_LAYER, effectiveLayers, layerDefs, layerItems, layerOf } from '
 import type { LayerMeta } from '../../../core/meta/types.js';
 import { newLayer, setLayer } from '../../../core/ops/meta-ops.js';
 import { cloneMeta } from '../../../core/ops/meta-util.js';
+import { ownOr } from '../../../core/own.js';
 import { clearHighlight, highlightItems } from '../../../dom/highlight.js';
 import { createLayerList, LAYER_LIST_CSS, type DisplayToggle } from '../../../ui/blocks/layer-list.js';
 import { computed } from '../../../ui/signal.js';
@@ -39,7 +40,7 @@ export function layersCard(core: EditorCore): LayersCard {
   const editDefs = (label: string, id: string, f: (def: LayerMeta) => void): void => {
     const meta = cloneMeta(core.meta);
     const defs = (meta.layers ??= {});
-    const def = (defs[id] ??= {});
+    const def = ownOr(defs, id, (): LayerMeta => ({}));
     f(def);
     if (!Object.keys(def).length) delete defs[id];
     if (!Object.keys(defs).length) delete meta.layers;

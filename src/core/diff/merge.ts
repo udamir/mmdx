@@ -3,6 +3,7 @@
 // attributes and removed sequence messages get real room instead of being drawn on top of the new version. A removed
 // item keeps its text unmarked (the item itself shows as removed); a removed ER row inside a kept entity is marked.
 import type { DiagramMeta, ItemMeta } from '../meta/types.js';
+import { own, setOwn } from '../own.js';
 import type {
   ErAttribute, ErModel, FlowEdge, FlowGroup, FlowNode, FlowchartModel, SeqItem, SeqMessage, SeqNote, SequenceModel,
   SupportedModel,
@@ -50,8 +51,8 @@ const collOf: Partial<Record<ItemKind, keyof DiagramMeta>> = {
 function carryMeta(meta: DiagramMeta, before: DiagramMeta, kind: ItemKind, fromId: string, toId: string): void {
   const coll = collOf[kind];
   if (!coll) return;
-  const src = (before[coll] as Record<string, ItemMeta> | undefined)?.[fromId];
-  if (src) (meta[coll] as Record<string, ItemMeta>)[toId] = { ...src };
+  const src = own(before[coll] as Record<string, ItemMeta> | undefined, fromId);
+  if (src) setOwn(meta[coll] as Record<string, ItemMeta>, toId, { ...src });
 }
 
 const changedField = (c: ItemChange | undefined, name: string) => c?.status === 'changed' && c.fields.some((f) => f.facet === 'content' && f.field === name);

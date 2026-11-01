@@ -1,9 +1,10 @@
 // Order (z-index) slider and ⌘[ / ⌘] (row 39; prototype app `orderStep`, `orderInfo`, `orderRank`,
 // `orderPreview`, `moveSelection`). Every position the selected item can reach in the code is computed up front;
 // the editor previews `applyOrderState(base, states[i])` live while the slider moves and records history once.
-import type { DiagramMeta } from '../meta/types.js';
+import type { DiagramMeta, ItemMeta } from '../meta/types.js';
 import type { DiagramModel } from '../model.js';
 import { parse } from '../parse/index.js';
+import { own, ownOr } from '../own.js';
 import type { BoxGeom, GeometryIndex } from '../render/types.js';
 import type { ItemKind, ItemRef } from '../types.js';
 import { cloneMeta } from './meta-util.js';
@@ -101,11 +102,11 @@ export function orderPositions(code: string, model: DiagramModel, sel: ItemRef):
 /** Hand-placed participants trade places too (mutates `meta`). */
 export function swapParticipantX(meta: DiagramMeta, a: string, b: string, geom: ReadonlyMap<string, Pick<BoxGeom, 'x'>> | null | undefined): void {
   const P = (meta.participants ??= {});
-  if (P[a]?.x == null && P[b]?.x == null) return;
-  const xa = P[a]?.x ?? geom?.get(a)?.x, xb = P[b]?.x ?? geom?.get(b)?.x;
+  if (own(P, a)?.x == null && own(P, b)?.x == null) return;
+  const xa = own(P, a)?.x ?? geom?.get(a)?.x, xb = own(P, b)?.x ?? geom?.get(b)?.x;
   if (xa == null || xb == null) return;
-  (P[a] ??= {}).x = Math.round(xb);
-  (P[b] ??= {}).x = Math.round(xa);
+  ownOr(P, a, (): ItemMeta => ({})).x = Math.round(xb);
+  ownOr(P, b, (): ItemMeta => ({})).x = Math.round(xa);
 }
 
 export interface OrderBase {

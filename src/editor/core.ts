@@ -12,6 +12,7 @@ import type { CoreContext } from '../core/context.js';
 import { normalizeMeta, splitSource, type DiagramDocument } from '../core/meta/index.js';
 import { KIND_TO_COLL, type DiagramMeta, type ItemMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
+import { own, ownOr } from '../core/own.js';
 import { parse } from '../core/parse/index.js';
 import type { ClipboardData } from '../core/ops/clipboard.js';
 import { remapSequenceMeta } from '../core/ops/remap.js';
@@ -395,14 +396,14 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   /** Item metadata, or an empty object (never stored). */
   getM(kind: ItemKind, id: string): ItemMeta {
-    return (this.meta[KIND_TO_COLL[kind]]?.[id] as ItemMeta | undefined) ?? {};
+    return own(this.meta[KIND_TO_COLL[kind]] as Record<string, ItemMeta> | undefined, id) ?? {};
   }
 
   /** Item metadata, created when missing (mutate it inside a transaction). */
   ensure(kind: ItemKind, id: string): ItemMeta {
     const coll = KIND_TO_COLL[kind];
-    const c = (this.meta[coll] ??= {}) as Record<string, ItemMeta>;
-    return (c[id] ??= {});
+    // own entries only: an item may be called `__proto__` or `toString` (core/own.ts)
+    return ownOr((this.meta[coll] ??= {}) as Record<string, ItemMeta>, id, (): ItemMeta => ({}));
   }
 
   /** Drops an item's metadata entry when it became empty. */

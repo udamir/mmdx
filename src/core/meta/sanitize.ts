@@ -3,6 +3,7 @@
 // anything can render it. Known keys are checked by key; a value that fails is dropped and reported. Unknown keys
 // are kept as they are: no renderer reads them, so they never reach the SVG, and a newer writer's data survives.
 import { cleanDash, cleanFontFamily, isColorValue, isFiniteNumber } from '../validate.js';
+import { isUnsafeKey, setOwn } from '../own.js';
 import { diag } from '../types.js';
 import type { Diagnostic } from '../types.js';
 import { COLLECTIONS, emptyMeta } from './types.js';
@@ -111,12 +112,12 @@ function cleanAttrs(v: unknown, dropped: string[]): unknown {
     }
     const o: Record<string, unknown> = {};
     for (const [k, x] of Object.entries(a)) {
-      const c = ATTR_CLEANERS[k];
-      const r = c ? c(x) : x;
+      const c = Object.hasOwn(ATTR_CLEANERS, k) ? ATTR_CLEANERS[k] : undefined;
+      const r = isUnsafeKey(k) ? DROP : c ? c(x) : x;
       if (r === DROP) dropped.push(`attrs.${name}.${k}`);
       else o[k] = r;
     }
-    out[name] = o;
+    setOwn(out, name, o);
   }
   return out;
 }
@@ -130,6 +131,10 @@ export function sanitizeStyleObject(obj: Record<string, unknown>): SanitizeResul
   const value: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) {
     let r: unknown;
+    if (isUnsafeKey(k)) {
+      dropped.push(k);
+      continue;
+    }
     if (k === 'attrs') r = cleanAttrs(v, dropped);
     else {
       const c = Object.hasOwn(CLEANERS, k) ? CLEANERS[k] : undefined;
@@ -181,9 +186,9 @@ export function sanitizeMeta(input: unknown): { meta: DiagramMeta; diagnostics: 
       const out: Record<string, Record<string, unknown>> = {};
       for (const [name, s] of Object.entries(presets)) {
         const c = clean(s, `style.${kind}.${name}`);
-        if (c) out[name] = c;
+        if (c) setOwn(out, name, c);
       }
-      meta.styles[kind] = out;
+      setOwn(meta.styles, kind, out);
     }
   }
   for (const coll of COLLECTIONS) {
@@ -196,7 +201,7 @@ export function sanitizeMeta(input: unknown): { meta: DiagramMeta; diagnostics: 
     const out: Record<string, Record<string, unknown>> = {};
     for (const [id, v] of Object.entries(src)) {
       const c = clean(v, `${coll}.${id}`);
-      if (c) out[id] = c;
+      if (c) setOwn(out, id, c);
     }
     setCollection(meta, coll, out);
   }

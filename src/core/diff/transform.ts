@@ -2,6 +2,7 @@
 // pictures differ only where the remaining changes are.
 import { joinSource, splitSource } from '../meta/index.js';
 import { COLLECTIONS, type DiagramMeta, type ItemMeta } from '../meta/types.js';
+import { own, setOwn } from '../own.js';
 import { stripMermaidStyles } from '../strip-styles.js';
 
 const LAYOUT_KEYS = ['x', 'y', 'w', 'h', 'points', 'fromSide', 'toSide', 'fromAt', 'toAt', 'labelDx', 'labelDy', 'dy'] as const;
@@ -21,7 +22,7 @@ export function withoutStyle(source: string): string {
     const src = doc.meta[coll] as Record<string, ItemMeta> | undefined;
     if (!src || coll === 'layers') continue;
     const out: Record<string, ItemMeta> = {};
-    for (const [id, m] of Object.entries(src)) out[id] = Object.fromEntries(Object.entries(m).filter(([k]) => KEEP_WITHOUT_STYLE.has(k)));
+    for (const [id, m] of Object.entries(src)) setOwn(out, id, Object.fromEntries(Object.entries(m).filter(([k]) => KEEP_WITHOUT_STYLE.has(k))));
     (meta as unknown as Record<string, unknown>)[coll] = out;
   }
   return joinSource({ code, meta });
@@ -45,18 +46,18 @@ export function withLayoutOf(before: string, after: string): string {
     const out: Record<string, ItemMeta> = {};
     for (const [id, m] of Object.entries(A)) {
       const next: Record<string, unknown> = { ...m };
-      const from = B[id];
+      const from = own(B, id);
       if (from) {
         for (const k of LAYOUT_KEYS) delete next[k];
         for (const k of LAYOUT_KEYS) if (from[k] !== undefined) next[k] = from[k];
       }
-      out[id] = next;
+      setOwn(out, id, next);
     }
     // items placed only in `after` that also exist (unplaced) in `before`
     for (const [id, m] of Object.entries(B)) {
-      if (out[id]) continue;
+      if (own(out, id)) continue;
       const pos = Object.fromEntries(LAYOUT_KEYS.filter((k) => m[k] !== undefined).map((k) => [k, m[k]]));
-      if (Object.keys(pos).length) out[id] = pos;
+      if (Object.keys(pos).length) setOwn(out, id, pos);
     }
     (meta as unknown as Record<string, unknown>)[coll] = out;
   }
