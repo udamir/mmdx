@@ -156,7 +156,7 @@ const viewer = new DiagramViewer(hostElement, { source, controls: ['zoom', 'full
 | `theme` | Default Light / Dark | The diagram theme; without it the theme follows the chrome (Default Light, Default Dark). Diagrams do not carry a theme |
 | `theme-dark` | — | Theme used while the chrome is dark; `auto` picks the dark theme linked to `theme` |
 | `fit` | `width` | `width` (height follows), `contain` (fit a fixed box) or `none` (natural size) |
-| `controls` | `zoom fullscreen` | Any of `zoom layers pen code history export theme fullscreen`, or `none`. `theme` adds the light / dark toggle and the theme menu. Changing it (attribute, `controls` property or `setControls(list)`) re-evaluates the chrome in place |
+| `controls` | `zoom fullscreen` | Any of `zoom layers pen code history export theme fullscreen`, or `none`. `theme` adds the light / dark toggle and the theme menu. Changing it (the attribute, or `setControls(list)`) re-evaluates the chrome in place |
 | `fullscreen` (property) | — | The host page's full screen `{ available(), enter(), exit(), active?() }`: the full-screen button shows and calls it when the browser's full screen is unavailable (a sandboxed iframe without `allowfullscreen`) |
 | `history` (property) | — | The diagram's versions (a `HistoryAdapter` or `[{ id, message, author?, date?, source }]`, newest first): with the `history` control, a History button shows how the diagram changed |
 | `interactive` | `true` | `false` turns off pan and zoom (thumbnails, print) |
@@ -358,6 +358,49 @@ configure({
   mermaid: () => import('mermaid').then((m) => m.default),
 });
 ```
+
+## Embedding in sandboxed iframes
+
+Hosts that run mmdx in a sandboxed iframe with an opaque origin (an app inside another product, a plugin frame) usually have no `allowfullscreen`, no `localStorage`, no relative `fetch` and no module workers from URLs. The diagram types and the chrome's pieces still load as JavaScript chunks of your bundle (`import()`), like the rest of your app's code; these hooks replace the rest:
+
+```ts
+import { registerThemes, type HostFullscreen } from 'mmdx/viewer';
+import { starterSource, BUILTIN_THEMES } from 'mmdx/core';
+import { preloadedStorage } from 'mmdx/adapters';
+import { useInlineWorker } from 'mmdx/worker-inline';
+import github from 'mmdx/themes/github-light.theme.json';
+
+// themes: registered from your bundle, nothing is fetched (the menus list them)
+registerThemes([...BUILTIN_THEMES, github]);
+
+// the render worker from a blob: URL (diagrams over 300 lines render off the main thread)
+useInlineWorker();
+
+// UI preferences in the host's async key-value store
+const storage = await preloadedStorage(() => host.storage.getAll(), (key, value) => host.storage.set(key, value));
+
+// full screen through the host (a modal), since the frame has no allowfullscreen
+const fullscreen: HostFullscreen = { available: () => true, enter: () => host.enterModal(), exit: () => host.exitModal() };
+viewer.storage = storage;
+viewer.fullscreen = fullscreen;
+viewer.setAttribute('ui', host.theme); // the host owns light / dark …
+viewer.setAttribute('scheme-toggle', 'false'); // … so the theme menu stays and the toggle goes
+
+// a new diagram starts from the studio's starter; a draft comes back as unsaved, undoable changes
+editor.adapter = adapter;
+editor.storage = storage;
+editor.features = { schemeToggle: false };
+await editor.whenLoaded();
+if (draft) editor.setSource(draft, { history: 'push', markSaved: false });
+const blank = starterSource('sequence'); // 'flowchart' | 'sequence' | 'er'
+```
+
+- **Full screen**: the viewer's `fullscreen` property `{ available(), enter(), exit(), active?() }` (type `HostFullscreen`). When the browser's full screen is unavailable, the zoom bar's full-screen button shows and calls `enter()` / `exit()` within the click, and the viewer fills its frame while the host shows it full screen (`data-fullscreen` on the element). Give `active()` when the host can leave full screen by itself; it is read on the next click and when the window resizes. `mmdx-fullscreen-request` `{ enter }` comes first and is cancelable, to handle full screen yourself. `setControls(list)` (or the `controls` attribute) changes the controls at run time.
+- **Storage**: `preloadedStorage(read, write, { onError? })` from `mmdx/adapters` awaits `read()` once, then serves the components' synchronous `StorageAdapter` from memory and writes each change through in the background (`remove(key)` writes `undefined`); failed writes are ignored or go to `onError`. Without any store, `memoryStorage()` keeps preferences for the page's life.
+- **Themes**: `registerThemes(files)` (from every element entry) registers theme files into the shared registry, with no fetch; import the files you want from `mmdx/themes/*`. Default Light is part of every component; Default Dark loads as a chunk of the library on first use, or not at all after `registerThemes(BUILTIN_THEMES)`. `registerBuiltinThemes()` resolves once both are registered. Do not set a `themeSource` that fetches.
+- **Worker**: `mmdx/worker-inline` exports the render worker as one classic script (`workerSource`) and `useInlineWorker()`, which starts it from a `blob:` URL through `setWorkerUrl(url, { type: 'classic' })` and returns false when `Blob` or `URL.createObjectURL` is unavailable (diagrams then render on the main thread). The CSP needs `worker-src blob:`. Only pages that import it download the extra 39 kB (gzip).
+- **Drafts**: `<mmdx-editor>`'s `setSource(src, { history, fit, markSaved })` with `markSaved: false` keeps the source as unsaved changes; with `history: 'push'` the user can undo back to the saved document. `whenLoaded()` resolves once the adapter's document is in (`mmdx-load` `{ source, version }` fires then), so a restored draft is not overwritten by the load.
+- **Starters**: `starterSource('flowchart' | 'sequence' | 'er')` from `mmdx/core` is the source a new diagram starts from, as in the studio's New menu.
 
 ## Markdown and documentation sites
 
