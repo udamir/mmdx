@@ -1,7 +1,7 @@
 // @mmdx/studio/viewer — defines <mmdx-viewer> on import (guarded) and exports the imperative class.
 import { defineViewer } from './elements/viewer.js';
 
-export { DiagramViewer, MmdxViewerElement, defineViewer, type ViewerOptions, type ViewerControl, type ViewerEventMap } from './elements/viewer.js';
+export { DiagramViewer, MmdxViewerElement, defineViewer, type ViewerOptions, type ViewerControl, type ViewerEventMap, type HostFullscreen } from './elements/viewer.js';
 export { VIEWER_MODULES } from './view/modules/viewer.js';
 // the kernel types the component exposes (`.core`, modules, scenes, History; component architecture §11)
 export type { ViewCore } from './view/core.js';

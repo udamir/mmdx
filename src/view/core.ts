@@ -23,7 +23,7 @@ import type { ModuleScope, Registration, ViewModule } from './module.js';
 import { SceneStack, type CanvasArea, type SceneSource } from './scene.js';
 import { createShell, SHELL_CSS, type Shell } from './shell.js';
 import { schemeState, themeLoader, ThemeState, type Scheme, type SchemeState, type UiOption } from './theme.js';
-import type { Display, DockItem, ExportFormat, Mode, PanelItem, SlotName, Stage, Tool, ViewActions, ViewEvents } from './types.js';
+import type { Display, DockItem, ExportFormat, HostFullscreen, Mode, PanelItem, SlotName, Stage, Tool, ViewActions, ViewEvents } from './types.js';
 
 export { SHELL_CSS };
 
@@ -106,6 +106,8 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   readonly historySession: Signal<HistorySession | null> = signal<HistorySession | null>(null);
   /** The pen's strokes (set by the pen module), painted into every canvas the scenes add. */
   readonly strokes: Signal<StrokeStore | null> = signal<StrokeStore | null>(null);
+  /** The host's full screen, used by the zoom bar when the browser's is unavailable (sandboxed iframes); null: none. */
+  readonly hostFullscreen: Signal<HostFullscreen | null> = signal<HostFullscreen | null>(null);
   /** Buttons of the tool dock, contributed by modules. */
   readonly dockItems: Signal<readonly DockItem[]> = signal<readonly DockItem[]>([]);
   /** Entries of the Export menu, contributed by modules. */

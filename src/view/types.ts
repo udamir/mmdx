@@ -34,6 +34,20 @@ export interface Display {
   hoverHighlight: boolean;
 }
 
+/**
+ * Full screen provided by the host page, for components in sandboxed iframes without `allowfullscreen` (the host can
+ * show the frame in a modal instead). The zoom bar's full-screen button uses it when the browser's full screen is
+ * unavailable.
+ */
+export interface HostFullscreen {
+  /** Whether the host can show the component full screen now. */
+  available(): boolean;
+  enter(): Promise<void>;
+  exit(): Promise<void>;
+  /** Whether the host shows it full screen, for hosts that can leave full screen by themselves (read on toggle and on window resize). */
+  active?(): boolean;
+}
+
 /** An export entry contributed by a module (`exportFormats`). */
 export interface ExportFormat {
   id: string;

@@ -16,10 +16,13 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.2.1). The project f
 - **Change badges no longer cover what changed.** The `C`, `L`, `S`, `+` and `−` badges of a diff sat on the middle of an edge, which is where its label is, and were centred on a node's corner; as they keep their size on screen, they hid labels and small or zoomed-out items. They now sit just outside the item: at the corner of an edge's label, and above and to the right of a node.
 - **Side by side in the editor's History looks like the editor.** Its panes were white boxes with the version's page filling them and titles pinned to their corners. Both versions are now drawn on the editor's board with the page as the editor draws it, and each page has badges at its corner, like the editor's own page: the diagram type, then Before or After with the version's id, author and age (shortened when the pane is narrow). They move with the page as you pan and zoom.
 
-## Unreleased
+## 0.3.0 (unreleased) — Hooks for sandboxed hosts
+
+Generic hooks for hosts that embed mmdx in sandboxed (opaque-origin) iframes: no `allowfullscreen`, no `localStorage`, no relative fetches, no module workers from URLs.
 
 ### Added
 
+- **Host full screen for the viewer**: a `fullscreen` property (`ViewerOptions.fullscreen`, type `HostFullscreen` from `mmdx/viewer`) `{ available(), enter(), exit(), active?() }`. When the browser's full screen is unavailable (a sandboxed iframe without `allowfullscreen`), the zoom bar's full-screen button shows and calls the host, which can show the frame in a modal; the viewer then fills its frame (`data-fullscreen` on the element). A cancelable `mmdx-fullscreen-request` `{ enter }` comes before the button does anything, for hosts that handle full screen themselves. `setControls(list)` and a `controls` property on `<mmdx-viewer>` (and `setControls` on `DiagramViewer`) change the controls at run time, like the attribute.
 - **Hiding the light / dark toggle**: the editor's `schemeToggle` feature and the viewer's `scheme-toggle` attribute (`schemeToggle` option) turn off the toggle and keep the theme menu, for hosts that control the chrome scheme themselves through `ui` (an app inside YouTrack follows YouTrack's theme).
 
 ## 0.2.0 — History and diff

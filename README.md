@@ -155,7 +155,8 @@ const viewer = new DiagramViewer(hostElement, { source, controls: ['zoom', 'full
 | `theme` | Default Light / Dark | The diagram theme; without it the theme follows the chrome (Default Light, Default Dark). Diagrams do not carry a theme |
 | `theme-dark` | — | Theme used while the chrome is dark; `auto` picks the dark theme linked to `theme` |
 | `fit` | `width` | `width` (height follows), `contain` (fit a fixed box) or `none` (natural size) |
-| `controls` | `zoom fullscreen` | Any of `zoom layers pen code history export theme fullscreen`, or `none`. `theme` adds the light / dark toggle and the theme menu |
+| `controls` | `zoom fullscreen` | Any of `zoom layers pen code history export theme fullscreen`, or `none`. `theme` adds the light / dark toggle and the theme menu. Changing it (attribute, `controls` property or `setControls(list)`) re-evaluates the chrome in place |
+| `fullscreen` (property) | — | The host page's full screen `{ available(), enter(), exit(), active?() }`: the full-screen button shows and calls it when the browser's full screen is unavailable (a sandboxed iframe without `allowfullscreen`) |
 | `history` (property) | — | The diagram's versions (a `HistoryAdapter` or `[{ id, message, author?, date?, source }]`, newest first): with the `history` control, a History button shows how the diagram changed |
 | `interactive` | `true` | `false` turns off pan and zoom (thumbnails, print) |
 | `lazy` | `true` | Render when scrolled near; the box keeps the diagram's aspect ratio meanwhile |
@@ -168,7 +169,7 @@ const viewer = new DiagramViewer(hostElement, { source, controls: ['zoom', 'full
 | `scheme-toggle` | `true` | With the `theme` control: the light / dark toggle next to the theme menu. `false` keeps the theme menu and hides the toggle, for hosts that set `ui` themselves |
 | `compact` | `auto` | The compact chrome (smaller, icon-only); automatic on small hosts |
 
-Events (bubbling, composed): `mmdx-render` `{ bounds, type, durationMs }`, `mmdx-error` `{ diagnostics }`, `mmdx-link` `{ href, id }` (cancelable, to route links through your router), `mmdx-fullscreen` `{ active }`. Methods: `fit()`, `zoomTo(k)`, `reload()`, `toSvg()`, `toPng({ scale })`, `setLayers(ids)`, `toggleHistory(on?, { compare? })`, and `historySession` while History is open.
+Events (bubbling, composed): `mmdx-render` `{ bounds, type, durationMs }`, `mmdx-error` `{ diagnostics }`, `mmdx-link` `{ href, id }` (cancelable, to route links through your router), `mmdx-fullscreen-request` `{ enter }` (cancelable, before the full-screen button enters or leaves full screen: cancel it to handle full screen yourself), `mmdx-fullscreen` `{ active }`. Methods: `fit()`, `zoomTo(k)`, `reload()`, `toSvg()`, `toPng({ scale })`, `setLayers(ids)`, `setControls(list)`, `toggleHistory(on?, { compare? })`, and `historySession` while History is open.
 
 The viewer has the editor's chrome: the tool dock (Hand, pen, the code and view-settings panels, History), the zoom bar with the `?` help, and the view parameters top right (Export, and with `controls="theme"` the light / dark toggle and the theme menu); on a docs page they show while the pointer or the focus is in the viewer. Only the zoom bar loads with the viewer; every other piece loads when its control is on. Keyboard, while the viewer has focus: `+` / `-` zoom, `F` or `0` fits, arrows pan, `P` toggles the pen, `Esc` stops it, `?` help. `controls="code"` adds a code panel: the diagram's Mermaid code without the layout metadata and styles, highlighted, with a Copy button.
 

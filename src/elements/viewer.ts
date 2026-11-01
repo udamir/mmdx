@@ -20,11 +20,12 @@ import { h } from '../ui/h.js';
 import { VIEWER_CSS } from '../ui/styles/viewer.js';
 import { ViewCore } from '../view/core.js';
 import type { HistorySession } from '../view/history.js';
+import type { HostFullscreen } from '../view/types.js';
 import { lazyModule, type ViewModule } from '../view/module.js';
 import { VIEWER_MODULES } from '../view/modules/viewer.js';
 import { TextScene, type FallbackMode, type FitMode } from '../view/scenes/text.js';
 
-export type { FallbackMode, FitMode };
+export type { FallbackMode, FitMode, HostFullscreen };
 export type ViewerControl = 'zoom' | 'layers' | 'pen' | 'fullscreen' | 'export' | 'code' | 'history' | 'theme';
 
 export interface ViewerOptions {
@@ -56,6 +57,8 @@ export interface ViewerOptions {
   ctx?: Partial<CoreContext>;
   /** The diagram's versions: with `controls` including `history`, a History button shows how it changed. */
   history?: HistoryAdapter | readonly StaticVersion[];
+  /** The host page's full screen, used by the `fullscreen` control when the browser's is unavailable (sandboxed iframes). */
+  fullscreen?: HostFullscreen;
 }
 
 export interface ViewerEventMap {
@@ -63,6 +66,8 @@ export interface ViewerEventMap {
   'mmdx-error': CustomEvent<{ diagnostics: Diagnostic[] }>;
   'mmdx-link': CustomEvent<{ href: string; id: string | null }>;
   'mmdx-fullscreen': CustomEvent<{ active: boolean }>;
+  /** Before the full-screen button enters or leaves full screen; cancelable (the host handles it, nothing changes). */
+  'mmdx-fullscreen-request': CustomEvent<{ enter: boolean }>;
   'mmdx-ui': CustomEvent<{ ui: 'light' | 'dark' }>;
   'mmdx-history-open': CustomEvent<Record<string, never>>;
   'mmdx-history-close': CustomEvent<Record<string, never>>;
@@ -130,6 +135,7 @@ export class DiagramViewer {
     core.provide('documentSource', () => this.scene.text);
     core.provide('documentName', () => this.fileName);
     if (o.history) core.history.set(o.history);
+    if (o.fullscreen) core.hostFullscreen.set(o.fullscreen);
 
     core.pushScene(this.scene);
     this.installModules();
@@ -180,6 +186,7 @@ export class DiagramViewer {
     if (changed('labels') || changed('hoverHighlight')) core.display.set({ labels: this.o.labels !== false, hoverHighlight: this.o.hoverHighlight !== false });
     if (changed('layers')) core.visibleLayers.set(this.o.layers);
     if (changed('history')) core.history.set(this.o.history ?? null);
+    if (changed('fullscreen')) core.hostFullscreen.set(this.o.fullscreen ?? null);
     if (changed('label') && this.o.label && this.scene.rendered) core.root.setAttribute('aria-label', this.o.label);
     // the modules follow the controls (each one re-evaluates what it shows)
     if (changed('controls') || changed('interactive')) core.refreshModules();
@@ -202,6 +209,11 @@ export class DiagramViewer {
   /** Re-fetches `src` (after an edit, §11.5). */
   reload(): Promise<void> {
     return this.load();
+  }
+
+  /** Changes the controls (like the `controls` attribute); undefined: the default (`zoom fullscreen`). */
+  setControls(controls: readonly ViewerControl[] | undefined): void {
+    this.set({ controls });
   }
 
   setLayers(ids: readonly string[] | undefined): void {
@@ -405,6 +417,23 @@ export class MmdxViewerElement extends MmdxElement<ViewerOptions, DiagramViewer>
   /** The open History's session, null while History is closed. */
   get historySession(): HistorySession | null {
     return this.live?.historySession ?? null;
+  }
+  /** The host page's full screen, used when the browser's is unavailable (sandboxed iframes). */
+  get fullscreen(): HostFullscreen | undefined {
+    return this.props.fullscreen;
+  }
+  set fullscreen(v: HostFullscreen | undefined) {
+    this.setOpt({ fullscreen: v });
+  }
+  get controls(): readonly ViewerControl[] | undefined {
+    return this.live?.options.controls ?? this.props.controls ?? this.attrOptions().controls;
+  }
+  set controls(v: readonly ViewerControl[] | undefined) {
+    this.setOpt({ controls: v });
+  }
+  /** Changes the controls at run time, like setting the `controls` attribute or property. */
+  setControls(controls: readonly ViewerControl[] | undefined): void {
+    this.controls = controls;
   }
 
   fit(): void {
