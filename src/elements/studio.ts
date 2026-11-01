@@ -59,7 +59,7 @@ const STUDIO_CSS = /* css */ `
 :host { display: block; height: 100%; min-height: 480px; }
 .studio { display: flex; flex-direction: column; height: 100%; background: var(--mmdx-bg); color: var(--mmdx-text); }
 .top { height: 48px; flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 0 12px; background: var(--mmdx-panel); border-bottom: 1px solid var(--mmdx-border); }
-.brand { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.brand { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 10px; white-space: nowrap; }
 .brand .logo { display: flex; --logo-ink: #061958; }
 :host([data-ui="dark"]) .brand .logo { --logo-ink: #eef0ff; }
 .grp { display: flex; align-items: center; gap: 6px; position: relative; }
@@ -139,7 +139,7 @@ export class DiagramStudio {
     const themesBtn = h('button', { type: 'button', title: 'Edit the diagram themes', onclick: () => void this.openThemeEditor() }, icon(ICONS.palette), 'Theme editor');
     const plainBtn = h('button', { type: 'button', title: 'Render with stock Mermaid (what YouTrack / GitHub show)', onclick: () => void this.editorEl.plainMermaid() }, icon(ICONS.eye), 'Plain Mermaid');
     const top = h('header', { class: 'top', part: 'toolbar' },
-      h('div', { class: 'brand' }, h('span', { class: 'logo', 'aria-hidden': 'true' }, logoMark(24)), 'Diagram Studio'),
+      h('div', { class: 'brand' }, h('span', { class: 'logo', 'aria-hidden': 'true' }, logoMark(24)), 'Mermaid Studio'),
       h('div', { class: 'grp' }, newBtn, exBtn, openBtn),
       this.nameEl,
       h('div', { class: 'spacer' }),
