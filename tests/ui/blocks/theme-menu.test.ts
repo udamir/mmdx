@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createThemeButton, openThemeMenu, themeMenuEntries, type ThemeInfo } from '../../../src/ui/blocks/theme-menu.js';
+import { createThemeButton, themeMenuEntries, type ThemeInfo } from '../../../src/ui/blocks/theme-menu.js';
 import { h } from '../../../src/ui/h.js';
 import { createI18n } from '../../../src/ui/i18n.js';
 import { PopoverManager } from '../../../src/ui/popover.js';
@@ -49,26 +49,6 @@ describe('themeMenuEntries', () => {
     expect(items.filter((x) => x.checked).map((x) => x.label)).toEqual(['Paper']);
     expect(items.some((x) => x.label === 'Edit themes…')).toBe(false);
     expect(entries.some((e) => typeof e === 'object' && 'section' in e && e.section === 'Dark themes')).toBe(false);
-  });
-});
-
-describe('openThemeMenu', () => {
-  it('opens a menu; picking a theme or Follow calls back and closes', () => {
-    const { host, root, pops } = shadowHost();
-    const opener = h('button', null, 'theme');
-    root.append(opener);
-    const onPick = vi.fn(), onFollow = vi.fn();
-    openThemeMenu({ popovers: pops, opener, within: host, themes: THEMES, picked: 'paper', onPick, onFollow, t });
-    const menu = root.querySelector('[role=menu]')!;
-    expect(menu.getAttribute('aria-label')).toBe('Diagram theme');
-    const radios = [...menu.querySelectorAll<HTMLElement>('[role=menuitemradio]')];
-    expect(radios.map((r) => r.getAttribute('aria-checked'))).toEqual(['false', 'false', 'true', 'false']);
-    radios[3]!.click();
-    expect(onPick).toHaveBeenCalledWith('default-dark');
-    expect(pops.isOpen).toBe(false);
-    openThemeMenu({ popovers: pops, opener, within: host, themes: THEMES, picked: 'paper', onPick, onFollow, t });
-    root.querySelector<HTMLElement>('[role=menuitemradio]')!.click();
-    expect(onFollow).toHaveBeenCalledOnce();
   });
 });
 

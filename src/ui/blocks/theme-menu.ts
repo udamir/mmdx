@@ -8,7 +8,7 @@ import { I_chevronDown, I_palette } from '../icons.js';
 import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
 import type { PopoverManager } from '../popover.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
-import { attachMenu, openMenu, type MenuEntry } from './menu.js';
+import { attachMenu, type MenuEntry } from './menu.js';
 
 export interface ThemeInfo {
   id: string;
@@ -51,23 +51,6 @@ export function themeMenuEntries(p: ThemeMenuProps): MenuEntry[] {
     out.push('sep', { label: t('theme.edit'), run: () => edit() });
   }
   return out;
-}
-
-export interface OpenThemeMenuOptions extends ThemeMenuProps {
-  popovers: PopoverManager;
-  opener: HTMLElement;
-  within?: Element;
-  align?: 'right' | 'left';
-  placement?: 'below' | 'above';
-}
-
-/** Opens the theme menu under `opener`. */
-export function openThemeMenu(o: OpenThemeMenuOptions): void {
-  const entries = themeMenuEntries(o); // registers the strings first
-  openMenu({
-    popovers: o.popovers, opener: o.opener, label: o.t('theme.menu'), entries,
-    ...(o.within ? { within: o.within } : {}), ...(o.align ? { align: o.align } : {}), ...(o.placement ? { placement: o.placement } : {}),
-  });
 }
 
 export interface ThemeButtonProps extends ThemeMenuProps {

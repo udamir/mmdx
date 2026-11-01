@@ -7,7 +7,7 @@ import { ensureBuiltinThemes, getShared } from '../../src/config.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
 import type { EditorModule } from '../../src/editor/module.js';
 import { editorParamsModule } from '../../src/editor/modules/chrome/view-params.js';
-import { viewParamsModule } from '../../src/view/modules/index.js';
+import { viewParamsModule } from '../../src/view/modules/view-params.js';
 
 let host: HTMLElement;
 let ed: DiagramEditor;

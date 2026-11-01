@@ -52,7 +52,7 @@ const meta: Meta<Args> = {
     docs: {
       description: {
         component:
-          'The theme button and menu (`createThemeButton`, `openThemeMenu`, `themeMenuEntries`): "Follow light / dark" ' +
+          'The theme button and menu (`createThemeButton`, `themeMenuEntries`): "Follow light / dark" ' +
           'first (ticked while nothing is picked; it clears the pick), then the themes grouped Light / Dark with the ' +
           'pick ticked, and "Edit themes…" when the host offers it. The button is labelled with the theme drawn.',
       },
