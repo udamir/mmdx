@@ -16,6 +16,12 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.2.1). The project f
 - **Change badges no longer cover what changed.** The `C`, `L`, `S`, `+` and `−` badges of a diff sat on the middle of an edge, which is where its label is, and were centred on a node's corner; as they keep their size on screen, they hid labels and small or zoomed-out items. They now sit just outside the item: at the corner of an edge's label, and above and to the right of a node.
 - **Side by side in the editor's History looks like the editor.** Its panes were white boxes with the version's page filling them and titles pinned to their corners. Both versions are now drawn on the editor's board with the page as the editor draws it, and each page has badges at its corner, like the editor's own page: the diagram type, then Before or After with the version's id, author and age (shortened when the pane is narrow). They move with the page as you pan and zoom.
 
+## Unreleased
+
+### Added
+
+- **`schemeToggle` editor feature**: turns off the light / dark toggle in the editor's view bar, for hosts that control the chrome scheme themselves through `ui` (an app inside YouTrack follows YouTrack's theme). The viewer already hides it when `controls` has no `theme`.
+
 ## 0.2.0 — History and diff
 
 How a diagram changed, at a glance: the editor and the viewer get a History of the diagram, a new `<mmdx-diff>` component compares any two versions, and a DOM-free diff API serves CI bots. Every component now shares one look: the editor's tool dock, zoom bar, panels and theme menu.

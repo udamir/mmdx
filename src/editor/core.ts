@@ -50,6 +50,8 @@ export interface EditorFeatures {
   plainMermaid: boolean;
   open: boolean;
   themePicker: boolean;
+  /** The light / dark toggle in the view bar; off when the host controls the scheme (`ui`). */
+  schemeToggle: boolean;
   export: boolean;
   exportFormats: readonly ('mmdx' | 'mmd' | 'svg' | 'png')[];
   help: boolean;
@@ -60,7 +62,7 @@ export interface EditorFeatures {
 
 export const DEFAULT_FEATURES: EditorFeatures = {
   codePanel: true, metadataTab: true, properties: true, layers: true, pen: true, copyStyle: true, styleToolbar: true,
-  pageToolbar: true, autoLayout: true, plainMermaid: true, open: false, themePicker: true, export: true,
+  pageToolbar: true, autoLayout: true, plainMermaid: true, open: false, themePicker: true, schemeToggle: true, export: true,
   exportFormats: ['mmdx', 'mmd', 'svg', 'png'], help: true, fullscreen: true, history: true,
 };
 
@@ -315,6 +317,8 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
         return f.pen;
       case 'theme':
         return f.themePicker;
+      case 'scheme':
+        return f.schemeToggle;
       case 'export':
         return f.export && f.exportFormats.length > 0;
       case 'code':

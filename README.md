@@ -180,7 +180,7 @@ Each diagram type's parser and renderer load on first use, and diagrams over 300
 | `adapter` (property) | — | `DocumentAdapter` `{ load, save, subscribe? }`: Save button, ⌘S, conflict dialog, live updates |
 | `value` (property) | — | The source when there is no adapter |
 | `read-only` | `false` | View mode only |
-| `features` | all on | The parts that are on, like the viewer's `controls` (`features="pen code-panel layers"`, or `none`); the property takes an object to turn parts off: `codePanel`, `properties`, `layers`, `pen`, `styleToolbar`, `export`, `themePicker`, `help`, `history`, … |
+| `features` | all on | The parts that are on, like the viewer's `controls` (`features="pen code-panel layers"`, or `none`); the property takes an object to turn parts off: `codePanel`, `properties`, `layers`, `pen`, `styleToolbar`, `export`, `themePicker`, `schemeToggle` (the light / dark toggle; turn it off when the host sets `ui`), `help`, `history`, … |
 | `history` (property) | — | The document's versions (a `HistoryAdapter` or `[{ id, message, author?, date?, source }]`, newest first): the tool dock gets a History button |
 | `panels` (property) | remembered | Which side panels are open: `{ code, properties, layers }` |
 | `storage` (property) | `localStorage` (`mmdx.` keys) | Where UI preferences are kept; never the document |

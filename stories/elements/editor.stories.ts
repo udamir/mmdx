@@ -32,6 +32,7 @@ const FEATURE_DOCS: Readonly<Record<Toggle, string>> = {
   plainMermaid: 'Plain Mermaid compare view (stock Mermaid render of the portable source).',
   open: 'Open-file action.',
   themePicker: 'Theme picker in the view bar.',
+  schemeToggle: 'Light / dark toggle in the view bar (off when the host controls the scheme).',
   export: 'Export menu.',
   help: 'Shortcut help popup.',
   fullscreen: 'Fullscreen toggle.',
