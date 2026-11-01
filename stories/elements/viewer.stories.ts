@@ -163,7 +163,7 @@ export const ThemeGallery: Story = {
 
 export const FromSrc: Story = {
   name: 'Loaded from src',
-  render: (a) => frame(viewer(a, 'static/examples/microservice-patterns.mmd')),
+  render: (a) => frame(viewer(a, 'static/examples/microservice-patterns.mmdx')),
   args: { controls: ['zoom', 'layers', 'fullscreen'] },
 };
 

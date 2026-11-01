@@ -24,7 +24,7 @@ export interface Example {
 }
 
 export const EXAMPLES: Example[] = readdirSync(join(ROOT, 'examples'))
-  .filter((f) => f.endsWith('.mmd'))
+  .filter((f) => f.endsWith('.mmdx'))
   .sort()
   .map((name) => {
     const { doc } = splitSource(readFileSync(join(ROOT, 'examples', name), 'utf8'));

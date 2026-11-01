@@ -8,7 +8,7 @@ import {
 import type { DiagramMeta } from '../../../src/core/meta/index.js';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-const examples = readdirSync(`${root}examples`).filter((f) => f.endsWith('.mmd'));
+const examples = readdirSync(`${root}examples`).filter((f) => f.endsWith('.mmdx'));
 const read = (f: string): string => readFileSync(`${root}examples/${f}`, 'utf8');
 
 // What our writer produces: a file it saved already (`"v"` first in `%%@ canvas`) comes back unchanged; an unversioned

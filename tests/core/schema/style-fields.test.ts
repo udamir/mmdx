@@ -125,7 +125,7 @@ describe('metaJsonSchema', () => {
   });
 
   it('accepts the metadata of every example', () => {
-    for (const f of readdirSync(join(ROOT, 'examples')).filter((x) => x.endsWith('.mmd'))) {
+    for (const f of readdirSync(join(ROOT, 'examples')).filter((x) => x.endsWith('.mmdx'))) {
       const { doc } = splitSource(readFileSync(join(ROOT, 'examples', f), 'utf8'));
       expect(validate(schema, JSON.parse(JSON.stringify(doc.meta)), schema), f).toEqual([]);
     }

@@ -7,11 +7,11 @@ import type { ThemeFile } from '../src/core/theme/types.js';
 import type { VersionInfo } from '../src/core/diff/report.js';
 import themeIndex from '../themes/index.json';
 
-const raw = import.meta.glob<string>('../examples/*.mmd', { eager: true, query: '?raw', import: 'default' });
+const raw = import.meta.glob<string>('../examples/*.mmdx', { eager: true, query: '?raw', import: 'default' });
 
 /** Example sources by file name without the extension (`production-microservices`, …). */
 export const EXAMPLES: Readonly<Record<string, string>> = Object.fromEntries(
-  Object.entries(raw).map(([path, src]) => [path.replace(/^.*\/|\.mmd$/g, ''), src]),
+  Object.entries(raw).map(([path, src]) => [path.replace(/^.*\/|\.mmdx$/g, ''), src]),
 );
 
 export const example = (name: string): string => {

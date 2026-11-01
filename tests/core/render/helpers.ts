@@ -16,7 +16,7 @@ import { DEFAULT_LINK_POLICY } from '../../../src/core/validate.js';
 const ROOT = join(__dirname, '../../..');
 
 export const EXAMPLES: { name: string; src: string }[] = readdirSync(join(ROOT, 'examples'))
-  .filter((f) => f.endsWith('.mmd'))
+  .filter((f) => f.endsWith('.mmdx'))
   .sort()
   .map((name) => ({ name, src: readFileSync(join(ROOT, 'examples', name), 'utf8') }));
 

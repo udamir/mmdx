@@ -11,7 +11,7 @@ import { memoryStorage } from '../../src/adapters/storage.js';
 
 const files: Record<string, string> = {
   '/examples/index.json': readFileSync('examples/index.json', 'utf8'),
-  '/examples/simple-flow.mmd': readFileSync('examples/simple-flow.mmd', 'utf8'),
+  '/examples/simple-flow.mmdx': readFileSync('examples/simple-flow.mmdx', 'utf8'),
   '/examples/history/simple-flow.json': readFileSync('examples/history/simple-flow.json', 'utf8'),
 };
 const versions = JSON.parse(files['/examples/history/simple-flow.json']!).versions;

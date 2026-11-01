@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { detectType, parse, parseER, parseFlowchart, parseSequence, MAX_ITEMS, MAX_SOURCE_LENGTH } from '../../../src/core/parse/index.js';
 
 const EXAMPLES = join(__dirname, '../../../examples');
-const examples = readdirSync(EXAMPLES).filter((f) => f.endsWith('.mmd')).map((f) => ({
+const examples = readdirSync(EXAMPLES).filter((f) => f.endsWith('.mmdx')).map((f) => ({
   name: f,
   code: readFileSync(join(EXAMPLES, f), 'utf8').split('\n').filter((l) => !l.trim().startsWith('%%@')).join('\n'),
 }));

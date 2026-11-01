@@ -59,7 +59,7 @@ afterEach(() => {
   });
 
   it('renders every example without errors', () => {
-    for (const f of ['simple-flow.mmd', 'docker-deploy-sequence.mmd', 'atom-schema-er.mmd', 'production-microservices.mmd']) {
+    for (const f of ['simple-flow.mmdx', 'docker-deploy-sequence.mmdx', 'atom-schema-er.mmdx', 'production-microservices.mmdx']) {
       const { host, v } = mount({ source: example(f) });
       expect(host.shadowRoot!.querySelectorAll('.el').length).toBeGreaterThan(3);
       expect(v.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
