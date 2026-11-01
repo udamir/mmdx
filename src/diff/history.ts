@@ -151,7 +151,7 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
   const tab = signal<DiffMode>(o.compare ? 'compare' : 'history');
   const sceneLabel = computed(() => (shown() === 'version' ? t('diff.labelVersion', { id: label(viewing()) }) : t('history.label')));
   // the Back pill names the viewed version: no title of it over the picture
-  const scene = new DiffScene(core, session, { reducedMotion, label: sceneLabel, canvas: () => ({ panOnDrag: true }), versionTitle: false });
+  const scene = new DiffScene(core, session, { reducedMotion, label: sceneLabel, canvas: () => ({ panOnDrag: true }), versionTitle: false, hostLook: ownScene });
 
   let closed = false;
   /** Bumped by every pick: a version that loads after a newer pick is not shown. */

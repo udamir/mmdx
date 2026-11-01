@@ -59,12 +59,24 @@ export interface DiffSceneOptions {
   canvas?: () => Partial<CanvasOptions>;
   /** The viewed version's id and details over the History mode picture (default on); off where the host names it already. */
   versionTitle?: boolean;
+  /**
+   * The host's own look (History in the editor): one pane spans the canvas area under the panels, with the host's
+   * canvas showing through (no pane background), fit keeps clear of the panels like the host's, and the diagram type is
+   * on a badge at the page's corner. Side by side keeps its framed panes.
+   */
+  hostLook?: boolean;
 }
 
 type Kind = 'single' | 'side' | 'plain';
 
 /** The CSS a DiffScene needs besides the diff tokens and canvas styles (its banner). */
-export const DIFF_SCENE_CSS: readonly string[] = [MESSAGES_CSS];
+export const DIFF_SCENE_CSS: readonly string[] = [MESSAGES_CSS, /* css */ `
+.dx-stage.host-look { left: 0; right: 0; }
+.dx-stage.host-look .pane { background: transparent; }
+.dx-page-badge { position: absolute; left: 0; top: 0; z-index: 3; border: 1px solid var(--mmdx-border); border-radius: 6px; background: var(--mmdx-surface); color: var(--mmdx-muted);
+  font-size: 11px; font-weight: 600; letter-spacing: .02em; padding: 2px 8px; line-height: 16px; white-space: nowrap; pointer-events: none; }
+.dx-page-badge[hidden] { display: none; }
+`];
 
 export class DiffScene extends BaseScene {
   readonly id = 'diff';
@@ -75,6 +87,8 @@ export class DiffScene extends BaseScene {
   private panes: HTMLElement[] = [];
   private second: { canvas: DiagramCanvas; unlink: () => void; ink: { store: StrokeStore; off: () => void } | null } | null = null;
   private morph: Morph | null = null;
+  /** The diagram type at the page's corner (`hostLook`). */
+  private badge: HTMLElement | null = null;
   /** The picture shown before the scene was pushed (History: a version, the document): its first picture morphs from it. */
   private carry: MorphState | null = null;
   private offs: (() => void)[] = [];
@@ -92,6 +106,11 @@ export class DiffScene extends BaseScene {
 
   /** What fit() keeps clear of in each pane: the tool dock, the pane titles, the bars. */
   insets(): Insets {
+    if (this.o.hostLook && this.painted.kind !== 'side') {
+      // the host's: the panel stacks and the dock, and the diff bar at the bottom
+      const c = this.core.insets();
+      return { left: Math.max(c.left, 8), right: Math.max(c.right, 8), top: Math.max(c.top, 8), bottom: Math.max(c.bottom, 52) };
+    }
     const dock = this.core.slots['left-dock'].querySelector<HTMLElement>('.tool-dock');
     const w = dock && !dock.hidden ? dock.offsetWidth : 0;
     return { left: w ? 12 + w + 8 : 8, right: 8, top: this.painted.kind === 'side' ? 34 : 8, bottom: 52 };
@@ -129,7 +148,7 @@ export class DiffScene extends BaseScene {
     this.banner?.destroy();
     this.banner = null;
     this.stage?.remove();
-    this.stage = this.msg = null;
+    this.stage = this.msg = this.badge = null;
     this.panes = [];
     this.painted = { kind: null, D: null, plain: null, dim: false, view: null, pair: '' };
     super.detach();
@@ -150,7 +169,9 @@ export class DiffScene extends BaseScene {
     const s = this.session;
     this.msg = h('div', { class: 'msg' });
     this.banner = createBanner({ text: s.banner });
-    this.stage = h('div', { class: 'dx-stage', part: 'canvas' }, this.banner.el, this.msg);
+    this.badge = h('div', { class: 'dx-page-badge', hidden: true, 'aria-hidden': 'true' });
+    this.stage = h('div', { class: 'dx-stage', part: 'canvas' }, this.banner.el, this.msg, this.badge);
+    if (this.o.hostLook) this.offs.push(this.core.on('view', () => this.placeBadge()), this.core.on('draw', () => this.placeBadge()));
     area.el.prepend(this.stage);
     this.layout('single');
     const label = this.o.label;
@@ -230,7 +251,7 @@ export class DiffScene extends BaseScene {
       const states = (['before', 'merged', 'after'] as const).map((v) => this.state(D, v, dim));
       if (this.painted.kind !== 'single') this.layout('single');
       this.showStates(states, STATE_OF[view], animate);
-      this.panes[0]!.style.background = paneBackground(D.after);
+      if (!this.o.hostLook) this.panes[0]!.style.background = paneBackground(D.after);
     } else {
       const t = this.core.i18n.t;
       this.morph = null;
@@ -264,7 +285,7 @@ export class DiffScene extends BaseScene {
     const animate = (this.morph !== null || this.carry !== null) && this.painted.pair !== pair;
     const title = this.o.versionTitle === false ? [] : [{ side: 'single', title: v?.id ?? '', sub: [v?.message, v?.author, ago(v?.date, this.core.i18n.locale)].filter(Boolean).join(' · ') }];
     this.layout('plain', title);
-    this.panes[0]!.style.background = paneBackground(r);
+    if (!this.o.hostLook) this.panes[0]!.style.background = paneBackground(r);
     this.showStates([this.plainState(r)], 0, animate);
     this.painted = { ...this.painted, kind: 'plain', D: null, plain: r, view: null, pair };
     area.main.setBounds(r.result.bounds, { fit: true, animate });
@@ -292,6 +313,21 @@ export class DiffScene extends BaseScene {
     this.carry = from && !this.o.reducedMotion() ? from : null;
   }
 
+  /** The diagram type on a badge over the page's top-left corner, as the host's own page shows it (`hostLook`). */
+  private placeBadge(): void {
+    const b = this.badge;
+    if (!b) return;
+    const p = this.painted;
+    const vp = this.area?.main.viewport, r = this.bounds.peek();
+    const type = (p.D?.after ?? p.plain)?.model.type;
+    b.hidden = !(p.kind && p.kind !== 'side' && vp && r && type);
+    if (b.hidden || !vp || !r || !type) return;
+    const t = this.core.i18n.t, key = `type.${type}`, label = t(key);
+    b.textContent = label === key ? type : label;
+    const { k, tx, ty } = vp.state;
+    b.style.transform = `translate(${Math.round(tx + r.x * k)}px, ${Math.round(ty + r.y * k - (b.offsetHeight || 22) - 6)}px)`;
+  }
+
   /** Nothing to compare: an empty pane. */
   private clearStage(): void {
     this.morph = null;
@@ -310,7 +346,7 @@ export class DiffScene extends BaseScene {
     const stage = this.stage!;
     const two = kind === 'side';
     if (!two) this.dropSecond();
-    stage.className = `dx-stage ${two ? 'side' : 'single'}`;
+    stage.className = `dx-stage ${two ? 'side' : 'single'}${this.o.hostLook && !two ? ' host-look' : ''}`;
     const want = two ? 2 : 1;
     while (this.panes.length > want) this.panes.pop()!.remove();
     while (this.panes.length < want) {
