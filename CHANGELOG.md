@@ -1,10 +1,10 @@
 # Changelog
 
-All notable changes to `@mmdx/studio` (named `mmdx` before 0.2.1). The project follows [semantic versioning](https://semver.org/); while it is below 1.0, a minor version may change public API, and such changes are listed under **Changed (breaking)**.
+All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project follows [semantic versioning](https://semver.org/); while it is below 1.0, a minor version may change public API, and such changes are listed under **Changed (breaking)**.
 
 ## 0.3.0 — Hooks for sandboxed hosts
 
-Generic hooks for hosts that embed mmdx in sandboxed (opaque-origin) iframes: no `allowfullscreen`, no `localStorage`, no relative fetches, no module workers from URLs.
+Generic hooks for hosts that embed mmdx in sandboxed (opaque-origin) iframes: no `allowfullscreen`, no `localStorage`, no relative fetches, no module workers from URLs. The package is published as `@mmdx/studio`.
 
 ### Added
 
@@ -17,18 +17,13 @@ Generic hooks for hosts that embed mmdx in sandboxed (opaque-origin) iframes: no
 - **Hiding the light / dark toggle**: the editor's `schemeToggle` feature and the viewer's `scheme-toggle` attribute (`schemeToggle` option) turn off the toggle and keep the theme menu, for hosts that control the chrome scheme themselves through `ui` (an app inside YouTrack follows YouTrack's theme).
 - **Documentation portal** at [udamir.github.io/mmdx](https://udamir.github.io/mmdx/) (VitePress, in `docs/`): guides, a reference page per component and per entry point, every event and the theme file format, with live components on the pages. The studio demo moves to [`/mmdx/studio/`](https://udamir.github.io/mmdx/studio/) (old share links to the site root are forwarded there) and Storybook is published at [`/mmdx/storybook/`](https://udamir.github.io/mmdx/storybook/). `pnpm docs:dev` serves the portal; `pnpm build:pages` builds all three into `_site/`, which CI deploys.
 
-### Fixed
-
-- **Bundling mmdx**: the library build's asset URLs are relative, so the render worker is found next to the chunk that starts it (`../assets/render-worker-….js`). Apps that bundle mmdx with Vite or Rollup failed to build on the absolute `/assets/…` URL before.
-
-## 0.2.1 — Fixes
-
 ### Changed
 
 - **The package is `@mmdx/studio`** on npm, as `mmdx` cannot be published. Entries keep their paths under the new name (`@mmdx/studio/viewer`, `@mmdx/studio/editor`, `@mmdx/studio/core`…); the package root is the studio entry, so `import '@mmdx/studio'` defines `<mmdx-studio>` (`@mmdx/studio/studio` works too).
 
 ### Fixed
 
+- **Bundling mmdx**: the library build's asset URLs are relative, so the render worker is found next to the chunk that starts it (`../assets/render-worker-….js`). Apps that bundle mmdx with Vite or Rollup failed to build on the absolute `/assets/…` URL before.
 - **Emoji and Persian or Indic text** keep their joiners (ZWJ, ZWNJ). Once the diff code had loaded (always, through `@mmdx/studio/core`), every rendered label took these characters for word-level change marks and split emoji sequences and words into styled fragments; the Merged view of a diff did the same. The marks are now Unicode noncharacters, read only by the diff: a diff's text lines carry `runs` of removed and added words, which the SVG serializer and the DOM patcher draw. `MARK` holds the new characters.
 - **Long runs of spaces no longer freeze the page.** A sequence message such as `A-->` followed by a few hundred spaces took seconds to minutes in the editor's activation check, and a note line with many spaces took seconds to parse; ER attribute comments and trailing spaces of the code were slow the same way. These lines are now read by linear scans (the activation check and the `+` / `-` markers use the parser's own message scan). A note without a target (`note over : text`) is reported as `seq.cannot-parse` instead of adding a participant with an empty name.
 - **A node named `__v0`, `__v1`…** is laid out like any other node. The automatic layout gave its helper points on long edges these names, so such a node (or a quoted ER entity of that name) took the place of a helper point and was drawn on top of another node.
