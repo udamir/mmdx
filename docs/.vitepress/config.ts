@@ -58,6 +58,14 @@ export default defineConfig({
         const attrs = rest.join(' ').replace(/[^\w\s="-]/g, '');
         return `<MmdxDemo code="${encodeURIComponent(t.content.replace(/\n$/, ''))}" ${attrs} />\n`;
       };
+      // VitePress leaves links with a target as they are, so [studio](/studio/){target="_self"} gets the base here
+      const linkOpen = md.renderer.rules.link_open!;
+      md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+        const t = tokens[idx]!;
+        const href = t.attrGet('href');
+        if (t.attrGet('target') && href?.startsWith('/') && !href.startsWith(base)) t.attrSet('href', `${base}${href.slice(1)}`);
+        return linkOpen(tokens, idx, options, env, self);
+      };
     },
     languageAlias: { mmdx: 'mermaid', mmd: 'mermaid' },
   },
