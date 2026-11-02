@@ -85,7 +85,7 @@ The portal lives in `docs/`: the guide in `docs/guide/`, the components in `docs
 - `pnpm typecheck` passes.
 - `pnpm test` passes; new behaviour has a test (and a story for a UI piece).
 - `pnpm size` passes, or the budget change is explained.
-- User-facing changes are in `CHANGELOG.md` (under the unreleased version) and in the docs (`README.md` and `docs/`).
+- User-facing changes are in `CHANGELOG.md` (under the unreleased version) and in the documentation portal (`docs/`); `README.md` is a short overview that links to it.
 - Untrusted input stays untrusted: no `innerHTML` for document content, values validated where they enter, links through `safeUrl`.
 
 CI runs the type check, the tests, the build and the size budgets on every pull request, and builds the Pages site (portal, demo and Storybook), so a broken page or a dead link in the docs fails the check.
