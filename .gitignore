@@ -7,3 +7,6 @@ apps/studio-site/dist/
 storybook-static/
 temp
 .DS_Store
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+_site/

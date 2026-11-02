@@ -11,13 +11,13 @@
 
 <p align="center">
   <a href="https://github.com/udamir/mmdx/actions/workflows/ci.yml"><img src="https://github.com/udamir/mmdx/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://www.npmjs.com/package/mmdx"><img src="https://img.shields.io/npm/v/mmdx.svg" alt="npm"></a>
+  <a href="https://www.npmjs.com/package/@mmdx/studio"><img src="https://img.shields.io/npm/v/@mmdx/studio.svg" alt="npm"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
 </p>
 
-<p align="center"><a href="https://udamir.github.io/mmdx/"><b>Live demo</b></a></p>
+<p align="center"><a href="https://udamir.github.io/mmdx/"><b>Documentation</b></a> · <a href="https://udamir.github.io/mmdx/studio/"><b>Live demo</b></a> · <a href="https://udamir.github.io/mmdx/storybook/"><b>Storybook</b></a></p>
 
-<p align="center"><a href="https://udamir.github.io/mmdx/"><img src=".github/screenshot.png" alt="Mermaid Studio editing an ER diagram of an archive database in the dark theme" width="900"></a></p>
+<p align="center"><a href="https://udamir.github.io/mmdx/studio/"><img src=".github/screenshot.png" alt="Mermaid Studio editing an ER diagram of an archive database in the dark theme" width="900"></a></p>
 
 ---
 
@@ -43,7 +43,7 @@ Mermaid is great for keeping diagrams in docs and repos, but its auto-layout and
 ## Install
 
 ```bash
-npm install mmdx
+npm install @mmdx/studio
 # optional: only needed for diagram types mmdx does not draw itself, and the "Plain Mermaid" preview
 npm install mermaid
 ```
@@ -56,7 +56,7 @@ The package is ESM only (ES2022). It has no runtime dependencies; `mermaid` (≥
 
 ```html
 <script type="module">
-  import 'mmdx/viewer';
+  import '@mmdx/studio/viewer';
 </script>
 
 <mmdx-viewer controls="zoom layers fullscreen export">
@@ -73,8 +73,8 @@ The package is ESM only (ES2022). It has no runtime dependencies; `mermaid` (≥
 ### Edit a diagram
 
 ```ts
-import 'mmdx/editor';
-import { httpDocumentAdapter } from 'mmdx/adapters';
+import '@mmdx/studio/editor';
+import { httpDocumentAdapter } from '@mmdx/studio/adapters';
 
 const editor = document.querySelector('mmdx-editor')!;
 editor.adapter = httpDocumentAdapter('/api/diagrams/architecture.mmdx'); // load + save with If-Match conflict detection
@@ -91,7 +91,7 @@ Without an adapter, set `editor.value = source` and read changes from the `mmdx-
 
 ```html
 <script type="module">
-  import 'mmdx/diff';
+  import '@mmdx/studio/diff';
 </script>
 
 <mmdx-diff before="/api/files/arch.mmdx?ref=main" after="/api/files/arch.mmdx?ref=feature-x" style="height: 720px"></mmdx-diff>
@@ -100,7 +100,7 @@ Without an adapter, set `editor.value = source` and read changes from the `mmdx-
 Or give it the whole history of a diagram (newest first) and let the reviewer pick any two versions:
 
 ```ts
-import { httpHistoryAdapter } from 'mmdx/diff';
+import { httpHistoryAdapter } from '@mmdx/studio/diff';
 
 const diff = document.querySelector('mmdx-diff')!;
 diff.history = httpHistoryAdapter('/api/diagrams/arch/versions'); // or a list: [{ id, message, author, date, source }]
@@ -109,7 +109,7 @@ diff.history = httpHistoryAdapter('/api/diagrams/arch/versions'); // or a list: 
 ### Render on the server or at build time
 
 ```ts
-import { renderToSvg } from 'mmdx/core';
+import { renderToSvg } from '@mmdx/studio/core';
 
 const svg = await renderToSvg(source, { theme: 'default-dark' }); // a standalone SVG string, no DOM needed
 ```
@@ -117,7 +117,7 @@ const svg = await renderToSvg(source, { theme: 'default-dark' }); // a standalon
 A diff renders the same way, for example in a CI job that comments on merge requests touching `*.mmdx`:
 
 ```ts
-import { diffDiagrams, diffReport, renderDiffToSvg } from 'mmdx/core';
+import { diffDiagrams, diffReport, renderDiffToSvg } from '@mmdx/studio/core';
 
 const svg = await renderDiffToSvg(before, after, { view: 'merged', ignore: { layout: true } });
 const md = diffReport(diffDiagrams(before, after), { format: 'markdown', before: { id: baseSha }, after: { id: headSha } });
@@ -127,21 +127,22 @@ const md = diffReport(diffDiagrams(before, after), { format: 'markdown', before:
 
 | Import | Provides |
 |---|---|
-| `mmdx/viewer` | `<mmdx-viewer>` and `DiagramViewer` — read-only diagrams for docs and portals |
-| `mmdx/editor` | `<mmdx-editor>` and `DiagramEditor` — the visual editor with the code panel |
-| `mmdx/theme-editor` | `<mmdx-theme-editor>` and `ThemeEditor` — manage diagram themes |
-| `mmdx/diff` | `<mmdx-diff>` and `DiagramDiff` — how a diagram changed, and its version history (also the History of the editor and the viewer); history adapters |
-| `mmdx/studio` | `<mmdx-studio>` and `DiagramStudio` — the complete standalone app (the live demo) |
-| `mmdx/core` | Pure API without DOM: parse, render to SVG, metadata, themes, diffs and diff reports (Node, workers, browsers) |
-| `mmdx/adapters` | Storage, theme sources and stores, document adapters, history adapters, share links |
-| `mmdx/markdown` | rehype and markdown-it plugins that turn ` ```mermaid ` blocks into viewers |
-| `mmdx/react` | Optional typed wrappers for React ≤ 18 |
-| `mmdx/themes/*` | The built-in theme files (`default-light.theme.json`, …) |
+| `@mmdx/studio/viewer` | `<mmdx-viewer>` and `DiagramViewer` — read-only diagrams for docs and portals |
+| `@mmdx/studio/editor` | `<mmdx-editor>` and `DiagramEditor` — the visual editor with the code panel |
+| `@mmdx/studio/theme-editor` | `<mmdx-theme-editor>` and `ThemeEditor` — manage diagram themes |
+| `@mmdx/studio/diff` | `<mmdx-diff>` and `DiagramDiff` — how a diagram changed, and its version history (also the History of the editor and the viewer); history adapters |
+| `@mmdx/studio` | `<mmdx-studio>` and `DiagramStudio` — the complete standalone app (the live demo) |
+| `@mmdx/studio/core` | Pure API without DOM: parse, render to SVG, metadata, themes, diffs and diff reports (Node, workers, browsers) |
+| `@mmdx/studio/adapters` | Storage, theme sources and stores, document adapters, history adapters, share links |
+| `@mmdx/studio/markdown` | rehype and markdown-it plugins that turn ` ```mermaid ` blocks into viewers |
+| `@mmdx/studio/react` | Optional typed wrappers for React ≤ 18 |
+| `@mmdx/studio/worker-inline` | The render worker as a string (`workerSource`) and `useInlineWorker()`, for pages that cannot start workers from URLs (sandboxed iframes) |
+| `@mmdx/studio/themes/*` | The built-in theme files (`default-light.theme.json`, …) |
 
 Importing an element entry registers its tag once (importing it twice is safe), and importing any entry in Node does not throw, so server-side rendering frameworks can import them. Properties can be set before or after the element is connected: they are kept, apply to the live component, and come back when the element is connected again; an attribute set later replaces a property of the same option, and the other way round. Moving an element in the DOM (re-parenting, a framework reordering a list) keeps its component as it is — the editor keeps its document, undo history, selection and an open History; an element removed for good is destroyed, and the editor connected again starts from its last document. `element.instance` is the component behind the element, `null` while it is not connected. `theme` and `theme-dark` are attributes (the theme editor also has a `theme` property). Options read only when the component is created (`ctx`, the editor's `autosave` and `guard-unload`) warn once when changed on a live one. Each element is also an imperative class you can mount on any element, for hosts where `customElements.define` is not allowed:
 
 ```ts
-import { DiagramViewer } from 'mmdx/viewer';
+import { DiagramViewer } from '@mmdx/studio/viewer';
 const viewer = new DiagramViewer(hostElement, { source, controls: ['zoom', 'fullscreen'] });
 ```
 
@@ -155,7 +156,8 @@ const viewer = new DiagramViewer(hostElement, { source, controls: ['zoom', 'full
 | `theme` | Default Light / Dark | The diagram theme; without it the theme follows the chrome (Default Light, Default Dark). Diagrams do not carry a theme |
 | `theme-dark` | — | Theme used while the chrome is dark; `auto` picks the dark theme linked to `theme` |
 | `fit` | `width` | `width` (height follows), `contain` (fit a fixed box) or `none` (natural size) |
-| `controls` | `zoom fullscreen` | Any of `zoom layers pen code history export theme fullscreen`, or `none`. `theme` adds the light / dark toggle and the theme menu |
+| `controls` | `zoom fullscreen` | Any of `zoom layers pen code history export theme fullscreen`, or `none`. `theme` adds the light / dark toggle and the theme menu. Changing it (the attribute, or `setControls(list)`) re-evaluates the chrome in place |
+| `fullscreen` (property) | — | The host page's full screen `{ available(), enter(), exit(), active?() }`: the full-screen button shows and calls it when the browser's full screen is unavailable (a sandboxed iframe without `allowfullscreen`) |
 | `history` (property) | — | The diagram's versions (a `HistoryAdapter` or `[{ id, message, author?, date?, source }]`, newest first): with the `history` control, a History button shows how the diagram changed |
 | `interactive` | `true` | `false` turns off pan and zoom (thumbnails, print) |
 | `lazy` | `true` | Render when scrolled near; the box keeps the diagram's aspect ratio meanwhile |
@@ -165,13 +167,14 @@ const viewer = new DiagramViewer(hostElement, { source, controls: ['zoom', 'full
 | `labels`, `hover-highlight` | `true` | Show connector labels; highlight connected items on hover |
 | `label` | generated | Accessible name, e.g. "Flowchart: 12 nodes, 14 connections" |
 | `ui` | `auto` | Chrome colour scheme: `light`, `dark` or `auto` |
+| `scheme-toggle` | `true` | With the `theme` control: the light / dark toggle next to the theme menu. `false` keeps the theme menu and hides the toggle, for hosts that set `ui` themselves |
 | `compact` | `auto` | The compact chrome (smaller, icon-only); automatic on small hosts |
 
-Events (bubbling, composed): `mmdx-render` `{ bounds, type, durationMs }`, `mmdx-error` `{ diagnostics }`, `mmdx-link` `{ href, id }` (cancelable, to route links through your router), `mmdx-fullscreen` `{ active }`. Methods: `fit()`, `zoomTo(k)`, `reload()`, `toSvg()`, `toPng({ scale })`, `setLayers(ids)`, `toggleHistory(on?, { compare? })`, and `historySession` while History is open.
+Events (bubbling, composed): `mmdx-render` `{ bounds, type, durationMs }`, `mmdx-error` `{ diagnostics }`, `mmdx-link` `{ href, id }` (cancelable, to route links through your router), `mmdx-fullscreen-request` `{ enter }` (cancelable, before the full-screen button enters or leaves full screen: cancel it to handle full screen yourself), `mmdx-fullscreen` `{ active }`. Methods: `fit()`, `zoomTo(k)`, `reload()`, `toSvg()`, `toPng({ scale })`, `setLayers(ids)`, `setControls(list)`, `toggleHistory(on?, { compare? })`, and `historySession` while History is open.
 
 The viewer has the editor's chrome: the tool dock (Hand, pen, the code and view-settings panels, History), the zoom bar with the `?` help, and the view parameters top right (Export, and with `controls="theme"` the light / dark toggle and the theme menu); on a docs page they show while the pointer or the focus is in the viewer. Only the zoom bar loads with the viewer; every other piece loads when its control is on. Keyboard, while the viewer has focus: `+` / `-` zoom, `F` or `0` fits, arrows pan, `P` toggles the pen, `Esc` stops it, `?` help. `controls="code"` adds a code panel: the diagram's Mermaid code without the layout metadata and styles, highlighted, with a Copy button.
 
-Each diagram type's parser and renderer load on first use, and diagrams over 300 lines render in a module worker (`setWorkerUrl(url)` lets a strict-CSP host serve the worker file).
+Each diagram type's parser and renderer load on first use, and diagrams over 300 lines render in a module worker (`setWorkerUrl(url)` lets a strict-CSP host serve the worker file; `useInlineWorker()` from `@mmdx/studio/worker-inline` starts it from a `blob:` URL where workers cannot start from URLs).
 
 ### `<mmdx-editor>`
 
@@ -180,17 +183,17 @@ Each diagram type's parser and renderer load on first use, and diagrams over 300
 | `adapter` (property) | — | `DocumentAdapter` `{ load, save, subscribe? }`: Save button, ⌘S, conflict dialog, live updates |
 | `value` (property) | — | The source when there is no adapter |
 | `read-only` | `false` | View mode only |
-| `features` | all on | The parts that are on, like the viewer's `controls` (`features="pen code-panel layers"`, or `none`); the property takes an object to turn parts off: `codePanel`, `properties`, `layers`, `pen`, `styleToolbar`, `export`, `themePicker`, `help`, `history`, … |
+| `features` | all on | The parts that are on, like the viewer's `controls` (`features="pen code-panel layers"`, or `none`); the property takes an object to turn parts off: `codePanel`, `properties`, `layers`, `pen`, `styleToolbar`, `export`, `themePicker`, `schemeToggle` (the light / dark toggle; turn it off when the host sets `ui`), `help`, `history`, … |
 | `history` (property) | — | The document's versions (a `HistoryAdapter` or `[{ id, message, author?, date?, source }]`, newest first): the tool dock gets a History button |
 | `panels` (property) | remembered | Which side panels are open: `{ code, properties, layers }` |
-| `storage` (property) | `localStorage` (`mmdx.` keys) | Where UI preferences are kept; never the document |
+| `storage` (property) | `localStorage` (`mmdx.` keys) | Where UI preferences are kept; never the document. `memoryStorage()`, `localStorageAdapter()` and `preloadedStorage(read, write)` (an async store) come from `@mmdx/studio/adapters` |
 | `autosave` | off | Debounced save through the adapter, in ms |
 | `guard-unload` | off | Ask before leaving the page with unsaved changes |
 | `name` | `diagram` | File name for exports |
 | `theme`, `theme-dark`, `ui`, `compact` | — | As on the viewer |
 | `modules`, `themeSource` (properties) | — | The editor's modules (default `DEFAULT_MODULES`); where unknown themes are loaded from |
 
-Events: `mmdx-change` `{ source, reason }`, `mmdx-dirty` `{ dirty }`, `mmdx-save` (cancelable, to save yourself), `mmdx-saved`, `mmdx-conflict`, `mmdx-op` (cancelable, every edit), `mmdx-selection`, `mmdx-export` (cancelable), `mmdx-edit-themes`, `mmdx-ui`, `mmdx-error`. Methods: `getSource()`, `setSource(src, { history: 'reset' | 'push' })`, `save()`, `undo()`, `redo()`, `select(items)`, `focusCode(line)`, `exportAs('mmdx' | 'mmd' | 'svg' | 'png')`, `fit()`, `toggleHistory(on?, { compare? })` (`compare` opens on the newest change compared).
+Events: `mmdx-load` `{ source, version }` (the adapter's document is in), `mmdx-change` `{ source, reason }`, `mmdx-dirty` `{ dirty }`, `mmdx-save` (cancelable, to save yourself), `mmdx-saved`, `mmdx-conflict`, `mmdx-op` (cancelable, every edit), `mmdx-selection`, `mmdx-export` (cancelable), `mmdx-edit-themes`, `mmdx-ui`, `mmdx-error`. Methods: `getSource()`, `setSource(src, { history?: 'reset' | 'push', fit?, markSaved? })` (`markSaved: false` keeps the new source as unsaved changes: `{ history: 'push', markSaved: false }` restores a draft the user can undo), `whenLoaded()` (resolves once the adapter's document is in, rejects when the load failed), `save()`, `undo()`, `redo()`, `select(items)`, `focusCode(line)`, `exportAs('mmdx' | 'mmd' | 'svg' | 'png')`, `fit()`, `toggleHistory(on?, { compare? })` (`compare` opens on the newest change compared).
 
 **History**: with a `history`, the History button of the tool dock (⇧H) opens the version panel next to the Code panel — the versions you give it, plus the working copy when it differs from the newest one (it follows the document). Opening it changes nothing else: the current version is selected and the diagram stays editable.
 
@@ -200,7 +203,7 @@ Events: `mmdx-change` `{ source, reason }`, `mmdx-dirty` `{ dirty }`, `mmdx-save
 - **Back** (the pill at the top, or Esc) returns to the current version and keeps the panel; closing the panel only hides it while a version or comparison shows (the History button brings it back), and leaves History otherwise.
 - **Restore this version** (Edit mode, in an older version's ⋯ menu) opens it in the editor as an undoable change.
 
-The viewer's `history` control does the same without editing, Restore or the read-only editor (a version shows in the diff's canvas). History's code loads on first use; no `mmdx/diff` is needed on the page. Events: `mmdx-history-open`, `-close`, `-show` `{ shown: 'none' | 'version' | 'compare' }`, `-compare`, `-version`, `-select`, `-view`, `-filters`, `-export`, `-restore`, `-error`; `historySession` gives the `<mmdx-diff>` methods while it is open (`pair` is all `null` while nothing older is picked). Where the versions come from is up to the host — a Git history, your backend's revisions, or snapshots you keep:
+The viewer's `history` control does the same without editing, Restore or the read-only editor (a version shows in the diff's canvas). History's code loads on first use; no `@mmdx/studio/diff` is needed on the page. Events: `mmdx-history-open`, `-close`, `-show` `{ shown: 'none' | 'version' | 'compare' }`, `-compare`, `-version`, `-select`, `-view`, `-filters`, `-export`, `-restore`, `-error`; `historySession` gives the `<mmdx-diff>` methods while it is open (`pair` is all `null` while nothing older is picked). Where the versions come from is up to the host — a Git history, your backend's revisions, or snapshots you keep:
 
 ```ts
 editor.history = httpHistoryAdapter('/api/diagrams/arch/versions'); // or a list, or your own { list, load }
@@ -210,7 +213,7 @@ Saving: `mmdx-save` → `adapter.save(source, { version })` → `mmdx-saved`; wh
 
 Shortcuts work while focus is inside the editor: `V` `H` `S` `P` `C` `I` `L` switch tools and panels, `F` fits, `?` lists every shortcut, Space+drag pans, ⌘Z / ⇧⌘Z undo and redo, ⌘A / ⌘C / ⌘V / ⌘D select all, copy, paste and duplicate, ⌘⌥C / ⌘⌥V copy and paste a style, ⌘G / ⇧⌘G group and ungroup, ⌘[ / ⌘] change the order, Del deletes, arrows move by 1 px (Shift: 10 px), Enter edits text, Esc goes back. On Windows and Linux use Ctrl for ⌘.
 
-Built-in adapters (`mmdx/adapters`): `httpDocumentAdapter(url)` (GET / PUT with ETags) and `memoryDocumentAdapter(source, name)`. Write your own for any backend:
+Built-in adapters (`@mmdx/studio/adapters`): `httpDocumentAdapter(url)` (GET / PUT with ETags) and `memoryDocumentAdapter(source, name)`. Write your own for any backend:
 
 ```ts
 const adapter: DocumentAdapter = {
@@ -222,8 +225,8 @@ const adapter: DocumentAdapter = {
 ### `<mmdx-theme-editor>`
 
 ```ts
-import 'mmdx/theme-editor';
-import { fetchThemeSource, localStorageAdapter, localStorageThemeStore } from 'mmdx/theme-editor';
+import '@mmdx/studio/theme-editor';
+import { fetchThemeSource, localStorageAdapter, localStorageThemeStore } from '@mmdx/studio/theme-editor';
 
 const base = fetchThemeSource('/themes/index.json');  // read-only themes to start from
 const te = document.querySelector('mmdx-theme-editor')!;
@@ -262,7 +265,7 @@ Exports: a PNG or SVG of the current view (with a legend), either version as `.m
 
 Shortcuts, while focus is inside the diff: `1` `2` `3` `4` views, `←` `→` step Before ↔ Merged ↔ After, `J` / `K` next and previous change, `V` `C` `L` the History, Code and change list panels, `H` pan, `P` pen, `⌘Z` undo a stroke, `F` fit, `+` / `-` zoom, `?` help, `Esc` back.
 
-History adapters (`mmdx/diff`, `mmdx/adapters`): `staticHistory(versions)`, and `httpHistoryAdapter(url)` — `GET url` returns `{ versions: [{ id, message, author, date }], next? }` newest first (`next` pages with `?cursor=`), and `GET url/<id>` returns the source of one version. For GitLab or GitHub, write the two calls against their commits and raw file APIs:
+History adapters (`@mmdx/studio/diff`, `@mmdx/studio/adapters`): `staticHistory(versions)`, and `httpHistoryAdapter(url)` — `GET url` returns `{ versions: [{ id, message, author, date }], next? }` newest first (`next` pages with `?cursor=`), and `GET url/<id>` returns the source of one version. For GitLab or GitHub, write the two calls against their commits and raw file APIs:
 
 ```ts
 const adapter: HistoryAdapter = {
@@ -327,7 +330,7 @@ Built-in themes, as light / dark pairs:
 | Catppuccin Latte (`catppuccin-latte`) | Catppuccin Mocha (`catppuccin-mocha`) |
 | Rosé Pine Dawn (`rose-pine-dawn`) | Dracula (`dracula`) |
 
-Default Light and Default Dark are bundled; the others are loaded from `mmdx/themes/*` or any manifest you point `configure({ themeSource })` at. Colours in diagrams are stored as palette references (`@sky`) or as a palette colour plus a shift (`@sand~=349.3,+53.5,-5.7`), so a diagram restyles itself when its theme changes. 
+Default Light and Default Dark are bundled; the others are loaded from `@mmdx/studio/themes/*` or any manifest you point `configure({ themeSource })` at, or registered directly with `registerThemes(files)` (no fetch; see [Embedding in sandboxed iframes](#embedding-in-sandboxed-iframes)). Colours in diagrams are stored as palette references (`@sky`) or as a palette colour plus a shift (`@sand~=349.3,+53.5,-5.7`), so a diagram restyles itself when its theme changes. 
 
 | Theme key | Holds |
 |---|---|
@@ -344,8 +347,8 @@ A diagram does not carry a theme: the theme belongs to the component that shows 
 ## Configuration
 
 ```ts
-import { configure } from 'mmdx/viewer'; // also exported by the editor, theme editor and studio entries
-import { fetchThemeSource } from 'mmdx/adapters';
+import { configure } from '@mmdx/studio/viewer'; // also exported by the editor, theme editor and studio entries
+import { fetchThemeSource } from '@mmdx/studio/adapters';
 
 configure({
   themeSource: fetchThemeSource('/themes/index.json'),   // themes a diagram names but the page has not loaded
@@ -356,10 +359,53 @@ configure({
 });
 ```
 
+## Embedding in sandboxed iframes
+
+Hosts that run mmdx in a sandboxed iframe with an opaque origin (an app inside another product, a plugin frame) usually have no `allowfullscreen`, no `localStorage`, no relative `fetch` and no module workers from URLs. The diagram types and the chrome's pieces still load as JavaScript chunks of your bundle (`import()`), like the rest of your app's code; these hooks replace the rest:
+
+```ts
+import { registerThemes, type HostFullscreen } from '@mmdx/studio/viewer';
+import { starterSource, BUILTIN_THEMES } from '@mmdx/studio/core';
+import { preloadedStorage } from '@mmdx/studio/adapters';
+import { useInlineWorker } from '@mmdx/studio/worker-inline';
+import github from '@mmdx/studio/themes/github-light.theme.json';
+
+// themes: registered from your bundle, nothing is fetched (the menus list them)
+registerThemes([...BUILTIN_THEMES, github]);
+
+// the render worker from a blob: URL (diagrams over 300 lines render off the main thread)
+useInlineWorker();
+
+// UI preferences in the host's async key-value store
+const storage = await preloadedStorage(() => host.storage.getAll(), (key, value) => host.storage.set(key, value));
+
+// full screen through the host (a modal), since the frame has no allowfullscreen
+const fullscreen: HostFullscreen = { available: () => true, enter: () => host.enterModal(), exit: () => host.exitModal() };
+viewer.storage = storage;
+viewer.fullscreen = fullscreen;
+viewer.setAttribute('ui', host.theme); // the host owns light / dark …
+viewer.setAttribute('scheme-toggle', 'false'); // … so the theme menu stays and the toggle goes
+
+// a new diagram starts from the studio's starter; a draft comes back as unsaved, undoable changes
+editor.adapter = adapter;
+editor.storage = storage;
+editor.features = { schemeToggle: false };
+await editor.whenLoaded();
+if (draft) editor.setSource(draft, { history: 'push', markSaved: false });
+const blank = starterSource('sequence'); // 'flowchart' | 'sequence' | 'er'
+```
+
+- **Full screen**: the viewer's `fullscreen` property `{ available(), enter(), exit(), active?() }` (type `HostFullscreen`). When the browser's full screen is unavailable, the zoom bar's full-screen button shows and calls `enter()` / `exit()` within the click, and the viewer fills its frame while the host shows it full screen (`data-fullscreen` on the element). Give `active()` when the host can leave full screen by itself; it is read on the next click and when the window resizes. `mmdx-fullscreen-request` `{ enter }` comes first and is cancelable, to handle full screen yourself. `setControls(list)` (or the `controls` attribute) changes the controls at run time.
+- **Storage**: `preloadedStorage(read, write, { onError? })` from `@mmdx/studio/adapters` awaits `read()` once, then serves the components' synchronous `StorageAdapter` from memory and writes each change through in the background (`remove(key)` writes `undefined`); failed writes are ignored or go to `onError`. Without any store, `memoryStorage()` keeps preferences for the page's life.
+- **Themes**: `registerThemes(files)` (from every element entry) registers theme files into the shared registry, with no fetch; import the files you want from `@mmdx/studio/themes/*`. Default Light is part of every component; Default Dark loads as a chunk of the library on first use, or not at all after `registerThemes(BUILTIN_THEMES)`. `registerBuiltinThemes()` resolves once both are registered. Do not set a `themeSource` that fetches.
+- **Worker**: `@mmdx/studio/worker-inline` exports the render worker as one classic script (`workerSource`) and `useInlineWorker()`, which starts it from a `blob:` URL through `setWorkerUrl(url, { type: 'classic' })` and returns false when `Blob` or `URL.createObjectURL` is unavailable (diagrams then render on the main thread). The CSP needs `worker-src blob:`. Only pages that import it download the extra 39 kB (gzip).
+- **Drafts**: `<mmdx-editor>`'s `setSource(src, { history, fit, markSaved })` with `markSaved: false` keeps the source as unsaved changes; with `history: 'push'` the user can undo back to the saved document. `whenLoaded()` resolves once the adapter's document is in (`mmdx-load` `{ source, version }` fires then), so a restored draft is not overwritten by the load.
+- **Starters**: `starterSource('flowchart' | 'sequence' | 'er')` from `@mmdx/studio/core` is the source a new diagram starts from, as in the studio's New menu.
+
 ## Markdown and documentation sites
 
 ```ts
-import { rehypeMmdx, markdownItMmdx } from 'mmdx/markdown';
+import { rehypeMmdx, markdownItMmdx } from '@mmdx/studio/markdown';
 
 // unified / rehype (Astro, Docusaurus, VitePress…)
 rehypePlugins: [[rehypeMmdx, { themeDark: 'auto' }]]
@@ -367,7 +413,7 @@ rehypePlugins: [[rehypeMmdx, { themeDark: 'auto' }]]
 md.use(markdownItMmdx, { attrs: { controls: 'zoom fullscreen' } });
 ```
 
-Each ` ```mermaid ` block becomes an `<mmdx-viewer>` with a pre-rendered SVG inside, so pages are readable and printable without JavaScript, and become interactive when `mmdx/viewer` loads. For pages rendered at run time, call `upgradeMermaidBlocks(root)` from `mmdx/viewer`.
+Each ` ```mermaid ` block becomes an `<mmdx-viewer>` with a pre-rendered SVG inside, so pages are readable and printable without JavaScript, and become interactive when `@mmdx/studio/viewer` loads. For pages rendered at run time, call `upgradeMermaidBlocks(root)` from `@mmdx/studio/viewer`.
 
 ## Frameworks
 
@@ -375,8 +421,8 @@ The elements work in any framework that renders custom elements. Set object valu
 
 ```tsx
 import React from 'react';
-import 'mmdx/viewer';
-import { createReactWrappers } from 'mmdx/react';
+import '@mmdx/studio/viewer';
+import { createReactWrappers } from '@mmdx/studio/react';
 
 const { MmdxViewer } = createReactWrappers(React); // also MmdxEditor, MmdxThemeEditor, MmdxStudio, MmdxDiff
 
@@ -408,7 +454,7 @@ script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:
 
 ## Browser support
 
-Current Chrome, Edge and Firefox, and Safari 16.4 or newer (the components need ES2022, custom elements and constructable stylesheets). `mmdx/core` runs in Node 18 or newer.
+Current Chrome, Edge and Firefox, and Safari 16.4 or newer (the components need ES2022, custom elements and constructable stylesheets). `@mmdx/studio/core` runs in Node 18 or newer.
 
 ## Known limitations
 
@@ -435,6 +481,9 @@ pnpm test           # unit, geometry and golden SVG snapshots, security and DOM 
 pnpm typecheck      # strict TypeScript, plus a DOM-free check of src/core
 pnpm build          # library (dist/), type declarations (dist/types) and the demo site
 pnpm build:storybook  # static Storybook in storybook-static/
+pnpm docs:dev       # the documentation portal at http://localhost:8791/mmdx/
+pnpm build:pages    # the GitHub Pages site in _site/: the portal, the studio at studio/ and Storybook at storybook/
+pnpm preview:pages  # serves _site at http://localhost:8792/mmdx/
 pnpm size           # gzip size budgets per entry point
 ```
 
@@ -450,7 +499,8 @@ pnpm size           # gzip size budgets per entry point
 | `src/adapters`, `src/markdown`, `src/wrappers` | Host adapters, Markdown plugins, React wrappers |
 | `themes/` | Built-in theme files (`node tools/build-themes.mjs` regenerates the generated ones) |
 | `examples/` | Example diagrams used by the studio and the golden tests, and their version histories (`examples/history`) |
-| `apps/studio-site/` | The demo site deployed to GitHub Pages |
+| `apps/studio-site/` | The studio demo and one demo page per component, deployed to GitHub Pages at `/studio/` |
+| `docs/` | The documentation portal (VitePress), deployed to GitHub Pages at `/` |
 | `stories/`, `.storybook/` | Storybook: the elements (the diff included), the UI pieces with mock APIs, core rendering and the semantic diff |
 | `brand/` | Logo files |
 

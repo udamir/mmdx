@@ -1,4 +1,4 @@
-// mmdx/core — the pure API (§5.5): parse, render to SVG, metadata, themes, ops. Runs in Node, workers and browsers.
+// @mmdx/studio/core — the pure API (§5.5): parse, render to SVG, metadata, themes, ops. Runs in Node, workers and browsers.
 export * from './core/types.js';
 export * from './core/model.js';
 export type { StyleProps, ArrowType, Routing, Side } from './core/style.js';
@@ -18,6 +18,7 @@ export type { SceneNode } from './core/scene/types.js';
 export { createStaticMeasurer, type TextMeasurer, type FontSpec } from './core/text/measure.js';
 export { safeUrl, DEFAULT_LINK_POLICY, type LinkPolicy, type SafeUrl } from './core/validate.js';
 export { layerDefs, hiddenByLayers, DEFAULT_LAYER } from './core/layers.js';
+export { starterSource, type StarterType } from './core/starter.js';
 export { outline, summarize } from './core/outline.js';
 export {
   diffDiagramsWith, diffModels, ignoreFacets, withoutStyle, withLayoutOf, mergeDiagrams, diffReport, unifiedDiff,

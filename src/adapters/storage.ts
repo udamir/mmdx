@@ -63,3 +63,49 @@ export function localStorageAdapter(namespace = 'mmdx.'): StorageAdapter {
     },
   };
 }
+
+export interface PreloadedStorageOptions {
+  /** Called with a write that failed (the value stays in memory); default: ignored. */
+  onError?: (error: unknown, key: string) => void;
+}
+
+/**
+ * The sync `StorageAdapter` over an async key-value store (a host's storage API in a sandboxed iframe without
+ * `localStorage`): awaits `read()` once, then serves reads from memory and writes through in the background
+ * (`remove(key)` writes `undefined`). Writes of one key reach the store in order; a failed write is ignored (or
+ * reported to `onError`), and the value stays in memory.
+ */
+export async function preloadedStorage(
+  read: () => Promise<Record<string, unknown>>,
+  write: (key: string, value: unknown | undefined) => Promise<void>,
+  opts: PreloadedStorageOptions = {},
+): Promise<StorageAdapter> {
+  const mem = memoryStorage(await read());
+  const chains = new Map<string, Promise<void>>();
+  const put = (key: string, value: unknown): void => {
+    const prev = chains.get(key) ?? Promise.resolve();
+    const next = prev.then(() => write(key, value)).catch((e: unknown) => {
+      try {
+        opts.onError?.(e, key);
+      } catch {
+        // a failing error handler must not break the next writes
+      }
+    });
+    chains.set(key, next);
+    void next.then(() => {
+      if (chains.get(key) === next) chains.delete(key);
+    });
+  };
+  return {
+    get: (key) => mem.get(key),
+    set(key, value) {
+      mem.set(key, value);
+      // the stored value is a copy, like the memory one (a later change of the object is not written)
+      put(key, value === undefined ? undefined : (JSON.parse(JSON.stringify(value)) as unknown));
+    },
+    remove(key) {
+      mem.remove(key);
+      put(key, undefined);
+    },
+  };
+}

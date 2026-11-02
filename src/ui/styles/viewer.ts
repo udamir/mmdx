@@ -35,8 +35,9 @@ svg.scene { position: absolute; inset: 0; width: 100%; height: 100%; display: bl
 /* History (§8.2): a docs-page viewer grows to room for the panels */
 .root[data-stage=history] .stage { min-height: 560px; }
 :host([fit="contain"]) .root[data-stage=history] .stage { height: 100%; }
-:host(:fullscreen), .root:fullscreen { background: var(--mmdx-bg); }
-:host(:fullscreen) .stage { height: 100vh; aspect-ratio: auto; }
+:host(:fullscreen), .root:fullscreen, :host([data-fullscreen]) { background: var(--mmdx-bg); }
+/* the host page's full screen too (a sandboxed frame shown in a modal): the viewer fills the frame */
+:host(:fullscreen) .stage, :host([data-fullscreen]) .stage { height: 100vh; aspect-ratio: auto; }
 @media print {
   .tool-dock, .bottom-bar, .view-params, .mmdx-stack { display: none !important; }
   .stage { aspect-ratio: var(--mmdx-aspect, 16 / 9) !important; height: auto !important; }

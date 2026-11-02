@@ -42,7 +42,9 @@ export const historyModule: ViewModule<ViewCore> = {
       }
     };
     scope.provide('toggleHistory', (on, opts) => {
-      // open with its panel closed (a version or a comparison still shown): the toggle brings the panel back
+      // while History shows a version or a comparison the toggle is the panel's: it hides and shows the panel, what is
+      // shown stays (Back / Esc leave it); with nothing shown it closes History
+      if (on === undefined && ctl && core.stage.peek() !== 'document') return void core.run('setPanel', 'history', !core.panels.peek()['history']);
       if (on === undefined && ctl && !core.panels.peek()['history']) return void core.run('setPanel', 'history', true);
       if (on ?? !(ctl || pending)) void open(!!opts?.compare);
       else {

@@ -7,7 +7,7 @@
 // Shapes carry explicit colours (exports have no stylesheet); on screen, the element's CSS restyles them by class.
 import { el, g, text } from '../scene/build.js';
 import type { AttrValue, SceneNode } from '../scene/types.js';
-import { markRuns, hasMarks } from '../text/marks.js';
+import { markRuns, hasMarks, stripMarks } from '../text/marks.js';
 import type { FontSpec, TextMeasurer } from '../text/measure.js';
 import type { GeometryIndex, RenderResult } from '../render/types.js';
 import type { ItemKind, Rect } from '../types.js';
@@ -172,11 +172,22 @@ function decorateBody(nodes: readonly SceneNode[], keyIn: (kind: string, id: str
       const attrs: Record<string, AttrValue> = { ...n.attrs, class: cls, 'data-ck': ck };
       if (keep && !keep.has(key)) attrs['opacity'] = dim;
       else if (gone.has(key)) attrs['opacity'] = 0.6;
-      return { ...n, attrs };
+      return { ...n, attrs, children: n.children.map(markedRuns) };
     }
     if (n.t === 'g' || n.t === 'a') return { ...n, children: decorateBody(n.children, keyIn, keep, gone, dim) };
-    return n;
+    return markedRuns(n);
   });
+}
+
+/** Text with change marks (the merged picture) as runs of removed and added words, its `text` without them. */
+function markedRuns(n: SceneNode): SceneNode {
+  if (n.t === 'text') {
+    if (!n.lines.some((l) => hasMarks(l.text))) return n;
+    const runs = markRuns(n.lines.map((l) => l.text));
+    return { ...n, lines: n.lines.map((l, i) => ({ ...l, text: stripMarks(l.text), runs: runs[i] ?? [] })) };
+  }
+  if (n.t === 'g' || n.t === 'a') return { ...n, children: n.children.map(markedRuns) };
+  return n;
 }
 
 function highlight(key: string, s: ItemShape, mark: Mark, badge: string, dashed: boolean, colors: DiffColors, badgeScale?: number): SceneNode {
@@ -191,12 +202,15 @@ function highlight(key: string, s: ItemShape, mark: Mark, badge: string, dashed:
   } else {
     parts.push(el('path', { class: 'dx-stroke', d: s.d, fill: 'none', stroke: c, 'stroke-width': 9, 'stroke-opacity': 0.35, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-dasharray': dashed ? '14 8' : undefined }));
     if (s.label) parts.push(outline(s.label, 4, 6));
-    anchor = s.mid;
+    // at the label's corner, not its middle: the badge never covers the label's text
+    anchor = s.label ? { x: s.label.x + s.label.w + 4, y: s.label.y - 4 } : s.mid;
   }
+  // the pill grows up and right from its anchor (an outline's corner), off the item: the CSS keeps it at a constant
+  // screen size, so centred on the corner it covered the text of small or zoomed-out items
   const w = Math.max(18, badge.length * 9 + 9);
   const pill = g({ class: 'dx-badge', transform: badgeScale && badgeScale !== 1 ? `scale(${badgeScale})` : undefined }, [
-    el('rect', { x: -w / 2, y: -9, width: w, height: 18, rx: 9, fill: c, stroke: '#ffffff', 'stroke-width': 1.5 }),
-    text({ 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-family': 'system-ui, sans-serif', 'font-size': 10.5, 'font-weight': 700, fill: '#ffffff' }, [{ text: badge, x: 0, y: 0.5 }]),
+    el('rect', { x: -3, y: -15, width: w, height: 18, rx: 9, fill: c, stroke: '#ffffff', 'stroke-width': 1.5 }),
+    text({ 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-family': 'system-ui, sans-serif', 'font-size': 10.5, 'font-weight': 700, fill: '#ffffff' }, [{ text: badge, x: w / 2 - 3, y: -5.5 }]),
   ]);
   parts.push(g({ transform: `translate(${anchor.x} ${anchor.y})` }, [pill]));
   return g({ class: `dx-hl dx-${mark}${dashed ? ' dx-dashed' : ''}`, 'data-key': key }, parts, { key: `hl:${key}` });

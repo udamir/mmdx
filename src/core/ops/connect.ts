@@ -79,7 +79,7 @@ export function reconnectFlow(code: string, model: FlowchartModel, edgeId: strin
 
 /** `from --> to` at the end of the code. */
 export function addFlowEdge(code: string, from: string, to: string): LineResult {
-  const t = code.replace(/\s+$/, '');
+  const t = code.trimEnd();
   return { code: `${t}\n  ${from} --> ${to}\n`, line: t.split('\n').length };
 }
 
@@ -118,12 +118,12 @@ export function reconnectER(code: string, model: ErModel, relId: string, which: 
 }
 
 export function addERRel(code: string, from: string, to: string): LineResult {
-  const t = code.replace(/\s+$/, '');
+  const t = code.trimEnd();
   return { code: `${t}\n  ${from} ||--o{ ${to} : ""\n`, line: t.split('\n').length };
 }
 
 /** Sequence: a new message at the end. */
 export function addSeqMessage(code: string, from: string, to: string): LineResult {
-  const t = code.replace(/\s+$/, '');
+  const t = code.trimEnd();
   return { code: `${t}\n  ${from}->>${to}: message\n`, line: t.split('\n').length };
 }

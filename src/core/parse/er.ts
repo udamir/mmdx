@@ -35,8 +35,17 @@ const ATTR = /^([\w\-[\]()<>,.*]+)\s+([\w\-[\]().*]+)(?:\s+((?:PK|FK|UK)(?:\s*,\
  */
 export function splitAttrComment(text: string): { head: string; comment: string } {
   const t = text.trim();
-  const m = /^(.*?)\s+(?:\((.*)\)|"([^"]*)")$/.exec(t);
-  return m ? { head: (m[1] ?? '').trim(), comment: (m[2] ?? m[3] ?? '').trim() } : { head: t, comment: '' };
+  // scans, not `^(.*?)\s+(?:\((.*)\)|"([^"]*)")$`, which backtracks quadratically on a long run of spaces
+  if (t.endsWith(')')) {
+    // from the first `(` after a space
+    const at = t.search(/\s\(/);
+    if (at >= 0) return { head: t.slice(0, at).trim(), comment: t.slice(at + 2, -1).trim() };
+  } else if (t.endsWith('"')) {
+    // the last quoted text, after a space
+    const q = t.lastIndexOf('"', t.length - 2);
+    if (q > 0 && /\s/.test(t[q - 1] ?? '')) return { head: t.slice(0, q).trim(), comment: t.slice(q + 1, -1).trim() };
+  }
+  return { head: t, comment: '' };
 }
 
 /**

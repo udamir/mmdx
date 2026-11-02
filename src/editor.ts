@@ -1,7 +1,7 @@
-// mmdx/editor — defines <mmdx-editor> on import (guarded) and exports the imperative class.
+// @mmdx/studio/editor — defines <mmdx-editor> on import (guarded) and exports the imperative class.
 import { defineEditor } from './editor/editor.js';
 
-export { DiagramEditor, MmdxEditorElement, defineEditor, type EditorOptions, type SaveOutcome } from './editor/editor.js';
+export { DiagramEditor, MmdxEditorElement, defineEditor, type EditorOptions, type SaveOutcome, type SetSourceOptions } from './editor/editor.js';
 export { EditorCore, DEFAULT_FEATURES, type EditorFeatures, type Gesture, type GestureSource, type OverlayPainter } from './editor/core.js';
 export type { EditorModule } from './editor/module.js';
 export { DEFAULT_MODULES } from './editor/modules/index.js';
@@ -12,7 +12,7 @@ export type { SceneSource } from './view/scene.js';
 export type { Stage } from './view/types.js';
 export type { DiagramCanvas } from './dom/canvas.js';
 export type { HistorySession } from './view/history.js';
-export { configure, type Config } from './config.js';
+export { configure, registerThemes, registerBuiltinThemes, type Config } from './config.js';
 export * from './adapters/documents.js';
 
 defineEditor();

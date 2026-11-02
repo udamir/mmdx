@@ -100,3 +100,18 @@ describe('light / dark switch', () => {
     expect(e.core.result.themeId).toBe('default-light');
   });
 });
+
+describe('schemeToggle feature', () => {
+  test('on by default: the view bar has the light / dark toggle', () => {
+    mount('flowchart LR\n  a --> b\n');
+    expect(host.shadowRoot!.querySelector('.view-params .vp-mode')).not.toBeNull();
+  });
+
+  test('off: no toggle, the theme menu stays, and the host still sets the scheme through ui', () => {
+    const e = mount('flowchart LR\n  a --> b\n', { features: { schemeToggle: false }, ui: 'dark' });
+    expect(host.shadowRoot!.querySelector('.view-params .vp-mode')).toBeNull();
+    expect(host.shadowRoot!.querySelector('.view-params .mmdx-theme-btn')).not.toBeNull();
+    expect(e.core.scheme.peek()).toBe('dark');
+    expect(e.core.result.themeId).toBe('default-dark');
+  });
+});

@@ -11,6 +11,7 @@
 // and written back after the known lines, so a newer writer's data survives a round-trip. Nothing here throws.
 import { diag } from '../types.js';
 import type { Diagnostic } from '../types.js';
+import { own, ownOr, setOwn } from '../own.js';
 import { isFiniteNumber } from '../validate.js';
 import { migrate } from './migrations.js';
 import { badValueDiagnostic, sanitizeMeta, sanitizeStyleObject, setCollection } from './sanitize.js';
@@ -130,8 +131,9 @@ export function splitSource(src: string): { doc: DiagramDocument; hadMeta: boole
       }
       for (const p of r.dropped) diagnostics.push(badValueDiagnostic(p, i));
       if (r.kind === 'canvas') Object.assign(meta.canvas, r.data);
-      else if (r.kind.startsWith('style.')) (meta.styles[r.kind.slice(6)] ??= {})[r.id ?? ''] = r.data;
-      else if (isKnownKind(r.kind)) collOf(meta, KIND_TO_COLL[r.kind])[r.id ?? ''] = r.data;
+      // kinds and ids are the document's: `style.__proto__` or `node constructor` must stay plain keys (own.ts)
+      else if (r.kind.startsWith('style.')) setOwn(ownOr(meta.styles, r.kind.slice(6), () => ({})), r.id ?? '', r.data);
+      else if (isKnownKind(r.kind)) setOwn(collOf(meta, KIND_TO_COLL[r.kind]), r.id ?? '', r.data);
     });
   while (code.length && code[code.length - 1]!.trim() === '') code.pop();
   if (unknown.length) meta.unknown = unknown;
@@ -220,7 +222,7 @@ export function mergeLegacySidecar(code: string, sidecarJson: string): { doc: Di
 
   const base = inline.doc.meta;
   const meta: DiagramMeta = { ...base, canvas: { ...base.canvas, ...sm.canvas }, styles: { ...base.styles } };
-  for (const [k, presets] of Object.entries(sm.styles)) meta.styles[k] = { ...meta.styles[k], ...presets };
+  for (const [k, presets] of Object.entries(sm.styles)) setOwn(meta.styles, k, { ...own(meta.styles, k), ...presets });
   for (const coll of COLLECTIONS) {
     const add = sm[coll];
     if (add) setCollection(meta, coll, { ...(base[coll] ?? {}), ...add } as Record<string, Record<string, unknown>>);

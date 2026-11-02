@@ -17,6 +17,16 @@ export interface TextLine {
   text: string;
   x: number;
   y: number;
+  /**
+   * The line as runs of removed and added words (the merged picture of a diff); `text` is then their plain text.
+   * Drawn as `<tspan class="dx-del">` / `<tspan class="dx-ins">` inside the line's `<tspan>`.
+   */
+  runs?: readonly TextRun[];
+}
+
+export interface TextRun {
+  text: string;
+  mark: 'ins' | 'del' | null;
 }
 
 export interface SceneGroup {

@@ -2,6 +2,7 @@
 // The prototype mutated the one global `S.meta`; the ops clone first and mutate the clone, so every op is pure.
 import { KIND_TO_COLL } from '../meta/types.js';
 import type { DiagramMeta, ItemMeta } from '../meta/types.js';
+import { own, ownOr } from '../own.js';
 import type { BoxGeom, GeometryIndex } from '../render/types.js';
 import type { ItemKind, ItemRef } from '../types.js';
 
@@ -12,18 +13,19 @@ export const cloneJson = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 export const collOf = (kind: ItemKind): (typeof KIND_TO_COLL)[ItemKind] => KIND_TO_COLL[kind];
 
 /** The item's metadata, or a fresh empty object (not attached). */
-export const getM = (meta: DiagramMeta, kind: ItemKind, id: string): ItemMeta => meta[collOf(kind)]?.[id] ?? {};
+export const getM = (meta: DiagramMeta, kind: ItemKind, id: string): ItemMeta => own(meta[collOf(kind)], id) ?? {};
 
 /** The item's metadata, created (and attached) when missing. */
 export function ensure(meta: DiagramMeta, kind: ItemKind, id: string): ItemMeta {
-  const c = (meta[collOf(kind)] ??= {});
-  return (c[id] ??= {});
+  // own entries only: an item may be called `__proto__` or `toString` (own.ts)
+  return ownOr((meta[collOf(kind)] ??= {}), id, (): ItemMeta => ({}));
 }
 
 /** Drops the item's entry when it became empty. */
 export function tidy(meta: DiagramMeta, kind: ItemKind, id: string): void {
   const c = meta[collOf(kind)];
-  if (c && c[id] && !Object.keys(c[id]).length) delete c[id];
+  const m = own(c, id);
+  if (c && m && !Object.keys(m).length) delete c[id];
 }
 
 /** Rendered box (centre + size) of an item (prototype app `boxOfItem`). */

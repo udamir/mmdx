@@ -4,7 +4,7 @@
 // floating toolbar (preset, font, size, bold / italic / underline, colour, delete) that styles all of them at once;
 // Delete removes them, dragging them (or ⌥↑ / ⌥↓) reorders them. Double-click a row (or Enter) edits its text in
 // place (`type name PK (comment)`), clearing the text deletes it; typing into the last row adds an attribute and moves
-// on to the next empty row. Esc clears the row selection, then leaves the table (so does Done or a click outside).
+// on to the next empty row. Esc clears the row selection, then leaves the table (so does a click outside).
 import type { AttrHighlight, DiagramMeta } from '../../../core/meta/types.js';
 import type { ErAttribute, ErModel } from '../../../core/model.js';
 import { attrText, updateEntity } from '../../../core/ops/er.js';
@@ -91,24 +91,6 @@ export const erTableModule: EditorModule = {
 
     // ---- entering and leaving ---------------------------------------------------------------------------------
 
-    let bar: HTMLElement | null = null;
-    const placeBar = (): void => {
-      if (!table) {
-        bar?.remove();
-        bar = null;
-        return;
-      }
-      const name = er()?.entities.get(table)?.label || table;
-      if (!bar) {
-        bar = h('div', { class: 'group-edit-bar table-edit-bar', role: 'status' });
-        bar.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-        wrap.append(bar);
-      }
-      bar.replaceChildren(
-        h('span', null, t('table.editing'), ' ', h('b', null, name), ` — ${t('table.hint')}`),
-        h('button', { type: 'button', class: 'primary small', title: t('table.doneTip'), onclick: () => exit() }, t('table.done')),
-      );
-    };
     const mark = (): void => {
       for (const n of Array.from(core.dom.body.querySelectorAll('.el.table-in-edit'))) n.classList.remove('table-in-edit');
       if (!table) return;
@@ -126,7 +108,6 @@ export const erTableModule: EditorModule = {
       core.select([]);
       core.draw();
       core.fire('panels');
-      placeBar();
       refresh();
     };
     /** Leaves the table; `select`: the table stays selected (Esc, Done), else the click outside decides. */
@@ -138,7 +119,6 @@ export const erTableModule: EditorModule = {
       sel = [];
       core.tableView = null;
       core.dom.root.classList.remove('table-edit');
-      placeBar();
       if (select && er()?.entities.has(id)) core.select([{ kind: 'entity', id }]);
       core.draw();
       core.fire('panels');
@@ -630,7 +610,6 @@ export const erTableModule: EditorModule = {
         const n = attrs().length;
         sel = sel.filter((i) => i < n);
         mark();
-        placeBar();
         tb?.refresh();
       }),
       core.on('selection', () => {
@@ -650,7 +629,6 @@ export const erTableModule: EditorModule = {
       closeEditor(false);
       for (const off of offs) off();
       tb?.destroy();
-      bar?.remove();
       core.tableView = null;
       core.dom.root.classList.remove('table-edit');
     };

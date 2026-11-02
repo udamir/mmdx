@@ -1,5 +1,5 @@
 // Canvas selection (A.3 rows 27, 28, 34; A.2 rows 17, 23; §13): click / Shift-click / marquee / ⌘A selection with
-// Miro-like groups (a click selects the outermost group, double-click enters it, the "Editing group … Done" bar),
+// Miro-like groups (a click selects the outermost group, double-click enters it; Esc or a click outside leaves it),
 // moving (single, multi, Alt-drag copy, connector labels, locked items), resizing with the corner handle, keyboard
 // nudge, the selection overlay, View-mode links and hover highlight, roving keyboard focus and announcements.
 // Ported from prototype app.js (`decorateGroupEdit`, pointer handlers, `moveDrag`, `resizeDrag`, `multiMoveDrag`,
@@ -32,10 +32,6 @@ export const SELECT_CSS = /* css */ `
 .entered-box { fill: none; stroke: var(--accent); pointer-events: none; opacity: .8; }
 .page-sel { fill: none; stroke: var(--accent); pointer-events: none; }
 .canvas .el.selected > :first-child { filter: drop-shadow(0 0 1.5px var(--accent)); }
-.group-edit-bar { position: absolute; top: 12px; left: calc(50% + (var(--inset-l, 0px) - var(--inset-r, 0px)) / 2); transform: translateX(-50%);
-  z-index: 25; display: flex; align-items: center; gap: 12px; background: var(--float); border: 1px solid var(--float-line);
-  border-radius: 10px; padding: 6px 6px 6px 14px; font-size: 13px; color: var(--ink-2); box-shadow: 0 4px 16px rgba(30, 40, 80, .14); white-space: nowrap; }
-.group-edit-bar button { padding: 3px 10px; }
 .mode-view .canvas .el.node, .mode-view .canvas .el.entity, .mode-view .canvas .el.participant { cursor: default; }
 /* Alt/Option: dragging copies (flowcharts and ER diagrams) */
 .ed.alt-copy.mode-edit .canvas .el.node, .ed.alt-copy.mode-edit .canvas .el.entity, .ed.alt-copy.mode-edit .canvas .el.group > :first-child { cursor: copy; }
@@ -78,15 +74,11 @@ export const canvasSelectModule: EditorModule = {
       core.fire('panels');
     };
 
-    let bar: HTMLElement | null = null;
+    /** Marks what is inside the group being edited (the rest fades): that, Esc and a click outside are the whole mode. */
     const decorateGroupEdit = (): void => {
       const gid = editing() ? core.enteredGroup.peek() : null;
       for (const n of Array.from(core.dom.body.querySelectorAll('.el.in-edit'))) n.classList.remove('in-edit');
-      if (!gid) {
-        bar?.remove();
-        bar = null;
-        return;
-      }
+      if (!gid) return;
       const inside = (kind: string | null, id: string | null): boolean =>
         (kind === 'node' || kind === 'group') && id !== null && core.insideGroup({ kind, id }, gid);
       for (const n of Array.from(core.dom.body.querySelectorAll('.el'))) {
@@ -94,28 +86,7 @@ export const canvasSelectModule: EditorModule = {
         const ok = kind === 'edge' ? inside('node', n.getAttribute('data-from')) && inside('node', n.getAttribute('data-to')) : inside(kind, id);
         if (ok) n.classList.add('in-edit');
       }
-      const M = core.model;
-      const title = (M.type === 'flowchart' ? M.groups.get(gid)?.label?.split('\n')[0] : '') || gid;
-      if (!bar) {
-        bar = h('div', { class: 'group-edit-bar', role: 'status' });
-        bar.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-        core.dom.wrap.append(bar);
-      }
-      bar.replaceChildren(
-        h('span', null, 'Editing group ', h('b', null, title), ' — other items are faded'),
-        h('button', { type: 'button', class: 'primary small', title: 'Finish editing the group (Esc)', onclick: () => exitGroup() }, 'Done'),
-      );
     };
-
-    // suspended (History): the bar goes; it comes back with the group-edit effect when the module resumes
-    scope.register({
-      set: (on) => {
-        if (on) return;
-        bar?.remove();
-        bar = null;
-      },
-      dispose: () => undefined,
-    });
 
     // ---- overlay: selection boxes, resize handle, entered group, page, marquee -----------------------------------
 
@@ -692,8 +663,6 @@ export const canvasSelectModule: EditorModule = {
       destroyed = true;
       flushNudge();
       for (const off of offs) off();
-      bar?.remove();
-      bar = null;
       for (const n of Array.from(core.dom.body.querySelectorAll('.el.in-edit'))) n.classList.remove('in-edit');
     };
   },

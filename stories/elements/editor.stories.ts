@@ -32,6 +32,7 @@ const FEATURE_DOCS: Readonly<Record<Toggle, string>> = {
   plainMermaid: 'Plain Mermaid compare view (stock Mermaid render of the portable source).',
   open: 'Open-file action.',
   themePicker: 'Theme picker in the view bar.',
+  schemeToggle: 'Light / dark toggle in the view bar (off when the host controls the scheme).',
   export: 'Export menu.',
   help: 'Shortcut help popup.',
   fullscreen: 'Fullscreen toggle.',
@@ -65,7 +66,7 @@ const meta: Meta<EditorArgs> = {
       description: {
         component:
           '`<mmdx-editor>` is the visual editor: drag shapes from the left toolbar, connect, group, restyle, edit the Mermaid ' +
-          'and the layout metadata side by side, with undo / redo and export. Import `mmdx/editor`; give it a document ' +
+          'and the layout metadata side by side, with undo / redo and export. Import `@mmdx/studio/editor`; give it a document ' +
           'through `adapter` (here `memoryDocumentAdapter`) or `value`. Every feature can be switched off with `features`. ' +
           'Give it the document\'s versions through `history` and the tool dock gets a History button: the version panel ' +
           'opens next to the Code panel (the diagram stays editable); an older version shows read-only in the editor itself ' +

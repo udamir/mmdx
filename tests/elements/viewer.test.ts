@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { DiagramViewer, dedent, defineViewer, type MmdxViewerElement } from '../../src/elements/viewer.js';
+import { DiagramViewer, dedent, defineViewer, type HostFullscreen, type MmdxViewerElement } from '../../src/elements/viewer.js';
 import { hasKind, loadKind } from '../../src/view/kinds.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
 
@@ -211,6 +211,152 @@ describe('<mmdx-viewer> attributes', () => {
     expect(v.core.moduleScope('links')).toBe(links);
     el.setAttribute('controls', 'fullscreen');
     expect(sr.querySelector('.help-btn')).toBeNull();
+    el.remove();
+  });
+});
+
+describe('schemeToggle option', () => {
+  const settle = async (host: HTMLElement, sel: string): Promise<void> => {
+    for (let i = 0; i < 100 && !host.shadowRoot?.querySelector(sel); i++) await new Promise((r) => setTimeout(r, 10));
+  };
+  it('with the theme control, the light / dark toggle shows next to the theme menu by default', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    new DiagramViewer(host, { lazy: false, source: 'flowchart LR\n  a --> b', controls: ['theme'], storage: memoryStorage() });
+    await settle(host, '.view-params .mmdx-theme-btn');
+    expect(host.shadowRoot!.querySelector('.view-params .mmdx-theme-btn')).not.toBeNull();
+    expect(host.shadowRoot!.querySelector('.view-params .vp-mode')).not.toBeNull();
+    host.remove();
+  });
+  it('schemeToggle: false keeps the theme menu and drops the toggle (the host sets ui)', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    new DiagramViewer(host, { lazy: false, source: 'flowchart LR\n  a --> b', controls: ['theme', 'export'], schemeToggle: false, ui: 'dark', storage: memoryStorage() });
+    await settle(host, '.view-params .mmdx-theme-btn');
+    expect(host.shadowRoot!.querySelector('.view-params .mmdx-theme-btn')).not.toBeNull();
+    expect(host.shadowRoot!.querySelector('.view-params .vp-mode')).toBeNull();
+    host.remove();
+  });
+});
+
+describe('host full screen', () => {
+  beforeAll(async () => {
+    await loadKind('flowchart');
+    defineViewer();
+  });
+  const handler = (on = { available: true }): HostFullscreen & { enter: ReturnType<typeof vi.fn>; exit: ReturnType<typeof vi.fn>; shown: boolean } => {
+    const h = {
+      shown: false,
+      available: () => on.available,
+      enter: vi.fn(async () => void (h.shown = true)),
+      exit: vi.fn(async () => void (h.shown = false)),
+      active: () => h.shown,
+    };
+    return h;
+  };
+  const mountFs = (opts: ConstructorParameters<typeof DiagramViewer>[1] = {}): { host: HTMLElement; v: DiagramViewer; btn: () => HTMLButtonElement | null } => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const v = new DiagramViewer(host, { lazy: false, source: 'flowchart LR\n  a --> b', storage: memoryStorage(), ...opts });
+    return { host, v, btn: () => host.shadowRoot!.querySelector<HTMLButtonElement>('.fs-btn') };
+  };
+  const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+
+  it('without the browser\'s full screen (jsdom) and without a host handler, the button is hidden', () => {
+    const { host, btn } = mountFs();
+    expect(btn()).not.toBeNull();
+    expect(btn()!.hidden).toBe(true);
+    host.remove();
+  });
+
+  it('a host handler shows the button, which enters and leaves the host\'s full screen', async () => {
+    const fs = handler();
+    const { host, btn } = mountFs({ fullscreen: fs });
+    const requests: boolean[] = [];
+    const changes: boolean[] = [];
+    host.addEventListener('mmdx-fullscreen-request', (e) => requests.push((e as CustomEvent<{ enter: boolean }>).detail.enter));
+    host.addEventListener('mmdx-fullscreen', (e) => changes.push((e as CustomEvent<{ active: boolean }>).detail.active));
+    expect(btn()!.hidden).toBe(false);
+    btn()!.click();
+    expect(fs.enter).toHaveBeenCalledTimes(1);
+    await tick();
+    expect(host.hasAttribute('data-fullscreen')).toBe(true);
+    expect(btn()!.classList.contains('on')).toBe(true);
+    btn()!.click();
+    expect(fs.exit).toHaveBeenCalledTimes(1);
+    await tick();
+    expect(host.hasAttribute('data-fullscreen')).toBe(false);
+    expect(requests).toEqual([true, false]);
+    expect(changes).toEqual([true, false]);
+    host.remove();
+  });
+
+  it('a cancelled mmdx-fullscreen-request leaves full screen to the host page', async () => {
+    const fs = handler();
+    const { host, btn } = mountFs({ fullscreen: fs });
+    host.addEventListener('mmdx-fullscreen-request', (e) => e.preventDefault());
+    btn()!.click();
+    await tick();
+    expect(fs.enter).not.toHaveBeenCalled();
+    expect(host.hasAttribute('data-fullscreen')).toBe(false);
+    host.remove();
+  });
+
+  it('a handler set later shows the button; an unavailable one keeps it hidden', () => {
+    const { host, v, btn } = mountFs();
+    expect(btn()!.hidden).toBe(true);
+    v.set({ fullscreen: handler({ available: false }) });
+    expect(btn()!.hidden).toBe(true);
+    v.set({ fullscreen: handler() });
+    expect(btn()!.hidden).toBe(false);
+    v.set({ fullscreen: undefined });
+    expect(btn()!.hidden).toBe(true);
+    host.remove();
+  });
+
+  it('a host that left full screen by itself is noticed on resize (active())', async () => {
+    const fs = handler();
+    const { host, btn } = mountFs({ fullscreen: fs });
+    btn()!.click();
+    await tick();
+    expect(host.hasAttribute('data-fullscreen')).toBe(true);
+    fs.shown = false;
+    window.dispatchEvent(new Event('resize'));
+    expect(host.hasAttribute('data-fullscreen')).toBe(false);
+    // the next click enters again
+    btn()!.click();
+    expect(fs.enter).toHaveBeenCalledTimes(2);
+    host.remove();
+  });
+
+  it('a rejected enter() shows a toast and keeps the state', async () => {
+    const fs = handler();
+    fs.enter.mockImplementation(() => Promise.reject(new Error('no')));
+    const { host, btn } = mountFs({ fullscreen: fs });
+    btn()!.click();
+    await tick();
+    await tick();
+    expect(host.hasAttribute('data-fullscreen')).toBe(false);
+    expect(host.shadowRoot!.textContent).toContain('Full screen is not available here');
+    host.remove();
+  });
+
+  it('the element takes the handler as the fullscreen property, and setControls() changes the controls', async () => {
+    const el = document.createElement('mmdx-viewer');
+    el.storage = memoryStorage();
+    el.source = 'flowchart LR\n  a --> b';
+    el.setAttribute('lazy', 'false');
+    el.fullscreen = handler();
+    const rendered = new Promise((r) => el.addEventListener('mmdx-render', r, { once: true }));
+    document.body.append(el);
+    await rendered;
+    const sr = el.shadowRoot!;
+    expect(sr.querySelector<HTMLButtonElement>('.fs-btn')!.hidden).toBe(false);
+    el.setControls(['zoom']);
+    expect(el.instance!.options.controls).toEqual(['zoom']);
+    expect(sr.querySelector('.fs-btn')).toBeNull();
+    el.setControls(['zoom', 'fullscreen']);
+    expect(sr.querySelector<HTMLButtonElement>('.fs-btn')!.hidden).toBe(false);
     el.remove();
   });
 });

@@ -1,0 +1,48 @@
+/* The portal's brand colours (the logo's navy and the studio's accent) on top of the default theme. */
+:root {
+  --vp-c-brand-1: #1e4fd8;
+  --vp-c-brand-2: #3366e6;
+  --vp-c-brand-3: #2a5be0;
+  --vp-c-brand-soft: rgba(30, 79, 216, 0.12);
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, #061958 10%, #3366e6 90%);
+  --vp-home-hero-image-background-image: linear-gradient(-45deg, #3366e6 40%, #22b8cf 60%);
+  --vp-home-hero-image-filter: blur(56px);
+}
+
+.dark {
+  --vp-c-brand-1: #7aa2ff;
+  --vp-c-brand-2: #5c8cff;
+  --vp-c-brand-3: #3d73f5;
+  --vp-c-brand-soft: rgba(122, 162, 255, 0.16);
+  --vp-home-hero-name-background: linear-gradient(120deg, #9db8ff 10%, #4fd1e6 90%);
+}
+
+/* a live component on a page */
+.mmdx-demo {
+  margin: 16px 0;
+}
+.mmdx-demo:empty {
+  min-height: 160px;
+  border-radius: 8px;
+  background: var(--vp-c-bg-soft);
+}
+.mmdx-demo > * {
+  display: block;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.mmdx-demo__error {
+  padding: 12px 16px;
+  color: var(--vp-c-danger-1);
+  font-family: var(--vp-font-family-mono);
+  font-size: 13px;
+}
+
+/* the home page's demo spans the content width */
+.home-demo {
+  max-width: 1152px;
+  margin: 0 auto;
+  padding: 0 24px 48px;
+}

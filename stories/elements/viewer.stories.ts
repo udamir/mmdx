@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import '../../src/viewer.js';
+import type { HostFullscreen as HostFullscreenHandler } from '../../src/viewer.js';
 import { example, exampleHistory, SMALL_ER, SMALL_FLOW, SMALL_SEQUENCE, THEME_IDS, uiArg } from '../support.js';
 
 type ViewerArgs = {
@@ -59,7 +60,7 @@ const meta: Meta<ViewerArgs> = {
       description: {
         component:
           '`<mmdx-viewer>` renders a styled Mermaid diagram (flowchart, sequence, ER) read-only: pan and zoom, layers, ' +
-          'a pen overlay, a code view (the Mermaid code without styles), export and fullscreen. Import `mmdx/viewer`; the source comes from an inline ' +
+          'a pen overlay, a code view (the Mermaid code without styles), export and fullscreen. Import `@mmdx/studio/viewer`; the source comes from an inline ' +
           '`<script type="text/mermaid">`, the `src` attribute or the `source` property. Events: `mmdx-render`, `mmdx-error`, ' +
           '`mmdx-link`, `mmdx-fullscreen` (logged to the console here).',
       },
@@ -112,6 +113,30 @@ export const WithHistory: Story = {
   name: 'With history',
   args: { historyOf: 'atom-schema-er', controls: ['zoom', 'history', 'fullscreen'] },
   parameters: { docs: { description: { story: '`controls="history"` and a `history` (the versions of the diagram): the History button opens the version panel — one version as it was, or a comparison with the current one; Back returns to the diagram.' } } },
+};
+
+export const HostFullscreen: Story = {
+  name: 'Host full screen (sandboxed iframe)',
+  render: (a) => {
+    const box = document.createElement('div');
+    box.style.cssText = 'border:1px dashed #9aa3b5;border-radius:8px;overflow:hidden;';
+    const el = viewer(a) as HTMLElement & { fullscreen?: HostFullscreenHandler };
+    // stands in for a sandboxed iframe without allowfullscreen: the browser's full screen is unavailable here
+    Object.defineProperty(el, 'requestFullscreen', { value: undefined });
+    let shown = false;
+    const show = (on: boolean): void => {
+      shown = on;
+      box.style.cssText = on
+        ? 'position:fixed;inset:0;z-index:1000;background:#fff;'
+        : 'border:1px dashed #9aa3b5;border-radius:8px;overflow:hidden;';
+    };
+    el.fullscreen = { available: () => true, enter: async () => show(true), exit: async () => show(false), active: () => shown };
+    el.addEventListener('mmdx-fullscreen-request', (e) => console.info('mmdx-fullscreen-request', (e as CustomEvent).detail));
+    box.append(el);
+    return frame(box);
+  },
+  args: { source: example('production-microservices'), controls: ['zoom', 'fullscreen'] },
+  parameters: { docs: { description: { story: 'The browser\'s full screen is unavailable (as in a sandboxed iframe without `allowfullscreen`), so the full-screen button calls the host page\'s `fullscreen` handler, which shows the viewer in a modal-like box. `mmdx-fullscreen-request` (cancelable) comes first.' } } },
 };
 
 export const ContainInFixedBox: Story = {

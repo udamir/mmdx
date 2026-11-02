@@ -31,7 +31,7 @@ const meta: Meta<MarkdownArgs> = {
     docs: {
       description: {
         component:
-          'Markdown integration (`mmdx/markdown`): at run time `upgradeMermaidBlocks()` replaces Mermaid code blocks with ' +
+          'Markdown integration (`@mmdx/studio/markdown`): at run time `upgradeMermaidBlocks()` replaces Mermaid code blocks with ' +
           'viewers; at build time `diagramHtml()` (used by the rehype and markdown-it plugins) emits a viewer with the ' +
           'pre-rendered SVG, readable without JavaScript and hydrated when the viewer loads.',
       },

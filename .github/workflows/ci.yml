@@ -23,14 +23,31 @@ jobs:
       - run: pnpm test
       - run: pnpm run build
       - run: pnpm run size
+
+  # GitHub Pages: the documentation portal at /, the studio demo at /studio/ and Storybook at /storybook/ (built on pull
+  # requests too, so a broken page or a dead link in the docs fails the check)
+  pages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # the portal's "last updated" dates come from the git history
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:pages
       - uses: actions/upload-pages-artifact@v3
         if: github.ref == 'refs/heads/master'
         with:
-          path: apps/studio-site/dist
+          path: _site
 
   deploy:
     if: github.ref == 'refs/heads/master'
-    needs: check
+    needs: [check, pages]
     runs-on: ubuntu-latest
     permissions:
       pages: write
