@@ -18,6 +18,17 @@
   --vp-home-hero-name-background: linear-gradient(120deg, #9db8ff 10%, #4fd1e6 90%);
 }
 
+/* the pages use the full width of the window (the default theme stops at 1440px, the text at about 780px): the live
+   components and the reference tables need the room; the sidebar and the outline keep their widths */
+:root {
+  --vp-layout-max-width: 100vw;
+}
+.VPDoc .container,
+.VPDoc .content,
+.VPDoc.has-aside .content-container {
+  max-width: none !important;
+}
+
 /* a live component on a page */
 .mmdx-demo {
   margin: 16px 0;
