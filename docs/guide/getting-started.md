@@ -153,14 +153,14 @@ See [Server-side rendering](/guide/ssr) and [Reviewing changes in CI](/guide/ci)
 
 ## The complete app
 
-`<mmdx-studio>` is the whole app — editor, examples, file open, theme editor and share links — in one element, as on the [demo](/studio/){target="_self"}:
+`<mmdx-studio>` is the whole app — editor, examples, file open and theme editor — in one element, as on the [demo](/studio/){target="_self"}:
 
 ```html
 <script type="module">
   import '@mmdx/studio';
 </script>
 
-<mmdx-studio examples="./examples/index.json" themes="./themes/index.json" persist="local hash"></mmdx-studio>
+<mmdx-studio examples="./examples/index.json" themes="./themes/index.json" persist="local"></mmdx-studio>
 ```
 
 See [`<mmdx-studio>`](/components/studio).

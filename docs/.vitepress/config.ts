@@ -44,8 +44,6 @@ export default defineConfig({
   head: [
     ['link', { rel: 'icon', href: `${base}favicon.svg`, type: 'image/svg+xml' }],
     ['meta', { name: 'theme-color', content: '#061958' }],
-    // share links of the studio used to point at the site root (…/mmdx/#d=…): send them to the studio
-    ['script', {}, `if(/^#d=/.test(location.hash)&&location.pathname===${JSON.stringify(base)})location.replace(${JSON.stringify(`${base}studio/`)}+location.hash)`],
   ],
   markdown: {
     // a ```mermaid block is a live <mmdx-viewer>; ```mmdx (or mmd) shows the code itself, highlighted as Mermaid

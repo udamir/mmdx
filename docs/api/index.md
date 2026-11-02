@@ -16,7 +16,7 @@ import { httpDocumentAdapter } from '@mmdx/studio/adapters';
 | `@mmdx/studio/editor` | `<mmdx-editor>` and `DiagramEditor`: the visual editor with the code panel; document adapters |
 | `@mmdx/studio/theme-editor` | `<mmdx-theme-editor>` and `ThemeEditor`: manage diagram themes; theme and storage adapters |
 | `@mmdx/studio/diff` | `<mmdx-diff>` and `DiagramDiff`: how a diagram changed, and its version history; history adapters; the asynchronous diff functions |
-| `@mmdx/studio` (also `@mmdx/studio/studio`) | `<mmdx-studio>` and `DiagramStudio`: the complete standalone app; share links |
+| `@mmdx/studio` (also `@mmdx/studio/studio`) | `<mmdx-studio>` and `DiagramStudio`: the complete standalone app |
 | `@mmdx/studio/core` | The pure API without DOM: parse, render to SVG, metadata, themes, diffs and diff reports (Node, workers, browsers) |
 | `@mmdx/studio/adapters` | Storage, theme sources and stores, document adapters, history adapters, share links |
 | `@mmdx/studio/markdown` | rehype and markdown-it plugins that turn mermaid code blocks into viewers |

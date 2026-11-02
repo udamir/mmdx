@@ -56,7 +56,7 @@ A live `<mmdx-viewer>` with the example's version history — pan, zoom, open th
 | [`<mmdx-editor>`](/components/editor) | `DiagramEditor` | The visual editor with the code panel, Properties, Layers, History and saving through an adapter |
 | [`<mmdx-diff>`](/components/diff) | `DiagramDiff` | How a diagram changed between two versions, and its version history |
 | [`<mmdx-theme-editor>`](/components/theme-editor) | `ThemeEditor` | Manage diagram themes: palette, styles, presets, contrast checks, import and export |
-| [`<mmdx-studio>`](/components/studio) | `DiagramStudio` | The complete standalone app — editor, examples, file open, theme editor and share links |
+| [`<mmdx-studio>`](/components/studio) | `DiagramStudio` | The complete standalone app — editor, examples, file open and theme editor |
 
 Each element is also an imperative class you can mount on any element, for hosts where `customElements.define` is not allowed. The [components overview](/components/) compares them.
 

@@ -8,7 +8,7 @@ Mermaid Studio ships five custom elements. Each one renders in shadow DOM, needs
 | [`<mmdx-editor>`](/components/editor) | `@mmdx/studio/editor` | `DiagramEditor` | The visual editor with the code panel, properties, layers, saving through an adapter, and History |
 | [`<mmdx-diff>`](/components/diff) | `@mmdx/studio/diff` | `DiagramDiff` | How a diagram changed between two versions, item by item, and its version history |
 | [`<mmdx-theme-editor>`](/components/theme-editor) | `@mmdx/studio/theme-editor` | `ThemeEditor` | Edit the palette and every item type's style of diagram themes, with live previews |
-| [`<mmdx-studio>`](/components/studio) | `@mmdx/studio` | `DiagramStudio` | The complete standalone app: editor, examples, file open, theme editor, versions and share links |
+| [`<mmdx-studio>`](/components/studio) | `@mmdx/studio` | `DiagramStudio` | The complete standalone app: editor, examples, file open, theme editor and versions |
 
 Try them all on one page in the [playgrounds](/components/playgrounds), in the [studio](/studio/){target="_self"}, or one by one in [Storybook](/storybook/){target="_self"}.
 

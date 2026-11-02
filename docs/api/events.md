@@ -188,7 +188,7 @@ A store conflict on save opens a dialog (Cancel, Reload, Overwrite) instead of a
 The studio dispatches no events of its own and re-dispatches none. Its `<mmdx-editor>` and the theme editor dialog live in its shadow root, and their composed events reach the `<mmdx-studio>` element and the page (retargeted: `e.target` is the studio). The studio listens to its editor itself:
 
 - `mmdx-save`: it calls `preventDefault()`, downloads the `.mmdx` file, records a version and marks the document saved. A listener on the studio sees `defaultPrevented: true`.
-- `mmdx-change` and `mmdx-dirty`: it keeps the document as its `persist` option says (storage, URL hash) and marks the file name unsaved.
+- `mmdx-change` and `mmdx-dirty`: it keeps the document as its `persist` option says (browser storage) and marks the file name unsaved.
 - `mmdx-history-show` and `mmdx-history-close`: the Edit / View / Diff switch follows what History shows.
 - `mmdx-ui`: it remembers the light / dark choice for the whole studio.
 - `mmdx-theme-saved` (from the theme editor dialog): the editor redraws.

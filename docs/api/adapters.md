@@ -609,7 +609,7 @@ diff.history = history;
 
 ## Share links
 
-`<mmdx-studio>` keeps the document in the URL hash as `#d=<data>`, where the data is the source compressed with raw deflate and encoded as base64url. Both functions use the browser's `CompressionStream` / `DecompressionStream` and resolve `null` where it is missing.
+A diagram can travel in a URL hash such as `#d=<data>`, where the data is the source compressed with raw deflate and encoded as base64url. Both functions use the browser's `CompressionStream` / `DecompressionStream` and resolve `null` where it is missing.
 
 ### `encodeHash()`
 
@@ -617,7 +617,7 @@ diff.history = history;
 function encodeHash(src: string): Promise<string | null>
 ```
 
-The source as deflate-raw + base64url (without the `#d=` prefix), or `null` when `CompressionStream` is unavailable. The studio uses links up to 8 KiB of encoded data: a larger document leaves the address bar without `#d=`, and its Share button offers to download the file or copy the source instead.
+The source as deflate-raw + base64url (without the `#d=` prefix), or `null` when `CompressionStream` is unavailable.
 
 ```ts
 const data = await encodeHash(editor.getSource());

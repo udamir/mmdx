@@ -1,9 +1,9 @@
 # `<mmdx-studio>`
 
-The complete app, **Mermaid Studio**, in one element: the [editor](/components/editor), an examples gallery, opening and dropping files, the [theme editor](/components/theme-editor) in a dialog, versions you save in the browser, and share links. It is the app of the live demo; open it in the [studio](/studio/){target="_self"}.
+The complete app, **Mermaid Studio**, in one element: the [editor](/components/editor), an examples gallery, opening and dropping files, the [theme editor](/components/theme-editor) in a dialog, and versions you save in the browser. It is the app of the live demo; open it in the [studio](/studio/){target="_self"}.
 
 ```ts
-import '@mmdx/studio'; // <mmdx-studio>, DiagramStudio, encodeHash, decodeHash
+import '@mmdx/studio'; // <mmdx-studio>, DiagramStudio
 ```
 
 ## Usage
@@ -13,7 +13,7 @@ import '@mmdx/studio'; // <mmdx-studio>, DiagramStudio, encodeHash, decodeHash
   import '@mmdx/studio';
 </script>
 
-<mmdx-studio examples="./examples/index.json" themes="./themes/index.json" persist="local hash" style="height: 100vh"></mmdx-studio>
+<mmdx-studio examples="./examples/index.json" themes="./themes/index.json" persist="local" style="height: 100vh"></mmdx-studio>
 ```
 
 The element fills its parent's height (at least 480 px). Without custom elements, mount `DiagramStudio`:
@@ -36,7 +36,7 @@ The attributes are read when the studio is created; changing them later has no e
 |---|---|---|---|---|
 | `examples` | — | `string` | — | URL of the examples manifest. Without it, Examples shows nothing and a new studio opens a flowchart starter |
 | `themes` | — | `string` | — | URL of a theme manifest (`themes/index.json`). `?themes=<url>` on the page overrides it |
-| `persist` | — | `('local' \| 'hash')[]` | `local hash` | `local` keeps the last document in browser storage; `hash` keeps it in the URL (`#d=…`), which the Share button copies |
+| `persist` | — | `'local'[]` | `local` | `local` keeps the last document in browser storage; empty keeps nothing |
 | `initial` | — | `string` | the first example | Example id to open when nothing is stored and the URL holds no diagram |
 | — | `storage` | `StorageAdapter` | `localStorage` (`mmdx.` keys), else in memory | Where the document, the versions, edited themes and preferences are kept |
 
@@ -66,7 +66,6 @@ The studio dispatches no events of its own; the inner editor's [events](/compone
 | **Save version** | Records the current diagram as a version, with a message, in its history |
 | **Theme editor** | Opens `<mmdx-theme-editor>` in a dialog; saved themes apply to the open diagram |
 | **Plain Mermaid** | The diagram rendered by stock Mermaid, as GitHub or YouTrack show it |
-| **Share** | Copies a link with the diagram in it |
 
 Opening a document while the current one has unsaved changes asks first.
 
@@ -123,24 +122,11 @@ A history file:
 
 Versions without a string `id` and `source` are skipped.
 
-## Persistence and share links
+## Persistence
 
-On start the studio opens, in this order: the diagram in the URL (`persist` with `hash`), the last document from browser storage (`local`), the `initial` example, the first example, or a new flowchart.
+On start the studio opens, in this order: the last document from browser storage (`persist` with `local`), the `initial` example, the first example, or a new flowchart.
 
-- `local` stores the open document with its name, so a reload continues where you were.
-- `hash` writes the document into the URL as `#d=<data>` a moment after each change, while it fits in 8 KB; the link of a larger document is dropped from the URL.
-- **Share** copies the link. A diagram too large for a link offers Download `.mmdx` or Copy source instead.
-- A link whose diagram is an example (any of its versions) or this browser's own document opens as that document, with its name and history; any other opens as `shared-diagram`.
-
-The link data is the source compressed with `deflate-raw` and encoded as base64url. `encodeHash(source)` and `decodeHash(data)` (from `@mmdx/studio` and `@mmdx/studio/adapters`) make and read it in your own pages:
-
-```ts
-import { encodeHash, decodeHash } from '@mmdx/studio';
-
-const data = await encodeHash(source);               // null where CompressionStream is unavailable
-const url = `https://example.com/studio/#d=${data}`;
-const back = await decodeHash(data!);                // null for invalid data or over 1 MB
-```
+`local` stores the open document with its name, so a reload continues where you were.
 
 ## Themes
 
@@ -151,5 +137,5 @@ The studio loads the themes of the `themes` manifest (or `?themes=<url>`) and re
 - [Live studio](/studio/){target="_self"}
 - [`<mmdx-editor>`](/components/editor) and [`<mmdx-theme-editor>`](/components/theme-editor)
 - [History](/guide/history), [Themes](/guide/themes)
-- [Adapters](/api/adapters): `encodeHash`, `decodeHash`, storage
+- [Adapters](/api/adapters): storage
 - [Components overview](/components/)

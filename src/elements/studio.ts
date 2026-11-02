@@ -3,7 +3,6 @@
 // open document's versions (an example's bundled history and the versions saved here), shown by the editor's History.
 import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../ui/blocks/overlay-scroll.js';
 import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
-import { decodeHash, encodeHash } from '../adapters/share.js';
 import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
 import { fetchThemeSource, localStorageThemeStore, type ThemeSource } from '../adapters/themes.js';
 import { ensureBuiltinThemes, getShared } from '../config.js';
@@ -42,14 +41,13 @@ export interface StudioOptions {
   examples?: string;
   /** Theme manifest URL (`themes/index.json`). `?themes=<url>` on the page overrides it (A.8 row 70). */
   themes?: string;
-  /** `local`: keep the last document in storage; `hash`: the document travels in the URL (`#d=…`). */
-  persist?: readonly ('local' | 'hash')[];
+  /** `local`: keep the last document in storage. */
+  persist?: readonly 'local'[];
   /** Example id to open when nothing is stored. */
   initial?: string;
   storage?: StorageAdapter;
 }
 
-const HASH_LIMIT = 8 * 1024;
 const STORE_KEY = 'studio.doc';
 /** Versions saved in the studio, per document (browser storage, never the server). */
 const VERSIONS_KEY = 'studio.versions';
@@ -109,9 +107,8 @@ export class DiagramStudio {
   private bundled: StaticVersion[] = [];
   /** The editor's History source: this document's versions, read fresh every time it opens. */
   private history!: HistoryAdapter;
-  private hashTimer: ReturnType<typeof setTimeout> | undefined;
   private ui: 'light' | 'dark' | 'auto';
-  /** Bumps on every document opened: a slow load (an example, a file, a link) started before gives up. */
+  /** Bumps on every document opened: a slow load (an example, a file) started before gives up. */
   private openSeq = 0;
   private destroyed = false;
 
@@ -135,7 +132,6 @@ export class DiagramStudio {
       onChange: (m) => this.setMode(m),
     }));
     const saveVersion = h('button', { type: 'button', title: 'Record the current diagram as a version in its history (see History in the tool dock)', onclick: () => void this.saveVersion() }, icon(ICONS.save), 'Save version');
-    const share = h('button', { type: 'button', title: 'Copy a link with the diagram in it', onclick: () => void this.share() }, icon(ICONS.link), 'Share');
     const themesBtn = h('button', { type: 'button', title: 'Edit the diagram themes', onclick: () => void this.openThemeEditor() }, icon(ICONS.palette), 'Theme editor');
     const plainBtn = h('button', { type: 'button', title: 'Render with stock Mermaid (what YouTrack / GitHub show)', onclick: () => void this.editorEl.plainMermaid() }, icon(ICONS.eye), 'Plain Mermaid');
     const top = h('header', { class: 'top', part: 'toolbar' },
@@ -144,7 +140,7 @@ export class DiagramStudio {
       this.nameEl,
       h('div', { class: 'spacer' }),
       h('div', { class: 'grp seg' }, modeSwitch.el),
-      h('div', { class: 'grp' }, saveVersion, themesBtn, plainBtn, share));
+      h('div', { class: 'grp' }, saveVersion, themesBtn, plainBtn));
     const main = h('div', { class: 'main' }, this.editorEl, h('div', { class: 'drop' }, 'Drop a .mmdx / .mmd / .md file'));
     const root = h('div', { class: 'studio' }, top, main);
     this.shadow.append(root);
@@ -194,7 +190,6 @@ export class DiagramStudio {
       ev.preventDefault();
       void this.openFiles(ev.dataTransfer.files);
     }, sig);
-    window.addEventListener('hashchange', () => void this.fromHash(), sig);
     this.cleanups.push(watchUiScheme(() => this.applyScheme()));
     this.applyScheme();
     void this.boot();
@@ -212,7 +207,6 @@ export class DiagramStudio {
     if (this.destroyed) return;
     this.destroyed = true;
     this.ac.abort();
-    clearTimeout(this.hashTimer);
     for (const c of this.cleanups.splice(0)) c();
     this.pops.close();
     this.toaster.destroy();
@@ -221,19 +215,17 @@ export class DiagramStudio {
 
   // ---- boot and persistence -----------------------------------------------------------------------------------------
 
-  private persistModes(): readonly ('local' | 'hash')[] {
-    return this.o.persist ?? ['local', 'hash'];
+  private persistModes(): readonly 'local'[] {
+    return this.o.persist ?? ['local'];
   }
 
   private async boot(): Promise<void> {
     const seq = this.openSeq;
-    // the user may open something (or the studio go away) while the themes, the examples or the link load
+    // the user may open something (or the studio go away) while the themes or the examples load
     const stale = (): boolean => this.destroyed || seq !== this.openSeq;
     await this.loadThemes();
     if (stale()) return;
     await this.loadExamples();
-    if (stale()) return;
-    if (await this.fromHash()) return;
     if (stale()) return;
     const saved = this.persistModes().includes('local') ? this.storage.get<{ src: string; name?: string; key?: string }>(STORE_KEY) : undefined;
     if (saved && typeof saved.src === 'string' && saved.src.trim()) {
@@ -279,76 +271,6 @@ export class DiagramStudio {
   private persist(): void {
     const src = this.editorEl.getSource();
     if (this.persistModes().includes('local')) this.storage.set(STORE_KEY, { src, name: this.name, key: this.docKey });
-    if (this.persistModes().includes('hash')) {
-      clearTimeout(this.hashTimer);
-      this.hashTimer = setTimeout(() => void this.toHash(src), 600);
-    }
-  }
-
-  private async toHash(src: string): Promise<void> {
-    const enc = await encodeHash(src);
-    const next = enc && enc.length <= HASH_LIMIT ? `#d=${enc}` : '';
-    if (location.hash === next || (!next && !location.hash.startsWith('#d='))) return;
-    history.replaceState(null, '', next ? next : location.pathname + location.search);
-  }
-
-  private async fromHash(): Promise<boolean> {
-    if (!this.persistModes().includes('hash')) return false;
-    const m = /^#d=([\w-]+)$/.exec(location.hash);
-    if (!m) return false;
-    const seq = this.openSeq;
-    const src = await decodeHash(m[1]!);
-    if (this.destroyed || seq !== this.openSeq) return false;
-    if (src === null) {
-      this.toaster.show('The link does not contain a valid diagram', { error: true });
-      return false;
-    }
-    // the studio keeps the open document in the link: one that is this browser's own document or an example opens as
-    // that document (its name, saved versions and history), anything else as a shared diagram
-    const known = await this.knownSource(src);
-    if (this.destroyed || seq !== this.openSeq) return true;
-    if (src !== this.editorEl.getSource()) this.open(src, known?.name ?? 'shared-diagram', { key: known?.key ?? 'shared:shared-diagram' });
-    return true;
-  }
-
-  /** The document a source is: the autosaved one of this browser, or an example (its file or one of its versions). */
-  private async knownSource(src: string): Promise<{ key: string; name: string } | null> {
-    const saved = this.persistModes().includes('local') ? this.storage.get<{ src: string; name?: string; key?: string }>(STORE_KEY) : undefined;
-    if (saved?.src === src && typeof saved.key === 'string') return { key: saved.key, name: saved.name ?? 'diagram' };
-    for (const ex of this.examples) {
-      const name = ex.file.split('/').pop() ?? ex.id;
-      try {
-        if ((await this.fetchHistory(ex)).some((v) => v.source === src)) return { key: `example:${ex.id}`, name };
-        const r = await fetch(ex.file);
-        if (r.ok && (await r.text()) === src) return { key: `example:${ex.id}`, name };
-      } catch {
-        // an example that does not load is not this one
-      }
-    }
-    return null;
-  }
-
-  private async share(): Promise<void> {
-    const src = this.editorEl.getSource();
-    const enc = await encodeHash(src);
-    if (!enc || enc.length > HASH_LIMIT) {
-      const choice = await this.dialogs.choose<'download' | 'copy' | 'cancel'>({
-        title: 'Too large for a link',
-        message: 'This diagram is too large to share in a URL. Download the file or copy its source instead.',
-        cancel: 'cancel',
-        buttons: [{ label: 'Copy source', value: 'copy' }, { label: 'Download .mmdx', value: 'download', primary: true }],
-      });
-      if (choice === 'download') download(`${this.name}.mmdx`, src);
-      if (choice === 'copy') await navigator.clipboard?.writeText(src);
-      return;
-    }
-    const url = `${location.origin}${location.pathname}${location.search}#d=${enc}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      this.toaster.show('Link copied');
-    } catch {
-      await this.dialogs.prompt('Copy this link', { value: url, ok: 'Close' });
-    }
   }
 
   // ---- documents --------------------------------------------------------------------------------------------------
@@ -647,7 +569,7 @@ export class DiagramStudio {
 /** Attributes, read when the studio is created. */
 const ATTRS: Readonly<Record<string, AttrSpec<StudioOptions>>> = {
   examples: ['examples', (v) => v || undefined], themes: ['themes', (v) => v || undefined], initial: ['initial', (v) => v || undefined],
-  persist: ['persist', (v) => (v === null ? undefined : words(v).filter((p) => p === 'local' || p === 'hash'))],
+  persist: ['persist', (v) => (v === null ? undefined : words(v).filter((p) => p === 'local'))],
 };
 
 export class MmdxStudioElement extends MmdxElement<StudioOptions, DiagramStudio> {
