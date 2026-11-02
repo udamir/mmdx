@@ -48,7 +48,9 @@ type Kind = 'single' | 'side' | 'plain';
 /** The CSS a DiffScene needs besides the diff tokens and canvas styles (its banner). */
 export const DIFF_SCENE_CSS: readonly string[] = [MESSAGES_CSS, /* css */ `
 .dx-stage.host-look { gap: 0; background: transparent; }
-.dx-stage.host-look.single { left: 0; right: 0; }
+.dx-stage.host-look.single, .dx-stage.host-look.side { left: 0; right: 0; }
+/* side by side under the panels: the panes split at the middle of the area between the panel stacks */
+.dx-stage.host-look.side > .pane.before { flex: none; width: calc(var(--inset-l, 0px) + (100% - var(--inset-l, 0px) - var(--inset-r, 0px)) / 2); }
 .dx-stage.host-look .pane { background: transparent; }
 .dx-stage.host-look.side .pane + .pane { border-left: 1px solid var(--mmdx-border); }
 .dx-page-badges { position: absolute; left: 0; top: 0; z-index: 3; display: flex; gap: 6px; align-items: center; white-space: nowrap; pointer-events: none; }
@@ -63,6 +65,7 @@ export const DIFF_SCENE_CSS: readonly string[] = [MESSAGES_CSS, /* css */ `
 .pane.after .dx-page-version b { color: var(--mmdx-diff-add); }
 @container area (max-width: 480px) {
   .dx-stage.host-look.side .pane + .pane { border-left: 0; border-top: 1px solid var(--mmdx-border); }
+  .dx-stage.host-look.side > .pane.before { flex: 1; width: auto; }
 }
 `];
 
@@ -91,14 +94,18 @@ export class DiffScene extends BaseScene {
   }
 
   /**
-   * What fit() keeps clear of in each pane: the tool dock, the pane titles (the page badges), the bars. The panes of
-   * side by side share one view, so they share these too: their stage sits between the panel stacks.
+   * What fit() keeps clear of in a pane (`pane` 1: the After pane side by side): the tool dock, the pane titles (the
+   * page badges), the bars. In the host's look the panes span the canvas area under the panels, so each keeps clear of
+   * the panels on its side; the two panes share one view, measured from where each one's free area starts.
    */
-  insets(): Insets {
-    if (this.o.hostLook && this.painted.kind !== 'side') {
+  insets(pane = 0): Insets {
+    if (this.o.hostLook) {
       // the host's: the panel stacks and the dock, and the diff bar at the bottom
       const c = this.core.insets();
-      return { left: Math.max(c.left, 8), right: Math.max(c.right, 8), top: Math.max(c.top, 8), bottom: Math.max(c.bottom, 52) };
+      const all = { left: Math.max(c.left, 8), right: Math.max(c.right, 8), top: Math.max(c.top, 8), bottom: Math.max(c.bottom, 52) };
+      if (this.painted.kind !== 'side') return all;
+      const top = Math.max(c.top, 34);
+      return pane === 0 ? { ...all, right: 8, top } : { ...all, left: 8, top };
     }
     const dock = this.core.slots['left-dock'].querySelector<HTMLElement>('.tool-dock');
     const w = dock && !dock.hidden ? dock.offsetWidth : 0;
@@ -109,7 +116,7 @@ export class DiffScene extends BaseScene {
     this.core.addCss(DIFF_SCENE_CSS);
     const stale = this.dirty;
     // the stage is inset by the panel stacks already: fit keeps clear of the scene's own chrome only
-    area.main.setInsets(() => this.insets());
+    area.main.setInsets(() => this.insets(0));
     super.attach(area);
     if (stale) this.session.invalidate();
   }
@@ -367,7 +374,7 @@ export class DiffScene extends BaseScene {
     const main = area.main;
     if (main.svg.parentNode !== this.panes[0]) this.panes[0]!.append(main.svg);
     if (two && !this.second) {
-      const canvas = area.createCanvas(this.panes[1]!, { ...this.o.canvas?.(), insets: () => this.insets() });
+      const canvas = area.createCanvas(this.panes[1]!, { ...this.o.canvas?.(), insets: () => this.insets(1) });
       this.second = { canvas, unlink: main.link(canvas), ink: null };
     }
     this.syncInk();

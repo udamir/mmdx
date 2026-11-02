@@ -148,10 +148,15 @@ export class DiagramCanvas {
       ...(o.minK !== undefined ? { minK: o.minK } : {}),
       ...(o.maxK !== undefined ? { maxK: o.maxK } : {}),
       ...(o.pad !== undefined ? { pad: o.pad } : {}),
-      insets: () => (this.insetsOverride ?? o.insets)?.() ?? { left: 0, right: 0, top: 0, bottom: 0 },
+      insets: () => this.insets(),
       onChange: (v) => this.onChange(v),
     });
     if (this.bounds) this.vpt.setBounds(this.bounds, { fit: true });
+  }
+
+  /** What fit() keeps clear of: the scene's insets, else the canvas's own option. */
+  private insets(): Insets {
+    return (this.insetsOverride ?? this.o.insets)?.() ?? { left: 0, right: 0, top: 0, bottom: 0 };
   }
 
   /** Insets fit() keeps clear, set by the scene that draws here (null: the canvas's own option again). */
@@ -286,7 +291,10 @@ export class DiagramCanvas {
     return { x: p.x * v.k + v.tx, y: p.y * v.k + v.ty };
   }
 
-  /** Shares pan and zoom with another canvas (side by side). Returns an unlink; destroying either canvas unlinks too. */
+  /**
+   * Shares pan and zoom with another canvas (side by side), measured from where each one's free area starts (its left
+   * and top insets). Returns an unlink; destroying either canvas unlinks too.
+   */
   link(other: DiagramCanvas): () => void {
     this.links.add(other);
     other.links.add(this);
@@ -357,7 +365,9 @@ export class DiagramCanvas {
         o.linking = true;
         try {
           o.vpt.auto = this.vpt.auto;
-          o.vpt.set({ ...v });
+          // the same view, from where each canvas's free area starts (panes of different widths, side by side)
+          const a = this.insets(), b = o.insets();
+          o.vpt.set({ k: v.k, tx: v.tx - a.left + b.left, ty: v.ty - a.top + b.top });
         } finally {
           o.linking = false;
         }
