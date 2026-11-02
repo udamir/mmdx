@@ -5,7 +5,7 @@ import { h, icon } from '../../src/ui/h.js';
 import { DIFF_TOKENS } from '../../src/ui/styles/diff.js';
 import { createI18n } from '../../src/ui/i18n.js';
 import { signal } from '../../src/ui/signal.js';
-import { chromeHost, SYSTEM_UI } from '../support.js';
+import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; kind: 'version' | 'compare' | 'remote' };
 
@@ -60,7 +60,7 @@ const meta: Meta<Args> = {
   },
   render: (a) => pill(a),
   argTypes: { ui: { control: 'inline-radio', options: ['light', 'dark'] }, kind: { control: 'inline-radio', options: ['version', 'compare', 'remote'] } },
-  args: { ui: SYSTEM_UI, kind: 'version' },
+  args: { kind: 'version' },
 };
 export default meta;
 

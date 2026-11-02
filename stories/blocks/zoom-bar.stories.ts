@@ -5,7 +5,7 @@ import { createI18n } from '../../src/ui/i18n.js';
 import { PopoverManager } from '../../src/ui/popover.js';
 import type { Shortcut } from '../../src/ui/shortcuts.js';
 import { signal } from '../../src/ui/signal.js';
-import { chromeHost, SYSTEM_UI } from '../support.js';
+import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; compact: boolean; help: boolean; fullscreen: boolean };
 
@@ -66,7 +66,7 @@ const meta: Meta<Args> = {
     help: { control: 'boolean' },
     fullscreen: { control: 'boolean' },
   },
-  args: { ui: SYSTEM_UI, compact: false, help: true, fullscreen: true },
+  args: { compact: false, help: true, fullscreen: true },
 };
 export default meta;
 

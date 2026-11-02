@@ -5,7 +5,7 @@ import { pageScene } from '../../src/core/render/page.js';
 import { CANVAS_CSS, DiagramCanvas } from '../../src/dom/canvas.js';
 import { StrokeStore } from '../../src/dom/pen.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
-import { chromeHost, example, uiArg, SYSTEM_UI } from '../support.js';
+import { chromeHost, example, uiArg } from '../support.js';
 
 type CanvasArgs = { example: string; ui: 'light' | 'dark'; interaction: 'pan-zoom' | 'static'; pen: boolean };
 
@@ -47,7 +47,7 @@ function canvases(a: CanvasArgs, count: 1 | 2): HTMLElement {
 
 const meta: Meta<CanvasArgs> = {
   title: 'Canvas/DiagramCanvas',
-  args: { example: 'simple-flow', ui: SYSTEM_UI, interaction: 'pan-zoom', pen: false },
+  args: { example: 'simple-flow', interaction: 'pan-zoom', pen: false },
   argTypes: {
     example: { control: 'select', options: ['simple-flow', 'production-microservices', 'docker-deploy-sequence', 'atom-schema-er'] },
     ui: { ...uiArg, options: ['light', 'dark'] },

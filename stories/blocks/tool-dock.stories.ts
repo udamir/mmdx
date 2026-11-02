@@ -7,7 +7,7 @@ import { createI18n, registerMessages } from '../../src/ui/i18n.js';
 import { ICONS } from '../../src/ui/icons.js';
 import { EDITOR_MESSAGES } from '../../src/ui/messages/editor.js';
 import { computed, signal } from '../../src/ui/signal.js';
-import { chromeHost, SYSTEM_UI } from '../support.js';
+import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; compact: boolean; issues: number; canUndo: boolean };
 
@@ -83,7 +83,7 @@ const meta: Meta<Args> = {
     issues: { control: { type: 'number', min: 0, max: 150 } },
     canUndo: { control: 'boolean' },
   },
-  args: { ui: SYSTEM_UI, compact: false, issues: 2, canUndo: true },
+  args: { compact: false, issues: 2, canUndo: true },
 };
 export default meta;
 

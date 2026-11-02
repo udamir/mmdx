@@ -6,7 +6,7 @@ import { shapePreview } from '../../src/ui/shape-preview.js';
 import { NODE_SHAPES, PARTICIPANT_SHAPES } from '../../src/ui/style-toolbar.js';
 import { Dialogs, DIALOG_CSS } from '../../src/ui/dialog.js';
 import { Toaster } from '../../src/ui/popover.js';
-import { chromeHost, SYSTEM_UI } from '../support.js';
+import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; size: number };
 
@@ -47,7 +47,7 @@ const meta: Meta<Args> = {
     },
   },
   argTypes: { ui: { control: 'inline-radio', options: ['light', 'dark'] }, size: { control: { type: 'range', min: 12, max: 40 } } },
-  args: { ui: SYSTEM_UI, size: 20 },
+  args: { size: 20 },
 };
 export default meta;
 

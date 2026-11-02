@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { COLOR_PICKER_CSS, createColorPicker, openColorPicker } from '../../src/ui/blocks/color-picker.js';
 import { h } from '../../src/ui/h.js';
 import { PopoverManager } from '../../src/ui/popover.js';
-import { chromeHost, SYSTEM_UI } from '../support.js';
+import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; open: boolean };
 
@@ -54,7 +54,7 @@ const meta: Meta<Args> = {
   },
   render: (a) => picker(a),
   argTypes: { ui: { control: 'inline-radio', options: ['light', 'dark'] }, open: { control: 'boolean', description: 'The panel alone' } },
-  args: { ui: SYSTEM_UI, open: false },
+  args: { open: false },
 };
 export default meta;
 

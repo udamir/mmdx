@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createDisclosure, DISCLOSURE_CSS } from '../../src/ui/blocks/disclosure.js';
 import { h } from '../../src/ui/h.js';
 import { signal } from '../../src/ui/signal.js';
-import { chromeHost, SYSTEM_UI } from '../support.js';
+import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; badge: boolean };
 
@@ -37,7 +37,7 @@ const meta: Meta<Args> = {
   },
   render: (a) => disclosure(a),
   argTypes: { ui: { control: 'inline-radio', options: ['light', 'dark'] }, badge: { control: 'boolean' } },
-  args: { ui: SYSTEM_UI, badge: true },
+  args: { badge: true },
 };
 export default meta;
 

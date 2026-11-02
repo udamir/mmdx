@@ -4,7 +4,7 @@ import { changeKey } from '../../src/core/diff/merge.js';
 import { CHANGE_LIST_CSS, createChangeList } from '../../src/ui/blocks/change-list.js';
 import { createI18n } from '../../src/ui/i18n.js';
 import { DIFF_TOKENS } from '../../src/ui/styles/diff.js';
-import { chromeHost, exampleHistory, SYSTEM_UI } from '../support.js';
+import { chromeHost, exampleHistory } from '../support.js';
 
 type Args = { example: string; ui: 'light' | 'dark' };
 
@@ -51,7 +51,7 @@ const meta: Meta<Args> = {
     example: { control: 'select', options: ['production-microservices', 'docker-deploy-sequence', 'atom-schema-er', 'fusion-services', 'microservice-patterns', 'simple-flow'] },
     ui: { control: 'inline-radio', options: ['light', 'dark'] },
   },
-  args: { example: 'production-microservices', ui: SYSTEM_UI },
+  args: { example: 'production-microservices' },
 };
 export default meta;
 

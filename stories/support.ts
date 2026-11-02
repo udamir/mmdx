@@ -95,14 +95,12 @@ export function chromeHost(css: readonly string[], opts: { ui?: 'light' | 'dark'
   return { host, root };
 }
 
-/** The system's light / dark scheme: the stories' default `ui`, so Storybook opens in the scheme of the system. */
+/** The system's light / dark scheme: where Storybook's light / dark (the backgrounds toolbar) starts. */
 export const SYSTEM_UI: 'light' | 'dark' = typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-/** The built-in diagram theme of the system's scheme: the default theme of the stories that name one. */
-export const SYSTEM_THEME = SYSTEM_UI === 'dark' ? 'default-dark' : 'default-light';
 
 /** Light / dark chrome control shared by the stories. */
 export const uiArg = {
   control: 'inline-radio',
   options: ['light', 'dark', 'auto'],
-  description: 'Chrome colour scheme (`ui` attribute).',
+  description: 'Chrome colour scheme (`ui` attribute); unset, it follows Storybook\'s light / dark (the backgrounds toolbar).',
 } as const;

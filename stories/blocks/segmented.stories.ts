@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createSegmented, SEGMENTED_CSS } from '../../src/ui/blocks/segmented.js';
 import { createToolbar, TOOLBAR_CSS } from '../../src/ui/blocks/toolbar.js';
 import { signal } from '../../src/ui/signal.js';
-import { chromeHost, SYSTEM_UI } from '../support.js';
+import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; compact: boolean };
 
@@ -41,7 +41,7 @@ const meta: Meta<Args> = {
   },
   render: (a) => segmented(a),
   argTypes: { ui: { control: 'inline-radio', options: ['light', 'dark'] }, compact: { control: 'boolean', description: 'The select form' } },
-  args: { ui: SYSTEM_UI, compact: false },
+  args: { compact: false },
 };
 export default meta;
 

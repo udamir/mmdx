@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createTileGallery, TILE_GALLERY_CSS, type Tile } from '../../src/ui/blocks/tile-gallery.js';
 import { h } from '../../src/ui/h.js';
 import { signal } from '../../src/ui/signal.js';
-import { chromeHost, SYSTEM_UI } from '../support.js';
+import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; readOnly: boolean };
 
@@ -58,7 +58,7 @@ const meta: Meta<Args> = {
   },
   render: (a) => gallery(a),
   argTypes: { ui: { control: 'inline-radio', options: ['light', 'dark'] }, readOnly: { control: 'boolean' } },
-  args: { ui: SYSTEM_UI, readOnly: false },
+  args: { readOnly: false },
 };
 export default meta;
 

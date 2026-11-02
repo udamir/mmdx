@@ -1,6 +1,9 @@
-<!-- the page around the stories follows the system's light / dark, like the stories' default `ui` (stories with a set scheme paint their own background) -->
+<!-- the page around the stories follows Storybook's light / dark (preview.ts sets color-scheme on <html>; the system's before that) -->
 <style>
-  html, body { color-scheme: light dark; background: light-dark(#ffffff, #1b1c1d); }
+  html { color-scheme: light dark; }
+  html, body { background: light-dark(#ffffff, #1b1c1d); }
   /* docs pages use the full width: the components and their tables are too wide for the default 1000px column */
   .sbdocs.sbdocs-content { max-width: none; }
+  /* a story in a frame: an inline iframe leaves a few pixels under it, which made the story block scroll */
+  .docs-story iframe { display: block; }
 </style>

@@ -3,7 +3,7 @@ import { createFilterToggles, FILTER_ICONS, FILTER_TOGGLES_CSS, type FilterToggl
 import { createToolbar, TOOLBAR_CSS } from '../../src/ui/blocks/toolbar.js';
 import { createI18n } from '../../src/ui/i18n.js';
 import { DIFF_TOKENS } from '../../src/ui/styles/diff.js';
-import { chromeHost, SYSTEM_UI } from '../support.js';
+import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; dim: boolean };
 
@@ -49,7 +49,7 @@ const meta: Meta<Args> = {
   },
   render: (a) => filterToggles(a),
   argTypes: { ui: { control: 'inline-radio', options: ['light', 'dark'] }, dim: { control: 'boolean' } },
-  args: { ui: SYSTEM_UI, dim: false },
+  args: { dim: false },
 };
 export default meta;
 

@@ -4,7 +4,7 @@ import { createPanelStack, PANEL_STACK_CSS } from '../../src/ui/blocks/panel-sta
 import { createSidePanel, SIDE_PANEL_CSS } from '../../src/ui/blocks/side-panel.js';
 import { createI18n } from '../../src/ui/i18n.js';
 import { signal, type Signal } from '../../src/ui/signal.js';
-import { chromeHost, SYSTEM_UI } from '../support.js';
+import { chromeHost } from '../support.js';
 
 type Args = { side: 'left' | 'right'; stageWidth: number; ui: 'light' | 'dark' };
 
@@ -75,7 +75,7 @@ const meta: Meta<Args> = {
     stageWidth: { control: { type: 'range', min: 360, max: 1200, step: 20 } },
     ui: { control: 'inline-radio', options: ['light', 'dark'] },
   },
-  args: { side: 'left', stageWidth: 960, ui: SYSTEM_UI },
+  args: { side: 'left', stageWidth: 960 },
 };
 export default meta;
 

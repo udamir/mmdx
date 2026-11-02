@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { CODE_EDITOR_CSS, createCodeEditor, highlightLine, highlightMetaLine } from '../../src/ui/code-editor.js';
-import { chromeHost, example, SYSTEM_UI } from '../support.js';
+import { chromeHost, example } from '../support.js';
 
 type CodeArgs = { value: string; lineNumbers: boolean; meta: boolean; markers: boolean; readOnly: boolean; ui: 'light' | 'dark' };
 
@@ -52,7 +52,7 @@ const meta: Meta<CodeArgs> = {
   },
   render: (a) => codeEditor(a),
   argTypes: { value: { control: 'text' }, ui: { control: 'inline-radio', options: ['light', 'dark'] } },
-  args: { value: example('production-microservices'), lineNumbers: true, meta: false, markers: false, readOnly: false, ui: SYSTEM_UI },
+  args: { value: example('production-microservices'), lineNumbers: true, meta: false, markers: false, readOnly: false },
 };
 export default meta;
 

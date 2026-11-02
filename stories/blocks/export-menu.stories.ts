@@ -3,7 +3,7 @@ import { createExportMenu, EXPORT_MENU_CSS, type ExportEntry } from '../../src/u
 import { MENU_CSS } from '../../src/ui/blocks/menu.js';
 import { createI18n } from '../../src/ui/i18n.js';
 import { PopoverManager, Toaster } from '../../src/ui/popover.js';
-import { chromeHost, SYSTEM_UI } from '../support.js';
+import { chromeHost } from '../support.js';
 
 type Args = { product: 'editor' | 'viewer' | 'diff'; compact: boolean; headers: boolean; ui: 'light' | 'dark' };
 
@@ -59,7 +59,7 @@ const meta: Meta<Args> = {
     headers: { control: 'boolean', description: 'Section headers instead of separators.' },
     ui: { control: 'inline-radio', options: ['light', 'dark'] },
   },
-  args: { product: 'editor', compact: false, headers: false, ui: SYSTEM_UI },
+  args: { product: 'editor', compact: false, headers: false },
 };
 export default meta;
 

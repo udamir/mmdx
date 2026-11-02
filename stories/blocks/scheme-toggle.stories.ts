@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createSchemeToggle, SCHEME_TOGGLE_CSS, type Scheme } from '../../src/ui/blocks/scheme-toggle.js';
 import { createI18n } from '../../src/ui/i18n.js';
 import { signal } from '../../src/ui/signal.js';
-import { chromeHost, SYSTEM_UI } from '../support.js';
+import { chromeHost } from '../support.js';
 
 type Args = { ui: Scheme };
 
@@ -37,11 +37,11 @@ const meta: Meta<Args> = {
   },
   render: (a) => schemeToggle(a),
   argTypes: { ui: { control: 'inline-radio', options: ['light', 'dark'] } },
-  args: { ui: SYSTEM_UI },
+  args: {},
 };
 export default meta;
 
 type Story = StoryObj<Args>;
 
-export const Light: Story = {};
+export const Light: Story = { args: { ui: 'light' } };
 export const Dark: Story = { args: { ui: 'dark' } };

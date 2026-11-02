@@ -3,7 +3,7 @@ import { createSidePanel, SIDE_PANEL_CSS } from '../../src/ui/blocks/side-panel.
 import { createTabs, TABS_CSS } from '../../src/ui/blocks/tabs.js';
 import { createI18n } from '../../src/ui/i18n.js';
 import { signal } from '../../src/ui/signal.js';
-import { chromeHost, SMALL_FLOW, SYSTEM_UI } from '../support.js';
+import { chromeHost, SMALL_FLOW } from '../support.js';
 
 type Args = { head: 'title' | 'tabs'; side: 'left' | 'right'; resizable: boolean; ui: 'light' | 'dark' };
 
@@ -59,7 +59,7 @@ const meta: Meta<Args> = {
     resizable: { control: 'boolean' },
     ui: { control: 'inline-radio', options: ['light', 'dark'] },
   },
-  args: { head: 'title', side: 'right', resizable: true, ui: SYSTEM_UI },
+  args: { head: 'title', side: 'right', resizable: true },
 };
 export default meta;
 

@@ -4,7 +4,7 @@ import { createThemeButton, THEME_MENU_CSS, type ThemeInfo } from '../../src/ui/
 import { createI18n } from '../../src/ui/i18n.js';
 import { PopoverManager } from '../../src/ui/popover.js';
 import { signal } from '../../src/ui/signal.js';
-import { chromeHost, THEME_FILES, SYSTEM_UI } from '../support.js';
+import { chromeHost, THEME_FILES } from '../support.js';
 
 type Args = { edit: boolean; ui: 'light' | 'dark' };
 
@@ -60,7 +60,7 @@ const meta: Meta<Args> = {
   },
   render: (a) => themeMenu(a),
   argTypes: { ui: { control: 'inline-radio', options: ['light', 'dark'] }, edit: { control: 'boolean' } },
-  args: { ui: SYSTEM_UI, edit: true },
+  args: { edit: true },
 };
 export default meta;
 

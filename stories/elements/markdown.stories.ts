@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { upgradeMermaidBlocks } from '../../src/viewer.js';
 import { diagramHtml } from '../../src/markdown/index.js';
-import { SMALL_FLOW, SMALL_SEQUENCE, THEME_FILES, THEME_IDS, SYSTEM_THEME } from '../support.js';
+import { SMALL_FLOW, SMALL_SEQUENCE, THEME_FILES, THEME_IDS } from '../support.js';
 
 type MarkdownArgs = { theme: string; controls: string[] };
 
@@ -28,6 +28,7 @@ const meta: Meta<MarkdownArgs> = {
   title: 'Elements/Markdown',
   tags: ['autodocs'],
   parameters: {
+    schemeTheme: true,
     docs: {
       description: {
         component:
@@ -41,7 +42,7 @@ const meta: Meta<MarkdownArgs> = {
     theme: { control: 'select', options: THEME_IDS },
     controls: { control: 'check', options: ['zoom', 'layers', 'pen', 'code', 'export', 'fullscreen'] },
   },
-  args: { theme: SYSTEM_THEME, controls: ['zoom', 'fullscreen'] },
+  args: { controls: ['zoom', 'fullscreen'] },
 };
 export default meta;
 
