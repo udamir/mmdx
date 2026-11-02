@@ -2,5 +2,4 @@
 export * from './adapters/storage.js';
 export * from './adapters/themes.js';
 export * from './adapters/documents.js';
-export * from './adapters/share.js';
 export * from './adapters/history.js';

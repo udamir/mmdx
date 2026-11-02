@@ -18,7 +18,7 @@ import { httpDocumentAdapter } from '@mmdx/studio/adapters';
 | `@mmdx/studio/diff` | `<mmdx-diff>` and `DiagramDiff`: how a diagram changed, and its version history; history adapters; the asynchronous diff functions |
 | `@mmdx/studio` (also `@mmdx/studio/studio`) | `<mmdx-studio>` and `DiagramStudio`: the complete standalone app |
 | `@mmdx/studio/core` | The pure API without DOM: parse, render to SVG, metadata, themes, diffs and diff reports (Node, workers, browsers) |
-| `@mmdx/studio/adapters` | Storage, theme sources and stores, document adapters, history adapters, share links |
+| `@mmdx/studio/adapters` | Storage, theme sources and stores, document adapters, history adapters |
 | `@mmdx/studio/markdown` | rehype and markdown-it plugins that turn mermaid code blocks into viewers |
 | `@mmdx/studio/react` | Optional typed wrappers for React 18 and older |
 | `@mmdx/studio/worker-inline` | The render worker as a string (`workerSource`) and `useInlineWorker()`, for pages that cannot start workers from URLs |
@@ -130,7 +130,6 @@ The package root and `@mmdx/studio/studio` are the same entry.
 |---|---|---|
 | Elements and classes | `MmdxStudioElement` (`<mmdx-studio>`), `DiagramStudio` | [Studio](/components/studio) |
 | Functions | `defineStudio(name?)` | [Studio](/components/studio) |
-| | `encodeHash`, `decodeHash` | [Adapters](/api/adapters#share-links) |
 | | `configure`, `registerThemes`, `registerBuiltinThemes` | [Configuration](/api/configuration) |
 | Types | `StudioOptions`, `ExampleInfo` | [Studio](/components/studio) |
 | | `Config` | [Configuration](/api/configuration) |
@@ -163,7 +162,6 @@ Every export is documented on the [adapters](/api/adapters) page.
 | Themes | [`memoryThemeStore`](/api/adapters#memorythemestore), [`fetchThemeSource`](/api/adapters#fetchthemesource), [`localStorageThemeStore`](/api/adapters#localstoragethemestore), [`isLocalEdit`](/api/adapters#islocaledit); types [`ThemeSource`](/api/adapters#themesource), [`ThemeStore`](/api/adapters#themestore), [`SaveResult`](/api/adapters#saveresult) |
 | Documents | [`memoryDocumentAdapter`](/api/adapters#memorydocumentadapter), [`httpDocumentAdapter`](/api/adapters#httpdocumentadapter); types [`DocumentAdapter`](/api/adapters#documentadapter), [`LoadResult`](/api/adapters#loadresult), [`DocumentSaveResult`](/api/adapters#documentsaveresult) |
 | History | [`staticHistory`](/api/adapters#statichistory), [`httpHistoryAdapter`](/api/adapters#httphistoryadapter), [`contentId`](/api/adapters#contentid); types [`HistoryAdapter`](/api/adapters#historyadapter), [`StaticVersion`](/api/adapters#staticversion), [`VersionInfo`](/api/adapters#versioninfo) |
-| Share links | [`encodeHash`](/api/adapters#encodehash), [`decodeHash`](/api/adapters#decodehash) |
 
 ### `@mmdx/studio/markdown`
 

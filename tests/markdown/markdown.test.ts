@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { diagramHtml, markdownItMmdx, rehypeMmdx, scriptSafe } from '../../src/markdown/index.js';
-import { decodeHash, encodeHash } from '../../src/adapters/share.js';
 
 describe('markdown plugins', () => {
   it('pre-renders supported diagrams with the source for hydration', () => {
@@ -29,17 +28,5 @@ describe('markdown plugins', () => {
     markdownItMmdx(md);
     expect(md.renderer.rules['fence']!([{ info: 'mermaid', content: 'flowchart LR\n a-->b\n' }], 0)).toContain('<mmdx-viewer');
     expect(md.renderer.rules['fence']!([{ info: 'js', content: 'x' }], 0)).toBe('<pre>other</pre>');
-  });
-});
-
-describe('share links', () => {
-  it('round-trips through deflate + base64url', async () => {
-    const src = 'flowchart LR\n  a["Ünïcødé ✓"] --> b\n%%@ node a {"x":1,"y":2}\n';
-    const enc = await encodeHash(src);
-    expect(enc).toMatch(/^[\w-]+$/);
-    expect(await decodeHash(enc!)).toBe(src);
-  });
-  it('rejects garbage', async () => {
-    expect(await decodeHash('not-valid-deflate')).toBeNull();
   });
 });

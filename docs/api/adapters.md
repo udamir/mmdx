@@ -1,6 +1,6 @@
 # Adapters
 
-`@mmdx/studio/adapters` holds the host adapters: where the components keep UI preferences (`StorageAdapter`), where they read and save themes (`ThemeSource`, `ThemeStore`), how the editor loads and saves its document (`DocumentAdapter`), where the History reads the versions of a diagram (`HistoryAdapter`), and the share-link encoding. The library never talks to a backend by itself: every adapter is an object of a few async functions, and the built-in ones cover memory, `localStorage`, plain HTTP and static files. The entry defines no element and loads no diagram code.
+`@mmdx/studio/adapters` holds the host adapters: where the components keep UI preferences (`StorageAdapter`), where they read and save themes (`ThemeSource`, `ThemeStore`), how the editor loads and saves its document (`DocumentAdapter`), and where the History reads the versions of a diagram (`HistoryAdapter`). The library never talks to a backend by itself: every adapter is an object of a few async functions, and the built-in ones cover memory, `localStorage`, plain HTTP and static files. The entry defines no element and loads no diagram code.
 
 ```ts
 import {
@@ -8,7 +8,6 @@ import {
   memoryThemeStore, fetchThemeSource, localStorageThemeStore, isLocalEdit,
   memoryDocumentAdapter, httpDocumentAdapter,
   staticHistory, httpHistoryAdapter, contentId,
-  encodeHash, decodeHash,
   type StorageAdapter, type ThemeSource, type ThemeStore, type DocumentAdapter, type HistoryAdapter,
 } from '@mmdx/studio/adapters';
 ```
@@ -21,7 +20,6 @@ Some element entries re-export the adapters they use, so a page that already imp
 | `@mmdx/studio/editor` | The [document adapters](#documents): `DocumentAdapter`, `LoadResult`, `DocumentSaveResult`, `memoryDocumentAdapter`, `httpDocumentAdapter` |
 | `@mmdx/studio/theme-editor` | The [theme](#themes) and [storage](#storage) adapters (all of them), plus the `ThemeFile` and `ThemeInfo` types |
 | `@mmdx/studio/diff` | `staticHistory`, `httpHistoryAdapter`, `contentId`, `HistoryAdapter`, `StaticVersion`, `VersionInfo` |
-| `@mmdx/studio`, `@mmdx/studio/studio` | `encodeHash`, `decodeHash` |
 
 ## Storage
 
@@ -606,38 +604,3 @@ const history: HistoryAdapter = {
 };
 diff.history = history;
 ```
-
-## Share links
-
-A diagram can travel in a URL hash such as `#d=<data>`, where the data is the source compressed with raw deflate and encoded as base64url. Both functions use the browser's `CompressionStream` / `DecompressionStream` and resolve `null` where it is missing.
-
-### `encodeHash()`
-
-```ts
-function encodeHash(src: string): Promise<string | null>
-```
-
-The source as deflate-raw + base64url (without the `#d=` prefix), or `null` when `CompressionStream` is unavailable.
-
-```ts
-const data = await encodeHash(editor.getSource());
-if (data) window.history.replaceState(null, '', `#d=${data}`);
-```
-
-### `decodeHash()`
-
-```ts
-function decodeHash(s: string): Promise<string | null>
-```
-
-The source back from `encodeHash`'s output. Resolves `null` when `DecompressionStream` is unavailable, when the data is not valid base64url / deflate, when the result is not valid UTF-8, or when it decompresses to more than 1 MiB.
-
-```ts
-const m = /^#d=([\w-]+)$/.exec(location.hash);
-const src = m ? await decodeHash(m[1]) : null;
-if (src !== null) editor.value = src;
-```
-
-## Loading URLs
-
-`<mmdx-viewer>`'s `src` and `<mmdx-diff>`'s `before` / `after` attributes load their text with an internal loader: a `fetch` with `credentials: 'same-origin'` that rejects with `HTTP <status>` on an error status. It is not exported. To load URLs another way (a host API, a signed request), set the element's `loader` property, a `(url: string) => Promise<string>`; see [`<mmdx-viewer>`](/components/viewer).

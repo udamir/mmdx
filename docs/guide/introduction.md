@@ -70,7 +70,7 @@ Each element is also an imperative class you can mount on any element, for hosts
 | `@mmdx/studio/diff` | `<mmdx-diff>` and `DiagramDiff`, history adapters |
 | `@mmdx/studio` | `<mmdx-studio>` and `DiagramStudio` (also `@mmdx/studio/studio`) |
 | `@mmdx/studio/core` | Pure API without DOM: parse, render to SVG, metadata, themes, diffs and diff reports (Node, workers, browsers) |
-| `@mmdx/studio/adapters` | Storage, theme sources and stores, document adapters, history adapters, share links |
+| `@mmdx/studio/adapters` | Storage, theme sources and stores, document adapters, history adapters |
 | `@mmdx/studio/markdown` | rehype and markdown-it plugins that turn ` ```mermaid ` blocks into viewers |
 | `@mmdx/studio/react` | Optional wrappers for React ≤ 18 |
 | `@mmdx/studio/worker-inline` | The render worker as a string, for pages that cannot start workers from URLs |
