@@ -4,6 +4,7 @@ import '../../src/diff.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import type { StaticVersion } from '../../src/adapters/history.js';
 import type { DiffFilter, DiffViewName, MmdxDiffElement } from '../../src/elements/diff.js';
+import { SYSTEM_UI } from '../support.js';
 
 const histories = import.meta.glob<{ versions: StaticVersion[] }>('../../examples/history/*.json', { eager: true, import: 'default' });
 const history = (id: string): StaticVersion[] => histories[`../../examples/history/${id}.json`]?.versions ?? [];
@@ -69,7 +70,7 @@ const meta: Meta<DiffArgs> = {
     panels: { control: 'select', options: ['history code changes', 'history changes', 'code changes', 'changes', 'history code', ''], description: 'Open panels: History and Code stack on the left, Changes on the right (also toggled from the end of the bottom bar).' },
     ui: { control: 'inline-radio', options: ['light', 'dark', 'auto'] },
   },
-  args: { source: 'history', example: 'production-microservices', pair: 'architecture', view: 'merged', filters: ['added', 'removed', 'content', 'layout', 'style'], dim: true, panels: 'history changes', ui: 'light' },
+  args: { source: 'history', example: 'production-microservices', pair: 'architecture', view: 'merged', filters: ['added', 'removed', 'content', 'layout', 'style'], dim: true, panels: 'history changes', ui: SYSTEM_UI },
 };
 export default meta;
 

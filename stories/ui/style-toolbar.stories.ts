@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createStyleToolbar, TOOLBAR_KINDS, type PaletteColor, type ToolbarApi, type ToolbarControl } from '../../src/ui/style-toolbar.js';
 import { TOOLBAR_CSS } from '../../src/ui/styles/toolbar.js';
-import { chromeHost } from '../support.js';
+import { chromeHost, SYSTEM_UI } from '../support.js';
 
 type ToolbarArgs = {
   kind: string;
@@ -130,7 +130,7 @@ const meta: Meta<ToolbarArgs> = {
     localPalette: { control: 'boolean', description: 'Diagram palette in the colour pickers, with "+" to add colours.' },
     ui: { control: 'inline-radio', options: ['light', 'dark'] },
   },
-  args: { kind: 'node', multi: 1, locked: false, themeEditorMode: false, localPalette: true, ui: 'light' },
+  args: { kind: 'node', multi: 1, locked: false, themeEditorMode: false, localPalette: true, ui: SYSTEM_UI },
 };
 export default meta;
 

@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { CODE_VIEW_CSS, createCodeView, type CodeLanguage, type CodeViewProps } from '../../src/ui/blocks/code-view.js';
 import { createI18n } from '../../src/ui/i18n.js';
 import { DIFF_TOKENS } from '../../src/ui/styles/diff.js';
-import { chromeHost, exampleHistory } from '../support.js';
+import { chromeHost, exampleHistory, SYSTEM_UI } from '../support.js';
 
 type Args = { mode: 'plain' | 'diff'; language: CodeLanguage; example: string; narrowed: boolean; copy: boolean; ui: 'light' | 'dark' };
 
@@ -54,7 +54,7 @@ const meta: Meta<Args> = {
     copy: { control: 'boolean' },
     ui: { control: 'inline-radio', options: ['light', 'dark'] },
   },
-  args: { mode: 'diff', language: 'mermaid', example: 'production-microservices', narrowed: false, copy: true, ui: 'light' },
+  args: { mode: 'diff', language: 'mermaid', example: 'production-microservices', narrowed: false, copy: true, ui: SYSTEM_UI },
 };
 export default meta;
 

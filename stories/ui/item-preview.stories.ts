@@ -3,7 +3,7 @@ import { getShared } from '../../src/config.js';
 import { drawItemPreview, type PreviewKind } from '../../src/ui/item-preview.js';
 import { NODE_SHAPES, PARTICIPANT_SHAPES } from '../../src/ui/style-toolbar.js';
 import type { ResolvedTheme } from '../../src/core/theme/types.js';
-import { THEME_IDS } from '../support.js';
+import { THEME_IDS, SYSTEM_THEME } from '../support.js';
 
 type PreviewArgs = { theme: string; kind: PreviewKind; zoom: number };
 
@@ -66,7 +66,7 @@ const meta: Meta<PreviewArgs> = {
     kind: { control: 'select', options: KINDS },
     zoom: { control: { type: 'range', min: 0.5, max: 2, step: 0.1 } },
   },
-  args: { theme: 'default-light', kind: 'node', zoom: 1 },
+  args: { theme: SYSTEM_THEME, kind: 'node', zoom: 1 },
 };
 export default meta;
 

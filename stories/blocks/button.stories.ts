@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createIconButton, createToggleButton } from '../../src/ui/blocks/button.js';
 import { I_hand, I_pen, I_pointer, I_undo } from '../../src/ui/icons.js';
 import { signal } from '../../src/ui/signal.js';
-import { chromeHost } from '../support.js';
+import { chromeHost, SYSTEM_UI } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; disabled: boolean };
 
@@ -43,7 +43,7 @@ const meta: Meta<Args> = {
   },
   render: (a) => buttons(a),
   argTypes: { ui: { control: 'inline-radio', options: ['light', 'dark'] }, disabled: { control: 'boolean', description: 'Undo disabled' } },
-  args: { ui: 'light', disabled: false },
+  args: { ui: SYSTEM_UI, disabled: false },
 };
 export default meta;
 

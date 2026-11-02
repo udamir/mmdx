@@ -3,7 +3,7 @@ import { PEN_COLORS, PEN_FADES, PEN_SIZES } from '../../src/dom/pen.js';
 import { createPenOptions, PEN_OPTIONS_CSS, type PenSettings } from '../../src/ui/blocks/pen-options.js';
 import { TOOL_DOCK_CSS } from '../../src/ui/blocks/tool-dock.js';
 import { createI18n } from '../../src/ui/i18n.js';
-import { chromeHost } from '../support.js';
+import { chromeHost, SYSTEM_UI } from '../support.js';
 
 type Args = { ui: 'light' | 'dark' };
 
@@ -47,7 +47,7 @@ const meta: Meta<Args> = {
   },
   render: (a) => penOptions(a),
   argTypes: { ui: { control: 'inline-radio', options: ['light', 'dark'] } },
-  args: { ui: 'light' },
+  args: { ui: SYSTEM_UI },
 };
 export default meta;
 

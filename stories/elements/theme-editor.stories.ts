@@ -3,7 +3,7 @@ import '../../src/theme-editor.js';
 import { memoryThemeStore } from '../../src/adapters/themes.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import type { MmdxThemeEditorElement } from '../../src/elements/theme-editor.js';
-import { SMALL_ER, SMALL_FLOW, SMALL_SEQUENCE, THEME_FILES, THEME_IDS, uiArg } from '../support.js';
+import { SMALL_ER, SMALL_FLOW, SMALL_SEQUENCE, THEME_FILES, THEME_IDS, uiArg, SYSTEM_UI, SYSTEM_THEME } from '../support.js';
 
 type ThemeEditorArgs = {
   theme: string;
@@ -54,7 +54,7 @@ const meta: Meta<ThemeEditorArgs> = {
     ui: uiArg,
     customSamples: { control: 'boolean', description: 'Pass small custom `samples` for the preview instead of the defaults.' },
   },
-  args: { theme: 'default-light', canEdit: true, canDelete: true, canPublish: false, presentation: 'inline', ui: 'light', customSamples: false },
+  args: { theme: SYSTEM_THEME, canEdit: true, canDelete: true, canPublish: false, presentation: 'inline', ui: SYSTEM_UI, customSamples: false },
 };
 export default meta;
 

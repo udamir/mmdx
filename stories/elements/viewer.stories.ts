@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import '../../src/viewer.js';
 import type { HostFullscreen as HostFullscreenHandler } from '../../src/viewer.js';
-import { example, exampleHistory, SMALL_ER, SMALL_FLOW, SMALL_SEQUENCE, THEME_IDS, uiArg } from '../support.js';
+import { example, exampleHistory, SMALL_ER, SMALL_FLOW, SMALL_SEQUENCE, THEME_IDS, uiArg, SYSTEM_UI, SYSTEM_THEME } from '../support.js';
 
 type ViewerArgs = {
   source: string;
@@ -80,7 +80,7 @@ const meta: Meta<ViewerArgs> = {
   },
   args: {
     source: SMALL_FLOW,
-    theme: 'default-light',
+    theme: SYSTEM_THEME,
     fit: 'width',
     controls: ['zoom', 'fullscreen'],
     interactive: true,
@@ -88,7 +88,7 @@ const meta: Meta<ViewerArgs> = {
     hoverHighlight: false,
     wheel: 'ctrl',
     fallback: 'mermaid',
-    ui: 'light',
+    ui: SYSTEM_UI,
     height: 0,
     label: '',
   },

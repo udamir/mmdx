@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createHelpPopup, groupShortcuts, HELP_POPUP_CSS } from '../../src/ui/blocks/help-popup.js';
 import { createI18n } from '../../src/ui/i18n.js';
 import type { Shortcut } from '../../src/ui/shortcuts.js';
-import { chromeHost } from '../support.js';
+import { chromeHost, SYSTEM_UI } from '../support.js';
 
 type Args = { ui: 'light' | 'dark' };
 
@@ -45,7 +45,7 @@ const meta: Meta<Args> = {
   },
   render: (a) => helpPopup(a),
   argTypes: { ui: { control: 'inline-radio', options: ['light', 'dark'] } },
-  args: { ui: 'light' },
+  args: { ui: SYSTEM_UI },
 };
 export default meta;
 

@@ -5,7 +5,7 @@ import { instanceContext } from '../../src/config.js';
 import { renderToSvg } from '../../src/core/pipeline.js';
 import { diffDiagrams } from '../../src/core/diff/all.js';
 import { ignoreFacets, type ItemChange } from '../../src/core/diff/index.js';
-import { EXAMPLES, SMALL_FLOW, THEME_IDS } from '../support.js';
+import { EXAMPLES, SMALL_FLOW, THEME_IDS, SYSTEM_THEME } from '../support.js';
 
 const diffRaw = import.meta.glob<string>('../../apps/studio-site/diff-samples/*.mmd', { eager: true, query: '?raw', import: 'default' });
 const diffSample = (name: string, side: 'before' | 'after'): string => diffRaw[`../../apps/studio-site/diff-samples/${name}.${side}.mmd`] ?? '';
@@ -30,7 +30,7 @@ const meta: Meta<CoreArgs> = {
     theme: { control: 'select', options: THEME_IDS },
     sample: { control: 'select', options: DIFF_SAMPLES },
   },
-  args: { example: 'production-microservices', theme: 'default-light', sample: 'architecture', ignoreContent: false, ignoreLayout: false, ignoreStyle: false },
+  args: { example: 'production-microservices', theme: SYSTEM_THEME, sample: 'architecture', ignoreContent: false, ignoreLayout: false, ignoreStyle: false },
 };
 export default meta;
 

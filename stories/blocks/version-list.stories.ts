@@ -5,7 +5,7 @@ import { createVersionList, VERSION_LIST_CSS, type VersionCounts } from '../../s
 import { createI18n } from '../../src/ui/i18n.js';
 import { PopoverManager } from '../../src/ui/popover.js';
 import { DIFF_TOKENS } from '../../src/ui/styles/diff.js';
-import { chromeHost, exampleHistory } from '../support.js';
+import { chromeHost, exampleHistory, SYSTEM_UI } from '../support.js';
 
 type Args = { example: string; mode: 'compare' | 'history'; timeline: boolean; hasMore: boolean; ui: 'light' | 'dark' };
 
@@ -99,7 +99,7 @@ const meta: Meta<Args> = {
     hasMore: { control: 'boolean', description: 'Start with three versions and a "Load older versions" button.' },
     ui: { control: 'inline-radio', options: ['light', 'dark'] },
   },
-  args: { example: 'production-microservices', mode: 'compare', timeline: true, hasMore: false, ui: 'light' },
+  args: { example: 'production-microservices', mode: 'compare', timeline: true, hasMore: false, ui: SYSTEM_UI },
 };
 export default meta;
 

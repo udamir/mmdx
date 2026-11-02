@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createBanner, MESSAGES_CSS } from '../../src/ui/blocks/messages.js';
-import { chromeHost } from '../support.js';
+import { chromeHost, SYSTEM_UI } from '../support.js';
 
 type Args = { tone: 'info' | 'warn' | 'error'; ui: 'light' | 'dark' };
 
@@ -29,7 +29,7 @@ const meta: Meta<Args> = {
   },
   render: (a) => messages(a),
   argTypes: { tone: { control: 'inline-radio', options: ['info', 'warn', 'error'] }, ui: { control: 'inline-radio', options: ['light', 'dark'] } },
-  args: { tone: 'warn', ui: 'light' },
+  args: { tone: 'warn', ui: SYSTEM_UI },
 };
 export default meta;
 

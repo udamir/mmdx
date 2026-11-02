@@ -3,7 +3,7 @@ import { createIconButton } from '../../src/ui/blocks/button.js';
 import { createToolbar, TOOLBAR_CSS } from '../../src/ui/blocks/toolbar.js';
 import { I_code, I_hand, I_layers, I_pen, I_pointer } from '../../src/ui/icons.js';
 import { computed, signal } from '../../src/ui/signal.js';
-import { chromeHost } from '../support.js';
+import { chromeHost, SYSTEM_UI } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; orientation: 'vertical' | 'horizontal'; compact: boolean };
 
@@ -43,7 +43,7 @@ const meta: Meta<Args> = {
     orientation: { control: 'inline-radio', options: ['vertical', 'horizontal'] },
     compact: { control: 'boolean' },
   },
-  args: { ui: 'light', orientation: 'vertical', compact: false },
+  args: { ui: SYSTEM_UI, orientation: 'vertical', compact: false },
 };
 export default meta;
 

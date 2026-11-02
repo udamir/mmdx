@@ -3,7 +3,7 @@ import '../../src/editor.js';
 import { memoryDocumentAdapter } from '../../src/adapters/documents.js';
 import { DEFAULT_FEATURES, type EditorFeatures } from '../../src/editor/core.js';
 import type { MmdxEditorElement } from '../../src/editor/editor.js';
-import { example, exampleHistory, SMALL_ER, SMALL_FLOW, SMALL_SEQUENCE, uiArg } from '../support.js';
+import { example, exampleHistory, SMALL_ER, SMALL_FLOW, SMALL_SEQUENCE, uiArg, SYSTEM_UI } from '../support.js';
 
 type Toggle = Exclude<keyof EditorFeatures, 'exportFormats'>;
 const TOGGLES = Object.keys(DEFAULT_FEATURES).filter((k): k is Toggle => k !== 'exportFormats');
@@ -87,7 +87,7 @@ const meta: Meta<EditorArgs> = {
   args: {
     source: example('production-microservices'),
     readOnly: false,
-    ui: 'light',
+    ui: SYSTEM_UI,
     name: 'diagram',
     height: 640,
     exportFormats: [...DEFAULT_FEATURES.exportFormats],

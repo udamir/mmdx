@@ -1,4 +1,6 @@
-<!-- stories assume a light page around the components (dark-chrome stories paint their own background) -->
+<!-- the page around the stories follows the system's light / dark, like the stories' default `ui` (stories with a set scheme paint their own background) -->
 <style>
-  html, body { background: #ffffff; color-scheme: light; }
+  html, body { color-scheme: light dark; background: light-dark(#ffffff, #1b1c1d); }
+  /* docs pages use the full width: the components and their tables are too wide for the default 1000px column */
+  .sbdocs.sbdocs-content { max-width: none; }
 </style>

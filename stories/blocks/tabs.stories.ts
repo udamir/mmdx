@@ -3,7 +3,7 @@ import { createSidePanel, SIDE_PANEL_CSS } from '../../src/ui/blocks/side-panel.
 import { createTabs, TABS_CSS } from '../../src/ui/blocks/tabs.js';
 import { createI18n } from '../../src/ui/i18n.js';
 import { signal } from '../../src/ui/signal.js';
-import { chromeHost } from '../support.js';
+import { chromeHost, SYSTEM_UI } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; inPanel: boolean };
 
@@ -38,7 +38,7 @@ const meta: Meta<Args> = {
   },
   render: (a) => tabs(a),
   argTypes: { ui: { control: 'inline-radio', options: ['light', 'dark'] }, inPanel: { control: 'boolean', description: 'As a SidePanel head' } },
-  args: { ui: 'light', inPanel: true },
+  args: { ui: SYSTEM_UI, inPanel: true },
 };
 export default meta;
 

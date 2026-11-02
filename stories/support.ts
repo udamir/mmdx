@@ -95,6 +95,11 @@ export function chromeHost(css: readonly string[], opts: { ui?: 'light' | 'dark'
   return { host, root };
 }
 
+/** The system's light / dark scheme: the stories' default `ui`, so Storybook opens in the scheme of the system. */
+export const SYSTEM_UI: 'light' | 'dark' = typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+/** The built-in diagram theme of the system's scheme: the default theme of the stories that name one. */
+export const SYSTEM_THEME = SYSTEM_UI === 'dark' ? 'default-dark' : 'default-light';
+
 /** Light / dark chrome control shared by the stories. */
 export const uiArg = {
   control: 'inline-radio',

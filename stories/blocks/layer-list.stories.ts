@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createLayerList, LAYER_LIST_CSS, type LayerRow } from '../../src/ui/blocks/layer-list.js';
 import { createI18n } from '../../src/ui/i18n.js';
 import { signal } from '../../src/ui/signal.js';
-import { chromeHost } from '../support.js';
+import { chromeHost, SYSTEM_UI } from '../support.js';
 
 type Args = { editable: boolean; display: boolean; ui: 'light' | 'dark' };
 
@@ -65,7 +65,7 @@ const meta: Meta<Args> = {
   },
   render: (a) => layerList(a),
   argTypes: { editable: { control: 'boolean' }, display: { control: 'boolean' }, ui: { control: 'inline-radio', options: ['light', 'dark'] } },
-  args: { editable: false, display: true, ui: 'light' },
+  args: { editable: false, display: true, ui: SYSTEM_UI },
 };
 export default meta;
 

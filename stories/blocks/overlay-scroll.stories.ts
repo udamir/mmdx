@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../../src/ui/blocks/overlay-scroll.js';
-import { chromeHost, example } from '../support.js';
+import { chromeHost, example, SYSTEM_UI } from '../support.js';
 
 type Args = { ui: 'light' | 'dark' };
 
@@ -41,7 +41,7 @@ const meta: Meta<Args> = {
   },
   render: (a) => overlayScroll(a),
   argTypes: { ui: { control: 'inline-radio', options: ['light', 'dark'] } },
-  args: { ui: 'light' },
+  args: { ui: SYSTEM_UI },
 };
 export default meta;
 

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { attachMenu, createMenu, MENU_CSS, type MenuEntry } from '../../src/ui/blocks/menu.js';
 import { PopoverManager } from '../../src/ui/popover.js';
-import { chromeHost } from '../support.js';
+import { chromeHost, SYSTEM_UI } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; open: boolean };
 
@@ -56,7 +56,7 @@ const meta: Meta<Args> = {
   },
   render: (a) => menu(a),
   argTypes: { ui: { control: 'inline-radio', options: ['light', 'dark'] }, open: { control: 'boolean', description: 'Static menu (no opener)' } },
-  args: { ui: 'light', open: false },
+  args: { ui: SYSTEM_UI, open: false },
 };
 export default meta;
 
