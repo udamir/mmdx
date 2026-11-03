@@ -2,6 +2,8 @@
 // icon and image nodes (an asset with a caption), markdown labels and icon tokens as rich text, invisible links, edge
 // animation, tooltips and the diagram's title (T06).
 import { layered, type LayoutEdge, type LayoutNode } from '../layout/layered.js';
+import { ancestorsOf, layoutCompound, type CompoundContainer, type CompoundNode, type CompoundResult } from '../layout/compound.js';
+import { polylineCrosses, routeAround } from '../layout/route.js';
 import type { DiagramMeta, ItemMeta } from '../meta/types.js';
 import type { FlowEdge, FlowGroup, FlowNode, FlowchartModel, MermaidStyle } from '../model.js';
 import { el, g, title as tooltip } from '../scene/build.js';
@@ -16,7 +18,7 @@ import type { FontSpec } from '../text/measure.js';
 import { diag } from '../types.js';
 import type { CenterBox, Point } from '../types.js';
 import {
-  assignPorts, baseStyle, cachedLayout, metaNum, metaPoints, type RenderEnv, type SubResult, byLine, countBy, Defs, edgePath, firstLine, font, haloLabel, hiddenOf, isSide, itemGroup,
+  assignPorts, baseStyle, cachedLayout, type PortLink, metaNum, metaPoints, type RenderEnv, type SubResult, byLine, countBy, Defs, edgePath, firstLine, font, haloLabel, hiddenOf, isSide, itemGroup,
   itemLink, LINK_COLOR, linkAttr, mergeStyle, outerBox, pickStyle, presetOf, presets, shapeNodes, sideToward, stackedShapeNodes,
   textBlock, urlRef, withLink,
 } from './common.js';
@@ -273,9 +275,63 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     if (N.n.parent && groupHidden.has(N.n.parent)) hiddenNodes.add(id);
   }
 
-  // ---- auto layout for nodes without positions
+  // ---- groups: style and title (their boxes come after the layout)
+  const groupDepthCache = new Map<string, number>();
+  const depth = (g: FlowGroup): number => {
+    const c = groupDepthCache.get(g.id);
+    if (c !== undefined) return c;
+    let d = 0;
+    const seen = new Set([g.id]);
+    let p = g.parent;
+    while (p && !seen.has(p)) {
+      seen.add(p);
+      d++;
+      p = model.groups.get(p)?.parent ?? null;
+    }
+    groupDepthCache.set(g.id, d);
+    return d;
+  };
+  const groupsSorted = [...model.groups.values()].sort((a, b) => depth(b) - depth(a));
+  interface GroupLook {
+    m: ItemMeta;
+    st: StyleProps;
+    preset: string;
+    lines: string[];
+    T: ReturnType<typeof labelLines> | null;
+    /** The frame placed by hand (x / y / w / h: top-left and size). */
+    frame: Rect | null;
+  }
+  const looks = new Map<string, GroupLook>();
+  for (const g of groupsSorted) {
+    const gm = m('groups', g.id);
+    const preset = groupPreset(g, meta, P);
+    // classes on a subgraph (`class s1 c`) style its frame, as in Mermaid
+    const classDefs = (g.classes ?? []).filter((c) => !presetOf(P.group, c)).map((c) => model.classDefs[c]);
+    const st = mergeStyle(ctx, F.group, baseStyle(meta, 'group'), presetOf(P.group, preset), ...classDefs, g.style, pickStyle(gm));
+    const tfont = font(st.titleSize ?? 14, st.titleWeight, st.fontFamily || family);
+    const T = (g.label || '').trim() ? labelLines(g.label, g.md, tfont, st.titleColor, g.line, 0, wrapWidth) : null;
+    const fx = metaNum(gm.x), fy = metaNum(gm.y), fw = metaNum(gm.w), fh = metaNum(gm.h);
+    const frame = fw && fh && fx !== undefined && fy !== undefined ? { x: fx, y: fy, w: fw, h: fh } : null;
+    looks.set(g.id, { m: gm, st, preset, lines: T?.lines ?? [], T, frame });
+  }
+
+  // ---- auto layout for nodes without positions: subgraphs as nested containers (T07), or the earlier layout for a
+  // flowchart without subgraphs and with `canvas.layout: "legacy"`
+  const compound = model.groups.size > 0 && meta.canvas.layout !== 'legacy';
+  /** Groups holding a node (any depth), and those holding a node not hidden by a layer. */
+  const holdsNode = new Set<string>(), visibleIn = new Set<string>();
+  for (const n of model.nodes.values()) {
+    const seen = new Set<string>();
+    for (let gid = n.parent; gid && !seen.has(gid); gid = model.groups.get(gid)?.parent ?? null) {
+      seen.add(gid);
+      holdsNode.add(gid);
+      if (!hiddenNodes.has(n.id)) visibleIn.add(gid);
+    }
+  }
+  let CR: CompoundResult | null = null;
   const missing = [...nodes.values()].filter((N) => Number.isNaN(N.x) || Number.isNaN(N.y));
-  if (missing.length) {
+  if (compound) CR = compoundLayout();
+  else if (missing.length) {
     const pathOf = (id: string): string[] => {
       const p: string[] = [];
       const seen = new Set<string>();
@@ -332,37 +388,15 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     }
   }
 
-  // ---- groups (inner first)
-  const depthCache = new Map<string, number>();
-  const depth = (g: FlowGroup): number => {
-    const c = depthCache.get(g.id);
-    if (c !== undefined) return c;
-    let d = 0;
-    const seen = new Set([g.id]);
-    let p = g.parent;
-    while (p && !seen.has(p)) {
-      seen.add(p);
-      d++;
-      p = model.groups.get(p)?.parent ?? null;
-    }
-    depthCache.set(g.id, d);
-    return d;
-  };
-  const groupsSorted = [...model.groups.values()].sort((a, b) => depth(b) - depth(a));
+  // ---- group boxes (inner first)
   const groups = new Map<string, GroupItem>();
   for (const g of groupsSorted) {
-    const gm = m('groups', g.id);
-    const preset = groupPreset(g, meta, P);
-    // classes on a subgraph (`class s1 c`) style its frame, as in Mermaid
-    const classDefs = (g.classes ?? []).filter((c) => !presetOf(P.group, c)).map((c) => model.classDefs[c]);
-    const st = mergeStyle(ctx, F.group, baseStyle(meta, 'group'), presetOf(P.group, preset), ...classDefs, g.style, pickStyle(gm));
+    const { m: gm, st, preset, lines, T, frame } = looks.get(g.id)!;
     const pad = st.pad ?? 0, padTop = st.padTop ?? pad;
-    const tfont = font(st.titleSize ?? 14, st.titleWeight, st.fontFamily || family);
-    const T = (g.label || '').trim() ? labelLines(g.label, g.md, tfont, st.titleColor, g.line, 0, wrapWidth) : null;
-    const lines = T?.lines ?? [];
     let box: GroupBox;
-    const fx = metaNum(gm.x), fy = metaNum(gm.y), fw = metaNum(gm.w), fh = metaNum(gm.h);
-    if (fw && fh && fx !== undefined && fy !== undefined) box = { x: fx + fw / 2, y: fy + fh / 2, w: fw, h: fh, fixed: true };
+    const r = CR?.containers.get(g.id);
+    if (r) box = { x: r.x + r.w / 2, y: r.y + r.h / 2, w: r.w, h: r.h, ...(frame ? { fixed: true } : { empty: !visibleIn.has(g.id) }) };
+    else if (frame) box = { x: frame.x + frame.w / 2, y: frame.y + frame.h / 2, w: frame.w, h: frame.h, fixed: true };
     else {
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
       for (const c of g.children) {
@@ -432,10 +466,15 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     edgeItems.push({ e, m: em, st, preset, a, b, hidden: isHidden, points: metaPoints(em.points) });
   }
   const visibleEdges = edgeItems.filter((x) => !x.hidden);
-  const ports = assignPorts(
+  /** Bend points the compound layout's router gave an edge (never stored: the edge's own `points` win). */
+  const routed = new Map<string, [number, number][]>();
+  const bendsOf = (x: EdgeItem): [number, number][] => (x.points.length ? x.points : routed.get(x.e.id) ?? x.points);
+  const horizontal = (d: string): boolean => d === 'LR' || d === 'RL';
+  const placePorts = (): ReturnType<typeof assignPorts> => assignPorts(
     visibleEdges.map((x) => {
-      const p0 = x.points[0], pn = x.points[x.points.length - 1];
-      return {
+      const pts = bendsOf(x);
+      const p0 = pts[0], pn = pts[pts.length - 1];
+      const link: PortLink = {
         id: x.e.id,
         a: x.a,
         b: x.b,
@@ -447,9 +486,14 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
         fromAt: metaNum(x.m.fromAt),
         toAt: metaNum(x.m.toAt),
       };
+      // between auto-placed ends, the ports follow the direction of the subgraph the edge was laid out in
+      const r = CR && autoEnd(x.e.from) && autoEnd(x.e.to) ? CR.edges.get(x.e.id) : undefined;
+      if (r) link.prefer = horizontal(r.dir) ? 'h' : 'v';
+      return link;
     }),
-    { prefer: model.direction === 'LR' || model.direction === 'RL' ? 'h' : 'v' },
+    { prefer: horizontal(model.direction) ? 'h' : 'v' },
   );
+  let ports = placePorts();
 
   // ---- draw
   const groupNodes: SceneNode[] = [];
@@ -483,6 +527,13 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     if (N?.media) return mediaPort(N, N.media, port);
     return N ? onOutline(shapeDef(N.st.shape), b, port) : port;
   };
+  const routingOf = (x: EdgeItem): { routing: string; curve: number } => {
+    // the code's curve (the edge's `curve`, `linkStyle … interpolate`, `flowchart.curve`) unless metadata routes it
+    const { e, m: em, st } = x;
+    const curve = e.data?.curve ?? model.linkStyles[String(e.index)]?.interpolate ?? model.linkStyles['default']?.interpolate ?? cfg.curve;
+    return { routing: str(em.routing) || curveRouting(curve) || routingDefault, curve: st.curve ?? 1 };
+  };
+  if (CR) routeAroundGroups(CR);
   const labelFont = (st: StyleProps): FontSpec => font(st.labelSize ?? 12, 400, st.fontFamily || family);
   const edgeGeom = new Map<string, EdgeGeom>();
   for (const x of visibleEdges) {
@@ -491,10 +542,8 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     if (!pp) continue;
     // the layout's ports sit on the sides of the boxes: each end moves onto its node's outline (T02.3)
     const p = { a: onShape(e.from, x.a, pp.a), b: onShape(e.to, x.b, pp.b) };
-    // the code's curve (the edge's `curve`, `linkStyle … interpolate`, `flowchart.curve`) unless metadata routes it
-    const curve = e.data?.curve ?? model.linkStyles[String(e.index)]?.interpolate ?? model.linkStyles['default']?.interpolate ?? cfg.curve;
-    const routing = str(em.routing) || curveRouting(curve) || routingDefault;
-    const path = edgePath(p.a, p.b, { routing, curve: st.curve ?? 1, points: x.points });
+    const auto = routed.get(e.id);
+    const path = edgePath(p.a, p.b, { ...routingOf(x), points: x.points.length ? x.points : auto });
     const endType = str(em.endArrow) || (e.end === 'arrow' ? st.arrow : e.end);
     const startType = str(em.startArrow) || (e.start === 'arrow' ? st.arrow : e.start);
     const width = st.width ?? 1;
@@ -543,7 +592,8 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
       labelNodes.push(itemGroup('edge', e.id, 'elabel', withLink(href, label), { 'data-part': 'label', 'data-from': e.from, 'data-to': e.to, ...linkAttr(href) }, 'label'));
       labelBox = { x: lx, y: ly, w: L.w, h: lines.length * labelSize * 1.25 };
     }
-    edgeGeom.set(e.id, { a: p.a, b: p.b, label: labelBox, points: x.points, mids: path.mids, d: path.d });
+    // a routed line has one handle in its middle, as a line without bend points (the route is not stored)
+    edgeGeom.set(e.id, { a: p.a, b: p.b, label: labelBox, points: x.points, mids: auto && !x.points.length ? [path.at(0.5)] : path.mids, d: path.d });
   }
 
   const nodeNodes: SceneNode[] = [];
@@ -660,6 +710,158 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
   // `accTitle` / `accDescr`: the SVG's <title> and <desc>, the component's accessible name
   if (model.accTitle || model.accDescr) out.a11y = { ...(model.accTitle ? { title: model.accTitle } : {}), ...(model.accDescr ? { desc: model.accDescr } : {}) };
   return out;
+
+  /** The end was placed by the layout: an auto-placed node, or a subgraph that moved as a unit. */
+  function autoEnd(id: string): boolean {
+    const N = nodes.get(id);
+    return N ? !!N.auto : !!CR?.containers.get(id)?.auto;
+  }
+
+  /**
+   * T07.3: a line between auto-placed ends must not cross a subgraph that holds neither end. Such a line goes through
+   * the points the layout kept free for it, else around the subgraphs in the way (core/layout/route.ts); the ports
+   * are then placed again, facing the first and last bend point. Lines with bend points of their own are left alone.
+   */
+  function routeAroundGroups(R: CompoundResult): void {
+    const frames: { id: string; r: Rect }[] = [];
+    for (const [id, G] of groups) if (!G.empty && !groupHidden.has(id)) frames.push({ id, r: { x: G.box.x - G.box.w / 2, y: G.box.y - G.box.h / 2, w: G.box.w, h: G.box.h } });
+    if (!frames.length) return;
+    const holders = (id: string): string[] => (R.containers.has(id) ? [id, ...ancestorsOf(R.parent, id)] : ancestorsOf(R.parent, id));
+    const obstaclesOf = (x: EdgeItem): Rect[] => {
+      const skip = new Set([...holders(x.e.from), ...holders(x.e.to)]);
+      return frames.filter((f) => !skip.has(f.id)).map((f) => f.r);
+    };
+    const drawn = (x: EdgeItem, pts: readonly (readonly [number, number])[]): Point[] | null => {
+      const pp = ports.get(x.e.id);
+      if (!pp) return null;
+      const path = edgePath(onShape(x.e.from, x.a, pp.a), onShape(x.e.to, x.b, pp.b), { ...routingOf(x), points: pts });
+      return Array.from({ length: 41 }, (_, i) => path.at(i / 40));
+    };
+    const ends = (x: EdgeItem): [Point, Point] | null => {
+      const pp = ports.get(x.e.id);
+      return pp ? [onShape(x.e.from, x.a, pp.a), onShape(x.e.to, x.b, pp.b)] : null;
+    };
+    const asPairs = (pts: readonly Point[]): [number, number][] => pts.map((q) => [q.x, q.y]);
+    const todo = visibleEdges.filter((x) => !x.points.length && autoEnd(x.e.from) && autoEnd(x.e.to));
+    // a line that leaves a subgraph was laid out between the subgraphs, not between the nodes: it also keeps off the
+    // other nodes near it (one laid out inside a scope keeps the layered engine's place)
+    const boxes: { id: string; r: Rect }[] = [];
+    for (const [id, N] of nodes) if (!hiddenNodes.has(id)) boxes.push({ id, r: { x: N.x - N.w / 2, y: N.y - N.h / 2, w: N.w, h: N.h } });
+    const parentOf = (id: string): string | null => (R.containers.has(id) ? id : R.parent.get(id) ?? null);
+    const obstacles = new Map<EdgeItem, Rect[]>();
+    for (const x of todo) {
+      const obs = obstaclesOf(x);
+      if (parentOf(x.e.from) !== parentOf(x.e.to)) {
+        const line = drawn(x, []);
+        if (line) {
+          let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+          for (const q of line) {
+            x0 = Math.min(x0, q.x);
+            y0 = Math.min(y0, q.y);
+            x1 = Math.max(x1, q.x);
+            y1 = Math.max(y1, q.y);
+          }
+          const near = { x: x0 - 60, y: y0 - 60, w: x1 - x0 + 120, h: y1 - y0 + 120 };
+          for (const b of boxes)
+            if (b.id !== x.e.from && b.id !== x.e.to && b.r.x < near.x + near.w && b.r.x + b.r.w > near.x && b.r.y < near.y + near.h && b.r.y + b.r.h > near.y) obs.push(b.r);
+          // nor through the titles of the subgraphs it leaves
+          for (const id of new Set([...holders(x.e.from), ...holders(x.e.to)])) {
+            const G = groups.get(id);
+            if (!G || G.empty || !G.lines.length || !G.st.titleSize || id === x.e.from || id === x.e.to) continue;
+            const band = G.st.padTop ?? G.st.pad ?? 0;
+            if (band > 0) obs.push({ x: G.box.x - G.box.w / 2, y: G.box.y - G.box.h / 2, w: G.box.w, h: band });
+          }
+        }
+      }
+      obstacles.set(x, obs);
+    }
+    for (const x of todo) {
+      const obs = obstacles.get(x)!;
+      const line = obs.length ? drawn(x, []) : null;
+      if (!line || !polylineCrosses(line, obs)) continue;
+      const hint = R.edges.get(x.e.id)?.points ?? [];
+      const viaHint = hint.length ? drawn(x, asPairs(hint)) : null;
+      if (viaHint && !polylineCrosses(viaHint, obs)) {
+        routed.set(x.e.id, asPairs(hint));
+        continue;
+      }
+      const ab = ends(x);
+      const around = ab && routeAround(ab[0], ab[1], obs, 18);
+      if (around) routed.set(x.e.id, asPairs(around));
+    }
+    if (!routed.size) return;
+    ports = placePorts();
+    // with the ports placed again a curve may still clip a corner: once more from the new ports, with a wider margin
+    for (const x of todo) {
+      if (!routed.has(x.e.id)) continue;
+      const obs = obstacles.get(x)!;
+      const line = drawn(x, routed.get(x.e.id)!);
+      if (!line || !polylineCrosses(line, obs)) continue;
+      const ab = ends(x);
+      const around = ab && routeAround(ab[0], ab[1], obs, 32);
+      if (around) routed.set(x.e.id, asPairs(around));
+    }
+  }
+
+  /**
+   * The compound layout (T07): every subgraph holding a node is a container laid out in its own direction (Mermaid's
+   * rule: a `direction` is honoured unless a link from outside reaches a node inside), hand-placed nodes and frames kept as
+   * the mixed rules say (core/layout/compound.ts); an empty subgraph takes no space, as before.
+   */
+  function compoundLayout(): CompoundResult {
+    const lineOf = (n: FlowNode): number | undefined => {
+      const l = firstLine(n.defLine, n.lines);
+      return Number.isFinite(l) ? l : undefined;
+    };
+    /** `id` is the group or inside it. */
+    const within = (id: string, gid: string): boolean => {
+      const seen = new Set<string>();
+      for (let p: string | null = id; p && !seen.has(p); p = model.nodes.get(p)?.parent ?? model.groups.get(p)?.parent ?? null) {
+        if (p === gid) return true;
+        seen.add(p);
+      }
+      return false;
+    };
+    // a link to a node inside from outside crosses the border; a link to the subgraph itself does not (Mermaid)
+    const crossed = (gid: string): boolean => model.edges.some((e) => e.from !== gid && e.to !== gid && within(e.from, gid) !== within(e.to, gid));
+    const containers: CompoundContainer[] = [];
+    for (const g of model.groups.values()) {
+      if (!holdsNode.has(g.id)) continue;
+      const { st, lines, T, frame, m: gm } = looks.get(g.id)!;
+      const pad = st.pad ?? 0, padTop = st.padTop ?? pad;
+      const c: CompoundContainer = { id: g.id, parent: g.parent && holdsNode.has(g.parent) ? g.parent : null, order: g.line, pad };
+      if (g.dir && !crossed(g.id)) c.dir = g.dir;
+      if (lines.length) c.title = { w: T?.w ?? 0, h: st.titleSize ? padTop : pad };
+      if (frame) c.fixed = frame;
+      else {
+        // "Reset positions in this group" keeps the group's top-left (x / y without a size)
+        const ax = metaNum(gm.x), ay = metaNum(gm.y);
+        if (ax !== undefined && ay !== undefined) c.at = { x: ax, y: ay };
+      }
+      containers.push(c);
+    }
+    const cn: CompoundNode[] = [...nodes.values()].map((N) => {
+      const n = N.n;
+      const c: CompoundNode = { id: n.id, w: N.w, h: N.h, parent: n.parent && holdsNode.has(n.parent) ? n.parent : null, order: lineOf(n) };
+      if (!Number.isNaN(N.x) && !Number.isNaN(N.y)) c.fixed = { x: N.x, y: N.y };
+      if (hiddenNodes.has(n.id)) c.hidden = true;
+      return c;
+    });
+    // invisible links (`~~~`) place their ends too
+    const ce = model.edges.map((e) => ({ id: e.id, from: e.from, to: e.to, minlen: e.minlen }));
+    const R = layoutCompound(
+      { nodes: cn, containers, edges: ce },
+      { dir: model.direction, rankSep: 70, nodeSep: 46, padding: 14, margin: 60, placedGap: 60, cache: ctx.layoutCache },
+    );
+    for (const N of nodes.values()) {
+      if (!R.auto.has(N.n.id)) continue;
+      const p = R.nodes.get(N.n.id)!;
+      N.x = p.x;
+      N.y = p.y;
+      N.auto = true;
+    }
+    return R;
+  }
 
   /**
    * Where a connector ends on an icon or image node (Mermaid's outline of these shapes): on the asset's frame, except on

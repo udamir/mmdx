@@ -130,6 +130,8 @@ export interface FlowGroup {
   style?: MermaidStyle;
   /** The title is a Mermaid markdown string. */
   md?: true;
+  /** `direction LR` inside the subgraph (the last one written), honoured by the compound layout (T07). */
+  dir?: Direction;
 }
 
 /** `invisible`: Mermaid's `~~~`, a link that places its nodes and is not drawn (T06). */

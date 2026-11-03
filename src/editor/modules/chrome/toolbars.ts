@@ -24,7 +24,7 @@ import { saveItemAsPreset, presetPicker } from '../panels/presets.js';
 import { styleWithShapes } from '../../ops/shape.js';
 import { mediaOf, mediaTargets, setImageFit, setMediaOf } from '../../ops/media.js';
 import { applyDoc, applyMeta, DIAGRAM_TYPES, FLOW_DIRS, setAutonumberOn, setFlowDirection, styleEnv, switchDiagramType } from '../../ops/doc.js';
-import { canGroup } from '../../ops/group.js';
+import { canGroup, groupResetState, resetSelectedGroup } from '../../ops/group.js';
 import { LiveEdit } from '../../ops/live.js';
 import { choosePagePreset, pageEff, RATIOS, setPageRatio, setPageSizeMode, setPageValue } from '../../ops/page.js';
 import { LINE_KINDS } from '../canvas/shared.js';
@@ -403,6 +403,12 @@ export const toolbarsModule: EditorModule = {
           if (s) void saveItemAsPreset(core, s);
         },
         inspect: () => void core.run('setPanel', 'properties', true),
+        // "Reset positions in this group" (T07): one selected group of a type with the action
+        groupPositions: () => (multi() ? null : groupResetState(core, primary())),
+        resetGroupPositions: () => {
+          live.flush();
+          resetSelectedGroup(core);
+        },
         // icons and images (T05): the kind's media of the selected item
         media: () => {
           const s = primary();

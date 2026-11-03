@@ -1,20 +1,20 @@
 // Canvas structure (A.3 rows 29, 33, 35, 36, 37, 39): delete, group / ungroup, copy / paste / duplicate with the
 // clipboard of §8.2, align / distribute, unlock all, ⌘[ / ⌘] and the board's right-click menu (Paste, Unlock all,
-// disabled "Nothing to paste"). Ported from prototype app.js (`deleteSelection`, `canGroup`, `groupSelection`,
-// `ungroupSelection`, `copySelection`, `pasteable`, `pasteAt`, `duplicateSelection`, `unlockAll`,
-// `arrangeSelection`, `moveSelection`, `showContextMenu`).
+// disabled "Nothing to paste"; on a group whose type offers it, "Reset positions in this group" of T07). Ported from
+// prototype app.js (`deleteSelection`, `canGroup`, `groupSelection`, `ungroupSelection`, `copySelection`, `pasteable`,
+// `pasteAt`, `duplicateSelection`, `unlockAll`, `arrangeSelection`, `moveSelection`, `showContextMenu`).
 import { KIND_TO_COLL } from '../../../core/meta/types.js';
 import type { DiagramModel } from '../../../core/model.js';
 import { withKind } from '../../../core/kinds/registry.js';
 import {
-  alignItems, cloneMeta, copyItems, duplicateItems, lockedItems, moveOrder, pasteable, pasteItems, unlockAll as unlockAllOp, type AlignOp,
+  alignItems, cloneMeta, copyItems, duplicateItems, groupHasPositions, lockedItems, moveOrder, pasteable, pasteItems, unlockAll as unlockAllOp, type AlignOp,
 } from '../../../core/ops/index.js';
 import type { ItemRef } from '../../../core/types.js';
 import { MENU_CSS, openMenu, type MenuItem } from '../../../ui/blocks/menu.js';
 import type { EditorActions, EditorCore, Sel } from '../../core.js';
 import { withEdit } from '../../kinds/registry.js';
 import type { EditorModule } from '../../module.js';
-import { canGroup as canGroupSel } from '../../ops/group.js';
+import { canGroup as canGroupSel, groupResetState, resettableGroup, resetSelectedGroup } from '../../ops/group.js';
 import { items as nItems } from './shared.js';
 
 /** The board's right-click menu is the Menu block. */
@@ -192,6 +192,9 @@ export const canvasStructureModule: EditorModule = {
       if (canPaste()) entries.push({ label: 'Paste', keys: 'mod+v', run: () => pasteAt(at) });
       const locked = lockedItems(core.meta).length;
       if (locked) entries.push({ label: `Unlock all (${locked})`, run: unlockAll });
+      // a selected group whose type offers it: "Reset positions in this group" (T07)
+      const g = resettableGroup(core);
+      if (g) entries.push({ label: core.i18n.t('history.resetGroup'), disabled: !groupHasPositions(core.model, core.meta, g), run: () => void resetSelectedGroup(core) });
       if (!entries.length) entries.push({ label: 'Nothing to paste', disabled: true, run: () => undefined });
       openMenu({
         popovers: core.popovers, opener: null, label: 'Board', entries, within: core.area, at: { clientX, clientY }, class: 'ctx-menu',
@@ -199,9 +202,22 @@ export const canvasStructureModule: EditorModule = {
       });
     };
 
+    /** A right-clicked group the board menu has an entry for (selected first); null for any other item. */
+    const menuGroup = (target: EventTarget | null): ItemRef | null => {
+      const el = target instanceof Element ? target.closest('.el') : null;
+      const kind = el?.getAttribute('data-kind'), id = el?.getAttribute('data-id');
+      if (kind !== 'group' || !id) return null;
+      const ref: ItemRef = { kind, id };
+      if (groupResetState(core, ref) === null) return null;
+      const sel = core.selection();
+      if (sel.length !== 1 || sel[0]!.kind !== kind || sel[0]!.id !== id) core.select([ref]);
+      return ref;
+    };
+
     scope.listen(core.dom.svg, 'contextmenu', (ev) => {
       ev.preventDefault();
-      if (!editing() || core.version.peek() || (ev.target instanceof Element && ev.target.closest('.el'))) return;
+      if (!editing() || core.version.peek()) return;
+      if (ev.target instanceof Element && ev.target.closest('.el') && !menuGroup(ev.target)) return;
       showContextMenu(ev.clientX, ev.clientY, core.toDiagram(ev));
     });
 
@@ -223,6 +239,7 @@ export const canvasStructureModule: EditorModule = {
       core.provide('deleteSelection', deleteSelection),
       core.provide('groupSelection', groupSelection),
       core.provide('ungroupSelection', ungroupSelection),
+      core.provide('resetGroupPositions', () => void resetSelectedGroup(core)),
       core.provide('copySelection', () => void copySelection()),
       core.provide('pasteAt', pasteAt),
       core.provide('duplicateSelection', duplicateSelection),

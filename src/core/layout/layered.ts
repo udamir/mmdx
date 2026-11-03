@@ -32,6 +32,16 @@ export interface LayeredOptions {
   groupGap?: number;
 }
 
+/**
+ * Optional extra output (the compound layout, T07): where the virtual nodes of each long edge were placed, keyed by
+ * the edge's index in the input, in order from `from` to `to` (an edge reversed to break a cycle too). These are the
+ * points the ordering kept free for the edge: a router can draw the line through them. Asking for it changes nothing
+ * in the result.
+ */
+export interface LayeredRoutes {
+  routes?: Map<number, Point[]>;
+}
+
 /** Longest edge, in ranks (Mermaid's `---->` adds one rank per extra dash; nobody needs 50). */
 export const MAX_MINLEN = 50;
 /** Virtual nodes over all edges; past this, long edges are no longer split. */
@@ -45,17 +55,20 @@ interface DEdge {
 
 const EMPTY: readonly string[] = [];
 
-export function layered(nodes: readonly LayoutNode[], edges: readonly LayoutEdge[], opts: LayeredOptions = {}): Map<string, Point> {
+export function layered(nodes: readonly LayoutNode[], edges: readonly LayoutEdge[], opts: LayeredOptions = {}, extra?: LayeredRoutes): Map<string, Point> {
   const { dir = 'TB', rankSep = 70, nodeSep = 40, groupGap = 50 } = opts;
   const horizontal = dir === 'LR' || dir === 'RL';
   const ids = nodes.map((n) => n.id);
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const E: DEdge[] = [];
-  for (const e of edges) {
-    if (e.from === null || e.to === null || !byId.has(e.from) || !byId.has(e.to) || e.from === e.to) continue;
+  /** E[i]'s index in the input. */
+  const srcIdx: number[] = [];
+  edges.forEach((e, k) => {
+    if (e.from === null || e.to === null || !byId.has(e.from) || !byId.has(e.to) || e.from === e.to) return;
     const ml = Number.isFinite(e.minlen) ? Math.trunc(e.minlen ?? 1) : 1;
     E.push({ from: e.from, to: e.to, minlen: Math.max(1, Math.min(MAX_MINLEN, ml || 1)) });
-  }
+    srcIdx.push(k);
+  });
 
   // 1. Break cycles (DFS back edges get reversed). Iterative DFS, visiting out-edges in order like the recursion.
   const out = new Map<string, number[]>(ids.map((i) => [i, []]));
@@ -142,10 +155,13 @@ export function layered(nodes: readonly LayoutNode[], edges: readonly LayoutEdge
     u.push(a);
   };
   let vc = 0, vn = 0;
-  for (const e of DE) {
+  /** The virtual nodes of DE[i], from its `from` (only when asked for). */
+  const chains: string[][] | null = extra?.routes ? [] : null;
+  DE.forEach((e, i) => {
     let prev = e.from;
     const r0 = rank.get(e.from)!, r1 = rank.get(e.to)!;
     if (r1 - r0 - 1 > 0 && vc + (r1 - r0 - 1) <= MAX_VIRTUAL) {
+      const chain: string[] = [];
       for (let r = r0 + 1; r < r1; r++, vc++) {
         // virtual ids skip the ids of real nodes: `__v0` is a valid Mermaid id, a quoted ER entity name can be anything
         let vid: string;
@@ -155,10 +171,12 @@ export function layered(nodes: readonly LayoutNode[], edges: readonly LayoutEdge
         put(vid, r);
         link(prev, vid);
         prev = vid;
+        chain.push(vid);
       }
+      if (chains) chains[i] = chain;
     }
     link(prev, e.to);
-  }
+  });
   for (let r = 0; r < layers.length; r++) layers[r] ??= [];
   const pathOf = (id: string): readonly string[] => byId.get(id)?.path ?? vnodes.get(id) ?? EMPTY;
   const size = (id: string): { a: number; b: number } => {
@@ -264,14 +282,15 @@ export function layered(nodes: readonly LayoutNode[], edges: readonly LayoutEdge
 
   // 6. Coordinates across layers.
   const res = new Map<string, Point>();
+  const vres = new Map<string, Point>();
   let offset = 0;
   for (const L of layers) {
     let thick = 0;
     for (const id of L) thick = Math.max(thick, size(id).b);
     for (const id of L) {
-      if (!byId.has(id)) continue;
       const a = coord.get(id)!, b = offset + thick / 2;
-      res.set(id, horizontal ? { x: b, y: a } : { x: a, y: b });
+      if (byId.has(id)) res.set(id, horizontal ? { x: b, y: a } : { x: a, y: b });
+      else if (chains) vres.set(id, horizontal ? { x: b, y: a } : { x: a, y: b });
     }
     offset += thick + rankSep;
   }
@@ -287,6 +306,19 @@ export function layered(nodes: readonly LayoutNode[], edges: readonly LayoutEdge
   for (const p of res.values()) {
     p.x += 60 - minX;
     p.y += 60 - minY;
+  }
+  if (chains && extra?.routes) {
+    for (const p of vres.values()) {
+      if (dir === 'BT') p.y = -p.y;
+      if (dir === 'RL') p.x = -p.x;
+      p.x += 60 - minX;
+      p.y += 60 - minY;
+    }
+    chains.forEach((chain, i) => {
+      if (!chain?.length) return;
+      const pts = chain.map((v) => vres.get(v)!);
+      extra.routes!.set(srcIdx[i]!, reversed.has(i) ? pts.reverse() : pts);
+    });
   }
   return res;
 }

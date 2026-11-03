@@ -154,6 +154,26 @@ export function pinAutoNodes(model: DiagramModel, meta: DiagramMeta, geom: Geome
   return { meta: pinAutoInPlace(cloneMeta(meta), model, geom) };
 }
 
+/**
+ * "Reset positions in this group" (T07): forgets the hand-placed positions inside one group (descendants, nested
+ * frames, bend points of the connectors inside) and keeps the group where it is, so auto layout arranges its contents
+ * again. Null when the type has no such action or the item is not a group.
+ */
+export function resetGroupPositions(model: DiagramModel, meta: DiagramMeta, geom: GeometryIndex | null | undefined, ref: ItemRef): MetaResult | null {
+  if (ref.kind !== 'group') return null;
+  const out = withOps(model, (k, m) => k.resetScope?.(cloneMeta(meta), m, geom, ref.id));
+  return out ? { meta: out } : null;
+}
+
+/** Whether a group has hand-placed positions inside it (what "Reset positions in this group" would forget). */
+export function groupHasPositions(model: DiagramModel, meta: DiagramMeta, ref: ItemRef): boolean {
+  if (ref.kind !== 'group') return false;
+  const inside = withOps(model, (k, m) => (k.resetScope ? k.descendants?.(m, ref.id) : undefined));
+  if (!inside) return false;
+  const has = (m: ItemMeta | undefined): boolean => !!m && (m.x != null || m.y != null);
+  return inside.nodes.some((id) => has(meta.nodes?.[id])) || inside.groups.some((id) => has(meta.groups?.[id]));
+}
+
 /** Node and subgraph ids inside a subgraph (any depth). */
 export function groupDescendants(model: FlowchartModel, gid: string): { nodes: string[]; groups: string[] } {
   const nodes: string[] = [], groups: string[] = [];

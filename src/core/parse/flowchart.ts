@@ -479,7 +479,13 @@ export function parseFlowchart(code: string): FlowchartModel {
       if (g && gid !== undefined) { g.endLine = li; if (ids) claim(ids, gid); }
       return;
     }
-    if (/^direction\s+\w+/.test(t)) return;
+    if ((m = /^direction\s+(\w+)/.exec(t))) {
+      // a subgraph's own direction (Mermaid ignores one at the top level)
+      const d = (m[1] ?? '').toUpperCase().replace('TD', 'TB');
+      const g = model.groups.get(stack[stack.length - 1] ?? '');
+      if (g && (d === 'TB' || d === 'BT' || d === 'LR' || d === 'RL')) g.dir = d;
+      return;
+    }
     if ((m = /^classDef\s+(\S+)\s+(.+)$/.exec(t))) {
       const st = parseStyleList(m[2] ?? '', styleWarn);
       for (const c of (m[1] ?? '').split(',')) if (c) model.classDefs[c] = { ...st };

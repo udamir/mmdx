@@ -142,6 +142,8 @@ export interface EditorActions {
   deleteSelection(): void;
   groupSelection(): void | Promise<void>;
   ungroupSelection(): void;
+  /** "Reset positions in this group" (T07): forgets the hand-placed positions inside the selected group. */
+  resetGroupPositions(): void;
   copySelection(): void;
   pasteAt(at?: { x: number; y: number }): void;
   duplicateSelection(): void;

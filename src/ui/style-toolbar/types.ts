@@ -157,6 +157,12 @@ export interface ToolbarApi {
   canCopy?(): boolean;
   savePreset?(): void;
   canSavePreset?(): boolean;
+  /**
+   * "Reset positions in this group" in the ⋮ menu: null leaves it out (not a group, or the type has no such action),
+   * false shows it disabled (no hand-placed positions inside), true enabled.
+   */
+  groupPositions?(): boolean | null;
+  resetGroupPositions?(): void;
   /** "All properties…": opens the full property list. */
   inspect?(): void;
   bendCount?(): number;

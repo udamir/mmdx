@@ -312,7 +312,8 @@ export function metaJsonSchema(): JsonSchema {
   const box = { x: num('Centre x'), y: num('Centre y'), w: num('Width'), h: num('Height') };
   const items: Record<string, JsonSchema> = {
     node: item(box),
-    group: item({ ...box, titleSize: num(), titleColor: ref('color') }),
+    // a group's x / y is its top-left: a frame with w / h, or (without them) the place "Reset positions in this group" keeps
+    group: item({ x: num('Left'), y: num('Top'), w: num('Width'), h: num('Height'), titleSize: num(), titleColor: ref('color') }),
     edge: item({ ...LINE_GEOM(), startArrow: ref('arrow'), endArrow: ref('arrow') }),
     rel: item(LINE_GEOM()),
     participant: item({ x: num(), w: num(), h: num() }),
@@ -340,6 +341,7 @@ export function metaJsonSchema(): JsonSchema {
           v: { type: 'integer', minimum: 1, default: META_VERSION, description: 'Metadata format version' },
           theme: { type: 'string' }, preset: { type: 'string', description: 'Page preset name' },
           w: num(), h: num(), x: num(), y: num(),
+          layout: { enum: ['legacy', 'compound'], description: 'Flowcharts with subgraphs: `legacy` keeps the auto layout from before the compound engine (one minor release)' },
         },
       },
       styles: {

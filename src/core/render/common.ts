@@ -331,6 +331,8 @@ export interface PortLink {
   toSide?: Side | undefined;
   fromAt?: number | undefined;
   toAt?: number | undefined;
+  /** This connection's preferred axis (the direction of the subgraph it was laid out in), over the call's `prefer`. */
+  prefer?: 'v' | 'h' | null | undefined;
 }
 
 /** Distributes several connections that share a side so they do not overlap. */
@@ -354,7 +356,7 @@ export function assignPorts(
     e.items.push(it);
   };
   for (const L of links) {
-    const auto = pickSides(L.a, L.b, prefer);
+    const auto = pickSides(L.a, L.b, L.prefer !== undefined ? L.prefer : prefer);
     const sa = L.fromSide || auto[0], sb = L.toSide || auto[1];
     sides.set(L.id, { sa, sb });
     add(L.aKey, sa, L.a, { id: L.id, other: L.b, which: 'a', fixed: L.fromAt });

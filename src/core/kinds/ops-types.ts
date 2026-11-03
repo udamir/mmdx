@@ -86,6 +86,12 @@ export interface OpsKind<M extends SupportedModel = SupportedModel, G extends Ge
   pinAuto?(meta: DiagramMeta, model: M, geom: GeometryIndex | null | undefined): DiagramMeta;
   /** Node and group ids inside a group, any depth. */
   descendants?(model: M, groupId: string): { nodes: string[]; groups: string[] };
+  /**
+   * "Reset positions in this group" (T07): forgets the hand-placed positions inside a group (its descendants' `x` /
+   * `y`, nested frames, bend points of the connectors inside), so the compound layout lays the group out again; the
+   * group keeps its place (mutates and returns `meta`). Undefined: the type has no groups with positions.
+   */
+  resetScope?(meta: DiagramMeta, model: M, geom: GeometryIndex | null | undefined, groupId: string): DiagramMeta;
   setDirection?(code: string, model: M, dir: Direction): CodeResult;
 }
 

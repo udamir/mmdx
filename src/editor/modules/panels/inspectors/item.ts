@@ -8,6 +8,7 @@ import { STYLE_FIELDS } from '../../../../core/schema/style-fields.js';
 import type { ItemKind, ItemRef } from '../../../../core/types.js';
 import { h } from '../../../../ui/h.js';
 import { applyMeta, styleEnv } from '../../../ops/doc.js';
+import { groupResetState, resetSelectedGroup } from '../../../ops/group.js';
 import { describe, labelSpec } from '../../../ops/label.js';
 import { field } from '../fields.js';
 import { attrEditor, relEditor } from '../props-er.js';
@@ -135,6 +136,14 @@ export function itemInspector(p: PanelCtx, host: HTMLElement, kind: ItemKind, id
     if (fixed) {
       const geo = itemTarget(p, ref, {});
       for (const f of ['x', 'y', 'w', 'h']) field(core.i18n, host, f, geo);
+    }
+    // "Reset positions in this group" (T07), where the type offers it; off when nothing inside is placed by hand
+    const can = groupResetState(core, ref);
+    if (can !== null) {
+      const rb = h('button', { type: 'button', class: 'reset-group', title: t(can ? 'props.resetGroupTip' : 'props.resetGroupNone') }, t('props.resetGroup'));
+      rb.disabled = !can;
+      rb.addEventListener('click', () => void resetSelectedGroup(core));
+      host.append(h('div', { class: 'btnrow' }, rb));
     }
   } else if (kind === 'edge' || kind === 'rel') {
     const geo = itemTarget(p, ref, lineDefaults(core, kind));

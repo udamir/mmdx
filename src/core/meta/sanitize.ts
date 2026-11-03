@@ -79,6 +79,7 @@ const CLEANERS: Record<string, Cleaner> = {
   fromSide: oneOf('t', 'b', 'l', 'r'), toSide: oneOf('t', 'b', 'l', 'r'),
   mode: oneOf('compact', 'table'),
   blockSpan: oneOf('full', 'touched'),
+  layout: oneOf('legacy', 'compound'),
   stack,
   locked: bool, hidden: bool, mirror: bool, labelOnLine: bool, showTag: bool, showTypes: bool, showComments: bool,
   pkUnderline: bool, wrap: bool,

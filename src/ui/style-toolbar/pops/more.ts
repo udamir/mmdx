@@ -57,6 +57,12 @@ export function morePop(f: Fill): void {
   act('savePreset', t('tb.savePreset'), '', () => api.savePreset?.(), !!api.canSavePreset?.());
   list.append(h('div', { class: 'mtb-sep', role: 'separator' }));
   act('reset', t('tb.resetStyle'), '', () => api.reset?.(), !!api.reset);
+  // a group's "Reset positions in this group" (T07), where the type offers it
+  const gp = api.resetGroupPositions ? api.groupPositions?.() : null;
+  if (gp != null) {
+    act('reset', t('tb.resetGroup'), '', () => api.resetGroupPositions?.(), gp);
+    if (!gp) list.lastElementChild?.setAttribute('title', t('tb.resetGroupNone'));
+  }
   act('more', t('tb.allProps'), '', () => api.inspect?.(), !!api.inspect);
   pop.append(list);
 }

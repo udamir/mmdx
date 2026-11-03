@@ -22,6 +22,11 @@ export interface CanvasMeta extends PageSettings {
   v?: number;
   /** Page preset name (`<type>.pagePresets`). */
   preset?: string;
+  /**
+   * Auto layout of flowcharts with subgraphs: `legacy` keeps the layout from before the compound engine (T07) for one
+   * minor release; absent or `compound`: subgraphs are laid out as nested containers.
+   */
+  layout?: 'legacy' | 'compound';
   w?: number;
   h?: number;
   x?: number;

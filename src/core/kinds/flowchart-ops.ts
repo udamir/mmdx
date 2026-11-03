@@ -1,11 +1,11 @@
 // The flowchart ops kind: code order, the clipboard, auto-placed nodes, subgraph contents and the direction.
 import type { Presets } from './types.js';
-import { edgePreset, flowPresets, groupPreset, nodePreset } from '../render/flow-presets.js';
+import { edgeMeta, edgePreset, flowPresets, groupPreset, nodePreset } from '../render/flow-presets.js';
 import { minOf } from '../geom.js';
 import type { FlowchartModel } from '../model.js';
 import { cloneFlow, deleteFlow, setFlowDirection } from '../ops/flowchart.js';
 import { groupDescendants } from '../ops/meta-ops.js';
-import { ensure } from '../ops/meta-util.js';
+import { ensure, getM, tidy } from '../ops/meta-util.js';
 import type { LineSpan } from '../ops/types.js';
 import type { FlowGeometry } from '../render/types.js';
 import type { ItemRef } from '../types.js';
@@ -77,17 +77,75 @@ export const OPS: OpsKind<FlowchartModel, FlowGeometry> = {
   pinAuto(meta, _model, geom) {
     // auto-placed nodes are laid out below hand-placed ones: pin them where they are before the first manual placement
     if (geom?.type !== 'flowchart') return meta;
+    let pinned = false;
     for (const [id, b] of geom.nodes)
       if (b.auto) {
         const m = ensure(meta, 'node', id);
         if (m.x == null || m.y == null) {
           m.x = Math.round(b.x);
           m.y = Math.round(b.y);
+          pinned = true;
         }
       }
+    // a group's place after "Reset positions in this group" (x / y without a size) is its contents' place now
+    if (pinned)
+      for (const [id, m] of Object.entries(meta.groups ?? {}))
+        if (m.w == null && m.h == null && (m.x != null || m.y != null)) {
+          delete m.x;
+          delete m.y;
+          tidy(meta, 'group', id);
+        }
     return meta;
   },
   descendants: groupDescendants,
+  resetScope(meta, model, geom, gid) {
+    const g = model.groups.get(gid);
+    if (!g) return meta;
+    const inside = groupDescendants(model, gid);
+    const nodes = new Set(inside.nodes), groups = new Set(inside.groups);
+    for (const id of nodes) {
+      const m = getM(meta, 'node', id);
+      delete m.x;
+      delete m.y;
+      tidy(meta, 'node', id);
+    }
+    for (const id of groups) {
+      const m = getM(meta, 'group', id);
+      delete m.x;
+      delete m.y;
+      delete m.w;
+      delete m.h;
+      tidy(meta, 'group', id);
+    }
+    const within = (id: string): boolean => id === gid || nodes.has(id) || groups.has(id);
+    for (const e of model.edges)
+      if (within(e.from) && within(e.to)) {
+        const m = edgeMeta(e, meta);
+        if (!m?.points) continue;
+        delete m.points;
+        for (const k of [e.id, e.key]) if (k !== undefined && meta.edges?.[k] === m) tidy(meta, 'edge', k);
+      }
+    // the group keeps its place when something outside it is placed by hand (a fixed frame stays as it is): its
+    // top-left, without a size, which the layout keeps while it lays the contents out (core/layout/compound.ts)
+    const gm = getM(meta, 'group', gid);
+    const framed = gm.x != null && gm.y != null && gm.w != null && gm.h != null;
+    const placed = (coll: 'nodes' | 'groups', skip: ReadonlySet<string>): boolean =>
+      Object.entries(meta[coll] ?? {}).some(([id, m]) => id !== gid && !skip.has(id) && typeof m.x === 'number' && typeof m.y === 'number');
+    const box = geom?.type === 'flowchart' ? geom.groups.get(gid) : undefined;
+    if (!framed) {
+      delete gm.x;
+      delete gm.y;
+      delete gm.w;
+      delete gm.h;
+      if (box && (placed('nodes', nodes) || placed('groups', groups))) {
+        const m = ensure(meta, 'group', gid);
+        m.x = Math.round(box.x - box.w / 2);
+        m.y = Math.round(box.y - box.h / 2);
+      }
+      tidy(meta, 'group', gid);
+    }
+    return meta;
+  },
   setDirection: (code, _model, dir) => setFlowDirection(code, dir),
   codePreset(model, meta, theme, { kind, id }) {
     if (kind !== 'node' && kind !== 'edge' && kind !== 'group') return undefined;
