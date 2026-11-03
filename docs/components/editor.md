@@ -105,7 +105,7 @@ Read-only properties of the element: `instance` (the `DiagramEditor`, `null` whi
 |---|---|
 | `getSource(): string` | The current source (Mermaid with its `%%@` lines) |
 | `setSource(src: string, opts?: SetSourceOptions): void` | Replaces the document. `history`: `'reset'` (default, a new undo history) or `'push'` (an undoable change); `fit` (default `true`): fit the view to it; `markSaved` (default `true`): `false` keeps it as unsaved changes. A gesture in flight is cancelled first. Before the element is connected, the source becomes its initial value |
-| `whenLoaded(): Promise<void>` | Resolves once the document is in: at once without an adapter, else when the adapter's latest load finished (after `mmdx-load`); rejects when that load failed or the element is not connected |
+| `whenLoaded(): Promise<void>` | Resolves once the document is in: at once without an adapter, else when the adapter's latest load finished (after `mmdx-load`), and once the editor code of the document's diagram type has loaded (each type loads on demand, the first time a document of that type is shown); rejects when that load failed or the element is not connected |
 | `save(): Promise<SaveOutcome>` | Saves through the adapter: `'saved'`, `'cancelled'` (`mmdx-save` was cancelled), `'conflict'`, `'failed'` or `'no-adapter'` |
 | `undo(): void`, `redo(): void` | Undo and redo; a gesture in flight is cancelled first |
 | `select(items: ItemRef[]): void` | Selects items, e.g. `[{ kind: 'node', id: 'api' }]` |

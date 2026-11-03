@@ -36,12 +36,12 @@ pnpm size             # gzip size budgets per entry point
 
 | Folder | Contents |
 |---|---|
-| `src/core` | Parsers, layout, renderers, metadata, themes — pure TypeScript, no DOM |
+| `src/core` | Parsers, layout, renderers, metadata, themes — pure TypeScript, no DOM; each diagram type's kinds in `src/core/kinds` |
 | `src/dom` | DOM patcher, viewport, `DiagramCanvas`, pen strokes, worker client, export |
 | `src/ui` | Signals, the UI blocks (`src/ui/blocks`), toolbars, dialogs, styles and UI strings |
 | `src/view` | The view kernel (`ViewCore`), module host, scene sources and the standard view modules |
 | `src/diff` | The diff session, scene and modules (`<mmdx-diff>` and History) |
-| `src/editor` | The editor core (on the kernel), its store scene and its feature modules |
+| `src/editor` | The editor core (on the kernel), its store scene, its feature modules and each diagram type's edit kind (`src/editor/kinds`) |
 | `src/theme-editor` | The theme editor |
 | `src/elements` | The web components |
 | `src/adapters`, `src/markdown`, `src/wrappers` | Host adapters, Markdown plugins, React wrappers |
@@ -55,6 +55,17 @@ pnpm size             # gzip size budgets per entry point
 | `brand/` | Logo files |
 
 [Architecture](/guide/architecture) explains how the pieces fit together.
+
+## Adding a diagram type
+
+A diagram type is a set of kinds ([Architecture → Diagram kinds](/guide/architecture#diagram-kinds)); the compiler points at every table that still lacks the new type.
+
+1. Add the type to `DiagramType` (`src/core/types.ts`), its header and starter to `KIND_INFO` (`src/core/kinds/info.ts`) and its names to `KIND_NAMES`.
+2. Write the model (`src/core/model.ts`), the parser (`src/core/parse/<type>.ts`) and the renderer with its geometry index (`src/core/render/<type>.ts`, `src/core/render/types.ts`).
+3. Write the view, diff and ops kinds (`src/core/kinds/<type>.ts`, `<type>-diff.ts`, `<type>-ops.ts`) and add them to `all.ts`, `all-diff.ts` and `all-ops.ts`; the outline goes to `<type>-outline.ts` and the `OUTLINES` table.
+4. Write the edit kind (`src/editor/kinds/<type>.ts`, re-exporting the view and ops kinds) and add it to `src/editor/kinds/all.ts`.
+5. Fill the tables the compiler asks for: the viewer's and the diff's importers (`src/view/kinds.ts`, `src/diff/kinds.ts`), the editor's (`src/editor/kinds/loader.ts`), the theme section (`src/core/theme/types.ts`, the registry's `SECTION_DEFAULTS`, the theme editor's `SECTION_UI` and `DEFAULT_SAMPLES`), the empty-state pictogram.
+6. Add an example to `examples/` (golden snapshots for every theme follow), parser and ops tests, a size row in `tools/size.mjs`, and the docs.
 
 ## Tests
 

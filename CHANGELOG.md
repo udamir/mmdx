@@ -8,6 +8,12 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project f
 
 - **`<mmdx-studio>` keeps no diagram in the URL**: no `#d=…` in the address bar and no Share button; `persist` takes only `local`.
 - **`encodeHash` and `decodeHash` are removed** from `@mmdx/studio` and `@mmdx/studio/adapters`.
+- **`Kinds` is the diagram types' view kinds by type** (`ALL_KINDS.flowchart`, …) instead of `{ parsers, renderers }`; the `…With` functions take it as before.
+
+### Changed
+
+- **The editor loads diagram types on demand**: the code of a type arrives the first time a document of that type is shown (the editor's first chunk is about 15 kB smaller); `whenLoaded()` also waits for it.
+- **Each diagram type plugs in through one set of kinds** (view, diff, ops and edit), so adding a type no longer means edits all over the code base ([Contributing → Adding a diagram type](https://udamir.github.io/mmdx/guide/contributing#adding-a-diagram-type)).
 
 ## 0.3.0 — Hooks for sandboxed hosts
 

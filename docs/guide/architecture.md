@@ -90,6 +90,22 @@ History pushes a `DiffScene` over the document's scene and pops it on Back; the 
 
 The custom elements (`src/elements`, and `src/editor/editor.ts` for the editor) are thin wrappers around the classes: one shared lifecycle keeps the component across DOM moves, maps attributes to options, and keeps properties set before connecting.
 
+## Diagram kinds
+
+Each diagram type (flowchart, sequence, ER) plugs in through its **kinds**: objects with everything the generic code needs from that type, so nothing outside the type's own files branches on the type (a test, `tests/arch/no-kind-branches.test.ts`, keeps it that way).
+
+| Kind | Where | Loaded by | Holds |
+|---|---|---|---|
+| Info | `src/core/kinds/info.ts` | every bundle | The header that detects the type, the source a new diagram starts from, the name's i18n key |
+| View kind | `src/core/kinds/<type>.ts` | the viewer and the diff on demand, core statically | Parser, renderer, the items and their containers and connectors (layers), hover frames, the accessible name |
+| Diff kind | `src/core/kinds/<type>-diff.ts` | the diff and History on demand, core statically | Item changes, the merged picture, highlight shapes, code lines |
+| Ops kind | `src/core/kinds/<type>-ops.ts` | the editor | Code order, positional ids and their metadata, the clipboard, presets, geometry lookups, the code filter's search, the styles the code gives |
+| Edit kind | `src/editor/kinds/<type>.ts` | the editor | Item text, delete, group, connect, the Shapes menu and drop placement, page settings, the code panel's fixes |
+
+A type's per-type code stays in its own files (`parse/<type>.ts`, `render/<type>.ts`, `ops/<type>.ts`, `diff/<type>.ts`, its editor module); the kinds bring it together. Loaded kinds are registered (`src/core/kinds/registry.ts`, `src/editor/kinds/registry.ts`), and the generic helpers find a model's kind there: a model only exists once its type's parser ran.
+
+The editor loads a type's view, ops and edit kinds in one chunk the first time a document of that type is shown (`src/editor/kinds/loader.ts`): an editor of flowcharts never downloads the sequence and ER code. The document draws once they arrive, and `whenLoaded()` waits for them.
+
 ## Folder map
 
 | Folder | Contents |
