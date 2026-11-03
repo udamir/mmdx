@@ -8,6 +8,7 @@ import type { ThemeSource } from '../adapters/themes.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import { getShared, instanceContext } from '../config.js';
 import type { CoreContext } from '../core/context.js';
+import type { IconPack } from '../core/icons/types.js';
 import type { Rect } from '../core/types.js';
 import { CANVAS_CSS, DiagramCanvas, type CanvasOptions, type Insets } from '../dom/canvas.js';
 import type { StrokeStore } from '../dom/pen.js';
@@ -33,6 +34,8 @@ export interface ViewCoreOptions {
   product: Product;
   storage?: StorageAdapter;
   ctx?: Partial<CoreContext>;
+  /** The component's own icon packs, over the shared ones of `configure({ iconPacks })` (T04). */
+  iconPacks?: readonly IconPack[];
   themeSource?: ThemeSource;
   /** Chrome scheme: `light` | `dark` | `auto` (the remembered toggle, else the page). */
   ui?: UiOption;
@@ -139,7 +142,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.i18n = getShared().i18n;
     this.prefs = o.storage ?? defaultStorage();
     this.storage = { get: (k) => this.prefs.get(k), set: (k, v) => this.prefs.set(k, v), remove: (k) => this.prefs.remove(k) };
-    this.ctx = instanceContext(o.ctx);
+    this.ctx = instanceContext(o.ctx, o.iconPacks);
     this.source = o.themeSource;
     this.loadHistory = o.loadHistory ?? null;
     this.shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
@@ -168,6 +171,10 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.themes = new ThemeState({ registry: this.ctx.themes, storage: this.storage, product: o.product, scheme: this.scheme, theme: o.theme, themeDark: o.themeDark });
     this.loadTheme = themeLoader(this.ctx.themes, () => this.source, () => !this.destroyed);
     this.cleanups.push(watchUiScheme(() => this.schemeState.apply()));
+    // an icon pack (or the icon code) finished loading: what was drawn as an empty box or a placeholder can show now
+    this.cleanups.push(this.ctx.icons.onChange(() => {
+      if (!this.destroyed) this.invalidate();
+    }));
     this.cleanups.push(this.ctx.themes.onChange(() => {
       if (this.destroyed) return;
       this.themes.themesChanged();

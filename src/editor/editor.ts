@@ -10,6 +10,7 @@ import type { StorageAdapter } from '../adapters/storage.js';
 import type { ThemeSource } from '../adapters/themes.js';
 import { ensureBuiltinThemes } from '../config.js';
 import type { CoreContext } from '../core/context.js';
+import type { IconPack } from '../core/icons/types.js';
 import { h } from '../ui/h.js';
 import { effect, untracked } from '../ui/signal.js';
 import { DEFAULT_FEATURES, EditorCore, type EditorFeatures, type Gesture, type Mode } from './core.js';
@@ -44,6 +45,8 @@ export interface EditorOptions {
   /** File name used for exports. */
   name?: string;
   ctx?: Partial<CoreContext>;
+  /** The component's own icon packs, over the shared ones of `configure({ iconPacks })`; read when it is created. */
+  iconPacks?: readonly IconPack[];
   modules?: readonly EditorModule[];
   /** The document's versions (a HistoryAdapter or a list with sources): shows the History button. */
   history?: HistoryAdapter | readonly StaticVersion[];
@@ -101,6 +104,7 @@ export class DiagramEditor {
       features,
       ...(options.storage ? { storage: options.storage } : {}),
       ...(options.ctx ? { ctx: options.ctx } : {}),
+      ...(options.iconPacks ? { iconPacks: options.iconPacks } : {}),
       ...(options.themeSource ? { themeSource: options.themeSource } : {}),
       ...(options.ui && options.ui !== 'auto' ? { ui: options.ui } : {}),
       ...(options.theme ? { theme: options.theme } : {}),

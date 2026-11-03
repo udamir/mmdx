@@ -5,6 +5,7 @@
 // back to the main thread when workers are unavailable (CSP without worker-src, file://, old engines) — callers check
 // `workerAvailable()`.
 import type { CoreContext } from '../core/context.js';
+import { iconNamesOf } from '../core/icons/scan.js';
 import { renderContext, type PipelineOptions, type Rendered } from '../core/pipeline-core.js';
 import type { ThemeRegistry } from '../core/theme/registry.js';
 import type { ThemeFile } from '../core/theme/types.js';
@@ -130,7 +131,9 @@ export async function renderInWorker(src: string, ctx: CoreContext, opts: Pipeli
   if (opts.theme) o.theme = opts.theme;
   if (opts.visibleLayers) o.visibleLayers = opts.visibleLayers;
   if (opts.hideLabels) o.hideLabels = true;
-  const req: WorkerRequest = { id: ++seq, src, opts: o, themes, themesKey: themesKeyOf(ctx.themes), idPrefix: ctx.idPrefix, linkPolicy: ctx.linkPolicy, imagePolicy: ctx.imagePolicy };
+  // the icons the source names, resolved here: loading ones start loading, and their pack's change re-renders
+  const icons = ctx.icons.snapshot(iconNamesOf(src, ctx.icons));
+  const req: WorkerRequest = { id: ++seq, src, opts: o, themes, themesKey: themesKeyOf(ctx.themes), idPrefix: ctx.idPrefix, linkPolicy: ctx.linkPolicy, imagePolicy: ctx.imagePolicy, icons };
   const res = await new Promise<WorkerResponse>((resolve) => {
     if (owner)
       for (let i = queue.length - 1; i >= 0; i--) {

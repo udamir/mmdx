@@ -12,13 +12,14 @@ import { DEFAULT_IMAGE_POLICY, DEFAULT_LINK_POLICY, type ImagePolicy, type SafeI
 import { checkImageUrl, safeImageUrl } from '../../../src/core/media/policy.js';
 import type { RenderContext } from '../../../src/core/render/types.js';
 import { createStaticMeasurer } from '../../../src/core/text/measure.js';
+import { NO_ICONS } from '../../../src/core/icons/names.js';
 
 const BOX = { x: 10, y: 20, w: 160, h: 90 };
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 const WITH_DATA: ImagePolicy = { ...DEFAULT_IMAGE_POLICY, protocols: ['https:', 'data:'] };
 
 const rctx = (imagePolicy: ImagePolicy = DEFAULT_IMAGE_POLICY): RenderContext => ({
-  measure: createStaticMeasurer(), idPrefix: 't-', linkPolicy: DEFAULT_LINK_POLICY, imagePolicy, color: (v) => (typeof v === 'string' ? v : undefined),
+  measure: createStaticMeasurer(), idPrefix: 't-', linkPolicy: DEFAULT_LINK_POLICY, imagePolicy, icons: NO_ICONS, color: (v) => (typeof v === 'string' ? v : undefined),
 });
 
 describe('image policy', () => {

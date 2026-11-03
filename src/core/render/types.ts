@@ -1,4 +1,5 @@
 // Render contract (§7): model + meta + resolved theme → scene tree + geometry.
+import type { IconLookup } from '../icons/types.js';
 import type { CanvasMeta, DiagramMeta } from '../meta/types.js';
 import type { SceneNode } from '../scene/types.js';
 import type { FontSpec, TextMeasurer } from '../text/measure.js';
@@ -14,6 +15,8 @@ export interface RenderContext {
   linkPolicy: LinkPolicy;
   /** Which image URLs from diagram content are drawn (core/media/image.ts draws the others as placeholders). */
   imagePolicy: ImagePolicy;
+  /** Icon lookups (T04): renderers draw icons through core/icons/draw.ts (`drawIcon`, `iconResolver`). */
+  icons: IconLookup;
   /**
    * Resolves a stored colour (palette reference `@x` / `@x~…`, the diagram palette `style.palette`, or a literal)
    * against the active theme. Returns undefined for anything that is not a valid colour.

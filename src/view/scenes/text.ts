@@ -208,7 +208,7 @@ export class TextScene extends BaseScene {
     const t = this.core.i18n.t;
     this.o.msg.replaceChildren(h('div', { class: 'loading' }, t('loading')));
     try {
-      const svg = await renderWithMermaid(text, this.core.scheme.peek() === 'dark');
+      const svg = await renderWithMermaid(text, this.core.scheme.peek() === 'dark', this.core.ctx.icons);
       if (this.destroyed || text !== this.text || this.missed()) return;
       const box = h('div', { class: 'fallback', part: 'canvas' });
       // stock Mermaid output, rendered with securityLevel "strict" (sanitised by Mermaid's DOMPurify)

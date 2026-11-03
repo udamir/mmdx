@@ -69,6 +69,19 @@ describe('render worker client', () => {
     expect(req.linkPolicy).toEqual({ protocols: ['https:'] });
   });
 
+  it('sends the icons the source references, resolved on the main thread (T04)', async () => {
+    const { renderInWorker } = await load();
+    const { createIconRegistry } = await import('../../src/core/icons/index.js');
+    const icons = createIconRegistry([{ name: 'p', icons: { prefix: 'p', icons: { dot: { body: '<circle r="4" fill="currentColor"/>' } } } }, { name: 'slow', loader: () => new Promise(() => undefined) }]);
+    void renderInWorker('flowchart LR\n  a[p:dot Dot] --> b[slow:x] --> c[Note: x]\n  d@{ icon: "azure:vm" }', createContext({ idPrefix: 'a', icons }), {}, {});
+    const req = FakeWorker.all[0]!.posted[0]!;
+    expect(Object.keys(req.icons.icons).sort()).toEqual(['azure:vm', 'p:dot', 'slow:x']);
+    expect(req.icons.icons['p:dot']).toMatchObject({ status: 'ready', icon: { mono: true } });
+    expect(req.icons.icons['slow:x']).toEqual({ status: 'loading' });
+    expect(req.icons.icons['azure:vm']).toEqual({ status: 'missing', reason: 'pack' });
+    expect(req.icons.packs.sort()).toEqual(['p', 'slow', 'tabler']);
+  });
+
   it('a viewer\'s newer job replaces its older one still waiting', async () => {
     const { renderInWorker } = await load();
     const ctx = createContext({ idPrefix: 'a' });

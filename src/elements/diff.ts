@@ -12,6 +12,7 @@ import type { ThemeSource } from '../adapters/themes.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import type { StorageAdapter } from '../adapters/storage.js';
 import type { CoreContext } from '../core/context.js';
+import type { IconPack } from '../core/icons/types.js';
 import type { DiagramDiff as DiffResult, ItemChange } from '../core/diff/index.js';
 import type { Rendered } from '../core/pipeline-core.js';
 import type { Diagnostic, Rect } from '../core/types.js';
@@ -70,6 +71,8 @@ export interface DiffOptions {
   loader?: (url: string) => Promise<string>;
   storage?: StorageAdapter;
   ctx?: Partial<CoreContext>;
+  /** The component's own icon packs, over the shared ones of `configure({ iconPacks })`; read when it is created. */
+  iconPacks?: readonly IconPack[];
   themeSource?: ThemeSource;
   /** Host actions shown as buttons in the top right corner (e.g. the editor's Restore and Back). */
   actions?: readonly DiffAction[];
@@ -122,6 +125,7 @@ export class DiagramDiff {
       feature: (name) => this.o.features?.[name as DiffFeature] !== false,
       ...(o.storage ? { storage: o.storage } : {}),
       ...(o.ctx ? { ctx: o.ctx } : {}),
+      ...(o.iconPacks ? { iconPacks: o.iconPacks } : {}),
       ...(o.themeSource ? { themeSource: o.themeSource } : {}),
       ...(o.ui ? { ui: o.ui } : {}),
       ...(o.theme ? { theme: o.theme } : {}),

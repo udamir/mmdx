@@ -2,6 +2,8 @@
 // This is the one deliberate shared object (§1 goal 2): read-only after creation of each instance's context.
 import type { ThemeSource } from './adapters/themes.js';
 import { createContextWith, type CoreContext } from './core/context-base.js';
+import { IconRegistry } from './core/icons/registry.js';
+import type { IconPack } from './core/icons/types.js';
 import { ThemeRegistry } from './core/theme/registry.js';
 import { BASELINE_THEME } from './core/theme/baseline.js';
 import { BUILTIN_IDS } from './core/theme/builtin-ids.js';
@@ -15,6 +17,8 @@ import { createI18n, type I18n, type Messages } from './ui/i18n.js';
 export interface MermaidLike {
   initialize(cfg: Record<string, unknown>): void;
   render(id: string, text: string, container?: Element): Promise<{ svg: string }>;
+  /** Mermaid 11.1+: the icon packs `fa:` tokens, icon nodes and architecture diagrams draw from (T04: mmdx forwards its packs). */
+  registerIconPacks?(packs: { name: string; icons?: unknown; loader?: () => Promise<unknown> }[]): void;
 }
 
 export interface Config {
@@ -25,6 +29,14 @@ export interface Config {
   linkPolicy?: LinkPolicy;
   /** Which image URLs diagrams may show (T03): `https:` only by default; `http:` and `data:` can be enabled. */
   imagePolicy?: ImagePolicy;
+  /**
+   * Icon packs (T04), as Mermaid's `registerIconPacks` takes them: `{ name, icons }` or `{ name, loader }` (called on the
+   * first icon of the pack a diagram shows). Merged across calls; a pack of a registered name replaces it. Stock
+   * Mermaid (the fallback renderer) receives the same packs.
+   */
+  iconPacks?: IconPack[];
+  /** The built-in Tabler subset under `tabler` (default true); a host's own `tabler` pack replaces it. */
+  builtinIcons?: boolean;
   /** A Mermaid instance, or a loader; default: `import('mermaid')` when installed. */
   mermaid?: MermaidLike | (() => Promise<MermaidLike>);
   /** Font files for PNG export (§7.4): family name → URL or bytes. */
@@ -39,6 +51,7 @@ interface Shared {
   i18n: I18n;
   linkPolicy: LinkPolicy;
   imagePolicy: ImagePolicy;
+  icons: IconRegistry;
   themeSource: ThemeSource | undefined;
   mermaid: Config['mermaid'];
   fonts: Record<string, string | ArrayBuffer>;
@@ -54,6 +67,7 @@ function defaults(): Shared {
     i18n: createI18n(),
     linkPolicy: DEFAULT_LINK_POLICY,
     imagePolicy: DEFAULT_IMAGE_POLICY,
+    icons: new IconRegistry(),
     themeSource: undefined,
     mermaid: undefined,
     fonts: {},
@@ -69,6 +83,8 @@ export function configure(c: Config): void {
   if (c.i18n) s.i18n = createI18n(c.i18n.locale, c.i18n.messages);
   if (c.linkPolicy) s.linkPolicy = c.linkPolicy;
   if (c.imagePolicy) s.imagePolicy = c.imagePolicy;
+  if (c.iconPacks) s.icons.add(c.iconPacks);
+  if (c.builtinIcons !== undefined) s.icons.setBuiltin(c.builtinIcons);
   if (c.themeSource) s.themeSource = c.themeSource;
   if (c.mermaid) s.mermaid = c.mermaid;
   if (c.fonts) s.fonts = { ...s.fonts, ...c.fonts };
@@ -79,10 +95,14 @@ export function getShared(): Shared {
   return (shared ??= defaults());
 }
 
-/** A fresh CoreContext for one component instance, from the shared defaults plus overrides. */
-export function instanceContext(over: Partial<CoreContext> = {}): CoreContext {
+/**
+ * A fresh CoreContext for one component instance, from the shared defaults plus overrides. A component's own icon
+ * packs extend the shared registry (its loads are shared; its packs win over shared ones of the same name).
+ */
+export function instanceContext(over: Partial<CoreContext> = {}, iconPacks?: readonly IconPack[]): CoreContext {
   const s = getShared();
-  return createContextWith({ themes: s.themes, measure: s.measure, linkPolicy: s.linkPolicy, imagePolicy: s.imagePolicy, locale: s.i18n.locale, ...over });
+  const icons = over.icons ?? (iconPacks?.length ? s.icons.extend(iconPacks) : s.icons);
+  return createContextWith({ themes: s.themes, measure: s.measure, linkPolicy: s.linkPolicy, imagePolicy: s.imagePolicy, locale: s.i18n.locale, ...over, icons });
 }
 
 /**
@@ -120,11 +140,16 @@ export const registerBuiltinThemes = (): Promise<void> => ensureBuiltinThemes();
 let mermaidQueue: Promise<unknown> = Promise.resolve();
 let mermaidInstance: Promise<MermaidLike> | null = null;
 
+/** The icon packs Mermaid has (Mermaid keeps one global set): registered again when another set is due. */
+let mermaidIcons = '';
+
 /**
  * Renders with stock Mermaid through one serial queue shared by all instances (Mermaid keeps global config and
- * measures in document.body), in a detached light-DOM container, with securityLevel strict (§8.1).
+ * measures in document.body), in a detached light-DOM container, with securityLevel strict (§8.1). Mermaid receives
+ * the component's icon packs first (`registerIconPacks`, the built-in set under `tabler` included), sharing the
+ * registry's loads, so its `fa:` tokens and icon nodes draw from the same packs.
  */
-export function renderWithMermaid(code: string, dark: boolean): Promise<string> {
+export function renderWithMermaid(code: string, dark: boolean, icons: IconRegistry = getShared().icons): Promise<string> {
   const s = getShared();
   mermaidInstance ??= (async () => {
     const m = s.mermaid;
@@ -135,6 +160,11 @@ export function renderWithMermaid(code: string, dark: boolean): Promise<string> 
   })();
   const job = mermaidQueue.then(async () => {
     const mermaid = await mermaidInstance!;
+    if (mermaid.registerIconPacks && icons.key !== mermaidIcons) {
+      const packs = icons.mermaidPacks();
+      if (packs.length) mermaid.registerIconPacks(packs);
+      mermaidIcons = icons.key;
+    }
     mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: dark ? 'dark' : 'default' });
     const box = document.createElement('div');
     box.style.cssText = 'position:fixed;left:-10000px;top:0;visibility:hidden';

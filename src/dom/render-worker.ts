@@ -1,6 +1,7 @@
 // Render worker (§6.4): large diagrams are parsed, laid out and rendered off the main thread. The core is DOM-free,
 // so the same code runs here; text is measured with OffscreenCanvas so widths match the main thread.
 import { createContext, type CoreContext } from '../core/context.js';
+import { IconRegistry } from '../core/icons/registry.js';
 import { renderSource, type PipelineOptions } from '../core/pipeline.js';
 import { createStaticMeasurer } from '../core/text/measure.js';
 import { ThemeRegistry } from '../core/theme/registry.js';
@@ -23,12 +24,13 @@ function contextFor(idPrefix: string, themes: readonly ThemeFile[], themesKey: s
 }
 
 addEventListener('message', (ev: MessageEvent<WorkerRequest>) => {
-  const { id, src, opts, themes, themesKey, idPrefix, linkPolicy, imagePolicy } = ev.data;
+  const { id, src, opts, themes, themesKey, idPrefix, linkPolicy, imagePolicy, icons } = ev.data;
   let res: WorkerResponse;
   try {
     const ctx = contextFor(idPrefix, themes, themesKey);
     ctx.linkPolicy = linkPolicy;
     ctx.imagePolicy = imagePolicy;
+    ctx.icons = IconRegistry.fromSnapshot(icons);
     const r = renderSource(src, ctx, opts as PipelineOptions);
     res = {
       id,

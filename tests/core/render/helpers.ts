@@ -12,6 +12,7 @@ import { createColorResolver, diagramPaletteOf } from '../../../src/core/theme/c
 import type { ResolvedTheme } from '../../../src/core/theme/types.js';
 import { createStaticMeasurer, type TextMeasurer } from '../../../src/core/text/measure.js';
 import { DEFAULT_IMAGE_POLICY, DEFAULT_LINK_POLICY } from '../../../src/core/validate.js';
+import { NO_ICONS } from '../../../src/core/icons/names.js';
 
 const ROOT = join(__dirname, '../../..');
 
@@ -34,6 +35,7 @@ export function makeCtx(theme: ResolvedTheme, meta: DiagramMeta, o: { measure?: 
     idPrefix: o.idPrefix ?? 't-',
     linkPolicy: DEFAULT_LINK_POLICY,
     imagePolicy: DEFAULT_IMAGE_POLICY,
+    icons: NO_ICONS,
     color: createColorResolver(theme, diagramPaletteOf(meta.styles)),
   };
 }

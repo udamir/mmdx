@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import '../../src/viewer.js';
-import type { HostFullscreen as HostFullscreenHandler } from '../../src/viewer.js';
+import { configure, type HostFullscreen as HostFullscreenHandler } from '../../src/viewer.js';
 import { example, exampleHistory, SMALL_ER, SMALL_FLOW, SMALL_SEQUENCE, THEME_IDS, uiArg } from '../support.js';
 
 type ViewerArgs = {
@@ -181,6 +181,34 @@ export const ThemeGallery: Story = {
       }),
     ),
   args: { source: SMALL_FLOW },
+};
+
+// a host icon pack (T04): stock Mermaid receives it with the built-in Tabler subset before a fallback render
+configure({
+  iconPacks: [{
+    name: 'demo',
+    icons: {
+      prefix: 'demo', width: 24, height: 24,
+      icons: { rocket: { body: '<path fill="#e8590c" d="M12 2c3 2 5 6 5 10l-2 4H9l-2-4c0-4 2-8 5-10z"/><circle cx="12" cy="9" r="2" fill="#fff"/><path fill="#fab005" d="M9 17h6l-3 5z"/>' } },
+    },
+  }],
+});
+
+export const MermaidFallbackIcons: Story = {
+  name: 'Stock Mermaid fallback with icons',
+  parameters: {
+    docs: { description: { story: 'An architecture diagram (a type mmdx does not draw) rendered by stock Mermaid, which receives the icon packs of `configure({ iconPacks })` and the built-in Tabler subset (`tabler:`) before it renders.' } },
+  },
+  args: {
+    controls: [],
+    source: `architecture-beta
+  group api(tabler:cloud)[API]
+  service db(tabler:database)[Database] in api
+  service server(tabler:server)[Server] in api
+  service launch(demo:rocket)[Deploy] in api
+  db:L -- R:server
+  launch:T -- B:server`,
+  },
 };
 
 export const FromSrc: Story = {

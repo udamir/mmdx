@@ -1,0 +1,21 @@
+{
+  "$comment": "Google Cloud icons (https://cloud.google.com/icons): <product>/SVG/<ProductName>-512-color[-rgb].svg, or <product_name>.svg in the newer sets. The size and colour suffixes go, CamelCase is split and the rest kebab-cased: ComputeEngine-512-color-rgb.svg -> compute-engine, cloud_run.svg -> cloud-run. Each product has a folder of its own, so the folders give no categories. No Mermaid Chart sample with gcp: names was available (design Q-1): overrides map a file name (without .svg) to the icon name where Mermaid Chart's differs.",
+  "provider": "Google Cloud",
+  "strip": [
+    "-\\d+-color(-rgb)?$",
+    "-color(-rgb)?$",
+    "-\\d+$"
+  ],
+  "camelCase": true,
+  "skip": [
+    "(^|/)\\.",
+    "__MACOSX/"
+  ],
+  "prefer": [
+    "-rgb\\.svg$"
+  ],
+  "categorySkip": [
+    ".*"
+  ],
+  "overrides": {}
+}

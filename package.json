@@ -87,11 +87,18 @@
     },
     "./themes/*": "./themes/*"
   },
+  "bin": {
+    "mmdx-icons": "./tools/mmdx-icons.mjs"
+  },
   "files": [
     "dist",
     "themes",
+    "tools/mmdx-icons.mjs",
+    "tools/icons/convert.mjs",
+    "tools/icons/naming",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "THIRD-PARTY-NOTICES"
   ],
   "publishConfig": {
     "access": "public"
@@ -111,7 +118,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.core.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "size": "node tools/size.mjs"
+    "size": "node tools/size.mjs",
+    "build:icons": "node tools/build-icons.mjs"
   },
   "peerDependencies": {
     "mermaid": ">=10"
@@ -122,6 +130,7 @@
     }
   },
   "devDependencies": {
+    "@iconify-json/tabler": "^1.2.43",
     "@storybook/addon-a11y": "^10.6.5",
     "@storybook/addon-docs": "^10.6.5",
     "@storybook/web-components-vite": "^10.6.5",

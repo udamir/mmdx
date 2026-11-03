@@ -53,6 +53,7 @@ export function renderContext(ctx: CoreContext, theme: ResolvedTheme, doc: Diagr
     idPrefix: ctx.idPrefix,
     linkPolicy: ctx.linkPolicy,
     imagePolicy: ctx.imagePolicy,
+    icons: ctx.icons,
     color: createColorResolver(theme, diagramPaletteOf(doc.meta.styles)),
     layoutCache: cache,
   };

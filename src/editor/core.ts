@@ -9,6 +9,7 @@
 import type { StorageAdapter } from '../adapters/storage.js';
 import type { ThemeSource } from '../adapters/themes.js';
 import type { CoreContext } from '../core/context.js';
+import type { IconPack } from '../core/icons/types.js';
 import { normalizeMeta, splitSource, type DiagramDocument } from '../core/meta/index.js';
 import { KIND_TO_COLL, type DiagramMeta, type ItemMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
@@ -199,6 +200,8 @@ export interface EditorCoreOptions {
   features: EditorFeatures;
   storage?: StorageAdapter;
   ctx?: Partial<CoreContext>;
+  /** The component's own icon packs, over the shared ones of `configure({ iconPacks })`; read when it is created. */
+  iconPacks?: readonly IconPack[];
   themeSource?: ThemeSource;
   ui?: 'light' | 'dark' | 'auto';
   theme?: string;
@@ -294,6 +297,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       loadHistory: () => import('../diff/history.js'),
       ...(o.storage ? { storage: o.storage } : {}),
       ...(o.ctx ? { ctx: o.ctx } : {}),
+      ...(o.iconPacks ? { iconPacks: o.iconPacks } : {}),
       ...(o.themeSource ? { themeSource: o.themeSource } : {}),
       ...(o.ui ? { ui: o.ui } : {}),
       ...(o.theme ? { theme: o.theme } : {}),

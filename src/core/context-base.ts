@@ -1,5 +1,6 @@
 // CoreContext (§5.3): everything instance-scoped that the pure core needs. No module singletons.
 // This module bundles no themes; context.ts adds the built-in ones as the default registry.
+import { IconRegistry } from './icons/registry.js';
 import type { ThemeRegistry } from './theme/registry.js';
 import { createStaticMeasurer, type TextMeasurer } from './text/measure.js';
 import { DEFAULT_IMAGE_POLICY, DEFAULT_LINK_POLICY, type ImagePolicy, type LinkPolicy } from './validate.js';
@@ -12,6 +13,11 @@ export interface CoreContext {
   linkPolicy: LinkPolicy;
   /** Which image URLs diagram content may use (T03): `https:` only by default. */
   imagePolicy: ImagePolicy;
+  /**
+   * Icon packs (T04): `pack:name` label tokens, icon nodes and mindmap icons are looked up here. Components share the
+   * registry of `configure({ iconPacks })` (or extend it with their own packs); SSR builds one with `createIconRegistry`.
+   */
+  icons: IconRegistry;
   locale?: string;
 }
 
@@ -27,6 +33,9 @@ export function createContextWith(opts: Partial<CoreContext> & { themes: ThemeRe
     idPrefix: opts.idPrefix ?? nextIdPrefix(),
     linkPolicy: opts.linkPolicy ?? DEFAULT_LINK_POLICY,
     imagePolicy: opts.imagePolicy ?? DEFAULT_IMAGE_POLICY,
+    // the built-in set only; the code that decodes icons loads on the first lookup (renderToSvg and the markdown
+    // plugins wait for it: `preload`), `createIconRegistry` has it at once
+    icons: opts.icons ?? new IconRegistry(),
   };
   if (opts.locale !== undefined) ctx.locale = opts.locale;
   return ctx;

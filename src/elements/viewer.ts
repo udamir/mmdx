@@ -11,6 +11,7 @@ import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import type { StorageAdapter } from '../adapters/storage.js';
 import { getShared } from '../config.js';
 import type { CoreContext } from '../core/context.js';
+import type { IconPack } from '../core/icons/types.js';
 import { splitSource } from '../core/meta/index.js';
 import { standaloneSvg } from '../core/pipeline-core.js';
 import { summarize } from '../core/summary.js';
@@ -55,6 +56,8 @@ export interface ViewerOptions {
   themeSource?: ThemeSource;
   storage?: StorageAdapter;
   ctx?: Partial<CoreContext>;
+  /** The component's own icon packs, over the shared ones of `configure({ iconPacks })`; read when it is created. */
+  iconPacks?: readonly IconPack[];
   /** The diagram's versions: with `controls` including `history`, a History button shows how it changed. */
   history?: HistoryAdapter | readonly StaticVersion[];
   /** The host page's full screen, used by the `fullscreen` control when the browser's is unavailable (sandboxed iframes). */
@@ -100,6 +103,7 @@ export class DiagramViewer {
       loadHistory: () => import('../diff/history.js'),
       ...(o.storage ? { storage: o.storage } : {}),
       ...(o.ctx ? { ctx: o.ctx } : {}),
+      ...(o.iconPacks ? { iconPacks: o.iconPacks } : {}),
       ...(o.themeSource ? { themeSource: o.themeSource } : {}),
       ...(o.ui ? { ui: o.ui } : {}),
       ...(o.theme ? { theme: o.theme } : {}),

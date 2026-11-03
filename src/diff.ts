@@ -19,5 +19,6 @@ export { diffDiagrams, renderDiffToSvg } from './diff/kinds.js';
 export { staticHistory, httpHistoryAdapter, contentId, type HistoryAdapter, type StaticVersion, type VersionInfo } from './adapters/history.js';
 export { ignoreFacets, diffReport, unifiedDiff, type DiagramDiff as DiffResult, type ItemChange, type FieldChange, type ChangeFacet } from './core/diff/index.js';
 export { configure, registerThemes, registerBuiltinThemes, type Config } from './config.js';
+export type { IconPack, IconifyJSON } from './core/icons/types.js';
 
 defineDiff();

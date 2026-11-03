@@ -5,6 +5,7 @@
 // Unlike the prototype, the colour resolver is a parameter (never a module global) and every value goes through
 // the render style validation: an unresolvable `@ref`, or anything that is not a colour / number / dash pattern,
 // is dropped instead of being written into the output.
+import { NO_ICONS } from '../icons/names.js';
 import { META_HEADER } from '../meta/index.js';
 import type { DiagramMeta } from '../meta/types.js';
 import type { DiagramModel, FlowchartModel, SupportedModel } from '../model.js';
@@ -48,7 +49,7 @@ export function toPortableMermaid(code: string, meta: DiagramMeta, model: Diagra
   const base = stripMetaLines(code);
   const styles = model.type ? PORTABLE_STYLES[model.type] : undefined;
   if (!model.type || !styles) return base;
-  const ctx: RenderContext = { color, measure: createStaticMeasurer(), idPrefix: '', linkPolicy: DEFAULT_LINK_POLICY, imagePolicy: DEFAULT_IMAGE_POLICY };
+  const ctx: RenderContext = { color, measure: createStaticMeasurer(), idPrefix: '', linkPolicy: DEFAULT_LINK_POLICY, imagePolicy: DEFAULT_IMAGE_POLICY, icons: NO_ICONS };
   return [base.trimEnd(), '', PORTABLE_MARKER, ...styles(model, meta, theme, ctx)].join('\n') + '\n';
 }
 

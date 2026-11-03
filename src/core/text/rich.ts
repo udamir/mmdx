@@ -6,6 +6,7 @@
 //
 // The runs are data: their text becomes `<tspan>` text, their styling fixed attribute values, and an icon is an
 // `<image>` whose URL mmdx built (never content); see scene/types.ts `TextRun`.
+import { ICON_TOKEN } from '../icons/names.js';
 import type { TextRun } from '../scene/types.js';
 import type { SafeImageUrl } from '../validate.js';
 import type { FontSpec, TextMeasurer } from './measure.js';
@@ -156,11 +157,8 @@ function emphasis(s: string): TextRun[] {
 
 // ---- icon tokens ------------------------------------------------------------------------------------------------
 
-/**
- * An icon token candidate: `pack:name` standing on its own (`fa:fa-car Car`, `azure:computer-vision`), not part of a
- * URL, a time or a longer word. The resolver decides whether it is an icon.
- */
-const ICON_TOKEN = /(^|[^\w:/.-])([a-z][\w-]*:[a-z0-9][\w-]*)(?![\w:])/gi;
+// ICON_TOKEN (core/icons/names.ts): `pack:name` standing on its own; the resolver decides whether it is an icon (the
+// registry's `iconResolver`: a registered pack or Font Awesome).
 
 function iconRuns(r: TextRun, resolve: IconResolver, size: number, out: TextRun[]): void {
   let at = 0;

@@ -2,7 +2,13 @@
 // type they emit <mmdx-viewer> with the pre-rendered SVG (works with no JS: readable, printable) and the source for
 // hydration; unsupported types get the source only and the viewer falls back to stock Mermaid.
 // No dependency on unified or markdown-it: the plugins are typed structurally.
+//
+// Icons (T04) render synchronously from what is loaded: the rehype plugin loads the icons a page's diagrams reference
+// before it renders them (an async transformer, only when some still need loading); markdown-it renders fences one
+// by one, synchronously, so a host that uses icon packs with loaders calls `preloadIcons` first.
 import { createContext, type CoreContext } from '../core/context.js';
+import { iconNamesOf } from '../core/icons/scan.js';
+import type { IconPack } from '../core/icons/types.js';
 import { detectType } from '../core/parse/index.js';
 import { renderSource, standaloneSvg } from '../core/pipeline.js';
 import { escAttr } from '../core/scene/serialize.js';
@@ -20,6 +26,8 @@ export interface MmdxMarkdownOptions {
   /** Viewer attributes added to every element (`controls`, `fit`…). */
   attrs?: Record<string, string>;
   ctx?: CoreContext;
+  /** Icon packs (as `configure({ iconPacks })` takes them) over the context's registry, which holds the built-in set. */
+  iconPacks?: readonly IconPack[];
 }
 
 /** Text safe inside <script type="text/mermaid">: only `</script` needs breaking; the viewer reverses it. */
@@ -46,9 +54,22 @@ export function diagramHtml(source: string, opts: MmdxMarkdownOptions = {}, ctx:
 }
 
 function setup(opts: MmdxMarkdownOptions): CoreContext {
-  const ctx = opts.ctx ?? createContext();
+  const base = opts.ctx ?? createContext();
+  const ctx = opts.iconPacks?.length ? { ...base, icons: base.icons.extend(opts.iconPacks) } : base;
   for (const t of opts.themes ?? []) ctx.themes.register(t);
   return ctx;
+}
+
+/** Icons of these sources that are not ready yet (loading, or never looked up). */
+const unloaded = (ctx: CoreContext, sources: readonly string[]): string[] =>
+  iconNamesOf(sources.join('\n'), ctx.icons).filter((n) => ctx.icons.get(n).status === 'loading');
+
+/**
+ * Loads the icons these diagram sources reference into the context's registry (the markdown-it plugin renders
+ * synchronously: call it with the page's sources before rendering when packs load through loaders).
+ */
+export async function preloadIcons(ctx: CoreContext, sources: readonly string[]): Promise<void> {
+  await ctx.icons.preload(iconNamesOf(sources.join('\n'), ctx.icons));
 }
 
 // ---- rehype (hast) ----------------------------------------------------------------------------------------------
@@ -69,21 +90,32 @@ const isMermaidCode = (n: HastNode): boolean => {
   return n.tagName === 'code' && list.some((c) => c === 'language-mermaid' || c === 'lang-mermaid');
 };
 
-/** rehype plugin: `rehypePlugins: [[rehypeMmdx, { theme: 'github-light' }]]`. Replaces `pre > code.language-mermaid`. */
-export function rehypeMmdx(opts: MmdxMarkdownOptions = {}): (tree: HastNode) => void {
+/**
+ * rehype plugin: `rehypePlugins: [[rehypeMmdx, { theme: 'github-light' }]]`. Replaces `pre > code.language-mermaid`.
+ * When the page's diagrams reference icons that are not loaded yet, it returns a promise (unified awaits it) and
+ * renders once they are.
+ */
+export function rehypeMmdx(opts: MmdxMarkdownOptions = {}): (tree: HastNode) => void | Promise<void> {
   const ctx = setup(opts);
   return (tree) => {
+    const blocks: { kids: HastNode[]; i: number; src: string }[] = [];
     const visit = (node: HastNode): void => {
       const kids = node.children;
       if (!kids) return;
       for (let i = 0; i < kids.length; i++) {
         const k = kids[i]!;
         const code = k.tagName === 'pre' ? k.children?.find(isMermaidCode) : undefined;
-        if (code) kids[i] = { type: 'raw', value: diagramHtml(textOf(code).replace(/\n$/, ''), opts, ctx) };
+        if (code) blocks.push({ kids, i, src: textOf(code).replace(/\n$/, '') });
         else visit(k);
       }
     };
     visit(tree);
+    const replace = (): void => {
+      for (const b of blocks) b.kids[b.i] = { type: 'raw', value: diagramHtml(b.src, opts, ctx) };
+    };
+    const sources = opts.prerender === false ? [] : blocks.map((b) => b.src);
+    if (!unloaded(ctx, sources).length) return replace();
+    return preloadIcons(ctx, sources).then(replace);
   };
 }
 

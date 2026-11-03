@@ -93,7 +93,7 @@ export async function plainMermaid(core: EditorCore): Promise<void> {
   const body = h('div', { class: 'mm-body' }, h('div', { class: 'hint' }, t('plain.rendering')));
   void core.dialogs.choose({ title: t('plain.title'), class: 'mm-card', body, cancel: null, buttons: [{ label: t('plain.close'), value: null, primary: true }] });
   try {
-    const out = await renderWithMermaid(exportPortable(core), core.scheme.peek() === 'dark');
+    const out = await renderWithMermaid(exportPortable(core), core.scheme.peek() === 'dark', core.ctx.icons);
     const svg = parseMermaidSvg(out);
     if (!svg) throw new Error(t('plain.badSvg'));
     body.replaceChildren(h('div', { class: 'hint', style: 'margin-bottom:10px' }, t('plain.note')), document.importNode(svg, true));

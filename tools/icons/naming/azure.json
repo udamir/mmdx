@@ -1,0 +1,8 @@
+{
+  "$comment": "Azure Architecture Icons (https://learn.microsoft.com/azure/architecture/icons/): Icons/<category>/<number>-icon-service-<Name>.svg. The number and `icon-service-` go, the rest is kebab-cased: 10044-icon-service-Computer-Vision.svg -> computer-vision (Mermaid Chart's azure:computer-vision). Overrides map a file name (without .svg) to the icon name where Mermaid Chart's name differs.",
+  "provider": "Azure",
+  "strip": ["^\\d+-icon-service-", "^\\d+-"],
+  "camelCase": false,
+  "categorySkip": ["^Icons$", "^Azure_Public_Service_Icons", "^\\d+$"],
+  "overrides": {}
+}

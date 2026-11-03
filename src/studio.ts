@@ -3,5 +3,6 @@ import { defineStudio } from './elements/studio.js';
 
 export { DiagramStudio, MmdxStudioElement, defineStudio, type StudioOptions, type ExampleInfo } from './elements/studio.js';
 export { configure, registerThemes, registerBuiltinThemes, type Config } from './config.js';
+export type { IconPack, IconifyJSON } from './core/icons/types.js';
 
 defineStudio();

@@ -31,7 +31,7 @@ describe('workerSource', () => {
     };
     new Function('self', 'addEventListener', 'postMessage', inline.workerSource)(scope, scope.addEventListener, scope.postMessage);
     expect(listeners).toHaveLength(1);
-    listeners[0]!({ data: { id: 7, src: 'flowchart LR\n  a --> b', opts: {}, themes: BUILTIN_THEMES, themesKey: '1.0', idPrefix: 't', linkPolicy: DEFAULT_LINK_POLICY, imagePolicy: DEFAULT_IMAGE_POLICY } });
+    listeners[0]!({ data: { id: 7, src: 'flowchart LR\n  a --> b', opts: {}, themes: BUILTIN_THEMES, themesKey: '1.0', idPrefix: 't', linkPolicy: DEFAULT_LINK_POLICY, imagePolicy: DEFAULT_IMAGE_POLICY, icons: { packs: [], icons: {} } } });
     expect(posted).toHaveLength(1);
     const res = posted[0]!;
     expect(res.id).toBe(7);

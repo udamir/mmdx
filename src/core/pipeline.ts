@@ -1,6 +1,8 @@
 // Derivation pipeline (§6.4) with every diagram kind: shared by the editor, SSR (renderToSvg), the markdown plugins
 // and the render worker. The viewer uses pipeline-core.ts with the kind it loaded.
 import { createContext, type CoreContext } from './context.js';
+import { iconNamesOf } from './icons/scan.js';
+import type { IconPack } from './icons/types.js';
 import type { DiagramDocument } from './meta/index.js';
 import type { DiagramModel } from './model.js';
 import { ALL_VIEW_KINDS } from './kinds/all.js';
@@ -22,10 +24,13 @@ export function renderSource(src: string, ctx: CoreContext, opts: PipelineOption
 
 /**
  * Build-time and server-side rendering (§5.5, §11.4): source → standalone SVG string. Uses the static text
- * measurer unless the context brings another one.
+ * measurer unless the context brings another one. The icons the source references are loaded first (T04): from
+ * `iconPacks` over the context's registry, the built-in set and Font Awesome look-alikes included.
  */
-export async function renderToSvg(src: string, opts: { theme?: string; ctx?: CoreContext; layers?: 'visible' | 'all'; ssr?: boolean } = {}): Promise<string> {
-  const ctx = opts.ctx ?? createContext();
+export async function renderToSvg(src: string, opts: { theme?: string; ctx?: CoreContext; layers?: 'visible' | 'all'; ssr?: boolean; iconPacks?: readonly IconPack[] } = {}): Promise<string> {
+  const base = opts.ctx ?? createContext();
+  const ctx = opts.iconPacks?.length ? { ...base, icons: base.icons.extend(opts.iconPacks) } : base;
+  await ctx.icons.preload(iconNamesOf(src, ctx.icons));
   const p: PipelineOptions = {};
   if (opts.theme) p.theme = opts.theme;
   if (opts.layers === 'all') p.allLayers = true;
