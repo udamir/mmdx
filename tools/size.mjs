@@ -52,7 +52,7 @@ console.log('consumer bundles (esbuild, per entry)');
 const v = await bundle('viewer');
 const flow = [];
 for (const k of ['flowchart', 'sequence', 'er']) {
-  const f = Object.keys(v.outs).find((x) => x.includes(`kind-${k}-`) && x.endsWith('.js'));
+  const f = Object.keys(v.outs).find((x) => v.outs[x].entryPoint === `src/core/kinds/${k}.ts`);
   const extra = [...v.closure(f)].filter((x) => !v.base.has(x));
   if (k === 'flowchart') flow.push(...extra);
   // 61.6 kB with the 0.3 host hooks (+0.4 kB: the host's full screen in the zoom bar, setControls, registerThemes); 61 kB with the 0.3 fixes (+0.2 kB: own-key reads and writes in the metadata parser, the patcher drawing the diff's styled runs itself instead of through a hook the diff installed). 60.8 kB with the view kernel (component architecture §10.1: 60.3 kB once the kernel was split into modules, the blocks gained roving focus and the elements a shared lifecycle; 53.4 kB with every chrome module but the zoom bar on demand; 46 kB before). Provisional (decision 19 is open).
@@ -104,7 +104,9 @@ const loads = async (keys) => {
   for (const k of all) n += await chunkSize(k);
   return { n, all };
 };
-const FLOW = 'src/core/kind-flowchart.ts';
+// a kind's view chunk: its own chunk, or (when core imports it statically too) the shared chunk the viewer loads it from
+const kindChunk = (t) => (manifest[`src/core/kinds/${t}.ts`] ? `src/core/kinds/${t}.ts` : Object.keys(manifest).find((k) => manifest[k].isDynamicEntry && manifest[k].name === t));
+const FLOW = kindChunk('flowchart');
 const HISTORY = ['src/view/modules/history.ts', 'src/diff/history.ts'];
 // budgets: the measurement once History stopped importing the editor's chunk and the diff its kinds and panels (component architecture §10.1), plus about 2 kB; the viewer, editor and diff rows re-measured after the kernel split, the blocks merge and the element lifecycle, and the viewer + History and diff rows again after History in place, plus about 0.5 kB; the viewer and diff rows again with the 0.3 host hooks (the `worker-inline` entry puts the worker client into a chunk of its own), plus about 0.3 kB, and the viewer + History and diff rows once more with the 0.3 fixes and the hooks together, plus about 0.3 kB
 const rows = [

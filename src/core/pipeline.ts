@@ -3,13 +3,13 @@
 import { createContext, type CoreContext } from './context.js';
 import type { DiagramDocument } from './meta/index.js';
 import type { DiagramModel } from './model.js';
-import { ALL_PARSERS } from './parse/index.js';
+import { ALL_VIEW_KINDS } from './kinds/all.js';
 import { renderDocumentWith, renderSourceWith, standaloneSvg, type Kinds, type PipelineOptions, type Rendered } from './pipeline-core.js';
-import { ALL_RENDERERS } from './render/index.js';
 
 export { pickTheme, renderContext, standaloneSvg, type Kinds, type PipelineOptions, type Rendered } from './pipeline-core.js';
 
-export const ALL_KINDS: Kinds = { parsers: ALL_PARSERS, renderers: ALL_RENDERERS };
+/** Every diagram kind (registered for the generic helpers on import). */
+export const ALL_KINDS: Kinds = ALL_VIEW_KINDS;
 
 export function renderDocument(doc: DiagramDocument, model: DiagramModel, ctx: CoreContext, opts: PipelineOptions = {}): Omit<Rendered, 'doc' | 'model' | 'tooLarge'> {
   return renderDocumentWith(ALL_KINDS, doc, model, ctx, opts);

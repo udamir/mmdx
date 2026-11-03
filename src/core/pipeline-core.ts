@@ -4,8 +4,9 @@ import type { CoreContext } from './context.js';
 import { hiddenByLayers } from './layers.js';
 import { splitSource, type DiagramDocument } from './meta/index.js';
 import type { DiagramModel } from './model.js';
-import { parseWith, type ParserSet } from './parse/dispatch.js';
-import { renderSvgString, renderWith, type RendererSet } from './render/dispatch.js';
+import type { Kinds } from './kinds/types.js';
+import { parseWith } from './parse/dispatch.js';
+import { renderSvgString, renderWith } from './render/dispatch.js';
 import type { RenderContext, RenderResult } from './render/types.js';
 import { createColorResolver, diagramPaletteOf } from './theme/colors.js';
 import { BASELINE } from './theme/registry.js';
@@ -13,11 +14,7 @@ import type { ResolvedTheme } from './theme/types.js';
 import { Lru } from './text/measure.js';
 import type { Diagnostic, Point } from './types.js';
 
-/** Diagram types a pipeline can handle. */
-export interface Kinds {
-  parsers: ParserSet;
-  renderers: RendererSet;
-}
+export type { Kinds } from './kinds/types.js';
 
 export interface PipelineOptions {
   /** Theme to draw with (default: baseline). Diagrams do not carry a theme: the host or the user picks it. */
@@ -77,14 +74,14 @@ export function renderDocumentWith(kinds: Kinds, doc: DiagramDocument, model: Di
   const ropts: Parameters<typeof renderWith>[5] = { hidden };
   if (opts.hideLabels) ropts.hideLabels = true;
   if (opts.tableView?.length) ropts.tableView = opts.tableView;
-  const result = renderWith(kinds.renderers, model, doc.meta, picked.theme, rctx, ropts);
+  const result = renderWith(kinds, model, doc.meta, picked.theme, rctx, ropts);
   return { theme: picked.theme, themeId: picked.id, rctx, result, diagnostics: picked.diagnostics };
 }
 
 /** Full pipeline from source text. Never throws on bad input. */
 export function renderSourceWith(kinds: Kinds, src: string, ctx: CoreContext, opts: PipelineOptions = {}): Rendered {
   const split = splitSource(src);
-  const model = parseWith(split.doc.code, kinds.parsers);
+  const model = parseWith(split.doc.code, kinds);
   const tooLarge = model.diagnostics.some((d) => d.code === 'doc.too-large' || d.code === 'doc.too-many-items');
   const r = renderDocumentWith(kinds, split.doc, model, ctx, opts);
   return {

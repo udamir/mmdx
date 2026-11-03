@@ -359,10 +359,10 @@ Everything instance-scoped that the core needs; there are no module singletons. 
 ### `ALL_KINDS`
 
 ```ts
-const ALL_KINDS: Kinds // { parsers, renderers } of flowchart, sequence and ER
+const ALL_KINDS: Kinds // { flowchart, sequence, er }: the view kind of every diagram type
 ```
 
-The parsers and renderers of every diagram type, for the [`…With` functions](#all-kinds-and-with-variants).
+The view kind (parser, renderer and the rest of what drawing a diagram needs) of every diagram type, by type, for the [`…With` functions](#all-kinds-and-with-variants).
 
 ### `createStaticMeasurer()`
 
@@ -625,7 +625,7 @@ A semantic diff of two sources compares items, not lines. Items are matched by i
 The diff and diff-rendering functions come in two forms:
 
 - **All kinds**: `diffDiagrams`, `renderDiff` and `renderDiffToSvg` parse and render with every diagram type. They live in `src/core/diff/all.ts`, which imports every parser and renderer statically, and only `@mmdx/studio/core` exports them. Use them in Node, CI jobs and workers.
-- **`…With`**: `diffDiagramsWith`, `renderDiffWith` and `renderDiffToSvgWith` take the diagram kinds as their first argument (`{ parsers, renderers }`, as in [`ALL_KINDS`](#all-kinds)). A version whose type has no parser in the set diffs as unsupported. The components use them with the kinds they loaded on demand, so `<mmdx-diff>` and History ship no diagram type statically. From `@mmdx/studio/core` you would normally pass `ALL_KINDS`.
+- **`…With`**: `diffDiagramsWith`, `renderDiffWith` and `renderDiffToSvgWith` take the diagram kinds as their first argument (view kinds by type, as in [`ALL_KINDS`](#all-kinds)). A version whose type is not in the set diffs as unsupported. The components use them with the kinds they loaded on demand, so `<mmdx-diff>` and History ship no diagram type statically. From `@mmdx/studio/core` you would normally pass `ALL_KINDS`.
 
 In the browser, [`@mmdx/studio/diff`](/api/#mmdx-studio-diff) exports asynchronous `diffDiagrams(before, after): Promise<DiagramDiff>` and `renderDiffToSvg(before, after, options): Promise<string>`: they load the parser and renderer of both versions' types first, then behave like the functions here.
 
@@ -633,7 +633,7 @@ In the browser, [`@mmdx/studio/diff`](/api/#mmdx-studio-diff) exports asynchrono
 
 ```ts
 function diffDiagrams(before: string, after: string): DiagramDiff
-function diffDiagramsWith(kinds: { parsers: ParserSet }, before: string, after: string): DiagramDiff
+function diffDiagramsWith(kinds: Kinds, before: string, after: string): DiagramDiff
 ```
 
 The diff of two sources (Mermaid with or without `%%@` lines). Never throws on bad input. When the two versions are different diagram types, `typeChanged` is true and the change is reported as a diagram-wide `diagram type` field.

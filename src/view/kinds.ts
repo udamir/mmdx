@@ -1,30 +1,29 @@
 // Diagram kinds loaded on demand by the viewer (§R5): a page of flowcharts never downloads the sequence and ER code.
 // The kernel's scenes get kinds through a `KindsProvider` (component architecture §7.1): this lazy one for the viewer
-// and the diff; the editor's renders are synchronous and use every kind bundled.
-import type { Kinds } from '../core/pipeline-core.js';
+// and the diff. A loaded kind is registered for the generic helpers (core/kinds/registry.ts).
+import { registerKinds, registeredKinds, viewKind } from '../core/kinds/registry.js';
+import type { Kinds, ViewKind } from '../core/kinds/types.js';
 import type { DiagramType } from '../core/types.js';
 
-const loaded: Kinds = { parsers: {}, renderers: {} };
 const pending = new Map<DiagramType, Promise<void>>();
 
-const importers: Record<DiagramType, () => Promise<{ KIND: Kinds }>> = {
-  flowchart: () => import('../core/kind-flowchart.js'),
-  sequence: () => import('../core/kind-sequence.js'),
-  er: () => import('../core/kind-er.js'),
+const importers: Record<DiagramType, () => Promise<{ VIEW: ViewKind }>> = {
+  flowchart: () => import('../core/kinds/flowchart.js'),
+  sequence: () => import('../core/kinds/sequence.js'),
+  er: () => import('../core/kinds/er.js'),
 };
 
 /** The kinds loaded so far (shared by every viewer on the page; static code, no instance state). */
-export const loadedKinds = (): Kinds => loaded;
+export const loadedKinds = (): Kinds => registeredKinds();
 
-export const hasKind = (t: DiagramType): boolean => !!loaded.parsers[t];
+export const hasKind = (t: DiagramType): boolean => !!viewKind(t);
 
 export function loadKind(t: DiagramType): Promise<void> {
   if (hasKind(t)) return Promise.resolve();
   let p = pending.get(t);
   if (!p) {
-    p = importers[t]().then(({ KIND }) => {
-      Object.assign(loaded.parsers, KIND.parsers);
-      Object.assign(loaded.renderers, KIND.renderers);
+    p = importers[t]().then(({ VIEW }) => {
+      registerKinds({ [t]: VIEW });
     });
     pending.set(t, p);
     p.catch(() => pending.delete(t));

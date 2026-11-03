@@ -105,9 +105,9 @@ export function renderItemSampleWith(env: PreviewEnv, kind: PreviewKind, preset:
   const base = opts.ctx ?? env.ctx;
   // one context per preview: a unique idPrefix keeps marker ids apart between tiles on one page
   const ctx: CoreContext = { ...base, idPrefix: nextIdPrefix() };
-  const model = parseWith(src, env.kinds.parsers);
+  const model = parseWith(src, env.kinds);
   const rctx = renderContext(ctx, theme, { code: src, meta });
-  const result = renderWith(env.kinds.renderers, model, meta, theme, rctx);
+  const result = renderWith(env.kinds, model, meta, theme, rctx);
   const background = rctx.color(theme.canvas.background) ?? rctx.color(theme.palette['paper']) ?? '#ffffff';
   return { result, background: background === 'none' || background === 'transparent' ? rctx.color(theme.palette['paper']) ?? '#ffffff' : background, color: rctx.color };
 }

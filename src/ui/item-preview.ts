@@ -2,15 +2,14 @@
 // with every diagram kind and the shared configuration: the entry the editor's preset pickers and the theme editor
 // use. A host that loads kinds on demand calls `drawItemPreviewWith` / `renderItemSampleWith` with its own.
 import { instanceContext } from '../config.js';
-import { ALL_PARSERS } from '../core/parse/index.js';
-import { ALL_RENDERERS } from '../core/render/index.js';
+import { ALL_VIEW_KINDS } from '../core/kinds/all.js';
 import type { ResolvedTheme } from '../core/theme/types.js';
 import { drawItemPreviewWith, renderItemSampleWith, type ItemPreviewOptions, type PreviewEnv, type PreviewKind, type SampleOptions, type Sampled } from './item-preview-core.js';
 
 export * from './item-preview-core.js';
 
 /** Every kind and the shared configuration. */
-const allKinds = (): PreviewEnv => ({ kinds: { parsers: ALL_PARSERS, renderers: ALL_RENDERERS }, ctx: instanceContext() });
+const allKinds = (): PreviewEnv => ({ kinds: ALL_VIEW_KINDS, ctx: instanceContext() });
 
 /** Renders the sample of `kind` and returns the scene and the context used (no DOM). */
 export function renderItemSample(kind: PreviewKind, preset: string | null | undefined, theme: ResolvedTheme, opts: SampleOptions = {}): Sampled {

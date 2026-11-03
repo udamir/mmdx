@@ -13,7 +13,8 @@ import type {
   DiagramModel, Entity, ErModel, FlowEdge, FlowNode, FlowchartModel, MermaidStyle, Participant, SeqBlockStart,
   SeqMessage, SeqNote, SequenceModel,
 } from '../model.js';
-import { parseWith, type ParserSet } from '../parse/dispatch.js';
+import type { Kinds } from '../kinds/types.js';
+import { parseWith } from '../parse/dispatch.js';
 import type { ItemKind } from '../types.js';
 import type { ChangeFacet, DiagramDiff, DiffIgnore, FieldChange, ItemChange } from './types.js';
 
@@ -375,9 +376,9 @@ export function diffModels(a: DiagramModel, b: DiagramModel, ma: DiagramMeta, mb
 }
 
 /** Diff of two sources (Mermaid with or without `%%@` lines), parsed with the given diagram kinds (component architecture §9.1): a bundle that loads kinds on demand passes the ones it loaded (a type without its parser diffs as unsupported). Never throws on bad input. `diffDiagrams` (core/diff/all.ts) parses with every kind. */
-export function diffDiagramsWith(kinds: { parsers: ParserSet }, before: string, after: string): DiagramDiff {
+export function diffDiagramsWith(kinds: Kinds, before: string, after: string): DiagramDiff {
   const sa = splitSource(before), sb = splitSource(after);
-  return diffModels(parseWith(sa.doc.code, kinds.parsers), parseWith(sb.doc.code, kinds.parsers), sa.doc.meta, sb.doc.meta);
+  return diffModels(parseWith(sa.doc.code, kinds), parseWith(sb.doc.code, kinds), sa.doc.meta, sb.doc.meta);
 }
 
 /**

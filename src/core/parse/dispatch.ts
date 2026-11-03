@@ -1,18 +1,12 @@
-// Parse dispatch: the type from the header, then the parser for that type. Parsers are passed in (ParserSet), so a
-// bundle can include only the diagram types it loads (the viewer loads them per type, §R5).
-import type { DiagramModel, SupportedModel, UnsupportedModel } from '../model.js';
+// Parse dispatch: the type from the header, then the parser of that type's kind. Kinds are passed in, so a bundle can
+// include only the diagram types it loads (the viewer loads them per type, §R5).
+import type { Kinds } from '../kinds/types.js';
+import type { DiagramModel, UnsupportedModel } from '../model.js';
 import type { DiagramType } from '../types.js';
 import { diag } from '../types.js';
 import { KIND_INFO, typeOfHeader } from '../kinds/info.js';
 import { MAX_SOURCE_LENGTH, tooLargeDiagnostic } from './limits.js';
 
-export interface TypeParser {
-  parse(code: string): SupportedModel;
-  /** The model of a source over the size limit: the right type, no items. */
-  empty(): SupportedModel;
-}
-
-export type ParserSet = Partial<Record<DiagramType, TypeParser>>;
 
 /** First header line, skipping blank lines, `%%` comments and leading front matter; scans line by line without splitting the whole source. */
 function headerLine(code: string): string | null {
@@ -51,18 +45,18 @@ function unsupported(code: string): UnsupportedModel {
   return m;
 }
 
-export function parseWith(code: string, parsers: ParserSet): DiagramModel {
+export function parseWith(code: string, kinds: Kinds): DiagramModel {
   if (typeof code !== 'string') code = '';
   const type = detectType(code);
   if (code.length > MAX_SOURCE_LENGTH) {
     // the right type, but no items: the viewer shows "Diagram too large"
     const d = tooLargeDiagnostic(code.length);
-    const p = type ? parsers[type] : undefined;
+    const p = type ? kinds[type] : undefined;
     const m: DiagramModel = p ? p.empty() : unsupported(code);
     if (m.type === null) m.diagnostics = [d];
     else m.diagnostics.push(d);
     return m;
   }
-  const p = type ? parsers[type] : undefined;
+  const p = type ? kinds[type] : undefined;
   return p ? p.parse(code) : unsupported(code);
 }

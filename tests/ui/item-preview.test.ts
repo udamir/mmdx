@@ -2,8 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { getShared, instanceContext } from '../../src/config.js';
 import { parseFlowchart } from '../../src/core/parse/flowchart.js';
-import { ALL_PARSERS } from '../../src/core/parse/index.js';
-import { ALL_RENDERERS } from '../../src/core/render/index.js';
+import { ALL_VIEW_KINDS } from '../../src/core/kinds/all.js';
 import { drawItemPreview, drawItemPreviewWith, ITEM_SAMPLES, renderItemSample, renderItemSampleWith, type PreviewKind } from '../../src/ui/item-preview.js';
 import { fitPresetGrid, shapePreview } from '../../src/ui/shape-preview.js';
 
@@ -33,7 +32,7 @@ describe('item previews', () => {
 
   it('the injectable variant renders with the kinds and the context it is given', () => {
     const parse = vi.fn(parseFlowchart);
-    const env = { kinds: { parsers: { flowchart: { ...ALL_PARSERS.flowchart!, parse } }, renderers: { flowchart: ALL_RENDERERS.flowchart! } }, ctx: instanceContext() };
+    const env = { kinds: { flowchart: { ...ALL_VIEW_KINDS.flowchart!, parse } }, ctx: instanceContext() };
     const { result } = renderItemSampleWith(env, 'node', null, theme);
     expect(parse).toHaveBeenCalledOnce();
     expect(result.body.length).toBeGreaterThan(0);

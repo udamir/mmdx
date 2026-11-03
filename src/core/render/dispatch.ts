@@ -1,12 +1,6 @@
 // Render dispatch (prototype render/index.js): model + meta + resolved theme → scene tree + geometry, plus the
-// page and the standalone SVG export (§7). Renderers are passed in (RendererSet), like the parsers.
+// page and the standalone SVG export (§7). The kinds are passed in, as for parsing.
 
-export type TypeRenderer<M extends SupportedModel = SupportedModel> = (model: M, env: RenderEnv) => SubResult;
-export interface RendererSet {
-  flowchart?: TypeRenderer<FlowchartModel>;
-  sequence?: TypeRenderer<SequenceModel>;
-  er?: TypeRenderer<ErModel>;
-}
 import type { DiagramMeta } from '../meta/types.js';
 import type { DiagramModel } from '../model.js';
 import { escAttr, fmt, serializeNodes } from '../scene/serialize.js';
@@ -15,7 +9,7 @@ import type { ResolvedTheme } from '../theme/types.js';
 import type { Rect } from '../types.js';
 import { toNumber } from '../validate.js';
 import type { RenderEnv, SubResult } from './common.js';
-import type { ErModel, FlowchartModel, SequenceModel, SupportedModel } from '../model.js';
+import type { Kinds } from '../kinds/types.js';
 import { effectivePage, fitPage, gridPattern, isClear, pageBounds, pageScene } from './page.js';
 import type { RenderContext, RenderOptions, RenderResult } from './types.js';
 
@@ -23,7 +17,7 @@ import type { RenderContext, RenderOptions, RenderResult } from './types.js';
 /** What an unsupported (or empty) model renders: an empty 400×200 page (before the page minimum). */
 const empty = (): SubResult => ({ defs: [], body: [], bounds: { x: 0, y: 0, w: 400, h: 200 }, geom: { type: null }, presetsUsed: {} });
 
-export function renderWith(renderers: RendererSet, model: DiagramModel, meta: DiagramMeta, theme: ResolvedTheme, ctx: RenderContext, opts: RenderOptions = {}): RenderResult {
+export function renderWith(kinds: Kinds, model: DiagramModel, meta: DiagramMeta, theme: ResolvedTheme, ctx: RenderContext, opts: RenderOptions = {}): RenderResult {
   const canvas = effectivePage(model.type, meta, theme);
   const bg = ctx.color(canvas.background ?? theme.canvas.background);
   // renderers use this colour behind labels (halo) and inside markers: on a transparent page, the paper colour
@@ -36,11 +30,8 @@ export function renderWith(renderers: RendererSet, model: DiagramModel, meta: Di
     paper,
     pad: toNumber(canvas.pad) ?? theme.canvas.pad,
   };
-  const r =
-    model.type === 'flowchart' && renderers.flowchart ? renderers.flowchart(model, env)
-    : model.type === 'sequence' && renderers.sequence ? renderers.sequence(model, env)
-    : model.type === 'er' && renderers.er ? renderers.er(model, env)
-    : empty();
+  const kind = model.type ? kinds[model.type] : undefined;
+  const r = kind && model.type ? kind.render(model, env) : empty();
   const contentBounds = r.bounds;
   const bounds = pageBounds(fitPage(r.bounds, canvas), canvas);
   const border = ctx.color(canvas.border ?? theme.canvas.border);
