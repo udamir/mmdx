@@ -1,5 +1,5 @@
 // ER editing ops as Mermaid source rewrites (prototype edit.js, ER part).
-import type { ErAttribute, ErModel, ErRel } from '../model.js';
+import type { Direction, ErAttribute, ErModel, ErRel } from '../model.js';
 import { encodeLabel } from '../parse/label.js';
 import type { ItemRef } from '../types.js';
 import { relText } from './connect.js';
@@ -103,4 +103,17 @@ export function cloneER(code: string, model: ErModel, items: readonly ItemRef[],
   }
   for (const r of model.rels) if (Object.hasOwn(map, r.from) && Object.hasOwn(map, r.to)) out.push('  ' + relText(r, map[r.from]!, map[r.to]!));
   return { code: append(o.into ?? code, out), map };
+}
+
+/** Direction: the `direction LR` line (rewritten, or added after the header). */
+export function setErDirection(code: string, dir: Direction): CodeResult {
+  const L = code.split('\n');
+  const d = L.findIndex((l) => /^\s*direction\s+(TB|TD|BT|LR|RL)\b/.test(l));
+  if (d >= 0) L[d] = L[d]!.replace(/direction\s+\w+/, `direction ${dir}`);
+  else {
+    const hd = L.findIndex((l) => /^\s*erDiagram\b/.test(l));
+    if (hd < 0) return { code };
+    L.splice(hd + 1, 0, `  direction ${dir}`);
+  }
+  return { code: L.join('\n') };
 }

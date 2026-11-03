@@ -1,6 +1,6 @@
 // Flowchart editing ops as Mermaid source rewrites (prototype edit.js, flowchart part).
 // Every function takes (code, model, …) and returns the new code (+ what to select); the caller re-parses.
-import type { FlowEdge, FlowGroup, FlowNode, FlowchartModel } from '../model.js';
+import type { Direction, FlowEdge, FlowGroup, FlowNode, FlowchartModel } from '../model.js';
 import { encodeLabel } from '../parse/label.js';
 import type { ItemRef } from '../types.js';
 import { edgeText, nodeDef } from './connect.js';
@@ -279,4 +279,13 @@ export function cloneFlow(code: string, model: FlowchartModel, items: readonly I
   for (const e of model.edges) if (nodes.has(e.from) && nodes.has(e.to)) atEnd.push('  ' + edgeText(e, map[e.from]!, map[e.to]!));
   if (atEnd.length) edits.push({ at: end, del: 0, ins: atEnd });
   return { code: applyEdits(target, edits).replace(/\s+$/, '') + '\n', map };
+}
+
+/** Direction: the header's (`flowchart LR`). */
+export function setFlowDirection(code: string, dir: Direction): CodeResult {
+  const L = code.split('\n');
+  const i = L.findIndex((l) => /^\s*(flowchart|graph)\b/i.test(l));
+  if (i < 0) return { code };
+  L[i] = L[i]!.replace(/^(\s*)(flowchart|graph)\b(\s+(TB|TD|BT|LR|RL)\b)?/i, (_m, sp: string, kw: string) => `${sp}${kw} ${dir}`);
+  return { code: L.join('\n') };
 }

@@ -4,6 +4,8 @@
 // every component on the page — no instance state (that comes in through the CoreContext).
 import type { DiagramModel, SupportedModel } from '../model.js';
 import type { DiagramType } from '../types.js';
+import { parseWith } from '../parse/dispatch.js';
+import type { OpsKind, OpsKinds } from './ops-types.js';
 import type { Kinds, ViewKind } from './types.js';
 
 const registered: Kinds = {};
@@ -31,5 +33,28 @@ export const kindOf = <M extends SupportedModel>(model: DiagramModel): ViewKind<
 export function withKind<R>(model: DiagramModel, f: (kind: ViewKind, model: SupportedModel) => R): R | undefined {
   if (!model.type) return undefined;
   const k = registered[model.type];
+  return k ? f(k, model) : undefined;
+}
+
+/** A model of the code, parsed with the kinds registered so far (the ops re-parse their results with it). */
+export const reparse = (code: string): DiagramModel => parseWith(code, registered);
+
+// ---- ops kinds (the editor) ----
+
+const ops: OpsKinds = {};
+
+/** Makes the ops kinds available to the editing ops; returns the same set. */
+export function registerOps<K extends OpsKinds>(kinds: K): K {
+  for (const k of Object.values(kinds)) if (k) ops[k.type] = k;
+  return kinds;
+}
+
+/** The ops kind of a type, when it is loaded. */
+export const opsKind = (type: DiagramType | null | undefined): OpsKind | undefined => (type ? ops[type] : undefined);
+
+/** As `withKind`, with the model's ops kind. */
+export function withOps<R>(model: DiagramModel, f: (kind: OpsKind, model: SupportedModel) => R): R | undefined {
+  if (!model.type) return undefined;
+  const k = ops[model.type];
   return k ? f(k, model) : undefined;
 }

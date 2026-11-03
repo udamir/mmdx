@@ -13,7 +13,8 @@ import { normalizeMeta, splitSource, type DiagramDocument } from '../core/meta/i
 import { KIND_TO_COLL, type DiagramMeta, type ItemMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
 import { own, ownOr } from '../core/own.js';
-import { viewKind, withKind } from '../core/kinds/registry.js';
+import { ALL_OPS_KINDS } from '../core/kinds/all-ops.js';
+import { registerOps, viewKind, withKind } from '../core/kinds/registry.js';
 import { parse } from '../core/parse/index.js';
 import type { ClipboardData } from '../core/ops/clipboard.js';
 import { remapSequenceMeta } from '../core/ops/remap.js';
@@ -286,6 +287,8 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       ...(o.themeDark ? { themeDark: o.themeDark } : {}),
       ...(o.compact !== undefined ? { compact: o.compact } : {}),
     });
+    // the editing ops of every kind (until the editor loads kinds on demand)
+    registerOps(ALL_OPS_KINDS);
     this.store = o.store;
     this.features = o.features;
     this.dialogs = new Dialogs(this.shadow, this.i18n.t);

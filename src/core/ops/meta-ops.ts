@@ -9,8 +9,9 @@ import { COLLECTIONS, KIND_TO_COLL } from '../meta/types.js';
 import type { Direction, DiagramModel, FlowchartModel, SequenceModel } from '../model.js';
 import { own, setOwn } from '../own.js';
 import { renameClashingSubgraph } from '../parse/flowchart.js';
+import { remapSequenceMeta } from './remap.js';
 import { DEFAULT_LAYER } from '../layers.js';
-import { parse } from '../parse/index.js';
+import { reparse, withOps } from '../kinds/registry.js';
 import { pagePresets } from '../render/page.js';
 import type { BoxGeom, GeometryIndex } from '../render/types.js';
 import type { ResolvedTheme } from '../theme/types.js';
@@ -145,16 +146,7 @@ export function resetLayout(meta: DiagramMeta): MetaResult {
  * they are (from the last render's geometry) so nothing else jumps. Mutates and returns `meta` (callers pass a clone).
  */
 function pinAutoInPlace(meta: DiagramMeta, model: DiagramModel, geom: GeometryIndex | null | undefined): DiagramMeta {
-  if (model.type !== 'flowchart' || geom?.type !== 'flowchart') return meta;
-  for (const [id, b] of geom.nodes)
-    if (b.auto) {
-      const m = ensure(meta, 'node', id);
-      if (m.x == null || m.y == null) {
-        m.x = Math.round(b.x);
-        m.y = Math.round(b.y);
-      }
-    }
-  return meta;
+  return withOps(model, (k, m) => k.pinAuto?.(meta, m, geom)) ?? meta;
 }
 
 /** Pins every auto-placed flowchart node at its rendered position. */
@@ -222,10 +214,11 @@ function moveInPlace(meta: DiagramMeta, model: DiagramModel, geom: GeometryIndex
   if (kind === 'node' || kind === 'entity') {
     const b = boxOfItem(geom, { kind, id });
     if (b) moveSet([{ kind, id, x: b.x, y: b.y }]);
-  } else if (kind === 'group' && model.type === 'flowchart') {
+  } else if (kind === 'group') {
     const self = boxOfItem(geom, { kind, id });
-    if (!self) return;
-    const { nodes, groups } = groupDescendants(model, id);
+    const inside = withOps(model, (k, m) => k.descendants?.(m, id));
+    if (!self || !inside) return;
+    const { nodes, groups } = inside;
     const items: MoveTarget[] = [];
     const gm = getM(meta, 'group', id);
     if (gm.w) items.push({ kind: 'group', id, x: Number(gm.x), y: Number(gm.y) });
@@ -282,8 +275,10 @@ export function moveItems(model: DiagramModel, meta: DiagramMeta, geom: Geometry
     if (it.kind === 'node' || it.kind === 'entity') {
       const b = boxOfItem(geom, it);
       if (b) add(it.kind, it.id, b.x, b.y);
-    } else if (it.kind === 'group' && model.type === 'flowchart') {
-      const { nodes, groups } = groupDescendants(model, it.id);
+    } else if (it.kind === 'group') {
+      const inside = withOps(model, (k, m) => k.descendants?.(m, it.id));
+      if (!inside) continue;
+      const { nodes, groups } = inside;
       const gm = getM(out, 'group', it.id);
       if (gm.w) add('group', it.id, gm.x, gm.y);
       for (const n of nodes) {
@@ -310,10 +305,8 @@ export type AlignOp = 'left' | 'right' | 'hcenter' | 'top' | 'bottom' | 'vcenter
 
 function insideGroup(model: DiagramModel, it: ItemRef, gid: string): boolean {
   if (it.kind === 'group' && it.id === gid) return true;
-  if (model.type !== 'flowchart') return false;
-  let g = it.kind === 'node' ? model.nodes.get(it.id)?.parent : it.kind === 'group' ? model.groups.get(it.id)?.parent : null;
-  for (let guard = 0; g && guard <= model.groups.size; g = model.groups.get(g)?.parent ?? null, guard++) if (g === gid) return true;
-  return false;
+  const d = withOps(model, (k, m) => k.descendants?.(m, gid));
+  return !!d && (it.kind === 'node' ? d.nodes.includes(it.id) : it.kind === 'group' ? d.groups.includes(it.id) : false);
 }
 
 /**
@@ -635,21 +628,7 @@ export function startDiagram(code: string, type: DiagramType): CodeResult {
  * after the header). Sequence diagrams have none.
  */
 export function setDirection(code: string, model: DiagramModel, dir: Direction): CodeResult {
-  const L = code.split('\n');
-  if (model.type === 'er') {
-    const d = L.findIndex((l) => /^\s*direction\s+(TB|TD|BT|LR|RL)\b/.test(l));
-    if (d >= 0) L[d] = L[d]!.replace(/direction\s+\w+/, `direction ${dir}`);
-    else {
-      const hd = L.findIndex((l) => /^\s*erDiagram\b/.test(l));
-      if (hd < 0) return { code };
-      L.splice(hd + 1, 0, `  direction ${dir}`);
-    }
-  } else if (model.type === 'flowchart') {
-    const i = L.findIndex((l) => /^\s*(flowchart|graph)\b/i.test(l));
-    if (i < 0) return { code };
-    L[i] = L[i]!.replace(/^(\s*)(flowchart|graph)\b(\s+(TB|TD|BT|LR|RL)\b)?/i, (_m, sp: string, kw: string) => `${sp}${kw} ${dir}`);
-  } else return { code };
-  return { code: L.join('\n') };
+  return withOps(model, (k, m) => k.setDirection?.(code, m, dir)) ?? { code };
 }
 
 /** Sequence: `autonumber` numbers the messages — a line after the header. */
@@ -690,57 +669,16 @@ export function setPagePreset(meta: DiagramMeta, id: string | null): MetaResult 
   return { meta: out };
 }
 
-// ---- sequence ids follow code changes -----------------------------------------------------------------------------
+// ---- positional ids follow code changes ----------------------------------------------------------------------------
 
-type SeqColl = 'messages' | 'notes' | 'blocks';
+/** Sequence metadata moved to the items' new positional ids (the ops kind's `remapMeta`; kept for its callers). */
+export const remapSeqMeta = (oldModel: SequenceModel, oldCode: string, newModel: SequenceModel, newCode: string, meta: DiagramMeta): DiagramMeta =>
+  remapSequenceMeta(meta, oldModel, oldCode, newModel, newCode);
 
-/**
- * Sequence item ids are positional (m1, m2…): when items are inserted or removed, carry their metadata over by
- * matching the source text in order (then by the same id, e.g. when the text itself was edited). Processes match by
- * participant + the statements they start on, else keep the same id.
- */
-export function remapSeqMeta(oldModel: SequenceModel, oldCode: string, newModel: SequenceModel, newCode: string, meta: DiagramMeta): DiagramMeta {
-  const OL = oldCode.split('\n'), NL = newCode.split('\n');
-  const out: DiagramMeta = { ...meta };
-  const kinds: [SeqColl, 'message' | 'note' | 'blockStart'][] = [['messages', 'message'], ['notes', 'note'], ['blocks', 'blockStart']];
-  for (const [coll, kind] of kinds) {
-    const cur = meta[coll];
-    if (!cur || !Object.keys(cur).length) continue;
-    const pick = (m: SequenceModel, L: readonly string[]): { id: string; t: string | undefined }[] =>
-      m.items.filter((x) => x.kind === kind).map((x) => ({ id: (x as { id: string }).id, t: L[x.src]?.trim() }));
-    const o = pick(oldModel, OL), n = pick(newModel, NL);
-    if (o.length === n.length && o.every((a, i) => n[i]!.id === a.id && n[i]!.t === a.t)) continue;
-    out[coll] = matchByText(o, n, cur);
-  }
-  const acts = meta.activations;
-  if (acts && Object.keys(acts).length) {
-    const key = (a: ReturnType<typeof activationsOf>[number], L: readonly string[]): string => `${a.participant}|${L[a.start.src]?.trim()}|${L[a.start.src + 1]?.trim()}`;
-    const o = activationsOf(oldModel).map((a) => ({ id: a.id, t: key(a, OL) }));
-    const n = activationsOf(newModel).map((a) => ({ id: a.id, t: key(a, NL) }));
-    out.activations = matchByText(o, n, acts);
-  }
-  return out;
-}
-
-// Old → new ids by equal text (first unused in order), then by the same id; metadata follows its item.
-function matchByText(o: { id: string; t: string | undefined }[], n: { id: string; t: string | undefined }[], meta: Record<string, ItemMeta>): Record<string, ItemMeta> {
-  const free = new Map<string | undefined, string[]>();
-  for (const x of n) (free.get(x.t) ?? free.set(x.t, []).get(x.t)!).push(x.id);
-  const newIds = new Set(n.map((x) => x.id));
-  const used = new Set<string>(), out: Record<string, ItemMeta> = {}, pending: typeof o = [];
-  for (const a of o) {
-    const nid = free.get(a.t)?.find((id) => !used.has(id));
-    if (nid) {
-      used.add(nid);
-      if (meta[a.id]) out[nid] = meta[a.id]!;
-    } else pending.push(a);
-  }
-  for (const a of pending)
-    if (meta[a.id] && newIds.has(a.id) && !used.has(a.id)) {
-      used.add(a.id);
-      out[a.id] = meta[a.id]!;
-    }
-  return out;
+/** Metadata carried over to new positional ids after a code change (types with stable ids: unchanged). */
+export function remapMeta(oldModel: DiagramModel, oldCode: string, model: DiagramModel, newCode: string, meta: DiagramMeta): DiagramMeta {
+  if (!model.type || model.type !== oldModel.type) return meta;
+  return withOps(model, (k, m) => k.remapMeta?.(meta, oldModel as typeof m, oldCode, m, newCode)) ?? meta;
 }
 
 /**
@@ -748,9 +686,8 @@ function matchByText(o: { id: string; t: string | undefined }[], n: { id: string
  * carried over to the new positional ids (prototype `applyCode`).
  */
 export function afterCodeChange(oldModel: DiagramModel, oldCode: string, newCode: string, meta: DiagramMeta): { model: DiagramModel; meta: DiagramMeta } {
-  const model = parse(newCode);
-  if (model.type === 'sequence' && oldModel.type === 'sequence') return { model, meta: remapSeqMeta(oldModel, oldCode, model, newCode, meta) };
-  return { model, meta };
+  const model = reparse(newCode);
+  return { model, meta: remapMeta(oldModel, oldCode, model, newCode, meta) };
 }
 
 /** Collections an item kind can have metadata in (for callers iterating every item collection). */

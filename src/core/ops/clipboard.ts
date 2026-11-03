@@ -8,14 +8,14 @@
 import { pruneMeta } from '../meta/index.js';
 import type { DiagramMeta } from '../meta/types.js';
 import type { DiagramModel } from '../model.js';
-import { parse } from '../parse/index.js';
+import { reparse, withKind, withOps } from '../kinds/registry.js';
+import type { ConnectorEnds } from '../kinds/types.js';
+import { own } from '../own.js';
 import type { GeometryIndex } from '../render/types.js';
 import type { DiagramType, ItemKind, ItemRef, Point } from '../types.js';
-import { cloneER, deleteER } from './er.js';
-import { cloneFlow, deleteFlow } from './flowchart.js';
-import { takenIds, usedIds } from './ids.js';
-import { boxOfItem, cloneJson, cloneMeta, ensure, getM, uniqueRefs } from './meta-util.js';
-import { groupDescendants, pinAutoNodes } from './meta-ops.js';
+import { elementExists, takenIds, usedIds } from './ids.js';
+import { boxOfItem, cloneJson, cloneMeta, collOf, ensure, getM, uniqueRefs } from './meta-util.js';
+import { pinAutoNodes } from './meta-ops.js';
 import type { CloneResult, DocResult } from './types.js';
 
 /** The copied items as a document of their own (what a paste uses when the target no longer has them). */
@@ -38,9 +38,20 @@ export interface ClipboardData {
   content?: ClipboardContent;
 }
 
+/** The connectors of a model with their ends. */
+const connectorsOf = (model: DiagramModel): ConnectorEnds[] => withKind(model, (k, m) => k.connectors(m)) ?? [];
+
+/** A connector's own metadata (its look), or undefined. */
+const getOwnMeta = (meta: DiagramMeta, ref: ItemRef): unknown => own(meta[collOf(ref.kind)], ref.id);
+
+/** Sets a connector's look (a copy). */
+function setLook(meta: DiagramMeta, ref: ItemRef, look: unknown): void {
+  const c = collOf(ref.kind);
+  (meta[c] ??= {})[ref.id] = cloneJson(look) as Record<string, unknown>;
+}
+
 /** Flowchart nodes / groups and ER tables can be copied. */
-export const copyable = (model: DiagramModel, it: ItemRef): boolean =>
-  (model.type === 'flowchart' && (it.kind === 'node' || it.kind === 'group')) || (model.type === 'er' && it.kind === 'entity');
+export const copyable = (model: DiagramModel, it: ItemRef): boolean => withOps(model, (k, m) => k.copyable?.(m, it)) ?? false;
 
 /**
  * ⌘C: the copyable part of a selection, or null (the editor toasts "Copy works for flowchart shapes / groups and
@@ -57,28 +68,15 @@ export function copyItems(model: DiagramModel, meta: DiagramMeta, refs: readonly
 /** The copied items as a document: everything else deleted (frames of uncopied groups only: their content moves up). */
 function contentOf(code: string, meta: DiagramMeta, model: DiagramModel, geom: GeometryIndex | null, items: readonly ItemRef[]): ClipboardContent | null {
   const pinned = pinAutoNodes(model, meta, geom).meta;
-  let rest: ItemRef[] = [];
+  const set = withOps(model, (k, m) => k.copySet?.(m, items));
+  const res = set && withOps(model, (k, m) => k.remove?.(code, m, set.rest));
+  if (!set || !res) return null;
   const links: Record<string, unknown> = {};
-  if (model.type === 'flowchart') {
-    const nodes = new Set<string>(), groups = new Set<string>();
-    for (const it of items) {
-      if (it.kind === 'node') nodes.add(it.id);
-      if (it.kind === 'group') {
-        groups.add(it.id);
-        const d = groupDescendants(model, it.id);
-        d.nodes.forEach((n) => nodes.add(n));
-        d.groups.forEach((g) => groups.add(g));
-      }
-    }
-    rest = [...[...model.nodes.keys()].filter((id) => !nodes.has(id)).map((id) => ({ kind: 'node' as const, id })), ...[...model.groups.keys()].filter((id) => !groups.has(id)).map((id) => ({ kind: 'group' as const, id }))];
-    for (const e of model.edges) if (nodes.has(e.from) && nodes.has(e.to) && pinned.edges?.[e.id]) links[`${e.from}:${e.to}`] = cloneJson(pinned.edges[e.id]);
-  } else if (model.type === 'er') {
-    const keep = new Set(items.map((it) => it.id));
-    rest = [...model.entities.keys()].filter((id) => !keep.has(id)).map((id) => ({ kind: 'entity' as const, id }));
-    for (const r of model.rels) if (keep.has(r.from) && keep.has(r.to) && pinned.rels?.[r.id]) links[`${r.from}:${r.to}`] = cloneJson(pinned.rels[r.id]);
-  } else return null;
-  const res = model.type === 'flowchart' ? deleteFlow(code, model, rest) : deleteER(code, model, rest);
-  const sub = parse(res.code);
+  for (const c of connectorsOf(model)) {
+    const look = getOwnMeta(pinned, c.ref);
+    if (set.ends.has(c.from.id) && set.ends.has(c.to.id) && look) links[`${c.from.id}:${c.to.id}`] = cloneJson(look);
+  }
+  const sub = reparse(res.code);
   const { edges: _e, rels: _r, ...own } = pruneMeta(pinned, usedIds(sub));
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const it of items) {
@@ -92,9 +90,7 @@ function contentOf(code: string, meta: DiagramMeta, model: DiagramModel, geom: G
   return { code: res.code, meta: own, links, box: x0 === Infinity ? null : { x0, y0, x1, y1 } };
 }
 
-const existsNow = (model: DiagramModel, it: ItemRef): boolean =>
-  model.type === 'flowchart' ? (it.kind === 'group' ? model.groups.has(it.id) : model.nodes.has(it.id))
-    : model.type === 'er' ? model.entities.has(it.id) : false;
+const existsNow = (model: DiagramModel, it: ItemRef): boolean => elementExists(model, it);
 
 /**
  * What can be pasted: the copied items when this diagram still has them all, else every copied item when the
@@ -112,12 +108,12 @@ export function pasteable(model: DiagramModel, data: ClipboardData | null | unde
  * the connectors between them. Returns the new document with the copies selected, or null when nothing was copied.
  */
 export function cloneItems(code: string, meta: DiagramMeta, model: DiagramModel, geom: GeometryIndex | null | undefined, items: readonly ItemRef[], dx = 0, dy = 0): DocResult | null {
-  const res: CloneResult | null = model.type === 'flowchart' ? cloneFlow(code, model, items) : model.type === 'er' ? cloneER(code, model, items) : null;
+  const res: CloneResult | null = withOps(model, (k, m) => k.clone?.(code, m, items)) ?? null;
   const map = res?.map;
   if (!res || !map) return null;
   const out = cloneMeta(pinAutoNodes(model, meta, geom).meta);
   for (const [from, to] of Object.entries(map)) {
-    const kind: ItemKind = model.type === 'flowchart' && model.groups.has(from) ? 'group' : model.type === 'er' ? 'entity' : 'node';
+    const kind: ItemKind = withOps(model, (k, m) => k.idKind?.(m, from)) ?? 'node';
     const m = ensure(out, kind, to);
     Object.assign(m, cloneJson(getM(out, kind, from)));
     delete m.locked;
@@ -133,21 +129,15 @@ export function cloneItems(code: string, meta: DiagramMeta, model: DiagramModel,
   // connector looks follow too: matched by their (new) endpoints
   const conn = new Map<string, unknown>();
   const has = (id: string): boolean => Object.hasOwn(map, id);
-  if (model.type === 'flowchart')
-    for (const e of model.edges) if (has(e.from) && has(e.to) && out.edges?.[e.id]) conn.set(`edges:${map[e.from]}:${map[e.to]}`, out.edges[e.id]);
-  if (model.type === 'er')
-    for (const r of model.rels) if (has(r.from) && has(r.to) && out.rels?.[r.id]) conn.set(`rels:${map[r.from]}:${map[r.to]}`, out.rels[r.id]);
-  const next = parse(res.code);
-  if (next.type === 'flowchart')
-    for (const e of next.edges) {
-      const look = conn.get(`edges:${e.from}:${e.to}`);
-      if (look && !out.edges?.[e.id]) (out.edges ??= {})[e.id] = cloneJson(look) as Record<string, unknown>;
-    }
-  if (next.type === 'er')
-    for (const r of next.rels) {
-      const look = conn.get(`rels:${r.from}:${r.to}`);
-      if (look && !out.rels?.[r.id]) (out.rels ??= {})[r.id] = cloneJson(look) as Record<string, unknown>;
-    }
+  for (const c of connectorsOf(model)) {
+    const look = getOwnMeta(out, c.ref);
+    if (has(c.from.id) && has(c.to.id) && look) conn.set(`${c.ref.kind}:${map[c.from.id]}:${map[c.to.id]}`, look);
+  }
+  const next = reparse(res.code);
+  for (const c of connectorsOf(next)) {
+    const look = conn.get(`${c.ref.kind}:${c.from.id}:${c.to.id}`);
+    if (look && !getOwnMeta(out, c.ref)) setLook(out, c.ref, look);
+  }
   const selection = items.filter((it) => has(it.id)).map((it) => ({ kind: it.kind, id: map[it.id]! }));
   return { code: res.code, meta: out, selection };
 }
@@ -190,10 +180,9 @@ export function duplicateItems(code: string, meta: DiagramMeta, model: DiagramMo
 
 /** Pastes the clipboard's content into a document that does not have the items: fresh ids, the source's looks. */
 function pasteContent(code: string, meta: DiagramMeta, model: DiagramModel, c: ClipboardContent, items: readonly ItemRef[], at: Point | null, snap: number): DocResult | null {
-  const src = parse(c.code);
+  const src = reparse(c.code);
   const taken = takenIds(model, true);
-  const res: CloneResult | null = src.type === 'flowchart' && model.type === 'flowchart' ? cloneFlow(c.code, src, items, { into: code, taken })
-    : src.type === 'er' && model.type === 'er' ? cloneER(c.code, src, items, { into: code, taken }) : null;
+  const res: CloneResult | null = src.type === model.type ? withOps(src, (k, m) => k.clone?.(c.code, m, items, { into: code, taken })) ?? null : null;
   const map = res?.map;
   if (!res || !map) return null;
   let dx = 30, dy = 30;
@@ -203,7 +192,7 @@ function pasteContent(code: string, meta: DiagramMeta, model: DiagramModel, c: C
   }
   const out = cloneMeta(meta);
   for (const [from, to] of Object.entries(map)) {
-    const kind: ItemKind = src.type === 'flowchart' && src.groups.has(from) ? 'group' : src.type === 'er' ? 'entity' : 'node';
+    const kind: ItemKind = withOps(src, (k, m) => k.idKind?.(m, from)) ?? 'node';
     const m = ensure(out, kind, to);
     Object.assign(m, cloneJson(getM(c.meta, kind, from)));
     delete m.locked;
@@ -214,18 +203,12 @@ function pasteContent(code: string, meta: DiagramMeta, model: DiagramModel, c: C
   }
   // connector looks, by their (new) endpoints
   const back = new Map(Object.entries(map).map(([a, b]) => [b, a]));
-  const next = parse(res.code);
+  const next = reparse(res.code);
   const look = (from: string, to: string): unknown => c.links[`${back.get(from)}:${back.get(to)}`];
-  if (next.type === 'flowchart')
-    for (const e of next.edges) {
-      const l = back.has(e.from) && back.has(e.to) ? look(e.from, e.to) : undefined;
-      if (l && !out.edges?.[e.id]) (out.edges ??= {})[e.id] = cloneJson(l) as Record<string, unknown>;
-    }
-  if (next.type === 'er')
-    for (const r of next.rels) {
-      const l = back.has(r.from) && back.has(r.to) ? look(r.from, r.to) : undefined;
-      if (l && !out.rels?.[r.id]) (out.rels ??= {})[r.id] = cloneJson(l) as Record<string, unknown>;
-    }
+  for (const x of connectorsOf(next)) {
+    const l = back.has(x.from.id) && back.has(x.to.id) ? look(x.from.id, x.to.id) : undefined;
+    if (l && !getOwnMeta(out, x.ref)) setLook(out, x.ref, l);
+  }
   const selection = items.filter((it) => Object.hasOwn(map, it.id)).map((it) => ({ kind: it.kind, id: map[it.id]! }));
   return { code: res.code, meta: out, selection };
 }
