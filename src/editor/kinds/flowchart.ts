@@ -54,12 +54,12 @@ const SECTIONS = SHAPE_MENU.map(({ cat, ids }) => ({
 const isIconOf = (core: EditorCore): IsIconToken => (t) => core.ctx.icons.resolve(t, 'token') !== null;
 
 /** A new node from an op placed at a point: positioned (and in the group there), its label opened for typing. */
-function placeNew(core: EditorCore, res: SelectResult & { select: ItemRef; metaShape?: string }, pt: Point, label: string, preset?: string): boolean {
+function placeNew(core: EditorCore, res: SelectResult & { select: ItemRef; metaShape?: string }, pt: Point, label: string, preset?: string, edit = true): boolean {
   const meta = cloneMeta(core.meta);
   const m = ensureIn(meta, 'node', res.select.id);
   Object.assign(m, { x: pt.x, y: pt.y }, res.metaShape ? { shape: res.metaShape } : {}, preset ? { preset } : {});
   const ok = core.applyCode({ code: res.code, meta }, label, { select: [res.select] });
-  if (ok) focusLabel(core, res.select);
+  if (ok && edit) focusLabel(core, res.select);
   return ok;
 }
 
@@ -168,8 +168,9 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
     return placeNew(core, res, pt, 'Add shape', item.preset);
   },
   // image nodes in Mermaid Chart's style: `n4["Photo"]` and `n4@{ img: "https://…", h: 100, w: 100, pos: "b" }`
+  // an empty URL is the placeholder (`img: ""`): the node is selected, its picture chosen from the toolbar or Properties
   addImage: (core, M, url, pt) =>
-    placeNew(core, addFlowMediaNode(core.code, M, { label: imageLabel(url), data: { img: url, h: IMAGE_NODE_SIZE, w: IMAGE_NODE_SIZE, pos: 'b' }, group: groupAt(core, pt) }), pt, 'Add image'),
+    placeNew(core, addFlowMediaNode(core.code, M, { label: imageLabel(url), data: { img: url, h: IMAGE_NODE_SIZE, w: IMAGE_NODE_SIZE, pos: 'b' }, group: groupAt(core, pt) }), pt, 'Add image', undefined, !!url),
   media(M, ref, core) {
     if (ref.kind !== 'node') return null;
     const m = flowMedia(M, ref.id, isIconOf(core));

@@ -96,7 +96,8 @@ export const EDIT: EditKind<MindmapModel, MindmapGeometry> = {
   },
   // a shape from the menu: a new child of the selected node (or the one nearest the drop)
   drop: (core, M, item, pt) => addNode(core, M, pt, MIND_NEW, (MIND_SHAPES as readonly string[]).includes(item.key) ? (item.key as MindShape) : 'mm-default', 'Add node', item.preset ? { preset: item.preset } : undefined),
-  addImage: (core, M, url, pt) => addNode(core, M, pt, 'Image', 'mm-default', 'Add image', { img: url }),
+  // an empty URL is the placeholder: the node is selected, its picture chosen from the toolbar or Properties
+  addImage: (core, M, url, pt) => addNode(core, M, pt, 'Image', 'mm-default', 'Add image', { img: url }, !!url),
   media(M, ref, core) {
     const n = ref.kind === 'node' ? M.nodes.get(ref.id) : undefined;
     if (!n) return null;

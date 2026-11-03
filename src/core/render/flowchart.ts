@@ -182,7 +182,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
   /** An icon or image node (§3.1, §3.2): its asset, its frame and the caption above or below. */
   const mediaNode = (n: FlowNode, nm: ItemMeta, preset: string, classes: readonly (MermaidStyle | undefined)[], line: number | null): NodeItem => {
     const d = n.data ?? {};
-    const kind = d.img ? 'image' : 'icon';
+    const kind = d.img != null ? 'image' : 'icon';
     const st = mergeStyle(ctx, F.node, shapeStyles?.[kind], baseStyle(meta, 'node'), presetOf(P.node, preset), ...classes, n.style, pickStyle(nm));
     st.shape = kind;
     const fontSize = st.fontSize ?? 14;
@@ -226,7 +226,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     const pst = presetOf(P.node, preset);
     const classDefs = n.classes.filter((c) => !presetOf(P.node, c) && c !== 'default').map((c) => model.classDefs[c]);
     const line = firstLine(n.defLine, n.lines);
-    if (n.data?.img || n.data?.icon) {
+    if (n.data?.img != null || n.data?.icon) {
       nodes.set(n.id, mediaNode(n, nm, preset, [defaultClass, ...classDefs], Number.isFinite(line) ? line : null));
       continue;
     }

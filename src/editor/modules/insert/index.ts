@@ -1,14 +1,17 @@
 // The insert dock (T05 §4.1): Image beside Shapes in the tool dock, shown when the diagram type's edit kind offers it
-// (`addImage` / `setImage`), with its shortcut and help entry; a picture pasted or dropped on the canvas goes to the
-// host's `uploadImage`. Only the button and the shortcuts are eager: the pickers (icon picker, image tool, emoji picker)
+// (`addImage` / `setImage`), with its shortcut and help entry. Like a shape, the button is dragged onto the canvas (or
+// clicked: the middle of it) and adds an image item with the placeholder — an empty URL, chosen afterwards from the
+// toolbar or Properties; a picture pasted or dropped on the canvas goes to the host's `uploadImage`. Only the button and the shortcuts are eager: the pickers (icon picker, image tool, emoji picker)
 // are a lazy chunk (`./media.ts`), loaded the first time one opens. Text, icons, containers and connectors are made
 // inline (the Shapes menu's text block, the toolbar's and Properties' icon, ⌘G, a node's connection handles).
 import type { Point } from '../../../core/types.js';
 import { dockButton } from '../../../ui/blocks/tool-dock.js';
+import { s } from '../../../ui/h.js';
 
-import { editKind } from '../../kinds/registry.js';
+import { editKind, withEdit } from '../../kinds/registry.js';
 import type { EditKind } from '../../kinds/types.js';
 import type { EditorModule } from '../../module.js';
+import { canvasCenter, startMenuDrag } from '../shapes/drag.js';
 
 /** Dock icon (24 × 24 stroke paths, fixed). */
 const I_IMAGE = 'M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15.5 9.5h.01';
@@ -44,13 +47,27 @@ export const insertModule: EditorModule = {
     scope.provide('openIconPicker', (anchor) => media((m) => m.openIconPicker(core, anchor ?? null)));
     scope.provide('openImageTool', (anchor, opts) => media((m) => m.openImageTool(core, anchor ?? null, opts ?? {})));
     scope.provide('pickEmoji', (anchor, onPick, onClose) => media((m) => m.pickEmoji(core, anchor, onPick, onClose)));
-    const openImage = (a?: HTMLElement): void => core.run('openImageTool', a ?? null, { insert: !!kind()?.addImage });
+    /** An image item with the placeholder at a point (a type that only sets images: the image tool for the selection). */
+    const addImage = (at?: Point): void => {
+      if (!withEdit(core.model, (k) => !!k.addImage)) return void core.run('openImageTool', image.el, { insert: false });
+      const pt = at ?? canvasCenter(core);
+      withEdit(core.model, (k, m) => k.addImage?.(core, m, '', { x: core.snapV(pt.x), y: core.snapV(pt.y) }));
+      core.setTool('pointer');
+    };
+    const ghost = (): SVGElement =>
+      s('svg', { viewBox: '0 0 24 24', width: '40', height: '40', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.6', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, s('path', { d: I_IMAGE }));
 
     // ---- dock button and shortcuts --------------------------------------------------------------------------------
     const image = dockButton({
       icon: I_IMAGE, label: t('tools.image'), keys: INSERT_KEYS.image, class: 'edit-only no-version vt-image', f: 'tool-image',
-      attrs: { 'aria-haspopup': 'dialog' },
-      onClick: () => openImage(image.el),
+      // a pointer press is the drag's (a click without moving adds it in the middle); Enter / Space add it there too
+      onClick: (ev) => {
+        if (ev.detail === 0) addImage();
+      },
+    });
+    scope.listen(image.el, 'pointerdown', (ev) => {
+      if (!editing()) return;
+      startMenuDrag(core, ev as PointerEvent, image.el, { ghost, inside: [], drop: (at, _e, click) => addImage(click ? undefined : at) });
     });
     scope.contribute(core.dockItems, { id: 'image', section: 'tools', order: 32, el: image.el });
     const sync = (): void => {
@@ -67,7 +84,7 @@ export const insertModule: EditorModule = {
         id: 'insert-image', keys: [INSERT_KEYS.image], label: t('help.image'), group: t('help.tools'), editOnly: true,
         run: () => {
           if (!offersImage(kind())) return false;
-          openImage(image.el);
+          addImage();
         },
       },
       { id: 'insert-emoji', keys: ['mod+;'], label: t('help.emoji'), group: t('help.tools'), editOnly: true, hintOnly: true },

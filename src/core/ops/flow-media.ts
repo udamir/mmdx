@@ -54,7 +54,7 @@ export function flowMedia(model: FlowchartModel, id: string, isIcon: IsIconToken
   if (typeof d.w === 'number') keys.w = d.w;
   if (typeof d.h === 'number') keys.h = d.h;
   if (d.constraint !== undefined) keys.constraint = d.constraint;
-  if (d.img) return { icon: null, image: d.img, node: 'image', ...keys };
+  if (d.img != null) return { icon: null, image: d.img, node: 'image', ...keys };
   if (d.icon) return { icon: d.icon, image: null, node: 'icon', ...keys };
   return { icon: leadingIcon(n.label, isIcon)?.name ?? null, image: null, node: null };
 }
@@ -153,8 +153,8 @@ export function setFlowIcon(code: string, model: FlowchartModel, id: string, nam
 export function setFlowImage(code: string, model: FlowchartModel, id: string, url: string | null): CodeResult | null {
   const n = nodeOf(model, id);
   if (!n) return null;
-  if (!url) return n.data?.img ? writeNodeData(code, model, id, Object.fromEntries(IMAGE_NODE_KEYS.map((k) => [k, null]))) : { code };
-  if (n.data?.img) return writeNodeData(code, model, id, { img: url });
+  if (!url) return n.data?.img != null ? writeNodeData(code, model, id, Object.fromEntries(IMAGE_NODE_KEYS.map((k) => [k, null]))) : { code };
+  if (n.data?.img != null) return writeNodeData(code, model, id, { img: url });
   const d = n.data ?? {};
   const patch: Record<string, MediaValue> = { img: url };
   if (d.icon) Object.assign(patch, { icon: null, form: null });
@@ -181,7 +181,7 @@ export interface MediaPatch {
  */
 export function toFlowIconNode(code: string, model: FlowchartModel, id: string, isIcon: IsIconToken = faOnly): CodeResult | null {
   const n = nodeOf(model, id);
-  const lead = n && !n.data?.icon && !n.data?.img ? leadingIcon(n.label, isIcon) : null;
+  const lead = n && !n.data?.icon && n.data?.img == null ? leadingIcon(n.label, isIcon) : null;
   if (!n || !lead) return null;
   const relabelled = relabelFlowNode(code, model, id, lead.rest).code;
   return writeNodeData(relabelled, parseFlowchart(relabelled), id, { icon: lead.name, form: 'rounded', pos: 'b', h: ICON_NODE_H });
@@ -191,12 +191,12 @@ export function toFlowIconNode(code: string, model: FlowchartModel, id: string, 
 export function setFlowMedia(code: string, model: FlowchartModel, id: string, patch: MediaPatch, isIcon: IsIconToken = faOnly): CodeResult | null {
   if (patch.node === 'icon') return toFlowIconNode(code, model, id, isIcon);
   const n = nodeOf(model, id);
-  if (!n || !(n.data?.icon || n.data?.img)) return null;
+  if (!n || !(n.data?.icon || n.data?.img != null)) return null;
   const p: Record<string, MediaValue> = {};
   for (const [k, v] of Object.entries(patch) as [keyof MediaPatch, MediaValue | undefined][]) {
     if (v === undefined || k === 'node') continue;
     // a frame belongs to icons, the aspect lock to images
-    if ((k === 'form' && !n.data.icon) || (k === 'constraint' && !n.data.img)) continue;
+    if ((k === 'form' && !n.data.icon) || (k === 'constraint' && n.data.img == null)) continue;
     p[k] = typeof v === 'number' ? Math.max(8, Math.min(2000, v)) : v;
   }
   return Object.keys(p).length ? writeNodeData(code, model, id, p) : { code };

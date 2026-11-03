@@ -220,7 +220,7 @@ The tools below Pointer add things to the diagram. Each diagram type offers what
 | Button | Key | Does | Flowchart | Sequence | ER | Mindmap |
 |---|---|---|---|---|---|---|
 | Shapes | `S` | The [shape palette](#shapes) | Every Mermaid shape, by section | Participants, notes, blocks | Table presets | The 7 mindmap shapes, as a child of the selected node |
-| Image | `G` | The [image tool](#images) | An image node | — | — | A node with a picture (metadata `img`) |
+| Image | `G` | Drag it onto the canvas (or click it: the middle) for an [image](#images) with the placeholder | An image node | — | — | A node with a picture (metadata `img`) |
 
 Everything else is made where you work, without a dock tool: a text block is a shape of the Shapes menu (the "T"), an icon is set on the selected items from the floating toolbar or Properties ([icons](#icons)), a container wraps the selection with ⌘G, and a connector is drawn from a node's connection handles. The tooltips and the `?` popup show the keys. The pickers load the first time one opens.
 
@@ -241,6 +241,8 @@ For an icon node, the toolbar's **Icon & image** popover and the Properties pane
 ### Images
 
 Images are always referenced by URL; the editor never embeds a file into the diagram.
+
+Drag the dock's **Image** button onto the canvas — or click it, or press `G`, for the middle of the canvas — and an image item with the placeholder (a dashed frame with a mountain glyph) is added and selected: in a flowchart `n5["Image"]` and `n5@{ img: "", h: 200, w: 200, pos: "b" }`, which stock Mermaid reads too; in a mindmap a child node with an empty metadata `img`. An empty URL draws the placeholder without a warning. Choose the picture afterwards with the floating toolbar's image control or the Properties panel's **Image URL**.
 
 - The image tool's **URL** field is checked while you type against the [image policy](/guide/security#image-policy) (`https:` from any host by default), with the reason when it is refused ("Only https images are allowed here").
 - With an `uploadImage` hook, the tool also takes a dropped file, a pasted picture (⌘V, in the tool or on the canvas) and a file input (PNG, JPEG, GIF, WebP, SVG, AVIF); the hook uploads it and the image references the URL it returns. A picture over 1600 px on its longer side is offered **Reduce to 1600 px** first (re-encoded in the browser). Without the hook, the drop zone is hidden and a pasted or dropped picture is refused with a toast.

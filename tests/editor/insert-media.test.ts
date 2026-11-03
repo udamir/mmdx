@@ -163,6 +163,38 @@ describe('images', () => {
     await valid(e.core.code);
   });
 
+  test('the Image button adds an image node with the placeholder (click, Enter or drag); its URL is chosen afterwards', async () => {
+    const e = mount('flowchart LR\n  A --> B\n');
+    await e.whenLoaded?.();
+    await settle();
+    const btn = $('.vt-image')!;
+    btn.dispatchEvent(pev('pointerdown', { x: 0, y: 0 }));
+    btn.dispatchEvent(pev('pointerup', { x: 0, y: 0 }));
+    await settle();
+    const id = e.core.primary()!.id;
+    expect(e.core.code).toContain(`  ${id}["Image"]\n  ${id}@{ img: "", h: 200, w: 200, pos: "b" }`);
+    // no popover, no label editing: the node is selected
+    expect($('.ins-pop')).toBeNull();
+    expect(e.core.model.type === 'flowchart' && e.core.model.nodes.get(id)?.shape).toBe('image');
+    // drawn as the placeholder, without a warning
+    const node = $(`.el[data-kind="node"][data-id="${id}"]`)!;
+    expect(node.querySelector('[aria-label="Image placeholder"]')).not.toBeNull();
+    expect(e.core.result.diagnostics.some((d) => d.code === 'image.blocked')).toBe(false);
+    await valid(e.core.code);
+    // the URL from the selection's image tool
+    e.core.run('openImageTool', null, {});
+    await settle();
+    expect($<HTMLInputElement>('.imp-url')!.value).toBe('');
+    input($<HTMLInputElement>('.imp-url')!, 'https://example.com/a.png');
+    key('Enter', $('.imp-url')!);
+    expect(e.core.code).toContain(`  ${id}@{ img: "https://example.com/a.png", h: 200, w: 200, pos: "b" }`);
+    // the G key adds another one in the middle
+    key('g');
+    await settle();
+    expect(e.core.primary()!.id).not.toBe(id);
+    expect(e.core.code.match(/img: ""/g)).toHaveLength(1);
+  });
+
   test('selection mode: a node becomes an image node; the image is replaced and removed', async () => {
     const e = mount('flowchart LR\n  A["Photo"]\n');
     await settle();

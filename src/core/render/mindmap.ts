@@ -145,9 +145,10 @@ export function renderMindmap(model: MindmapModel, env: RenderEnv): SubResult {
     const textH = lines.length * fs * 1.3;
     const iconSize = Math.round(fs * 1.75);
     const icon = n.icon ? { w: iconSize, h: iconSize } : null;
-    const url = str(nm.img);
+    // an empty `img` is a picture not chosen yet: the placeholder at the default size
+    const url = typeof nm.img === 'string' ? nm.img : '';
     let image: Item['image'] = null;
-    if (url) {
+    if (typeof nm.img === 'string') {
       const kk = kit();
       const ok = kk ? kk.checkImageUrl(url, ctx.imagePolicy) : null;
       const nat = ok && 'url' in ok ? ctx.imageSizes?.get(ok.url) : null;

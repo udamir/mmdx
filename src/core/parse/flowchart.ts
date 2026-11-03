@@ -663,8 +663,9 @@ export function parseFlowchart(code: string): FlowchartModel {
   // icon and image nodes (Mermaid draws `img`, else `icon`, whatever the shape says): their shape, and no caption
   // unless a label is written (the id is not shown, as in Mermaid)
   for (const n of model.nodes.values()) {
-    if (!n.data?.img && !n.data?.icon) continue;
-    n.shape = n.data.img ? 'image' : 'icon';
+    // an empty `img` is an image node whose picture is not chosen yet (the editor's placeholder)
+    if (n.data?.img == null && !n.data?.icon) continue;
+    n.shape = n.data.img != null ? 'image' : 'icon';
     n.shapeFrom = 'data';
     if (!n.labelFrom) n.label = '';
   }

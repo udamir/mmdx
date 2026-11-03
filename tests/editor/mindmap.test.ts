@@ -219,6 +219,21 @@ describe('mindmap: the edit kind', () => {
     await valid(core);
   });
 
+  it('the Image button\'s placeholder: a child with an empty metadata `img`, drawn as the placeholder, its label not opened', async () => {
+    const { core } = await mount();
+    select(core, 'Beta');
+    const k = editKind('mindmap')!;
+    const run = vi.spyOn(core, 'run');
+    expect(k.addImage!(core, core.model as never, '', { x: 0, y: 0 })).toBe(true);
+    const id = core.primary()!.id;
+    expect(core.getM('node', id).img).toBe('');
+    expect(k.media!(core.model as never, { kind: 'node', id }, core)).toMatchObject({ image: '' });
+    await vi.dynamicImportSettled();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(core.result.diagnostics.some((d) => d.code === 'image.blocked')).toBe(false);
+    expect(run.mock.calls.some((c) => (c as unknown[])[0] === 'inlineEdit')).toBe(false);
+  });
+
   it('the Shapes menu adds a child of the selected node in that shape; an empty map gets its root', async () => {
     const { core } = await mount();
     select(core, 'Beta');

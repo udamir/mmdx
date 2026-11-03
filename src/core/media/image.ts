@@ -48,7 +48,10 @@ export interface PlaceholderOptions {
   measure?: TextMeasurer;
 }
 
-/** What a refused image draws instead: its box with a dashed frame, a mountain glyph and, where it fits, the reason. */
+/**
+ * What a refused image draws instead: its box with a dashed frame, a mountain glyph and, where it fits, the reason;
+ * without a caption, the placeholder of an image whose URL is not chosen yet.
+ */
 export function imagePlaceholder(b: Rect, o: PlaceholderOptions = {}): SceneNode {
   const c = o.color ?? '#8a9099';
   const family = o.family ?? 'sans-serif';
@@ -61,7 +64,7 @@ export function imagePlaceholder(b: Rect, o: PlaceholderOptions = {}): SceneNode
     parts.push(
       text({ 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-family': family, 'font-size': 10, fill: c }, [{ text: caption, x: b.x + b.w / 2, y: b.y + b.h / 2 + glyph / 2 + 4 }]),
     );
-  return g({ class: 'mmdx-image-blocked', role: 'img', 'aria-label': `Image not shown: ${o.caption ?? 'blocked'}` }, parts);
+  return g({ class: 'mmdx-image-blocked', role: 'img', 'aria-label': o.caption ? `Image not shown: ${o.caption}` : 'Image placeholder' }, parts);
 }
 
 export interface DrawImage {
@@ -83,6 +86,8 @@ export interface DrawImage {
  * `image.blocked` warning (with the reason) in `diagnostics` — the render's report (`RenderEnv.diagnostics`).
  */
 export function drawImage(env: { ctx: RenderContext; diagnostics: Diagnostic[] }, src: unknown, o: DrawImage): SceneNode[] {
+  // no URL yet (an image the editor added, waiting for one): the placeholder, without a reason or a warning
+  if (src === '') return [imagePlaceholder(o.box, { ...(o.color ? { color: o.color } : {}), ...(o.family ? { family: o.family } : {}) })];
   const r = checkImageUrl(src, env.ctx.imagePolicy);
   if ('url' in r) return imageNodes(r.url, o.box, o.fit, `${env.ctx.idPrefix}img-${o.key.replace(/[^a-zA-Z0-9-]/g, (ch) => `_${ch.codePointAt(0)!.toString(16)}`)}`);
   const why = BLOCKED_TEXT[r.reason];

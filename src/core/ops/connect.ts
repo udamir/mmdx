@@ -37,7 +37,7 @@ export function nodeDataOf(code: string, n: FlowNode, id: string): string | null
       else if (e.key !== 'label') entries.set(e.key, code.slice(e.valueAt, e.valueEnd));
     }
   // an icon or image node is one by its `icon` / `img` key: a shape written with it is copied as written
-  const media = !!(n.data?.img || n.data?.icon);
+  const media = n.data?.img != null || !!n.data?.icon;
   const def = resolveShape(n.shape)?.names;
   if (media) {
     if (written !== undefined) entries.set('shape', written);
