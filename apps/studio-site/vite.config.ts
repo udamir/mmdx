@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 // @ts-expect-error plain ESM build helper without type declarations
 import { cssTemplatesPlugin } from '../../tools/css-templates.mjs';
+// @ts-expect-error plain ESM build helper without type declarations
+import { noBuiltinIcons } from '../../tools/worker-source.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, '../..');
@@ -56,5 +58,8 @@ export default defineConfig({
       },
     },
   },
+  // the render worker: one file (its lazy imports inlined), without the built-in icon set, as in the library build
+  // (Vite's default worker format, IIFE, cannot split the icon decoder and the built-in set into chunks of their own)
+  worker: { plugins: () => [noBuiltinIcons()], rollupOptions: { output: { inlineDynamicImports: true } } },
   plugins: [copyAssets(), cssTemplatesPlugin()],
 });

@@ -1,5 +1,7 @@
 // Storybook: every component (the four elements and the chrome they are built from) and the main features.
 import type { StorybookConfig } from '@storybook/web-components-vite';
+// @ts-expect-error plain ESM build helper without type declarations
+import { noBuiltinIcons } from '../tools/worker-source.mjs';
 
 const config: StorybookConfig = {
   framework: { name: '@storybook/web-components-vite', options: {} },
@@ -12,8 +14,14 @@ const config: StorybookConfig = {
     { from: '../themes', to: '/static/themes' },
   ],
   core: { disableTelemetry: true },
-  // stock Mermaid (Plain Mermaid and the viewer fallback) is one large chunk by itself, as on the site
-  viteFinal: (config) => ({ ...config, build: { ...config.build, chunkSizeWarningLimit: 3000 } }),
+  // stock Mermaid (Plain Mermaid and the viewer fallback) is one large chunk by itself, as on the site; the render
+  // worker is one file, its lazy imports inlined and without the built-in icon set, as in the library build (Vite's
+  // default worker format, IIFE, cannot split the icon decoder and the built-in set into chunks of their own)
+  viteFinal: (config) => ({
+    ...config,
+    build: { ...config.build, chunkSizeWarningLimit: 3000 },
+    worker: { ...config.worker, plugins: () => [noBuiltinIcons()], rollupOptions: { output: { inlineDynamicImports: true } } },
+  }),
 };
 
 export default config;
