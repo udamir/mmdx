@@ -99,6 +99,7 @@ Placeholders in braces (`{nodes}`) are filled in by the component. The English c
 | `src/ui/messages/diff.ts`, `blocks-diff.ts` | `<mmdx-diff>` and History |
 | `src/ui/messages/theme-editor.ts` | `<mmdx-theme-editor>` |
 | `src/ui/messages/blocks.ts`, `blocks-panels.ts` | Shared UI pieces |
+| `src/ui/messages/editor-media.ts`, `toolbar-media.ts`, `blocks-media.ts` | The editor's insert dock: shape palette, icon picker, image tool, emoji picker (registered when they load) |
 
 The English strings of a component are registered when the component is first used, so a page with only viewers ships only the viewer's strings. The accessible name of a viewer (`label.flowchart`, `label.sequence`, `label.er`) can also be set per element with the `label` attribute.
 
@@ -113,6 +114,7 @@ The English strings of a component are registered when the component is first us
 | `theme`, `theme-dark`, `ui` (attributes) | viewer, editor, diff | The theme and the chrome scheme |
 | `ctx` | diff (property); the `ctx` option of `DiagramViewer`, `DiagramEditor` and `DiagramDiff` | A partial `CoreContext`: `themes` (a registry of its own), `measure`, `linkPolicy`, `imagePolicy`, `icons` (an icon registry of its own), `locale` |
 | `iconPacks` | the `iconPacks` option of `DiagramViewer`, `DiagramEditor` and `DiagramDiff` | Icon packs of this component, over the shared ones of `configure({ iconPacks })` |
+| `uploadImage` | editor (property, no attribute), the `uploadImage` option of `DiagramEditor` | Uploads a picture dropped, pasted or chosen in the image tool: `async (file) => ({ url })`; without it images are added by URL only (see [Images](/components/editor#images)) |
 
 ```ts
 import { DiagramViewer } from '@mmdx/studio/viewer';

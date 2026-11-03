@@ -97,6 +97,7 @@ Each attribute sets the `EditorOptions` option of the same name in camelCase (`r
 | — | — | `toolbar: 'floating' \| 'none'` | `floating` | `DiagramEditor` option, read when the editor is created; `none` turns off the floating style toolbar |
 | — | — | `ctx: Partial<CoreContext>` | the shared context | `DiagramEditor` option, read when the editor is created |
 | — | — | `iconPacks: IconPack[]` | — | `DiagramEditor` option: icon packs of this editor over the shared ones (see [Icons](/guide/icons#registering-packs)); read when the editor is created |
+| — | `uploadImage` | `(file: File) => Promise<{ url: string }>` or `null` | `null` | Uploads a picture dropped, pasted or chosen in the image tool and returns the URL the image references (throw to refuse: the message shows as a toast). Without it images are added by URL only. See [Images](#images) |
 
 Read-only properties of the element: `instance` (the `DiagramEditor`, `null` while not connected), `dirty` (unsaved changes) and `historySession` (while History is open).
 
@@ -190,13 +191,72 @@ editor.features = 'code-panel properties layers';  // only these
 
 ## Panels and tools
 
-- **Tool dock** (left): Pointer (V), Shapes (S; Table in an ER diagram), Hand (H), the pen (P), the Code (C), Properties (I) and Layers (L) panel toggles, History (⇧H), and Undo / Redo. Edit-only tools hide in View mode.
+- **Tool dock** (left): Pointer (V), the [insert dock](#insert-dock) — Shapes (S; Table in an ER diagram), Text (T), Image (G), Icons (N), Container (B) and Connector (A) — Hand (H), the pen (P), the Code (C), Properties (I) and Layers (L) panel toggles, History (⇧H), and Undo / Redo. Edit-only tools hide in View mode.
 - **Code panel** (left): the Mermaid code, editable, with live parsing and its problems; the Metadata tab shows the `%%@` lines. `focusCode(line)` opens it at a line.
 - **Properties** and **Layers** (right): the selected items' style, presets and stacking; the diagram's layers. In View mode the right panel is View settings.
 - **Floating style toolbar** over the selection, and the **page toolbar** while the page is selected.
 - **Zoom bar** (bottom right) with fit, the `?` help and full screen; **view parameters** (top right) with Export, the theme menu and the light / dark toggle.
 
 `panels` sets which side panels are open (`{ code, properties, layers }`); the user's choice is remembered in `storage`.
+
+## Insert dock
+
+The tools below Pointer add things to the diagram. Each diagram type offers what it can hold; a button it does not offer is hidden.
+
+| Button | Key | Does | Flowchart | Sequence | ER |
+|---|---|---|---|---|---|
+| Shapes | `S` | The [shape palette](#shapes) | Every Mermaid shape, by category | Participants, notes, blocks | Table presets |
+| Text | `T` | Adds a text block in the middle of the canvas | Mermaid's borderless `text` shape | A note | — |
+| Image | `G` | The [image tool](#images) | An image node | — | — |
+| Icons | `N` | The [icon picker](#icons) | An icon node | — | — |
+| Container | `B` | Draw a frame around items to put them in a container; with a selection, wraps it at once | A subgraph | A box | — |
+| Connector | `A` | Click a source, then a target; the tool stays on for the next one, Esc ends it | An edge | A message | A relationship |
+
+The design's `I`, `C` and `L` keys already open Properties, the Code panel and Layers, so Icons, Container and Connector take `N`, `B` and `A`. The tooltips and the `?` popup show the keys. The pickers load the first time one opens.
+
+### Shapes
+
+The palette lists the flowchart's shapes in four sections — Basic, Process, Technical and Annotation — as previews drawn by the shape catalogue, with a tooltip naming the shape, its Mermaid name, or "mmdx only". Type in the search field to find a shape by its name, its geometric name, its Mermaid name or an alias (`data` finds the database, data store, data input and stored data shapes). The last eight shapes you added are in a row at the top (kept in `storage`).
+
+Click a shape to add it in the middle of the canvas, or drag it where it goes (into a subgraph to put it there). Hover a shape for its style presets. With nodes selected, **Alt-click** gives them that shape instead of adding a node. The floating toolbar's shape picker is a compact form of the same palette. See [Shapes](/guide/shapes) for how shapes are written to the code.
+
+### Icons
+
+**Choose an icon…** searches every registered icon pack — the built-in Tabler set, and the packs your page registers (`configure({ iconPacks })`, see [Icons](/guide/icons)). A chip per pack narrows the search; a pack that is registered but not loaded yet loads when you choose its chip. Recently used icons come first; hovering or focusing an icon shows its name and its pack's licence. While only the built-in set is registered, a hint says that more packs can be added.
+
+- From the dock (insert mode), an icon adds a flowchart **icon node** in Mermaid Chart's style — the label in its bracket, the node data in a statement of its own:
+
+  ```mermaid
+  flowchart LR
+    n4["User"]
+    n4@{ icon: "tabler:user", form: "rounded", pos: "b", h: 60 }
+  ```
+
+  Drag an icon from the grid to place it.
+- From the floating toolbar's **Icon** button (the first one; a dot marks an item with an icon) or the Properties panel (selection mode), it sets the selected items' icon: an icon node's `icon` key, and on any other node a `pack:name` token at the start of its label (`fa:fa-car Car`, `azure:computer-vision Vision`), replacing the one it has. **Remove icon** takes it away.
+
+For an icon node, the toolbar's **Icon & image** popover and the Properties panel set the label's position (above or below), the frame (none, square, circle, rounded), the width, and the toolbar's **H** field its height — all written to its node data. Sequence, ER and the other types get their icon items in later releases; their items show no Icon button until then.
+
+### Images
+
+Images are always referenced by URL; the editor never embeds a file into the diagram.
+
+- The image tool's **URL** field is checked while you type against the [image policy](/guide/security#image-policy) (`https:` from any host by default), with the reason when it is refused ("Only https images are allowed here").
+- With an `uploadImage` hook, the tool also takes a dropped file, a pasted picture (⌘V, in the tool or on the canvas) and a file input (PNG, JPEG, GIF, WebP, SVG, AVIF); the hook uploads it and the image references the URL it returns. A picture over 1600 px on its longer side is offered **Reduce to 1600 px** first (re-encoded in the browser). Without the hook, the drop zone is hidden and a pasted or dropped picture is refused with a toast.
+
+```ts
+editor.uploadImage = async (file) => {
+  const res = await fetch('/api/uploads', { method: 'POST', body: file });
+  if (!res.ok) throw new Error(`upload failed (${res.status})`); // shown as a toast
+  return { url: (await res.json()).url };
+};
+```
+
+From the dock, an image adds a flowchart **image node** whose caption is the file name: `n5["team photo"]` and `n5@{ img: "https://…", h: 200, w: 200, pos: "b" }`. With a node selected (the toolbar's Icon & image popover, or Properties), the tool sets or replaces its image — a node without one becomes an image node — and **Remove image** takes it away. The popover and Properties set the caption's position, width and height, **Keep aspect ratio** (`constraint: "on"`) and the fit (contain, cover, stretch; kept in the layout metadata, as Mermaid has no such key).
+
+### Emoji
+
+While you edit a label on the canvas, the ☺ button at the end of the text box (or `⌘;` / `Ctrl+;`) opens the emoji picker: the emoji by group, recently used ones, search by name and keyword, and a skin tone. A chosen emoji goes in at the caret as plain text, so it shows wherever the diagram does; the picker stays open for more. The label fields of the Properties panel have the same button. The emoji data (English) loads the first time the picker opens.
 
 ## Saving
 
@@ -237,6 +297,8 @@ Shortcuts work while the focus is inside the editor; `?` lists those that apply 
 | Keys | Action |
 |---|---|
 | `V`, `H`, `S`, `P` | Pointer, Hand, Shapes menu, pen |
+| `T`, `G`, `N`, `B`, `A` | Text, Image, Icons, Container, Connector ([insert dock](#insert-dock)) |
+| `⌘;` | Emoji, while editing text |
 | `C`, `I`, `L`, `⇧H` | Code, Properties, Layers panels; History |
 | `F`, `0` | Fit |
 | `+` / `=`, `-` | Zoom in, zoom out |
