@@ -103,7 +103,7 @@ Unknown keys are kept on round-trip.
 %%@ canvas {"v":1,"layout":"legacy"}
 ```
 
-A flowchart node's shape belongs in the Mermaid code — a bracket (`A{"…"}`) or node data (`A@{ shape: lin-cyl }`) — so the file shows the same shapes in stock Mermaid; the editor writes it there (see [Shapes](/guide/shapes)). Metadata `shape` is only for shapes Mermaid's flowchart lacks (the participant figures, the mindmap's default node) and for a node whose preset draws another shape. A mindmap node's shape is likewise its delimiters in the code (`((…))`, `{{…}}`, …); only the catalogue shapes Mermaid's mindmap has no delimiters for are kept in metadata. Files of mmdx 0.1–0.3 that keep Mermaid shapes in metadata still draw them; the editor's code panel offers a fix that moves them into the code. A sequence diagram's real examples look like this:
+A flowchart node's shape belongs in the Mermaid code — a bracket (`A{"…"}`) or node data (`A@{ shape: lin-cyl }`) — so the file shows the same shapes in stock Mermaid; the editor writes it there (see [Shapes](/guide/shapes)). Metadata `shape` is only for shapes Mermaid's flowchart lacks (the participant figures, the mindmap's default node) and for a node whose preset draws another shape. A mindmap node's shape is likewise its delimiters in the code (`((…))`, <code v-pre>{{…}}</code>, …); only the catalogue shapes Mermaid's mindmap has no delimiters for are kept in metadata. Files of mmdx 0.1–0.3 that keep Mermaid shapes in metadata still draw them; the editor's code panel offers a fix that moves them into the code. A sequence diagram's real examples look like this:
 
 ```mmdx
 %%@ canvas {"v":1,"blockSpan":"touched"}

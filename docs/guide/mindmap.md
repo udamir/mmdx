@@ -61,7 +61,7 @@ mindmap
 | `id((text))` | Circle |
 | `id))text((` | Bang |
 | `id)text(` | Cloud |
-| `id{{text}}` | Hexagon |
+| <code v-pre>id{{text}}</code> | Hexagon |
 
 Mermaid's lexer quirks are kept: `id(text(` is a cloud, and `(-text-)` or `(-"text"-)` is the default shape (the form the editor writes for a default node whose text cannot stand alone on its line). The root without delimiters is drawn in the theme's root shape, rounded in the built-in themes, as Mermaid draws it. Shaped nodes are filled with their branch colour; the root has its own look. A shape of the [catalogue](/guide/shapes) that Mermaid's mindmap has no delimiters for can be given in the layout metadata (`shape`); mmdx draws it, stock Mermaid does not.
 
