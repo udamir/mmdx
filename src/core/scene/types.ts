@@ -1,7 +1,7 @@
 // Scene tree (§7.1): renderers produce typed nodes, never markup strings. Two back ends consume it:
 // `serializeSvg` (strings for Node, export, previews, SSR) and `patchSvg` in `dom/` (keyed DOM diff).
 import type { ItemRef } from '../types.js';
-import type { SafeUrl } from '../validate.js';
+import type { SafeImageUrl, SafeUrl } from '../validate.js';
 
 /** Attribute values. `undefined` / `null` / `false` attributes are omitted. Numbers are formatted by `fmt()`. */
 export type AttrValue = string | number | boolean | null | undefined;
@@ -18,15 +18,25 @@ export interface TextLine {
   x: number;
   y: number;
   /**
-   * The line as runs of removed and added words (the merged picture of a diff); `text` is then their plain text.
-   * Drawn as `<tspan class="dx-del">` / `<tspan class="dx-ins">` inside the line's `<tspan>`.
+   * The line as runs: removed and added words (the merged picture of a diff), bold and italic words (markdown labels,
+   * core/text/rich.ts) and inline icons; `text` is then their plain text. Drawn as `<tspan>`s inside the line's
+   * `<tspan>` (`class="dx-del"` / `"dx-ins"`, `font-weight`, `font-style`); icon runs draw nothing here, their image
+   * is a sibling of the `<text>` (`richText`).
    */
   runs?: readonly TextRun[];
+  /** `start`: `x` is the line's left edge whatever the text's anchor (a line with icons, its runs placed one by one). */
+  anchor?: 'start';
 }
 
 export interface TextRun {
   text: string;
   mark: 'ins' | 'del' | null;
+  bold?: boolean;
+  italic?: boolean;
+  /** An inline icon: `text` is empty, the run is `size` wide and its image is drawn beside the text. */
+  icon?: { href: SafeImageUrl; size: number; name: string };
+  /** Where the run starts (a run after an icon in a line with `anchor: 'start'`): a new positioned text chunk. */
+  x?: number;
 }
 
 export interface SceneGroup {
@@ -60,6 +70,18 @@ export interface SceneLink {
   children: SceneNode[];
 }
 
+/**
+ * An image: content images whose URL passed the image policy, and icons mmdx built itself. `href` is written only
+ * from this branded field, never from `attrs` (`href` is not an allowed attribute name).
+ */
+export interface SceneImage {
+  t: 'image';
+  key?: string;
+  /** x, y, width, height, opacity, clip-path, class, preserveAspectRatio, aria-hidden. */
+  attrs: SvgAttrs;
+  href: SafeImageUrl;
+}
+
 /** `<marker>` and `<pattern>` definitions; ids must come from `ctx.idPrefix` (see `Defs`). */
 export interface SceneDef {
   t: 'marker' | 'pattern' | 'clipPath';
@@ -68,4 +90,4 @@ export interface SceneDef {
   children: SceneNode[];
 }
 
-export type SceneNode = SceneGroup | SceneShape | SceneText | SceneLink | SceneDef;
+export type SceneNode = SceneGroup | SceneShape | SceneText | SceneLink | SceneImage | SceneDef;

@@ -29,6 +29,7 @@ export function renderWith(kinds: Kinds, model: DiagramModel, meta: DiagramMeta,
     opts,
     paper,
     pad: toNumber(canvas.pad) ?? theme.canvas.pad,
+    diagnostics: [],
   };
   const kind = model.type ? kinds[model.type] : undefined;
   const r = kind && model.type ? kind.render(model, env) : empty();
@@ -38,7 +39,7 @@ export function renderWith(kinds: Kinds, model: DiagramModel, meta: DiagramMeta,
   const grid = ctx.color(canvas.grid ?? theme.canvas.grid);
   const defs = [...r.defs];
   if (grid) defs.push(gridPattern(ctx, grid));
-  return {
+  const out: RenderResult = {
     defs,
     body: r.body,
     bounds,
@@ -48,6 +49,8 @@ export function renderWith(kinds: Kinds, model: DiagramModel, meta: DiagramMeta,
     geom: r.geom,
     presetsUsed: r.presetsUsed,
   };
+  if (env.diagnostics.length) out.diagnostics = env.diagnostics;
+  return out;
 }
 
 export interface ExportScene {

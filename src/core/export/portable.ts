@@ -15,7 +15,7 @@ import type { RenderContext } from '../render/types.js';
 import type { StyleProps } from '../style.js';
 import { createStaticMeasurer } from '../text/measure.js';
 import type { ResolvedTheme } from '../theme/types.js';
-import { DEFAULT_LINK_POLICY } from '../validate.js';
+import { DEFAULT_IMAGE_POLICY, DEFAULT_LINK_POLICY } from '../validate.js';
 
 export type ColorResolver = (v: unknown) => string | undefined;
 
@@ -48,7 +48,7 @@ export function toPortableMermaid(code: string, meta: DiagramMeta, model: Diagra
   const base = stripMetaLines(code);
   const styles = model.type ? PORTABLE_STYLES[model.type] : undefined;
   if (!model.type || !styles) return base;
-  const ctx: RenderContext = { color, measure: createStaticMeasurer(), idPrefix: '', linkPolicy: DEFAULT_LINK_POLICY };
+  const ctx: RenderContext = { color, measure: createStaticMeasurer(), idPrefix: '', linkPolicy: DEFAULT_LINK_POLICY, imagePolicy: DEFAULT_IMAGE_POLICY };
   return [base.trimEnd(), '', PORTABLE_MARKER, ...styles(model, meta, theme, ctx)].join('\n') + '\n';
 }
 

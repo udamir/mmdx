@@ -99,6 +99,40 @@ describe('Morph.replace (switching to another version)', () => {
   });
 });
 
+describe('Morph: images', () => {
+  const withImage = (href: string, x: number): MorphState => {
+    const content = svg('g');
+    const it = svg('g', { 'data-ck': 'node:a' });
+    it.append(svg('image', { href, x, y: 0, width: 10, height: 10 }));
+    content.append(it);
+    return { defs: [], content };
+  };
+  const images = (root: Element): Element[] => [...root.querySelectorAll('image')];
+
+  it('an image moves like a rect; another picture cross-fades', () => {
+    const content = svg('g');
+    const m = new Morph(svg('defs'), content, [withImage('https://example.com/a.png', 0)], 0);
+    m.replace([withImage('https://example.com/a.png', 100)], 0, true);
+    expect(images(content)).toHaveLength(1);
+    run(1000);
+    run(1000 + TRANSITION_MS / 2);
+    expect(Number(images(content)[0]!.getAttribute('x'))).toBeCloseTo(50);
+    run(1000 + TRANSITION_MS);
+
+    m.replace([withImage('https://example.com/b.png', 0)], 0, true);
+    const [old, now] = images(content);
+    expect(old!.getAttribute('href')).toBe('https://example.com/a.png');
+    expect(now!.getAttribute('href')).toBe('https://example.com/b.png');
+    run(2000);
+    run(2000 + TRANSITION_MS / 2);
+    expect(Number(opacity(old!))).toBeCloseTo(0.5);
+    expect(Number(opacity(now!))).toBeCloseTo(0.5);
+    expect(Number(now!.getAttribute('x'))).toBeCloseTo(50);
+    run(2000 + TRANSITION_MS);
+    expect(images(content).map((i) => i.getAttribute('href'))).toEqual(['https://example.com/b.png']);
+  });
+});
+
 describe('Viewport: an animated fit glides', () => {
   const sized = (): HTMLElement => {
     const el = document.createElement('div');

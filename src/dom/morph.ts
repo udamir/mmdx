@@ -1,6 +1,7 @@
 // Morph (diff §9.2): three states of one diagram (before → merged → after) shown in one canvas, with animated
 // transitions. Items are paired by their change key (`data-ck`); paired items with the same structure tween their
-// geometry, path data and colours, changed text flips, items only one side has fade, and the highlight layers
+// geometry, path data and colours, changed text flips, an image whose picture changed cross-fades, items only one
+// side has fade, and the highlight layers
 // cross-fade. `replace` animates the same way from what is shown to new states (another version or pair). With
 // reduced motion the switch is instant.
 import { ease, TRANSITION_MS as DURATION } from './motion.js';
@@ -59,15 +60,25 @@ function attrTween(el: Element, name: string, a: string | null, b: string | null
 const attrNames = (a: Element, b: Element): Set<string> =>
   new Set([...a.getAttributeNames(), ...b.getAttributeNames()].filter((n) => n !== 'class' && !n.startsWith('data-')));
 
+interface Flip {
+  a: Element;
+  b: Element;
+  /** An image with another picture: the old one fades out where it was while the new one moves and fades in. */
+  image?: boolean;
+}
+
 /** Pairs two item subtrees: their tweens, or null when the structure differs (they cross-fade instead). */
-function pair(a: Element, b: Element, flips: { a: Element; b: Element }[]): Tween[] | null {
+function pair(a: Element, b: Element, flips: Flip[]): Tween[] | null {
   if (a.tagName !== b.tagName) return null;
   const out: Tween[] = [];
   if (b.tagName === 'text' && (a.textContent !== b.textContent || a.children.length !== b.children.length)) {
     flips.push({ a, b });
     return out;
   }
+  const swap = b.tagName === 'image' && a.getAttribute('href') !== b.getAttribute('href');
+  if (swap) flips.push({ a, b, image: true });
   for (const n of attrNames(a, b)) {
+    if (swap && n === 'href') continue;
     const va = a.getAttribute(n), vb = b.getAttribute(n);
     const tw = attrTween(b, n, va, vb);
     if (tw === null && va !== vb) return null;
@@ -195,7 +206,7 @@ export function transitionFrom(defs: Element, content: Element, from: MorphState
   const root = content;
   const tweens: Tween[] = [];
   const cleanup: (() => void)[] = [];
-  const flips: { a: Element; b: Element }[] = [];
+  const flips: Flip[] = [];
   const fade = (el: Element, a: number, b: number, after?: () => void): void => {
     const s = (el as SVGElement).style;
     tweens.push((t) => (s.opacity = String(lerp(a, b, t))));
@@ -216,7 +227,7 @@ export function transitionFrom(defs: Element, content: Element, from: MorphState
       fade(b, 0, 1);
       continue;
     }
-    const local: { a: Element; b: Element }[] = [];
+    const local: Flip[] = [];
     const tw = pair(a, b, local);
     if (tw) {
       tweens.push(...tw);
@@ -245,7 +256,14 @@ export function transitionFrom(defs: Element, content: Element, from: MorphState
   }
   // changed text: the old text flips out where it was, the new one flips in, both sliding with the item
   const anims: Animation[] = [];
-  for (const { a, b } of flips) {
+  for (const { a, b, image } of flips) {
+    if (image) {
+      const ghost = a.cloneNode(true) as Element;
+      b.before(ghost);
+      fade(ghost, 1, 0, () => ghost.remove());
+      fade(b, 0, 1);
+      continue;
+    }
     const old = a.cloneNode(true) as Element;
     b.before(old);
     const pa = firstPos(a), pb = firstPos(b);

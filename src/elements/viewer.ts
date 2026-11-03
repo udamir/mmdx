@@ -233,9 +233,10 @@ export class DiagramViewer {
     const r = this.scene.rendered;
     if (!r) throw new Error('Nothing rendered');
     const b = r.result.bounds;
-    const { svgToPng } = await import('../dom/export.js');
+    const { svgToPng, reportMissingImages } = await import('../dom/export.js');
     const res = await svgToPng(this.toSvg(), b.w, b.h, { scale: opts.scale ?? 2, fonts: getShared().fonts });
     if (res.missingFonts.length) this.core.emit('mmdx-error', { diagnostics: [{ severity: 'info', code: 'export.font-missing', message: `Fonts not embedded (no font source): ${res.missingFonts.join(', ')}` }] });
+    if (res.missingImages) reportMissingImages(this.core, res.missingImages);
     return res.blob;
   }
 

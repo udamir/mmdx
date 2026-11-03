@@ -1,4 +1,7 @@
-// Browser-side export (§7.4): PNG through a canvas with the used fonts inlined, and file downloads.
+// Browser-side export (§7.4): PNG through a canvas with the used fonts and the remote images inlined (export-images.ts,
+// loaded only for diagrams that show one), and file downloads.
+import type { Diagnostic } from '../core/types.js';
+import type { I18n } from '../ui/i18n.js';
 
 const FAMILY = /^[\w\s.-]+$/;
 
@@ -28,8 +31,8 @@ function fontMime(buf: ArrayBuffer): string {
   return sig === 'wOF2' ? 'font/woff2' : sig === 'wOFF' ? 'font/woff' : sig === 'OTTO' ? 'font/otf' : 'font/ttf';
 }
 
-function toBase64(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf);
+export function toBase64(buf: ArrayBuffer | Uint8Array): string {
+  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
   let s = '';
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(s);
@@ -46,11 +49,40 @@ export interface PngResult {
   blob: Blob;
   /** Families that had no font source and were left to the machine's local fonts. */
   missingFonts: string[];
+  /** Remote images that could not be fetched (no CORS on the image host, too large, …): drawn as placeholders. */
+  missingImages: number;
 }
 
-/** Rasterises a standalone SVG string at `scale` (default 2×). Rejects when the image fails to load. */
+/** The warning for a PNG whose remote images could not all be included (`mmdx-error`; the toast says it too). */
+export const imagesMissing = (n: number): Diagnostic => ({
+  severity: 'warning',
+  code: 'export.image-missing',
+  message: `${n} image(s) could not be included: the image host does not allow it (CORS)`,
+  params: { n },
+});
+
+/** Tells the user (the export toast) and the host (`mmdx-error`) that a PNG lacks `n` images. */
+export function reportMissingImages(core: { toast(msg: string): void; emit(type: string, detail: unknown): boolean; i18n: I18n }, n: number): void {
+  core.toast(core.i18n.t('export.imagesMissing', { n }));
+  core.emit('mmdx-error', { diagnostics: [imagesMissing(n)] });
+}
+
+/** A remote `<image>` (the serializer writes `href` first; `data:` images are inline already). */
+const REMOTE_IMAGE = /<image href="(?!data:)/;
+
+/**
+ * Rasterises a standalone SVG string at `scale` (default 2×), its remote images fetched and inlined first (those that
+ * cannot be are placeholders, counted in `missingImages`). Rejects when the image fails to load.
+ */
 export async function svgToPng(svg: string, w: number, h: number, opts: { scale?: number; fonts?: Record<string, string | ArrayBuffer>; background?: string } = {}): Promise<PngResult> {
   const scale = opts.scale ?? 2;
+  let missingImages = 0;
+  if (REMOTE_IMAGE.test(svg)) {
+    const { inlineImages } = await import('./export-images.js');
+    const r = await inlineImages(svg);
+    svg = r.svg;
+    missingImages = r.failed;
+  }
   const { css, missing } = await fontFaceCss(opts.fonts ?? {}, usedFonts(svg));
   const withFonts = css ? svg.replace(/^<svg([^>]*)>/, `<svg$1><style>${css}</style>`) : svg;
   const url = URL.createObjectURL(new Blob([withFonts], { type: 'image/svg+xml' }));
@@ -73,7 +105,7 @@ export async function svgToPng(svg: string, w: number, h: number, opts: { scale?
     }
     c.drawImage(img, 0, 0, canvas.width, canvas.height);
     const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('PNG encoding failed'))), 'image/png'));
-    return { blob, missingFonts: missing };
+    return { blob, missingFonts: missing, missingImages };
   } finally {
     URL.revokeObjectURL(url);
   }

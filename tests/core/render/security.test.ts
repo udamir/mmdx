@@ -5,11 +5,17 @@ import { describe, expect, it } from 'vitest';
 import { emptyMeta, type DiagramMeta } from '../../../src/core/meta/types.js';
 import { parse } from '../../../src/core/parse/index.js';
 import { render, renderSvgString } from '../../../src/core/render/index.js';
-import { ALLOWED_ATTRS, DATA_ATTRS } from '../../../src/core/scene/serialize.js';
+import { ALLOWED_ATTRS, DATA_ATTRS, serializeNodes } from '../../../src/core/scene/serialize.js';
+import { el, g, image, link, text } from '../../../src/core/scene/build.js';
+import type { SceneNode } from '../../../src/core/scene/types.js';
+import { drawImage } from '../../../src/core/media/image.js';
+import type { Diagnostic } from '../../../src/core/types.js';
+import { DEFAULT_IMAGE_POLICY, safeUrl, type ImagePolicy } from '../../../src/core/validate.js';
+import { checkImageUrl, safeImageUrl } from '../../../src/core/media/policy.js';
 import { makeCtx, registry, renderProd } from './helpers.js';
 
 const XSS = '<img src=x onerror=alert(1)>';
-const ELEMENTS = new Set(['svg', 'defs', 'g', 'path', 'rect', 'ellipse', 'circle', 'line', 'polygon', 'polyline', 'text', 'tspan', 'a', 'marker', 'pattern', 'clipPath']);
+const ELEMENTS = new Set(['svg', 'defs', 'g', 'path', 'rect', 'ellipse', 'circle', 'line', 'polygon', 'polyline', 'text', 'tspan', 'a', 'image', 'marker', 'pattern', 'clipPath']);
 
 /** Parses the SVG as XML and checks every element and attribute against the allowlists. */
 function assertSafe(svg: string): void {
@@ -21,7 +27,7 @@ function assertSafe(svg: string): void {
   for (const el of Array.from(doc.getElementsByTagName('*'))) {
     expect(ELEMENTS.has(el.tagName), el.tagName).toBe(true);
     for (const a of Array.from(el.attributes)) {
-      const ok = ALLOWED_ATTRS.has(a.name) || DATA_ATTRS.has(a.name) || (el.tagName === 'a' && (a.name === 'href' || a.name === 'rel')) || (el.tagName === 'svg' && (a.name === 'xmlns' || a.name === 'width' || a.name === 'height' || a.name === 'viewBox'));
+      const ok = ALLOWED_ATTRS.has(a.name) || DATA_ATTRS.has(a.name) || (el.tagName === 'a' && (a.name === 'href' || a.name === 'rel')) || (el.tagName === 'image' && a.name === 'href') || (el.tagName === 'svg' && (a.name === 'xmlns' || a.name === 'width' || a.name === 'height' || a.name === 'viewBox'));
       expect(ok, `${el.tagName} ${a.name}`).toBe(true);
       if (/url\s*\(/i.test(a.value)) expect(a.value, `${el.tagName} ${a.name}`).toMatch(/^url\(#[\w-]+\)$/);
     }
@@ -112,5 +118,67 @@ describe('ids', () => {
     for (const [svg, own] of [[a, ia], [b, ib]] as const)
       for (const m of svg.matchAll(/url\(#([^)]*)\)/g)) expect(own.has(m[1]!), m[1]).toBe(true);
     expect(a).toContain('url(#one-page-grid)');
+  });
+});
+
+describe('images (T03)', () => {
+  const WITH_DATA: ImagePolicy = { ...DEFAULT_IMAGE_POLICY, protocols: ['https:', 'data:'], maxDataBytes: 64 };
+
+  it('refused: script and unknown schemes, data: and http: by default, protocol-relative, whitespace and controls', () => {
+    const refused = [
+      'javascript:alert(1)', 'JAVASCRIPT:alert(1)', 'vbscript:x', 'file:///etc/passwd', 'blob:https://x/1',
+      'data:image/png;base64,AAAA', 'data:image/svg+xml;base64,PHN2Zy8+', 'http://example.com/a.png', '//evil.example/a.png',
+      'java\tscript:alert(1)', ' https://example.com/a b.png', 'https://example.com/\u0000.png', 'https:\\\\evil.example', './a.png', '',
+    ];
+    for (const u of refused) expect(safeImageUrl(u), u).toBeNull();
+    // data: enabled: only base64 of an image type, within the cap
+    for (const u of ['data:text/html;base64,PHNjcmlwdD4=', 'data:image/svg+xml,<svg onload=alert(1)>', 'data:image/png;base64,****', `data:image/png;base64,${'A'.repeat(200)}`, 'data:image/png;base64,AAA'])
+      expect(safeImageUrl(u, WITH_DATA), u).toBeNull();
+    expect(safeImageUrl('data:image/png;base64,AAAA', WITH_DATA)).not.toBeNull();
+  });
+
+  it('the attribute allow-list is unchanged: no href, src, style or event handler', () => {
+    expect([...ALLOWED_ATTRS].sort()).toMatchSnapshot();
+    for (const n of ['href', 'xlink:href', 'src', 'style', 'onload', 'onerror', 'srcset', 'crossorigin']) expect(ALLOWED_ATTRS.has(n) || DATA_ATTRS.has(n), n).toBe(false);
+  });
+
+  it('href only on <a> and <image>, from their branded fields', () => {
+    const bad = { href: 'javascript:alert(1)', 'xlink:href': 'javascript:alert(2)', src: 'x', style: 'background:url(https://evil)', onload: 'alert(3)' };
+    const nodes: SceneNode[] = [
+      g({ ...bad }, [el('rect', { ...bad }), text({ ...bad }, [{ text: 'x', x: 0, y: 0 }])]),
+      link(safeUrl('https://example.com')!, [el('circle', { ...bad })]),
+      image(safeImageUrl('https://example.com/a.png')!, { ...bad, x: 0, y: 0, width: 10, height: 10 }),
+    ];
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg">${serializeNodes(nodes)}</svg>`;
+    assertSafe(svg);
+    expect([...svg.matchAll(/<(\w+)[^>]*\shref="/g)].map((m) => m[1])).toEqual(['a', 'image']);
+    expect(svg).not.toContain('xlink:href');
+  });
+
+  it('fuzz: no content string reaches an attribute name or an image href without the policy', () => {
+    let seed = 7;
+    const rnd = (): number => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    const PARTS = ['javascript:', 'data:', 'image/png;base64,', 'https://', 'http://', '//', 'evil.example', '/a.png', '"', "'", '<', '>', ' ', '\t', '\n', '\\', 'onload=', 'href', '=', 'url(', ')', '#', '\u0000', 'AAAA', 'svg+xml', ';', ','];
+    const str = (): string => Array.from({ length: 1 + Math.floor(rnd() * 6) }, () => PARTS[Math.floor(rnd() * PARTS.length)]!).join('');
+    const ctx = makeCtx(registry.get('default-light'), emptyMeta());
+    let drawn = 0;
+    for (let i = 0; i < 1000; i++) {
+      const src = str();
+      const diagnostics: Diagnostic[] = [];
+      const attrs: Record<string, string> = { [str()]: str(), href: str(), 'xlink:href': str() };
+      const nodes = [g(attrs, drawImage({ ctx: { ...ctx, imagePolicy: rnd() < 0.5 ? DEFAULT_IMAGE_POLICY : { ...DEFAULT_IMAGE_POLICY, protocols: ['https:', 'http:', 'data:'] } }, diagnostics }, src, { box: { x: 0, y: 0, w: 40, h: 30 }, key: str() }))];
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg">${serializeNodes(nodes)}</svg>`;
+      assertSafe(svg);
+      const hrefs = [...svg.matchAll(/\shref="([^"]*)"/g)].map((m) => m[1]!.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>'));
+      if (hrefs.length) {
+        drawn++;
+        expect(hrefs).toEqual([src.trim()]);
+        expect('url' in checkImageUrl(src, { ...DEFAULT_IMAGE_POLICY, protocols: ['https:', 'http:', 'data:'] })).toBe(true);
+        expect(diagnostics).toEqual([]);
+      } else expect(diagnostics.map((d) => d.code)).toEqual(['image.blocked']);
+    }
+    // both ways were taken
+    expect(drawn).toBeGreaterThan(0);
+    expect(drawn).toBeLessThan(1000);
   });
 });

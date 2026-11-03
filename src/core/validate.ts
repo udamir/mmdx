@@ -128,3 +128,40 @@ export function safeUrl(raw: unknown, policy: LinkPolicy = DEFAULT_LINK_POLICY):
   const proto = scheme[1]!.toLowerCase() + ':';
   return policy.protocols.includes(proto) ? (s as SafeUrl) : null;
 }
+
+// ---- images -----------------------------------------------------------------------------------------------------
+
+/** MIME types of the `data:` images the content policy can accept. */
+export type ImageDataType = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' | 'image/svg+xml' | 'image/avif';
+
+/**
+ * Which image URLs diagram content may use (T03; checked by `checkImageUrl`, core/media/policy.ts). Content references
+ * images by URL only (no embedding): `https:` by default, `http:` and `data:` are off until the host enables them.
+ * Icons are not content: mmdx builds their `data:` URIs itself (`svgImageUrl`, core/media/svg-url.ts), so this policy
+ * never sees them.
+ */
+export interface ImagePolicy {
+  /** Allowed protocols, lower case with the colon. Default `['https:']`; `[]` turns content images off. */
+  protocols: readonly ('https:' | 'http:' | 'data:')[];
+  /** With `data:` enabled: the accepted MIME types (base64 only). */
+  dataTypes: readonly ImageDataType[];
+  /** With `data:` enabled: the largest decoded image in bytes (default 256 KiB). */
+  maxDataBytes: number;
+  /** Host names remote images may come from; `*.example.com` matches its subdomains. Default: any host. */
+  hosts?: readonly string[];
+  /** Relative URLs (`./img/logo.png`), resolved against the page that shows the diagram. Default off. */
+  relative?: boolean;
+}
+
+export const DEFAULT_IMAGE_POLICY: ImagePolicy = {
+  protocols: ['https:'],
+  dataTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml', 'image/avif'],
+  maxDataBytes: 256 * 1024,
+};
+
+declare const SAFE_IMAGE_URL: unique symbol;
+/**
+ * An image URL the scene may put into `<image href>`: one that passed `checkImageUrl()` (content, core/media/policy.ts),
+ * or an icon URI mmdx built itself (`svgImageUrl`, core/media/svg-url.ts). Nothing else creates it.
+ */
+export type SafeImageUrl = string & { readonly [SAFE_IMAGE_URL]: true };

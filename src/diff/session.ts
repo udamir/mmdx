@@ -552,9 +552,10 @@ export class DiffSession {
     const svg = this.toSvg(o);
     if (!svg) throw new Error('Nothing rendered');
     const m = /viewBox="[\d.-]+ [\d.-]+ ([\d.]+) ([\d.]+)"/.exec(svg);
-    const { svgToPng } = await import('../dom/export.js');
+    const { svgToPng, imagesMissing } = await import('../dom/export.js');
     const bg = this.rendered.peek()?.after.result.page.background;
     const res = await svgToPng(svg, Number(m?.[1] ?? 800), Number(m?.[2] ?? 600), { scale: Math.min(4, Math.max(1, o.scale ?? 2)), fonts: getShared().fonts, ...(bg && bg !== 'transparent' ? { background: bg } : {}) });
+    if (res.missingImages) this.o.emit('mmdx-error', { diagnostics: [imagesMissing(res.missingImages)] });
     return res.blob;
   }
 

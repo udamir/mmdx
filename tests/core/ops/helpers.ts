@@ -12,7 +12,7 @@ import { createDefaultRegistry } from '../../../src/core/theme/builtin.js';
 import { createColorResolver, diagramPaletteOf } from '../../../src/core/theme/colors.js';
 import type { ResolvedTheme } from '../../../src/core/theme/types.js';
 import { createStaticMeasurer } from '../../../src/core/text/measure.js';
-import { DEFAULT_LINK_POLICY } from '../../../src/core/validate.js';
+import { DEFAULT_IMAGE_POLICY, DEFAULT_LINK_POLICY } from '../../../src/core/validate.js';
 import { emptyMeta } from '../../../src/core/meta/types.js';
 
 const ROOT = join(__dirname, '../../..');
@@ -87,6 +87,6 @@ export const colorFor = (meta: DiagramMeta, theme: ResolvedTheme = baseline): ((
   createColorResolver(theme, diagramPaletteOf(meta.styles));
 
 export function geomOf(code: string, meta: DiagramMeta = emptyMeta()): GeometryIndex {
-  const ctx = { measure: createStaticMeasurer(), idPrefix: 't-', linkPolicy: DEFAULT_LINK_POLICY, color: colorFor(meta) };
+  const ctx = { measure: createStaticMeasurer(), idPrefix: 't-', linkPolicy: DEFAULT_LINK_POLICY, imagePolicy: DEFAULT_IMAGE_POLICY, color: colorFor(meta) };
   return render(parse(code), meta, baseline, ctx).geom;
 }

@@ -23,10 +23,12 @@ function contextFor(idPrefix: string, themes: readonly ThemeFile[], themesKey: s
 }
 
 addEventListener('message', (ev: MessageEvent<WorkerRequest>) => {
-  const { id, src, opts, themes, themesKey, idPrefix } = ev.data;
+  const { id, src, opts, themes, themesKey, idPrefix, linkPolicy, imagePolicy } = ev.data;
   let res: WorkerResponse;
   try {
     const ctx = contextFor(idPrefix, themes, themesKey);
+    ctx.linkPolicy = linkPolicy;
+    ctx.imagePolicy = imagePolicy;
     const r = renderSource(src, ctx, opts as PipelineOptions);
     res = {
       id,

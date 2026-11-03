@@ -130,7 +130,7 @@ export async function renderInWorker(src: string, ctx: CoreContext, opts: Pipeli
   if (opts.theme) o.theme = opts.theme;
   if (opts.visibleLayers) o.visibleLayers = opts.visibleLayers;
   if (opts.hideLabels) o.hideLabels = true;
-  const req: WorkerRequest = { id: ++seq, src, opts: o, themes, themesKey: themesKeyOf(ctx.themes), idPrefix: ctx.idPrefix };
+  const req: WorkerRequest = { id: ++seq, src, opts: o, themes, themesKey: themesKeyOf(ctx.themes), idPrefix: ctx.idPrefix, linkPolicy: ctx.linkPolicy, imagePolicy: ctx.imagePolicy };
   const res = await new Promise<WorkerResponse>((resolve) => {
     if (owner)
       for (let i = queue.length - 1; i >= 0; i--) {

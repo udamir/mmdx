@@ -60,6 +60,15 @@ describe('render worker client', () => {
     expect(await two).toBeNull();
   });
 
+  it('sends the instance\'s link and image policies with each job (the worker\'s contexts are its own)', async () => {
+    const { renderInWorker } = await load();
+    const imagePolicy = { protocols: ['https:', 'data:'] as const, dataTypes: ['image/png'] as const, maxDataBytes: 1024, hosts: ['cdn.example.com'] };
+    void renderInWorker('a', createContext({ idPrefix: 'a', imagePolicy, linkPolicy: { protocols: ['https:'] } }), {}, {});
+    const req = FakeWorker.all[0]!.posted[0]!;
+    expect(req.imagePolicy).toEqual(imagePolicy);
+    expect(req.linkPolicy).toEqual({ protocols: ['https:'] });
+  });
+
   it('a viewer\'s newer job replaces its older one still waiting', async () => {
     const { renderInWorker } = await load();
     const ctx = createContext({ idPrefix: 'a' });

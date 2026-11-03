@@ -2,8 +2,8 @@
 import type { CanvasMeta, DiagramMeta } from '../meta/types.js';
 import type { SceneNode } from '../scene/types.js';
 import type { FontSpec, TextMeasurer } from '../text/measure.js';
-import type { ItemKind, Point, Rect } from '../types.js';
-import type { LinkPolicy } from '../validate.js';
+import type { Diagnostic, ItemKind, Point, Rect } from '../types.js';
+import type { ImagePolicy, LinkPolicy } from '../validate.js';
 import type { ResolvedTheme } from '../theme/types.js';
 
 /** Everything a renderer needs from its environment; instance-scoped, never global. */
@@ -12,6 +12,8 @@ export interface RenderContext {
   /** Prefix for every `<defs>` id (markers, patterns) so several diagrams can share a page. */
   idPrefix: string;
   linkPolicy: LinkPolicy;
+  /** Which image URLs from diagram content are drawn (core/media/image.ts draws the others as placeholders). */
+  imagePolicy: ImagePolicy;
   /**
    * Resolves a stored colour (palette reference `@x` / `@x~…`, the diagram palette `style.palette`, or a literal)
    * against the active theme. Returns undefined for anything that is not a valid colour.
@@ -120,6 +122,8 @@ export interface RenderResult {
   geom: GeometryIndex;
   /** Preset name → number of items using it, per kind (`(none)` for items without a preset). */
   presetsUsed: Partial<Record<ItemKind, Map<string, number>>>;
+  /** What the render reported (`image.blocked`); absent when nothing. */
+  diagnostics?: Diagnostic[];
 }
 
 /** Shared font helper: the family a style asks for, else the theme font. */

@@ -7,7 +7,7 @@ import { BASELINE_THEME } from './core/theme/baseline.js';
 import { BUILTIN_IDS } from './core/theme/builtin-ids.js';
 import type { Diagnostic } from './core/types.js';
 import { createStaticMeasurer, type TextMeasurer } from './core/text/measure.js';
-import { DEFAULT_LINK_POLICY, type LinkPolicy } from './core/validate.js';
+import { DEFAULT_IMAGE_POLICY, DEFAULT_LINK_POLICY, type ImagePolicy, type LinkPolicy } from './core/validate.js';
 import { createCanvasMeasurer } from './dom/measure.js';
 import { createI18n, type I18n, type Messages } from './ui/i18n.js';
 
@@ -23,6 +23,8 @@ export interface Config {
   measure?: TextMeasurer;
   i18n?: { locale: string; messages?: Messages };
   linkPolicy?: LinkPolicy;
+  /** Which image URLs diagrams may show (T03): `https:` only by default; `http:` and `data:` can be enabled. */
+  imagePolicy?: ImagePolicy;
   /** A Mermaid instance, or a loader; default: `import('mermaid')` when installed. */
   mermaid?: MermaidLike | (() => Promise<MermaidLike>);
   /** Font files for PNG export (§7.4): family name → URL or bytes. */
@@ -36,6 +38,7 @@ interface Shared {
   measure: TextMeasurer;
   i18n: I18n;
   linkPolicy: LinkPolicy;
+  imagePolicy: ImagePolicy;
   themeSource: ThemeSource | undefined;
   mermaid: Config['mermaid'];
   fonts: Record<string, string | ArrayBuffer>;
@@ -50,6 +53,7 @@ function defaults(): Shared {
     measure: createCanvasMeasurer() ?? createStaticMeasurer(),
     i18n: createI18n(),
     linkPolicy: DEFAULT_LINK_POLICY,
+    imagePolicy: DEFAULT_IMAGE_POLICY,
     themeSource: undefined,
     mermaid: undefined,
     fonts: {},
@@ -64,6 +68,7 @@ export function configure(c: Config): void {
   if (c.measure) s.measure = c.measure;
   if (c.i18n) s.i18n = createI18n(c.i18n.locale, c.i18n.messages);
   if (c.linkPolicy) s.linkPolicy = c.linkPolicy;
+  if (c.imagePolicy) s.imagePolicy = c.imagePolicy;
   if (c.themeSource) s.themeSource = c.themeSource;
   if (c.mermaid) s.mermaid = c.mermaid;
   if (c.fonts) s.fonts = { ...s.fonts, ...c.fonts };
@@ -77,7 +82,7 @@ export function getShared(): Shared {
 /** A fresh CoreContext for one component instance, from the shared defaults plus overrides. */
 export function instanceContext(over: Partial<CoreContext> = {}): CoreContext {
   const s = getShared();
-  return createContextWith({ themes: s.themes, measure: s.measure, linkPolicy: s.linkPolicy, locale: s.i18n.locale, ...over });
+  return createContextWith({ themes: s.themes, measure: s.measure, linkPolicy: s.linkPolicy, imagePolicy: s.imagePolicy, locale: s.i18n.locale, ...over });
 }
 
 /**

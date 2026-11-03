@@ -52,6 +52,7 @@ export function renderContext(ctx: CoreContext, theme: ResolvedTheme, doc: Diagr
     measure: ctx.measure,
     idPrefix: ctx.idPrefix,
     linkPolicy: ctx.linkPolicy,
+    imagePolicy: ctx.imagePolicy,
     color: createColorResolver(theme, diagramPaletteOf(doc.meta.styles)),
     layoutCache: cache,
   };
@@ -75,7 +76,7 @@ export function renderDocumentWith(kinds: Kinds, doc: DiagramDocument, model: Di
   if (opts.hideLabels) ropts.hideLabels = true;
   if (opts.tableView?.length) ropts.tableView = opts.tableView;
   const result = renderWith(kinds, model, doc.meta, picked.theme, rctx, ropts);
-  return { theme: picked.theme, themeId: picked.id, rctx, result, diagnostics: picked.diagnostics };
+  return { theme: picked.theme, themeId: picked.id, rctx, result, diagnostics: [...picked.diagnostics, ...(result.diagnostics ?? [])] };
 }
 
 /** Full pipeline from source text. Never throws on bad input. */

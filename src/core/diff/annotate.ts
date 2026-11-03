@@ -6,8 +6,8 @@
 //            unchanged items dimmed and removed items faded
 // Shapes carry explicit colours (exports have no stylesheet); on screen, the element's CSS restyles them by class.
 import { el, g, text } from '../scene/build.js';
-import type { AttrValue, SceneNode } from '../scene/types.js';
-import { markRuns, hasMarks, stripMarks } from '../text/marks.js';
+import type { AttrValue, SceneNode, TextLine, TextRun } from '../scene/types.js';
+import { markRuns, markStyledRuns, hasMarks, stripMarks } from '../text/marks.js';
 import type { FontSpec, TextMeasurer } from '../text/measure.js';
 import type { GeometryIndex, RenderResult } from '../render/types.js';
 import type { ItemKind, Rect } from '../types.js';
@@ -152,11 +152,15 @@ function decorateBody(nodes: readonly SceneNode[], keyIn: (kind: string, id: str
   });
 }
 
+/** The lines of a text split at the change marks: plain lines by their text, rich ones (core/text/rich.ts) by their runs. */
+const lineRuns = (lines: readonly TextLine[]): TextRun[][] =>
+  lines.some((l) => l.runs) ? markStyledRuns(lines.map((l) => l.runs ?? [{ text: l.text, mark: null }])) : markRuns(lines.map((l) => l.text));
+
 /** Text with change marks (the merged picture) as runs of removed and added words, its `text` without them. */
 function markedRuns(n: SceneNode): SceneNode {
   if (n.t === 'text') {
     if (!n.lines.some((l) => hasMarks(l.text))) return n;
-    const runs = markRuns(n.lines.map((l) => l.text));
+    const runs = lineRuns(n.lines);
     return { ...n, lines: n.lines.map((l, i) => ({ ...l, text: stripMarks(l.text), runs: runs[i] ?? [] })) };
   }
   if (n.t === 'g' || n.t === 'a') return { ...n, children: n.children.map(markedRuns) };
@@ -226,17 +230,23 @@ function highlighterRuns(body: readonly SceneNode[], measure: TextMeasurer, colo
     if (n.attrs['font-style'] === 'italic') base.style = 'italic';
     const anchor = n.attrs['text-anchor'] ?? 'start';
     const central = n.attrs['dominant-baseline'] === 'central';
-    const runs = markRuns(n.lines.map((l) => l.text));
+    const runs = lineRuns(n.lines);
     n.lines.forEach((l, i) => {
       const line = runs[i] ?? [];
-      // inserted words are drawn bold (ui/styles/diff.ts and the export style)
-      const widths = line.map((r) => measure.width(r.text, r.mark === 'ins' ? { ...base, weight: 700 } : base));
+      // inserted words are drawn bold (ui/styles/diff.ts and the export style), as are bold runs
+      const fontOf = (r: TextRun): FontSpec => {
+        const f = r.mark === 'ins' || r.bold ? { ...base, weight: 700 } : base;
+        return r.italic ? { ...f, style: 'italic' } : f;
+      };
+      const widths = line.map((r) => (r.icon ? r.icon.size : measure.width(r.text, fontOf(r))));
       const total = widths.reduce((a, b) => a + b, 0);
-      let x = anchor === 'middle' ? l.x - total / 2 : anchor === 'end' ? l.x - total : l.x;
+      // a line with icons starts at its left edge, and its runs after an icon at their own place
+      let x = l.anchor ? l.x : anchor === 'middle' ? l.x - total / 2 : anchor === 'end' ? l.x - total : l.x;
       const top = central ? l.y - size * 0.66 : l.y - size * 0.92;
       line.forEach((r, j) => {
         const w = widths[j]!;
-        if (r.mark && r.text.trim()) {
+        if (r.x !== undefined) x = r.x;
+        if (r.mark && (r.icon || r.text.trim())) {
           const m = colors.marks[r.mark === 'ins' ? 'added' : 'removed'];
           out.push(el('rect', { class: `run-${r.mark}`, x: x - 1, y: top, width: w + 2, height: size * 1.32, rx: 2, fill: m.bg, 'fill-opacity': 0.7 }));
         }

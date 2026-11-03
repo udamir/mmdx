@@ -9,7 +9,7 @@ import { joinSource, mergeLegacySidecar, pruneMeta } from '../../../core/meta/in
 import { usedIds } from '../../../core/ops/ids.js';
 import { resetLayout } from '../../../core/ops/meta-ops.js';
 import { standaloneSvg } from '../../../core/pipeline-core.js';
-import { download, svgToPng } from '../../../dom/export.js';
+import { download, reportMissingImages, svgToPng } from '../../../dom/export.js';
 import type { Diagnostic } from '../../../core/types.js';
 import { h } from '../../../ui/h.js';
 import type { EditorCore } from '../../core.js';
@@ -50,6 +50,7 @@ export async function buildExport(core: EditorCore, kind: ExportKind): Promise<E
   const png = await svgToPng(svg, w, hh, { scale: 2, fonts: getShared().fonts });
   if (png.missingFonts.length)
     core.emit('mmdx-error', { diagnostics: [{ severity: 'warning', code: 'export.font-missing', message: `No font file for ${png.missingFonts.join(', ')}: local fonts were used`, params: { fonts: png.missingFonts.join(', ') } }] });
+  if (png.missingImages) reportMissingImages(core, png.missingImages);
   return { name: `${name}.png`, data: png.blob, type: 'image/png' };
 }
 

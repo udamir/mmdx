@@ -6,7 +6,7 @@ import { fmt } from '../scene/serialize.js';
 import type { SceneNode, SceneText, SvgAttrs } from '../scene/types.js';
 import { mergeLayers, type Side, type StyleProps } from '../style.js';
 import type { FontSpec } from '../text/measure.js';
-import type { CenterBox, ItemKind, Point, Rect } from '../types.js';
+import type { CenterBox, Diagnostic, ItemKind, Point, Rect } from '../types.js';
 import { cleanDash, cleanFontFamily, safeUrl, toNumber, type SafeUrl } from '../validate.js';
 import type { LayeredOptions, LayoutEdge, LayoutNode } from '../layout/layered.js';
 import type { CanvasMeta, DiagramMeta } from '../meta/types.js';
@@ -153,24 +153,24 @@ export interface TextOpts {
   extra?: SvgAttrs;
 }
 
+/** The attributes of a text block (`textBlock`, `richText`). */
+export const textAttrs = (o: TextOpts): SvgAttrs => ({
+  class: o.cls || undefined,
+  'text-anchor': o.anchor ?? 'middle',
+  'dominant-baseline': 'central',
+  'font-family': o.family,
+  'font-size': o.size,
+  'font-weight': o.weight ?? 400,
+  fill: o.color ?? '#111',
+  'text-decoration': o.underline ? 'underline' : undefined,
+  ...o.extra,
+});
+
 /** Multi-line text centred vertically on y (prototype `svgText`). */
 export function textBlock(lines: readonly string[], x: number, y: number, o: TextOpts): SceneText {
   const lh = o.lh ?? 1.3;
   const y0 = y - ((lines.length - 1) * o.size * lh) / 2;
-  return text(
-    {
-      class: o.cls || undefined,
-      'text-anchor': o.anchor ?? 'middle',
-      'dominant-baseline': 'central',
-      'font-family': o.family,
-      'font-size': o.size,
-      'font-weight': o.weight ?? 400,
-      fill: o.color ?? '#111',
-      'text-decoration': o.underline ? 'underline' : undefined,
-      ...o.extra,
-    },
-    lines.map((l, i) => ({ text: l, x, y: y0 + i * o.size * lh })),
-  );
+  return text(textAttrs(o), lines.map((l, i) => ({ text: l, x, y: y0 + i * o.size * lh })));
 }
 
 /** Edge label with a halo so it stays readable over lines. */
@@ -583,6 +583,8 @@ export interface RenderEnv {
   paper: string;
   /** Page padding around the content. */
   pad: number;
+  /** What the render reports (an image the policy refused: `image.blocked`); merged into the pipeline's diagnostics. */
+  diagnostics: Diagnostic[];
 }
 
 export interface SubResult {

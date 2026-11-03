@@ -4,6 +4,7 @@ import type { DiagramModel } from '../core/model.js';
 import type { RenderResult } from '../core/render/types.js';
 import type { ThemeFile } from '../core/theme/types.js';
 import type { Diagnostic } from '../core/types.js';
+import type { ImagePolicy, LinkPolicy } from '../core/validate.js';
 
 export interface WorkerRequest {
   id: number;
@@ -13,6 +14,9 @@ export interface WorkerRequest {
   /** The registry's identity and revision: changes when its themes change, so the worker builds a new registry. */
   themesKey: string;
   idPrefix: string;
+  /** The instance's policies (plain data): the worker's contexts are its own. */
+  linkPolicy: LinkPolicy;
+  imagePolicy: ImagePolicy;
 }
 
 export type WorkerResponse =
