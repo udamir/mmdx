@@ -33,6 +33,7 @@ import type { Rect } from '../types.js';
 // base) does not load the renderer
 export { edgeMeta, edgePreset, flowPresets, groupPreset, nodePreset, presetShape, type FlowPresets } from './flow-presets.js';
 import { edgeMeta, edgePreset, flowPresets, groupPreset, nodePreset, type FlowPresets } from './flow-presets.js';
+import { dashAttrs } from './dash.js';
 
 interface NodeItem extends CenterBox {
   n: FlowNode;
@@ -551,7 +552,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     const mkS = defs.marker(startType, st.color, 9 + width * 1.5);
     // `e1@{ animate: true }`: dashes flowing along the line in the DOM (CSS, dom/canvas.ts), a still dash in exports
     const anim = e.data?.animate || e.data?.animation ? (e.data.animation === 'slow' ? ' mmdx-flow mmdx-flow-slow' : ' mmdx-flow') : '';
-    const dash = anim ? '9 5' : st.dash || undefined;
+    const dash = anim ? { 'stroke-dasharray': '9 5', 'stroke-linecap': 'round' as const } : dashAttrs(st.dash, width);
     edgeNodes.push(
       itemGroup(
         'edge',
@@ -566,8 +567,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
             stroke: st.color,
             'stroke-width': width,
             'stroke-opacity': st.strokeOpacity,
-            'stroke-dasharray': dash,
-            'stroke-linecap': anim || (dash && dash.startsWith('1')) ? 'round' : undefined,
+            ...dash,
             'marker-end': urlRef(mkE),
             'marker-start': urlRef(mkS),
           }),

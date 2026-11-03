@@ -16,6 +16,7 @@ import {
   sideToward, stackedShapeNodes, textBlock, withLink, type RenderEnv, type SubResult,
 } from './common.js';
 import type { BoxGeom, EdgeGeom, ErGeometry, RenderContext } from './types.js';
+import { dashAttrs } from './dash.js';
 
 const ENTITY_KEYS = ['mode', 'showTypes', 'showComments', 'pkUnderline', 'attrSize', 'attrColor', 'maxW', 'minW'];
 
@@ -160,7 +161,7 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
           el('path', { class: 'hit', d: path.d, fill: 'none', stroke: 'transparent', 'stroke-width': 12 }),
           el('path', {
             d: path.d, fill: 'none', stroke: st.color, 'stroke-width': width, 'stroke-opacity': st.strokeOpacity,
-            'stroke-dasharray': r.identifying ? undefined : st.dash || undefined,
+            ...(r.identifying ? {} : dashAttrs(st.dash, width)),
           }),
           ...crowFoot(p.a, r.fromCard, st.color, width, env.paper),
           ...crowFoot(p.b, r.toCard, st.color, width, env.paper),

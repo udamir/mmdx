@@ -7,6 +7,7 @@ import type { StyleProps } from '../style.js';
 import type { CenterBox, Point, Rect } from '../types.js';
 import { Pen } from './pen.js';
 import type { ShapeBody } from './types.js';
+import { dashAttrs } from '../render/dash.js';
 
 export const P = (x: number, y: number): string => `${fmt(x)},${fmt(y)}`;
 
@@ -16,7 +17,7 @@ export function paint(st: StyleProps, extra: SvgAttrs): SvgAttrs {
     fill: st.fill ?? '#fff',
     stroke: st.stroke ?? '#222',
     'stroke-width': st.strokeWidth ?? 1.5,
-    'stroke-dasharray': st.dash || undefined,
+    ...dashAttrs(st.dash, st.strokeWidth ?? 1.5),
     'fill-opacity': st.fillOpacity,
     'stroke-opacity': st.strokeOpacity,
     ...extra,
@@ -71,10 +72,10 @@ export function penShape(o: PenShape): ShapeBody {
         return p.d;
       };
       const out: SceneNode[] = [];
-      for (const g of behind ?? []) out.push(el('path', { d: pen(g), 'stroke-linejoin': 'round', ...paint(st, {}), 'stroke-dasharray': undefined }));
+      for (const g of behind ?? []) out.push(el('path', { d: pen(g), 'stroke-linejoin': 'round', ...paint(st, {}), 'stroke-dasharray': undefined, 'stroke-linecap': undefined }));
       const pa = paint(st, extra);
       out.push(el('path', { d: pen(body), 'stroke-linejoin': 'round', ...pa, ...(open ? { stroke: 'none' } : {}), ...(open === 'none' ? { fill: 'transparent' } : {}) }));
-      if (lines) out.push(el('path', { d: pen(lines), 'stroke-linejoin': 'round', 'stroke-linecap': 'round', ...detail(st), 'stroke-dasharray': st.dash || undefined }));
+      if (lines) out.push(el('path', { d: pen(lines), 'stroke-linejoin': 'round', 'stroke-linecap': 'round', ...detail(st), ...dashAttrs(st.dash, st.strokeWidth ?? 1.5) }));
       if (marks) out.push(el('path', { d: pen(marks), ...ink(st) }));
       return out;
     },

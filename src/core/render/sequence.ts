@@ -14,6 +14,7 @@ import {
   presetOf, presets, shapeNodes, stackedShapeNodes, textBlock, urlRef, withLink, type RenderEnv, type SubResult,
 } from './common.js';
 import type { BoxGeom, SequenceGeometry } from './types.js';
+import { dashAttrs } from './dash.js';
 
 /** A participant preset belongs to one shape (like node presets): its own "shape", else "for", else the box. */
 export { participantPresetShape } from './common.js';
@@ -374,7 +375,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     const children: SceneNode[] = [
       el('rect', {
         x: x0, y: top - 30, width: x1 - x0, height: boxBottom - top + 30, rx: 8,
-        fill: bst.fill, stroke: bst.stroke, 'stroke-width': bst.strokeWidth, 'stroke-dasharray': bst.dash || undefined,
+        fill: bst.fill, stroke: bst.stroke, 'stroke-width': bst.strokeWidth, ...dashAttrs(bst.dash, bst.strokeWidth ?? 1.5),
       }),
     ];
     if (bx.label)
@@ -468,7 +469,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
         el('rect', { class: 'act-hit', x: x - hitPad, y: a.y0 - 4, width: w + 2 * hitPad, height: h + 8, rx: 4, fill: 'transparent' }),
         el('rect', {
           x, y: a.y0, width: w, height: h, fill: st.fill, stroke: st.stroke, 'stroke-width': st.strokeWidth,
-          'stroke-dasharray': st.dash || undefined, 'pointer-events': 'none',
+          ...dashAttrs(st.dash, st.strokeWidth ?? 1.5), 'pointer-events': 'none',
         }),
       ]),
     );
@@ -503,6 +504,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     const width = st.width ?? 1.5, labelSize = st.labelSize ?? 14;
     const reply = it.line === 'dotted';
     const dash = (reply ? st.replyDash || st.dash : st.dash) || undefined;
+    const dashOf = (w: number): ReturnType<typeof dashAttrs> => dashAttrs(dash, w);
     const head = it.head === 'arrow' ? st.arrow : it.head === 'open' ? 'none' : it.head === 'cross' ? 'cross' : 'open';
     const mk = defs.marker(head, st.color, 10 + width * 3);
     const mkS = it.both ? mk : null;
@@ -514,7 +516,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
       const d = `M${fmt(x)},${fmt(yy)} H${fmt(x + 40)} Q${fmt(x + 54)},${fmt(yy)} ${fmt(x + 54)},${fmt(yy + 12)} Q${fmt(x + 54)},${fmt(yy + 24)} ${fmt(x + 40)},${fmt(yy + 24)} H${fmt(x + 2)}`;
       inner.push(
         el('path', { class: 'hit', d, fill: 'none', stroke: 'transparent', 'stroke-width': 14 }),
-        el('path', { d, fill: 'none', stroke: st.color, 'stroke-width': width * 0.75, 'stroke-dasharray': dash, 'marker-end': urlRef(mk) }),
+        el('path', { d, fill: 'none', stroke: st.color, 'stroke-width': width * 0.75, ...dashOf(width * 0.75), 'marker-end': urlRef(mk) }),
         el('circle', { cx: x + 54, cy: yy + 12, r: 2.5, fill: st.color }),
         ...withLink(href, [
           textBlock(gm.lines, x + 66, yy + 12, {
@@ -529,7 +531,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
         el('line', { class: 'hit', x1: x0, y1: yy, x2: x1, y2: yy, stroke: 'transparent', 'stroke-width': 14 }),
         el('line', {
           x1: x0, y1: yy, x2: x1, y2: yy, stroke: st.color, 'stroke-width': width, 'stroke-opacity': st.strokeOpacity,
-          'stroke-dasharray': dash, 'marker-end': urlRef(mk), 'marker-start': urlRef(mkS),
+          ...dashOf(width), 'marker-end': urlRef(mk), 'marker-start': urlRef(mkS),
         }),
       );
       if (it.text && !opts.hideLabels) {
