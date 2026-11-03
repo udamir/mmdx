@@ -42,15 +42,14 @@ export function bulkInspector(p: PanelCtx, host: HTMLElement, kind: ItemKind, se
   const style = bulkTarget(p, refs, refs.map((r) => baseStyleOf(env, kind, r.id)));
   for (const f of STYLE_FIELDS[kind] ?? []) field(core.i18n, host, f, style);
 
-  const g = core.geom;
   const geo = (fields: readonly string[], baseOf: (r: ItemRef) => Record<string, unknown>): void => {
     sect(host, t('props.geometry'));
     const target = bulkTarget(p, refs, refs.map(baseOf));
     for (const f of fields) field(core.i18n, host, f, target);
   };
-  if (kind === 'node' && g.type === 'flowchart') geo(['x', 'y', 'w', 'h'], (r) => roundedBox(g.nodes.get(r.id)));
-  else if (kind === 'entity' && g.type === 'er') geo(['x', 'y', 'w', 'h'], (r) => roundedBox(g.entities.get(r.id)));
-  else if (kind === 'participant' && g.type === 'sequence') geo(['x', 'w', 'h'], (r) => roundedBox(g.participants.get(r.id)));
+  const boxOf = (r: ItemRef): Record<string, unknown> => roundedBox(core.boxOf({ kind: r.kind, id: r.id }) ?? undefined);
+  if (kind === 'node' || kind === 'entity') geo(['x', 'y', 'w', 'h'], boxOf);
+  else if (kind === 'participant') geo(['x', 'w', 'h'], boxOf);
   else if (kind === 'edge' || kind === 'rel') {
     const defaults = lineDefaults(core, kind);
     geo(lineFields(kind), () => ({ ...defaults }));

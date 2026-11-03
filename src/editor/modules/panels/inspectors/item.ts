@@ -85,13 +85,11 @@ export function itemInspector(p: PanelCtx, host: HTMLElement, kind: ItemKind, id
   if (kind === 'box') return; // placed by its participants
 
   sect(host, t('props.geometry'));
-  const g = core.geom;
-  if ((kind === 'node' && g.type === 'flowchart') || (kind === 'entity' && g.type === 'er')) {
-    const gb = g.type === 'flowchart' ? g.nodes.get(id) : g.type === 'er' ? g.entities.get(id) : undefined;
-    const geo = itemTarget(p, ref, roundedBox(gb));
+  if (kind === 'node' || kind === 'entity') {
+    const geo = itemTarget(p, ref, roundedBox(core.boxOf({ kind, id }) ?? undefined));
     for (const f of ['x', 'y', 'w', 'h']) field(core.i18n, host, f, geo);
-  } else if (kind === 'group' && g.type === 'flowchart') {
-    const gb = g.groups.get(id);
+  } else if (kind === 'group') {
+    const gb = core.boxOf({ kind, id });
     const fixed = !!core.getM('group', id).w;
     const cb = h('input', { type: 'checkbox', 'aria-label': t('props.fixedFrame') });
     cb.checked = fixed;
@@ -116,9 +114,8 @@ export function itemInspector(p: PanelCtx, host: HTMLElement, kind: ItemKind, id
   } else if (kind === 'edge' || kind === 'rel') {
     const geo = itemTarget(p, ref, lineDefaults(core, kind));
     for (const f of lineFields(kind)) field(core.i18n, host, f, geo);
-  } else if (kind === 'participant' && g.type === 'sequence') {
-    const pb = g.participants.get(id);
-    const geo = itemTarget(p, ref, roundedBox(pb));
+  } else if (kind === 'participant') {
+    const geo = itemTarget(p, ref, roundedBox(core.boxOf({ kind, id }) ?? undefined));
     for (const f of ['x', 'w', 'h']) field(core.i18n, host, f, geo);
   } else if (kind === 'message' || kind === 'note' || kind === 'block') {
     field(core.i18n, host, 'dy', itemTarget(p, ref, { dy: 0 }));

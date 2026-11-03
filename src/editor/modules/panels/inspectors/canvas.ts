@@ -10,9 +10,9 @@ import { ICONS } from '../../../../ui/icons.js';
 import { applyMeta, DIAGRAM_TYPES, FLOW_DIRS, setAutonumberOn, setFlowDirection, switchDiagramType } from '../../../ops/doc.js';
 import { choosePagePreset, pageEff, RATIOS, setPageRatio, setPageSizeMode, setPageValue } from '../../../ops/page.js';
 import { field } from '../fields.js';
+import { editKind } from '../../../kinds/registry.js';
 import { canvasTarget, row, sect, type PanelCtx } from './shared.js';
 
-const HAS_DIRECTION = new Set<string | null>(['flowchart', 'er']);
 const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
 
 function pageSizeFields(p: PanelCtx, host: HTMLElement): void {
@@ -121,21 +121,24 @@ export function canvasInspector(p: PanelCtx, host: HTMLElement): void {
   };
   if (!M.type) return;
   selRow(t('page.type'), DIAGRAM_TYPES.map(([v, k]) => [v, t(k)] as const), M.type, (v) => void switchDiagramType(core, v as DiagramType));
-  if (HAS_DIRECTION.has(M.type) && (M.type === 'flowchart' || M.type === 'er')) selRow(t('page.direction'), FLOW_DIRS.map(([v, k]) => [v, t(k)] as const), M.direction, (v) => setFlowDirection(core, v as Direction));
-  if (M.type === 'sequence') selRow(t('page.numbers'), [['off', t('page.numbersOff')], ['on', t('page.numbersOn')]], M.autonumber ? 'on' : 'off', (v) => setAutonumberOn(core, v === 'on'));
+  const kind = editKind(M.type);
+  const dir = kind?.direction?.(M);
+  if (dir) selRow(t('page.direction'), FLOW_DIRS.map(([v, k]) => [v, t(k)] as const), dir, (v) => setFlowDirection(core, v as Direction));
+  const numbered = kind?.numbered?.(M);
+  if (numbered !== undefined) selRow(t('page.numbers'), [['off', t('page.numbersOff')], ['on', t('page.numbersOn')]], numbered ? 'on' : 'off', (v) => setAutonumberOn(core, v === 'on'));
   const presets = Object.entries(pagePresets(T, M.type)).map(([id, pp]) => [id, pp.label || id] as const);
   if (presets.length) selRow(t('page.preset'), [['', t('page.presetNone')], ...presets], typeof core.meta.canvas.preset === 'string' ? core.meta.canvas.preset : '', (v) => choosePagePreset(core, v));
   const presetName = core.meta.canvas.preset;
   const pp = (typeof presetName === 'string' ? pagePresets(T, M.type)[presetName] : undefined) ?? {};
-  if (M.type !== 'sequence') field(core.i18n, host, 'routing', canvasTarget(p, { routing: pp.routing ?? 'curved' })); // messages are always straight
+  if (!kind?.straight) field(core.i18n, host, 'routing', canvasTarget(p, { routing: pp.routing ?? 'curved' })); // messages are always straight
   const pageBase = { ...T.canvas, ...pp };
   for (const f of ['background', 'border']) field(core.i18n, host, f, canvasTarget(p, pageBase));
   pageSizeFields(p, host);
-  if (M.type === 'sequence') {
-    sect(host, t('page.seqLayout'));
+  if (kind?.layout) {
+    sect(host, t(kind.layout.title));
     const L = T.sequence.layout;
     const base = { ...L, blockSpan: L.blockSpan || 'full', ...pp };
-    for (const f of ['gap', 'rowH', 'mirror', 'blockSpan']) field(core.i18n, host, f, canvasTarget(p, base));
+    for (const f of kind.layout.fields) field(core.i18n, host, f, canvasTarget(p, base));
   }
   sect(host, t('props.editor'));
   const si = h('input', { type: 'number', min: '0', value: String(core.snap), 'aria-label': t('props.snap') });

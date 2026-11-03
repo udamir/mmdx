@@ -1,6 +1,6 @@
 // "All properties" of the selected tile: everything the floating toolbar does not cover, as field rows under the
 // tile's gallery. An item style's fields come from the style schema; a page preset has its own.
-import { FIELD_DEFS } from '../core/schema/style-fields.js';
+import { FIELD_DEFS, themeSection } from '../core/schema/style-fields.js';
 import { deepMerge } from '../core/theme/registry.js';
 import { h } from '../ui/h.js';
 import { RATIOS, ROUTINGS } from './constants.js';
@@ -60,6 +60,13 @@ function styleFields(env: Env, d: HTMLElement, sel: TileSel): void {
   }
 }
 
+/** Page preset fields a type's section may add (THEME_SECTIONS `pageFields`). */
+const PAGE_FIELD_DEFS = (t: Env['t']): Record<string, LocalField> => ({
+  gap: { label: t('te.ppGap'), type: 'number' },
+  rowH: { label: t('te.ppRowH'), type: 'number' },
+  mirror: { label: t('te.ppMirror'), type: 'bool' },
+});
+
 function pageFields(env: Env, d: HTMLElement, sel: TileSel): void {
   const { t } = env;
   const name = sel.preset ?? '';
@@ -69,12 +76,10 @@ function pageFields(env: Env, d: HTMLElement, sel: TileSel): void {
   row('background', { label: t('te.ppBackground'), type: 'color' });
   row('grid', { label: t('te.ppGrid'), type: 'text' });
   row('border', { label: t('te.ppBorder'), type: 'color' });
-  if (sel.type !== 'sequence') row('routing', { label: t('te.ppRouting'), type: 'select', options: ROUTINGS.map((r) => [r, env.tf(`ptb.routing.${r}`, r)] as const) });
+  const section = themeSection(sel.type);
+  if (section.routing) row('routing', { label: t('te.ppRouting'), type: 'select', options: ROUTINGS.map((r) => [r, env.tf(`ptb.routing.${r}`, r)] as const) });
   row('ratio', { label: t('te.ppRatio'), type: 'select', options: [['free', t('te.ppFree')], ...RATIOS.map((r) => [r, r] as const)] });
   row('pad', { label: t('te.ppPad'), type: 'number' });
-  if (sel.type === 'sequence') {
-    row('gap', { label: t('te.ppGap'), type: 'number' });
-    row('rowH', { label: t('te.ppRowH'), type: 'number' });
-    row('mirror', { label: t('te.ppMirror'), type: 'bool' });
-  }
+  const PAGE_FIELDS = PAGE_FIELD_DEFS(t);
+  for (const k of section.pageFields ?? []) row(k, PAGE_FIELDS[k] ?? { label: k, type: 'text' });
 }

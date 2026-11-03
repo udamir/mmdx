@@ -5,8 +5,6 @@
 // `gotoMetaLine`. A SidePanel with a Tabs head in the left stack (chrome/panes.ts); the editors are ui/code-editor.
 // Ported from prototype/app.js (~85–237, ~1809–1875, ~2697–2730, ~4307–4449) and index.html `#leftPane`.
 import { checkMetaLine, metaToLines, splitSource } from '../../../core/meta/index.js';
-import { fixIdClash } from '../../../core/ops/meta-ops.js';
-import { flowPresets } from '../../../core/render/flowchart.js';
 import type { Diagnostic } from '../../../core/types.js';
 import type { BlockHandle } from '../../../ui/blocks/block.js';
 import type { PillProps } from '../../../ui/blocks/pill.js';
@@ -17,9 +15,9 @@ import { h, icon } from '../../../ui/h.js';
 import { ICONS } from '../../../ui/icons.js';
 import { signal } from '../../../ui/signal.js';
 import type { EditorCore } from '../../core.js';
+import { withEdit } from '../../kinds/registry.js';
 import type { EditorModule } from '../../module.js';
 import { buildSegments, filterItems, filterLines, mergeFilteredView, viewOf, type Segment } from '../../ops/code-filter.js';
-import { applyDoc } from '../../ops/doc.js';
 
 /** One problem of the code or the metadata (1-based line, null = no line). */
 export interface Issue {
@@ -40,16 +38,9 @@ function codeIssues(core: EditorCore): Issue[] {
   const diags: Diagnostic[] = core.result.diagnostics.filter((d) => d.source !== 'meta' && d.severity !== 'info');
   for (const d of diags) {
     const it: Issue = { line: d.range ? d.range.line + 1 : null, msg: d.message };
-    if (d.code === 'flow.id-clash' && M.type === 'flowchart') {
-      const id = String(d.params?.['id'] ?? ''), nid = String(d.params?.['newId'] ?? '');
-      it.fix = {
-        label: t('problems.fixRename', { id, newId: nid }),
-        run: () => {
-          const res = fixIdClash(core.code, core.meta, M, id);
-          if (applyDoc(core, t('problems.fixLabel'), res, res.selection ?? null)) core.toast(t('problems.renamed', { id: nid }));
-        },
-      };
-    } else if (d.fix) {
+    const own = withEdit(M, (k, m) => k.fixOf?.(core, m, d));
+    if (own) it.fix = own;
+    else if (d.fix) {
       const fix = d.fix;
       it.fix = { label: fix.title, run: () => void core.applyCode({ code: fix.apply(core.code) }, fix.title) };
     }
@@ -61,12 +52,7 @@ function codeIssues(core: EditorCore): Issue[] {
     const i = L.findIndex((l) => l.trim() && !l.trim().startsWith('%%') && l.trim() !== '---');
     for (const it of out) if (it.line == null) it.line = i < 0 ? 1 : i + 1;
   }
-  if (M.type === 'flowchart' && M.undefinedClasses.length) {
-    // a class is fine when it names a classDef or a node / subgraph preset
-    const P = flowPresets(core.result.theme, core.meta);
-    for (const { cls, line } of M.undefinedClasses)
-      if (!Object.hasOwn(P.node, cls) && !Object.hasOwn(P.group, cls)) out.push({ line: line + 1, msg: t('problems.undefinedClass', { cls }) });
-  }
+  out.push(...(withEdit(M, (k, m) => k.problems?.(core, m)) ?? []));
   out.sort((a, b) => (a.line ?? 1e9) - (b.line ?? 1e9));
   return out;
 }

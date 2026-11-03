@@ -3,6 +3,7 @@
 // View mode), and the Undo / Redo card with disabled state and "Undo <label>" tooltips. Hand and the magic pen come
 // from the standard `pan` and `pen` modules; the dock itself is the standard `toolDock`. Edit-only tools hide in
 // View mode. Shortcuts V, C, I, L, Esc (back to the default tool). Provides `setTool` with the editor's rules.
+import { editKind } from '../../kinds/registry.js';
 import { dockBadge, dockButton } from '../../../ui/blocks/tool-dock.js';
 import { icon } from '../../../ui/h.js';
 import { ICONS } from '../../../ui/icons.js';
@@ -66,8 +67,7 @@ export const editorToolsModule: EditorModule = {
 
     // ---- state
     const syncShapes = (): void => {
-      const er = core.model.type === 'er';
-      shapes.update({ label: er ? t('tools.table') : t('tools.shapes') });
+      shapes.update({ label: t(editKind(core.model.type)?.shapesLabel ?? 'tools.shapes') });
       shapes.el.hidden = !core.model.type || !core.has('toggleShapesMenu');
     };
     core.on('model', syncShapes);

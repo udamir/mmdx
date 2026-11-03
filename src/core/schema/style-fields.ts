@@ -90,13 +90,23 @@ export interface ThemeSectionItem {
   presets?: string;
 }
 
-const SECTION_UI: Readonly<Record<DiagramType, { title: string; items: readonly ThemeSectionItem[] }>> = {
-  flowchart: { title: 'Flowchart', items: [
+/** A section of the theme editor: its title, item types, and its page presets' own fields. */
+export interface ThemeSection {
+  title: string;
+  items: readonly ThemeSectionItem[];
+  /** Page presets have a routing (not sequence: messages are straight). */
+  routing: boolean;
+  /** The type's own page layout fields in a page preset (sequence: gap, rowH, mirror). */
+  pageFields?: readonly string[];
+}
+
+const SECTION_UI: Readonly<Record<DiagramType, ThemeSection>> = {
+  flowchart: { title: 'Flowchart', routing: true, items: [
     { key: 'node', label: 'Node', fields: STYLE_FIELDS.node, presets: 'nodePresets' },
     { key: 'group', label: 'Group (subgraph)', fields: STYLE_FIELDS.group, presets: 'groupPresets' },
     { key: 'edge', label: 'Connector', fields: STYLE_FIELDS.edge, presets: 'edgePresets' },
   ] },
-  sequence: { title: 'Sequence', items: [
+  sequence: { title: 'Sequence', routing: false, pageFields: ['gap', 'rowH', 'mirror'], items: [
     { key: 'participant', label: 'Participant', fields: STYLE_FIELDS.participant, presets: 'participantPresets' },
     { key: 'message', label: 'Message', fields: STYLE_FIELDS.message, presets: 'messagePresets' },
     { key: 'note', label: 'Note', fields: STYLE_FIELDS.note, presets: 'notePresets' },
@@ -105,14 +115,17 @@ const SECTION_UI: Readonly<Record<DiagramType, { title: string; items: readonly 
     { key: 'lifeline', label: 'Lifeline', fields: ['color', 'width', 'dash'] },
     { key: 'activation', label: 'Activation (process)', fields: STYLE_FIELDS.activation, presets: 'activationPresets' },
   ] },
-  er: { title: 'ER diagram', items: [
+  er: { title: 'ER diagram', routing: true, items: [
     { key: 'entity', label: 'Table', fields: STYLE_FIELDS.entity, presets: 'entityPresets' },
     { key: 'rel', label: 'Relationship', fields: STYLE_FIELDS.rel, presets: 'relPresets' },
   ] },
 };
 
 /** What the theme editor shows, per diagram type (in UI order): base style of each item type (+ its named presets). */
-export const THEME_SECTIONS: readonly { type: DiagramType; title: string; items: readonly ThemeSectionItem[] }[] = DIAGRAM_TYPES.map((type) => ({ type, ...SECTION_UI[type] }));
+export const THEME_SECTIONS: readonly (ThemeSection & { type: DiagramType })[] = DIAGRAM_TYPES.map((type) => ({ type, ...SECTION_UI[type] }));
+
+/** The theme editor section of a diagram type. */
+export const themeSection = (type: DiagramType): ThemeSection => SECTION_UI[type];
 
 /** The stored key of a field (`pshape` → `shape`). */
 export const fieldKey = (name: string): string => FIELD_DEFS[name]?.key ?? name;

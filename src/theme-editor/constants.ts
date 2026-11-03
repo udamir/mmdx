@@ -1,4 +1,5 @@
 // Fixed data of the theme editor: fonts, sample diagrams, shape tabs, field option lists.
+import { DIAGRAM_TYPES } from '../core/kinds/info.js';
 import { participantPresetShape, presetShape } from '../core/render/index.js';
 import type { DiagramType } from '../core/types.js';
 import type { ToolbarControl } from '../ui/style-toolbar.js';
@@ -48,7 +49,7 @@ export const DEFAULT_SAMPLES: Readonly<Record<DiagramType, string>> = {
     int qty
   }`,
 };
-export const TYPES: readonly DiagramType[] = ['flowchart', 'sequence', 'er'];
+export const TYPES: readonly DiagramType[] = DIAGRAM_TYPES;
 
 const NODE_SHAPES: readonly (readonly [string, string])[] = [['rect', 'Rectangle'], ['rounded', 'Rounded'], ['stadium', 'Stadium'], ['circle', 'Circle'], ['doublecircle', 'Double circle'],
   ['diamond', 'Diamond'], ['hexagon', 'Hexagon'], ['parallelogram', 'Parallelogram'], ['trapezoid', 'Trapezoid'], ['asymmetric', 'Flag'],

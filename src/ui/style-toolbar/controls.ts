@@ -218,7 +218,7 @@ export function control(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLEleme
     case 'order': {
       if (!api.order) return h('span');
       const keys = `${formatKeys('mod+[')} ${formatKeys('mod+]')}`;
-      return button('order', svgIcon('zorder'), api.diagramType?.() === 'sequence' ? t('tb.orderSeq', { keys }) : t('tb.order', { keys }));
+      return button('order', svgIcon('zorder'), t(api.orderTitle?.() ?? 'tb.order', { keys }));
     }
     case 'layer':
       return api.layers && api.setLayer ? button('layer', svgIcon('layers'), t('tb.layer'), true) : h('span');

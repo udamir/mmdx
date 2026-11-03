@@ -92,6 +92,8 @@ export interface ToolbarApi {
   /** Free horizontal strip of the host [left, right] (not over side panels). */
   hBounds?(): [number, number];
   diagramType?(): string | null | undefined;
+  /** i18n key of the order button's title (default `tb.order`). */
+  orderTitle?(): string | undefined;
   // item actions
   isLocked?(): boolean;
   toggleLock?(): void;

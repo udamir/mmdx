@@ -8,6 +8,7 @@
 // This module takes the diagram kinds (parsers and renderers) and the core context from its caller (§9.1:
 // `drawItemPreviewWith`, `renderItemSampleWith`), so it loads no parser itself. ui/item-preview.ts wraps it with
 // every kind and the shared configuration (`drawItemPreview`, `renderItemSample`).
+import { viewKind } from '../core/kinds/registry.js';
 import type { CoreContext } from '../core/context.js';
 import { nextIdPrefix } from '../core/context.js';
 import { emptyMeta, type DiagramMeta } from '../core/meta/index.js';
@@ -191,31 +192,31 @@ const union = (boxes: Box[]): Box | null =>
 
 /** The item's box from the render geometry (engines without SVG layout, e.g. jsdom). */
 function fromGeom(g: GeometryIndex, kind: PreviewKind): Box | null {
+  const k = g.type ? viewKind(g.type) : undefined;
+  if (!k) return null;
+  // the participant sample is A; lifelines and processes are shown on B
+  if (kind === 'participant' || kind === 'lifeline' || kind === 'activation') {
+    const b = k.box(g, { kind: 'participant', id: kind === 'participant' ? 'A' : 'B' });
+    return b ? centred(b) : null;
+  }
   const lineBox = (e: { points: [number, number][]; a: { x: number; y: number }; b: { x: number; y: number }; label: { x: number; y: number; w: number; h: number } | null }): Box => {
     const xs = [e.a.x, e.b.x, ...e.points.map((p) => p[0])], ys = [e.a.y, e.b.y, ...e.points.map((p) => p[1])];
     const b: Box = { x: Math.min(...xs), y: Math.min(...ys), x2: Math.max(...xs), y2: Math.max(...ys) };
     return e.label ? union([b, centred(e.label)])! : b;
   };
-  switch (g.type) {
-    case 'flowchart':
-      if (kind === 'node') return union([...g.nodes.values()].map(centred));
-      if (kind === 'group') return union([...g.groups.values()].map(centred));
-      if (kind === 'edge') return union([...g.edges.values()].map(lineBox));
-      return null;
-    case 'sequence': {
-      if (kind === 'participant') { const p = g.participants.get('A'); return p ? centred(p) : null; }
-      if (kind === 'lifeline' || kind === 'activation') { const p = g.participants.get('B'); return p ? centred(p) : null; }
-      if (kind === 'message') return union([...g.messages.values()].map((m) => ({ x: Math.min(m.x0, m.x1), y: m.y - 16, x2: Math.max(m.x0, m.x1), y2: m.y + 4 })));
-      if (kind === 'note') return union([...g.notes.values()].map(centred));
-      if (kind === 'block') return union([...g.blocks.values()].map(centred));
-      if (kind === 'box') return union([...g.boxes.values()].map(centred));
-      return null;
+  const boxes: Box[] = [];
+  for (const it of k.drawn(g)) {
+    if (it.ref.kind !== kind) continue;
+    if ('box' in it) boxes.push(centred(it.box));
+    else {
+      const e = k.edge?.(g, it.ref);
+      if (e) boxes.push(lineBox(e));
+      else if (it.points?.length) {
+        // a straight message: its line with room for the text above it
+        const xs = it.points.map((p) => p[0]), ys = it.points.map((p) => p[1]);
+        boxes.push({ x: Math.min(...xs), y: Math.min(...ys) - 16, x2: Math.max(...xs), y2: Math.max(...ys) + 4 });
+      }
     }
-    case 'er':
-      if (kind === 'entity') return union([...g.entities.values()].map(centred));
-      if (kind === 'rel') return union([...g.rels.values()].map(lineBox));
-      return null;
-    default:
-      return null;
   }
+  return union(boxes);
 }

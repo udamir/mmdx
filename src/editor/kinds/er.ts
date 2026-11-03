@@ -65,4 +65,6 @@ export const EDIT: EditKind<ErModel, ErGeometry> = {
     if (ok) focusLabel(core, res.select);
     return ok;
   },
+  direction: (M) => M.direction,
+  shapesLabel: 'tools.table',
 };

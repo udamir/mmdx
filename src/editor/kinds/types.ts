@@ -1,10 +1,10 @@
 // The edit kind (T01, layer 3): what the editor's modules need from a diagram type — item text, structure edits
 // (delete, group), copying, connecting, the Shapes menu, inspectors and toolbars. The editor loads it with the type's
 // view and ops kinds; a missing hook means the type does not offer that action.
-import type { SupportedModel } from '../../core/model.js';
+import type { Direction, SupportedModel } from '../../core/model.js';
 import type { CodeResult, ConnectResult, RefusableResult, SelectResult } from '../../core/ops/types.js';
 import type { GeometryIndex } from '../../core/render/types.js';
-import type { ItemKind, ItemRef } from '../../core/types.js';
+import type { Diagnostic, ItemKind, ItemRef } from '../../core/types.js';
 import type { Point } from '../../core/types.js';
 import type { EditorCore, Sel } from '../core.js';
 import type { PaletteItem, PaletteSpec } from './palette.js';
@@ -63,6 +63,24 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   palette?: PaletteSpec;
   /** Adds a palette item at a (snapped) diagram point; false when refused (a toast says why). */
   drop?(core: EditorCore, model: M, item: PaletteItem, at: Point): boolean;
+
+  // ---- page, toolbars, problems ----
+  /** The diagram's direction, when the type has one (flowchart, ER). */
+  direction?(model: M): Direction;
+  /** Message numbering, when the type has it (sequence). */
+  numbered?(model: M): boolean;
+  /** Connectors are always straight: no routing setting (sequence messages). */
+  straight?: boolean;
+  /** The type's own page layout fields (sequence: gap, row height, mirror, block span), with the Properties section title (i18n key). */
+  layout?: { title: string; fields: readonly string[] };
+  /** i18n key of the Shapes dock button's label (default `tools.shapes`). */
+  shapesLabel?: string;
+  /** i18n key of the toolbar's order button title (default `tb.order`). */
+  orderTitle?: string;
+  /** A fix of a diagnostic the type handles itself (flowchart: an id used by a node and a subgraph). */
+  fixOf?(core: EditorCore, model: M, d: Diagnostic): { label: string; run(): void } | null;
+  /** More problems of the code (flowchart: classes that name no classDef or preset). */
+  problems?(core: EditorCore, model: M): { line: number; msg: string }[];
 
   /** Geometry of the type (for typing the hooks that take it). */
   readonly geom?: G;

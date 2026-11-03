@@ -3,7 +3,8 @@
 // layers, the diagram palette "+", lock, paint, group / arrange / activation actions), the Order slider with a live
 // preview committed once (`orderInfo` / `orderPreview` / `orderCommit`), ⌘[ / ⌘] (`moveSelection`), the page badge
 // above the page's top-left corner and the page's own action bar.
-import { viewKind } from '../../../core/kinds/registry.js';
+import { opsKind, viewKind, withKind } from '../../../core/kinds/registry.js';
+import { editKind, withEdit } from '../../kinds/registry.js';
 import { layerDefs, layerOf } from '../../../core/layers.js';
 import { copyable } from '../../../core/ops/clipboard.js';
 import {
@@ -149,7 +150,7 @@ export const toolbarsModule: EditorModule = {
       const key = `${core.code}\u0000${s.kind}:${s.id}`;
       if (ord?.key === key) return ord;
       const g = core.geom;
-      ord = { ...orderPositions(core.code, core.model, s), key, base: { code: core.code, meta: JSON.parse(JSON.stringify(core.meta)) as DiagramMeta, model: core.model, participants: g.type === 'sequence' ? g.participants : null }, shown: null };
+      ord = { ...orderPositions(core.code, core.model, s), key, base: { code: core.code, meta: JSON.parse(JSON.stringify(core.meta)) as DiagramMeta, model: core.model, participants: g.type ? opsKind(g.type)?.swapBoxes?.(g) ?? null : null }, shown: null };
       return ord;
     };
     const orderPreview = (i: number): void => {
@@ -292,8 +293,7 @@ export const toolbarsModule: EditorModule = {
         themeFontName: () => (core.result.theme.font.split(',')[0] ?? '').replace(/['"]/g, '').trim(),
         edgeEnds: () => {
           const s = primary();
-          const M = core.model;
-          const e = s && M.type === 'flowchart' ? M.edges.find((x) => x.id === s.id) : undefined;
+          const e = s ? withKind(core.model, (k, m) => k.codeEnds?.(m, s)) : null;
           if (!s || !e) return {};
           const arrow = baseStyleOf(env(), 'edge', s.id).arrow;
           const map = (x: string): string | undefined => (x === 'arrow' ? (typeof arrow === 'string' ? arrow : undefined) : x);
@@ -304,6 +304,7 @@ export const toolbarsModule: EditorModule = {
           return s ? anchorRect(core, s) : null;
         },
         hBounds: () => freeStrip(core),
+        orderTitle: () => editKind(core.model.type)?.orderTitle,
         diagramType: () => core.model.type,
         isLocked: () => {
           const s = primary();
@@ -441,7 +442,7 @@ export const toolbarsModule: EditorModule = {
         visible: () => core.pageSelected.peek() && core.mode.peek() === 'edit' && !!core.model.type && !core.selection().length,
         types: () => DIAGRAM_TYPES.map(([v, k]) => [v, t(k)] as const),
         diagramType: () => core.model.type,
-        direction: () => (core.model.type === 'flowchart' || core.model.type === 'er' ? core.model.direction : null),
+        direction: () => withEdit(core.model, (k, m) => k.direction?.(m)) ?? null,
         directions: () => FLOW_DIRS.map(([v, k]) => [v, t(k)] as const),
         presets: () => {
           const M = core.model;
@@ -466,13 +467,13 @@ export const toolbarsModule: EditorModule = {
           const v = canvasVal(k);
           return typeof v === 'string' ? v : null;
         },
-        hasRouting: () => core.model.type !== 'sequence', // messages are always straight
+        hasRouting: () => !editKind(core.model.type)?.straight, // sequence messages are always straight
         routing: () => (typeof pageEff(core).routing === 'string' ? (pageEff(core).routing as string) : 'curved'),
         seq: () => {
-          const M = core.model;
-          if (M.type !== 'sequence') return null;
+          const kind = editKind(core.model.type);
+          if (!kind?.layout) return null;
           const v = { ...seqDefaults(), ...(pageEff(core) as Record<string, unknown>) };
-          const st: SequenceLayoutState = { gap: Number(v['gap']) || 0, rowH: Number(v['rowH']) || 0, blockSpan: String(v['blockSpan'] ?? 'full'), mirror: !!v['mirror'], autonumber: M.autonumber };
+          const st: SequenceLayoutState = { gap: Number(v['gap']) || 0, rowH: Number(v['rowH']) || 0, blockSpan: String(v['blockSpan'] ?? 'full'), mirror: !!v['mirror'], autonumber: withEdit(core.model, (k, m) => k.numbered?.(m)) ?? false };
           return st;
         },
         setSeq: (k, v, o = {}) => {
@@ -558,7 +559,7 @@ export const toolbarsModule: EditorModule = {
       placeBadge();
       if (page) {
         const { gap: _g, rowH: _r, ...shown } = core.meta.canvas; // slider values change while dragging: leave them out
-        const key = `${core.pageSelected.peek()}|${core.mode.peek()}|${core.selection().length}|${core.model.type}|${core.model.type === 'flowchart' || core.model.type === 'er' ? core.model.direction : ''}|${core.model.type === 'sequence' ? core.model.autonumber : ''}|${JSON.stringify(shown)}`;
+        const key = `${core.pageSelected.peek()}|${core.mode.peek()}|${core.selection().length}|${core.model.type}|${withEdit(core.model, (k, m) => k.direction?.(m)) ?? ''}|${withEdit(core.model, (k, m) => k.numbered?.(m)) ?? ''}|${JSON.stringify(shown)}`;
         if (force || key !== pageKey) {
           pageKey = key;
           page.refresh();

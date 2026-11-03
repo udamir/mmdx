@@ -162,4 +162,8 @@ export const EDIT: EditKind<SequenceModel, SequenceGeometry> = {
     if (ok) focusLabel(core, sel);
     return ok;
   },
+  numbered: (M) => M.autonumber,
+  straight: true,
+  layout: { title: 'page.seqLayout', fields: ['gap', 'rowH', 'mirror', 'blockSpan'] },
+  orderTitle: 'tb.orderSeq',
 };

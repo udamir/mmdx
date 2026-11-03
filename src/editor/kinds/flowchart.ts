@@ -6,10 +6,12 @@ import type { FlowGeometry } from '../../core/render/types.js';
 import type { Sel } from '../core.js';
 import { cloneMeta, ensure as ensureIn } from '../../core/ops/meta-util.js';
 import { addFlowNode } from '../../core/ops/flowchart.js';
-import { presetShape } from '../../core/render/flowchart.js';
+import { fixIdClash } from '../../core/ops/meta-ops.js';
+import { flowPresets, presetShape } from '../../core/render/flowchart.js';
 import type { Point } from '../../core/types.js';
 import type { EditorCore } from '../core.js';
 import { focusLabel } from '../modules/shapes/drop.js';
+import { applyDoc } from '../ops/doc.js';
 import { shapeIcon } from './palette.js';
 import type { EditKind } from './types.js';
 
@@ -115,5 +117,27 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
     const ok = core.applyCode({ code: res.code, meta }, 'Add shape', { select: [res.select] });
     if (ok) focusLabel(core, res.select);
     return ok;
+  },
+  direction: (M) => M.direction,
+  fixOf(core, M, d) {
+    if (d.code !== 'flow.id-clash') return null;
+    const t = core.i18n.t;
+    const id = String(d.params?.['id'] ?? ''), nid = String(d.params?.['newId'] ?? '');
+    return {
+      label: t('problems.fixRename', { id, newId: nid }),
+      run: () => {
+        const res = fixIdClash(core.code, core.meta, M, id);
+        if (applyDoc(core, t('problems.fixLabel'), res, res.selection ?? null)) core.toast(t('problems.renamed', { id: nid }));
+      },
+    };
+  },
+  problems(core, M) {
+    if (!M.undefinedClasses.length) return [];
+    // a class is fine when it names a classDef or a node / subgraph preset
+    const P = flowPresets(core.result.theme, core.meta);
+    const out: { line: number; msg: string }[] = [];
+    for (const { cls, line } of M.undefinedClasses)
+      if (!Object.hasOwn(P.node, cls) && !Object.hasOwn(P.group, cls)) out.push({ line: line + 1, msg: core.i18n.t('problems.undefinedClass', { cls }) });
+    return out;
   },
 };
