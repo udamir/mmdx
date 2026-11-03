@@ -5,6 +5,7 @@ import { instanceContext } from '../../src/config.js';
 import { renderToSvg } from '../../src/core/pipeline.js';
 import { diffDiagrams } from '../../src/core/diff/all.js';
 import { ignoreFacets, type ItemChange } from '../../src/core/diff/index.js';
+import { SHAPES } from '../../src/core/shapes/catalog.js';
 import { EXAMPLES, SMALL_FLOW, THEME_IDS } from '../support.js';
 
 const diffRaw = import.meta.glob<string>('../../apps/studio-site/diff-samples/*.mmd', { eager: true, query: '?raw', import: 'default' });
@@ -116,5 +117,47 @@ export const SemanticDiff: Story = {
     panel.append(summary, docChanges, list);
     root.append(side('Before', before), side('After', after), panel);
     return root;
+  },
+};
+
+/** Every catalogue shape with a label, in a grid (the names Mermaid knows; the others by id). */
+function allShapesSource(): string {
+  const names = SHAPES.map((s) => (s.mermaid && !s.legacy?.includes(s.id) ? s.mermaid : s.id));
+  const lines = ['flowchart LR', ...names.map((n, i) => `  s${i}@{ shape: ${n}, label: "${n}" }`)];
+  names.forEach((_, i) => lines.push(`%%@ node s${i} {"x":${(i % 8) * 200 + 110},"y":${Math.floor(i / 8) * 170 + 90}}`));
+  return lines.join('\n');
+}
+
+export const AllShapes: Story = {
+  name: 'All shapes',
+  parameters: {
+    controls: { include: ['theme'] },
+    docs: { description: { story: 'The shape catalogue (T02) as mmdx draws it, and the Mermaid shapes as stock Mermaid draws them, for a side-by-side review of the proportions.' } },
+  },
+  render: (a) => {
+    const out = document.createElement('div');
+    out.style.cssText = 'padding:16px;display:grid;gap:16px;';
+    const head = (t: string): HTMLElement => Object.assign(document.createElement('h3'), { textContent: t, style: 'font:600 14px system-ui;margin:0;' });
+    const mine = document.createElement('div'), stock = document.createElement('div');
+    out.append(head('mmdx'), mine, head('stock Mermaid'), stock);
+    void renderToSvg(allShapesSource(), { theme: a.theme, ctx: instanceContext() }).then((svg) => {
+      const img = new Image();
+      img.alt = 'every shape, drawn by mmdx';
+      img.style.cssText = 'max-width:100%;border:1px solid #dde1e7;border-radius:8px;';
+      img.src = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+      mine.replaceChildren(img);
+    });
+    // stock Mermaid lays the shapes out itself: one row per category
+    const flow = ['flowchart LR', ...SHAPES.filter((s) => s.mermaid).map((s, i) => `  m${i}@{ shape: ${s.mermaid}, label: "${s.mermaid}" }`)].join('\n');
+    void import('mermaid').then(async ({ default: mermaid }) => {
+      mermaid.initialize({ startOnLoad: false });
+      const { svg } = await mermaid.render('all-shapes-stock', flow);
+      const img = new Image();
+      img.alt = 'every shape, drawn by stock Mermaid';
+      img.style.cssText = 'max-width:100%;border:1px solid #dde1e7;border-radius:8px;';
+      img.src = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+      stock.replaceChildren(img);
+    });
+    return out;
   },
 };

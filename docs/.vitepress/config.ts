@@ -108,6 +108,7 @@ export default defineConfig({
           text: 'Using mmdx',
           items: [
             { text: 'Themes', link: '/guide/themes' },
+            { text: 'Shapes', link: '/guide/shapes' },
             { text: 'Configuration', link: '/guide/configuration' },
             { text: 'Saving documents', link: '/guide/documents' },
             { text: 'Version history', link: '/guide/history' },

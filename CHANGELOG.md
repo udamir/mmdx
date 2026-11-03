@@ -4,16 +4,35 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project f
 
 ## Unreleased
 
+### Added
+
+- **Every Mermaid flowchart shape**: all 53 shapes of Mermaid 11.17's `A@{ shape: … }` and their aliases, 11.15–11.17's `datastore`, `folder`, `bucket`, `console`, `browser` and `person` included, drawn by mmdx from one shape catalogue — plus the sequence participant figures, the mindmap's default node, the state diagram's choice and note, and icon and image frames for the diagram types that use them later. A [Shapes](https://udamir.github.io/mmdx/guide/shapes) guide page lists them with previews.
+- **Lossless node data**: `A@{ … }` is read like Mermaid reads it (double quotes protect `}` and `,`, blocks over several lines), every key is kept — `icon`, `img`, `w`, `h` and unknown ones — and edits rewrite only the values they change.
+- **Shape name warnings**: an unknown shape name (`flow.unknown-shape`) and a name Mermaid rejects such as `lean_r` (`flow.shape-name`, with a fix that writes the short name).
+- **`flow.meta-shape`**: the editor's code panel lists flowchart shapes kept only in metadata (files of 0.1–0.3), with a fix that writes them to the code.
+- A Storybook story with every shape next to stock Mermaid's drawing of it.
+
 ### Changed (breaking)
 
 - **`<mmdx-studio>` keeps no diagram in the URL**: no `#d=…` in the address bar and no Share button; `persist` takes only `local`.
 - **`encodeHash` and `decodeHash` are removed** from `@mmdx/studio` and `@mmdx/studio/adapters`.
 - **`Kinds` is the diagram types' view kinds by type** (`ALL_KINDS.flowchart`, …) instead of `{ parsers, renderers }`; the `…With` functions take it as before.
+- **`NodeShape` is a shape catalogue id** (`ShapeId`): the 17 former names plus Mermaid's short names for the others; `queue`, which no parser produced, is gone (the name reads as the horizontal cylinder). `FlowchartModel` has `statements` (the code offsets the editing ops splice), and a node its `@{…}` data (`data`, `blocks`).
 
 ### Changed
 
 - **The editor loads diagram types on demand**: the code of a type arrives the first time a document of that type is shown (the editor's first chunk is about 15 kB smaller); `whenLoaded()` also waits for it.
 - **Each diagram type plugs in through one set of kinds** (view, diff, ops and edit), so adding a type no longer means edits all over the code base ([Contributing → Adding a diagram type](https://udamir.github.io/mmdx/guide/contributing#adding-a-diagram-type)).
+- **The editor writes shapes to the Mermaid code**: the shape picker, Properties and the Shapes menu write a bracket (`A{"…"}`) or, for shapes without one, a separate `A@{ shape: lin-cyl }` statement after the graph's statements (Mermaid Chart's style), so the file shows the same shapes in stock Mermaid. Metadata `shape` is left for shapes Mermaid lacks and for nodes whose preset draws another shape. Shapes older files keep in metadata move to the code when the node is edited or through the `flow.meta-shape` fix, never on a plain save.
+- **Connectors end on a shape's outline** (the slopes of a diamond or hexagon, a circle, a document's wave) instead of its box; the editor's ports and magnets and the diff's highlight frames follow the outline too.
+- **Relabelling, reconnecting and deleting keep the code as written**: node data, edge lengths and styles, chains, `&` groups, `:::` classes and edge ids stay; a statement is split only where an edit breaks it apart.
+- **One list of shapes**: the shape picker (now every flowchart shape, by category), Properties, the theme editor's shape tabs and the Shapes menu read the catalogue; a theme's `nodeShapes` may name a shape by any of its names (`cyl`, `lean-r`).
+- **`@{ shape: f-circ }`, `sm-circ`, `fr-circ` and `lin-cyl` look like Mermaid's**: they were drawn as a plain circle or cylinder.
+
+### Fixed
+
+- An unknown `@{ shape }` name is reported instead of silently becoming a rectangle; `notch-rect` and the other hyphenated names Mermaid documents are read.
+- A `}` or `,` inside a quoted `@{ label: "…" }` no longer ends the node data; single-quoted labels are read.
 
 ## 0.3.0 — Hooks for sandboxed hosts
 

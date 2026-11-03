@@ -86,7 +86,9 @@ The keys an item line may carry:
 | `attrs` | ER attribute highlights |
 | Style keys | `fill`, `stroke`, `strokeWidth`, `radius`, `shape`, `fontSize`, `color`, `arrow`, `routing`, … (style overrides) |
 
-Unknown keys are kept on round-trip. A sequence diagram's real examples look like this:
+Unknown keys are kept on round-trip.
+
+A flowchart node's shape belongs in the Mermaid code — a bracket (`A{"…"}`) or node data (`A@{ shape: lin-cyl }`) — so the file shows the same shapes in stock Mermaid; the editor writes it there (see [Shapes](/guide/shapes)). Metadata `shape` is only for shapes Mermaid's flowchart lacks (the participant figures, the mindmap's default node) and for a node whose preset draws another shape. Files of mmdx 0.1–0.3 that keep Mermaid shapes in metadata still draw them; the editor's code panel offers a fix that moves them into the code. A sequence diagram's real examples look like this:
 
 ```mmdx
 %%@ canvas {"v":1,"blockSpan":"touched"}

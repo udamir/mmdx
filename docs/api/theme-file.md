@@ -264,7 +264,7 @@ Node presets: `client`, `ui`, `core`, `analytics`, `worker`, `domain`, `api`, `s
 
 ### `nodeShapes`
 
-The default style of each node shape, applied after `node` and before presets: `"nodeShapes": { "diamond": { "fill": "@cream" } }`. Shape names are open-ended, so a theme may style shapes a newer renderer knows. The node shapes are `rect`, `rounded`, `stadium`, `circle`, `doublecircle`, `diamond`, `hexagon`, `cylinder`, `hcyl` (horizontal cylinder), `subroutine`, `parallelogram`, `parallelogram-alt`, `trapezoid`, `trapezoid-alt`, `asymmetric`, `document`, `card`.
+The default style of each node shape, applied after `node` and before presets: `"nodeShapes": { "diamond": { "fill": "@cream" } }`. A key is a shape's id or any name the [shape catalogue](/guide/shapes#the-catalogue) knows for it — Mermaid's short name or an alias (`"cyl"`, `"lean-r"`, `"disk"`) — and is matched to the shape's id when the theme is used; where two keys name one shape, the id's own key wins. Names the catalogue does not know are kept, so a theme may style shapes a newer renderer knows. The ids are those of the catalogue: `rect`, `rounded`, `stadium`, `subroutine`, `cylinder`, `circle`, `doublecircle`, `diamond`, `hexagon`, `parallelogram`, `parallelogram-alt`, `trapezoid`, `trapezoid-alt`, `asymmetric`, `hcyl`, `document`, `card` for the shapes mmdx drew before 0.4, and Mermaid's short names for the others (`lin-cyl`, `notch-pent`, `bow-rect`, …).
 
 ## `sequence`
 
