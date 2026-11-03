@@ -65,7 +65,7 @@ Each metadata line is:
 
 | Line | Holds |
 |---|---|
-| `%%@ canvas {…}` | Format version, page size and proportions, page background, routing default, page preset |
+| `%%@ canvas {…}` | Format version, page size and proportions, page background, routing default, page preset, `layout` |
 | `%%@ node <id>`, `group <id>`, `edge <from>-><to>` (or `edge <edge id>`) | Flowchart item position, size, preset and style overrides |
 | `%%@ participant <id>`, `message m1`, `note n1`, `block b1`, `box box1`, `activation B:1` | Sequence diagram items |
 | `%%@ entity <name>`, `rel <A>--<B>` | ER tables and relationships |
@@ -76,7 +76,7 @@ The keys an item line may carry:
 
 | Key | Meaning |
 |---|---|
-| `x`, `y`, `w`, `h` | Position (centre) and size |
+| `x`, `y`, `w`, `h` | Position (centre) and size. A flowchart subgraph's `x` / `y` is its top-left: with `w` / `h` a fixed frame, without them the place "Reset positions in this group" keeps while its contents are laid out again |
 | `preset` | A preset of the theme or of the diagram (`style.<kind>`) |
 | `layer` | The layer the item belongs to |
 | `locked` | The item is locked on the canvas |
@@ -88,6 +88,12 @@ The keys an item line may carry:
 | Style keys | `fill`, `stroke`, `strokeWidth`, `radius`, `shape`, `fontSize`, `color`, `arrow`, `routing`, … (style overrides) |
 
 Unknown keys are kept on round-trip.
+
+`canvas` also takes `layout`. Flowcharts with subgraphs are laid out with each subgraph as a container of its own (see [the editor's auto layout](/components/editor#auto-layout)); `"layout":"legacy"` keeps the automatic layout of earlier versions, where subgraph frames could overlap and subgraph `direction` was ignored, for one more minor release — it will then be removed. Diagrams whose nodes all have stored positions look the same either way. Any other value is dropped with a diagnostic.
+
+```mmdx
+%%@ canvas {"v":1,"layout":"legacy"}
+```
 
 A flowchart node's shape belongs in the Mermaid code — a bracket (`A{"…"}`) or node data (`A@{ shape: lin-cyl }`) — so the file shows the same shapes in stock Mermaid; the editor writes it there (see [Shapes](/guide/shapes)). Metadata `shape` is only for shapes Mermaid's flowchart lacks (the participant figures, the mindmap's default node) and for a node whose preset draws another shape. Files of mmdx 0.1–0.3 that keep Mermaid shapes in metadata still draw them; the editor's code panel offers a fix that moves them into the code. A sequence diagram's real examples look like this:
 

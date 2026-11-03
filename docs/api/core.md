@@ -186,6 +186,7 @@ interface PageSettings {
 interface CanvasMeta extends PageSettings {
   v?: number;                  // format version
   preset?: string;             // page preset name (`<type>.pagePresets`)
+  layout?: 'legacy' | 'compound'; // flowcharts with subgraphs: `legacy` keeps the earlier auto layout (one minor release)
   w?: number;
   h?: number;
   x?: number;
@@ -1132,7 +1133,7 @@ interface FlowchartModel {
   type: 'flowchart';
   direction: 'TB' | 'BT' | 'LR' | 'RL';
   nodes: Map<string, FlowNode>;     // { id, label, shape, classes, style, parent, order, lines, defLine, link? }
-  groups: Map<string, FlowGroup>;   // subgraphs: { id, label, parent, children, order, line, endLine?, … }
+  groups: Map<string, FlowGroup>;   // subgraphs: { id, label, parent, children, order, line, endLine?, dir?, … }
   edges: FlowEdge[];                // { id: 'a->b' or 'a->b#2', from, to, label, line, start, end, minlen, index, src }
   classDefs: Record<string, MermaidStyle>;
   linkStyles: Record<string, MermaidStyle>; // keyed by link index, or 'default'

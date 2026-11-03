@@ -199,6 +199,20 @@ editor.features = 'code-panel properties layers';  // only these
 
 `panels` sets which side panels are open (`{ code, properties, layers }`); the user's choice is remembered in `storage`.
 
+## Auto layout
+
+Items without a stored position are placed by the automatic layout. In a flowchart, each subgraph is laid out as a container of its own: its contents in the subgraph's own `direction` (as Mermaid honours it — not when a link from outside reaches a node inside), then the subgraph moves as one box in its parent, so subgraphs never overlap and connectors do not cross a subgraph that holds neither of their ends (they go around it). A connector to a subgraph ends on its frame.
+
+Moving an item by hand pins the auto-placed ones where they are and stores their positions, and from then on the diagram keeps them. When some items have stored positions and others do not, the rules apply per subgraph:
+
+- A subgraph whose contents are all auto-placed is laid out as a unit, wherever it is.
+- A subgraph with hand-placed contents keeps them; its new, auto-placed items go below them, and its frame grows around everything inside.
+- A subgraph with a fixed frame (resized by hand) keeps its frame, and its contents are laid out inside it.
+
+**Auto layout** (the `autoLayout` action) forgets every position of the diagram. **Reset positions in this group** — in a subgraph's ⋮ menu on the floating toolbar, its right-click menu and its Properties — forgets the positions inside one subgraph only (its nodes, nested subgraphs and the bend points of the connectors inside), and the layout arranges its contents again; the subgraph keeps its place (its top-left is stored, as `x` / `y` without a size), and everything outside it stays as it is. It is greyed out when nothing inside the subgraph has a stored position. Both are one undo step.
+
+Files laid out before the compound layout can keep the earlier layout for one more minor release: `%%@ canvas {"layout":"legacy"}` (see [the .mmdx format](/guide/mmdx-format#line-kinds)).
+
 ## Insert dock
 
 The tools below Pointer add things to the diagram. Each diagram type offers what it can hold; a button it does not offer is hidden.

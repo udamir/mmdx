@@ -34,6 +34,9 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project f
 - **Files from Mermaid Chart** open as they are (node data in separate statements, `@{ shape: text}`, `style` on icon nodes, `layout: fixed` kept and ignored) and stay unchanged until edited.
 - **Editing icon and image nodes**: the resize handle sizes the icon or picture and writes `h` / `w` into its node data; **Convert to icon node** (toolbar popover and Properties) makes a label's leading icon the node's.
 - Two examples: Architecture with icons and Icons, images and rich labels.
+- **Subgraph `direction`**: `direction LR` inside a flowchart subgraph lays out its contents that way, as Mermaid honours it (not when a link from outside reaches a node inside); it was read and ignored.
+- **Reset positions in this group**: a subgraph's ⋮ menu, its right-click menu and Properties forget the hand-placed positions inside that subgraph only, and auto layout arranges its contents again while the subgraph keeps its place.
+- **`canvas.layout: "legacy"`** (`%%@ canvas {"layout":"legacy"}`) keeps the earlier automatic layout of flowcharts with subgraphs, for one minor release.
 
 ### Changed (breaking)
 
@@ -48,6 +51,7 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project f
 
 ### Changed
 
+- **Automatic layout of flowcharts with subgraphs**: each subgraph is laid out as a container of its own and moves as one box, so subgraph frames no longer overlap each other or other nodes, nested subgraphs sit inside their parents with room for their titles, connectors go around subgraphs that hold neither of their ends, and a link to a subgraph ends on its frame (it went to the subgraph's first node). Plain Mermaid files with subgraphs, and nodes added later to diagrams laid out by hand, are placed differently than before; diagrams whose nodes all have stored positions look the same. In a diagram with some hand-placed items, new items go below the hand-placed ones of their own subgraph rather than below the whole diagram. `%%@ canvas {"layout":"legacy"}` keeps the earlier layout for one minor release.
 - **The editor loads diagram types on demand**: the code of a type arrives the first time a document of that type is shown (the editor's first chunk is about 15 kB smaller); `whenLoaded()` also waits for it.
 - **Each diagram type plugs in through one set of kinds** (view, diff, ops and edit), so adding a type no longer means edits all over the code base ([Contributing → Adding a diagram type](https://udamir.github.io/mmdx/guide/contributing#adding-a-diagram-type)).
 - **The editor writes shapes to the Mermaid code**: the shape picker, Properties and the Shapes menu write a bracket (`A{"…"}`) or, for shapes without one, a separate `A@{ shape: lin-cyl }` statement after the graph's statements (Mermaid Chart's style), so the file shows the same shapes in stock Mermaid. Metadata `shape` is left for shapes Mermaid lacks and for nodes whose preset draws another shape. Shapes older files keep in metadata move to the code when the node is edited or through the `flow.meta-shape` fix, never on a plain save.

@@ -69,6 +69,10 @@ In the editor, a markdown label is edited with its `**` and `*` as typed: the Bo
 
 The frontmatter's `flowchart.curve` (or `%%{init: {"flowchart": {"curve": …}}}%%`) is the diagram's default curve.
 
+## Subgraphs
+
+Each subgraph is laid out as a container of its own, so subgraphs never overlap, and connectors do not cross a subgraph that holds neither of their ends. `direction LR` (or `TB`, `BT`, `RL`) inside a subgraph lays out its contents that way, as Mermaid does: unless a link from outside reaches a node inside it, in which case the subgraph takes its parent's direction (a link to the subgraph itself, `A --> sub`, does not count). A link to a subgraph ends on its frame. See [the editor's auto layout](/components/editor#auto-layout) for diagrams with hand-placed items and the `legacy` layout of earlier versions.
+
 ## Classes and styles
 
 - `classDef default …` styles every node, under the node's own classes.
