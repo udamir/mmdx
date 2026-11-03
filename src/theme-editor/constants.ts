@@ -49,6 +49,20 @@ export const DEFAULT_SAMPLES: Readonly<Record<DiagramType, string>> = {
     string order_id FK
     int qty
   }`,
+  mindmap: `mindmap
+  root((Product))
+    Goals
+      Grow usage
+      **Faster** onboarding
+    Research[User research]
+      Interviews
+      Surveys
+    Launch))Launch((
+      Beta
+      Press
+    Risks{{Risks}}
+      Scope
+      Budget`,
 };
 export const TYPES: readonly DiagramType[] = DIAGRAM_TYPES;
 

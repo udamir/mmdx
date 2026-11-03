@@ -139,5 +139,23 @@
     "rel": {
       "color": "@line"
     }
+  },
+  "mindmap": {
+    "pagePresets": {
+      "both": {
+        "background": "#eff1f5"
+      },
+      "right": {
+        "background": "#eff1f5"
+      },
+      "down": {
+        "background": "#eff1f5"
+      }
+    },
+    "nodePresets": {
+      "plain": {
+        "stroke": "@border"
+      }
+    }
   }
 }

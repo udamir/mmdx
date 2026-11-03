@@ -346,6 +346,68 @@ export interface ErModel extends BaseModel {
   rels: ErRel[];
 }
 
+// ---- mindmap ----------------------------------------------------------------------------------------------------
+
+/** A mindmap node's shape as the code gives it: Mermaid's seven (the default is the underlined label). */
+export type MindShape = 'mm-default' | 'rect' | 'rounded' | 'circle' | 'bang' | 'cloud' | 'hexagon';
+
+export interface MindNode {
+  /** The written id when it is unique, else a positional `mm<k>` (k: the node's place in the code, 1-based). */
+  id: string;
+  /** The id as written (`id[text]`); null for a bare line or a bracket without an id. */
+  written: string | null;
+  label: string;
+  /** The text is a markdown string (`"`…`"`). */
+  md: boolean;
+  shape: MindShape;
+  /** The delimiters as written (`((`, `))`; empty for a bare line) and how the text is quoted. */
+  open: string;
+  close: string;
+  quote: 'none' | 'str' | 'md';
+  parent: string | null;
+  children: string[];
+  /** 0 for the root. */
+  depth: number;
+  /** Mermaid's section: -1 for the root, the first-level branch's index % 11 below it. */
+  section: number;
+  /** `::icon(fa fa-book)` as written (Mermaid parses but does not draw it). */
+  icon: string | null;
+  /** `:::a b` classes (the theme's presets of those names). */
+  classes: string[];
+  /** 0-based line of the node; `endLine` also covers its `::icon` / `:::` lines (and a quoted text over several lines). */
+  line: number;
+  endLine: number;
+  /** The indentation as written (Mermaid counts characters: a tab is one) and its length. */
+  indentText: string;
+  indent: number;
+  /** Offsets of the node statement in the code (after the indentation … after the closing delimiter). */
+  start: number;
+  end: number;
+}
+
+/** Settings of the frontmatter's `config.mindmap` / `%%{init}%%` that change the drawing. */
+export interface MindmapConfig {
+  /** Mermaid 12.2: colour by first-level branch (default) or by depth. */
+  colorBy?: 'branch' | 'depth';
+  /** Where labels wrap (default 200). */
+  maxNodeWidth?: number;
+}
+
+export interface MindmapModel extends BaseModel {
+  type: 'mindmap';
+  root: string | null;
+  /** Every node, in code order. */
+  nodes: Map<string, MindNode>;
+  colorBy: 'branch' | 'depth';
+  maxNodeWidth: number;
+  /** Settings as written (the editor writes `colorBy` back only when it differs from the default). */
+  config: MindmapConfig;
+  /** 0-based line of the `mindmap` header (-1 when missing). */
+  header: number;
+  /** The file's indentation step (detected; 2 spaces by default) for written lines. */
+  indentUnit: string;
+}
+
 // ---- unsupported ------------------------------------------------------------------------------------------------
 
 export interface UnsupportedModel extends BaseModel {
@@ -354,8 +416,8 @@ export interface UnsupportedModel extends BaseModel {
   keyword?: string;
 }
 
-export type DiagramModel = FlowchartModel | SequenceModel | ErModel | UnsupportedModel;
-export type SupportedModel = FlowchartModel | SequenceModel | ErModel;
+export type DiagramModel = FlowchartModel | SequenceModel | ErModel | MindmapModel | UnsupportedModel;
+export type SupportedModel = FlowchartModel | SequenceModel | ErModel | MindmapModel;
 
 export const isSupported = (m: DiagramModel): m is SupportedModel => m.type !== null;
 export type { DiagramType };

@@ -447,7 +447,7 @@ export class ThemeEditor {
       this.main.append(h('div', { class: 'te-type', role: 'heading', 'aria-level': '3', dataset: { dirty: sec.type } }, env.tf(`te.section.${sec.type}`, sec.title)));
       const onOpen = (): void => this.previewType.set(sec.type);
       for (const it of sec.items) {
-        const tabs = SHAPE_TABS[it.key];
+        const tabs = SHAPE_TABS[it.preview ?? it.key];
         const dirty = [`${sec.type}.${it.key}`, it.presets ? `${sec.type}.${it.presets}` : '', tabs ? `${sec.type}.${tabs.key}` : ''].filter(Boolean);
         this.main.append(card(env, { key: `${sec.type}.${it.key}`, title: env.tf(`te.item.${it.key}`, it.label), fill: (box) => itemGallery(env, box, sec.type, it), onOpen, dirty }));
       }

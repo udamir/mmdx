@@ -9,8 +9,9 @@ export const FACETS: readonly ChangeFacet[] = ['content', 'layout', 'style'];
 
 // ---- facet of a metadata key ------------------------------------------------------------------------------------
 
-export const LAYOUT_KEYS = new Set(['x', 'y', 'w', 'h', 'points', 'fromSide', 'toSide', 'fromAt', 'toAt', 'labelDx', 'labelDy', 'dy', 'layer']);
-export const CONTENT_KEYS = new Set(['link']);
+// mindmaps: `dx` / `dy` nudges, a branch's `side`, a folded subtree; a node's picture (`img`) is content
+export const LAYOUT_KEYS = new Set(['x', 'y', 'w', 'h', 'points', 'fromSide', 'toSide', 'fromAt', 'toAt', 'labelDx', 'labelDy', 'dy', 'layer', 'dx', 'side', 'collapsed']);
+export const CONTENT_KEYS = new Set(['link', 'img']);
 export const IGNORED_KEYS = new Set(['locked']);
 
 export const metaFacet = (k: string): ChangeFacet | null =>

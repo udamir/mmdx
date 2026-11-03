@@ -16,6 +16,8 @@ export interface PageSettings {
   mirror?: boolean;
   blockSpan?: 'full' | 'touched';
   margin?: number;
+  /** Mindmap layout: both sides of the root (default), to the right, or top down. */
+  mindLayout?: 'both' | 'right' | 'down';
 }
 
 export interface CanvasMeta extends PageSettings {
@@ -61,8 +63,18 @@ export interface ItemMeta extends StyleProps {
   labelDx?: number;
   labelDy?: number;
   points?: [number, number][];
-  // sequence
+  // sequence (extra space above); mindmap (a nudge, with dx)
   dy?: number;
+  // mindmap nodes
+  dx?: number;
+  /** A first-level branch's side of the root. */
+  side?: 'l' | 'r';
+  /** A branch colour: one of the theme's mindmap sections (0–11), for the node and its subtree. */
+  section?: number;
+  /** The subtree is folded (a +N badge shows how many nodes it holds). */
+  collapsed?: boolean;
+  /** A picture above the label (URL; mindmaps have no image syntax). */
+  img?: string;
   // entities
   attrs?: Record<string, AttrHighlight>;
   [extra: string]: unknown;

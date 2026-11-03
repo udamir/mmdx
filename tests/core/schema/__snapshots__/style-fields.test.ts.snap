@@ -172,6 +172,24 @@ exports[`style fields > field definitions 1`] = `
     "label": "Max width",
     "type": "number",
   },
+  "mindLayout": {
+    "label": "Layout",
+    "options": [
+      [
+        "both",
+        "both sides",
+      ],
+      [
+        "right",
+        "to the right",
+      ],
+      [
+        "down",
+        "top down",
+      ],
+    ],
+    "type": "select",
+  },
   "mirror": {
     "label": "Participants at the bottom",
     "type": "toggle",
@@ -912,6 +930,66 @@ exports[`style fields > theme editor sections 1`] = `
     "routing": true,
     "title": "ER diagram",
     "type": "er",
+  },
+  {
+    "items": [
+      {
+        "fields": [
+          "fill",
+          "stroke",
+          "text",
+          "strokeWidth",
+          "fontSize",
+          "fontWeight",
+          "radius",
+          "shape",
+        ],
+        "key": "root",
+        "label": "Root",
+        "preview": "mm-root",
+      },
+      {
+        "fields": [
+          "fill",
+          "stroke",
+          "text",
+          "strokeWidth",
+          "fontSize",
+          "fontWeight",
+          "radius",
+          "shape",
+        ],
+        "key": "node",
+        "label": "Node",
+        "presets": "nodePresets",
+        "preview": "mm-node",
+      },
+      {
+        "fields": [
+          "width",
+        ],
+        "key": "branch",
+        "label": "Branch",
+        "preview": "mm-branch",
+      },
+      {
+        "fields": [
+          "fill",
+          "text",
+          "color",
+        ],
+        "key": "section",
+        "label": "Sections (branch colours)",
+        "presets": "sections",
+        "preview": "mm-section",
+      },
+    ],
+    "pageFields": [
+      "mindLayout",
+    ],
+    "routing": false,
+    "title": "Mindmap",
+    "type": "mindmap",
   },
 ]
 `;

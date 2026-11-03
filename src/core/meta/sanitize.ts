@@ -58,7 +58,7 @@ const CLEANERS: Record<string, Cleaner> = {
   background: color, border: color, grid: color,
   labelColor: (v) => (v === null ? v : color(v)),
   // geometry
-  x: COORD, y: COORD, labelDx: COORD, labelDy: COORD, dy: COORD,
+  x: COORD, y: COORD, labelDx: COORD, labelDy: COORD, dy: COORD, dx: COORD,
   w: SIZE, h: SIZE, minW: SIZE, minH: SIZE, maxW: SIZE, padX: SIZE, padY: SIZE, pad: SIZE, padTop: SIZE,
   radius: SIZE, margin: SIZE, gap: SIZE, rowH: SIZE, top: SIZE, blockGapTop: SIZE, blockGapBottom: SIZE, blockPad: SIZE,
   lineH: num(0, 10),
@@ -80,14 +80,16 @@ const CLEANERS: Record<string, Cleaner> = {
   mode: oneOf('compact', 'table'),
   blockSpan: oneOf('full', 'touched'),
   layout: oneOf('legacy', 'compound'),
+  // mindmaps: the layout, a first-level branch's side, its colour (a section of the theme), a folded subtree
+  mindLayout: oneOf('both', 'right', 'down'), side: oneOf('l', 'r'), section: int(0, 11),
   stack,
   locked: bool, hidden: bool, mirror: bool, labelOnLine: bool, showTag: bool, showTypes: bool, showComments: bool,
-  pkUnderline: bool, wrap: bool,
+  pkUnderline: bool, wrap: bool, collapsed: bool,
   arrow: ident, startArrow: ident, endArrow: ident, shape: ident, for: ident,
   ratio,
   // names; `link` stays a string here — the renderer applies the link policy (safeUrl)
   preset: text(200), layer: text(200), theme: text(200), name: text(200), label: text(200),
-  link: text(2048),
+  link: text(2048), img: text(2048),
 };
 
 const ATTR_CLEANERS: Record<string, Cleaner> = { color, bold: bool, underline: bool };

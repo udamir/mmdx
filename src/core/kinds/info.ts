@@ -19,6 +19,7 @@ export const KIND_INFO: Readonly<Record<DiagramType, KindInfo>> = {
   flowchart: { type: 'flowchart', header: /^(flowchart|graph)\b/i, starter: 'flowchart TB\n', label: 'type.flowchart' },
   sequence: { type: 'sequence', header: /^sequenceDiagram\b/, starter: 'sequenceDiagram\n', label: 'type.sequence' },
   er: { type: 'er', header: /^erDiagram\b/, starter: 'erDiagram\n', label: 'type.er' },
+  mindmap: { type: 'mindmap', header: /^mindmap\b/i, starter: 'mindmap\n  root((Topic))\n', label: 'type.mindmap' },
 };
 
 /** The diagram types, in UI order. */

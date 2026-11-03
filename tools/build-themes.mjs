@@ -156,6 +156,10 @@ function shell(s, palette, grid) {
       pagePresets: { whiteboard: page, schema: grid, slide: page },
       entity: { stroke: '@border' }, rel: { color: '@line' },
     },
+    mindmap: {
+      pagePresets: { both: page, right: page, down: page },
+      nodePresets: { plain: { stroke: '@border' } },
+    },
   };
 }
 

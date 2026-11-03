@@ -1,0 +1,33 @@
+---
+config:
+  mindmap:
+    colorBy: depth
+---
+mindmap
+  root(Cell biology)
+    cells[Cell types]
+      Prokaryotes
+        Bacteria
+        Archaea
+      Eukaryotes
+        Animal cells
+        Plant cells
+    organelles)Organelles(
+      Nucleus
+      ::icon(fa fa-flask)
+      Mitochondria
+      Ribosomes
+      Chloroplasts
+      :::idea
+    processes["Processes (core)"]
+      Mitosis
+      Meiosis
+      Photosynthesis
+    exam["`**Exam** tips
+*review* weekly`"]
+      Flash cards
+      Past papers
+
+%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----
+%%@ canvas {"v":1,"mindLayout":"right"}
+%%@ node exam {"collapsed":true}

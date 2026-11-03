@@ -114,7 +114,16 @@ export interface ErGeometry {
   rels: Map<string, EdgeGeom>;
 }
 
-export type GeometryIndex = FlowGeometry | SequenceGeometry | ErGeometry | { type: null };
+export interface MindmapGeometry {
+  type: 'mindmap';
+  /** Node boxes; `side`: where the node grows from its parent (r, l, d; the root has none), `depth` from the root. */
+  nodes: Map<string, BoxGeom & { side?: 'l' | 'r' | 'd'; depth: number; parent: string | null; section: number }>;
+  /** Branch paths, keyed by the child's id. */
+  branches: Map<string, string>;
+  root: string | null;
+}
+
+export type GeometryIndex = FlowGeometry | SequenceGeometry | ErGeometry | MindmapGeometry | { type: null };
 
 export interface PageStyle {
   /** `transparent` when not set. */

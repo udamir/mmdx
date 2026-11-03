@@ -32,11 +32,12 @@ export function orderStep(code: string, model: DiagramModel, sel: ItemRef, dir: 
   if (r.reason || r.code === code) return r.reason ? { reason: r.reason } : null;
   const M = reparse(r.code);
   const other = 'other' in r ? r.other : undefined;
-  if (STABLE_IDS.has(sel.kind)) return { code: r.code, model: M, sel, ...(other !== undefined ? { other } : {}) };
-  // Positional ids: find the moved item by its line.
+  // Positional ids (and a kind's own, like mindmap nodes without a written id): find the moved item by its line.
   const line = 'line' in r ? r.line : undefined;
   const id = withOps(M, (k, m) => k.relocate?.(m, sel, line));
-  return id !== undefined ? { code: r.code, model: M, sel: { kind: sel.kind, id } } : null;
+  if (id !== undefined) return { code: r.code, model: M, sel: { kind: sel.kind, id }, ...(other !== undefined ? { other } : {}) };
+  if (STABLE_IDS.has(sel.kind)) return { code: r.code, model: M, sel, ...(other !== undefined ? { other } : {}) };
+  return null;
 }
 
 /** Draw order among items of the same kind (nodes and tables by definition line, edges and relations by line). */

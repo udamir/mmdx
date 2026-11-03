@@ -65,6 +65,7 @@ export const FIELD_DEFS: Readonly<Record<string, FieldDef>> = {
   background: { label: 'Background', type: 'color' }, border: { label: 'Border', type: 'color' },
   gap: { label: 'Participant gap', type: 'number' }, rowH: { label: 'Row height', type: 'number' },
   mirror: { label: 'Participants at the bottom', type: 'toggle' }, blockSpan: { label: 'Block width', type: 'select', options: ['full', 'touched'] },
+  mindLayout: { label: 'Layout', type: 'select', options: [['both', 'both sides'], ['right', 'to the right'], ['down', 'top down']] },
 };
 
 /** The page fields of the Properties panel (all diagram types / sequence only). */
@@ -85,11 +86,16 @@ export const STYLE_FIELDS: Readonly<Record<ItemKind, readonly string[]>> = {
   box: ['fill', 'stroke', 'strokeWidth', 'dash', 'text', 'labelSize'],
 };
 
+/** Mindmap nodes: no stack, wrap or alignment (labels wrap at Mermaid's maxNodeWidth). */
+const MIND_NODE_FIELDS: readonly string[] = ['fill', 'stroke', 'text', 'strokeWidth', 'fontSize', 'fontWeight', 'radius', 'shape'];
+
 export interface ThemeSectionItem {
   key: string;
   label: string;
   fields: readonly string[];
   presets?: string;
+  /** The preview sample when it is not the item key's (ui/item-preview: `mm-node`…). */
+  preview?: string;
 }
 
 /** A section of the theme editor: its title, item types, and its page presets' own fields. */
@@ -120,6 +126,13 @@ const SECTION_UI: Readonly<Record<DiagramType, ThemeSection>> = {
   er: { title: 'ER diagram', routing: true, items: [
     { key: 'entity', label: 'Table', fields: STYLE_FIELDS.entity, presets: 'entityPresets' },
     { key: 'rel', label: 'Relationship', fields: STYLE_FIELDS.rel, presets: 'relPresets' },
+  ] },
+  mindmap: { title: 'Mindmap', routing: false, pageFields: ['mindLayout'], items: [
+    { key: 'root', label: 'Root', fields: MIND_NODE_FIELDS, preview: 'mm-root' },
+    { key: 'node', label: 'Node', fields: MIND_NODE_FIELDS, presets: 'nodePresets', preview: 'mm-node' },
+    { key: 'branch', label: 'Branch', fields: ['width'], preview: 'mm-branch' },
+    // the section colours as presets of an empty base: one tile per section
+    { key: 'section', label: 'Sections (branch colours)', fields: ['fill', 'text', 'color'], presets: 'sections', preview: 'mm-section' },
   ] },
 };
 
@@ -231,6 +244,7 @@ const COMMON_DEFS = (): Record<string, JsonSchema> => ({
       mirror: fieldSchema('mirror', FIELD_DEFS['mirror']!),
       blockSpan: fieldSchema('blockSpan', FIELD_DEFS['blockSpan']!),
       margin: { type: 'number', minimum: 0, title: 'Sequence margin' },
+      mindLayout: { enum: ['both', 'right', 'down'], title: 'Mindmap layout' },
     },
     additionalProperties: true,
   },
@@ -281,6 +295,15 @@ export function themeJsonSchema(): JsonSchema {
         additionalProperties: true,
       },
       er: { type: 'object', properties: { entity: style, entityPresets: presets, rel: style, relPresets: presets, pagePresets: ref('pagePresets') }, additionalProperties: true },
+      mindmap: {
+        type: 'object',
+        properties: {
+          root: style, node: style, nodeShapes: shapes, nodePresets: presets, branch: style,
+          sections: recordOf(style, 'Section colours "0"…"11": fill and text of shaped nodes, colour of the branch and the underline'),
+          pagePresets: ref('pagePresets'),
+        },
+        additionalProperties: true,
+      },
     },
     additionalProperties: true,
     $defs: COMMON_DEFS(),
@@ -311,7 +334,13 @@ export function metaJsonSchema(): JsonSchema {
   });
   const box = { x: num('Centre x'), y: num('Centre y'), w: num('Width'), h: num('Height') };
   const items: Record<string, JsonSchema> = {
-    node: item(box),
+    node: item({
+      ...box,
+      // mindmaps
+      dx: num('Nudge x (mindmap)'), dy: num('Nudge y (mindmap)'), side: { enum: ['l', 'r'], description: 'A first-level mindmap branch: its side of the root' },
+      section: { type: 'integer', minimum: 0, maximum: 11, description: 'A mindmap branch colour (a section of the theme) for the node and its subtree' },
+      collapsed: { type: 'boolean', description: 'A folded mindmap branch' }, img: { type: 'string', maxLength: 2048, description: 'A picture above a mindmap node (URL)' },
+    }),
     // a group's x / y is its top-left: a frame with w / h, or (without them) the place "Reset positions in this group" keeps
     group: item({ x: num('Left'), y: num('Top'), w: num('Width'), h: num('Height'), titleSize: num(), titleColor: ref('color') }),
     edge: item({ ...LINE_GEOM(), startArrow: ref('arrow'), endArrow: ref('arrow') }),
@@ -351,7 +380,7 @@ export function metaJsonSchema(): JsonSchema {
       },
       layers: recordOf({ type: 'object', properties: { name: { type: 'string' }, hidden: { type: 'boolean' } }, additionalProperties: true }),
       groups: coll('group', 'Flowchart subgraphs'),
-      nodes: coll('node', 'Flowchart nodes'),
+      nodes: coll('node', 'Flowchart nodes; mindmap nodes (their written id, else mm1, mm2… in code order)'),
       edges: coll('edge', 'Flowchart edges, keyed `from->to` or `from->to#n`'),
       participants: coll('participant', 'Sequence participants'),
       messages: coll('message', 'Messages (positional ids m1, m2…)'),

@@ -5,6 +5,7 @@ import { activationsOf } from '../../../src/core/ids.js';
 import type { DiagramModel } from '../../../src/core/model.js';
 import { parse } from '../../../src/core/parse/index.js';
 import * as OPS from '../../../src/core/ops/index.js';
+import * as MM from '../../../src/core/ops/mindmap.js';
 import type { ItemRef } from '../../../src/core/types.js';
 import { EXAMPLES } from './helpers.js';
 
@@ -155,10 +156,40 @@ function seqCases(code: string, m: DiagramModel): Case[] {
   return cs;
 }
 
+/** Every mindmap op on every node (and the stock-Mermaid check of their outputs is in mindmap.test.ts). */
+function mindCases(code: string, m: DiagramModel): Case[] {
+  if (m.type !== 'mindmap') return [];
+  const cs: Case[] = [];
+  const add = (name: string, run: Case['run']): void => void cs.push({ name, run });
+  const ids = [...m.nodes.keys()];
+  for (const id of ids) {
+    const sel: ItemRef = { kind: 'node', id };
+    add(`relabel ${id}`, (x) => MM.relabelMind(code, x as never, id, LABEL));
+    add(`relabel md ${id}`, (x) => MM.relabelMind(code, x as never, id, '**b** (x)', true));
+    for (const s of ['mm-default', 'rect', 'rounded', 'circle', 'bang', 'cloud', 'hexagon']) add(`shape ${id} ${s}`, (x) => MM.setMindShape(code, x as never, id, s));
+    add(`child ${id}`, (x) => MM.addMindChild(code, x as never, id));
+    add(`sibling ${id}`, (x) => MM.addMindSibling(code, x as never, id));
+    add(`indent ${id}`, (x) => MM.indentMind(code, x as never, id));
+    add(`outdent ${id}`, (x) => MM.outdentMind(code, x as never, id));
+    for (const d of [-1, 1] as const) add(`move ${id} ${d}`, (x) => MM.moveMind(code, x as never, id, d));
+    add(`delete ${id}`, (x) => MM.deleteMind(code, x as never, [sel]));
+    add(`lift ${id}`, (x) => MM.liftMind(code, x as never, id));
+    add(`clone ${id}`, (x) => MM.cloneMind(code, x as never, [sel]));
+    add(`icon ${id}`, (x) => MM.setMindIcon(code, x as never, id, 'fa:book'));
+    add(`no icon ${id}`, (x) => MM.setMindIcon(code, x as never, id, null));
+    add(`paste ${id}`, (x) => MM.pasteMindText(code, x as never, id, '- a\n  - b (c)\n- d'));
+    add(`reparent ${id} to root`, (x) => MM.reparentMind(code, x as never, id, m.root!, 0));
+    add(`copy ${id} to last`, (x) => MM.reparentMind(code, x as never, id, ids[ids.length - 1]!, 0, true));
+  }
+  add('colorBy depth', () => MM.setMindColorBy(code, 'depth'));
+  add('colorBy branch', () => MM.setMindColorBy(code, 'branch'));
+  return cs;
+}
+
 describe('ops on the examples', () => {
   for (const ex of EXAMPLES) {
     const m = parse(ex.code);
-    const cases = [...flowCases(ex.code, m), ...erCases(ex.code, m), ...seqCases(ex.code, m)];
+    const cases = [...flowCases(ex.code, m), ...erCases(ex.code, m), ...seqCases(ex.code, m), ...mindCases(ex.code, m)];
     it(`${ex.name}: ${cases.length} cases`, () => {
       expect(cases.length).toBeGreaterThan(5);
       // every rewrite still parses, as the same type, without new errors

@@ -600,5 +600,138 @@
         "labelColor": "@slate"
       }
     }
+  },
+  "mindmap": {
+    "pagePresets": {
+      "both": {
+        "label": "Both sides",
+        "background": "@paper",
+        "mindLayout": "both"
+      },
+      "right": {
+        "label": "To the right",
+        "background": "@paper",
+        "mindLayout": "right"
+      },
+      "down": {
+        "label": "Top down",
+        "background": "@paper",
+        "mindLayout": "down"
+      }
+    },
+    "root": {
+      "fill": "@charcoal",
+      "stroke": "@charcoal",
+      "text": "@paper",
+      "strokeWidth": 0,
+      "fontSize": 20,
+      "fontWeight": 600,
+      "radius": 24,
+      "padX": 26,
+      "padY": 16,
+      "shape": "rounded"
+    },
+    "node": {
+      "text": "@ink",
+      "fontSize": 16,
+      "fontWeight": 400,
+      "strokeWidth": 1.6,
+      "radius": 10,
+      "padX": 12,
+      "padY": 8
+    },
+    "branch": {
+      "width": 11
+    },
+    "sections": {
+      "0": {
+        "fill": "@sky",
+        "text": "@ink",
+        "color": "@azure"
+      },
+      "1": {
+        "fill": "@peach",
+        "text": "@ink",
+        "color": "@rust"
+      },
+      "2": {
+        "fill": "@mint",
+        "text": "@ink",
+        "color": "@jade"
+      },
+      "3": {
+        "fill": "@lavender",
+        "text": "@ink",
+        "color": "@iris"
+      },
+      "4": {
+        "fill": "@rose",
+        "text": "@ink",
+        "color": "@coral"
+      },
+      "5": {
+        "fill": "@butter",
+        "text": "@ink",
+        "color": "@bronze"
+      },
+      "6": {
+        "fill": "@sage",
+        "text": "@ink",
+        "color": "@emerald"
+      },
+      "7": {
+        "fill": "@ice",
+        "text": "@ink",
+        "color": "@teal"
+      },
+      "8": {
+        "fill": "@pink",
+        "text": "@ink",
+        "color": "@magenta"
+      },
+      "9": {
+        "fill": "@pale-lime",
+        "text": "@ink",
+        "color": "@forest"
+      },
+      "10": {
+        "fill": "@apricot",
+        "text": "@ink",
+        "color": "@brown"
+      },
+      "11": {
+        "fill": "@violet",
+        "text": "@ink",
+        "color": "@red"
+      }
+    },
+    "nodePresets": {
+      "idea": {
+        "fill": "@cream",
+        "stroke": "@bronze"
+      },
+      "urgent": {
+        "fill": "@rose",
+        "stroke": "@red",
+        "fontWeight": 600
+      },
+      "done": {
+        "fill": "@sage",
+        "stroke": "@emerald"
+      },
+      "question": {
+        "fill": "@ice",
+        "stroke": "@teal",
+        "shape": "cloud"
+      },
+      "muted": {
+        "text": "@slate",
+        "color": "@silver"
+      },
+      "plain": {
+        "fill": "@paper",
+        "stroke": "@frame"
+      }
+    }
   }
 }

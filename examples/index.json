@@ -7,6 +7,8 @@
     {"id": "fusion-services", "title": "Flowchart: Fusion services", "file": "fusion-services.mmdx", "tags": ["flowchart"], "history": "history/fusion-services.json"},
     {"id": "simple-flow", "title": "Flowchart: auto layout", "file": "simple-flow.mmdx", "tags": ["flowchart"], "history": "history/simple-flow.json"},
     {"id": "architecture-icons", "title": "Flowchart: Architecture with icons", "file": "architecture-icons.mmdx", "tags": ["flowchart", "icons"]},
-    {"id": "media", "title": "Flowchart: Icons, images and rich labels", "file": "media.mmdx", "tags": ["flowchart", "icons", "images"]}
+    {"id": "media", "title": "Flowchart: Icons, images and rich labels", "file": "media.mmdx", "tags": ["flowchart", "icons", "images"]},
+    {"id": "product-mindmap", "title": "Mindmap: Product launch", "file": "product-mindmap.mmdx", "tags": ["mindmap"], "history": "history/product-mindmap.json"},
+    {"id": "study-notes", "title": "Mindmap: Study notes", "file": "study-notes.mmdx", "tags": ["mindmap"], "history": "history/study-notes.json"}
   ]
 }

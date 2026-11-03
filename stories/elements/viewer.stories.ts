@@ -102,6 +102,12 @@ export const Sequence: Story = { args: { source: SMALL_SEQUENCE } };
 
 export const EntityRelationship: Story = { name: 'ER diagram', args: { source: SMALL_ER } };
 
+/** A mindmap (T08): the two-sided tidy tree, the seven shapes, branch colours, icons as label tokens, markdown. */
+export const Mindmap: Story = { args: { source: example('product-mindmap') } };
+
+/** Colour by depth (`config.mindmap.colorBy`), the right-hand layout, an `::icon()`, a quoted label and a folded branch (+N). */
+export const MindmapByDepth: Story = { name: 'Mindmap: colour by depth, folded branch', args: { source: example('study-notes') } };
+
 export const AllControls: Story = {
   name: 'All controls',
   args: { source: example('production-microservices'), controls: ['zoom', 'layers', 'pen', 'code', 'export', 'fullscreen'] },

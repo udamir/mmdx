@@ -23,6 +23,7 @@ const SECTION_DEFAULTS: { readonly [T in DiagramType]: () => ResolvedTheme[T] } 
     pagePresets: {},
   }),
   er: () => ({ entity: {}, entityPresets: {}, rel: {}, relPresets: {}, pagePresets: {} }),
+  mindmap: () => ({ root: {}, node: {}, nodePresets: {}, branch: {}, sections: {}, pagePresets: {} }),
 };
 
 export const BASELINE = BASE_THEME_ID;
@@ -173,6 +174,7 @@ export class ThemeRegistry {
       flowchart: { ...SECTION_DEFAULTS.flowchart(), ...t.flowchart },
       sequence: { ...SECTION_DEFAULTS.sequence(), ...t.sequence },
       er: { ...SECTION_DEFAULTS.er(), ...t.er },
+      mindmap: { ...SECTION_DEFAULTS.mindmap(), ...t.mindmap },
     };
   }
 }

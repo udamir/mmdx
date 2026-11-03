@@ -3,10 +3,11 @@
 import { registerExtendedShapes } from '../shapes/extended.js';
 import { VIEW as er } from './er.js';
 import { VIEW as flowchart } from './flowchart.js';
+import { VIEW as mindmap } from './mindmap.js';
 import { registerKinds } from './registry.js';
 import { VIEW as sequence } from './sequence.js';
 import type { Kinds } from './types.js';
 
 registerExtendedShapes();
 
-export const ALL_VIEW_KINDS: Kinds = registerKinds({ flowchart, sequence, er });
+export const ALL_VIEW_KINDS: Kinds = registerKinds({ flowchart, sequence, er, mindmap });

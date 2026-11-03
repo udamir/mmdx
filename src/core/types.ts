@@ -22,7 +22,7 @@ export interface Rect {
   h: number;
 }
 
-export type DiagramType = 'flowchart' | 'sequence' | 'er';
+export type DiagramType = 'flowchart' | 'sequence' | 'er' | 'mindmap';
 
 export type ItemKind =
   | 'node' | 'group' | 'edge' // flowchart

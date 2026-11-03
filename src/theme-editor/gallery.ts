@@ -88,7 +88,7 @@ export function itemGallery(env: Env, box: HTMLElement, type: DiagramType, it: T
   const props = h('div', { class: 'te-props' });
   box.dataset['item'] = `${type}.${it.key}`;
   // nodes / participants: one tab per shape; each shape has its own default style and its own presets
-  const tabs = SHAPE_TABS[it.key];
+  const tabs = SHAPE_TABS[it.preview ?? it.key];
   const curShape = (): string => (tabs ? (env.tabShape[it.key] ??= tabs.def) : '');
   const shapesPath = (shape: string): string => `${type}.${tabs?.key ?? ''}.${shape}`;
   const names = (): string[] => {
@@ -137,7 +137,7 @@ export function itemGallery(env: Env, box: HTMLElement, type: DiagramType, it: T
     if (!pic) return;
     const th = typeof getComputedStyle === 'function' ? parseFloat(getComputedStyle(gallery.el).getPropertyValue('--th')) : NaN;
     const shape = tabs ? curShape() : undefined;
-    drawItemPreview(pic, it.key as PreviewKind, key === DEFAULT ? null : key, draft.resolved.peek(), { zoom: env.zoom.peek(), minH: Number.isFinite(th) && th > 0 ? th : 90, ctx: env.ctx, ...(shape ? { shape } : {}) });
+    drawItemPreview(pic, (it.preview ?? it.key) as PreviewKind, key === DEFAULT ? null : key, draft.resolved.peek(), { zoom: env.zoom.peek(), minH: Number.isFinite(th) && th > 0 ? th : 90, ctx: env.ctx, ...(shape ? { shape } : {}) });
   };
 
   const selected = derived(() => {

@@ -41,6 +41,7 @@ const EN: Messages = {
   'label.flowchart': 'Flowchart: {nodes} nodes, {edges} connections',
   'label.sequence': 'Sequence diagram: {participants} participants, {messages} messages',
   'label.er': 'ER diagram: {entities} tables, {rels} relationships',
+  'label.mindmap': 'Mindmap: {nodes} nodes',
   'label.empty': 'Empty diagram',
   'label.unsupported': 'Diagram',
   'help.title': 'Shortcuts',

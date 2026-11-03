@@ -10,7 +10,7 @@ import type { ItemKind, Point } from '../../../core/types.js';
 import { h } from '../../../ui/h.js';
 import { registerMessages } from '../../../ui/i18n.js';
 import type { ShapePaletteHandle, ShapePaletteItem } from '../../../ui/blocks/shape-palette.js';
-import { drawItemPreview, type PreviewKind } from '../../../ui/item-preview.js';
+import { drawItemPreview, previewKind, type PreviewKind } from '../../../ui/item-preview.js';
 import { fitPresetGrid } from '../../../ui/shape-preview.js';
 import type { EditorCore } from '../../core.js';
 import type { EditorModule } from '../../module.js';
@@ -217,7 +217,7 @@ export const shapesModule: EditorModule = {
       // narrow canvas: slide left (over the menu) rather than be cut off by the canvas edge
       sub.style.left = `${Math.min(mr.right + 8, rr.right - 8 - ww) - rr.left}px`;
       sub.style.top = `${Math.max(rr.top + 8, Math.min(ar.top - 12, rr.bottom - 8 - hh)) - rr.top}px`;
-      for (const [pic, name] of pics) preview(pic, kind as PreviewKind, name, 40, spec.shape);
+      for (const [pic, name] of pics) preview(pic, previewKind(core.model.type, kind), name, 40, spec.shape);
     }
 
     /** The grid palette's one item (ER tables) and its presets. */
@@ -252,7 +252,7 @@ export const shapesModule: EditorModule = {
       const { w: ww, h: hh } = fitPresetGrid(sub, rr.right - tr.right - 16, rr.height - 16);
       sub.style.left = `${Math.min(tr.right + 8, rr.right - 8 - ww) - rr.left}px`;
       sub.style.top = `${Math.max(rr.top + 8, Math.min(br.top - 12, rr.bottom - 8 - hh)) - rr.top}px`;
-      for (const [pic, name] of pics) preview(pic, gi.kind as PreviewKind, name, 56);
+      for (const [pic, name] of pics) preview(pic, previewKind(core.model.type, gi.kind), name, 56);
     };
 
     const hideTablePresets = (): void => {

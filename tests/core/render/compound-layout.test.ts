@@ -18,7 +18,8 @@ import { EXAMPLES, makeCtx, registry } from './helpers.js';
 
 const FIXTURES = join(__dirname, '../../fixtures');
 const DOCS = readdirSync(join(FIXTURES, 'mermaid-docs'))
-  .filter((f) => f.endsWith('.mmd'))
+  // the flowchart samples (the mindmap ones are tests/core/parse/mindmap.test.ts's)
+  .filter((f) => f.endsWith('.mmd') && f.startsWith('subgraph-'))
   .sort()
   .map((name) => ({ name, src: readFileSync(join(FIXTURES, 'mermaid-docs', name), 'utf8') }));
 const WHITEBOARD = { name: 'whiteboard.mmd', src: readFileSync(join(FIXTURES, 'mermaid-chart/whiteboard.mmd'), 'utf8') };

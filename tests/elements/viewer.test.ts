@@ -70,6 +70,20 @@ describe('kinds on demand', () => {
       sr.host.remove();
     });
 
+    it('a mindmap (T08) loads its kind, then bang, cloud and the media kit for its shapes, icons and markdown', async () => {
+      forgetKinds();
+      forgetShapes();
+      forgetMediaKit();
+      const sr = await show(example('product-mindmap.mmdx'));
+      expect(hasKind('mindmap')).toBe(true);
+      expect(shapeById('bang')).toBeDefined();
+      expect(sr.querySelectorAll('.el.mm-node').length).toBe(25);
+      expect(sr.querySelector('.el[data-id="launch"] path')).not.toBeNull();
+      expect(sr.querySelector('.el.mm-node tspan[font-weight="700"]')?.textContent).toBe('Faster');
+      expect(sr.querySelector('[aria-label="Mindmap: 25 nodes"]')).not.toBeNull();
+      sr.host.remove();
+    });
+
     it('do not load for a flowchart of the 17', async () => {
       forgetShapes();
       const sr = await show('flowchart LR\n  a[(DB)] --> b{Q} --> c([End])\n  d@{ shape: cyl }');

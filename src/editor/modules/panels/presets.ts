@@ -10,7 +10,7 @@ import { participantPresetShape, presetShape } from '../../../core/render/common
 import { KIND_TO_COLL } from '../../../core/meta/types.js';
 import type { ItemRef } from '../../../core/types.js';
 import { h, icon } from '../../../ui/h.js';
-import { drawItemPreview } from '../../../ui/item-preview.js';
+import { drawItemPreview, previewKind } from '../../../ui/item-preview.js';
 import type { EditorCore } from '../../core.js';
 import { applyDoc, applyMeta, styleEnv } from '../../ops/doc.js';
 import { shapeDoc } from '../../ops/shape.js';
@@ -191,7 +191,7 @@ export function presetPicker(core: EditorCore, grid: HTMLElement, ref: ItemRef, 
   const draw = (): void => {
     for (const [pic, name] of items) {
       try {
-        drawItemPreview(pic, kind, name, env.theme, { fit: { h: fitH }, styles: env.meta.styles, ...(kind === 'node' || kind === 'participant' ? (shape ? { shape } : {}) : {}) });
+        drawItemPreview(pic, previewKind(env.model.type, kind), name, env.theme, { fit: { h: fitH }, styles: env.meta.styles, ...(kind === 'node' || kind === 'participant' ? (shape ? { shape } : {}) : {}) });
       } catch (e) {
         console.error('[mmdx] preset preview', e);
       }

@@ -2,6 +2,7 @@
 import type { EditorModule } from '../module.js';
 import { CANVAS_MODULES } from './canvas/index.js';
 import { erTableModule } from './er-table/index.js';
+import { mindmapModule } from './mindmap/index.js';
 import { connectModule } from './connect/index.js';
 import { sequenceModule } from './sequence/index.js';
 import { shapesModule } from './shapes/index.js';
@@ -29,6 +30,8 @@ const VERSION = new Set(['canvas-select', 'canvas-structure', 'code-panel', 'rig
 export const DEFAULT_MODULES: readonly EditorModule[] = ([
   // first: while a table is edited its rows take the keys (Esc, Delete, ⌘A, Enter, arrows) before the canvas does
   erTableModule,
+  // the outline keys (Tab, Enter, arrows) of a mindmap come before the canvas's
+  mindmapModule,
   ...CANVAS_MODULES,
   connectModule,
   sequenceModule,

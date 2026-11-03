@@ -14,7 +14,8 @@ const files = [
   ...EXAMPLES.filter((ex) => /^\s*subgraph\b/m.test(ex.src)),
   { name: 'whiteboard.mmd', src: readFileSync(join(FIXTURES, 'mermaid-chart/whiteboard.mmd'), 'utf8') },
   ...readdirSync(join(FIXTURES, 'mermaid-docs'))
-    .filter((f) => f.endsWith('.mmd'))
+    // the flowchart samples (the mindmap ones are tests/core/parse/mindmap.test.ts's)
+    .filter((f) => f.endsWith('.mmd') && f.startsWith('subgraph-'))
     .sort()
     .map((name) => ({ name, src: readFileSync(join(FIXTURES, 'mermaid-docs', name), 'utf8') })),
 ];

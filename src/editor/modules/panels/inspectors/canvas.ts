@@ -126,6 +126,7 @@ export function canvasInspector(p: PanelCtx, host: HTMLElement): void {
   if (dir) selRow(t('page.direction'), FLOW_DIRS.map(([v, k]) => [v, t(k)] as const), dir, (v) => setFlowDirection(core, v as Direction));
   const numbered = kind?.numbered?.(M);
   if (numbered !== undefined) selRow(t('page.numbers'), [['off', t('page.numbersOff')], ['on', t('page.numbersOn')]], numbered ? 'on' : 'off', (v) => setAutonumberOn(core, v === 'on'));
+  for (const o of kind?.pageOptions?.(M, core) ?? []) selRow(o.label, o.options, o.value, o.set);
   const presets = Object.entries(pagePresets(T, M.type)).map(([id, pp]) => [id, pp.label || id] as const);
   if (presets.length) selRow(t('page.preset'), [['', t('page.presetNone')], ...presets], typeof core.meta.canvas.preset === 'string' ? core.meta.canvas.preset : '', (v) => choosePagePreset(core, v));
   const presetName = core.meta.canvas.preset;

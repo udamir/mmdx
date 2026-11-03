@@ -59,6 +59,23 @@ export interface ErTheme {
   pagePresets?: PagePresets;
 }
 
+export interface MindmapTheme {
+  /** The root node (its shape when the code gives none: `rounded`). */
+  root?: StyleProps;
+  /** Every other node; a node without delimiters is its label over an underline in the section's colour. */
+  node?: StyleProps;
+  nodeShapes?: Record<string, StyleProps>;
+  nodePresets?: Presets;
+  /** The lines from a parent to its children: `width` of a first-level branch (deeper ones taper: 11 / 8 / 5 / 3). */
+  branch?: StyleProps;
+  /**
+   * The section colours, `"0"` … `"11"`: `fill` and `text` of shaped nodes, `color` of the branch and the underline.
+   * Each child of the root starts a section (Mermaid's `i % 11`), or each depth (`colorBy: depth`).
+   */
+  sections?: Record<string, StyleProps>;
+  pagePresets?: PagePresets;
+}
+
 export interface ThemeFile {
   id: string;
   name?: string;
@@ -73,6 +90,7 @@ export interface ThemeFile {
   flowchart?: FlowchartTheme;
   sequence?: SequenceTheme;
   er?: ErTheme;
+  mindmap?: MindmapTheme;
 }
 
 export interface ThemeInfo {
@@ -98,4 +116,5 @@ export interface ResolvedTheme {
   flowchart: Required<Omit<FlowchartTheme, 'nodeShapes'>> & Pick<FlowchartTheme, 'nodeShapes'>;
   sequence: Required<Omit<SequenceTheme, 'participantShapes'>> & Pick<SequenceTheme, 'participantShapes'>;
   er: Required<ErTheme>;
+  mindmap: Required<Omit<MindmapTheme, 'nodeShapes'>> & Pick<MindmapTheme, 'nodeShapes'>;
 }

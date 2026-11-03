@@ -7,6 +7,7 @@ import type {
 import { EXTENDED_NAMES } from '../shapes/names.js';
 import { namedShapes, registerShapeNames, resolveShape } from '../shapes/registry.js';
 import { diag } from '../types.js';
+import { frontmatterValues } from './frontmatter.js';
 import { cleanLabel, encodeLabel, isMarkdownString, markdownText } from './label.js';
 import { ItemBudget, stripControl } from './limits.js';
 import { applySplices, openBlock, readNodeData, type NodeDataBlock, type Splice } from './node-data.js';
@@ -154,28 +155,6 @@ const DATA_VALUES: Readonly<Record<string, readonly string[]>> = { form: ['squar
 
 /** A markdown string's text (`"`…`"`); null for any other label. */
 const mdText = (raw: string): string | null => (isMarkdownString(raw) ? markdownText(cleanLabel(raw)) : null);
-
-/**
- * The frontmatter's and `%%{init}%%`'s settings that change what the content means: `title`, and in `config`
- * `flowchart.curve`, `htmlLabels`, `markdownAutoWrap`, `flowchart.wrappingWidth`. A small reader for the YAML Mermaid
- * files use (nested keys by indentation, plain or quoted scalars); everything else is kept in the code and ignored.
- */
-export function frontmatterValues(lines: readonly string[]): Map<string, string> {
-  const out = new Map<string, string>();
-  const path: { indent: number; key: string }[] = [];
-  for (const raw of lines) {
-    if (!raw.trim() || raw.trim().startsWith('#')) continue;
-    const m = /^(\s*)([\w.-]+)\s*:\s*(.*)$/.exec(raw);
-    if (!m) continue;
-    const indent = m[1]!.length;
-    while (path.length && path[path.length - 1]!.indent >= indent) path.pop();
-    const key = [...path.map((p) => p.key), m[2]!].join('.');
-    const v = m[3]!.replace(/\s+#.*$/, '').trim();
-    if (v) out.set(key, v.replace(/^(["'])(.*)\1$/, '$2'));
-    else path.push({ indent, key: m[2]! });
-  }
-  return out;
-}
 
 /** Settings of an `%%{init: {…}}%%` directive (JSON-ish: keys and values, quoted or not), as frontmatter keys. */
 function initValues(t: string): Map<string, string> {

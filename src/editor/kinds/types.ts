@@ -109,6 +109,8 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   setIcon?(code: string, model: M, ref: ItemRef, icon: string | null, core: EditorCore): CodeResult | null;
   /** Sets an item's image (a URL that passed the image policy), or removes it (null). */
   setImage?(code: string, model: M, ref: ItemRef, url: string | null, core: EditorCore): CodeResult | null;
+  /** The type has no image syntax: an image is the item's metadata `img` (the editor writes it; `setImage` is not called). */
+  imageInMeta?: boolean;
   /** Changes an icon or image item's position, frame, size or aspect lock. */
   setMedia?(code: string, model: M, ref: ItemRef, patch: MediaPatch, core: EditorCore): CodeResult | null;
 
@@ -119,6 +121,8 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   numbered?(model: M): boolean;
   /** Connectors are always straight: no routing setting (sequence messages). */
   straight?: boolean;
+  /** Page settings the type writes its own way, as selects in Page properties (mindmap: colour by branch or depth, in the frontmatter). */
+  pageOptions?(model: M, core: EditorCore): { label: string; options: readonly (readonly [string, string])[]; value: string; set(v: string): void }[];
   /** The type's own page layout fields (sequence: gap, row height, mirror, block span), with the Properties section title (i18n key). */
   layout?: { title: string; fields: readonly string[] };
   /** i18n key of the Shapes dock button's label (default `tools.shapes`). */

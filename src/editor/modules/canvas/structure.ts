@@ -5,9 +5,9 @@
 // `pasteAt`, `duplicateSelection`, `unlockAll`, `arrangeSelection`, `moveSelection`, `showContextMenu`).
 import { KIND_TO_COLL } from '../../../core/meta/types.js';
 import type { DiagramModel } from '../../../core/model.js';
-import { withKind } from '../../../core/kinds/registry.js';
+import { reparse, withKind } from '../../../core/kinds/registry.js';
 import {
-  alignItems, cloneMeta, copyItems, duplicateItems, groupHasPositions, lockedItems, moveOrder, pasteable, pasteItems, unlockAll as unlockAllOp, type AlignOp,
+  alignItems, cloneMeta, copyItems, duplicateItems, groupHasPositions, lockedItems, moveOrder, pasteable, pasteItems, remapMeta, unlockAll as unlockAllOp, type AlignOp,
 } from '../../../core/ops/index.js';
 import type { ItemRef } from '../../../core/types.js';
 import { MENU_CSS, openMenu, type MenuItem } from '../../../ui/blocks/menu.js';
@@ -80,7 +80,9 @@ export const canvasStructureModule: EditorModule = {
       // messages, notes, blocks and processes have positional ids: the code change carries their metadata over
       for (const it of sel) if (it.kind !== 'message' && it.kind !== 'note' && it.kind !== 'block' && it.kind !== 'activation') delete meta[KIND_TO_COLL[it.kind]]?.[it.id];
       for (const c of withKind(M, (k, m) => k.connectors(m)) ?? []) if (nodes.has(c.from.id) || nodes.has(c.to.id)) delete meta[KIND_TO_COLL[c.ref.kind]]?.[c.ref.id];
-      if (core.applyCode({ code: res.code, meta }, 'Delete', { select: null })) core.toast(`Deleted ${nItems(sel.length)} — ⌘/Ctrl+Z to undo`);
+      // positional ids (mindmap nodes without a written id) move with the code: their metadata follows
+      const kept = remapMeta(M, core.code, reparse(res.code), res.code, meta);
+      if (core.applyCode({ code: res.code, meta: kept }, 'Delete', { select: null })) core.toast(`Deleted ${nItems(sel.length)} — ⌘/Ctrl+Z to undo`);
     };
 
     // ---- group / ungroup ---------------------------------------------------------------------------------------

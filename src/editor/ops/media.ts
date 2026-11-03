@@ -40,8 +40,22 @@ export const setIconOf = (core: EditorCore, refs: readonly ItemRef[], icon: stri
   each(core, core.i18n.t('history.icon'), refs, (k, code, m, ref) => k.setIcon?.(code, m, ref, icon, core) ?? null);
 
 /** Sets (or with null removes) the image of items; `url` passed the image policy. */
-export const setImageOf = (core: EditorCore, refs: readonly ItemRef[], url: string | null): boolean =>
-  each(core, core.i18n.t('history.image'), refs, (k, code, m, ref) => k.setImage?.(code, m, ref, url, core) ?? null);
+export function setImageOf(core: EditorCore, refs: readonly ItemRef[], url: string | null): boolean {
+  // a type without image syntax keeps the URL in the item's metadata (`img`: mindmap nodes; T10's participants…)
+  if (editKind(core.model.type)?.imageInMeta) {
+    if (!refs.length) return false;
+    core.change(core.i18n.t('history.image'), () => {
+      for (const r of refs) {
+        const m = core.ensure(r.kind, r.id);
+        if (url) m['img'] = url;
+        else delete m['img'];
+        core.tidy(r.kind, r.id);
+      }
+    });
+    return true;
+  }
+  return each(core, core.i18n.t('history.image'), refs, (k, code, m, ref) => k.setImage?.(code, m, ref, url, core) ?? null);
+}
 
 /** Changes the layout keys (position, frame, size, aspect lock) of icon and image items. */
 export const setMediaOf = (core: EditorCore, refs: readonly ItemRef[], patch: MediaPatch): boolean =>

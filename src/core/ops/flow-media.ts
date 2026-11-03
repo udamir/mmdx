@@ -6,7 +6,7 @@
 // quotes and spacing stay as written.
 import type { FlowchartModel, FlowNode } from '../model.js';
 import { applySplices, editBlock, type DataValue, type NodeDataBlock, type Splice } from '../parse/node-data.js';
-import { isFaPack, splitIconName } from '../icons/names.js';
+import { faOnly, leadingIcon, withIconToken, type IsIconToken } from './icon-token.js';
 import { nodeDef } from './connect.js';
 import { relabelFlowNode } from './flowchart.js';
 import { parseFlowchart } from '../parse/flowchart.js';
@@ -41,38 +41,7 @@ export const ICON_NODE_H = 60;
 export const IMAGE_NODE_SIZE = 200;
 
 /** Whether a label token is an icon (the registry decides: registered packs and Font Awesome's form). */
-export type IsIconToken = (token: string) => boolean;
-
-/** Font Awesome's form only (no registry at hand). */
-const faOnly: IsIconToken = (t) => /^fa[bklrs]?:fa-[\w-]+$/.test(t);
-
-/** How a label writes an icon: `fa:fa-car` for Font Awesome (Mermaid's form), `pack:name` for the rest. */
-export function iconToken(name: string): string {
-  const [pack, icon] = splitIconName(name);
-  return isFaPack(pack) && !icon.startsWith('fa-') ? `${pack}:fa-${icon}` : name;
-}
-
-/** The canonical name of a label token (`fa:fa-car` → `fa:car`). */
-const tokenName = (token: string): string => {
-  const [pack, icon] = splitIconName(token);
-  return isFaPack(pack) && icon.startsWith('fa-') ? `${pack}:${icon.slice(3)}` : token;
-};
-
-const LEADING = /^\s*([a-z][\w-]*:[a-z0-9][\w-]*)(?=\s|$)\s*/i;
-
-/** A label's leading icon token and the rest of the label (null: it starts with none). */
-export function leadingIcon(label: string, isIcon: IsIconToken = faOnly): { token: string; name: string; rest: string } | null {
-  const m = LEADING.exec(label);
-  if (!m || !isIcon(m[1]!)) return null;
-  return { token: m[1]!, name: tokenName(m[1]!), rest: label.slice(m[0].length) };
-}
-
-/** The label with `name`'s token at its start, replacing a leading token it has (null: without one). */
-export function withIconToken(label: string, name: string | null, isIcon: IsIconToken = faOnly): string {
-  const rest = leadingIcon(label, isIcon)?.rest ?? label.replace(/^\s+/, '');
-  if (!name) return rest;
-  return rest ? `${iconToken(name)} ${rest}` : iconToken(name);
-}
+export { iconToken, leadingIcon, withIconToken, type IsIconToken } from './icon-token.js';
 
 /** A node's icon and image. */
 export function flowMedia(model: FlowchartModel, id: string, isIcon: IsIconToken = faOnly): FlowMedia | null {

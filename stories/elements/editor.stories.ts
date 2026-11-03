@@ -81,7 +81,7 @@ const meta: Meta<EditorArgs> = {
     ui: uiArg,
     height: { control: { type: 'number', min: 320, step: 40 } },
     exportFormats: { control: 'check', options: ['mmdx', 'mmd', 'svg', 'png'] },
-    historyOf: { control: 'select', options: ['', 'production-microservices', 'docker-deploy-sequence', 'atom-schema-er', 'microservice-patterns', 'fusion-services', 'simple-flow'], description: 'Give the editor the version history of an example (overrides `source` with its newest version): the History button in the tool dock.' },
+    historyOf: { control: 'select', options: ['', 'production-microservices', 'docker-deploy-sequence', 'atom-schema-er', 'microservice-patterns', 'fusion-services', 'simple-flow', 'product-mindmap', 'study-notes'], description: 'Give the editor the version history of an example (overrides `source` with its newest version): the History button in the tool dock.' },
     ...Object.fromEntries(TOGGLES.map((k) => [k, { control: 'boolean', description: FEATURE_DOCS[k], table: { category: 'features' } }])),
   },
   args: {
@@ -107,6 +107,11 @@ export const EntityRelationship: Story = { name: 'ER diagram', args: { source: e
 export const SmallSequence: Story = { name: 'Sequence: activations, notes, autonumber', args: { source: SMALL_SEQUENCE } };
 
 export const SmallEr: Story = { name: 'ER: tables and relations', args: { source: SMALL_ER } };
+
+/** A mindmap (T08): Tab adds a child, Enter a sibling, drag a node onto another to re-parent it, Space folds a branch. */
+export const Mindmap: Story = { args: { source: example('product-mindmap') } };
+
+export const MindmapHistory: Story = { name: 'With history: mindmap', args: { historyOf: 'product-mindmap' } };
 
 export const AutoLayout: Story = {
   name: 'Pure Mermaid (auto layout)',

@@ -15,6 +15,7 @@ const diffImporters: Record<DiagramType, () => Promise<{ DIFF: DiffKind }>> = {
   flowchart: () => import('../core/kinds/flowchart-diff.js'),
   sequence: () => import('../core/kinds/sequence-diff.js'),
   er: () => import('../core/kinds/er-diff.js'),
+  mindmap: () => import('../core/kinds/mindmap-diff.js'),
 };
 
 /** Loads a type's diff kind (resolves at once when it is loaded). */

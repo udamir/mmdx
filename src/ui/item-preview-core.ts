@@ -17,15 +17,25 @@ import { renderContext, type Kinds } from '../core/pipeline-core.js';
 import { renderWith } from '../core/render/dispatch.js';
 import type { GeometryIndex, RenderResult } from '../core/render/types.js';
 import type { ResolvedTheme } from '../core/theme/types.js';
-import type { Rect } from '../core/types.js';
+import type { DiagramType, ItemKind, Rect } from '../core/types.js';
 import { patchChildren } from '../dom/patch.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
 export type PreviewKind =
-  | 'node' | 'group' | 'edge' | 'participant' | 'message' | 'note' | 'block' | 'box' | 'lifeline' | 'activation' | 'entity' | 'rel';
+  | 'node' | 'group' | 'edge' | 'participant' | 'message' | 'note' | 'block' | 'box' | 'lifeline' | 'activation' | 'entity' | 'rel'
+  // mindmap: the root, a node, a branch, a section's colours (a section preset is its number)
+  | 'mm-root' | 'mm-node' | 'mm-branch' | 'mm-section';
+
+/** The preview of an item kind in a diagram type whose items look unlike the flowchart's of the same kind. */
+const TYPE_PREVIEWS: Partial<Record<DiagramType, Partial<Record<ItemKind, PreviewKind>>>> = { mindmap: { node: 'mm-node' } };
+
+/** The sample an item kind of a diagram type is previewed with. */
+export const previewKind = (type: DiagramType | null | undefined, kind: ItemKind): PreviewKind =>
+  (type ? TYPE_PREVIEWS[type]?.[kind] : undefined) ?? (kind as PreviewKind);
 
 type Sample = (preset: string | undefined, shape?: string) => [string, Partial<DiagramMeta>];
+
 
 /** A tiny diagram per item type; the preset is applied through metadata, as on the canvas. */
 export const ITEM_SAMPLES: Readonly<Record<PreviewKind, Sample>> = {
@@ -41,6 +51,10 @@ export const ITEM_SAMPLES: Readonly<Record<PreviewKind, Sample>> = {
   activation: (p) => ['sequenceDiagram\n  participant A\n  participant B\n  A->>+B: call\n  B-->>-A: reply', { activations: { 'B:1': def({ preset: p }) } }],
   entity: (p) => ['erDiagram\n  TABLE {\n    string id PK\n    string name\n  }', { entities: { TABLE: def({ preset: p }) } }],
   rel: (p) => ['erDiagram\n  A ||--o{ B : label', { rels: { 'A--B': def({ preset: p }) } }],
+  'mm-root': () => ['mindmap\n  r((Topic))', {}],
+  'mm-node': (p, shape) => ['mindmap\n  r((Topic))\n    n[Idea]', { nodes: { n: def({ preset: p, shape }) } }],
+  'mm-branch': () => ['mindmap\n  r((Topic))\n    a\n      b\n        c', {}],
+  'mm-section': (p) => ['mindmap\n  r((Topic))\n    n[Idea]\n      m\n    o', { nodes: { n: { section: Number(p ?? 0) || 0 } } }],
 };
 
 /** Drops undefined values (exactOptionalPropertyTypes; metadata never stores undefined). */
@@ -54,6 +68,9 @@ const FOCUS: Readonly<Partial<Record<PreviewKind, string>>> = {
   participant: '[data-kind="participant"][data-id="A"]',
   lifeline: '[data-kind="participant"][data-id="B"]',
   activation: '[data-kind="participant"][data-id="B"]',
+  'mm-root': '[data-kind="node"][data-id="r"]',
+  'mm-node': '[data-kind="node"][data-id="n"]',
+  'mm-section': '[data-kind="node"][data-id="n"]',
 };
 const LEFT_ALIGNED = new Set<PreviewKind>(['block', 'box']); // their title sits at the top left
 

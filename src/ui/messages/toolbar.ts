@@ -12,7 +12,7 @@ export const TOOLBAR_MESSAGES: Messages = {
   'tb.activationAdd': 'Show as process on {p} — activation bar (+/− in Mermaid)', 'tb.editGroupDone': 'Finish editing the group (Esc)',
   'tb.editGroup': 'Edit group — fade everything else; move, resize and style the items inside (or double-click the group)',
   'tb.ungroup': 'Ungroup ({keys}) — keeps the contents', 'tb.delete': 'Delete ({keys}) — removes it from the Mermaid code',
-  'tb.orderSeq': 'Order in the Mermaid code — earlier / later ({keys})', 'tb.order': 'Order in the Mermaid code — send backward / bring forward ({keys})',
+  'tb.orderSeq': 'Order in the Mermaid code — earlier / later ({keys})', 'tb.orderMind': 'Order among its siblings — earlier / later ({keys})', 'tb.order': 'Order in the Mermaid code — send backward / bring forward ({keys})',
   'tb.layer': 'Layer — move to another layer', 'tb.presets': 'Style presets', 'tb.reset': 'Back to the inherited style',
   'tb.resetNone': 'Nothing changed here', 'tb.more': 'More', 'tb.shape': 'Shape', 'tb.single': 'Single', 'tb.stacked': 'Stacked',
   'tb.double': 'Double', 'tb.usePreset': 'Use style preset', 'tb.alignH': 'Align {v}', 'tb.alignV': 'Vertical {v}',
