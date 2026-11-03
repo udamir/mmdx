@@ -6,7 +6,7 @@ import type { DiagramMeta } from '../meta/types.js';
 import type { SupportedModel } from '../model.js';
 import type { OutlineItem } from '../outline.js';
 import type { RenderEnv, SubResult } from '../render/common.js';
-import type { BoxGeom, GeometryIndex } from '../render/types.js';
+import type { BoxGeom, EdgeGeom, GeometryIndex } from '../render/types.js';
 import type { Summary } from '../summary.js';
 import type { MergeEnv } from '../diff/merge.js';
 import type { ItemShape } from '../diff/shape.js';
@@ -80,6 +80,8 @@ export interface ViewKind<M extends SupportedModel = SupportedModel, G extends G
    * boxes of activation bars (the editor; the ops leave them out).
    */
   box(geom: G, ref: ItemRef & { foot?: boolean }, activations?: boolean): (BoxGeom & { hidden?: boolean }) | null;
+  /** The routed geometry of a connector with bend points and ports (flowchart edges, ER relationships). */
+  edge?(geom: G, ref: ItemRef): EdgeGeom | undefined;
   /** Every item a render drew, with its box or its line (the editor's marquee, ⌘A and selection halos). */
   drawn(geom: G): DrawnItem[];
   /** The frames (groups, boxes) around the lit items of a hover highlight. */

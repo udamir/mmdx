@@ -3,10 +3,8 @@
 // (`portDrag` → `reconnect`), bend points (`bendHandles`, `bendDrag`, `removeBendPoint`, `hoverBend`).
 // Ported from prototype/app.js ~425–970 and `hoverConnect`.
 import { KIND_TO_COLL, type ItemMeta } from '../../../core/meta/types.js';
-import type { FlowchartModel, ErModel } from '../../../core/model.js';
-import { addERRel, addFlowEdge, addSeqMessage, reconnectER, reconnectFlow } from '../../../core/ops/connect.js';
+import { reparse, viewKind } from '../../../core/kinds/registry.js';
 import { cloneMeta, ensure as ensureIn } from '../../../core/ops/meta-util.js';
-import { parse } from '../../../core/parse/index.js';
 import { outerBox, portPoint } from '../../../core/render/common.js';
 import type { EdgeGeom } from '../../../core/render/types.js';
 import { el, g } from '../../../core/scene/build.js';
@@ -14,11 +12,12 @@ import type { SceneNode } from '../../../core/scene/types.js';
 import type { Side } from '../../../core/style.js';
 import type { CenterBox, ItemKind, ItemRef, Point } from '../../../core/types.js';
 import type { EditorCore, Gesture, Hit, Sel } from '../../core.js';
+import { editKind, withEdit } from '../../kinds/registry.js';
 import type { EditorModule } from '../../module.js';
 import { CONNECT_CSS } from './css.js';
 import { canConnect, deepInside, endpointBox, endpointId, geomBoxOf, MAGNETS, projectToBox, targetAt } from './geometry.js';
 
-export { CONNECTABLE, MAGNETS, canConnect, deepInside, geomBoxOf, projectToBox, targetAt } from './geometry.js';
+export { MAGNETS, canConnect, deepInside, geomBoxOf, projectToBox, targetAt } from './geometry.js';
 
 interface Linking {
   a: Point;
@@ -60,11 +59,10 @@ const NOOP: Gesture = { move: () => undefined };
 
 /** Creates the connector after a drag from a connection dot (prototype `createConnection`). */
 export function createConnection(core: EditorCore, src: ItemRef, fromSide: Side, tgt: ItemRef, toSide?: Side, toAt?: number): boolean {
-  const type = core.model.type;
-  if (!type) return false;
-  const add = type === 'flowchart' ? addFlowEdge : type === 'er' ? addERRel : addSeqMessage;
-  const r = add(core.code, src.id, tgt.id);
-  const M = parse(r.code);
+  const kind = editKind(core.model.type);
+  const r = kind?.connect?.(core.code, src.id, tgt.id);
+  if (!kind || !r) return false;
+  const M = reparse(r.code);
   const meta = cloneMeta(core.meta);
   let sel: Sel | null = null;
   const ends = (m: ItemMeta): void => {
@@ -75,25 +73,15 @@ export function createConnection(core: EditorCore, src: ItemRef, fromSide: Side,
       if (toAt !== undefined) m.toAt = toAt;
     }
   };
-  if (M.type === 'flowchart') {
-    const e = [...M.edges].reverse().find((x) => x.from === src.id && x.to === tgt.id);
-    if (e) {
-      ends(ensureIn(meta, 'edge', e.id));
-      sel = { kind: 'edge', id: e.id };
-    }
-  } else if (M.type === 'er') {
-    const rel = [...M.rels].reverse().find((x) => x.from === src.id && x.to === tgt.id);
-    if (rel) {
-      ends(ensureIn(meta, 'rel', rel.id));
-      sel = { kind: 'rel', id: rel.id };
-    }
-  } else if (M.type === 'sequence') {
-    const msg = [...M.items].reverse().find((x) => x.kind === 'message');
-    if (msg) sel = { kind: 'message', id: msg.id };
+  const made = M.type === kind.type ? withEdit(M, (k, m) => k.added?.(m, src.id, tgt.id)) : null;
+  if (made) {
+    if (made.ports) ends(ensureIn(meta, made.ref.kind, made.ref.id));
+    sel = made.ref;
   }
-  const ok = core.applyCode({ code: r.code, meta }, type === 'sequence' ? 'Add message' : 'Connect', { select: sel ? [sel] : [] });
+  const said = kind.connected ?? { label: 'Connect', toast: 'Connection added — style it with the toolbar' };
+  const ok = core.applyCode({ code: r.code, meta }, said.label, { select: sel ? [sel] : [] });
   // A.13: inline edit exists, so the copy no longer sends the user to the Mermaid source
-  if (ok) core.toast(type === 'sequence' ? 'Message added — double-click it to edit its text' : 'Connection added — style it with the toolbar');
+  if (ok) core.toast(said.toast);
   return ok;
 }
 
@@ -101,16 +89,15 @@ export function createConnection(core: EditorCore, src: ItemRef, fromSide: Side,
 export function reconnect(core: EditorCore, kind: LineKind, id: string, which: 'a' | 'b', target: ItemRef, side?: Side, at?: number): boolean {
   const M0 = core.model;
   const old: ItemMeta = { ...core.getM(kind, id) };
-  const r = kind === 'edge' ? (M0.type === 'flowchart' ? reconnectFlow(core.code, M0 as FlowchartModel, id, which, target.id) : null)
-    : M0.type === 'er' ? reconnectER(core.code, M0 as ErModel, id, which, target.id) : null;
+  const r = withEdit(M0, (k, m) => k.reconnect?.(core.code, m, { kind, id }, which, target.id)) ?? null;
   if (!r || r.code === core.code) return false;
   const meta = cloneMeta(core.meta);
   const coll = meta[KIND_TO_COLL[kind]] as Record<string, ItemMeta> | undefined;
   if (coll) delete coll[id];
-  const M = parse(r.code);
-  const list: { id: string; from: string; to: string; src: number }[] = M.type === 'flowchart' ? M.edges : M.type === 'er' ? M.rels : [];
-  const ne = list.find((e) => e.src === r.line && e.from === r.from && e.to === r.to) ?? [...list].reverse().find((e) => e.from === r.from && e.to === r.to);
-  if (!ne) return core.applyCode({ code: r.code, meta }, 'Re-connect', { select: [] });
+  const M = reparse(r.code);
+  const nid = withEdit(M, (k, m) => k.reconnected?.(m, r));
+  if (nid === undefined) return core.applyCode({ code: r.code, meta }, 'Re-connect', { select: [] });
+  const ne = { id: nid };
   const sk = which === 'a' ? 'fromSide' : 'toSide', ak = which === 'a' ? 'fromAt' : 'toAt';
   const m = Object.assign(ensureIn(meta, kind, ne.id), old);
   if (side) {
@@ -140,7 +127,7 @@ export const connectModule: EditorModule = {
     const bendPress = new DoublePress();
     const edgeGeom = (it: ItemRef): EdgeGeom | undefined => {
       const gm = core.geom;
-      return it.kind === 'edge' && gm.type === 'flowchart' ? gm.edges.get(it.id) : it.kind === 'rel' && gm.type === 'er' ? gm.rels.get(it.id) : undefined;
+      return gm.type ? viewKind(gm.type)?.edge?.(gm, it) : undefined;
     };
     const busy = (): boolean => active || core.dragging;
 

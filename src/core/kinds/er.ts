@@ -59,6 +59,7 @@ export const VIEW: ViewKind<ErModel, ErGeometry> = {
     return out;
   },
   box: (g, it) => (it.kind === 'entity' ? g.entities.get(it.id) : undefined) ?? null,
+  edge: (g, { kind, id }) => (kind === 'rel' ? g.rels.get(id) : undefined),
   drawn: (g) => [
     ...[...g.entities].map(([id, box]) => ({ ref: { kind: 'entity' as const, id }, box })),
     ...[...g.rels].map(([id, r]) => ({ ref: { kind: 'rel' as const, id }, d: r.d, label: r.label })),

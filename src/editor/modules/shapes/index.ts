@@ -3,7 +3,6 @@
 // Ported from prototype/app.js `buildPalette`, `showShapePresets`, `showTablePresets`, `toggleTablePresets`,
 // `setShapesMenu`, `startPaletteDrag`, `groupAt`, `dropPaletteItem`. The dock buttons are built by the panels module,
 // which calls `core.run('toggleShapesMenu', button)`.
-import { presetShape } from '../../../core/render/flowchart.js';
 import { presetsFor } from '../../../core/ops/style-env.js';
 import type { ItemKind, Point } from '../../../core/types.js';
 import { h } from '../../../ui/h.js';
@@ -14,10 +13,18 @@ import type { EditorModule } from '../../module.js';
 import { elementsAt } from '../connect/geometry.js';
 import { SHAPES_CSS } from './css.js';
 import { dropPaletteItem } from './drop.js';
-import { isItem, PALETTE_ITEMS, PALETTE_TITLE, paletteItem, SEQ_PRESET_KIND, SEQ_SHAPE, tableIcon, type PaletteItem } from './items.js';
+import { editKind } from '../../kinds/registry.js';
+import type { PaletteSpec } from '../../kinds/palette.js';
+import { isItem, paletteItem, type PaletteItem } from './items.js';
 
-export { dropPaletteItem, groupAt } from './drop.js';
-export { PALETTE_ITEMS, paletteItem } from './items.js';
+export { dropPaletteItem } from './drop.js';
+export { paletteItem } from './items.js';
+
+/** The palette of the current diagram type. */
+const paletteOf = (core: EditorCore): PaletteSpec | undefined => editKind(core.model.type)?.palette;
+
+/** `subShape` while the grid palette (ER table presets) is open. */
+const GRID = '#grid';
 
 /** Centre of the canvas in diagram coordinates (click on a palette item). */
 function canvasCenter(core: EditorCore): Point {
@@ -60,9 +67,10 @@ export const shapesModule: EditorModule = {
       const type = core.model.type;
       builtFor = type;
       menu.replaceChildren();
-      if (type !== 'flowchart' && type !== 'sequence') return;
-      menu.append(h('div', { class: 'pal-title' }, PALETTE_TITLE[type] ?? ''));
-      for (const it of PALETTE_ITEMS[type]) {
+      const pal = paletteOf(core);
+      if (pal?.mode !== 'menu') return;
+      menu.append(h('div', { class: 'pal-title' }, pal.title));
+      for (const it of pal.items) {
         if (!isItem(it)) {
           menu.append(h('div', { class: 'pal-sep' }));
           continue;
@@ -70,7 +78,7 @@ export const shapesModule: EditorModule = {
         const b = h('button', { type: 'button', class: 'pal-item', title: `${it.label} — drag onto the canvas (or click)` }, it.icon(), h('span', null, it.label.split(' — ')[0]!));
         b.addEventListener('pointerdown', (ev) => startDrag(it, ev, b));
         // flowchart shapes and sequence items: a presets submenu beside the menu
-        if (type === 'flowchart' || SEQ_PRESET_KIND[it.key]) b.addEventListener('pointerenter', () => showShapePresets(it, b));
+        if (pal.presets(it)) b.addEventListener('pointerenter', () => showShapePresets(it, b));
         menu.append(b);
       }
     };
@@ -95,7 +103,7 @@ export const shapesModule: EditorModule = {
 
     const setMenu = (open: boolean): void => {
       const type = core.model.type;
-      if (open && (type !== 'flowchart' && type !== 'sequence')) open = false;
+      if (open && paletteOf(core)?.mode !== 'menu') open = false;
       if (open && builtFor !== type) build();
       if (open && !menu.childElementCount) build();
       menu.hidden = !open;
@@ -126,10 +134,11 @@ export const shapesModule: EditorModule = {
       sub.replaceChildren(h('div', { class: 'mtb-label' }, `Presets — ${item.label.split(' /')[0]!.split(' — ')[0]!}`));
       const grid = h('div', { class: 'pp-grid' });
       sub.append(grid);
-      const seq = core.model.type === 'sequence';
-      const kind: ItemKind = seq ? SEQ_PRESET_KIND[item.key] ?? 'participant' : 'node';
+      const spec = paletteOf(core)?.presets(item);
+      if (!spec) return;
+      const kind: ItemKind = spec.kind;
       const P = presetsFor(env(), kind) ?? {};
-      const names = ['', ...Object.keys(P).filter((p) => p !== '_base' && (seq || presetShape(P[p]) === item.key))];
+      const names = ['', ...Object.keys(P).filter((p) => p !== '_base' && (!spec.fits || spec.fits(P[p])))];
       const pics: [HTMLElement, string][] = [];
       for (const name of names) {
         const { b, pic } = presetTile(item, name, `${name ? `Preset "${name}"` : 'Default style'} — click to add, or drag onto the canvas`);
@@ -143,24 +152,30 @@ export const shapesModule: EditorModule = {
       // narrow canvas: slide left (over the menu) rather than be cut off by the canvas edge
       sub.style.left = `${Math.min(mr.right + 8, rr.right - 8 - ww) - rr.left}px`;
       sub.style.top = `${Math.max(rr.top + 8, Math.min(ar.top - 12, rr.bottom - 8 - hh)) - rr.top}px`;
-      const shape = seq ? SEQ_SHAPE[item.key] : item.key;
-      for (const [pic, name] of pics) preview(pic, kind as PreviewKind, name, 40, shape);
+      for (const [pic, name] of pics) preview(pic, kind as PreviewKind, name, 40, spec.shape);
     }
 
-    const tableItem = (): PaletteItem => paletteItem('er', 'entity') ?? { key: 'entity', label: 'Entity (table)', icon: tableIcon };
+    /** The grid palette's one item (ER tables) and its presets. */
+    const gridItem = (): { item: PaletteItem; kind: ItemKind } | null => {
+      const pal = paletteOf(core);
+      const item = pal?.mode === 'grid' ? pal.items.find(isItem) : undefined;
+      const spec = item ? pal?.presets(item) : null;
+      return item && spec ? { item, kind: spec.kind } : null;
+    };
 
     const showTablePresets = (): void => {
-      if (subShape === 'entity' && !sub.hidden) return;
-      subShape = 'entity';
+      const gi = gridItem();
+      if (!gi || (subShape === GRID && !sub.hidden)) return;
+      subShape = GRID;
       sub.hidden = false;
       markAnchor(true);
-      sub.replaceChildren(h('div', { class: 'mtb-label' }, 'Table presets — click to add, or drag onto the canvas'));
+      sub.replaceChildren(h('div', { class: 'mtb-label' }, paletteOf(core)?.title ?? ''));
       const grid = h('div', { class: 'pp-grid' });
       sub.append(grid);
-      const P = presetsFor(env(), 'entity') ?? {};
+      const P = presetsFor(env(), gi.kind) ?? {};
       const pics: [HTMLElement, string][] = [];
       for (const name of ['', ...Object.keys(P).filter((p) => p !== '_base')]) {
-        const { b, pic } = presetTile(tableItem(), name, `${name ? `Table preset "${name}"` : 'Default table style'} — click to add, or drag onto the canvas`);
+        const { b, pic } = presetTile(gi.item, name, `${name ? `Table preset "${name}"` : 'Default table style'} — click to add, or drag onto the canvas`);
         grid.append(b);
         pics.push([pic, name]);
       }
@@ -172,11 +187,11 @@ export const shapesModule: EditorModule = {
       const { w: ww, h: hh } = fitPresetGrid(sub, rr.right - tr.right - 16, rr.height - 16);
       sub.style.left = `${Math.min(tr.right + 8, rr.right - 8 - ww) - rr.left}px`;
       sub.style.top = `${Math.max(rr.top + 8, Math.min(br.top - 12, rr.bottom - 8 - hh)) - rr.top}px`;
-      for (const [pic, name] of pics) preview(pic, 'entity', name, 56);
+      for (const [pic, name] of pics) preview(pic, gi.kind as PreviewKind, name, 56);
     };
 
     const hideTablePresets = (): void => {
-      if (subShape !== 'entity') return;
+      if (subShape !== GRID) return;
       hideSub();
       markAnchor(false);
     };
@@ -187,8 +202,8 @@ export const shapesModule: EditorModule = {
         anchor = a;
       }
       if (core.mode.peek() !== 'edit') return;
-      if (core.model.type === 'er') {
-        if (!sub.hidden && subShape === 'entity') hideTablePresets();
+      if (paletteOf(core)?.mode === 'grid') {
+        if (!sub.hidden && subShape === GRID) hideTablePresets();
         else showTablePresets();
       } else setMenu(menu.hidden);
     };
@@ -262,7 +277,7 @@ export const shapesModule: EditorModule = {
       const keep = path.includes(menu) || path.includes(sub) || (!!anchor && path.includes(anchor));
       if (keep) return;
       if (!menu.hidden) setMenu(false);
-      else if (subShape === 'entity') hideTablePresets();
+      else if (subShape === GRID) hideTablePresets();
     }, { capture: true });
     // Esc closes the menu first (before it clears the selection or changes the tool)
     scope.listen(root, 'keydown', (ev) => {
@@ -287,7 +302,7 @@ export const shapesModule: EditorModule = {
       if (type === typeSeen) return;
       typeSeen = type;
       if (!menu.hidden) {
-        if (type === 'flowchart' || type === 'sequence') build();
+        if (paletteOf(core)?.mode === 'menu') build();
         else setMenu(false);
       }
       if (subShape) {

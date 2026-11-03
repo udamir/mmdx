@@ -1,12 +1,35 @@
 // The flowchart edit kind.
 import type { FlowchartModel } from '../../core/model.js';
-import { edgeText, nodeDef } from '../../core/ops/connect.js';
+import { addFlowEdge, edgeText, nodeDef, reconnectFlow } from '../../core/ops/connect.js';
 import { deleteFlow, groupFlow, relabelFlowEdge, relabelFlowNode, relabelGroup, ungroupFlow } from '../../core/ops/flowchart.js';
 import type { FlowGeometry } from '../../core/render/types.js';
 import type { Sel } from '../core.js';
+import { cloneMeta, ensure as ensureIn } from '../../core/ops/meta-util.js';
+import { addFlowNode } from '../../core/ops/flowchart.js';
+import { presetShape } from '../../core/render/flowchart.js';
+import type { Point } from '../../core/types.js';
+import type { EditorCore } from '../core.js';
+import { focusLabel } from '../modules/shapes/drop.js';
+import { shapeIcon } from './palette.js';
 import type { EditKind } from './types.js';
 
 const one = (s: string): string => s.replace(/\n/g, ' ');
+
+/** Shapes Mermaid draws natively; the others are stored as `rect` + meta `shape`. */
+const MERMAID_SHAPES: ReadonlySet<string> = new Set(['rect', 'rounded', 'stadium', 'diamond', 'parallelogram', 'cylinder', 'subroutine', 'circle', 'hexagon']);
+
+/** The innermost visible group around a point (a dropped shape joins it). */
+function groupAt(core: EditorCore, pt: Point): string | null {
+  const gm = core.geom;
+  if (gm.type !== 'flowchart') return null;
+  let best: { id: string; a: number } | null = null;
+  gm.groups.forEach((b, id) => {
+    if (b.hidden) return;
+    if (Math.abs(pt.x - b.x) <= b.w / 2 && Math.abs(pt.y - b.y) <= b.h / 2 && (!best || b.w * b.h < best.a)) best = { id, a: b.w * b.h };
+  });
+  return (best as { id: string } | null)?.id ?? null;
+}
+
 
 export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
   type: 'flowchart',
@@ -66,4 +89,31 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
     return `${out.join('\n')}\n`;
   },
   altCopy: true,
+  connectable: ['node', 'group'],
+  connect: addFlowEdge,
+  added(M, from, to) {
+    const e = [...M.edges].reverse().find((x) => x.from === from && x.to === to);
+    return e ? { ref: { kind: 'edge', id: e.id }, ports: true } : null;
+  },
+  reconnect: (code, M, ref, which, target) => (ref.kind === 'edge' ? reconnectFlow(code, M, ref.id, which, target) : null),
+  reconnected: (M, r) => (M.edges.find((e) => e.src === r.line && e.from === r.from && e.to === r.to) ?? [...M.edges].reverse().find((e) => e.from === r.from && e.to === r.to))?.id,
+  palette: {
+    mode: 'menu',
+    title: 'Shapes',
+    items: ([
+      ['rect', 'Process'], ['rounded', 'Step'], ['stadium', 'Start / End'], ['diamond', 'Decision'], ['parallelogram', 'Input / Output'],
+      ['cylinder', 'Database'], ['hcyl', 'Queue'], ['document', 'Document'], ['subroutine', 'Subprocess'], ['circle', 'Event'], ['hexagon', 'Preparation'],
+    ] as const).map(([key, label]) => ({ key, label, icon: shapeIcon(key) })),
+    presets: (item) => ({ kind: 'node', shape: item.key, fits: (p) => presetShape(p) === item.key }),
+  },
+  drop(core, M, item, pt) {
+    const native = MERMAID_SHAPES.has(item.key);
+    const res = addFlowNode(core.code, M, { label: item.label.split(' /')[0]!, shape: native ? item.key : 'rect', group: groupAt(core, pt) });
+    const meta = cloneMeta(core.meta);
+    const m = ensureIn(meta, 'node', res.select.id);
+    Object.assign(m, { x: pt.x, y: pt.y }, native ? {} : { shape: item.key }, item.preset ? { preset: item.preset } : {});
+    const ok = core.applyCode({ code: res.code, meta }, 'Add shape', { select: [res.select] });
+    if (ok) focusLabel(core, res.select);
+    return ok;
+  },
 };

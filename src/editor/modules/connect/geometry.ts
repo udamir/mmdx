@@ -1,22 +1,20 @@
 // Hit-testing and port geometry of connections (prototype app.js `CONNECTABLE`, `canConnect`, `geomBoxOf`,
 // `targetAt`, `deepInside`, `projectToBox`, `MAGNETS`, `endpointBox`, `endpointId`).
+import { viewKind, withKind } from '../../../core/kinds/registry.js';
 import { currentPreset } from '../../../core/ops/style-env.js';
 import { outerBox } from '../../../core/render/common.js';
 import type { Side } from '../../../core/style.js';
 import type { CenterBox, ItemKind, ItemRef, Point } from '../../../core/types.js';
 import type { EditorCore } from '../../core.js';
+import { withEdit } from '../../kinds/registry.js';
 
-/** Item kinds a connection can start / end on, per diagram type. */
-export const CONNECTABLE: Readonly<Record<string, readonly ItemKind[]>> = {
-  flowchart: ['node', 'group'],
-  er: ['entity'],
-  sequence: ['participant'],
-};
+
 
 /** Magnet points: 5 per side, evenly spaced. */
 export const MAGNETS: readonly number[] = [1, 2, 3, 4, 5].map((i) => i / 6);
 
-const kindsOf = (core: EditorCore): readonly ItemKind[] => CONNECTABLE[core.model.type ?? ''] ?? [];
+/** Item kinds a connection can start / end on in the current diagram. */
+const kindsOf = (core: EditorCore): readonly ItemKind[] => withEdit(core.model, (k) => k.connectable) ?? [];
 
 /** Lanes are never connected. */
 export function canConnect(core: EditorCore, kind: ItemKind, id: string): boolean {
@@ -28,11 +26,7 @@ export function canConnect(core: EditorCore, kind: ItemKind, id: string): boolea
 
 /** The box connectors attach to (stacked shapes grow by their offset). */
 export function geomBoxOf(core: EditorCore, kind: ItemKind, id: string): (CenterBox & { hidden?: boolean }) | null {
-  const g = core.geom;
-  let b: (CenterBox & { stack?: unknown; hidden?: boolean }) | undefined;
-  if (g.type === 'flowchart') b = kind === 'node' ? g.nodes.get(id) : kind === 'group' ? g.groups.get(id) : undefined;
-  else if (g.type === 'er') b = kind === 'entity' ? g.entities.get(id) : undefined;
-  else if (g.type === 'sequence') b = kind === 'participant' ? g.participants.get(id) : undefined;
+  const b = kindsOf(core).includes(kind) ? (core.boxOf({ kind, id }) as (CenterBox & { stack?: unknown; hidden?: boolean }) | null) : null;
   if (!b) return null;
   const o = outerBox(b, b.stack);
   return b.hidden ? { ...o, hidden: true } : o;
@@ -85,30 +79,29 @@ export function targetAt(core: EditorCore, ev: { clientX: number; clientY: numbe
   // no layout (tests, some embedded engines): the smallest connectable box under the point
   const p = core.toDiagram(ev);
   let best: { t: ItemRef; a: number } | null = null;
-  for (const kind of kinds) {
-    const g = core.geom;
-    const map: ReadonlyMap<string, CenterBox & { hidden?: boolean }> | undefined =
-      g.type === 'flowchart' ? (kind === 'node' ? g.nodes : kind === 'group' ? g.groups : undefined)
-        : g.type === 'er' ? g.entities : g.type === 'sequence' ? g.participants : undefined;
-    map?.forEach((b, id) => {
-      if (b.hidden || Math.abs(p.x - b.x) > b.w / 2 || Math.abs(p.y - b.y) > b.h / 2) return;
-      const t: ItemRef = { kind, id };
-      if (ok(t) && (!best || b.w * b.h < best.a)) best = { t, a: b.w * b.h };
-    });
+  const g = core.geom;
+  for (const x of (g.type ? viewKind(g.type)?.drawn(g) : undefined) ?? []) {
+    if (!('box' in x) || !kinds.includes(x.ref.kind)) continue;
+    const b = x.box;
+    if (b.hidden || Math.abs(p.x - b.x) > b.w / 2 || Math.abs(p.y - b.y) > b.h / 2) continue;
+    const t: ItemRef = { kind: x.ref.kind, id: x.ref.id };
+    if (ok(t) && (!best || b.w * b.h < best.a)) best = { t, a: b.w * b.h };
   }
   return (best as { t: ItemRef; a: number } | null)?.t ?? null;
 }
 
 /** The item at end `a` (from) / `b` (to) of a connector. */
 export function endpointId(core: EditorCore, kind: ItemKind, id: string, which: 'a' | 'b'): string | null {
-  const M = core.model;
-  const x = M.type === 'er' && kind === 'rel' ? M.rels.find((e) => e.id === id) : M.type === 'flowchart' && kind === 'edge' ? M.edges.find((e) => e.id === id) : undefined;
-  return x ? (which === 'a' ? x.from : x.to) : null;
+  const c = (withKind(core.model, (k, m) => k.connectors(m)) ?? []).find((x) => x.ref.kind === kind && x.ref.id === id);
+  return c ? (which === 'a' ? c.from.id : c.to.id) : null;
 }
 
 export function endpointBox(core: EditorCore, kind: ItemKind, id: string, which: 'a' | 'b'): CenterBox | null {
   const target = endpointId(core, kind, id, which);
   if (target == null) return null;
-  if (kind === 'rel') return geomBoxOf(core, 'entity', target);
-  return geomBoxOf(core, 'node', target) ?? geomBoxOf(core, 'group', target);
+  for (const k of kindsOf(core)) {
+    const b = geomBoxOf(core, k, target);
+    if (b) return b;
+  }
+  return null;
 }

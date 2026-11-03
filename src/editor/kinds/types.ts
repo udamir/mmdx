@@ -2,10 +2,12 @@
 // (delete, group), copying, connecting, the Shapes menu, inspectors and toolbars. The editor loads it with the type's
 // view and ops kinds; a missing hook means the type does not offer that action.
 import type { SupportedModel } from '../../core/model.js';
-import type { CodeResult, RefusableResult, SelectResult } from '../../core/ops/types.js';
+import type { CodeResult, ConnectResult, RefusableResult, SelectResult } from '../../core/ops/types.js';
 import type { GeometryIndex } from '../../core/render/types.js';
-import type { ItemRef } from '../../core/types.js';
+import type { ItemKind, ItemRef } from '../../core/types.js';
+import type { Point } from '../../core/types.js';
 import type { EditorCore, Sel } from '../core.js';
+import type { PaletteItem, PaletteSpec } from './palette.js';
 
 /** An item's text and how to write it back to Mermaid. */
 export interface ItemText {
@@ -41,6 +43,27 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   noCopy?: string;
   /** Alt-drag copies items. */
   altCopy?: boolean;
+
+  // ---- connect ----
+  /** Item kinds a connection starts or ends on. */
+  connectable?: readonly ItemKind[];
+  /** Adds a connector between two items. */
+  connect?(code: string, from: string, to: string): CodeResult;
+  /** The connector just added between two items in the new model, and whether it takes the dragged ports. */
+  added?(model: M, from: string, to: string): { ref: Sel; ports: boolean } | null;
+  /** History label and toast of a new connector (default: Connect, "Connection added — …"). */
+  connected?: { label: string; toast: string };
+  /** Re-attaches end `which` of a connector to another item. */
+  reconnect?(code: string, model: M, ref: ItemRef, which: 'a' | 'b', target: string): ConnectResult | null;
+  /** The id of a re-attached connector in the model after the rewrite. */
+  reconnected?(model: M, r: ConnectResult): string | undefined;
+
+  // ---- Shapes menu ----
+  /** What the Shapes dock button offers. */
+  palette?: PaletteSpec;
+  /** Adds a palette item at a (snapped) diagram point; false when refused (a toast says why). */
+  drop?(core: EditorCore, model: M, item: PaletteItem, at: Point): boolean;
+
   /** Geometry of the type (for typing the hooks that take it). */
   readonly geom?: G;
 }

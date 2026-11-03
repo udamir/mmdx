@@ -3,6 +3,7 @@
 // layers, the diagram palette "+", lock, paint, group / arrange / activation actions), the Order slider with a live
 // preview committed once (`orderInfo` / `orderPreview` / `orderCommit`), ⌘[ / ⌘] (`moveSelection`), the page badge
 // above the page's top-left corner and the page's own action bar.
+import { viewKind } from '../../../core/kinds/registry.js';
 import { layerDefs, layerOf } from '../../../core/layers.js';
 import { copyable } from '../../../core/ops/clipboard.js';
 import {
@@ -75,7 +76,7 @@ export function anchorRect(core: EditorCore, s: Sel): Rect | null {
       }
     }
     const g = core.geom;
-    const eg = g.type === 'flowchart' && s.kind === 'edge' ? g.edges.get(s.id) : g.type === 'er' && s.kind === 'rel' ? g.rels.get(s.id) : undefined;
+    const eg = g.type ? viewKind(g.type)?.edge?.(g, s) : undefined;
     const pts = (eg as { points?: [number, number][] } | undefined)?.points ?? [];
     const sv = core.dom.svg.getBoundingClientRect();
     for (const [x, y] of pts) {
