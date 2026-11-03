@@ -2,6 +2,7 @@
 // This module bundles no themes; context.ts adds the built-in ones as the default registry.
 import { IconRegistry } from './icons/registry.js';
 import type { ThemeRegistry } from './theme/registry.js';
+import type { ImageSizes } from './render/types.js';
 import { createStaticMeasurer, type TextMeasurer } from './text/measure.js';
 import { DEFAULT_IMAGE_POLICY, DEFAULT_LINK_POLICY, type ImagePolicy, type LinkPolicy } from './validate.js';
 
@@ -18,6 +19,8 @@ export interface CoreContext {
    * registry of `configure({ iconPacks })` (or extend it with their own packs); SSR builds one with `createIconRegistry`.
    */
   icons: IconRegistry;
+  /** Natural sizes of content images (T06), when the host can load them: components set the browser's lookup. */
+  imageSizes?: ImageSizes;
   locale?: string;
 }
 

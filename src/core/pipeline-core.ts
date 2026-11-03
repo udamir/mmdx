@@ -48,7 +48,7 @@ const layoutCaches = new WeakMap<CoreContext, Lru<string, Map<string, Point>>>()
 export function renderContext(ctx: CoreContext, theme: ResolvedTheme, doc: DiagramDocument): RenderContext {
   let cache = layoutCaches.get(ctx);
   if (!cache) layoutCaches.set(ctx, (cache = new Lru(64)));
-  return {
+  const r: RenderContext = {
     measure: ctx.measure,
     idPrefix: ctx.idPrefix,
     linkPolicy: ctx.linkPolicy,
@@ -57,6 +57,8 @@ export function renderContext(ctx: CoreContext, theme: ResolvedTheme, doc: Diagr
     color: createColorResolver(theme, diagramPaletteOf(doc.meta.styles)),
     layoutCache: cache,
   };
+  if (ctx.imageSizes) r.imageSizes = ctx.imageSizes;
+  return r;
 }
 
 /** Picks the theme: the given one, else baseline; reports a theme the registry does not have. */

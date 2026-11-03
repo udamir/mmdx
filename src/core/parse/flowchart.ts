@@ -1,12 +1,13 @@
 // Mermaid flowchart parser (the commonly used subset, A.9).
 // Line fields are 0-based whole lines; statements split by `;` share a line.
 import type {
-  BracketSpan, Direction, EdgeHead, EdgeLine, FlowEdge, FlowGroup, FlowLink, FlowMention, FlowNode, FlowNodeData, FlowStatement, FlowchartModel, MermaidStyle, NodeShape,
+  BracketSpan, Direction, EdgeHead, EdgeLine, FlowConfig, FlowEdge, FlowGroup, FlowLink, FlowMention, FlowNode, FlowNodeData, FlowStatement, FlowchartModel,
+  MermaidStyle, NodeShape,
 } from '../model.js';
 import { EXTENDED_NAMES } from '../shapes/names.js';
 import { namedShapes, registerShapeNames, resolveShape } from '../shapes/registry.js';
 import { diag } from '../types.js';
-import { cleanLabel, encodeLabel, isMarkdownString } from './label.js';
+import { cleanLabel, encodeLabel, isMarkdownString, markdownText } from './label.js';
 import { ItemBudget, stripControl } from './limits.js';
 import { applySplices, openBlock, readNodeData, type NodeDataBlock, type Splice } from './node-data.js';
 import { parseStyleList } from './style.js';
@@ -31,11 +32,13 @@ const ID = /^[A-Za-z0-9_À-￿](?:[A-Za-z0-9_À-￿]|-(?=[A-Za-z0-9_À-￿]))*/;
 // prototype's `\s+(.+?)\s+(closer)`, which backtracks cubically on long runs of spaces.
 const INLINE_OPEN = /^([<ox])?(--|==|-\.)\s+/;
 const INLINE_CLOSE = /(?<!\s)\s+(-{2,}|={2,}|\.-)(>|[ox](?![\w]))?/g;
-const EDGE = /^(<|[ox](?=[-=]))?(-{2,}|={2,}|-\.+-)(>|[ox](?![\w]))?/;
+const EDGE = /^(<|[ox](?=[-=]))?(-{2,}|={2,}|-\.+-|~{3,})(>|[ox](?![\w]))?/;
 const PIPE = /^\s*\|([^|]*)\|/;
 // Mermaid v11 edge ids: `A e1@--> B`, then `e1@{ animate: true }`
 const EDGE_ID = /^([A-Za-z0-9_][\w-]*)@(?=[<ox]?[-=.])/;
 const HEADER = /^(flowchart|graph)(-elk)?\b\s*(TB|TD|BT|LR|RL)?/i;
+/** Mermaid's curve names (`flowchart.curve`, `linkStyle … interpolate`, an edge's `curve`). */
+export const FLOW_CURVES: readonly string[] = ['basis', 'bumpX', 'bumpY', 'cardinal', 'catmullRom', 'linear', 'monotoneX', 'monotoneY', 'natural', 'step', 'stepAfter', 'stepBefore'];
 const ELK_HINT = /\b(?:layout\s*:\s*["']?elk|defaultRenderer["']?\s*:\s*["']?elk)/i;
 
 /** The statements of a line split at `;` (outside quotes and brackets), trimmed, each with its offset in the line. */
@@ -114,6 +117,19 @@ function inlineEdge(F: Finder, pos: number): InlineEdge | null {
   return r;
 }
 
+/**
+ * A link's length in ranks (Mermaid's `destructEndLink`): the link without its closing character (and the start head
+ * of a two-headed link) less one, or its dots when it is dotted — `-->` and `---` 1, `---->` 3, `-.-` and `-.->` 1,
+ * `-..->` 2; a labelled link counts its closing part (`-- a --->` 2). At most 10, as Mermaid.
+ */
+export function linkLength(token: string): number {
+  const last = token.slice(-1);
+  let line = token.slice(0, -1);
+  if ((last === '>' && token[0] === '<') || ((last === 'x' || last === 'o') && token[0] === last)) line = line.slice(1);
+  const dots = line.split('.').length - 1;
+  return Math.min(10, Math.max(1, dots || line.length - 1));
+}
+
 const headOf = (c: string | undefined): EdgeHead =>
   c === '>' || c === '<' ? 'arrow' : c === 'x' ? 'cross' : c === 'o' ? 'circle' : 'none';
 
@@ -129,10 +145,78 @@ export function emptyFlowchart(): FlowchartModel {
 
 interface StyleRef { id: string; line: number; what: 'class' | 'style' }
 interface ReadNode { id: string; p: number; mention: FlowMention }
-interface ReadEdge { p: number; label: string; line: EdgeLine; start: EdgeHead; end: EdgeHead; minlen: number; link: FlowLink }
+interface ReadEdge { p: number; label: string; line: EdgeLine; start: EdgeHead; end: EdgeHead; minlen: number; link: FlowLink; md?: true; uid?: string }
 
 /** The node data keys typed onto a node (besides `shape` and `label`). */
 const DATA_STRINGS = ['labelType', 'icon', 'form', 'pos', 'img', 'constraint'] as const;
+/** The values Mermaid draws for an icon node's frame, a caption's position and an image's aspect lock. */
+const DATA_VALUES: Readonly<Record<string, readonly string[]>> = { form: ['square', 'circle', 'rounded'], pos: ['t', 'b'], constraint: ['on', 'off'] };
+
+/** A markdown string's text (`"`…`"`); null for any other label. */
+const mdText = (raw: string): string | null => (isMarkdownString(raw) ? markdownText(cleanLabel(raw)) : null);
+
+/**
+ * The frontmatter's and `%%{init}%%`'s settings that change what the content means: `title`, and in `config`
+ * `flowchart.curve`, `htmlLabels`, `markdownAutoWrap`, `flowchart.wrappingWidth`. A small reader for the YAML Mermaid
+ * files use (nested keys by indentation, plain or quoted scalars); everything else is kept in the code and ignored.
+ */
+export function frontmatterValues(lines: readonly string[]): Map<string, string> {
+  const out = new Map<string, string>();
+  const path: { indent: number; key: string }[] = [];
+  for (const raw of lines) {
+    if (!raw.trim() || raw.trim().startsWith('#')) continue;
+    const m = /^(\s*)([\w.-]+)\s*:\s*(.*)$/.exec(raw);
+    if (!m) continue;
+    const indent = m[1]!.length;
+    while (path.length && path[path.length - 1]!.indent >= indent) path.pop();
+    const key = [...path.map((p) => p.key), m[2]!].join('.');
+    const v = m[3]!.replace(/\s+#.*$/, '').trim();
+    if (v) out.set(key, v.replace(/^(["'])(.*)\1$/, '$2'));
+    else path.push({ indent, key: m[2]! });
+  }
+  return out;
+}
+
+/** Settings of an `%%{init: {…}}%%` directive (JSON-ish: keys and values, quoted or not), as frontmatter keys. */
+function initValues(t: string): Map<string, string> {
+  const out = new Map<string, string>();
+  const at = (k: string): RegExpExecArray | null => new RegExp(`["']?${k}["']?\\s*:\\s*(?:["']([^"']*)["']|([\\w.]+))`).exec(t);
+  const flow = /["']?flowchart["']?\s*:\s*\{([^}]*)\}/.exec(t)?.[1] ?? '';
+  for (const k of ['curve', 'htmlLabels', 'wrappingWidth']) {
+    const m = new RegExp(`["']?${k}["']?\\s*:\\s*(?:["']([^"']*)["']|([\\w.]+))`).exec(flow);
+    if (m) out.set(`config.flowchart.${k}`, m[1] ?? m[2] ?? '');
+  }
+  for (const k of ['htmlLabels', 'markdownAutoWrap']) {
+    const m = at(k);
+    if (m && !out.has(`config.flowchart.${k}`)) out.set(`config.${k}`, m[1] ?? m[2] ?? '');
+  }
+  return out;
+}
+
+/** The settings a flowchart follows, from frontmatter / init keys (`config.` prefixed). */
+function flowConfig(v: ReadonlyMap<string, string>): FlowConfig | undefined {
+  const c: FlowConfig = {};
+  const curve = v.get('config.flowchart.curve');
+  if (curve && FLOW_CURVES.includes(curve)) c.curve = curve;
+  const bool = (k: string): boolean | undefined => (v.get(k) === 'false' ? false : v.get(k) === 'true' ? true : undefined);
+  const html = bool('config.flowchart.htmlLabels') ?? bool('config.htmlLabels');
+  if (html !== undefined) c.htmlLabels = html;
+  const wrap = bool('config.markdownAutoWrap');
+  if (wrap !== undefined) c.markdownAutoWrap = wrap;
+  const ww = Number(v.get('config.flowchart.wrappingWidth'));
+  if (Number.isFinite(ww) && ww >= 20 && ww <= 2000) c.wrappingWidth = ww;
+  return Object.keys(c).length ? c : undefined;
+}
+
+/** A markdown string that a line opens and does not close (it goes on over the next lines, as in Mermaid). */
+function openMarkdown(s: string): boolean {
+  let open = false;
+  for (let i = 0; i < s.length - 1; i++) {
+    if (!open && s[i] === '"' && s[i + 1] === '`') { open = true; i++; }
+    else if (open && s[i] === '`' && s[i + 1] === '"') { open = false; i++; }
+  }
+  return open;
+}
 
 export function parseFlowchart(code: string): FlowchartModel {
   const model = emptyFlowchart();
@@ -151,10 +235,8 @@ export function parseFlowchart(code: string): FlowchartModel {
   const styleRefs: StyleRef[] = [];
   const linkUses: { i: number; line: number }[] = [];
   const styleWarn = (msg: string): void => { D.push(diag('warning', 'flow.bad-style', msg, curLine)); };
-  const label = (raw: string): string => {
-    if (isMarkdownString(raw)) D.push(diag('warning', 'flow.markdown-label', 'markdown strings are not supported — the label is shown as plain text', curLine));
-    return cleanLabel(raw);
-  };
+  // a markdown string keeps its emphasis (drawn as runs); line breaks and indentation as Mermaid reads them
+  const label = (raw: string): string => mdText(raw) ?? cleanLabel(raw);
 
   // Subgraph membership follows Mermaid: each subgraph lists every node mentioned inside it
   // (nested blocks included); a node belongs to the first subgraph that *closes* listing it.
@@ -194,10 +276,35 @@ export function parseFlowchart(code: string): FlowchartModel {
           }));
         } else if (!r.ok) D.push(diag('warning', 'flow.shape-name', `the "${name}" shape is drawn by mmdx only — stock Mermaid fails on it`, curLine, { params: { shape: name } }));
       } else if (e.key === 'label' && v !== null) {
-        n.label = label(String(v));
+        const md = mdText(String(v)) ?? (block.entries.some((x) => x.key === 'labelType' && x.value === 'markdown') ? String(v) : null);
+        n.label = md ?? label(String(v));
+        if (md !== null) n.md = true;
+        else delete n.md;
         n.labelFrom = 'data';
-      } else if ((e.key === 'w' || e.key === 'h') && Number.isFinite(Number(v)) && v !== null && v !== '') (n.data ??= {})[e.key] = Number(v);
-      else if ((DATA_STRINGS as readonly string[]).includes(e.key) && v !== null) (n.data ??= {})[e.key as (typeof DATA_STRINGS)[number]] = String(v);
+      } else if (e.key === 'w' || e.key === 'h') {
+        const num = typeof v === 'number' ? v : Number(v);
+        if (v !== null && v !== '' && Number.isFinite(num) && num > 0) (n.data ??= {})[e.key] = num;
+        else D.push(diag('warning', 'flow.node-data-value', `"${e.key}" should be a positive number — "${String(v)}" is ignored`, curLine, { params: { key: e.key, value: String(v) } }));
+      } else if ((DATA_STRINGS as readonly string[]).includes(e.key) && v !== null) {
+        const known = DATA_VALUES[e.key];
+        if (known && !known.includes(String(v)))
+          D.push(diag('warning', 'flow.node-data-value', `"${String(v)}" is not a value of "${e.key}" (${known.join(', ')}) — ${e.key === 'form' ? 'the icon is drawn without a frame' : 'the default is used'}`, curLine, { params: { key: e.key, value: String(v) } }));
+        (n.data ??= {})[e.key as (typeof DATA_STRINGS)[number]] = String(v);
+      }
+    }
+  };
+
+  /** Edge data onto an edge: `animate`, `animation` and `curve` typed, every entry kept with the block. */
+  const applyEdgeBlock = (e: FlowEdge, block: NodeDataBlock): void => {
+    (e.blocks ??= []).push(block);
+    for (const x of block.entries) {
+      const v = x.value;
+      if (x.key === 'animate' && v !== null) (e.data ??= {}).animate = v === true || v === 'true';
+      else if (x.key === 'animation' && typeof v === 'string') (e.data ??= {}).animation = v;
+      else if (x.key === 'curve' && typeof v === 'string') {
+        if (FLOW_CURVES.includes(v)) (e.data ??= {}).curve = v;
+        else D.push(diag('warning', 'flow.node-data-value', `unknown curve "${v}" — the line's routing is used`, curLine, { params: { key: 'curve', value: v } }));
+      }
     }
   };
 
@@ -255,6 +362,8 @@ export function parseFlowchart(code: string): FlowchartModel {
     if (!n) return { id, p, mention: mention() };
     if (text !== undefined) {
       n.label = label(text);
+      if (isMarkdownString(text)) n.md = true;
+      else delete n.md;
       n.defLine ??= curLine;
       n.labelFrom = 'bracket';
       if (bracket) n.bracket = bracket;
@@ -264,12 +373,14 @@ export function parseFlowchart(code: string): FlowchartModel {
       n.shapeFrom = 'bracket';
     }
     if (block) applyBlock(n, block);
-    const cm = /^:::([\w-]+)/.exec(s.slice(p));
-    if (cm && cm[1]) {
+    // `A:::c1:::c2`: several classes, in order (stock Mermaid 11 reads one: `class A c1,c2` is the portable form)
+    let nc = 0;
+    for (let cm = /^:::([\w-]+)/.exec(s.slice(p)); cm && cm[1]; cm = /^:::([\w-]+)/.exec(s.slice(p))) {
       n.classes.push(cm[1]);
       n.inlineClass ??= cm[1];
       p += cm[0].length;
       classUses.push({ cls: cm[1], line: curLine });
+      if (++nc === 2) D.push(diag('info', 'flow.class-chain', `stock Mermaid 11 fails on several ":::" classes — "class ${id} …" with the classes separated by commas works in both`, curLine, { params: { id } }));
     }
     return { id, p, mention: mention() };
   };
@@ -295,31 +406,37 @@ export function parseFlowchart(code: string): FlowchartModel {
     let p = pos;
     while (s[p] === ' ' || s[p] === '\t') p++;
     const l0 = p;
-    let idEnd: number | undefined;
+    let idEnd: number | undefined, uid: string | undefined;
     const idm = EDGE_ID.exec(s.slice(p));
     if (idm && idm[1]) {
-      edgeIds.add(idm[1]);
-      D.push(diag('warning', 'flow.edge-id', `edge ids are not supported — "${idm[1]}@" is ignored`, curLine, { params: { id: idm[1] } }));
+      uid = idm[1];
       p += idm[0].length;
       idEnd = base + p;
     }
     const rest = s.slice(p);
-    let raw: string | undefined, body: string, start: string | undefined, end: string | undefined, arrow: string;
+    let raw: string | undefined, body: string, start: string | undefined, end: string | undefined, arrow: string, closing: string;
     const inline = inlineEdge(F, p);
-    if (inline) { ({ start, body, raw, end, arrow } = inline); p += inline.length; }
-    else {
+    if (inline) {
+      ({ start, body, raw, end, arrow } = inline);
+      // the closing part decides the length (`-- a --->`): the arrow less its opener
+      closing = arrow.slice((start ?? '').length + (arrow.startsWith('-.', (start ?? '').length) ? 1 : 0));
+      p += inline.length;
+    } else {
       const m = EDGE.exec(rest);
       if (!m) return null;
-      start = m[1]; body = m[2] ?? ''; end = m[3]; arrow = m[0];
+      start = m[1]; body = m[2] ?? ''; end = m[3]; arrow = m[0]; closing = m[0];
       p += m[0].length;
     }
     const pm = PIPE.exec(s.slice(p));
     if (pm) { raw = pm[1] ?? ''; p += pm[0].length; }
-    const line: EdgeLine = body.includes('=') ? 'thick' : body.includes('.') ? 'dotted' : 'solid';
-    const minlen = Math.max(1, (body.match(/[-=.]/g) ?? []).length - 1);
+    const line: EdgeLine = body.startsWith('~') ? 'invisible' : body.includes('=') ? 'thick' : body.includes('.') ? 'dotted' : 'solid';
+    const minlen = linkLength(closing);
     const link: FlowLink = { start: base + l0, end: base + p, arrow };
     if (idEnd !== undefined) link.idEnd = idEnd;
-    return { p, label: raw == null ? '' : label(raw), line, start: headOf(start), end: headOf(end), minlen, link };
+    const r: ReadEdge = { p, label: raw == null ? '' : label(raw), line, start: headOf(start), end: headOf(end), minlen, link };
+    if (raw != null && isMarkdownString(raw)) r.md = true;
+    if (uid) r.uid = uid;
+    return r;
   };
 
   const statement = (t: string, li: number, at: number): void => {
@@ -328,16 +445,26 @@ export function parseFlowchart(code: string): FlowchartModel {
     let m: RegExpExecArray | null;
     if ((m = /^subgraph\s+(.+)$/.exec(t))) {
       const rest = (m[1] ?? '').trim();
-      let id: string, title: string;
+      let id: string, title: string, raw: string | null = null;
       const b = /^([^\s[]+)\s*\[(.*)\]$/.exec(rest);
-      if (b) { id = b[1] ?? ''; title = label(b[2] ?? ''); }
-      else if (/^".*"$/.test(rest)) { title = label(rest); id = title; }
+      if (b) { id = b[1] ?? ''; raw = b[2] ?? ''; title = label(raw); }
+      else if (/^".*"$/.test(rest)) { raw = rest; title = label(rest); id = title; }
       else { id = rest; title = rest; }
       const parent = stack[stack.length - 1] ?? null;
-      if (!model.groups.has(id)) {
+      const known = model.groups.get(id);
+      if (!known) {
         if (!budget.take(li)) return;
         const g: FlowGroup = { id, label: title, parent, children: [], order: model.groups.size, line: li, lines: new Set([li]) };
+        if (raw !== null && isMarkdownString(raw)) g.md = true;
         model.groups.set(id, g);
+      } else {
+        // a repeated `subgraph X` adds to the same subgraph (Mermaid 12.1): its title stays the first one written,
+        // unless only this declaration writes one
+        known.lines.add(li);
+        if (raw !== null && known.label === known.id && title !== known.id) {
+          known.label = title;
+          if (isMarkdownString(raw)) known.md = true;
+        }
       }
       mentions.push(new Set());
       const pg = parent ? model.groups.get(parent) : undefined;
@@ -358,15 +485,16 @@ export function parseFlowchart(code: string): FlowchartModel {
       for (const c of (m[1] ?? '').split(',')) if (c) model.classDefs[c] = { ...st };
       return;
     }
-    if ((m = /^class\s+(\S+)\s+([\w-]+)/.exec(t))) {
-      const cls = m[2] ?? '';
-      classUses.push({ cls, line: li });
+    // `class a,b c1,c2`: several items, several classes (applied in order)
+    if ((m = /^class\s+(\S+)\s+([\w-]+(?:\s*,\s*[\w-]+)*)/.exec(t))) {
+      const classes = (m[2] ?? '').split(',').map((c) => c.trim()).filter(Boolean);
+      for (const cls of classes) classUses.push({ cls, line: li });
       for (const id of (m[1] ?? '').split(',')) {
         if (!id) continue;
         styleRefs.push({ id, line: li, what: 'class' });
         const g = model.groups.get(id);
-        if (g) { (g.classes ??= []).push(cls); g.lines.add(li); }
-        else touchNode(id, false)?.classes.push(cls);
+        if (g) { (g.classes ??= []).push(...classes); g.lines.add(li); }
+        else touchNode(id, false)?.classes.push(...classes);
       }
       return;
     }
@@ -379,29 +507,63 @@ export function parseFlowchart(code: string): FlowchartModel {
       else { const n = touchNode(id, false); if (n) Object.assign(n.style, st); }
       return;
     }
-    if ((m = /^linkStyle\s+([\d,\s]+|default)\s+(.+)$/.exec(t))) {
-      const st = parseStyleList(m[2] ?? '', styleWarn);
+    if ((m = /^linkStyle\s+([\d,\s]+?|default)\s+(.+)$/.exec(t))) {
+      // `linkStyle 0 interpolate basis stroke:red`: the curve, then the style (either may be missing)
+      const ip = /^interpolate\s+(\w+)\s*(.*)$/.exec(m[2] ?? '');
+      const curve = ip?.[1];
+      if (curve && !FLOW_CURVES.includes(curve)) styleWarn(`unknown curve "${curve}" — the line's routing is used`);
+      const list = ip ? ip[2] ?? '' : m[2] ?? '';
+      const st = list.trim() ? parseStyleList(list, styleWarn) : null;
       for (const raw of (m[1] ?? '').split(',')) {
         const k = raw.trim();
         if (!k) continue;
-        model.linkStyles[k] = { ...st };
+        const prev = model.linkStyles[k];
+        const next: MermaidStyle = st ? { ...st } : { ...prev };
+        if (curve && FLOW_CURVES.includes(curve)) next.interpolate = curve;
+        else if (prev?.interpolate) next.interpolate = prev.interpolate;
+        model.linkStyles[k] = next;
         if (k !== 'default') linkUses.push({ i: Number(k), line: li });
       }
       return;
     }
-    if ((m = /^click\s+(\S+)\s+(?:href\s+)?"([^"]+)"/.exec(t))) {
-      // the link stays a raw string: the renderer applies the link policy
+    if ((m = /^click\s+(\S+)\s+(?:href\s+)?"([^"]+)"(?:\s+"([^"]*)")?/.exec(t))) {
+      // the link stays a raw string: the renderer applies the link policy; the tooltip is text
       const id = m[1] ?? '';
       if (model.nodes.has(id) || !model.groups.has(id)) {
         const n = touchNode(id, false);
-        if (n) n.link = stripControl(m[2] ?? '');
+        if (n) {
+          n.link = stripControl(m[2] ?? '');
+          if (m[3]) n.tooltip = stripControl(cleanLabel(m[3]));
+        }
       }
       return;
     }
+    // a callback (`click A callback "tip"`, `click A call fn() "tip"`) is not run; its tooltip is shown
+    if ((m = /^click\s+(\S+)\s+(?:call\s+)?[\w.$]+(?:\([^)]*\))?\s+"([^"]*)"/.exec(t))) {
+      const n = model.nodes.get(m[1] ?? '');
+      if (n && m[2]) n.tooltip = stripControl(cleanLabel(m[2]));
+      return;
+    }
+    if ((m = /^accTitle\s*:\s*(.*)$/.exec(t))) { model.accTitle = stripControl(m[1] ?? '').trim(); return; }
+    if ((m = /^accDescr\s*:\s*(.*)$/.exec(t))) { model.accDescr = stripControl(m[1] ?? '').trim(); return; }
+    if ((m = /^title\s+(.+)$/.exec(t))) {
+      // drawn, but stock Mermaid's flowchart has no `title` statement: the fix moves it to the frontmatter
+      model.title = stripControl(m[1] ?? '').trim();
+      D.push(diag('warning', 'flow.title-statement', 'stock Mermaid fails on a `title` statement in a flowchart — the frontmatter\'s `title:` is the portable form', li, {
+        fix: { title: 'Move to the frontmatter', apply: (c: string) => titleToFrontmatter(c, li) },
+      }));
+      return;
+    }
     if (/^(click|accTitle|accDescr|title)\b/.test(t)) return;
-    // `e1@{ animate: true }` on an edge id: edge properties are not modelled
+    // `e1@{ animate: true, curve: linear }` on an edge id (an edge written before it): its data
     if ((m = /^([A-Za-z0-9_][\w-]*)@\{/.exec(t)) && edgeIds.has(m[1] ?? '')) {
-      D.push(diag('warning', 'flow.edge-id', `edge properties are not supported — "${t}" is ignored`, li, { params: { id: m[1] ?? '' } }));
+      const uid = m[1] ?? '';
+      const b = readNodeData(t, uid.length + 1, at);
+      const e = model.edges.find((x) => x.uid === uid);
+      if (!b) { D.push(diag('warning', 'flow.node-data', `"${uid}@{" is not closed — the edge data is ignored`, li, { params: { id: uid } })); return; }
+      if (e) applyEdgeBlock(e, b);
+      const tail = t.slice(b.end - at).trim();
+      if (tail) D.push(diag('warning', 'flow.ignored-text', `ignored "${tail}"`, li));
       return;
     }
 
@@ -428,10 +590,19 @@ export function parseFlowchart(code: string): FlowchartModel {
           const key = `${a}->${b}`;
           const n = (edgeCount.get(key) ?? 0) + 1;
           edgeCount.set(key, n);
+          const sid = n > 1 ? `${key}#${n}` : key;
           const edge: FlowEdge = {
-            id: n > 1 ? `${key}#${n}` : key, from: a, to: b, label: e.label, line: e.line,
+            id: sid, from: a, to: b, label: e.label, line: e.line,
             start: e.start, end: e.end, minlen: e.minlen, index: model.edges.length, src: li, stmt, seg,
           };
+          if (e.md) edge.md = true;
+          // as Mermaid: the id goes to the last start and the first end of `A & B e1@--> C & D`, once per diagram
+          if (e.uid && a === left[left.length - 1] && b === r.ids[0] && !edgeIds.has(e.uid)) {
+            edgeIds.add(e.uid);
+            edge.id = e.uid;
+            edge.uid = e.uid;
+            edge.key = sid;
+          }
           model.edges.push(edge);
         }
       }
@@ -442,6 +613,8 @@ export function parseFlowchart(code: string): FlowchartModel {
     if (tail) D.push(diag('warning', 'flow.ignored-text', `ignored "${tail}"`, li));
   };
 
+  // frontmatter and `%%{init}%%` keys (`title`, `config.flowchart.curve`…)
+  const settings = new Map<string, string>();
   // code offset of each line (spans are offsets into the code)
   const lineStart: number[] = [];
   for (let i = 0, off = 0; i < lines.length; off += (lines[i] ?? '').length + 1, i++) lineStart.push(off);
@@ -450,15 +623,24 @@ export function parseFlowchart(code: string): FlowchartModel {
     let t0 = raw.trim();
     curLine = li;
     if (!t0) continue;
-    // a node data block written over several lines: its statement goes on until the block closes
+    // `accDescr { … }`: a description over several lines, up to the first `}` (F1: its lines are not statements)
+    const ad = /^accDescr\s*\{(.*)$/.exec(t0);
+    if (ad) {
+      let body = ad[1] ?? '';
+      while (!body.includes('}') && li + 1 < lines.length) body += '\n' + (lines[++li] ?? '');
+      model.accDescr = body.slice(0, body.includes('}') ? body.indexOf('}') : undefined).split('\n').map((l) => stripControl(l).trim()).filter(Boolean).join('\n');
+      continue;
+    }
+    // a node data block or a markdown string written over several lines: its statement goes on until it closes
     const first = li;
-    if (!t0.startsWith('%%') && openBlock(t0)) {
-      while (li + 1 < lines.length && openBlock(raw.trim())) raw += '\n' + (lines[++li] ?? '');
+    if (!t0.startsWith('%%') && (openBlock(t0) || openMarkdown(t0))) {
+      while (li + 1 < lines.length && (openBlock(raw.trim()) || openMarkdown(raw))) raw += '\n' + (lines[++li] ?? '');
       t0 = raw.trim();
     }
     const lineBase = (lineStart[first] ?? 0) + (raw.length - raw.trimStart().length);
     if (t0.startsWith('%%')) {
       if (t0.startsWith('%%{') && ELK_HINT.test(t0)) D.push(diag('warning', 'flow.elk', 'ELK layout hints are not supported — the built-in layout is used', li));
+      if (t0.startsWith('%%{') && /^%%\{\s*init\s*:/i.test(t0)) for (const [k, v] of initValues(t0)) if (!settings.has(k)) settings.set(k, v);
       continue;
     }
     let stmts = splitStatements(t0);
@@ -470,10 +652,15 @@ export function parseFlowchart(code: string): FlowchartModel {
         if (h[2]) D.push(diag('warning', 'flow.elk', 'ELK layout hints are not supported — the built-in layout is used', li));
         stmts = stmts.slice(1); // `graph TD; A-->B` keeps the statements after the header
       } else if (/^---/.test(t0)) {
-        // front matter: only before the header
+        // front matter: only before the header; kept in the code, read for the title and the settings that change the content
         let elk = false;
-        while (++li < lines.length && !/^---/.test((lines[li] ?? '').trim())) if (ELK_HINT.test(lines[li] ?? '')) elk = true;
+        const fm: string[] = [];
+        while (++li < lines.length && !/^---/.test((lines[li] ?? '').trim())) {
+          if (ELK_HINT.test(lines[li] ?? '')) elk = true;
+          fm.push(lines[li] ?? '');
+        }
         if (elk) D.push(diag('warning', 'flow.elk', 'ELK layout hints are not supported — the built-in layout is used', curLine));
+        for (const [k, v] of frontmatterValues(fm)) settings.set(k, v);
         continue;
       }
     }
@@ -481,6 +668,20 @@ export function parseFlowchart(code: string): FlowchartModel {
       if (budget.over) break;
       statement(t, first, lineBase + off);
     }
+  }
+
+  const fmTitle = settings.get('title');
+  if (fmTitle && model.title === undefined) model.title = stripControl(fmTitle);
+  const config = flowConfig(settings);
+  if (config) model.config = config;
+
+  // icon and image nodes (Mermaid draws `img`, else `icon`, whatever the shape says): their shape, and no caption
+  // unless a label is written (the id is not shown, as in Mermaid)
+  for (const n of model.nodes.values()) {
+    if (!n.data?.img && !n.data?.icon) continue;
+    n.shape = n.data.img ? 'image' : 'icon';
+    n.shapeFrom = 'data';
+    if (!n.labelFrom) n.label = '';
   }
 
   // classes without a classDef: may still be theme presets, which the editor checks (the parser has no theme)
@@ -560,6 +761,28 @@ export function fixShapeNames(code: string): string {
         if (r && !r.ok && r.names.mermaid) splices.push({ from: e.valueAt, to: e.valueEnd, text: r.names.mermaid });
       }
   return applySplices(code, splices);
+}
+
+/**
+ * The `flow.title-statement` fix: the `title` statement on line `li` becomes the frontmatter's `title:` (added to the
+ * frontmatter there is, else a new one before the header).
+ */
+export function titleToFrontmatter(code: string, li: number): string {
+  const L = code.split('\n');
+  const m = /^\s*title\s+(.+?)\s*$/.exec(L[li] ?? '');
+  if (!m) return code;
+  const v = m[1]!;
+  const yaml = /^[\w ,.()!?'-]+$/.test(v) && !/^['-]/.test(v) ? v : JSON.stringify(v);
+  L.splice(li, 1);
+  const first = L.findIndex((l) => l.trim() !== '');
+  if (first >= 0 && /^---\s*$/.test(L[first]!)) {
+    const close = L.findIndex((l, i) => i > first && /^---\s*$/.test(l));
+    const at = L.findIndex((l, i) => i > first && i < close && /^title\s*:/.test(l));
+    if (at >= 0) L[at] = `title: ${yaml}`;
+    else L.splice(first + 1, 0, `title: ${yaml}`);
+    return L.join('\n');
+  }
+  return ['---', `title: ${yaml}`, '---', ...L].join('\n');
 }
 
 function clashFreeId(model: FlowchartModel, id: string): string {

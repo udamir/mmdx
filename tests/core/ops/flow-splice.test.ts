@@ -44,7 +44,8 @@ describe('relabel', () => {
     expect(out).toBe('flowchart LR\n  A@{ shape: doc, label: "Report" } ---> B:::hot & C\n  B -.->|"y"| D\n  C -.->|"x"| D\n  E["Old"] --> D');
     const chain = 'flowchart LR\n  A --> B ---> C\n  A e1@-.-> D';
     expect(relabelFlowEdge(chain, P(chain), 'B->C', 'long').code).toBe('flowchart LR\n  A --> B --->|"long"| C\n  A e1@-.-> D');
-    expect(relabelFlowEdge(chain, P(chain), 'A->D', 'id').code).toBe('flowchart LR\n  A --> B ---> C\n  A e1@-.->|"id"| D');
+    // an edge with its own id is that id (T06)
+    expect(relabelFlowEdge(chain, P(chain), 'e1', 'id').code).toBe('flowchart LR\n  A --> B ---> C\n  A e1@-.->|"id"| D');
     const inline = 'flowchart LR\n  A -- old text --> B';
     expect(relabelFlowEdge(inline, P(inline), 'A->B', '').code).toBe('flowchart LR\n  A --> B');
     for (const c of [out, relabelFlowEdge(chain, P(chain), 'B->C', 'long').code, relabelFlowEdge(inline, P(inline), 'A->B', 'new').code]) await expect(mermaidParse(c)).resolves.toBeTruthy();
@@ -131,7 +132,7 @@ describe('setShape (§4.5)', () => {
     ['bracket → no bracket', 'flowchart LR\n  A[Label] --> B', 'doc', 'flowchart LR\n  A[Label] --> B\n  A@{ shape: doc }\n'],
     ['quoted bracket → bracket', 'flowchart LR\n  A["a (b)"]', 'circle', 'flowchart LR\n  A(("a (b)"))'],
     ['unquoted brackets inside → quoted', 'flowchart LR\n  A[f(x)]', 'stadium', 'flowchart LR\n  A(["f(x)"])'],
-    ['separate @{} → in place', 'flowchart LR\n  A["L"] --> B\n  A@{ shape: doc, icon: "fa:x" }', 'diam', 'flowchart LR\n  A["L"] --> B\n  A@{ shape: diam, icon: "fa:x" }'],
+    ['separate @{} → in place', 'flowchart LR\n  A["L"] --> B\n  A@{ shape: doc, custom: "x" }', 'diam', 'flowchart LR\n  A["L"] --> B\n  A@{ shape: diam, custom: "x" }'],
     ['inline @{} → in place', 'flowchart LR\n  A@{ label: "L", shape: doc } --> B', 'lin-cyl', 'flowchart LR\n  A@{ label: "L", shape: lin-cyl } --> B'],
     ['@{} without shape → key added', 'flowchart LR\n  A@{ label: "L" } --> B', 'tri', 'flowchart LR\n  A@{ label: "L", shape: tri } --> B'],
     ['only in edges → bracket at first mention', 'flowchart LR\n  A --> B\n  A --> C', 'hexagon', 'flowchart LR\n  A{{"A"}} --> B\n  A --> C'],

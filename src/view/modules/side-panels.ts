@@ -48,7 +48,7 @@ const viewSettings = (o: { display: boolean }): ViewModule<ViewCore> => ({
     const title = o.display ? t('layers.title') : t('layers.layers');
     const offBtn = panelToggle(scope, 'view-settings', { icon: o.display ? VIEW_SETTINGS_ICON : ICONS.layers, label: o.display ? t('tools.viewSettings') : title, keys, help: o.display ? t('help.viewSettings') : title, order: 30 });
     const display = core.display;
-    const labels = scope.computed(() => display().labels), hover = scope.computed(() => display().hoverHighlight);
+    const labels = scope.computed(() => display().labels), hover = scope.computed(() => display().hoverHighlight), animate = scope.computed(() => display().animate);
     const set = (patch: Partial<ReturnType<typeof display.peek>>): void => {
       display.set({ ...display.peek(), ...patch });
       core.invalidate();
@@ -65,6 +65,7 @@ const viewSettings = (o: { display: boolean }): ViewModule<ViewCore> => ({
       display: o.display ? [
         { id: 'labels', label: t('layers.labels'), value: labels, onChange: (v) => set({ labels: v }) },
         { id: 'hover', label: t('layers.hover'), value: hover, onChange: (v) => set({ hoverHighlight: v }) },
+        { id: 'animate', label: t('layers.animate'), value: animate, onChange: (v) => set({ animate: v }) },
       ] : [],
       t,
     });

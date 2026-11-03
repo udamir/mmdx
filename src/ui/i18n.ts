@@ -15,6 +15,7 @@ const EN: Messages = {
   'layers.display': 'Display',
   'layers.labels': 'Connector labels',
   'layers.hover': 'Hover highlight',
+  'layers.animate': 'Animate edges',
   'layers.show': 'Show layer',
   'layers.hide': 'Hide layer',
   'layers.default': 'Default',

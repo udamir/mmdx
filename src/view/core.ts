@@ -11,6 +11,7 @@ import type { CoreContext } from '../core/context.js';
 import type { IconPack } from '../core/icons/types.js';
 import type { Rect } from '../core/types.js';
 import { CANVAS_CSS, DiagramCanvas, type CanvasOptions, type Insets } from '../dom/canvas.js';
+import { domImageSizes, onImageSize } from '../dom/image-sizes.js';
 import type { StrokeStore } from '../dom/pen.js';
 import { registerMessages, type I18n } from '../ui/i18n.js';
 import { VIEW_MESSAGES } from '../ui/messages/view.js';
@@ -92,7 +93,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   /** The chrome's light / dark scheme. */
   readonly scheme: Signal<Scheme>;
   readonly themes: ThemeState;
-  readonly display: Signal<Display> = signal<Display>({ labels: true, hoverHighlight: true });
+  readonly display: Signal<Display> = signal<Display>({ labels: true, hoverHighlight: true, animate: true });
   /** Open panels by name. */
   readonly panels: Signal<P> = signal<P>({} as P);
   readonly tool: Signal<Tool> = signal<Tool>('hand');
@@ -175,6 +176,13 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.cleanups.push(this.ctx.icons.onChange(() => {
       if (!this.destroyed) this.invalidate();
     }));
+    // an image node without a size is drawn at its picture's size once the browser has loaded it (T06): once more
+    this.ctx.imageSizes ??= domImageSizes;
+    this.cleanups.push(onImageSize(() => {
+      if (!this.destroyed) this.invalidate();
+    }));
+    // animated edges (`e1@{ animate: true }`) move unless the view settings turn them off (or the system asks for less motion)
+    this.cleanups.push(effect(() => void (this.root.dataset['edgeAnim'] = this.display().animate ? 'on' : 'off')));
     this.cleanups.push(this.ctx.themes.onChange(() => {
       if (this.destroyed) return;
       this.themes.themesChanged();

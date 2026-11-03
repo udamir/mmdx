@@ -10,6 +10,7 @@ import { editKind } from '../../../kinds/registry.js';
 import type { ItemMedia, MediaPatch } from '../../../kinds/types.js';
 import { mediaOf, setIconOf, setImageFit, setImageOf, setMediaOf } from '../../../ops/media.js';
 import { row, sect, type PanelCtx } from './shared.js';
+import { isFaPack, splitIconName } from '../../../../core/icons/names.js';
 
 registerMessages(EDITOR_MEDIA_MESSAGES);
 
@@ -63,6 +64,15 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
       ctl.push(rm);
     }
     host.append(row(t('props.icon'), ...ctl));
+    // an icon in the label (T06 §3.3, §3.6): stock Mermaid draws Font Awesome tokens only; the icon can become the node
+    if (!m.node && m.icon) {
+      if (!isFaPack(splitIconName(m.icon)[0])) host.append(h('div', { class: 'hint' }, t('props.iconTokenMmdx')));
+      if (k.setMedia) {
+        const conv = h('button', { type: 'button' }, t('props.toIconNode'));
+        conv.addEventListener('click', () => void setMediaOf(core, [ref], { node: 'icon' }));
+        host.append(row('', conv));
+      }
+    }
     if (m.node === 'icon') {
       host.append(row(t('props.iconForm'), choice(t('props.iconForm'), ['', 'square', 'circle', 'rounded'], m.form ?? '', (v) => t(`media.form.${v || 'none'}`), (v) => void setMediaOf(core, [ref], { form: v || null }))));
       layoutRows(p, host, ref, m);

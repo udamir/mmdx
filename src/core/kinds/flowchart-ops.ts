@@ -1,6 +1,6 @@
 // The flowchart ops kind: code order, the clipboard, auto-placed nodes, subgraph contents and the direction.
 import type { Presets } from './types.js';
-import { edgePreset, flowPresets, groupPreset, nodePreset } from '../render/flowchart.js';
+import { edgePreset, flowPresets, groupPreset, nodePreset } from '../render/flow-presets.js';
 import { minOf } from '../geom.js';
 import type { FlowchartModel } from '../model.js';
 import { cloneFlow, deleteFlow, setFlowDirection } from '../ops/flowchart.js';
@@ -57,6 +57,23 @@ export const OPS: OpsKind<FlowchartModel, FlowGeometry> = {
   remove: deleteFlow,
   clone: cloneFlow,
   idKind: (model, id) => (model.groups.has(id) ? 'group' : 'node'),
+  // an edge given its own id in the code (`e1@-->`) takes the metadata written under `from->to`, and gives it back when
+  // the id is removed (T06)
+  remapMeta(meta, before, _bc, after) {
+    const E = meta.edges;
+    if (!E) return meta;
+    let out: typeof E | null = null;
+    const move = (from: string, to: string): void => {
+      if (!(out ?? E)[from] || (out ?? E)[to]) return;
+      out ??= { ...E };
+      out[to] = out[from]!;
+      delete out[from];
+    };
+    for (const e of after.edges) if (e.uid && e.key) move(e.key, e.uid);
+    const had = new Map(before.edges.filter((e) => e.uid && e.key).map((e) => [e.key!, e.uid!]));
+    for (const e of after.edges) if (!e.uid && had.has(e.id) && !after.edges.some((x) => x.id === had.get(e.id))) move(had.get(e.id)!, e.id);
+    return out ? { ...meta, edges: out } : meta;
+  },
   pinAuto(meta, _model, geom) {
     // auto-placed nodes are laid out below hand-placed ones: pin them where they are before the first manual placement
     if (geom?.type !== 'flowchart') return meta;

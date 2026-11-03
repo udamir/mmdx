@@ -36,6 +36,8 @@ export interface ToolbarMediaPatch {
   h?: number | null;
   constraint?: 'on' | 'off' | null;
   fit?: string | null;
+  /** `icon`: a node whose label starts with an icon becomes an icon node ("Convert to icon node", T06 §3.6). */
+  node?: 'icon';
 }
 
 /** Which controls a kind of item gets, and which style keys they edit. */

@@ -7,6 +7,7 @@
 import { opsKind, withKind } from '../../../core/kinds/registry.js';
 import { withEdit } from '../../kinds/registry.js';
 import { cloneItems, cloneMeta, moveItem, moveItems, type MoveOpts } from '../../../core/ops/index.js';
+import { ensure as ensureMeta } from '../../../core/ops/meta-util.js';
 import { el } from '../../../core/scene/build.js';
 import type { SceneNode } from '../../../core/scene/types.js';
 import type { ItemKind, ItemRef } from '../../../core/types.js';
@@ -231,11 +232,30 @@ export const canvasSelectModule: EditorModule = {
       const { kind, id } = s;
       if (core.getM(kind, id).locked) return NOOP;
       const meta0 = core.meta;
+      // an icon or image node (T06): the handle sizes its asset — an icon stays square, a locked image keeps its aspect —
+      // and the size goes to the code (`h` / `w` in its node data) when the drag ends, so stock Mermaid draws it the same
+      const media = b.asset ? withEdit(core.model, (k, m) => k.media?.(m, s, core)) : null;
+      const asset = media?.node ? b.asset : undefined;
       const g = metaGesture('Resize', (dx, dy, ev) => {
         sizing = s;
         core.store.meta.set(cloneMeta(meta0));
         const m = core.ensure(kind, id);
         const snap = (v: number): number => core.snapV(v, ev);
+        if (asset && media) {
+          const d = Math.abs(dx) > Math.abs(dy) ? dx : dy;
+          let w = Math.max(16, snap(asset.w + dx)), hh = Math.max(16, snap(asset.h + dy));
+          if (media.node === 'icon') w = hh = Math.max(16, snap(asset.w + d));
+          else if (media.constraint === 'on') {
+            const k = asset.w / asset.h;
+            if (Math.abs(dx) > Math.abs(dy)) hh = Math.max(16, Math.round(w / k));
+            else w = Math.max(16, Math.round(hh * k));
+          }
+          m.w = w;
+          m.h = hh;
+          m.x = Math.round(b.x + (w - asset.w) / 2);
+          m.y = Math.round(b.y + (hh - asset.h) / 2);
+          return;
+        }
         if (kind === 'participant') {
           // width grows around the centre (neighbours make room), height downwards; positions stay as they are
           m.w = Math.max(40, snap(b.w + 2 * dx));
@@ -257,11 +277,33 @@ export const canvasSelectModule: EditorModule = {
           m.y = Math.round(y0 + hh / 2);
         }
       });
+      /** The asset's new size moves from the gesture's metadata into the code (`setMedia`), in the same step. */
+      let moved = false;
+      const toCode = (): void => {
+        if (!asset || !media || !moved) return;
+        const m = core.getM(kind, id);
+        const w = typeof m.w === 'number' ? m.w : undefined, hh = typeof m.h === 'number' ? m.h : undefined;
+        if (w === undefined || hh === undefined) return;
+        // Mermaid draws an icon max(h, w) square, `w` 48 when not written: below that, both are written
+        const patch = media.node === 'icon' ? { h: hh, ...(media.w !== undefined || hh < 48 ? { w } : {}) } : { w, h: hh };
+        const res = withEdit(core.model, (k, M) => k.setMedia?.(core.code, M, s, patch, core));
+        if (!res) return;
+        const meta = cloneMeta(core.meta);
+        const own = ensureMeta(meta, kind, id);
+        delete own.w;
+        delete own.h;
+        core.store.code.set(res.code);
+        core.store.meta.set(meta);
+      };
       // the size badge goes with the gesture
       return {
-        move: g.move,
+        move(dx, dy, ev) {
+          moved = true;
+          g.move(dx, dy, ev);
+        },
         end(ev) {
           sizing = null;
+          toCode();
           g.end?.(ev);
           core.drawOverlay();
         },

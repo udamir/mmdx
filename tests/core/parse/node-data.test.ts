@@ -99,7 +99,8 @@ describe('the flowchart reads node data', () => {
   it('types the known keys, keeps the rest, and lets a later statement win as Mermaid does', () => {
     const m = parseFlowchart('flowchart LR\n  A["Label"] --> B\n  A@{ shape: lin-cyl, icon: "fa:car", w: 60, custom: 1 }\n  B@{\n    shape: sm-circ\n    label: "Start"\n  }\n  B --> C');
     const a = m.nodes.get('A')!, b = m.nodes.get('B')!;
-    expect([a.shape, a.label, a.shapeFrom, a.labelFrom]).toEqual(['lin-cyl', 'Label', 'data', 'bracket']);
+    // an `icon` key makes an icon node whatever the shape says, as Mermaid draws it (T06)
+    expect([a.shape, a.label, a.shapeFrom, a.labelFrom]).toEqual(['icon', 'Label', 'data', 'bracket']);
     expect(a.data).toEqual({ icon: 'fa:car', w: 60 });
     expect(a.blocks?.[0]?.entries.map((e) => e.key)).toEqual(['shape', 'icon', 'w', 'custom']);
     expect([b.shape, b.label, b.defLine]).toEqual(['sm-circ', 'Start', 3]);

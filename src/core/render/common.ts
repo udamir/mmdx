@@ -593,6 +593,8 @@ export interface SubResult {
   bounds: Rect;
   geom: GeometryIndex;
   presetsUsed: Partial<Record<ItemKind, Map<string, number>>>;
+  /** The diagram's accessible title and description, when its code gives them. */
+  a11y?: { title?: string; desc?: string };
 }
 
 /** A metadata number (validated by core/meta; checked again here because the scene must never see NaN). */

@@ -22,6 +22,12 @@ export const CANVAS_CSS = /* css */ `
 .ink path { fill: none; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; opacity: .9; transition: opacity .6s; }
 .ink path.fading { opacity: 0; }
 svg.pen-on, svg.pen-on * { cursor: crosshair !important; }
+@keyframes mmdx-flow { from { stroke-dashoffset: 14; } to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: no-preference) {
+  .mmdx-flow { animation: mmdx-flow .31s linear infinite; }
+  .mmdx-flow-slow { animation-duration: .78s; }
+  [data-edge-anim="off"] .mmdx-flow { animation: none; }
+}
 `;
 
 export type Interaction = 'pan-zoom' | 'static';

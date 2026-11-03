@@ -3,25 +3,25 @@
 // lengths and styles, chains, `&` groups and `:::` classes. A statement is split only where an edit breaks it apart
 // (one edge of `A & B --> C`), and then only that part: the other links keep their own syntax.
 import type { FlowEdge, FlowLink, FlowMention, FlowStatement, FlowchartModel } from '../model.js';
-import { encodeLabel } from '../parse/label.js';
+import { labelText } from '../parse/label.js';
 import type { Splice } from '../parse/node-data.js';
 import { indentOf } from './lines.js';
 
 export interface StatementEdit {
   dropNodes?: ReadonlySet<string>;
   dropEdges?: ReadonlySet<string>;
-  /** An edge of the statement with new ends and, when `label` is set, a new label. */
-  change?: { id: string; from: string; to: string; label?: string };
+  /** An edge of the statement with new ends and, when `label` is set, a new label (`md`: as a markdown string). */
+  change?: { id: string; from: string; to: string; label?: string; md?: boolean };
   /** An edge taken out of the statement (the caller writes it elsewhere). */
   take?: string;
 }
 
 const NONE: ReadonlySet<string> = new Set();
 
-/** A link with a new label: the arrow as written (length, heads, edge id) and the label in pipes; '' drops it. */
-export function relabelLink(code: string, link: FlowLink, label: string): string {
+/** A link with a new label: the arrow as written (length, heads, edge id) and the label in pipes (a markdown string stays one); '' drops it. */
+export function relabelLink(code: string, link: FlowLink, label: string, md = false): string {
   const id = link.idEnd !== undefined ? code.slice(link.start, link.idEnd) : '';
-  return `${id}${link.arrow}${label ? `|"${encodeLabel(label)}"|` : ''}`;
+  return `${id}${link.arrow}${label ? `|${labelText(label, md)}|` : ''}`;
 }
 
 interface Pair {
@@ -50,7 +50,7 @@ export function rewriteStatement(code: string, model: FlowchartModel, si: number
     es
       .filter((e) => !dropE.has(e.id) && !drop.has(e.from) && !drop.has(e.to) && e.id !== edit.take)
       .map((e) => (ch && e.id === ch.id
-        ? { from: ch.from, to: ch.to, link: ch.label !== undefined ? relabelLink(code, st.links[j]!, ch.label) : linkText(j), changed: true }
+        ? { from: ch.from, to: ch.to, link: ch.label !== undefined ? relabelLink(code, st.links[j]!, ch.label, !!ch.md) : linkText(j), changed: true }
         : { from: e.from, to: e.to, link: linkText(j), changed: false })),
   );
 

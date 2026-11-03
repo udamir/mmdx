@@ -1,0 +1,42 @@
+---
+title: Icons, images and rich labels
+config:
+  flowchart:
+    curve: basis
+---
+flowchart TB
+  intro["`**Icons and images** in a flowchart:
+    icon nodes with a frame, image nodes with a caption,
+    *Font Awesome* tokens and markdown labels`"]
+  subgraph icons ["Icon nodes"]
+    i1["No frame"]
+    i2["Square"]
+    i3["Circle"]
+    i4["Rounded, caption above"]
+  end
+  subgraph images ["Image nodes"]
+    p1["The mmdx logo"]
+    p2["`Mermaid Chart's *default image*`"]
+    p3["Aspect kept"]
+  end
+  subgraph tokens ["Icons in labels"]
+    t1["fa:fa-car Car"]
+    t2["fab:fa-github Source"]
+    t3["tabler:bolt Fast"]
+  end
+  intro --> icons
+  intro --> images
+  intro --> tokens
+  i1 --> i2 --> i3 --> i4
+  p1 --> p2 --> p3
+  t1 -->|"fa:fa-route on the road"| t2
+  t2 -->|"`**then**`"| t3
+  i1@{ icon: "tabler:cloud", pos: "b", h: 48 }
+  i2@{ icon: "tabler:server", form: "square", pos: "b", h: 40 }
+  i3@{ icon: "tabler:user", form: "circle", pos: "b", h: 40 }
+  i4@{ icon: "tabler:lock", form: "rounded", pos: "t", h: 40 }
+  p1@{ img: "https://udamir.github.io/mmdx/logo.svg", w: 160, h: 64, pos: "b" }
+  p2@{ img: "https://static.mermaidchart.dev/whiteboard/default-image-shape.svg", w: 120, h: 120, pos: "b" }
+  p3@{ img: "https://udamir.github.io/mmdx/studio/icon-512.png", h: 80, constraint: "on", pos: "b" }
+  style i4 fill:#fff3e0,stroke:#e65100
+  linkStyle 7 color:#2962ff

@@ -17,6 +17,10 @@ export interface ItemText {
   /** i18n key of the section title. */
   title: string;
   write(code: string, v: string): CodeResult;
+  /** The text is a markdown string (`**bold**` and `*italic*` are styled words; T06). */
+  markdown?: boolean;
+  /** Writes the text as a markdown string ("Make rich text"); absent: the item's text cannot be one. */
+  writeMarkdown?(code: string, v: string): CodeResult;
 }
 
 export type { MediaPatch } from '../../core/ops/flow-media.js';

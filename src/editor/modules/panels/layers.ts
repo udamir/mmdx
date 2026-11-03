@@ -46,15 +46,16 @@ export function layersCard(core: EditorCore): LayersCard {
     if (!Object.keys(defs).length) delete meta.layers;
     applyMeta(core, label, { meta });
   };
-  const display = (key: 'labels' | 'hoverHighlight', v: boolean): void => {
+  const display = (key: 'labels' | 'hoverHighlight' | 'animate', v: boolean): void => {
     core.display.set({ ...core.display.peek(), [key]: v });
     if (key === 'hoverHighlight' && !v) clearHighlight(svg());
     core.draw();
   };
-  const labels = computed(() => core.display().labels), hover = computed(() => core.display().hoverHighlight);
+  const labels = computed(() => core.display().labels), hover = computed(() => core.display().hoverHighlight), animate = computed(() => core.display().animate);
   const toggles: DisplayToggle[] = [
     { id: 'labels', label: t('layers.labels'), value: labels, onChange: (v) => display('labels', v) },
     { id: 'hover', label: t('layers.hoverConnections'), value: hover, onChange: (v) => display('hoverHighlight', v) },
+    { id: 'animate', label: t('layers.animate'), value: animate, onChange: (v) => display('animate', v) },
   ];
 
   /** The layers shown: the view override, else the document's own visibility. */

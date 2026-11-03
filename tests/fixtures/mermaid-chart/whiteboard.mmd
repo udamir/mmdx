@@ -1,0 +1,28 @@
+---
+config:
+  layout: fixed
+---
+flowchart TB
+ subgraph s1["Untitled subgraph"]
+        n3["This is sample label"]
+  end
+ subgraph s2["Untitled subgraph 1"]
+        n4["Untitled Node"]
+  end
+    A["Christmas"] -- Get money --> B("Go shopping")
+    B --> C{"Let me think"}
+    C -- One --> D["Laptop"]
+    C -- Two --> E["iPhone"]
+    C -- Three --> F["fa:fa-car Car"]
+    n1["Text Block"] --> B
+    n2["This is sample label"] --> B
+    s1 --> B
+    n5["asdfasf"] --> s2
+
+    n3@{ img: "https://static.mermaidchart.dev/whiteboard/default-image-shape.svg", h: 200, w: 200, pos: "b"}
+    n1@{ shape: text}
+    n2@{ img: "https://static.mermaidchart.dev/whiteboard/default-image-shape.svg", h: 200, w: 200, pos: "b"}
+    n5@{ icon: "azure:computer-vision", form: "rounded", pos: "b", h: 161}
+     n1:::Aqua
+    classDef Aqua stroke-width:1px, stroke-dasharray:none, stroke:#46EDC8, fill:#DEFFF8, color:#378E7A
+    style n5 stroke:#2962FF,fill:#cccccc

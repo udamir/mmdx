@@ -108,4 +108,7 @@ export const EDITOR_MESSAGES: Messages = {
   'help.connector': 'Connector (click a source, then a target)', 'help.emoji': 'Emoji while editing text', 'props.emoji': 'Insert emoji (⌘/Ctrl+;)',
   'media.noUpload': 'Images can be added by URL; uploading is not configured here', 'media.noImages': 'Images cannot be added to this diagram type',
   'history.icon': 'Icon', 'history.image': 'Image', 'history.media': 'Icon & image',
+  // ---- markdown labels (T06)
+  'props.mdBold': 'Bold (⌘/Ctrl+B)', 'props.mdItalic': 'Italic (⌘/Ctrl+I)', 'props.makeRich': 'Make rich text',
+  'props.makeRichTip': 'Write the label as a Mermaid markdown string, where Bold and Italic style the selected words',
 };

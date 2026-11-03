@@ -82,6 +82,9 @@ export function serializeNode(n: SceneNode): string {
       return `<text${attrsToString(n.attrs)}>${textSpans(n.lines)}</text>`;
     case 'image':
       return `<image href="${escAttr(n.href)}"${attrsToString(n.attrs)}/>`;
+    case 'title':
+    case 'desc':
+      return `<${n.t}>${escText(n.text)}</${n.t}>`;
     default:
       return `<${n.t}${attrsToString(n.attrs)}/>`;
   }

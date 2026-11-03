@@ -118,6 +118,9 @@ function update(el: Element, prev: SceneNode | null, n: SceneNode): void {
   if (n.t === 'image') {
     if (el.getAttribute('href') !== n.href) el.setAttribute('href', n.href);
   } else if (n.t === 'text') setLines(el, n.lines);
+  else if (n.t === 'title' || n.t === 'desc') {
+    if (el.textContent !== n.text) el.textContent = n.text;
+  }
   else if (n.t === 'g' || n.t === 'marker' || n.t === 'pattern' || n.t === 'clipPath') patchChildren(el, n.children);
 }
 

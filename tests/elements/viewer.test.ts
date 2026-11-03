@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { forgetKinds } from '../../src/core/kinds/registry.js';
 import { registerExtendedShapes } from '../../src/core/shapes/extended.js';
+import { forgetMediaKit } from '../../src/core/media/kit.js';
 import { forgetShapes, shapeById } from '../../src/core/shapes/registry.js';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -53,6 +54,14 @@ describe('kinds on demand', () => {
       sr.host.remove();
     });
 
+    it('the media kit (T06) loads with them: a markdown label and an icon node draw once it has', async () => {
+      forgetMediaKit();
+      const sr = await show('flowchart LR\n  A["`**bold** text`"] --> n1\n  n1["User"]\n  n1@{ icon: "fa:user", form: "rounded" }');
+      expect(sr.querySelector('.el[data-id="A"] tspan[font-weight="700"]')?.textContent).toBe('bold');
+      expect(sr.querySelector('.el[data-id="n1"] image')).not.toBeNull();
+      sr.host.remove();
+    });
+
     it('load for a shape a node takes from its metadata too', async () => {
       forgetShapes();
       const sr = await show('flowchart LR\n  A --> B\n%%@ node A {"shape":"collections"}');
@@ -100,6 +109,16 @@ afterEach(() => {
     expect(sr.querySelectorAll('.el[data-kind="edge"]').length).toBe(1);
     expect(rendered).toMatchObject({ type: 'flowchart' });
     expect(sr.querySelector('.root')!.getAttribute('aria-label')).toBe('Flowchart: 2 nodes, 1 connections');
+  });
+
+  it('names the diagram with its accTitle and describes it with its accDescr (T06.8)', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    hosts.push(host);
+    new DiagramViewer(host, { lazy: false, source: 'flowchart LR\n  accTitle: Order flow\n  accDescr {\n    From cart\n    to delivery\n  }\n  a --> b' });
+    const root = host.shadowRoot!.querySelector('.root')!;
+    expect(root.getAttribute('aria-label')).toBe('Order flow');
+    expect(root.getAttribute('aria-description')).toBe('From cart\nto delivery');
   });
 
   it('renders every example without errors', () => {

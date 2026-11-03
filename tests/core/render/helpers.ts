@@ -12,7 +12,7 @@ import { createColorResolver, diagramPaletteOf } from '../../../src/core/theme/c
 import type { ResolvedTheme } from '../../../src/core/theme/types.js';
 import { createStaticMeasurer, type TextMeasurer } from '../../../src/core/text/measure.js';
 import { DEFAULT_IMAGE_POLICY, DEFAULT_LINK_POLICY } from '../../../src/core/validate.js';
-import { NO_ICONS } from '../../../src/core/icons/names.js';
+import { createIconRegistry } from '../../../src/core/icons/index.js';
 
 const ROOT = join(__dirname, '../../..');
 
@@ -29,13 +29,17 @@ export const THEME_IDS: string[] = THEME_FILES.map((t) => t.id);
 
 export const registry = new ThemeRegistry(THEME_FILES);
 
+/** The built-in icons, loaded: goldens draw `tabler:` icons and Font Awesome look-alikes (no other pack is registered). */
+export const ICONS = createIconRegistry();
+await ICONS.load('tabler');
+
 export function makeCtx(theme: ResolvedTheme, meta: DiagramMeta, o: { measure?: TextMeasurer; idPrefix?: string } = {}): RenderContext {
   return {
     measure: o.measure ?? createStaticMeasurer(),
     idPrefix: o.idPrefix ?? 't-',
     linkPolicy: DEFAULT_LINK_POLICY,
     imagePolicy: DEFAULT_IMAGE_POLICY,
-    icons: NO_ICONS,
+    icons: ICONS,
     color: createColorResolver(theme, diagramPaletteOf(meta.styles)),
   };
 }

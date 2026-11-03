@@ -7,7 +7,7 @@ import type { Sel } from '../core.js';
 import { cloneMeta, ensure as ensureIn } from '../../core/ops/meta-util.js';
 import { addFlowNode } from '../../core/ops/flowchart.js';
 import { fixIdClash } from '../../core/ops/meta-ops.js';
-import { flowPresets, presetShape } from '../../core/render/flowchart.js';
+import { flowPresets, presetShape } from '../../core/render/flow-presets.js';
 import type { Point } from '../../core/types.js';
 import type { EditorCore } from '../core.js';
 import { focusLabel } from '../modules/shapes/drop.js';
@@ -82,7 +82,8 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
   describe(M, { kind, id }) {
     if (kind === 'node') {
       const n = M.nodes.get(id);
-      if (n) return { title: one(n.label), sub: `node · id ${id} · ${n.shape}${n.classes.length ? ' · :::' + n.classes.join(',') : ''}` };
+      // an icon or image node without a caption is named by its id
+      if (n) return { title: one(n.label) || id, sub: `node · id ${id} · ${n.shape}${n.classes.length ? ' · :::' + n.classes.join(',') : ''}` };
     } else if (kind === 'group') {
       const g = M.groups.get(id);
       return { title: one(g?.label || id) || id, sub: `subgraph · id ${id}` };
@@ -92,10 +93,20 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
     }
     return null;
   },
+  // markdown labels (T06): the text with its `**` / `*` as typed; "Make rich text" rewrites a plain label as one
   text(M, { kind, id }) {
-    if (kind === 'node') return { value: M.nodes.get(id)?.label ?? '', multi: true, title: 'props.text', write: (code, v) => relabelFlowNode(code, M, id, v) };
-    if (kind === 'group') return { value: M.groups.get(id)?.label ?? '', multi: false, title: 'props.titleText', write: (code, v) => relabelGroup(code, M, id, v) };
-    if (kind === 'edge') return { value: M.edges.find((e) => e.id === id)?.label ?? '', multi: false, title: 'props.label', write: (code, v) => relabelFlowEdge(code, M, id, v) };
+    if (kind === 'node') {
+      const n = M.nodes.get(id);
+      return { value: n?.label ?? '', multi: true, title: 'props.text', markdown: !!n?.md, write: (code, v) => relabelFlowNode(code, M, id, v), writeMarkdown: (code, v) => relabelFlowNode(code, M, id, v, true) };
+    }
+    if (kind === 'group') {
+      const g = M.groups.get(id);
+      return { value: g?.label ?? '', multi: false, title: 'props.titleText', markdown: !!g?.md, write: (code, v) => relabelGroup(code, M, id, v), writeMarkdown: (code, v) => relabelGroup(code, M, id, v, true) };
+    }
+    if (kind === 'edge') {
+      const e = M.edges.find((x) => x.id === id);
+      return { value: e?.label ?? '', multi: false, title: 'props.label', markdown: !!e?.md, write: (code, v) => relabelFlowEdge(code, M, id, v), writeMarkdown: (code, v) => relabelFlowEdge(code, M, id, v, true) };
+    }
     return null;
   },
   remove: deleteFlow,
@@ -172,7 +183,7 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
   },
   setIcon: (code, M, ref, icon, core) => (ref.kind === 'node' ? setFlowIcon(code, M, ref.id, icon, isIconOf(core)) : null),
   setImage: (code, M, ref, url) => (ref.kind === 'node' ? setFlowImage(code, M, ref.id, url) : null),
-  setMedia: (code, M, ref, patch) => (ref.kind === 'node' ? setFlowMedia(code, M, ref.id, patch) : null),
+  setMedia: (code, M, ref, patch, core) => (ref.kind === 'node' ? setFlowMedia(code, M, ref.id, patch, isIconOf(core)) : null),
   direction: (M) => M.direction,
   fixOf(core, M, d) {
     if (d.code !== 'flow.id-clash') return null;

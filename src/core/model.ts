@@ -14,6 +14,8 @@ export interface MermaidStyle {
   strokeWidth?: number;
   dash?: string;
   fontSize?: number;
+  /** `linkStyle n interpolate basis`: the line's curve (Mermaid's curve names; T06). */
+  interpolate?: string;
 }
 
 export interface BaseModel {
@@ -106,6 +108,10 @@ export interface FlowNode {
   shapeFrom?: 'bracket' | 'data';
   /** What gave the node its label last. */
   labelFrom?: 'bracket' | 'data';
+  /** The label is a Mermaid markdown string (`"`**bold**`"`): drawn with emphasis and auto-wrapped (T06). */
+  md?: true;
+  /** `click A "url" "tooltip"`: shown on hover (an SVG `<title>`). */
+  tooltip?: string;
 }
 
 export interface FlowGroup {
@@ -122,14 +128,30 @@ export interface FlowGroup {
   lines: Set<number>;
   classes?: string[];
   style?: MermaidStyle;
+  /** The title is a Mermaid markdown string. */
+  md?: true;
 }
 
-export type EdgeLine = 'solid' | 'dotted' | 'thick';
+/** `invisible`: Mermaid's `~~~`, a link that places its nodes and is not drawn (T06). */
+export type EdgeLine = 'solid' | 'dotted' | 'thick' | 'invisible';
+
+/** An edge's data (`e1@{ animate: true, animation: fast, curve: linear }`), typed. */
+export interface FlowEdgeData {
+  animate?: boolean;
+  /** `fast` or `slow`. */
+  animation?: string;
+  /** Mermaid's curve name (`basis`, `linear`, `step`…). */
+  curve?: string;
+}
 export type EdgeHead = 'arrow' | 'cross' | 'circle' | 'none';
 
 export interface FlowEdge {
-  /** `from->to`, or `from->to#n` for the n-th parallel edge. */
+  /** Its own id when the code gives one (`A e1@--> B`), else `from->to`, or `from->to#n` for the n-th parallel edge. */
   id: string;
+  /** The id written in the code (`e1`), when there is one: then `id` is it. */
+  uid?: string;
+  /** `from->to` (`#n`) when the edge has its own id: metadata written under it before is still read (T06). */
+  key?: string;
   from: string;
   to: string;
   label: string;
@@ -144,8 +166,25 @@ export interface FlowEdge {
   /** The statement it is written in (`model.statements`) and the link of that statement it comes from. */
   stmt?: number;
   seg?: number;
+  /** The label is a Mermaid markdown string. */
+  md?: true;
+  /** Its `uid@{…}` data. */
+  data?: FlowEdgeData;
+  /** Its `uid@{…}` blocks, with offsets. */
+  blocks?: NodeDataBlock[];
 }
 
+/** Frontmatter and `%%{init}%%` settings that change what the content means (theme and look keys stay ignored). */
+export interface FlowConfig {
+  /** `flowchart.curve`: the default line curve. */
+  curve?: string;
+  /** `htmlLabels: false` (or `flowchart.htmlLabels: false`). */
+  htmlLabels?: boolean;
+  /** `markdownAutoWrap: false`: markdown labels break at their line breaks only. */
+  markdownAutoWrap?: boolean;
+  /** `flowchart.wrappingWidth`: where markdown labels and captions wrap (default 200). */
+  wrappingWidth?: number;
+}
 export interface FlowchartModel extends BaseModel {
   type: 'flowchart';
   direction: Direction;
@@ -161,6 +200,13 @@ export interface FlowchartModel extends BaseModel {
   idClashes: string[];
   /** The node statements, with the offsets the ops splice (T02.5). */
   statements: FlowStatement[];
+  /** `title` (statement or frontmatter), drawn above the diagram. */
+  title?: string;
+  /** `accTitle: …` and `accDescr: …` / `accDescr { … }`: the SVG's `<title>` and `<desc>`, the component's accessible name. */
+  accTitle?: string;
+  accDescr?: string;
+  /** Settings from the frontmatter's `config:` / `%%{init}%%` that the drawing follows. */
+  config?: FlowConfig;
 }
 
 // ---- sequence ---------------------------------------------------------------------------------------------------

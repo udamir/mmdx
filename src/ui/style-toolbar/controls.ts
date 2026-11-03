@@ -258,7 +258,8 @@ export function control(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLEleme
     }
     case 'media': {
       const m = api.media?.();
-      if (!m?.node || !api.setMedia) return h('span');
+      // an icon or image node, or an icon in the label (which can become an icon node)
+      if (!(m?.node || m?.icon) || !api.setMedia) return h('span');
       return button('media', svgIcon('media'), t('tb.media'));
     }
     case 'mediaSize': {

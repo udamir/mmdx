@@ -20,11 +20,18 @@ export function mediaPop(f: Fill): void {
   const { pop, x, again } = f;
   const { t, api } = x;
   const m = api.media?.();
-  if (!m?.node) return;
   const set = (p: ToolbarMediaPatch): void => {
     api.setMedia?.(p);
     again();
   };
+  // an icon in the label: it can become the node (an icon node with the label as its caption)
+  if (m && !m.node && m.icon) {
+    const conv = h('button', { type: 'button', class: 'link', title: t('tb.toIconNodeTip') }, t('tb.toIconNode'));
+    conv.addEventListener('click', () => set({ node: 'icon' }));
+    pop.append(conv);
+    return;
+  }
+  if (!m?.node) return;
   pop.append(popLabel(t('tb.labelPos')));
   pop.append(texts(['t', 'b'], m.pos ?? 'b', (v) => t(`tb.pos.${v === 't' ? 'top' : 'bottom'}`), (v) => set({ pos: v })));
   if (m.node === 'icon') {

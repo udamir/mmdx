@@ -9,6 +9,7 @@ import { applySplices, editBlock, type DataValue, type NodeDataBlock, type Splic
 import { isFaPack, splitIconName } from '../icons/names.js';
 import { nodeDef } from './connect.js';
 import { relabelFlowNode } from './flowchart.js';
+import { parseFlowchart } from '../parse/flowchart.js';
 import { uniqueId } from './ids.js';
 import { append, indentOf, splice } from './lines.js';
 import type { CodeResult, SelectResult } from './types.js';
@@ -201,15 +202,30 @@ export interface MediaPatch {
   w?: number | null;
   h?: number | null;
   constraint?: 'on' | 'off' | null;
+  /** `icon`: a node whose label starts with an icon token becomes an icon node (T06 §3.6, "Convert to icon node"). */
+  node?: 'icon';
+}
+
+/**
+ * "Convert to icon node": the leading icon token of a node's label becomes its `icon` (Mermaid Chart's icon node: the
+ * rest of the label is the caption, `form: "rounded"`, `pos: "b"`, `h: 60`); null when the label starts with no icon.
+ */
+export function toFlowIconNode(code: string, model: FlowchartModel, id: string, isIcon: IsIconToken = faOnly): CodeResult | null {
+  const n = nodeOf(model, id);
+  const lead = n && !n.data?.icon && !n.data?.img ? leadingIcon(n.label, isIcon) : null;
+  if (!n || !lead) return null;
+  const relabelled = relabelFlowNode(code, model, id, lead.rest).code;
+  return writeNodeData(relabelled, parseFlowchart(relabelled), id, { icon: lead.name, form: 'rounded', pos: 'b', h: ICON_NODE_H });
 }
 
 /** Changes an icon or image node's position, frame, size or aspect lock (null: not an icon or image node). */
-export function setFlowMedia(code: string, model: FlowchartModel, id: string, patch: MediaPatch): CodeResult | null {
+export function setFlowMedia(code: string, model: FlowchartModel, id: string, patch: MediaPatch, isIcon: IsIconToken = faOnly): CodeResult | null {
+  if (patch.node === 'icon') return toFlowIconNode(code, model, id, isIcon);
   const n = nodeOf(model, id);
   if (!n || !(n.data?.icon || n.data?.img)) return null;
   const p: Record<string, MediaValue> = {};
   for (const [k, v] of Object.entries(patch) as [keyof MediaPatch, MediaValue | undefined][]) {
-    if (v === undefined) continue;
+    if (v === undefined || k === 'node') continue;
     // a frame belongs to icons, the aspect lock to images
     if ((k === 'form' && !n.data.icon) || (k === 'constraint' && !n.data.img)) continue;
     p[k] = typeof v === 'number' ? Math.max(8, Math.min(2000, v)) : v;

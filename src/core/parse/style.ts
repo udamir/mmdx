@@ -47,7 +47,8 @@ export function parseStyleList(s: string, bad: (message: string) => void = () =>
         break;
       }
       case 'stroke-dasharray': {
-        const d = cleanDash(val);
+        // `none` clears a dash the theme or a class gives: a zero pattern draws a solid line and still overrides
+        const d = /^none$/i.test(val) ? '0' : cleanDash(val);
         if (d === undefined) { bad(`invalid ${key} "${val}"`); break; }
         st.dash = d;
         break;

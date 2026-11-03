@@ -7,7 +7,7 @@
 import { image, text } from '../scene/build.js';
 import type { SceneNode, TextLine, TextRun } from '../scene/types.js';
 import type { FontSpec, TextMeasurer } from '../text/measure.js';
-import { runFont, runsText, runWidth } from '../text/rich.js';
+import { parseInline, runFont, runsText, runWidth, type IconResolver } from '../text/rich.js';
 import { textAttrs, type TextOpts } from './common.js';
 
 /** Whether a line needs its runs (styling, marks or icons); a single plain run is drawn as text. */
@@ -55,3 +55,16 @@ export function richText(lines: readonly (readonly TextRun[])[], x: number, y: n
   });
   return [text(textAttrs(o), out), ...images];
 }
+
+/**
+ * A label's runs when it needs them — a markdown string (its emphasis), or icon tokens the resolver knows — else null:
+ * the label is plain text, drawn and wrapped as before.
+ */
+export function labelRuns(label: string, o: { markdown?: boolean; icons?: IconResolver; iconSize?: number }): TextRun[] | null {
+  if (!o.markdown && (!o.icons || !label.includes(':'))) return null;
+  const runs = parseInline(label, o);
+  return o.markdown || runs.some((r) => r.icon) ? runs : null;
+}
+
+/** Whether lines of runs draw anything but plain text (they go through `richText`, else `textBlock`). */
+export const richLines = (lines: readonly (readonly TextRun[])[]): boolean => lines.some(styledLine);

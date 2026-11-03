@@ -105,8 +105,8 @@ describe('editor panel stacks', () => {
     expect($(e, '.mmdx-panel.layers .mmdx-panel-title').textContent).toBe('View settings');
     expect($(e, '.mmdx-panel.layers [data-f=panel-close]').getAttribute('aria-label')).toBe('Close View settings');
     expect(e.core.stackInsets.peek()).toEqual({ left: 0, right: 292 });
-    // the Display toggles show while viewing
-    expect(e.core.root.querySelectorAll('.mmdx-panel.layers [role=switch]')).toHaveLength(2);
+    // the Display toggles show while viewing (labels, hover highlight, animated edges)
+    expect(e.core.root.querySelectorAll('.mmdx-panel.layers [role=switch]')).toHaveLength(3);
   });
 
   it('uninstalling leaves no stack behind', async () => {

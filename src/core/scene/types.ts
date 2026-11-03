@@ -82,6 +82,17 @@ export interface SceneImage {
   href: SafeImageUrl;
 }
 
+/**
+ * A tooltip (`click A "url" "tip"`: the `<title>` of an item, shown by browsers on hover) or a description: text only,
+ * written through `textContent` / the text escaper like any label (T06).
+ */
+export interface SceneTitle {
+  t: 'title' | 'desc';
+  key?: string;
+  attrs: SvgAttrs;
+  text: string;
+}
+
 /** `<marker>` and `<pattern>` definitions; ids must come from `ctx.idPrefix` (see `Defs`). */
 export interface SceneDef {
   t: 'marker' | 'pattern' | 'clipPath';
@@ -90,4 +101,4 @@ export interface SceneDef {
   children: SceneNode[];
 }
 
-export type SceneNode = SceneGroup | SceneShape | SceneText | SceneLink | SceneImage | SceneDef;
+export type SceneNode = SceneGroup | SceneShape | SceneText | SceneLink | SceneImage | SceneDef | SceneTitle;

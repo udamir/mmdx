@@ -1,7 +1,9 @@
 // Inline text editing (A.3 row 32): a text box over the item's label, styled like it. Enter applies (Shift+Enter =
 // new line where Mermaid allows several lines), Esc cancels, clicking away applies. Writes through the ops'
 // relabel functions (`labelSpec`, shared with Properties). Ported from prototype app.js (`inlineEdit`, `focusLabel`).
-// The emoji button at its end (and ⌘/Ctrl+;) opens the emoji picker (T05 §4.5), which inserts at the caret.
+// The emoji button at its end (and ⌘/Ctrl+;) opens the emoji picker (T05 §4.5), which inserts at the caret. Above a
+// markdown label, Bold and Italic (⌘/Ctrl+B, ⌘/Ctrl+I) wrap the selection in `**` / `*`; above a plain label that can be
+// one, "Make rich text" turns the edit into a markdown string (T06 §3.4).
 import type { Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { labelSpec } from '../../ops/label.js';
@@ -16,6 +18,13 @@ export const INLINE_EDIT_CSS = /* css */ `
 .text-editing text { visibility: hidden; }
 .inline-emoji { position: absolute; z-index: 31; width: 26px; height: 26px; padding: 0; border-radius: 7px; display: grid; place-items: center;
   font-size: 15px; line-height: 1; background: var(--float); border: 1px solid var(--float-line); box-shadow: 0 2px 8px rgba(20,30,60,.12); }
+.inline-md { position: absolute; z-index: 31; display: flex; gap: 2px; padding: 2px; border-radius: 7px; background: var(--float);
+  border: 1px solid var(--float-line); box-shadow: 0 2px 8px rgba(20,30,60,.12); }
+.inline-md button { min-width: 24px; height: 22px; padding: 0 6px; border: 0; border-radius: 5px; background: transparent; color: inherit;
+  font: 13px/1 var(--font, sans-serif); cursor: pointer; }
+.inline-md button:hover { background: var(--hover, rgba(0,0,0,.06)); }
+.inline-md .md-b { font-weight: 700; }
+.inline-md .md-i { font-style: italic; font-family: Georgia, serif; }
 `;
 
 export const canvasInlineEditModule: EditorModule = {
@@ -89,7 +98,58 @@ export const canvasInlineEditModule: EditorModule = {
         emojiBtn.addEventListener('click', pickEmoji);
         wrap.append(emojiBtn);
       }
+      // markdown labels (T06): Bold and Italic wrap the selection; a plain label offers "Make rich text"
+      let md = spec.markdown;
+      const mdBar = spec.markdown || spec.canMarkdown ? document.createElement('div') : null;
+      const mdButton = (cls: string, text: string, label: string, run: () => void): HTMLButtonElement => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = cls;
+        b.textContent = text;
+        b.title = label;
+        b.setAttribute('aria-label', label);
+        b.addEventListener('pointerdown', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+        });
+        b.addEventListener('click', run);
+        return b;
+      };
+      /** `**` / `*` around the selection, or off when it has them already (inside or around it). */
+      const emphasis = (mark: string): void => {
+        const a = ta.selectionStart, b = ta.selectionEnd, v = ta.value, sel = v.slice(a, b), n = mark.length;
+        if (sel.length >= 2 * n && sel.startsWith(mark) && sel.endsWith(mark)) ta.setRangeText(sel.slice(n, -n), a, b, 'select');
+        else if (v.slice(a - n, a) === mark && v.slice(b, b + n) === mark) {
+          ta.setRangeText(sel, a - n, b + n, 'select');
+        } else {
+          ta.setRangeText(mark + sel + mark, a, b, 'select');
+          ta.setSelectionRange(a + n, b + n);
+        }
+        fit();
+      };
+      const fillMdBar = (): void => {
+        if (!mdBar) return;
+        const t = core.i18n.t;
+        mdBar.replaceChildren(
+          ...(md
+            ? [mdButton('md-b', 'B', t('props.mdBold'), () => emphasis('**')), mdButton('md-i', 'I', t('props.mdItalic'), () => emphasis('*'))]
+            : [mdButton('md-rich', t('props.makeRich'), t('props.makeRichTip'), () => {
+              md = true;
+              fillMdBar();
+              ta.focus();
+            })]),
+        );
+      };
+      if (mdBar) {
+        mdBar.className = 'inline-md';
+        fillMdBar();
+        wrap.append(mdBar);
+      }
       const placeEmoji = (): void => {
+        if (mdBar) {
+          mdBar.style.left = `${ta.offsetLeft}px`;
+          mdBar.style.top = `${ta.offsetTop - 32}px`;
+        }
         if (!emojiBtn) return;
         emojiBtn.style.left = `${ta.offsetLeft + ta.offsetWidth + 6}px`;
         emojiBtn.style.top = `${ta.offsetTop + Math.max(0, ta.offsetHeight / 2 - 13)}px`;
@@ -140,9 +200,10 @@ export const canvasInlineEditModule: EditorModule = {
         close = null;
         ta.remove();
         emojiBtn?.remove();
+        mdBar?.remove();
         if (picking) core.popovers.close();
         const v = spec.multi ? ta.value.replace(/\s+$/, '') : ta.value.replace(/\s*\n\s*/g, ' ').trim();
-        if (!apply || v === spec.value || !core.applyCode(spec.apply(v), 'Edit text', { select: [item] })) core.draw();
+        if (!apply || (v === spec.value && md === spec.markdown) || !core.applyCode(spec.apply(v, md), 'Edit text', { select: [item] })) core.draw();
         // back to the canvas (Enter / Esc), but never pull focus away from where a click went
         if (hadFocus) core.dom.root.focus({ preventScroll: true });
       };
@@ -153,6 +214,9 @@ export const canvasInlineEditModule: EditorModule = {
         if (ev.key === ';' && (ev.metaKey || ev.ctrlKey) && emojiBtn) {
           ev.preventDefault();
           pickEmoji();
+        } else if (md && (ev.metaKey || ev.ctrlKey) && (ev.key === 'b' || ev.key === 'i')) {
+          ev.preventDefault();
+          emphasis(ev.key === 'b' ? '**' : '*');
         } else if (ev.key === 'Escape') {
           ev.preventDefault();
           done(false);

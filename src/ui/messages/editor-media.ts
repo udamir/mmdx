@@ -10,6 +10,7 @@ export const EDITOR_MEDIA_MESSAGES: Messages = {
   'container.draw': 'Draw a frame around the items to put in a container', 'container.empty': 'Nothing to put in a container inside the frame',
   'media.noIcons': 'Icons cannot be added to this diagram type', 'media.blocked': 'This image URL is not allowed here',
   'props.icon': 'Icon', 'props.image': 'Image', 'props.iconNone': 'No icon', 'props.imageNone': 'No image', 'props.choose': 'Choose…', 'props.removeIcon': 'Remove icon',
+  'props.iconTokenMmdx': 'Shown by mmdx only: stock Mermaid draws Font Awesome icons in labels and shows this one as text', 'props.toIconNode': 'Convert to icon node',
   'props.addImage': 'Add image…', 'props.removeImage': 'Remove image', 'props.labelPos': 'Label', 'props.iconForm': 'Frame', 'props.mediaW': 'Width', 'props.mediaH': 'Height',
   'props.fit': 'Fit', 'props.aspect': 'Keep aspect ratio', 'props.imageUrl': 'Image URL',
   'media.pos.t': 'above', 'media.pos.b': 'below', 'media.form.none': 'none', 'media.form.square': 'square', 'media.form.circle': 'circle', 'media.form.rounded': 'rounded',

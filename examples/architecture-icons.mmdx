@@ -1,0 +1,55 @@
+---
+title: Online shop architecture
+---
+flowchart LR
+  accTitle: Online shop architecture
+  accDescr {
+    Shoppers reach the web app through the CDN; the API gateway
+    calls the order, payment and search services, which keep
+    their data in a database, a queue and a search index.
+  }
+  subgraph clients ["tabler:users Clients"]
+    web["Web shop"]
+    mobile["Mobile app"]
+  end
+  subgraph edge ["`**Edge**`"]
+    cdn["CDN"]
+    gw["API gateway"]
+  end
+  subgraph services ["`**Services** *(containers)*`"]
+    orders["Orders"]
+    payments["Payments"]
+    search["Search"]
+  end
+  subgraph data ["Data"]
+    db[("fa:fa-database Orders DB")]
+    queue["Event queue"]
+    index["Search index"]
+  end
+  web e1@--> cdn
+  mobile e2@--> gw
+  cdn --> gw
+  gw --> orders & payments & search
+  orders --> db
+  orders e3@-.->|"order placed"| queue
+  queue -.-> payments
+  search --> index
+  payments --> bank{{"fa:fa-credit-card Bank"}}
+  web ~~~ mobile
+  web@{ icon: "tabler:device-desktop", form: "rounded", pos: "b", h: 48 }
+  mobile@{ icon: "tabler:device-mobile", form: "rounded", pos: "b", h: 48 }
+  cdn@{ icon: "tabler:world", form: "circle", pos: "b", h: 40 }
+  gw@{ icon: "tabler:api", form: "square", pos: "b", h: 40 }
+  orders@{ icon: "tabler:shopping-cart", pos: "b", h: 40 }
+  payments@{ icon: "tabler:credit-card", pos: "b", h: 40 }
+  search@{ icon: "tabler:search", pos: "b", h: 40 }
+  queue@{ icon: "tabler:inbox", form: "rounded", pos: "t", h: 40 }
+  index@{ icon: "tabler:file", form: "rounded", pos: "t", h: 40 }
+  e1@{ animate: true }
+  e2@{ animate: true }
+  e3@{ animation: slow }
+  click gw "https://udamir.github.io/mmdx/" "The gateway routes every call"
+  classDef default stroke-width:1.5px
+  classDef store fill:#e8f1ff,stroke:#2962ff
+  class db,queue store
+  style payments stroke:#00897b

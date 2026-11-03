@@ -5,6 +5,8 @@
     {"id": "atom-schema-er", "title": "ERD: AtoM archive database", "file": "atom-schema-er.mmdx", "tags": ["er"], "history": "history/atom-schema-er.json"},
     {"id": "microservice-patterns", "title": "Flowchart: Microservice pattern language", "file": "microservice-patterns.mmdx", "tags": ["flowchart"], "history": "history/microservice-patterns.json"},
     {"id": "fusion-services", "title": "Flowchart: Fusion services", "file": "fusion-services.mmdx", "tags": ["flowchart"], "history": "history/fusion-services.json"},
-    {"id": "simple-flow", "title": "Flowchart: auto layout", "file": "simple-flow.mmdx", "tags": ["flowchart"], "history": "history/simple-flow.json"}
+    {"id": "simple-flow", "title": "Flowchart: auto layout", "file": "simple-flow.mmdx", "tags": ["flowchart"], "history": "history/simple-flow.json"},
+    {"id": "architecture-icons", "title": "Flowchart: Architecture with icons", "file": "architecture-icons.mmdx", "tags": ["flowchart", "icons"]},
+    {"id": "media", "title": "Flowchart: Icons, images and rich labels", "file": "media.mmdx", "tags": ["flowchart", "icons", "images"]}
   ]
 }

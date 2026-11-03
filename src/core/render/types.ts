@@ -22,8 +22,19 @@ export interface RenderContext {
    * against the active theme. Returns undefined for anything that is not a valid colour.
    */
   color(v: unknown): string | undefined;
+  /**
+   * Natural sizes of content images (T06: an image node without `w` / `h`): the size when known, undefined while it
+   * loads (the browser's lookup starts loading it and the component renders again when it arrives), null when it
+   * cannot be known. Absent (SSR, the render worker): images without a size are drawn 96 × 96.
+   */
+  imageSizes?: ImageSizes;
   /** Bounded cache for auto-layout results (keyed by the layout input); optional. */
   layoutCache?: { get(k: string): Map<string, Point> | undefined; set(k: string, v: Map<string, Point>): void };
+}
+
+/** Natural image sizes by URL (see `RenderContext.imageSizes`). */
+export interface ImageSizes {
+  get(url: string): { w: number; h: number } | null | undefined;
 }
 
 /** Item ids hidden by layers, per collection kind. */
@@ -48,6 +59,8 @@ export interface BoxGeom {
   hidden?: boolean;
   /** The catalogue shape drawn in the box, when not a rectangle (connector ends, magnets and highlight frames follow its outline). */
   shape?: string;
+  /** An icon or image node's asset (its icon or picture, without the frame; centre and size): resizing the node sizes it. */
+  asset?: { x: number; y: number; w: number; h: number };
 }
 
 export interface Port extends Point {
@@ -127,6 +140,8 @@ export interface RenderResult {
   presetsUsed: Partial<Record<ItemKind, Map<string, number>>>;
   /** What the render reported (`image.blocked`); absent when nothing. */
   diagnostics?: Diagnostic[];
+  /** The diagram's own accessible title and description (`accTitle`, `accDescr`): the SVG's `<title>` and `<desc>`. */
+  a11y?: { title?: string; desc?: string };
 }
 
 /** Shared font helper: the family a style asks for, else the theme font. */

@@ -3,7 +3,7 @@
 
 import type { DiagramMeta } from '../meta/types.js';
 import type { DiagramModel } from '../model.js';
-import { escAttr, fmt, serializeNodes } from '../scene/serialize.js';
+import { escAttr, escText, fmt, serializeNodes } from '../scene/serialize.js';
 import type { SceneNode } from '../scene/types.js';
 import type { ResolvedTheme } from '../theme/types.js';
 import type { Rect } from '../types.js';
@@ -50,6 +50,7 @@ export function renderWith(kinds: Kinds, model: DiagramModel, meta: DiagramMeta,
     presetsUsed: r.presetsUsed,
   };
   if (env.diagnostics.length) out.diagnostics = env.diagnostics;
+  if (r.a11y && (r.a11y.title || r.a11y.desc)) out.a11y = r.a11y;
   return out;
 }
 
@@ -76,8 +77,12 @@ export function renderSvgString(result: RenderResult, ctx: RenderContext, opts: 
   const s = exportScene(result, ctx);
   const b = s.bounds;
   const extra = opts.ssr ? ` data-mmdx-ssr="1" data-mmdx-measure="${escAttr(ctx.measure.kind)}"` : '';
+  // the diagram's own accessible title and description (`accTitle`, `accDescr`) name the document for assistive technology
+  const a = result.a11y;
+  const named = a?.title ? ` role="img" aria-label="${escAttr(a.title)}"` : '';
+  const head = (a?.title ? `<title>${escText(a.title)}</title>` : '') + (a?.desc ? `<desc>${escText(a.desc)}</desc>` : '');
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${fmt(b.x)} ${fmt(b.y)} ${fmt(b.w)} ${fmt(b.h)}" width="${fmt(b.w)}" height="${fmt(b.h)}"${extra}>` +
-    `<defs>${serializeNodes(s.defs)}</defs>${serializeNodes(s.body)}</svg>`
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${fmt(b.x)} ${fmt(b.y)} ${fmt(b.w)} ${fmt(b.h)}" width="${fmt(b.w)}" height="${fmt(b.h)}"${extra}${named}>` +
+    `${head}<defs>${serializeNodes(s.defs)}</defs>${serializeNodes(s.body)}</svg>`
   );
 }

@@ -136,7 +136,7 @@ export class DiagramDiff {
     this.ctx = core.ctx;
     core.canvas.svg.setAttribute('aria-hidden', 'true');
     // hover highlight is a view setting the diff starts with off (unchanged items are already dimmed)
-    core.display.set({ labels: true, hoverHighlight: false });
+    core.display.set({ labels: true, hoverHighlight: false, animate: true });
     this.actions.set(o.actions ?? []);
     this.label.set(o.label ?? null);
 

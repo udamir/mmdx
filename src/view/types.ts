@@ -32,6 +32,8 @@ export type Tool = 'pointer' | 'hand' | 'pen' | 'shapes' | 'paint' | 'connect' |
 export interface Display {
   labels: boolean;
   hoverHighlight: boolean;
+  /** Animated edges move (T06; `prefers-reduced-motion` stops them as well). */
+  animate: boolean;
 }
 
 /**

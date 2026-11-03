@@ -113,7 +113,7 @@ export class DiagramViewer {
     const core = this.core;
     this.ctx = core.ctx;
     core.canvas.svg.setAttribute('aria-hidden', 'true');
-    core.display.set({ labels: o.labels !== false, hoverHighlight: o.hoverHighlight !== false });
+    core.display.set({ ...core.display.peek(), labels: o.labels !== false, hoverHighlight: o.hoverHighlight !== false });
     if (o.layers) core.visibleLayers.set(o.layers);
     this.msg = h('div', { class: 'msg' });
     core.area.after(this.msg);
@@ -124,7 +124,11 @@ export class DiagramViewer {
       stage: core.area,
       onRendered: (r, durationMs) => {
         const s = summarize(r.model);
-        core.root.setAttribute('aria-label', this.o.label ?? core.i18n.t(s.key, s.params));
+        // the diagram's own accessible title and description (`accTitle`, `accDescr`) come before the generated summary
+        const a11y = r.result.a11y;
+        core.root.setAttribute('aria-label', this.o.label ?? a11y?.title ?? core.i18n.t(s.key, s.params));
+        if (a11y?.desc) core.root.setAttribute('aria-description', a11y.desc);
+        else core.root.removeAttribute('aria-description');
         core.root.classList.toggle('can-pan', core.canvas.interaction === 'pan-zoom');
         const warn = r.diagnostics.filter((d) => d.severity !== 'info' || d.code === 'theme.missing');
         if (warn.length) core.emit('mmdx-error', { diagnostics: warn });
@@ -187,7 +191,7 @@ export class DiagramViewer {
     if (changed('compact')) core.setCompact(this.o.compact ?? 'auto');
     if (changed('interactive')) core.canvas.setInteraction(this.o.interactive === false ? 'static' : 'pan-zoom');
     if (changed('wheel')) core.canvas.setOptions({ wheel: this.o.wheel ?? 'ctrl' });
-    if (changed('labels') || changed('hoverHighlight')) core.display.set({ labels: this.o.labels !== false, hoverHighlight: this.o.hoverHighlight !== false });
+    if (changed('labels') || changed('hoverHighlight')) core.display.set({ ...core.display.peek(), labels: this.o.labels !== false, hoverHighlight: this.o.hoverHighlight !== false });
     if (changed('layers')) core.visibleLayers.set(this.o.layers);
     if (changed('history')) core.history.set(this.o.history ?? null);
     if (changed('fullscreen')) core.hostFullscreen.set(this.o.fullscreen ?? null);

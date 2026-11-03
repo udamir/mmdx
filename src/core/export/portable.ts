@@ -11,7 +11,7 @@ import type { DiagramMeta } from '../meta/types.js';
 import type { DiagramModel, FlowchartModel, SupportedModel } from '../model.js';
 import type { DiagramType } from '../types.js';
 import { mergeStyle, pickStyle } from '../render/common.js';
-import { edgePreset, flowPresets, groupPreset, nodePreset } from '../render/flowchart.js';
+import { edgeMeta, edgePreset, flowPresets, groupPreset, nodePreset } from '../render/flow-presets.js';
 import type { RenderContext } from '../render/types.js';
 import type { StyleProps } from '../style.js';
 import { createStaticMeasurer } from '../text/measure.js';
@@ -89,7 +89,7 @@ function flowchartStyles(model: FlowchartModel, meta: DiagramMeta, theme: Resolv
     if (c) out.push(`style ${g.id} ${c}`);
   }
   for (const e of model.edges) {
-    const st = mergeStyle(ctx, F.edge, P.edge[edgePreset(e, meta, P)], pickStyle(meta.edges?.[e.id]));
+    const st = mergeStyle(ctx, F.edge, P.edge[edgePreset(e, meta, P)], pickStyle(edgeMeta(e, meta)));
     const parts: string[] = [];
     if (st.color) parts.push(`stroke:${st.color}`);
     if (st.width !== undefined) parts.push(`stroke-width:${st.width}px`);

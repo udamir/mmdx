@@ -1,7 +1,7 @@
 // Flowchart editing ops as Mermaid source rewrites (prototype edit.js, flowchart part).
 // Every function takes (code, model, …) and returns the new code (+ what to select); the caller re-parses.
 import type { Direction, FlowEdge, FlowGroup, FlowchartModel } from '../model.js';
-import { cleanLabel, encodeLabel } from '../parse/label.js';
+import { cleanLabel, encodeLabel, labelText } from '../parse/label.js';
 import { applySplices, editBlock, type Splice } from '../parse/node-data.js';
 import { resolveShape } from '../shapes/registry.js';
 import type { ItemRef } from '../types.js';
@@ -113,33 +113,36 @@ export function deleteFlow(code: string, model: FlowchartModel, items: readonly 
  * New label for a node, written where its label is: in its bracket (`A["new"]`), or in the `label` of its node data;
  * a node without either gets a definition (in its subgraph).
  */
-export function relabelFlowNode(code: string, model: FlowchartModel, id: string, label: string): CodeResult {
+export function relabelFlowNode(code: string, model: FlowchartModel, id: string, label: string, md = !!model.nodes.get(id)?.md): CodeResult {
   const n = model.nodes.get(id);
   if (!n) return { code };
-  const text = `"${encodeLabel(label)}"`;
+  // a markdown label stays one (its emphasis is part of the text); `md` writes a plain one as one ("Make rich text")
+  const text = labelText(label, md);
   const block = [...(n.blocks ?? [])].reverse().find((b) => b.entries.some((e) => e.key === 'label'));
   if (block && (n.labelFrom === 'data' || !n.bracket)) return { code: applySplices(code, editBlock(code, block, { label: text }, new Set(['label']))) };
   if (n.bracket) return { code: applySplices(code, [{ from: n.bracket.text[0], to: n.bracket.text[1], text }]) };
   const L = code.split('\n');
   // node data gives the shape: the definition only brings the label
-  const def = nodeDef({ ...n, label, shape: n.shapeFrom === 'data' ? 'rect' : n.shape });
+  const def = nodeDef({ ...n, label, md: md || undefined, shape: n.shapeFrom === 'data' ? 'rect' : n.shape });
   const g = n.parent ? model.groups.get(n.parent) : undefined;
   if (g && g.endLine != null) return { code: splice(code, g.endLine, 0, [indentOf(L[g.line]) + '  ' + def]) };
-  return { code: splice(code, 1, 0, ['  ' + def]) };
+  // after the header (a frontmatter block may come before it)
+  const header = L.findIndex((l) => /^\s*(flowchart|graph)\b/i.test(l));
+  return { code: splice(code, header + 1, 0, ['  ' + def]) };
 }
 
 /** New label for an edge: only its link changes (its arrow as written); an edge of an `&` group is split out first. */
-export function relabelFlowEdge(code: string, model: FlowchartModel, edgeId: string, label: string): CodeResult {
+export function relabelFlowEdge(code: string, model: FlowchartModel, edgeId: string, label: string, md?: boolean): CodeResult {
   const e = model.edges.find((x) => x.id === edgeId);
   if (!e || e.stmt === undefined) return { code };
-  return { code: rewrite(code, model, new Map([[e.stmt, { change: { id: e.id, from: e.from, to: e.to, label } }]])) };
+  return { code: rewrite(code, model, new Map([[e.stmt, { change: { id: e.id, from: e.from, to: e.to, label, md: md ?? !!e.md } }]])) };
 }
 
-export function relabelGroup(code: string, model: FlowchartModel, gid: string, title: string): CodeResult {
+export function relabelGroup(code: string, model: FlowchartModel, gid: string, title: string, md?: boolean): CodeResult {
   const g = model.groups.get(gid);
   if (!g) return { code };
   const L = code.split('\n');
-  return { code: splice(code, g.line, 1, [`${indentOf(L[g.line])}subgraph ${gid} ["${encodeLabel(title)}"]`]) };
+  return { code: splice(code, g.line, 1, [`${indentOf(L[g.line])}subgraph ${gid} [${labelText(title, md ?? !!g.md)}]`]) };
 }
 
 /**
