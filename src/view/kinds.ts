@@ -26,7 +26,8 @@ export function loadKind(t: DiagramType): Promise<void> {
       registerKinds({ [t]: VIEW });
     });
     pending.set(t, p);
-    p.catch(() => pending.delete(t));
+    const done = (): void => void pending.delete(t);
+    p.then(done, done);
   }
   return p;
 }

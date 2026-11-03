@@ -10,7 +10,7 @@
 import { splitSource } from '../meta/index.js';
 import type { DiagramMeta } from '../meta/types.js';
 import type { DiagramModel } from '../model.js';
-import { withKind } from '../kinds/registry.js';
+import { withDiff } from '../kinds/registry.js';
 import type { Kinds } from '../kinds/types.js';
 import { parseWith } from '../parse/dispatch.js';
 import { field } from './kit.js';
@@ -49,7 +49,7 @@ export function diffModels(a: DiagramModel, b: DiagramModel, ma: DiagramMeta, mb
   for (const id of new Set([...Object.keys(ma.layers ?? {}), ...Object.keys(mb.layers ?? {})])) field(doc, 'layout', `layer ${id}`, ma.layers?.[id], mb.layers?.[id]);
 
   const typeChanged = a.type !== b.type;
-  const done = !typeChanged && b.type ? withKind(a, (k, m) => (k.diff(m, b, ma, mb, items, doc), true)) : undefined;
+  const done = !typeChanged && b.type ? withDiff(a, (k, m) => (k.diff(m, b, ma, mb, items, doc), true)) : undefined;
   if (!done) field(doc, 'content', 'diagram type', a.type, b.type);
   return { type: b.type, typeChanged, items, doc, counts: count(items, doc) };
 }

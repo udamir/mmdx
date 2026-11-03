@@ -724,3 +724,9 @@ export function cachedLayout(
   cache.set(key, pos);
   return pos;
 }
+
+/** The node shape a flowchart preset draws (its own shape, else the shape it was saved for). */
+export const presetShape = (p: StyleProps | undefined): string => p?.shape || p?.for || 'rect';
+
+/** The participant shape a sequence preset draws. */
+export const participantPresetShape = (p: StyleProps | undefined): string => p?.shape || p?.for || 'box';

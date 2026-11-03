@@ -1,6 +1,6 @@
 // Helpers shared by the canvas modules (selection, structure, inline text, copy style, empty state): what can be
 // selected by marquee / ⌘A, item labels for announcements, the selected-class marking and small DOM utilities.
-import { viewKind, withKind } from '../../../core/kinds/registry.js';
+import { opsKind, withKind } from '../../../core/kinds/registry.js';
 import type { BoxGeom } from '../../../core/render/types.js';
 import { el, text } from '../../../core/scene/build.js';
 import type { SceneNode } from '../../../core/scene/types.js';
@@ -51,7 +51,7 @@ export function selectable(core: EditorCore): Selectable[] {
     }
     if (x0 !== Infinity) out.push({ kind, id, b: { x: (x0 + x1) / 2, y: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 }, line: pts, label: label ?? null });
   };
-  for (const it of (g.type ? viewKind(g.type)?.drawn(g) : undefined) ?? []) {
+  for (const it of (g.type ? opsKind(g.type)?.drawn(g) : undefined) ?? []) {
     if ('box' in it) box(it.ref.kind, it.ref.id, it.box);
     else line(it.ref.kind, it.ref.id, it.points ?? flattenPath(it.d ?? ''), it.label);
   }

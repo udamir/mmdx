@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { forgetKinds } from '../../src/core/kinds/registry.js';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -15,6 +16,7 @@ beforeAll(() => {
 
 describe('kinds on demand', () => {
   it('loads the parser and renderer of a diagram type before the first render', async () => {
+    forgetKinds();
     expect(hasKind('er')).toBe(false);
     const host = document.createElement('div');
     document.body.append(host);

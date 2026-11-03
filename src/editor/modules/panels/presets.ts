@@ -2,13 +2,11 @@
 // one live preview per preset (theme presets, then "This diagram"), the item's preset highlighted and marked
 // "modified" when it has own changes; header actions Save as preset / Reset / Update; × deletes a local preset.
 // Used by the Properties panel and by the style toolbar's preset popover.
-import { withKind } from '../../../core/kinds/registry.js';
-import {
-  deleteLocalPreset, ownLook, PRESET_KEYS, presetUsers, saveAsPreset, setStyle, suggestPresetName, updatePreset,
-} from '../../../core/ops/meta-ops.js';
+import { withOps } from '../../../core/kinds/registry.js';
+import { deleteLocalPreset, ownLook, PRESET_KEYS, presetUsers, saveAsPreset, setStyle, suggestPresetName, updatePreset, } from '../../../core/ops/meta-ops.js';
 import { ensure, tidy, cloneMeta } from '../../../core/ops/meta-util.js';
 import { currentPreset, isLocalPreset, nodeShapeOf, participantShapeOf, presetOfItem, presetsFor } from '../../../core/ops/style-env.js';
-import { participantPresetShape, presetShape } from '../../../core/render/index.js';
+import { participantPresetShape, presetShape } from '../../../core/render/common.js';
 import { KIND_TO_COLL } from '../../../core/meta/types.js';
 import type { ItemRef } from '../../../core/types.js';
 import { h, icon } from '../../../ui/h.js';
@@ -126,7 +124,7 @@ export function presetPicker(core: EditorCore, grid: HTMLElement, ref: ItemRef, 
         else delete m.preset;
         // from the shape menu: the node takes that shape too (unless the preset draws it already)
         if (forShape && !(name && P[name]?.shape === forShape)) {
-          const codeShape = withKind(core.model, (k, mm) => k.codeShape?.(mm, { kind: 'node', id: target.id })) ?? 'rect';
+          const codeShape = withOps(core.model, (k, mm) => k.codeShape?.(mm, { kind: 'node', id: target.id })) ?? 'rect';
           if (forShape === codeShape && !P[name]?.shape) delete m.shape;
           else m.shape = forShape;
         }

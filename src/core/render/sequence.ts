@@ -16,7 +16,7 @@ import {
 import type { BoxGeom, SequenceGeometry } from './types.js';
 
 /** A participant preset belongs to one shape (like node presets): its own "shape", else "for", else the box. */
-export const participantPresetShape = (p: StyleProps | undefined): string => p?.shape || p?.for || 'box';
+export { participantPresetShape } from './common.js';
 
 export interface SeqPresets {
   participant: Record<string, StyleProps>;

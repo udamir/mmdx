@@ -1,14 +1,56 @@
 // The ops kind (T01): what the editing ops (core/ops) need from a diagram type — code order, positional ids, the
 // clipboard, positions and structure. Only the editor loads it (with its view kind); a missing op means the type does
 // not offer it.
+import type { MetaIds } from '../meta/index.js';
 import type { DiagramMeta } from '../meta/types.js';
+import type { ResolvedTheme } from '../theme/types.js';
 import type { Direction, SupportedModel } from '../model.js';
 import type { CloneInto, CloneResult, CodeResult, LineSpan, SwapResult } from '../ops/types.js';
-import type { BoxGeom, GeometryIndex } from '../render/types.js';
+import type { BoxGeom, EdgeGeom, GeometryIndex } from '../render/types.js';
+import type { DrawnItem, Presets } from './types.js';
 import type { DiagramType, ItemKind, ItemRef } from '../types.js';
 
 export interface OpsKind<M extends SupportedModel = SupportedModel, G extends GeometryIndex = GeometryIndex> {
   readonly type: M['type'];
+
+  // ---- presets and geometry (the editor, item previews) ----
+  /** The theme's presets plus the diagram's own, for each item kind of the type. */
+  presets(theme: ResolvedTheme, meta: DiagramMeta): Partial<Record<ItemKind, Presets>>;
+  /**
+   * The rendered box (centre and size) of an item. `foot`: a participant's box at the bottom; `activations`: also the
+   * boxes of activation bars (the editor; the ops leave them out).
+   */
+  box(geom: G, ref: ItemRef & { foot?: boolean }, activations?: boolean): (BoxGeom & { hidden?: boolean }) | null;
+  /** The routed geometry of a connector with bend points and ports (flowchart edges, ER relationships). */
+  edge?(geom: G, ref: ItemRef): EdgeGeom | undefined;
+  /** Every item a render drew, with its box or its line (the editor's marquee, ⌘A and selection halos). */
+  drawn(geom: G): DrawnItem[];
+
+  // ---- styles the code gives, items (the editor's style environment, code filter, ids) ----
+  /**
+   * The preset an item is drawn with when it is derived from its Mermaid code (classes, shape, line style): the
+   * item's own preset first, as the renderer does. Undefined for kinds whose preset is only their own.
+   */
+  codePreset?(model: M, meta: DiagramMeta, theme: ResolvedTheme, ref: ItemRef): string | undefined;
+  /** The shape the Mermaid code gives an item (undefined: none, the theme decides). */
+  codeShape?(model: M, ref: ItemRef): string | undefined;
+  /** The link the Mermaid code gives an item (`click`). */
+  codeLink?(model: M, ref: ItemRef): string | undefined;
+  /** The arrow heads the Mermaid code gives a connector (null: not a connector with heads). */
+  codeEnds?(model: M, ref: ItemRef): { start: string; end: string } | null;
+  /** The item whose id is exactly `id`, any kind (the code filter). */
+  find(model: M, id: string): ItemRef | null;
+  /** Every item with the texts it is found by (the code filter's search), in model order. */
+  search(model: M): { ref: ItemRef; texts: (string | undefined)[] }[];
+  exists(model: M, ref: ItemRef): boolean;
+  /** Ids that name items in the code (nodes, groups, tables; participants when `participants`). */
+  takenIds(model: M, participants: boolean): Iterable<string>;
+  /** Item ids per metadata collection (what `pruneMeta` keeps). */
+  usedIds(model: M): MetaIds;
+  /** 0-based code lines that define or mention an item, sorted (the editor's code filter). */
+  lines(model: M, ref: ItemRef): number[];
+  /** The diagram has no items yet. */
+  isEmpty(model: M): boolean;
 
   // ---- code order ----
   /** Multi-line blocks of the code: subgraphs, entity bodies, boxes, sequence blocks. */

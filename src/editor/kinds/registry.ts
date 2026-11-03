@@ -10,6 +10,11 @@ export function registerEditKinds<K extends EditKinds>(kinds: K): K {
   return kinds;
 }
 
+/** Forgets every registered edit kind (tests of on-demand loading). */
+export function forgetEditKinds(): void {
+  for (const t of Object.keys(registered) as DiagramType[]) delete registered[t];
+}
+
 export const editKind = (type: DiagramType | null | undefined): EditKind | undefined => (type ? registered[type] : undefined);
 
 /** Calls `f` with the model's edit kind and the model as a supported one; undefined for an unsupported diagram. */

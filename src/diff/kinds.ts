@@ -1,17 +1,33 @@
 // Diagram kinds of a diff, loaded on demand (component architecture §9.1, §10): both versions may be any type, so a
-// session loads the parser and renderer of each version's type before it renders (through view/kinds.ts, shared
-// with the viewer). `renderDiffToSvg` of `@mmdx/studio/diff` does the same, so the entry ships no kind statically.
+// session loads the view kind of each version's type (through view/kinds.ts, shared with the viewer) and its diff kind
+// before it renders. `renderDiffToSvg` of `@mmdx/studio/diff` does the same, so the entry ships no kind statically.
 import { renderDiffToSvgWith, type DiffRenderOptions, type DiffSvgOptions } from '../core/diff/render.js';
 import { diffDiagramsWith } from '../core/diff/index.js';
 import type { DiagramDiff } from '../core/diff/types.js';
 import type { CoreContext } from '../core/context.js';
 import { detectType } from '../core/parse/dispatch.js';
+import { diffKind, registerDiffs } from '../core/kinds/registry.js';
+import type { DiffKind } from '../core/kinds/diff-types.js';
+import type { DiagramType } from '../core/types.js';
 import { loadedKinds, loadKind } from '../view/kinds.js';
+
+const diffImporters: Record<DiagramType, () => Promise<{ DIFF: DiffKind }>> = {
+  flowchart: () => import('../core/kinds/flowchart-diff.js'),
+  sequence: () => import('../core/kinds/sequence-diff.js'),
+  er: () => import('../core/kinds/er-diff.js'),
+};
+
+/** Loads a type's diff kind (resolves at once when it is loaded). */
+async function loadDiffKind(t: DiagramType): Promise<void> {
+  if (diffKind(t)) return;
+  const { DIFF } = await diffImporters[t]();
+  registerDiffs({ [t]: DIFF });
+}
 
 /** Loads the kinds of every given source (sources of an unsupported type load nothing). */
 export async function loadKindsOf(...sources: readonly string[]): Promise<void> {
   const types = new Set(sources.map((s) => detectType(s)).filter((t) => t !== null));
-  await Promise.all([...types].map((t) => loadKind(t)));
+  await Promise.all([...types].flatMap((t) => [loadKind(t), loadDiffKind(t)]));
 }
 
 /**

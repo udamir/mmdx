@@ -1,6 +1,6 @@
 // Hit-testing and port geometry of connections (prototype app.js `CONNECTABLE`, `canConnect`, `geomBoxOf`,
 // `targetAt`, `deepInside`, `projectToBox`, `MAGNETS`, `endpointBox`, `endpointId`).
-import { viewKind, withKind } from '../../../core/kinds/registry.js';
+import { opsKind, withKind } from '../../../core/kinds/registry.js';
 import { currentPreset } from '../../../core/ops/style-env.js';
 import { outerBox } from '../../../core/render/common.js';
 import type { Side } from '../../../core/style.js';
@@ -80,7 +80,7 @@ export function targetAt(core: EditorCore, ev: { clientX: number; clientY: numbe
   const p = core.toDiagram(ev);
   let best: { t: ItemRef; a: number } | null = null;
   const g = core.geom;
-  for (const x of (g.type ? viewKind(g.type)?.drawn(g) : undefined) ?? []) {
+  for (const x of (g.type ? opsKind(g.type)?.drawn(g) : undefined) ?? []) {
     if (!('box' in x) || !kinds.includes(x.ref.kind)) continue;
     const b = x.box;
     if (b.hidden || Math.abs(p.x - b.x) > b.w / 2 || Math.abs(p.y - b.y) > b.h / 2) continue;

@@ -338,11 +338,13 @@ export class DiagramEditor {
 
   /**
    * Resolves once the document is in: right away without an adapter, else when the adapter's latest load finished
-   * (after `mmdx-load`); rejects when that load failed. A host that restores a draft waits for it, then calls
+   * (after `mmdx-load`), and once the editor code of its diagram type has loaded (types load on demand); rejects when
+   * the adapter's load failed. A host that restores a draft waits for it, then calls
    * `setSource(draft, { history: 'push', markSaved: false })`.
    */
   whenLoaded(): Promise<void> {
-    return this.loading;
+    // and the editor code of the document's diagram type, which loads on demand
+    return this.loading.then(() => this.core.kindsReady());
   }
 
   // ---- adapter ----------------------------------------------------------------------------------------------------

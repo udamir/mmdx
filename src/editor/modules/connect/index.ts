@@ -3,7 +3,7 @@
 // (`portDrag` → `reconnect`), bend points (`bendHandles`, `bendDrag`, `removeBendPoint`, `hoverBend`).
 // Ported from prototype/app.js ~425–970 and `hoverConnect`.
 import { KIND_TO_COLL, type ItemMeta } from '../../../core/meta/types.js';
-import { reparse, viewKind } from '../../../core/kinds/registry.js';
+import { opsKind, reparse } from '../../../core/kinds/registry.js';
 import { cloneMeta, ensure as ensureIn } from '../../../core/ops/meta-util.js';
 import { outerBox, portPoint } from '../../../core/render/common.js';
 import type { EdgeGeom } from '../../../core/render/types.js';
@@ -127,7 +127,7 @@ export const connectModule: EditorModule = {
     const bendPress = new DoublePress();
     const edgeGeom = (it: ItemRef): EdgeGeom | undefined => {
       const gm = core.geom;
-      return gm.type ? viewKind(gm.type)?.edge?.(gm, it) : undefined;
+      return gm.type ? opsKind(gm.type)?.edge?.(gm, it) : undefined;
     };
     const busy = (): boolean => active || core.dragging;
 

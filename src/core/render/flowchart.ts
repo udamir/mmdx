@@ -30,7 +30,7 @@ export function flowPresets(T: ResolvedTheme, meta: DiagramMeta): FlowPresets {
 }
 
 /** Which shape a node preset belongs to (theme editor / preset pickers): its "shape", else "for", else rectangle. */
-export const presetShape = (p: StyleProps | undefined): string => p?.shape || p?.for || 'rect';
+export { presetShape } from './common.js';
 
 export function nodePreset(n: FlowNode, meta: DiagramMeta, P: FlowPresets): string {
   const m = meta.nodes?.[n.id];

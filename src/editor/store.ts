@@ -4,7 +4,8 @@ import { joinSource, normalizeMeta, splitSource, type DiagramDocument } from '..
 import type { DiagramMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
 import { elementExists } from '../core/ops/ids.js';
-import { parse } from '../core/parse/index.js';
+import { reparse } from '../core/kinds/registry.js';
+import { kindsVersion } from './kinds/loader.js';
 import type { Diagnostic, ItemRef } from '../core/types.js';
 import { computed, signal, type ReadSignal } from '../ui/signal.js';
 
@@ -61,7 +62,11 @@ export class DocStore {
 
   constructor(private readonly opts: StoreOptions = {}) {
     this.budget = opts.historyBytes ?? 5 * 1024 * 1024;
-    this.model = computed(() => parse(this.code()));
+    // parsed with the kinds loaded so far; parsed again when another one arrives
+    this.model = computed(() => {
+      kindsVersion();
+      return reparse(this.code());
+    });
   }
 
   /** The full text: code + %%@ lines. */

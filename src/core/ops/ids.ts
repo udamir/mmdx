@@ -1,13 +1,13 @@
 // Id helpers for the ops: free ids for new and copied items, the ids a model holds per metadata collection, and
 // existence checks, from the diagram's kind. Positional sequence ids and activation ids live in core/ids.
-import { withKind } from '../kinds/registry.js';
+import { withOps } from '../kinds/registry.js';
 import type { MetaIds } from '../meta/index.js';
 import type { DiagramModel } from '../model.js';
 import type { ItemRef } from '../types.js';
 
 /** Ids already taken by nodes, subgraphs, entities and participants (one namespace per diagram). */
 export function takenIds(model: DiagramModel, withParticipants: boolean): Set<string> {
-  return new Set(withKind(model, (k, m) => k.takenIds(m, withParticipants)) ?? []);
+  return new Set(withOps(model, (k, m) => k.takenIds(m, withParticipants)) ?? []);
 }
 
 /** `base1`, `base2`… — the first that is not taken. */
@@ -36,10 +36,10 @@ export function copyIds(model: DiagramModel, ids: Iterable<string>, alsoTaken: I
 
 /** Item ids per metadata collection (prototype app `usedIds`) — what `pruneMeta` keeps. */
 export function usedIds(model: DiagramModel): MetaIds {
-  return withKind(model, (k, m) => k.usedIds(m)) ?? {};
+  return withOps(model, (k, m) => k.usedIds(m)) ?? {};
 }
 
 /** Does the item exist in the model (prototype app `elementExists`)? */
 export function elementExists(model: DiagramModel, ref: ItemRef): boolean {
-  return withKind(model, (k, m) => k.exists(m, ref)) ?? false;
+  return withOps(model, (k, m) => k.exists(m, ref)) ?? false;
 }

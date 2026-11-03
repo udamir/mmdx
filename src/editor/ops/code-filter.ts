@@ -1,12 +1,12 @@
 // The code panel's filter (A.1 rows 3–4), pure: the items and the Mermaid lines a query finds (each token an element
 // id, or text), and the filtered view with `%% - N hidden` folds whose edits are written back into the full file.
-import { withKind } from '../../core/kinds/registry.js';
+import { withOps } from '../../core/kinds/registry.js';
 import { relatedLines } from '../../core/item-lines.js';
 import type { DiagramModel } from '../../core/model.js';
 import type { ItemRef } from '../../core/types.js';
 
 /** The element whose id is exactly `tok` (any kind in the current diagram). */
-const findElement = (M: DiagramModel, tok: string): ItemRef | null => withKind(M, (k, m) => k.find(m, tok)) ?? null;
+const findElement = (M: DiagramModel, tok: string): ItemRef | null => withOps(M, (k, m) => k.find(m, tok)) ?? null;
 
 /**
  * The items a code filter query finds (selected while filtering): per token, the element with exactly that id, else
@@ -18,7 +18,7 @@ export function filterItems(M: DiagramModel, query: string): ItemRef[] | null {
   const tokens = query.trim().split(/\s+/).filter(Boolean);
   if (!tokens.length) return null;
   // every item with the text it is found by
-  const all = (withKind(M, (k, m) => k.search(m)) ?? []).map(({ ref, texts }) => ({ ref, text: texts.filter(Boolean).join('\n').toLowerCase() }));
+  const all = (withOps(M, (k, m) => k.search(m)) ?? []).map(({ ref, texts }) => ({ ref, text: texts.filter(Boolean).join('\n').toLowerCase() }));
   const found = new Set<string>();
   for (const tok of tokens) {
     const el = findElement(M, tok);

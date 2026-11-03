@@ -5,6 +5,7 @@
 import type { DiagramModel, SupportedModel } from '../model.js';
 import type { DiagramType } from '../types.js';
 import { parseWith } from '../parse/dispatch.js';
+import type { DiffKind, DiffKinds } from './diff-types.js';
 import type { OpsKind, OpsKinds } from './ops-types.js';
 import type { Kinds, ViewKind } from './types.js';
 
@@ -14,6 +15,11 @@ const registered: Kinds = {};
 export function registerKinds<K extends Kinds>(kinds: K): K {
   for (const k of Object.values(kinds)) if (k) registered[k.type] = k;
   return kinds;
+}
+
+/** Forgets every registered view kind (tests of on-demand loading start from none). */
+export function forgetKinds(): void {
+  for (const t of Object.keys(registered) as DiagramType[]) delete registered[t];
 }
 
 /** Every kind registered so far. */
@@ -49,6 +55,11 @@ export function registerOps<K extends OpsKinds>(kinds: K): K {
   return kinds;
 }
 
+/** Forgets every registered ops kind (tests of on-demand loading). */
+export function forgetOps(): void {
+  for (const t of Object.keys(ops) as DiagramType[]) delete ops[t];
+}
+
 /** The ops kind of a type, when it is loaded. */
 export const opsKind = (type: DiagramType | null | undefined): OpsKind | undefined => (type ? ops[type] : undefined);
 
@@ -56,5 +67,25 @@ export const opsKind = (type: DiagramType | null | undefined): OpsKind | undefin
 export function withOps<R>(model: DiagramModel, f: (kind: OpsKind, model: SupportedModel) => R): R | undefined {
   if (!model.type) return undefined;
   const k = ops[model.type];
+  return k ? f(k, model) : undefined;
+}
+
+// ---- diff kinds (the diff, History, core) ----
+
+const diffs: DiffKinds = {};
+
+/** Makes the diff kinds available to the diff engine; returns the same set. */
+export function registerDiffs<K extends DiffKinds>(kinds: K): K {
+  for (const k of Object.values(kinds)) if (k) diffs[k.type] = k;
+  return kinds;
+}
+
+/** The diff kind of a type, when it is loaded. */
+export const diffKind = (type: DiagramType | null | undefined): DiffKind | undefined => (type ? diffs[type] : undefined);
+
+/** As `withKind`, with the model's diff kind. */
+export function withDiff<R>(model: DiagramModel, f: (kind: DiffKind, model: SupportedModel) => R): R | undefined {
+  if (!model.type) return undefined;
+  const k = diffs[model.type];
   return k ? f(k, model) : undefined;
 }

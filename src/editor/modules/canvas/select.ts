@@ -4,7 +4,7 @@
 // nudge, the selection overlay, View-mode links and hover highlight, roving keyboard focus and announcements.
 // Ported from prototype app.js (`decorateGroupEdit`, pointer handlers, `moveDrag`, `resizeDrag`, `multiMoveDrag`,
 // `cloneDrag`, `nudge`, `nudgeMulti`, `updateMarquee`, `finishMarquee`, `selectAll`, `drawOverlay` boxes).
-import { viewKind, withKind } from '../../../core/kinds/registry.js';
+import { opsKind, withKind } from '../../../core/kinds/registry.js';
 import { withEdit } from '../../kinds/registry.js';
 import { cloneItems, cloneMeta, moveItem, moveItems, type MoveOpts } from '../../../core/ops/index.js';
 import { el } from '../../../core/scene/build.js';
@@ -116,7 +116,7 @@ export const canvasSelectModule: EditorModule = {
         if (sel.length > 1) {
           const drawnLines = new Map<string, { d?: string; points?: readonly (readonly [number, number])[] }>();
           if (sel.some((it) => LINE_KINDS.has(it.kind)))
-            for (const x of (g.type ? viewKind(g.type)?.drawn(g) : undefined) ?? []) if (!('box' in x)) drawnLines.set(selKey(x.ref), x);
+            for (const x of (g.type ? opsKind(g.type)?.drawn(g) : undefined) ?? []) if (!('box' in x)) drawnLines.set(selKey(x.ref), x);
           for (const it of sel) {
             if (!LINE_KINDS.has(it.kind)) continue;
             const line = drawnLines.get(selKey(it));

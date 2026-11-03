@@ -13,16 +13,15 @@ import { normalizeMeta, splitSource, type DiagramDocument } from '../core/meta/i
 import { KIND_TO_COLL, type DiagramMeta, type ItemMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
 import { own, ownOr } from '../core/own.js';
-import { ALL_OPS_KINDS } from '../core/kinds/all-ops.js';
-import { registerOps, viewKind, withKind, withOps } from '../core/kinds/registry.js';
-import { ALL_EDIT_KINDS } from './kinds/all.js';
-import { registerEditKinds } from './kinds/registry.js';
+import { opsKind, registeredKinds, reparse, withKind, withOps } from '../core/kinds/registry.js';
+import { detectType } from '../core/parse/dispatch.js';
+import { editorHasKind, loadEditorKind } from './kinds/loader.js';
 import { parse } from '../core/parse/index.js';
 import type { ClipboardData } from '../core/ops/clipboard.js';
 import { remapMeta } from '../core/ops/meta-ops.js';
 import { currentPreset, type StyleEnv } from '../core/ops/style-env.js';
-import { renderDocument, type Rendered } from '../core/pipeline.js';
-import { pageScene } from '../core/render/index.js';
+import { renderDocumentWith, type Rendered } from '../core/pipeline-core.js';
+import { pageScene } from '../core/render/page.js';
 import type { BoxGeom, GeometryIndex } from '../core/render/types.js';
 import type { SceneNode } from '../core/scene/types.js';
 import type { ItemKind, ItemRef, Rect } from '../core/types.js';
@@ -301,9 +300,6 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       ...(o.themeDark ? { themeDark: o.themeDark } : {}),
       ...(o.compact !== undefined ? { compact: o.compact } : {}),
     });
-    // the editing ops and edit kinds of every type (until the editor loads kinds on demand)
-    registerOps(ALL_OPS_KINDS);
-    registerEditKinds(ALL_EDIT_KINDS);
     this.store = o.store;
     this.features = o.features;
     this.dialogs = new Dialogs(this.shadow, this.i18n.t);
@@ -388,7 +384,8 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
         this.pageSelected.set(false);
       }
       // the same item stays selected from version to version while it is there
-      const model = parse(doc.code);
+      const model = reparse(doc.code);
+      this.needKind(doc.code);
       this.versionSel = cur ? this.versionSel.filter((r) => itemExists(model, r, doc.meta)) : [];
       this.version.set({ id: v.id, source: v.source, doc, model });
     } else {
@@ -489,7 +486,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   boxOf(it: Sel | null): (BoxGeom & { hidden?: boolean }) | null {
     const g = this.geom;
     if (!it || !g.type) return null;
-    return viewKind(g.type)?.box(g, it, true) ?? null;
+    return opsKind(g.type)?.box(g, it, true) ?? null;
   }
 
 
@@ -500,14 +497,15 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     const v = this.version.peek();
     const doc = v?.doc ?? this.store.doc();
     const model = this.model;
-    const opts: Parameters<typeof renderDocument>[3] = {};
+    this.needKind(doc.code);
+    const opts: Parameters<typeof renderDocumentWith>[4] = {};
     if (this.mode.peek() === 'view' && !this.display.peek().labels) opts.hideLabels = true;
     opts.theme = this.shownTheme();
     // a version's layers are a view override too (its Layers panel hides and shows them without writing)
     const layers = this.mode.peek() === 'view' || v ? this.visibleLayers.peek() : undefined;
     if (layers) opts.visibleLayers = layers;
     if (this.tableView && this.mode.peek() === 'edit' && !v) opts.tableView = [this.tableView];
-    const r = renderDocument(doc, model, this.ctx, opts);
+    const r = renderDocumentWith(registeredKinds(), doc, model, this.ctx, opts);
     this.rendered = { doc, model, tooLarge: false, ...r, diagnostics: [...model.diagnostics, ...r.diagnostics] };
     return this.rendered;
   }
@@ -702,7 +700,11 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       this.pageSelected.set(false);
     }
     this.draw();
-    if (this.scene === this.storeScene && !this.version.peek() && (opts.fit !== false || before !== this.store.model.peek().type)) this.viewport.setBounds(this.result.result.bounds, { fit: true });
+    if (this.scene === this.storeScene && !this.version.peek() && (opts.fit !== false || before !== this.store.model.peek().type)) {
+      this.viewport.setBounds(this.result.result.bounds, { fit: true });
+      const t = detectType(this.code);
+      this.fitWhenLoaded = !!t && !editorHasKind(t);
+    }
     this.fire('model');
     this.fire('panels');
   }
@@ -808,6 +810,44 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     this.drawOverlay();
   }
 
+  // ---- diagram kinds loaded on demand -------------------------------------------------------------------------------
+
+  /** A fit the view owes the document whose kind was still loading. */
+  private fitWhenLoaded = false;
+
+  /**
+   * Loads the kinds of the code's diagram type when they are not loaded yet (T01: the editor loads types on demand):
+   * meanwhile the document draws as not yet supported; once they arrive it is parsed again and redrawn.
+   */
+  private needKind(code: string): void {
+    const t = detectType(code);
+    if (!t || editorHasKind(t)) return;
+    void loadEditorKind(t).then(() => {
+      if (!this.host.isConnected && !this.kindWaiters.length) return;
+      this.draw();
+      if (this.fitWhenLoaded && this.scene === this.storeScene && !this.version.peek()) this.viewport.setBounds(this.result.result.bounds, { fit: true });
+      this.fitWhenLoaded = false;
+      this.fire('model');
+      this.fire('panels');
+      for (const f of this.kindWaiters.splice(0)) f();
+    }, (e: unknown) => {
+      this.toast(`Could not load the editor for this diagram type: ${e instanceof Error ? e.message : String(e)}`, { error: true });
+      for (const f of this.kindWaiters.splice(0)) f();
+    });
+  }
+
+  private readonly kindWaiters: (() => void)[] = [];
+
+  /** Resolves once the kinds of the document's diagram type are loaded (at once when they are). */
+  kindsReady(): Promise<void> {
+    const t = detectType(this.code);
+    if (!t || editorHasKind(t)) return Promise.resolve();
+    return new Promise((r) => {
+      this.kindWaiters.push(r);
+      this.needKind(this.code);
+    });
+  }
+
   // ---- group editing (Miro-like) ------------------------------------------------------------------------------------
 
   /** The group an item is directly in (null: none). */
@@ -840,7 +880,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   /** The diagram has no items yet (empty-canvas hint). */
   isEmptyDiagram(): boolean {
-    return withKind(this.model, (k, m) => k.isEmpty(m)) ?? false;
+    return withOps(this.model, (k, m) => k.isEmpty(m)) ?? false;
   }
 
 

@@ -3,13 +3,11 @@
 // layers, the diagram palette "+", lock, paint, group / arrange / activation actions), the Order slider with a live
 // preview committed once (`orderInfo` / `orderPreview` / `orderCommit`), ⌘[ / ⌘] (`moveSelection`), the page badge
 // above the page's top-left corner and the page's own action bar.
-import { opsKind, viewKind, withKind } from '../../../core/kinds/registry.js';
+import { opsKind, withOps } from '../../../core/kinds/registry.js';
 import { editKind, withEdit } from '../../kinds/registry.js';
 import { layerDefs, layerOf } from '../../../core/layers.js';
 import { copyable } from '../../../core/ops/clipboard.js';
-import {
-  addLocalColor, canSavePreset, newLayer, removeLocalColor, resetCurve, resetItemStyle, setLayer, setStyle, SIZE_KEY, TEXT_KEY, WEIGHT_KEY,
-} from '../../../core/ops/meta-ops.js';
+import { addLocalColor, canSavePreset, newLayer, removeLocalColor, resetCurve, resetItemStyle, setLayer, setStyle, SIZE_KEY, TEXT_KEY, WEIGHT_KEY, } from '../../../core/ops/meta-ops.js';
 import { applyOrderState, moveOrder, orderPositions, type OrderPositions } from '../../../core/ops/order.js';
 import { baseStyleOf, effectiveValue, presetsFor } from '../../../core/ops/style-env.js';
 import { relativeColor } from '../../../core/theme/colors.js';
@@ -77,7 +75,7 @@ export function anchorRect(core: EditorCore, s: Sel): Rect | null {
       }
     }
     const g = core.geom;
-    const eg = g.type ? viewKind(g.type)?.edge?.(g, s) : undefined;
+    const eg = g.type ? opsKind(g.type)?.edge?.(g, s) : undefined;
     const pts = (eg as { points?: [number, number][] } | undefined)?.points ?? [];
     const sv = core.dom.svg.getBoundingClientRect();
     for (const [x, y] of pts) {
@@ -293,7 +291,7 @@ export const toolbarsModule: EditorModule = {
         themeFontName: () => (core.result.theme.font.split(',')[0] ?? '').replace(/['"]/g, '').trim(),
         edgeEnds: () => {
           const s = primary();
-          const e = s ? withKind(core.model, (k, m) => k.codeEnds?.(m, s)) : null;
+          const e = s ? withOps(core.model, (k, m) => k.codeEnds?.(m, s)) : null;
           if (!s || !e) return {};
           const arrow = baseStyleOf(env(), 'edge', s.id).arrow;
           const map = (x: string): string | undefined => (x === 'arrow' ? (typeof arrow === 'string' ? arrow : undefined) : x);

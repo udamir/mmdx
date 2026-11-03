@@ -1,4 +1,6 @@
 // The flowchart ops kind: code order, the clipboard, auto-placed nodes, subgraph contents and the direction.
+import type { Presets } from './types.js';
+import { edgePreset, flowPresets, groupPreset, nodePreset } from '../render/flowchart.js';
 import { minOf } from '../geom.js';
 import type { FlowchartModel } from '../model.js';
 import { cloneFlow, deleteFlow, setFlowDirection } from '../ops/flowchart.js';
@@ -70,4 +72,67 @@ export const OPS: OpsKind<FlowchartModel, FlowGeometry> = {
   },
   descendants: groupDescendants,
   setDirection: (code, _model, dir) => setFlowDirection(code, dir),
+  codePreset(model, meta, theme, { kind, id }) {
+    if (kind !== 'node' && kind !== 'edge' && kind !== 'group') return undefined;
+    const P = flowPresets(theme, meta);
+    if (kind === 'node') {
+      const n = model.nodes.get(id);
+      return n ? nodePreset(n, meta, P) : '';
+    }
+    if (kind === 'edge') {
+      const e = model.edges.find((x) => x.id === id);
+      return e ? edgePreset(e, meta, P) : '';
+    }
+    const g = model.groups.get(id);
+    return g ? groupPreset(g, meta, P) : '';
+  },
+  codeShape(model, { kind, id }) {
+    const n = kind === 'node' ? model.nodes.get(id) : undefined;
+    return n && n.shape !== 'rect' ? n.shape : undefined;
+  },
+  codeLink: (model, { kind, id }) => (kind === 'node' ? model.nodes.get(id)?.link : undefined),
+  codeEnds(model, { kind, id }) {
+    const e = kind === 'edge' ? model.edges.find((x) => x.id === id) : undefined;
+    return e ? { start: e.start, end: e.end } : null;
+  },
+  find(model, id) {
+    if (model.nodes.has(id)) return { kind: 'node', id };
+    if (model.groups.has(id)) return { kind: 'group', id };
+    if (model.edges.some((e) => e.id === id)) return { kind: 'edge', id };
+    return null;
+  },
+  search: (model) => [
+    ...[...model.nodes.values()].map((n) => ({ ref: { kind: 'node' as const, id: n.id }, texts: [n.id, n.label, ...n.classes] })),
+    ...[...model.groups.values()].map((g) => ({ ref: { kind: 'group' as const, id: g.id }, texts: [g.id, g.label, ...(g.classes ?? [])] })),
+    ...model.edges.map((e) => ({ ref: { kind: 'edge' as const, id: e.id }, texts: [e.label] })),
+  ],
+  exists: (model, { kind, id }) =>
+    kind === 'node' ? model.nodes.has(id) : kind === 'group' ? model.groups.has(id) : kind === 'edge' ? model.edges.some((e) => e.id === id) : false,
+  takenIds: (model) => [...model.nodes.keys(), ...model.groups.keys()],
+  usedIds: (model) => ({ nodes: new Set(model.nodes.keys()), groups: new Set(model.groups.keys()), edges: new Set(model.edges.map((e) => e.id)) }),
+  lines(M, { kind, id }) {
+    const set = new Set<number>();
+    const add = (x: number | null | undefined): void => {
+      if (x != null) set.add(x);
+    };
+    if (kind === 'node') {
+      M.nodes.get(id)?.lines.forEach(add);
+      for (const e of M.edges) if (e.from === id || e.to === id) add(e.src);
+    } else if (kind === 'group') {
+      const g = M.groups.get(id);
+      g?.lines.forEach(add);
+      if (g) for (let i = g.line; i <= (g.endLine ?? g.line); i++) set.add(i); // the whole subgraph block, nested content included
+      for (const e of M.edges) if (e.from === id || e.to === id) add(e.src);
+    } else if (kind === 'edge') add(M.edges.find((e) => e.id === id)?.src);
+    return [...set].sort((a, b) => a - b);
+  },
+  isEmpty: (model) => !model.nodes.size,
+  presets: (theme, meta) => flowPresets(theme, meta) as unknown as Record<string, Presets>,
+  drawn: (g) => [
+    ...[...g.nodes].map(([id, box]) => ({ ref: { kind: 'node' as const, id }, box })),
+    ...[...g.groups].map(([id, box]) => ({ ref: { kind: 'group' as const, id }, box })),
+    ...[...g.edges].map(([id, e]) => ({ ref: { kind: 'edge' as const, id }, d: e.d, label: e.label })),
+  ],
+  edge: (g, { kind, id }) => (kind === 'edge' ? g.edges.get(id) : undefined),
+  box: (g, it) => (it.kind === 'node' ? g.nodes.get(it.id) : it.kind === 'group' ? g.groups.get(it.id) : undefined) ?? null,
 };

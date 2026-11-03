@@ -21,10 +21,14 @@ export { layerDefs, hiddenByLayers, DEFAULT_LAYER } from './core/layers.js';
 export { starterSource, type StarterType } from './core/starter.js';
 export { outline, summarize } from './core/outline.js';
 export {
-  diffDiagramsWith, diffModels, ignoreFacets, withoutStyle, withLayoutOf, mergeDiagrams, diffReport, unifiedDiff,
-  diffWords, diffLines, mergeText, annotate, changeKey, FACETS, DIFF_COLORS,
+  ignoreFacets, withoutStyle, withLayoutOf, diffReport, unifiedDiff, diffWords, diffLines, mergeText, changeKey, FACETS,
+  DIFF_COLORS,
   type DiagramDiff, type ItemChange, type FieldChange, type ChangeFacet, type ChangeStatus, type DiffIgnore,
   type DiffView, type VersionInfo, type ReportOptions, type UnifiedDiffOptions, type Merged,
 } from './core/diff/index.js';
-export { renderDiffWith, renderDiffToSvgWith, diffSvg, type DiffHide, type DiffRendered, type DiffRenderOptions, type DiffSvgOptions } from './core/diff/render.js';
-export { diffDiagrams, renderDiff, renderDiffToSvg } from './core/diff/all.js';
+export { diffSvg, type DiffHide, type DiffRendered, type DiffRenderOptions, type DiffSvgOptions } from './core/diff/render.js';
+export {
+  diffDiagrams, renderDiff, renderDiffToSvg, diffDiagramsWithAll as diffDiagramsWith, diffModelsAll as diffModels,
+  mergeDiagramsAll as mergeDiagrams, annotateAll as annotate, renderDiffWithAll as renderDiffWith,
+  renderDiffToSvgWithAll as renderDiffToSvgWith,
+} from './core/diff/all.js';

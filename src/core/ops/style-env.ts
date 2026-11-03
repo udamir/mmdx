@@ -4,7 +4,7 @@
 import type { DiagramMeta } from '../meta/types.js';
 import type { DiagramModel } from '../model.js';
 import { own } from '../own.js';
-import { withKind } from '../kinds/registry.js';
+import { withOps } from '../kinds/registry.js';
 import type { Presets } from '../kinds/types.js';
 import { effectivePage } from '../render/page.js';
 import { mergeLayers, type StyleProps } from '../style.js';
@@ -36,7 +36,7 @@ const COLOR_KEYS = new Set(['fill', 'stroke', 'text', 'color', 'labelColor', 'ti
 /** Theme presets plus the diagram's own, for an item kind of the current diagram type (undefined: no presets). */
 export function presetsFor(env: StyleEnv, kind: ItemKind): Presets | undefined {
   const { model, theme: T, meta } = env;
-  return model.type ? withKind(model, (k) => k.presets(T, meta)[kind]) : {};
+  return model.type ? withOps(model, (k) => k.presets(T, meta)[kind]) : {};
 }
 
 /** The theme's own default style of an item kind. */
@@ -69,7 +69,7 @@ export const isLocalPreset = (env: StyleEnv, kind: ItemKind, name: string): bool
 /** The preset an item is drawn with: its own, else (flowchart) one derived from its Mermaid classes / shape / line. */
 export function currentPreset(env: StyleEnv, ref: ItemRef): string {
   const { model, meta } = env;
-  const derived = withKind(model, (k, m) => k.codePreset?.(m, meta, env.theme, ref));
+  const derived = withOps(model, (k, m) => k.codePreset?.(m, meta, env.theme, ref));
   if (derived !== undefined) return derived;
   const p = getM(meta, ref.kind, ref.id).preset;
   return typeof p === 'string' ? p : '';
@@ -89,7 +89,7 @@ export function participantShapeOf(env: StyleEnv, id: string): string {
   const { model, meta, theme } = env;
   const m = getM(meta, 'participant', id);
   const preset = typeof m.preset === 'string' ? m.preset : '';
-  return str(m.shape) ?? withKind(model, (k, m) => k.codeShape?.(m, { kind: 'participant', id })) ?? str(presetsFor(env, 'participant')?.[preset]?.shape) ?? str(theme.sequence.participant.shape) ?? 'box';
+  return str(m.shape) ?? withOps(model, (k, m) => k.codeShape?.(m, { kind: 'participant', id })) ?? str(presetsFor(env, 'participant')?.[preset]?.shape) ?? str(theme.sequence.participant.shape) ?? 'box';
 }
 
 /** The shape a node is drawn with (its own, its preset's or its Mermaid shape). */
@@ -97,7 +97,7 @@ export function nodeShapeOf(env: StyleEnv, id: string): string {
   const { model, meta, theme } = env;
   const m = getM(meta, 'node', id);
   const pst = presetsFor(env, 'node')?.[currentPreset(env, { kind: 'node', id })];
-  return str(m.shape) ?? str(pst?.shape) ?? withKind(model, (k, m) => k.codeShape?.(m, { kind: 'node', id })) ?? str(theme.flowchart.node.shape) ?? 'rect';
+  return str(m.shape) ?? str(pst?.shape) ?? withOps(model, (k, m) => k.codeShape?.(m, { kind: 'node', id })) ?? str(theme.flowchart.node.shape) ?? 'rect';
 }
 
 /** Theme + shape default + diagram `_base` + preset, with colour values resolved when `env.color` is given. */
@@ -120,19 +120,19 @@ export function effectiveValue(env: StyleEnv, ref: ItemRef, k: string): unknown 
   const own = (getM(env.meta, kind, id) as Record<string, unknown>)[k];
   if (own !== undefined) return own;
   const { model } = env;
-  if (k === 'link' && kind === 'node') return withKind(model, (k, m) => k.codeLink?.(m, ref));
+  if (k === 'link' && kind === 'node') return withOps(model, (k, m) => k.codeLink?.(m, ref));
   const page = (): unknown => effectivePage(model.type, env.meta, env.theme).routing;
   if (k === 'routing') return kind === 'edge' ? page() || 'curved' : baseStyleOf(env, kind, id).routing || page() || 'curved';
   const base = baseStyleOf(env, kind, id);
   if (k === 'shape' && kind === 'participant') return participantShapeOf(env, id);
   if (k === 'shape' && kind === 'node')
-    return str(presetsFor(env, 'node')?.[currentPreset(env, ref)]?.shape) ?? withKind(model, (k, m) => k.codeShape?.(m, ref)) ?? base.shape;
+    return str(presetsFor(env, 'node')?.[currentPreset(env, ref)]?.shape) ?? withOps(model, (k, m) => k.codeShape?.(m, ref)) ?? base.shape;
   return base[k];
 }
 
 /** Arrow heads actually drawn at both ends of a flowchart edge. */
 export function edgeEndsOf(env: StyleEnv, id: string): { start: unknown; end: unknown } | null {
-  const e = withKind(env.model, (k, m) => k.codeEnds?.(m, { kind: 'edge', id }));
+  const e = withOps(env.model, (k, m) => k.codeEnds?.(m, { kind: 'edge', id }));
   if (!e) return null;
   const m = getM(env.meta, 'edge', id);
   const arrow = effectiveValue(env, { kind: 'edge', id }, 'arrow');

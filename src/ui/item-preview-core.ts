@@ -8,7 +8,7 @@
 // This module takes the diagram kinds (parsers and renderers) and the core context from its caller (§9.1:
 // `drawItemPreviewWith`, `renderItemSampleWith`), so it loads no parser itself. ui/item-preview.ts wraps it with
 // every kind and the shared configuration (`drawItemPreview`, `renderItemSample`).
-import { viewKind } from '../core/kinds/registry.js';
+import { opsKind } from '../core/kinds/registry.js';
 import type { CoreContext } from '../core/context.js';
 import { nextIdPrefix } from '../core/context.js';
 import { emptyMeta, type DiagramMeta } from '../core/meta/index.js';
@@ -192,7 +192,7 @@ const union = (boxes: Box[]): Box | null =>
 
 /** The item's box from the render geometry (engines without SVG layout, e.g. jsdom). */
 function fromGeom(g: GeometryIndex, kind: PreviewKind): Box | null {
-  const k = g.type ? viewKind(g.type) : undefined;
+  const k = g.type ? opsKind(g.type) : undefined;
   if (!k) return null;
   // the participant sample is A; lifelines and processes are shown on B
   if (kind === 'participant' || kind === 'lifeline' || kind === 'activation') {

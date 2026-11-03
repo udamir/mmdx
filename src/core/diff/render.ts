@@ -1,5 +1,5 @@
 // Rendering a diff (§7.5): both versions, the merged picture, the filtered change list and one shared coordinate space, from two sources. `renderDiffToSvgWith` composes any view into one standalone SVG (exports, CI bots, SSR). Everything here renders with the given diagram kinds (component architecture §9.1: <mmdx-diff> loads the kinds of both versions on demand); the all-kinds wrappers are in all.ts, so a bundle that loads kinds ships none statically.
-import { viewKind } from '../kinds/registry.js';
+import { diffKind } from '../kinds/registry.js';
 import { createContext, type CoreContext } from '../context.js';
 import { isSupported } from '../model.js';
 import { renderDocumentWith, renderSourceWith, type Kinds, type PipelineOptions, type Rendered } from '../pipeline-core.js';
@@ -80,7 +80,7 @@ export function renderDiffWith(kinds: Kinds, before: string, after: string, ctx:
     srcAfter = withoutStyle(srcAfter);
   }
   // sequence metadata is keyed by position, so its layout cannot be transplanted by id
-  const layoutAligned = !!ignore.layout && !viewKind(raw.type)?.positionalIds && !raw.typeChanged;
+  const layoutAligned = !!ignore.layout && !diffKind(raw.type)?.positionalIds && !raw.typeChanged;
   if (layoutAligned) srcBefore = withLayoutOf(srcBefore, srcAfter);
   const { ignore: _i, hide: _h, ...pipe } = o;
   // both versions with one theme (a fair comparison): the forced one, else the after version's own

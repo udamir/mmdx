@@ -14,7 +14,7 @@ import type { ItemKind, Rect } from '../types.js';
 import type { ChangeFacet, ItemChange } from './types.js';
 import { beforeKey, changeKey } from './merge.js';
 import type { ItemShape } from './shape.js';
-import { viewKind } from '../kinds/registry.js';
+import { diffKind } from '../kinds/registry.js';
 
 /** A highlight colour family: the filter of a change. */
 export type Mark = 'added' | 'removed' | ChangeFacet;
@@ -60,7 +60,7 @@ export type { ItemShape };
 
 /** Where an item is drawn, from the renderer's geometry index. */
 export function shapeOf(geom: GeometryIndex, kind: ItemKind, id: string): ItemShape | null {
-  return geom.type ? viewKind(geom.type)?.shape(geom, { kind, id }) ?? null : null;
+  return geom.type ? diffKind(geom.type)?.shape(geom, { kind, id }) ?? null : null;
 }
 
 export const centreOf = (s: ItemShape): { x: number; y: number } => (s.t === 'rect' ? { x: s.r.x + s.r.w / 2, y: s.r.y + s.r.h / 2 } : s.mid);

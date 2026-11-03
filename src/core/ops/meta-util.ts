@@ -1,6 +1,6 @@
 // Small helpers for the metadata ops: copy-on-write of the whole metadata, per-item access, empty-entry cleanup.
 // The prototype mutated the one global `S.meta`; the ops clone first and mutate the clone, so every op is pure.
-import { viewKind } from '../kinds/registry.js';
+import { opsKind } from '../kinds/registry.js';
 import { KIND_TO_COLL } from '../meta/types.js';
 import type { DiagramMeta, ItemMeta } from '../meta/types.js';
 import { own, ownOr } from '../own.js';
@@ -31,7 +31,7 @@ export function tidy(meta: DiagramMeta, kind: ItemKind, id: string): void {
 
 /** Rendered box (centre + size) of an item (prototype app `boxOfItem`). */
 export function boxOfItem(geom: GeometryIndex | null | undefined, it: ItemRef): BoxGeom | null {
-  return geom?.type ? viewKind(geom.type)?.box(geom, { kind: it.kind, id: it.id }) ?? null : null;
+  return geom?.type ? opsKind(geom.type)?.box(geom, { kind: it.kind, id: it.id }) ?? null : null;
 }
 
 export const selKey = (r: ItemRef): string => `${r.kind}:${r.id}`;
