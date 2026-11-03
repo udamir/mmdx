@@ -14,9 +14,11 @@ flowchart LR
 
 - **Label tokens** — `fa:fa-car Car`, `tabler:server API`, `azure:computer-vision Vision`: a token in a label draws the icon in the text. Font Awesome's form (`fa:fa-…`, and `fab`, `fak`, `fal`, `far`, `fas`) is always read as an icon, as Mermaid reads it; any other `pack:name` is an icon only when `pack` is a registered pack, so `Note: …` or `http://…` stay text.
 - **Icon nodes** — `A@{ icon: "logos:aws-ec2" }` in a flowchart takes any `pack:name`.
-- **Mindmap icons** — `::icon(fa fa-book)`, `::icon(fa-solid fa-car)`, `::icon(mdi mdi-skull-outline)`: CSS class forms as Mermaid's mindmap writes them.
+- **Mindmap icons** — `::icon(fa fa-book)`, `::icon(fa-solid fa-car)`, `::icon(mdi mdi-skull-outline)`: CSS class forms as Mermaid's mindmap writes them, on the line after the node. mmdx draws them above the node's label, resolved to a registered pack's icon; stock Mermaid 11.17 and 12.2 read them but do not draw them, so mmdx notes them (`mm.icon-not-drawn`).
 
-Labels in every diagram type use tokens. Stock Mermaid draws `fa*` tokens (in all types but sequence diagrams) and icon nodes; tokens of other packs show as text there. The diagram types draw icons as they gain icon support: flowcharts draw icon nodes and tokens in node, edge and subgraph labels (see [Flowchart content](/guide/flowchart)); mindmap, state, sequence and ER labels follow.
+Labels in every diagram type use tokens. Stock Mermaid draws `fa*` tokens (in all types but sequence diagrams) and icon nodes; tokens of other packs show as text there. The diagram types draw icons as they gain icon support: flowcharts draw icon nodes and tokens in node, edge and subgraph labels (see [Flowchart content](/guide/flowchart)), mindmaps tokens in node labels and `::icon()` (see [Mindmaps](/guide/mindmap#icons)); state, sequence and ER labels follow.
+
+The editor writes a mindmap node's icon as a label token at the start of its text (`fa:fa-book Book`), which stock Mermaid draws for Font Awesome; an `::icon()` line the node has is replaced by the token when you change its icon.
 
 ## The built-in set
 

@@ -65,10 +65,11 @@ Each metadata line is:
 
 | Line | Holds |
 |---|---|
-| `%%@ canvas {…}` | Format version, page size and proportions, page background, routing default, page preset, `layout` |
+| `%%@ canvas {…}` | Format version, page size and proportions, page background, routing default, page preset, `layout`, `mindLayout` |
 | `%%@ node <id>`, `group <id>`, `edge <from>-><to>` (or `edge <edge id>`) | Flowchart item position, size, preset and style overrides |
 | `%%@ participant <id>`, `message m1`, `note n1`, `block b1`, `box box1`, `activation B:1` | Sequence diagram items |
 | `%%@ entity <name>`, `rel <A>--<B>` | ER tables and relationships |
+| `%%@ node <id>` | Mindmap nodes (the item kind is shared with flowcharts) |
 | `%%@ style.<kind> <name> {…}` | A style preset defined in this diagram (`style.node`, `style.edge`, `style.entity`, …) |
 | `%%@ layer <id> {"name":…,"hidden":…}` | A user-defined layer |
 
@@ -83,11 +84,18 @@ The keys an item line may carry:
 | `link` | A link opened from the item (checked by the [link policy](/guide/security#link-policy)) |
 | `points`, `fromSide`, `toSide`, `fromAt`, `toAt`, `labelDx`, `labelDy` | Connector bend points, ports and label offset |
 | `dy` | Vertical shift of sequence items |
+| `dx`, `dy` | A mindmap node and its subtree moved by this much from the spot the layout computes |
+| `side` | A first-level mindmap branch's side of the root: `l` or `r` (the layout's split otherwise) |
+| `collapsed` | `true`: the mindmap node's subtree is folded, with a +N badge counting the hidden nodes |
+| `section` | A mindmap branch colour, 0–11 (one of the theme's `mindmap.sections`), for the node and its subtree |
+| `img` | A picture above a mindmap node's label (a URL, checked by the [image policy](/guide/security#image-policy)); mindmaps have no image syntax |
 | `attrs` | ER attribute highlights |
 | `imgFit` | How a flowchart image node's picture fills its box: `contain` (default), `cover` or `stretch` — Mermaid has only the aspect lock, `constraint` in the node data |
 | Style keys | `fill`, `stroke`, `strokeWidth`, `radius`, `shape`, `fontSize`, `color`, `arrow`, `routing`, … (style overrides) |
 
 Unknown keys are kept on round-trip.
+
+`canvas` also takes `mindLayout` for mindmaps: `both` (default) puts branches on both sides of the root, `right` all of them to its right, `down` lays the tree out top down (the page presets of the same names set it). See [Mindmaps](/guide/mindmap#layout).
 
 `canvas` also takes `layout`. Flowcharts with subgraphs are laid out with each subgraph as a container of its own (see [the editor's auto layout](/components/editor#auto-layout)); `"layout":"legacy"` keeps the automatic layout of earlier versions, where subgraph frames could overlap and subgraph `direction` was ignored, for one more minor release — it will then be removed. Diagrams whose nodes all have stored positions look the same either way. Any other value is dropped with a diagnostic.
 
@@ -95,7 +103,7 @@ Unknown keys are kept on round-trip.
 %%@ canvas {"v":1,"layout":"legacy"}
 ```
 
-A flowchart node's shape belongs in the Mermaid code — a bracket (`A{"…"}`) or node data (`A@{ shape: lin-cyl }`) — so the file shows the same shapes in stock Mermaid; the editor writes it there (see [Shapes](/guide/shapes)). Metadata `shape` is only for shapes Mermaid's flowchart lacks (the participant figures, the mindmap's default node) and for a node whose preset draws another shape. Files of mmdx 0.1–0.3 that keep Mermaid shapes in metadata still draw them; the editor's code panel offers a fix that moves them into the code. A sequence diagram's real examples look like this:
+A flowchart node's shape belongs in the Mermaid code — a bracket (`A{"…"}`) or node data (`A@{ shape: lin-cyl }`) — so the file shows the same shapes in stock Mermaid; the editor writes it there (see [Shapes](/guide/shapes)). Metadata `shape` is only for shapes Mermaid's flowchart lacks (the participant figures, the mindmap's default node) and for a node whose preset draws another shape. A mindmap node's shape is likewise its delimiters in the code (`((…))`, `{{…}}`, …); only the catalogue shapes Mermaid's mindmap has no delimiters for are kept in metadata. Files of mmdx 0.1–0.3 that keep Mermaid shapes in metadata still draw them; the editor's code panel offers a fix that moves them into the code. A sequence diagram's real examples look like this:
 
 ```mmdx
 %%@ canvas {"v":1,"blockSpan":"touched"}
@@ -113,6 +121,15 @@ and an ER diagram's:
 %%@ rel object--relation#2 {"routing":"curved","curve":1}
 ```
 
+and a mindmap's (no positions: the tree is laid out every time, nudged by `dx` / `dy`):
+
+```mmdx
+%%@ canvas {"v":1,"mindLayout":"right"}
+%%@ node research {"side":"l","section":3}
+%%@ node mm7 {"collapsed":true}
+%%@ node mm12 {"dy":20,"img":"https://example.com/beta.png"}
+```
+
 ## Ids
 
 Most ids come from the Mermaid code: node, group, participant and entity ids as written. The rest are derived, so they stay stable as long as the code does:
@@ -124,8 +141,11 @@ Most ids come from the Mermaid code: node, group, participant and entity ids as 
 | ER relationship | `<A>--<B>`, repeated ones with `#2`, … | `rel object--relation#2` |
 | Sequence message, note, block, box | numbered in source order | `message m1`, `note n2`, `block b1`, `box box1` |
 | Sequence activation | participant and the activation's number on it, in the order they open | `activation B:1` |
+| Mindmap node | its written id (`research[User research]`) when no other node has it; else `mm<k>`, k being its place among all nodes in code order (1-based), `mm<k>_2` when a written id already takes that | `node research`, `node mm7` |
 
 Items without a position are laid out automatically and keep their place once moved.
+
+A mindmap node written as a bare line (`Goals`) or with brackets only (`[User research]`) has no id of its own, and neither do nodes that repeat a written id; their `mm<k>` ids change when lines are added or moved above them. The editor carries their metadata along with every edit, on the canvas or in its Code panel: a node is matched by its path of labels from the root and its rank among siblings with the same label, else by its label. A text editor outside mmdx does not move the `%%@` lines, so there the metadata stays with the number. Give a node an id (`goals[Goals]`) to tie its metadata to it for good.
 
 An edge that gets an id in the code (`A e1@--> B`) still reads what its line had under `A->B`; the editor moves it to `edge e1` on the next edit, and back when the id is removed. An icon or image node's size is not metadata: it is `h` / `w` in the node data, in the code (see [Flowchart content](/guide/flowchart)).
 

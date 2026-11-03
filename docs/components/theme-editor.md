@@ -64,7 +64,7 @@ Each attribute sets the `ThemeEditorOptions` option of the same name in camelCas
 | `can-publish` | — | `boolean` | `false` | Show Publish (when the store has `publish`) |
 | `can-delete` | — | `boolean` | `false` | Show Delete (when the store has `delete`) |
 | `presentation` | — | `'inline' \| 'dialog'` | `inline` | `inline` fills the host; `dialog` is a modal over the page with its own title bar and close button |
-| `samples` | `samples` | `ThemeSamples` | built-in samples | Mermaid samples per diagram type for the preview, `{ flowchart?, sequence?, er? }`; the attribute takes JSON |
+| `samples` | `samples` | `ThemeSamples` | built-in samples | Mermaid samples per diagram type for the preview, `{ flowchart?, sequence?, er?, mindmap? }`; the attribute takes JSON |
 | `ui` | — | `'light' \| 'dark' \| 'auto'` | `auto` | Chrome colour scheme |
 | — | `storage` | `StorageAdapter` | `localStorage` (`mmdx.` keys), else in memory | UI preferences: `teSamples` (edited sample code), `teZoom` (tile zoom) |
 | — | — | `ctx: Partial<CoreContext>` | the shared context | `ThemeEditor` option, read when it is created |
@@ -111,8 +111,8 @@ All events bubble and are composed. Types: `ThemeEditorEventMap`.
 ## Layout
 
 - **Theme list** (left): Baseline first, then the store's and the source's themes, tagged when edited on top of a theme file, not exported, or used by diagrams (from `store.usage`). **+ New theme** starts a theme that overrides nothing; the ⋯ menu has Duplicate, Import…, Export, Discard changes, Revert to file, Publish and Delete, as the permissions and the store allow.
-- **Main column**: the palette, then a gallery per diagram type (flowchart, sequence, ER) with a tile for every item style, shape default, preset and page preset. Selecting a tile shows its properties and the floating style toolbar.
-- **Preview** (right): a sample diagram rendered with the theme being edited; the sample code can be edited and reset.
+- **Main column**: the palette, then a gallery per diagram type (flowchart, sequence, ER, mindmap) with a tile for every item style, shape default, preset and page preset. The mindmap gallery has Root, Node, Branch (the width of a first-level branch), Sections (branch colours: one tile per section, with its fill, text and branch colour) and Page. Selecting a tile shows its properties and the floating style toolbar.
+- **Preview** (right): a sample diagram rendered with the theme being edited, one tab per diagram type (Flowchart, Sequence, ER, Mindmap); the sample code can be edited and reset.
 
 Edits change a draft: tiles and the preview follow after a short pause, unsaved changes are marked, and Save writes the theme.
 

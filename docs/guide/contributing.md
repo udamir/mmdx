@@ -64,8 +64,9 @@ A diagram type is a set of kinds ([Architecture → Diagram kinds](/guide/archit
 2. Write the model (`src/core/model.ts`), the parser (`src/core/parse/<type>.ts`) and the renderer with its geometry index (`src/core/render/<type>.ts`, `src/core/render/types.ts`).
 3. Write the view, diff and ops kinds (`src/core/kinds/<type>.ts`, `<type>-diff.ts`, `<type>-ops.ts`) and add them to `all.ts`, `all-diff.ts` and `all-ops.ts`; the outline goes to `<type>-outline.ts` and the `OUTLINES` table.
 4. Write the edit kind (`src/editor/kinds/<type>.ts`, re-exporting the view and ops kinds) and add it to `src/editor/kinds/all.ts`.
-5. Fill the tables the compiler asks for: the viewer's and the diff's importers (`src/view/kinds.ts`, `src/diff/kinds.ts`), the editor's (`src/editor/kinds/loader.ts`), the theme section (`src/core/theme/types.ts`, the registry's `SECTION_DEFAULTS`, the theme editor's `SECTION_UI` and `DEFAULT_SAMPLES`), the empty-state pictogram.
-6. Add an example to `examples/` (golden snapshots for every theme follow), parser and ops tests, a size row in `tools/size.mjs`, and the docs.
+5. Fill the tables the compiler asks for: the viewer's and the diff's importers (`src/view/kinds.ts`, `src/diff/kinds.ts`), the editor's (`src/editor/kinds/loader.ts`), the theme section (`src/core/theme/types.ts`, the registry's `SECTION_DEFAULTS`, the theme editor's `SECTION_UI` and `DEFAULT_SAMPLES`), the empty-state pictogram. A type whose items share a kind with the flowchart but look different (mindmap nodes) gets its own preview samples in `src/ui/item-preview-core.ts` (`TYPE_PREVIEWS`, `ITEM_SAMPLES`).
+6. Gestures of the type's own (keys, handles, drags) go into an editor module in `src/editor/modules/<type>/`, listed in `src/editor/modules/index.ts` and allow-listed in `tests/arch/no-kind-branches.test.ts`, as the sequence, `er-table` and mindmap modules are.
+7. Add an example to `examples/` (golden snapshots for every theme follow), parser and ops tests, a size row in `tools/size.mjs`, and the docs.
 
 ## Tests
 

@@ -20,7 +20,7 @@ yarn add @mmdx/studio
 
 :::
 
-`mermaid` (≥ 10) is an optional peer dependency. Install it only for diagram types mmdx does not draw itself (anything but flowchart, sequence and ER) and for the editor's "Plain Mermaid" preview; it is loaded lazily, on first use:
+`mermaid` (≥ 10) is an optional peer dependency. Install it only for diagram types mmdx does not draw itself (anything but flowchart, sequence, ER and mindmap) and for the editor's "Plain Mermaid" preview; it is loaded lazily, on first use:
 
 ::: code-group
 

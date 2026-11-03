@@ -24,7 +24,7 @@ hero:
 features:
   - icon: ✏️
     title: Two-way visual editing
-    details: Drag boxes, route connectors, pick colours and presets for flowcharts, sequence and ER diagrams. Every canvas edit is written back to the Mermaid code, and code edits update the canvas live.
+    details: Drag boxes, route connectors, pick colours and presets for flowcharts, sequence diagrams, ER diagrams and mindmaps. Every canvas edit is written back to the Mermaid code, and code edits update the canvas live.
     link: /components/editor
     linkText: <mmdx-editor>
   - icon: 🔍

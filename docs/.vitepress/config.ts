@@ -111,6 +111,7 @@ export default defineConfig({
             { text: 'Shapes', link: '/guide/shapes' },
             { text: 'Icons', link: '/guide/icons' },
             { text: 'Flowchart content', link: '/guide/flowchart' },
+            { text: 'Mindmaps', link: '/guide/mindmap' },
             { text: 'Configuration', link: '/guide/configuration' },
             { text: 'Saving documents', link: '/guide/documents' },
             { text: 'Version history', link: '/guide/history' },

@@ -318,6 +318,7 @@ Bundled with every component (`src/ui/i18n.ts`): zoom, full screen, view setting
 | `label.flowchart` | `Flowchart: {nodes} nodes, {edges} connections` |
 | `label.sequence` | `Sequence diagram: {participants} participants, {messages} messages` |
 | `label.er` | `ER diagram: {entities} tables, {rels} relationships` |
+| `label.mindmap` | `Mindmap: {nodes} nodes` |
 | `label.empty` | Empty diagram |
 | `label.unsupported` | Diagram |
 | `help.title` | Shortcuts |
@@ -587,6 +588,7 @@ Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problem
 | `type.flowchart` | Flowchart |
 | `type.sequence` | Sequence diagram |
 | `type.er` | ER diagram |
+| `type.mindmap` | Mindmap |
 | `type.empty` | Empty |
 | `type.unsupported` | `Unsupported: {kw}` |
 | `type.switchTitle` | `Start a new {type}?` |
@@ -623,6 +625,10 @@ Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problem
 | `page.lock` | Lock proportions |
 | `page.unlock` | Unlock proportions |
 | `page.seqLayout` | Sequence layout |
+| `page.mindLayout` | Mindmap |
+| `page.colorBy` | Colours |
+| `page.colorByBranch` | by branch |
+| `page.colorByDepth` | by depth |
 | `page.badgeTip` | `{type} — click for the page settings (type, preset, background, size…)` |
 | `presets.default` | default |
 | `presets.auto` | auto |
@@ -674,12 +680,14 @@ Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problem
 | `order.left` | left |
 | `order.right` | right |
 | `group.noEr` | Mermaid ER diagrams have no groups |
+| `group.noMindmap` | A mindmap has branches, not groups |
 | `group.selectBoxes` | Select boxes or groups to group |
 | `group.selectParticipants` | Select participants to group them into a box |
 | `group.alreadyBoxed` | A participant is already in a box — ungroup it first |
 | `tools.pointer` | `Select & edit` |
 | `tools.shapes` | Shapes — drag onto the canvas or click to add |
 | `tools.table` | Table — drag onto the canvas or click to add |
+| `tools.mindShapes` | Shapes — add a node to the selected one |
 | `tools.code` | Mermaid code — show or hide the left panel |
 | `tools.props` | Properties — show or hide the Properties panel |
 | `tools.layers` | Layers — show or hide the Layers panel |
@@ -803,6 +811,7 @@ Registered by the editor and the theme editor (`src/ui/messages/toolbar.ts`): ke
 | `tb.ungroup` | `Ungroup ({keys}) — keeps the contents` |
 | `tb.delete` | `Delete ({keys}) — removes it from the Mermaid code` |
 | `tb.orderSeq` | `Order in the Mermaid code — earlier / later ({keys})` |
+| `tb.orderMind` | `Order among its siblings — earlier / later ({keys})` |
 | `tb.order` | `Order in the Mermaid code — send backward / bring forward ({keys})` |
 | `tb.layer` | Layer — move to another layer |
 | `tb.presets` | Style presets |
@@ -1080,6 +1089,7 @@ Registered by `<mmdx-theme-editor>` (`src/ui/messages/theme-editor.ts`): keys `t
 | `te.flowchart` | Flowchart |
 | `te.sequence` | Sequence |
 | `te.er` | ER |
+| `te.mindmap` | Mindmap |
 | `te.code` | `</> Code` |
 | `te.codeTitle` | Edit the sample diagram in Mermaid |
 | `te.resetSample` | Reset sample |
@@ -1103,6 +1113,9 @@ Registered by `<mmdx-theme-editor>` (`src/ui/messages/theme-editor.ts`): keys `t
 | `te.item.activation` | Activation (process) |
 | `te.item.entity` | Table |
 | `te.item.rel` | Relationship |
+| `te.item.root` | Root |
+| `te.item.branch` | Branch |
+| `te.item.section` | Sections (branch colours) |
 | `te.counterpart` | Linked theme |
 | `te.counterpartNone` | None — the house theme is used |
 | `te.counterpartHint` | `Shown instead of this theme when the UI switches to {other}. Saving links it back.` |

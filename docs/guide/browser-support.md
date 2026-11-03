@@ -37,11 +37,11 @@ The package is ESM only and has no runtime dependencies; `mermaid` (≥ 10) is a
 
 ## Known limitations
 
-- The Mermaid parsers cover the commonly used subset of flowchart, sequence and ER syntax; other diagram types fall back to stock Mermaid.
+- The Mermaid parsers cover the commonly used subset of flowchart, sequence and ER syntax and the whole mindmap syntax; other diagram types fall back to stock Mermaid.
 - Connectors are routed between ports (curved, orthogonal or straight) through optional bend points; there is no obstacle avoidance.
 - A sequence diagram's layout follows its message order; metadata can shift participants and add vertical space.
 - PNG export uses fonts installed locally unless they are registered with `configure({ fonts })`.
-- The diff draws flowchart, sequence and ER diagrams; for other types (and a change of diagram type) it shows the code diff. It runs on the main thread, also for large diagrams, and it never writes history: the studio keeps the versions you save in browser storage, and hosts provide history through an adapter.
+- The diff draws flowchart, sequence, ER and mindmap diagrams; for other types (and a change of diagram type) it shows the code diff. It runs on the main thread, also for large diagrams, and it never writes history: the studio keeps the versions you save in browser storage, and hosts provide history through an adapter.
 - Text measured on the server (`createStaticMeasurer`) is an estimate; the browser re-renders with real font metrics.
 
 ## Limits

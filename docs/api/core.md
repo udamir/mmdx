@@ -11,7 +11,7 @@ const md = diffReport(diffDiagrams(before, after), { format: 'markdown' });
 ```
 
 ::: tip Bundle size
-`@mmdx/studio/core` imports the parser and renderer of every diagram type (flowchart, sequence, ER) statically. Browser code that only needs to show diagrams should use the components, which load each type on first use; [`@mmdx/studio/diff`](/api/#mmdx-studio-diff) has asynchronous versions of `diffDiagrams` and `renderDiffToSvg` that do the same.
+`@mmdx/studio/core` imports the parser and renderer of every diagram type (flowchart, sequence, ER, mindmap) statically. Browser code that only needs to show diagrams should use the components, which load each type on first use; [`@mmdx/studio/diff`](/api/#mmdx-studio-diff) has asynchronous versions of `diffDiagrams` and `renderDiffToSvg` that do the same.
 :::
 
 ## Parsing
@@ -34,10 +34,10 @@ if (model.type === 'flowchart') console.log(model.nodes.size, model.edges.length
 ### `detectType()`
 
 ```ts
-function detectType(code: string): DiagramType | null // 'flowchart' | 'sequence' | 'er' | null
+function detectType(code: string): DiagramType | null // 'flowchart' | 'sequence' | 'er' | 'mindmap' | null
 ```
 
-The diagram type from the header line, skipping blank lines, `%%` comments and leading front matter (`---` … `---`). `flowchart` and `graph` are flowcharts, `sequenceDiagram` is a sequence diagram, `erDiagram` an ER diagram; anything else (and a non-string) is `null`.
+The diagram type from the header line, skipping blank lines, `%%` comments and leading front matter (`---` … `---`). `flowchart` and `graph` are flowcharts, `sequenceDiagram` is a sequence diagram, `erDiagram` an ER diagram, `mindmap` (any case) a mindmap; anything else (and a non-string) is `null`.
 
 ### `cleanLabel()`
 
@@ -181,6 +181,7 @@ interface PageSettings {
   mirror?: boolean;
   blockSpan?: 'full' | 'touched';
   margin?: number;
+  mindLayout?: 'both' | 'right' | 'down'; // mindmaps: both sides of the root (default), to the right, top down
 }
 
 interface CanvasMeta extends PageSettings {
@@ -209,8 +210,14 @@ interface ItemMeta extends StyleProps {
   labelDx?: number;
   labelDy?: number;
   points?: [number, number][]; // bend points
-  // sequence
+  // sequence (space above); mindmap nodes (a nudge, with dx)
   dy?: number;
+  // mindmap nodes
+  dx?: number;
+  side?: 'l' | 'r';            // a first-level branch's side of the root
+  section?: number;            // 0–11: a branch colour of the theme for the node and its subtree
+  collapsed?: boolean;         // folded, with a +N badge
+  img?: string;                // a picture above the label (URL)
   // entities: per-attribute highlights (color, bold, italic, underline, fontFamily, fontSize, preset)
   attrs?: Record<string, AttrHighlight>;
   [extra: string]: unknown;
@@ -336,7 +343,7 @@ interface RenderResult {
 }
 ```
 
-`GeometryIndex` is `FlowGeometry | SequenceGeometry | ErGeometry | { type: null }`: maps from item id to boxes (centre and size), edge geometry (ports, bend points, path data) and, for sequence diagrams, message, activation and lifeline positions. It is advanced; see `src/core/render/types.ts`.
+`GeometryIndex` is `FlowGeometry | SequenceGeometry | ErGeometry | MindmapGeometry | { type: null }`: maps from item id to boxes (centre and size), edge geometry (ports, bend points, path data), for sequence diagrams message, activation and lifeline positions, and for mindmaps each node's side, depth and section and the branch paths. It is advanced; see `src/core/render/types.ts`.
 
 ### `createContext()`
 
@@ -372,7 +379,7 @@ Everything instance-scoped that the core needs; there are no module singletons. 
 ### `ALL_KINDS`
 
 ```ts
-const ALL_KINDS: Kinds // { flowchart, sequence, er }: the view kind of every diagram type
+const ALL_KINDS: Kinds // { flowchart, sequence, er, mindmap }: the view kind of every diagram type
 ```
 
 The view kind (parser, renderer and the rest of what drawing a diagram needs) of every diagram type, by type, for the [`…With` functions](#all-kinds-and-with-variants).
@@ -706,10 +713,10 @@ const DEFAULT_LAYER = 'default';
 
 ```ts
 function starterSource(type: StarterType): string
-// type StarterType = 'flowchart' | 'sequence' | 'er'
+// type StarterType = 'flowchart' | 'sequence' | 'er' | 'mindmap'
 ```
 
-The source a new, empty diagram of the type starts from, as in the studio's New menu: `'flowchart TB\n'`, `'sequenceDiagram\n'` or `'erDiagram\n'`. Throws for an unknown type.
+The source a new, empty diagram of the type starts from, as in the studio's New menu: `'flowchart TB\n'`, `'sequenceDiagram\n'`, `'erDiagram\n'` or `'mindmap\n  root((Topic))\n'`. Throws for an unknown type.
 
 ### `outline()`
 
@@ -718,7 +725,7 @@ function outline(model: DiagramModel): OutlineItem[]
 // interface OutlineItem { text: string; children?: OutlineItem[] }
 ```
 
-A text alternative of the diagram, for screen readers and copying: flowchart nodes with their outgoing connections (`→ Target: label`), sequence messages, notes and blocks in order (numbered with `autonumber`), ER tables with their columns and relationships. Unsupported models give `[]`.
+A text alternative of the diagram, for screen readers and copying: flowchart nodes with their outgoing connections (`→ Target: label`), sequence messages, notes and blocks in order (numbered with `autonumber`), ER tables with their columns and relationships, a mindmap's tree of labels. Unsupported models give `[]`.
 
 ### `summarize()`
 
@@ -726,12 +733,12 @@ A text alternative of the diagram, for screen readers and copying: flowchart nod
 function summarize(model: DiagramModel): Summary
 
 interface Summary {
-  key: 'label.flowchart' | 'label.sequence' | 'label.er' | 'label.empty' | 'label.unsupported';
+  key: 'label.flowchart' | 'label.sequence' | 'label.er' | 'label.mindmap' | 'label.empty' | 'label.unsupported';
   params: Record<string, number>;
 }
 ```
 
-The parts of a diagram's generated accessible name ("Flowchart: 12 nodes, 14 connections"): an i18n message key and its counts (`nodes` and `edges`, `participants` and `messages`, or `entities` and `rels`). The components translate it with their [messages](/api/configuration#i18n).
+The parts of a diagram's generated accessible name ("Flowchart: 12 nodes, 14 connections"): an i18n message key and its counts (`nodes` and `edges`, `participants` and `messages`, `entities` and `rels`, or a mindmap's `nodes`). The components translate it with their [messages](/api/configuration#i18n).
 
 ## Diff
 
@@ -1107,9 +1114,9 @@ interface CenterBox { x: number; y: number; w: number; h: number }
 ### Item references
 
 ```ts
-type DiagramType = 'flowchart' | 'sequence' | 'er';
+type DiagramType = 'flowchart' | 'sequence' | 'er' | 'mindmap';
 type ItemKind =
-  | 'node' | 'group' | 'edge'                                               // flowchart
+  | 'node' | 'group' | 'edge'                                               // flowchart (mindmaps: node)
   | 'participant' | 'message' | 'note' | 'block' | 'box' | 'activation'     // sequence
   | 'entity' | 'rel';                                                       // ER
 interface ItemRef { kind: ItemKind; id: string }
@@ -1121,8 +1128,8 @@ type ItemKey = `${ItemKind}:${string}`;                                     // '
 ### Diagram models
 
 ```ts
-type DiagramModel = FlowchartModel | SequenceModel | ErModel | UnsupportedModel;
-type SupportedModel = FlowchartModel | SequenceModel | ErModel;
+type DiagramModel = FlowchartModel | SequenceModel | ErModel | MindmapModel | UnsupportedModel;
+type SupportedModel = FlowchartModel | SequenceModel | ErModel | MindmapModel;
 const isSupported: (m: DiagramModel) => m is SupportedModel;
 ```
 
@@ -1160,6 +1167,15 @@ interface ErModel {
   diagnostics: Diagnostic[];
 }
 
+interface MindmapModel {
+  type: 'mindmap';
+  root: string | null;
+  nodes: Map<string, MindNode>;     // in code order: { id, written, label, md, shape, parent, children, depth, section, icon, classes, line, endLine, … }
+  colorBy: 'branch' | 'depth';      // config.mindmap.colorBy
+  maxNodeWidth: number;             // config.mindmap.maxNodeWidth (200)
+  diagnostics: Diagnostic[];
+}
+
 interface UnsupportedModel {
   type: null;
   keyword?: string;                 // 'gantt', 'classDiagram'…
@@ -1167,4 +1183,4 @@ interface UnsupportedModel {
 }
 ```
 
-`NodeShape` is one of `rect`, `rounded`, `stadium`, `subroutine`, `cylinder`, `circle`, `doublecircle`, `diamond`, `hexagon`, `parallelogram`, `parallelogram-alt`, `trapezoid`, `trapezoid-alt`, `asymmetric`, `hcyl`, `document`, `card`, `queue`. `MermaidStyle` is a validated Mermaid `style` / `classDef` / `linkStyle`: `{ fill?, stroke?, text?, strokeWidth?, dash?, fontSize? }`. Sequence messages, notes and blocks get ids in source order (`m1`, `n1`, `b1`). The full definitions are in `src/core/model.ts`.
+`NodeShape` is one of `rect`, `rounded`, `stadium`, `subroutine`, `cylinder`, `circle`, `doublecircle`, `diamond`, `hexagon`, `parallelogram`, `parallelogram-alt`, `trapezoid`, `trapezoid-alt`, `asymmetric`, `hcyl`, `document`, `card`, `queue`. `MermaidStyle` is a validated Mermaid `style` / `classDef` / `linkStyle`: `{ fill?, stroke?, text?, strokeWidth?, dash?, fontSize? }`. Sequence messages, notes and blocks get ids in source order (`m1`, `n1`, `b1`). A mindmap node's id is its written id when that is unique, else `mm<k>` (its place among all nodes in code order); `MindShape` is `mm-default` (no delimiters), `rect`, `rounded`, `circle`, `bang`, `cloud` or `hexagon`. The full definitions are in `src/core/model.ts`.

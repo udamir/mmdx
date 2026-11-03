@@ -18,7 +18,7 @@ How Mermaid Studio is put together: a pure core that turns text into a scene, a 
 Every picture — on screen, exported, server-rendered, in a diff — comes from one pipeline:
 
 1. **Split** (`splitSource`): the source becomes a `DiagramDocument` — the Mermaid code and the parsed `%%@` metadata, validated.
-2. **Parse** (`parse`): the Mermaid code becomes a model of the diagram type (flowchart, sequence, ER), with diagnostics.
+2. **Parse** (`parse`): the Mermaid code becomes a model of the diagram type (flowchart, sequence, ER, mindmap), with diagnostics.
 3. **Theme** (`pickTheme`): the theme id resolves to a theme with every colour reference resolved, plus the diagram's own palette.
 4. **Render**: the model, the metadata and the theme become a scene tree — layout, styles and geometry, with a geometry index for hit testing.
 5. **Output**: the scene tree is serialized to an SVG string (`standaloneSvg`, SSR, export) or patched into the DOM by keyed patching.
@@ -92,7 +92,7 @@ The custom elements (`src/elements`, and `src/editor/editor.ts` for the editor) 
 
 ## Diagram kinds
 
-Each diagram type (flowchart, sequence, ER) plugs in through its **kinds**: objects with everything the generic code needs from that type, so nothing outside the type's own files branches on the type (a test, `tests/arch/no-kind-branches.test.ts`, keeps it that way).
+Each diagram type (flowchart, sequence, ER, mindmap) plugs in through its **kinds**: objects with everything the generic code needs from that type, so nothing outside the type's own files branches on the type (a test, `tests/arch/no-kind-branches.test.ts`, keeps it that way).
 
 | Kind | Where | Loaded by | Holds |
 |---|---|---|---|

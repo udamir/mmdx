@@ -37,6 +37,7 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project f
 - **Subgraph `direction`**: `direction LR` inside a flowchart subgraph lays out its contents that way, as Mermaid honours it (not when a link from outside reaches a node inside); it was read and ignored.
 - **Reset positions in this group**: a subgraph's ⋮ menu, its right-click menu and Properties forget the hand-placed positions inside that subgraph only, and auto layout arranges its contents again while the subgraph keeps its place.
 - **`canvas.layout: "legacy"`** (`%%@ canvas {"layout":"legacy"}`) keeps the earlier automatic layout of flowcharts with subgraphs, for one minor release.
+- **Mindmaps**: Mermaid's `mindmap` is a diagram type of its own in the viewer, the editor and the diff — every shape (default, `[ ]`, `( )`, `(( ))`, `)) ((`, `) (`, `{{ }}`), markdown text, `:::` classes as presets, `::icon(…)` drawn (stock Mermaid only reads it) and `colorBy: depth` — laid out as a tidy tree with the branches on both sides of the root (`canvas.mindLayout`: `both`, `right`, `down`), coloured by branch or depth. The editor edits it like an outline: Tab adds a child, Enter a sibling, Shift+Tab outdents, ⌥ and the arrows move and walk the tree, drag re-parents, Space folds (saved as `collapsed`), pasted indented text becomes a branch; icons are written as label tokens, images as metadata. Two examples and a [Mindmaps](https://udamir.github.io/mmdx/guide/mindmap) guide page.
 
 ### Changed (breaking)
 

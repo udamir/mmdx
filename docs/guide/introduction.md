@@ -21,7 +21,7 @@ flowchart LR
 %%@ edge b->c {"preset":"rest"}
 ```
 
-- **Structure lives in Mermaid.** Nodes, edges, participants, messages, tables and relationships are always read from the Mermaid code. Editing on the canvas writes back to the code, and editing the code updates the canvas live.
+- **Structure lives in Mermaid.** Nodes, edges, participants, messages, tables, relationships and mindmap branches are always read from the Mermaid code. Editing on the canvas writes back to the code, and editing the code updates the canvas live.
 - **Metadata holds only positions and looks.** Each `%%@ <kind> <id> <JSON>` line carries the position, size, preset and style overrides of one item. Items without a line are laid out automatically and keep their place once moved.
 - **Themes are separate.** Colours are stored as references to a theme palette (`@sky`), so a diagram follows theme switches, and the theme belongs to the component that shows the diagram, not to the file.
 
@@ -29,7 +29,7 @@ The [`.mmdx` format](/guide/mmdx-format) page describes the lines in full.
 
 ## Features
 
-- **Three diagram types, edited visually:** flowchart, sequence diagram and ER diagram. Other Mermaid types are shown with stock Mermaid.
+- **Four diagram types, edited visually:** flowchart, sequence diagram, ER diagram and [mindmap](/guide/mindmap). Other Mermaid types are shown with stock Mermaid.
 - **Two-way editing:** everything you do on the canvas is written back to the Mermaid code, and code edits update the canvas live.
 - **Canvas tools:** drag, resize, snap, align and distribute, groups (`subgraph` / `box`), connectors with magnet points and bend points, copy / paste / duplicate, copy style, z-order, layers, undo / redo, presenting pen.
 - **Styling:** a floating toolbar and a Properties panel for fill, border, text, font, shape, stacking, arrows, line shape and more; named style presets from the theme or saved per diagram.

@@ -127,7 +127,7 @@ For a supported diagram, the output is one `<mmdx-viewer>` element (on one line;
 
 ### Unsupported and failing diagrams
 
-Only flowcharts (`flowchart`, `graph`), sequence diagrams (`sequenceDiagram`) and ER diagrams (`erDiagram`) are pre-rendered. Any other type gets the source only, and the viewer falls back to stock Mermaid in the browser (its `fallback` attribute):
+Only flowcharts (`flowchart`, `graph`), sequence diagrams (`sequenceDiagram`), ER diagrams (`erDiagram`) and mindmaps (`mindmap`) are pre-rendered. Any other type gets the source only, and the viewer falls back to stock Mermaid in the browser (its `fallback` attribute):
 
 ```html
 <mmdx-viewer><script type="text/mermaid">pie title Pets

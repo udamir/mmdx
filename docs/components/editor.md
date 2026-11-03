@@ -1,6 +1,6 @@
 # `<mmdx-editor>`
 
-The visual editor for flowcharts, sequence diagrams and ER diagrams. Everything done on the canvas is written back to the Mermaid code, and code edits update the canvas live; layout and looks are stored as `%%@` comment lines in the same text. It loads and saves through a document adapter (with conflict detection and live updates), or works on a value you set, and shows the document's History when you give it the versions.
+The visual editor for flowcharts, sequence diagrams, ER diagrams and mindmaps. Everything done on the canvas is written back to the Mermaid code, and code edits update the canvas live; layout and looks are stored as `%%@` comment lines in the same text. It loads and saves through a document adapter (with conflict detection and live updates), or works on a value you set, and shows the document's History when you give it the versions.
 
 ```ts
 import '@mmdx/studio/editor'; // <mmdx-editor>, DiagramEditor
@@ -217,14 +217,14 @@ Files laid out before the compound layout can keep the earlier layout for one mo
 
 The tools below Pointer add things to the diagram. Each diagram type offers what it can hold; a button it does not offer is hidden.
 
-| Button | Key | Does | Flowchart | Sequence | ER |
-|---|---|---|---|---|---|
-| Shapes | `S` | The [shape palette](#shapes) | Every Mermaid shape, by category | Participants, notes, blocks | Table presets |
-| Text | `T` | Adds a text block in the middle of the canvas | Mermaid's borderless `text` shape | A note | — |
-| Image | `G` | The [image tool](#images) | An image node | — | — |
-| Icons | `N` | The [icon picker](#icons) | An icon node | — | — |
-| Container | `B` | Draw a frame around items to put them in a container; with a selection, wraps it at once | A subgraph | A box | — |
-| Connector | `A` | Click a source, then a target; the tool stays on for the next one, Esc ends it | An edge | A message | A relationship |
+| Button | Key | Does | Flowchart | Sequence | ER | Mindmap |
+|---|---|---|---|---|---|---|
+| Shapes | `S` | The [shape palette](#shapes) | Every Mermaid shape, by category | Participants, notes, blocks | Table presets | The 7 mindmap shapes, as a child of the selected node |
+| Text | `T` | Adds a text block in the middle of the canvas | Mermaid's borderless `text` shape | A note | — | A node |
+| Image | `G` | The [image tool](#images) | An image node | — | — | A node with a picture (metadata `img`) |
+| Icons | `N` | The [icon picker](#icons) | An icon node | — | — | A node whose label starts with the icon |
+| Container | `B` | Draw a frame around items to put them in a container; with a selection, wraps it at once | A subgraph | A box | — | — |
+| Connector | `A` | Click a source, then a target; the tool stays on for the next one, Esc ends it | An edge | A message | A relationship | — |
 
 The design's `I`, `C` and `L` keys already open Properties, the Code panel and Layers, so Icons, Container and Connector take `N`, `B` and `A`. The tooltips and the `?` popup show the keys. The pickers load the first time one opens.
 
@@ -249,7 +249,7 @@ Click a shape to add it in the middle of the canvas, or drag it where it goes (i
   Drag an icon from the grid to place it.
 - From the floating toolbar's **Icon** button (the first one; a dot marks an item with an icon) or the Properties panel (selection mode), it sets the selected items' icon: an icon node's `icon` key, and on any other node a `pack:name` token at the start of its label (`fa:fa-car Car`, `azure:computer-vision Vision`), replacing the one it has. **Remove icon** takes it away.
 
-For an icon node, the toolbar's **Icon & image** popover and the Properties panel set the label's position (above or below), the frame (none, square, circle, rounded), the width, and the toolbar's **H** field its height — all written to its node data. Dragging the resize handle of an icon or image node sizes its icon or picture (an icon stays square, an image with **Keep aspect ratio** keeps its aspect) and writes `h` and `w` into its node data when you let go, so stock Mermaid draws it the same size. A node whose label starts with an icon token has **Convert to icon node** in the popover and in Properties: the icon becomes the node's and the rest of the label its caption. Properties notes when a label's icon is drawn by mmdx only (stock Mermaid draws Font Awesome tokens and shows other packs' as text). Sequence, ER and the other types get their icon items in later releases; their items show no Icon button until then. What mmdx draws for icon and image nodes is described in [Flowchart content](/guide/flowchart).
+For an icon node, the toolbar's **Icon & image** popover and the Properties panel set the label's position (above or below), the frame (none, square, circle, rounded), the width, and the toolbar's **H** field its height — all written to its node data. Dragging the resize handle of an icon or image node sizes its icon or picture (an icon stays square, an image with **Keep aspect ratio** keeps its aspect) and writes `h` and `w` into its node data when you let go, so stock Mermaid draws it the same size. A node whose label starts with an icon token has **Convert to icon node** in the popover and in Properties: the icon becomes the node's and the rest of the label its caption. Properties notes when a label's icon is drawn by mmdx only (stock Mermaid draws Font Awesome tokens and shows other packs' as text). In a mindmap, the icon is a label token at the start of the node's text, which replaces an `::icon()` line the node has (see [Mindmaps](/guide/mindmap#icons)). Sequence, ER and the other types get their icon items in later releases; their items show no Icon button until then. What mmdx draws for icon and image nodes is described in [Flowchart content](/guide/flowchart).
 
 ### Images
 
@@ -275,6 +275,35 @@ A flowchart label written as a Mermaid markdown string (`` A["`**Bold** text`"] 
 ### Emoji
 
 While you edit a label on the canvas, the ☺ button at the end of the text box (or `⌘;` / `Ctrl+;`) opens the emoji picker: the emoji by group, recently used ones, search by name and keyword, and a skin tone. A chosen emoji goes in at the caret as plain text, so it shows wherever the diagram does; the picker stays open for more. The label fields of the Properties panel have the same button. The emoji data (English) loads the first time the picker opens.
+
+## Mindmaps
+
+A mindmap is edited like an outline: the structure is the indentation of the Mermaid code, and every gesture below rewrites those lines (re-indented in the file's own step, two spaces by default). Node positions are not stored; the tree is laid out again after every change ([Mindmaps → Layout](/guide/mindmap#layout)). There are no connectors, containers or routing.
+
+| Keys | Action |
+|---|---|
+| `Tab` | Add a child to the selected node and edit its text |
+| `Enter` | Add a sibling after the selected node (on the root: a child) and edit its text |
+| `⇧Tab`, `⌥←` | Move the node out of its parent: it follows the parent, and its later siblings stay where they are |
+| `⌥→` | Move the node under the sibling above it, as its last child |
+| `⌥↑`, `⌥↓` (also `⌘[`, `⌘]`) | Trade places with the previous or next sibling, with their subtrees |
+| Arrows | Select the parent, the first child or a sibling, following the side the node grows on |
+| `F2`, double-click | Edit the node's text |
+| `Space` | Fold or unfold the selected branch (Space + drag still pans) |
+| `Del` / `⌫` | Delete the node with its subtree |
+| `⇧Del` / `⇧⌫` | Delete the node and lift its children one level (the root only when it has one child, which becomes the root) |
+| `⌘C`, `⌘V` | Copy branches (not the root); paste them as children of the selected node (else of the root) |
+| `⌘D` | Duplicate the selected branches next to the originals |
+
+- **Handles**: the selected node has a `+` on its outer side, which adds a child, and, when it has children, a chevron beside it that folds or unfolds the branch. A folded branch shows a +N badge with the number of hidden nodes; clicking it unfolds the branch. Folding is stored (metadata `collapsed`), so a viewer opens the map folded the same way.
+- **Dragging**: drop a node onto another to make it its last child, or between two siblings to put it there (a line shows where). A first-level branch dropped on the other side of the root moves to that side (metadata `side`). Alt-drag drops a copy. The root does not move.
+- **Text**: the text is written in the node's own delimiters, and quoted only when it needs it (`["a (b)"]`); a bare node whose new text cannot stand alone is written in Mermaid's other form of the default shape, `(-"…"-)`. Every mindmap label is drawn as markdown; Bold, Italic and **Make rich text** above the text box work as for [flowchart labels](#markdown-labels) and write a markdown string.
+- **Shapes**: the Shapes menu lists Mermaid's seven mindmap shapes and adds a node of that shape as a child of the selected node (else of the node nearest the drop, else the root; an empty map gets its root). The toolbar's shape picker writes the delimiters of those seven; any other shape of the catalogue is kept in the layout metadata and drawn by mmdx only.
+- **Icons and images**: the Icons tool adds a node with an icon token at the start of its text (`fa:fa-book New idea`), or sets the icon of the selected node; the Image tool adds a node with a picture, or sets the selected node's, in metadata `img` (Mermaid's mindmap has no image syntax).
+- **Copies**: duplicated and pasted branches get new written ids where theirs are taken (`api` becomes `api_2`), and duplicates keep their originals' looks. Pasting indented text, a Markdown list (`-`, `*`, `+`, `1.`) or a Mermaid mindmap onto a selected node adds it as a subtree of that node: one node per line of text or list item, a pasted mindmap's nodes as they are written.
+- **Page**: in the page's Properties, **Colours** colours by branch (Mermaid's default) or by depth, written as `config.mindmap.colorBy: depth` into the frontmatter and removed again for by branch; **Mindmap → Layout** puts the branches on both sides of the root, to the right of it, or top down (`mindLayout`, also set by the page presets).
+
+The order slider of the floating toolbar moves a node among its siblings ("first", "last"). Grouping is refused ("A mindmap has branches, not groups").
 
 ## Saving
 
@@ -338,7 +367,7 @@ Shortcuts work while the focus is inside the editor; `?` lists those that apply 
 | Alt-drag | Drag a copy; Alt while dragging: no snapping |
 | `Esc` | Back one level: cancel a drag, stop a tool, clear the selection, leave a group or History |
 
-While an ER table is edited in place: `↑` / `↓` (with `⇧` to extend) select attributes, `⌥↑` / `⌥↓` move them, `Enter` edits one (the empty row adds one), `⌘A` selects all, `Del` deletes, `Esc` clears the selection, then leaves the table. While History compares: `1`–`4` views, `J` / `K` next and previous change, `X` swaps Before and After.
+In a mindmap, `Tab`, `Enter`, the arrows, `F2`, `Space`, `⇧Del`, `⌘V` and `⌘D` act on the tree instead, and `⌥` + arrows move nodes: see [Mindmaps](#mindmaps). While an ER table is edited in place: `↑` / `↓` (with `⇧` to extend) select attributes, `⌥↑` / `⌥↓` move them, `Enter` edits one (the empty row adds one), `⌘A` selects all, `Del` deletes, `Esc` clears the selection, then leaves the table. While History compares: `1`–`4` views, `J` / `K` next and previous change, `X` swaps Before and After.
 
 ## See also
 

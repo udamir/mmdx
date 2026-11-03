@@ -32,6 +32,7 @@ Register a file with [`registerThemes`](/api/configuration#registerthemes), serv
 | `flowchart` | `FlowchartTheme` | `node`, `group`, `edge`, their `…Presets`, `nodeShapes` and `pagePresets` |
 | `sequence` | `SequenceTheme` | `participant`, `message`, `note`, `block`, `box`, `lifeline`, `activation`, their `…Presets`, `participantShapes`, `layout` and `pagePresets` |
 | `er` | `ErTheme` | `entity`, `rel`, their `…Presets` and `pagePresets` |
+| `mindmap` | `MindmapTheme` | `root`, `node`, `nodeShapes`, `nodePresets`, `branch`, `sections` and `pagePresets` |
 
 Any other top-level key (the built-in files carry `source`, for example) is kept as it is and never read by a renderer.
 
@@ -364,11 +365,57 @@ An identifying relationship (`--`) is always solid; `dash` applies to non-identi
 Entity presets: `mint`, `peach`, `yellow`, `gold`, `sky`, `blue`, `lavender`, `white`. Relationship presets: `strong`, `muted`. Page presets: `whiteboard`, `schema`, `slide`.
 :::
 
+## `mindmap`
+
+| Key | Type | Holds |
+|---|---|---|
+| `root` | `StyleProps` | Style of the root node; its `shape` is the root's shape when the code gives it no delimiters (`rounded` in Default Light) |
+| `node` | `StyleProps` | Base style of every other node |
+| `nodeShapes` | `Record<string, StyleProps>` | Default style per node shape, keyed by shape name, as in `flowchart.nodeShapes` |
+| `nodePresets` | `Record<string, StyleProps>` | Named node presets, also picked by a node's `:::class` of that name |
+| `branch` | `StyleProps` | The lines from a parent to its children: `width` is the width of a first-level branch; deeper ones taper in Mermaid's proportions (11 / 8 / 5 / 3 px at the default 11) |
+| `sections` | `Record<string, StyleProps>` | The branch colours, `"0"` … `"11"`: `fill` and `text` of shaped nodes, `color` of the branch and of a default node's underline |
+| `pagePresets` | `Record<string, PageSettings>` | Page presets of mindmaps |
+
+| Item | Editable keys | Also read |
+|---|---|---|
+| `root`, `node` | `fill`, `stroke`, `text`, `strokeWidth`, `fontSize`, `fontWeight`, `radius`, `shape` | `padX`, `padY`, `minW`, `minH`, `fontFamily`, `color` (branch and underline colour), `strokeOpacity` |
+| `branch` | `width` | |
+| `sections` | `fill`, `text`, `color` | |
+
+Each child of the root starts a section and its subtree keeps it (Mermaid's rule: the i-th child takes section i % 11); with `colorBy: depth` in the diagram's frontmatter each depth takes one instead, and a node's metadata `section` gives it and its subtree another. A shaped node is filled with its section's `fill` and outlined in its `color`; a node without delimiters is its label over an underline in the section's `color`. Presets and the node's own style apply over the section's colours. The page presets set `mindLayout` (`both`, `right` or `down`); see [Mindmaps](/guide/mindmap).
+
+::: details Default Light values
+```json
+{
+  "root": { "fill": "@charcoal", "stroke": "@charcoal", "text": "@paper", "strokeWidth": 0, "fontSize": 20, "fontWeight": 600, "radius": 24, "padX": 26, "padY": 16, "shape": "rounded" },
+  "node": { "text": "@ink", "fontSize": 16, "fontWeight": 400, "strokeWidth": 1.6, "radius": 10, "padX": 12, "padY": 8 },
+  "branch": { "width": 11 },
+  "sections": {
+    "0": { "fill": "@sky", "text": "@ink", "color": "@azure" },
+    "1": { "fill": "@peach", "text": "@ink", "color": "@rust" },
+    "2": { "fill": "@mint", "text": "@ink", "color": "@jade" },
+    "3": { "fill": "@lavender", "text": "@ink", "color": "@iris" },
+    "4": { "fill": "@rose", "text": "@ink", "color": "@coral" },
+    "5": { "fill": "@butter", "text": "@ink", "color": "@bronze" },
+    "6": { "fill": "@sage", "text": "@ink", "color": "@emerald" },
+    "7": { "fill": "@ice", "text": "@ink", "color": "@teal" },
+    "8": { "fill": "@pink", "text": "@ink", "color": "@magenta" },
+    "9": { "fill": "@pale-lime", "text": "@ink", "color": "@forest" },
+    "10": { "fill": "@apricot", "text": "@ink", "color": "@brown" },
+    "11": { "fill": "@violet", "text": "@ink", "color": "@red" }
+  }
+}
+```
+
+The sections are palette references, so every theme that extends Default Light recolours them with its own palette. Node presets: `idea`, `urgent`, `done`, `question` (a cloud), `muted`, `plain`. Page presets: `both` (Both sides), `right` (To the right), `down` (Top down).
+:::
+
 ## Presets
 
 ### Item presets
 
-Each `…Presets` key is a record of named style objects (`StyleProps`). An item uses a preset when its metadata names it (`%%@ node api {"preset": "core"}`) or, in flowcharts, when it has a Mermaid class of that name (`api:::core`). A diagram may define presets of its own (`%%@ style.node <name> {…}`); one with the same name as a theme preset replaces it in that diagram. A preset that sets `shape` changes the item's shape; `for` only records which shape the preset belongs to.
+Each `…Presets` key is a record of named style objects (`StyleProps`). An item uses a preset when its metadata names it (`%%@ node api {"preset": "core"}`) or, in flowcharts and mindmaps, when it has a Mermaid class of that name (`api:::core`). A diagram may define presets of its own (`%%@ style.node <name> {…}`); one with the same name as a theme preset replaces it in that diagram. A preset that sets `shape` changes the item's shape; `for` only records which shape the preset belongs to.
 
 ```json
 {
@@ -383,7 +430,7 @@ Each `…Presets` key is a record of named style objects (`StyleProps`). An item
 
 ### `pagePresets`
 
-Page presets are per diagram type (`flowchart.pagePresets`, `sequence.pagePresets`, `er.pagePresets`) and chosen by `%%@ canvas {"preset": "<name>"}`. Each holds page settings plus a display `label`:
+Page presets are per diagram type (`flowchart.pagePresets`, `sequence.pagePresets`, `er.pagePresets`, `mindmap.pagePresets`) and chosen by `%%@ canvas {"preset": "<name>"}`. Each holds page settings plus a display `label`:
 
 | Key | Type | Allowed values | Meaning |
 |---|---|---|---|
@@ -399,6 +446,7 @@ Page presets are per diagram type (`flowchart.pagePresets`, `sequence.pagePreset
 | `mirror` | `boolean` | | Sequence: participant heads at the bottom too |
 | `blockSpan` | `string` | `full`, `touched` | Sequence: block width |
 | `margin` | `number` | 0–100000 | Sequence: space left of the first participant |
+| `mindLayout` | `string` | `both`, `right`, `down` | Mindmap: both sides of the root, to the right, or top down |
 
 ```json
 {
