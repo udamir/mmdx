@@ -28,7 +28,8 @@ export interface Size {
   h: number;
 }
 
-export interface ShapeDef {
+/** A shape's names: all that parsing and its diagnostics need, without the geometry (core/shapes/names.ts lists them for the shapes beyond the 17). */
+export interface ShapeNames {
   readonly id: ShapeId;
   /** Mermaid's shortName (absent: mmdx only — a flowchart keeps the shape in metadata). */
   readonly mermaid?: string;
@@ -38,6 +39,9 @@ export interface ShapeDef {
   readonly legacy?: readonly string[];
   /** The flowchart bracket form, if Mermaid has one. */
   readonly bracket?: readonly [open: string, close: string];
+}
+
+export interface ShapeDef extends ShapeNames {
   /** Semantic name (Mermaid's, e.g. "Manual operation"): the palette's tooltip and search. */
   readonly name: string;
   /** Geometric name, when it says more than the semantic one ("Trapezoid base top"). */
@@ -58,3 +62,6 @@ export interface ShapeDef {
   /** The outline of a w × h shape, relative to the centre (connector ends, hit tests, highlight frames). */
   outline(w: number, h: number): readonly Point[] | 'ellipse';
 }
+
+/** A catalogue entry without its names, which core/shapes/names.ts holds (the shapes beyond the 17 are written so). */
+export type ShapeBody = Omit<ShapeDef, Exclude<keyof ShapeNames, 'id'>>;

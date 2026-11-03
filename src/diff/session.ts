@@ -2,9 +2,10 @@
 // (a HistoryAdapter, a list of versions, or a pair of sources), the compared pair or the viewed version, the filters,
 // the rendered diff, the change selection and the view (Before / Merged / After / Side by side). Its state is
 // signals; its methods are the `<mmdx-diff>` API. It renders with the kinds of both versions, loaded on demand
-// (`renderDiffWith(loadedKinds(), …)`), and with the host's theme and display settings (`renderOptions`). Events go
-// out through the `emit` callback it is given, so `<mmdx-diff>` dispatches them as `mmdx-*` and History can route
-// them as `mmdx-history-*`. Replaces the data, loading, rendering and export half of elements/diff.ts.
+// (`renderDiffWith(loadedKinds(), …)`; the shapes beyond the 17 load the first time a render draws one), and with the
+// host's theme and display settings (`renderOptions`). Events go out through the `emit` callback it is given, so
+// `<mmdx-diff>` dispatches them as `mmdx-*` and History can route them as `mmdx-history-*`. Replaces the data, loading,
+// rendering and export half of elements/diff.ts.
 // Every load starts a generation: a list, a page, a source, a render or a change count that arrives for an older one is dropped.
 import { contentId, staticHistory, type HistoryAdapter, type StaticVersion } from '../adapters/history.js';
 import { getShared } from '../config.js';
@@ -18,7 +19,7 @@ import { renderSourceWith, standaloneSvg, type PipelineOptions, type Rendered } 
 import { Lru } from '../core/text/measure.js';
 import type { Diagnostic } from '../core/types.js';
 import { nextIdle } from '../dom/idle.js';
-import { loadedKinds } from '../view/kinds.js';
+import { loadedKinds, renderShapes } from '../view/kinds.js';
 import type { Translate } from '../ui/blocks/block.js';
 import { batch, computed, signal, type ReadSignal, type Signal } from '../ui/signal.js';
 import { loadKindsOf } from './kinds.js';
@@ -626,7 +627,8 @@ export class DiffSession {
         const src = await this.sourceOf(id);
         await this.prepare(ro.theme, src);
         if (stale()) return;
-        const r = renderSourceWith(loadedKinds(), src, this.o.ctx, ro);
+        const r = await renderShapes(() => renderSourceWith(loadedKinds(), src, this.o.ctx, ro));
+        if (stale()) return;
         batch(() => {
           this.setPlain(r, id);
           this.status.set(null);
@@ -647,7 +649,8 @@ export class DiffSession {
         const key = [base, head, ro.theme, this.filters.join(','), ro.hideLabels ? 'nl' : '', ro.visibleLayers?.join(',') ?? '*'].join('|');
         let D = this.cache.get(key);
         if (!D) {
-          D = renderDiffWith(loadedKinds(), a, b, this.o.ctx, { ...ro, ignore, hide });
+          D = await renderShapes(() => renderDiffWith(loadedKinds(), a, b, this.o.ctx, { ...ro, ignore, hide }));
+          if (stale()) return;
           this.cache.set(key, D);
         }
         const shown = D;
@@ -799,7 +802,7 @@ export class DiffSession {
 
   private async portable(src: string): Promise<string> {
     const [{ toPortableMermaid }] = await Promise.all([import('../core/export/portable.js'), loadKindsOf(src)]);
-    const r = renderSourceWith(loadedKinds(), src, this.o.ctx);
+    const r = await renderShapes(() => renderSourceWith(loadedKinds(), src, this.o.ctx));
     return toPortableMermaid(r.doc.code, r.doc.meta, r.model, r.theme, r.rctx.color);
   }
 }

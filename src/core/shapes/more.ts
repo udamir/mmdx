@@ -1,12 +1,13 @@
 // The flowchart shapes Mermaid 11.17 has and mmdx did not draw before the catalogue (T02.2), 11.15–11.17's additions
 // included. Proportions follow Mermaid's `rendering-elements/shapes/*.ts` (MIT); sizes are mmdx's: each shape grows
 // around its label box (`fit`) and says where the label goes (`textBox`). Shapes Mermaid draws without a label (bolts,
-// junctions, bars) keep their own size, and mmdx puts a label under them.
+// junctions, bars) keep their own size, and mmdx puts a label under them. Their names are in names.ts (the parser reads
+// them without this geometry, which the viewer loads on demand, T02.9).
 import { el, text } from '../scene/build.js';
 import type { SceneNode, SvgAttrs } from '../scene/types.js';
 import { box, detail, ink, P, paint, penShape, rectOutline } from './draw.js';
 import { Pen } from './pen.js';
-import type { ShapeDef } from './types.js';
+import type { ShapeBody } from './types.js';
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
@@ -59,32 +60,32 @@ function around(p: Pen, rx: number, ry: number, n: number, bulge: 0 | 1, k: numb
 const ellipse = (cx: number, cy: number, rx: number, ry: number, attrs: SvgAttrs): SceneNode =>
   el('ellipse', { cx, cy, rx: Math.max(0, rx), ry: Math.max(0, ry), ...attrs });
 
-export const MORE: readonly ShapeDef[] = [
+export const MORE: readonly ShapeBody[] = [
   // ---- basic
   penShape({
-    id: 'text', mermaid: 'text', aliases: [], name: 'Text block', category: 'basic', size: { w: 120, h: 40 },
+    id: 'text', name: 'Text block', category: 'basic', size: { w: 120, h: 40 },
     body: (p, w, h) => rectPath(p, 0, 0, w, h), open: 'none',
   }),
   penShape({
-    id: 'tri', mermaid: 'tri', aliases: ['extract', 'triangle'], name: 'Extract', title: 'Triangle', category: 'basic', size: { w: 120, h: 90 },
+    id: 'tri', name: 'Extract', title: 'Triangle', category: 'basic', size: { w: 120, h: 90 },
     body: (p, w, h) => p.M(0, -h / 2).L(w / 2, h / 2).L(-w / 2, h / 2).Z(),
     fit: (w, h) => ({ w: w * 2, h: h * 2 }),
     textBox: (w, h) => box(-w / 4, 0, w / 4, h / 2),
   }),
   penShape({
-    id: 'flip-tri', mermaid: 'flip-tri', aliases: ['manual-file', 'flipped-triangle'], name: 'Manual file', title: 'Flipped triangle', category: 'basic', size: { w: 120, h: 90 },
+    id: 'flip-tri', name: 'Manual file', title: 'Flipped triangle', category: 'basic', size: { w: 120, h: 90 },
     body: (p, w, h) => p.M(-w / 2, -h / 2).L(w / 2, -h / 2).L(0, h / 2).Z(),
     fit: (w, h) => ({ w: w * 2, h: h * 2 }),
     textBox: (w, h) => box(-w / 4, -h / 2, w / 4, 0),
   }),
   penShape({
-    id: 'notch-pent', mermaid: 'notch-pent', aliases: ['loop-limit', 'notched-pentagon'], name: 'Loop limit', title: 'Trapezoidal pentagon', category: 'basic', size: { w: 120, h: 64 },
+    id: 'notch-pent', name: 'Loop limit', title: 'Trapezoidal pentagon', category: 'basic', size: { w: 120, h: 64 },
     body: (p, w, h) => p.M(-w * 0.4, -h / 2).L(w * 0.4, -h / 2).L(w / 2, -h * 0.3).L(w / 2, h / 2).L(-w / 2, h / 2).L(-w / 2, -h * 0.3).Z(),
     fit: (w, h) => ({ w, h: h * 1.25 }),
     textBox: (w, h) => box(-w / 2, -h * 0.3, w / 2, h / 2),
   }),
   penShape({
-    id: 'bolt', mermaid: 'bolt', aliases: ['com-link', 'lightning-bolt'], name: 'Communication link', title: 'Lightning bolt', category: 'basic', size: { w: 35, h: 70 }, below: true,
+    id: 'bolt', name: 'Communication link', title: 'Lightning bolt', category: 'basic', size: { w: 35, h: 70 }, below: true,
     body: (p, w, h) => {
       const g = Math.min(7, w / 5), hw = w / 2, hh = h / 2;
       p.M(hw, -hh).L(-hw, g / 2).L(hw - 2 * g, g / 2).L(-hw, hh).L(hw, -g / 2).L(-hw + 2 * g, -g / 2).Z();
@@ -92,28 +93,28 @@ export const MORE: readonly ShapeDef[] = [
     fit: () => ({ w: 35, h: 70 }),
   }),
   penShape({
-    id: 'sm-circ', mermaid: 'sm-circ', aliases: ['start', 'small-circle'], legacy: ['stateStart', 'state-start'], name: 'Start', title: 'Small circle', category: 'basic',
+    id: 'sm-circ', name: 'Start', title: 'Small circle', category: 'basic',
     size: { w: 18, h: 18 }, below: true,
     body: (p, w, h) => p.M(0, -h / 2).A(w / 2, h / 2, 0, 1, 0, h / 2).A(w / 2, h / 2, 0, 1, 0, -h / 2).Z(),
     marks: (p, w, h) => p.M(0, -h / 2).A(w / 2, h / 2, 0, 1, 0, h / 2).A(w / 2, h / 2, 0, 1, 0, -h / 2).Z(),
     fit: () => ({ w: 18, h: 18 }),
   }),
   {
-    id: 'fr-circ', mermaid: 'fr-circ', aliases: ['stop', 'framed-circle'], legacy: ['stateEnd', 'state-end'], name: 'Stop', title: 'Framed circle', category: 'basic',
+    id: 'fr-circ', name: 'Stop', title: 'Framed circle', category: 'basic',
     size: { w: 18, h: 18 }, below: true,
     draw: (b, st, extra) => [ellipse(b.x, b.y, b.w / 2, b.h / 2, { ...paint(st, extra) }), ellipse(b.x, b.y, (b.w * 5) / 14, (b.h * 5) / 14, { ...ink(st) })],
     outline: () => 'ellipse',
     fit: () => ({ w: 18, h: 18 }),
   },
   {
-    id: 'f-circ', mermaid: 'f-circ', aliases: ['junction', 'filled-circle'], name: 'Junction', title: 'Filled circle', category: 'basic', size: { w: 14, h: 14 }, below: true,
+    id: 'f-circ', name: 'Junction', title: 'Filled circle', category: 'basic', size: { w: 14, h: 14 }, below: true,
     draw: (b, st, extra) => [ellipse(b.x, b.y, b.w / 2, b.h / 2, { ...paint(st, extra), fill: st.stroke ?? '#222' })],
     outline: () => 'ellipse',
     fit: () => ({ w: 14, h: 14 }),
   },
   // ---- process
   penShape({
-    id: 'lin-rect', mermaid: 'lin-rect', aliases: ['lined-rectangle', 'lined-process', 'lin-proc', 'shaded-process'], name: 'Lined / shaded process', title: 'Lined rectangle',
+    id: 'lin-rect', name: 'Lined / shaded process', title: 'Lined rectangle',
     category: 'process', size: { w: 128, h: 56 },
     body: (p, w, h) => rectPath(p, 0, 0, w, h),
     lines: (p, w, h) => p.M(-w / 2 + 8, -h / 2).L(-w / 2 + 8, h / 2),
@@ -121,7 +122,7 @@ export const MORE: readonly ShapeDef[] = [
     textBox: (w, h) => box(-w / 2 + 8, -h / 2, w / 2, h / 2),
   }),
   penShape({
-    id: 'div-rect', mermaid: 'div-rect', aliases: ['div-proc', 'divided-rectangle', 'divided-process'], name: 'Divided process', title: 'Divided rectangle',
+    id: 'div-rect', name: 'Divided process', title: 'Divided rectangle',
     category: 'process', size: { w: 120, h: 66 },
     body: (p, w, h) => rectPath(p, 0, 0, w, h),
     lines: (p, w, h) => p.M(-w / 2, -h / 2 + h / 6).L(w / 2, -h / 2 + h / 6),
@@ -129,14 +130,14 @@ export const MORE: readonly ShapeDef[] = [
     textBox: (w, h) => box(-w / 2, -h / 2 + h / 6, w / 2, h / 2),
   }),
   penShape({
-    id: 'win-pane', mermaid: 'win-pane', aliases: ['internal-storage', 'window-pane'], name: 'Internal storage', title: 'Window pane', category: 'process', size: { w: 130, h: 66 },
+    id: 'win-pane', name: 'Internal storage', title: 'Window pane', category: 'process', size: { w: 130, h: 66 },
     body: (p, w, h) => rectPath(p, 0, 0, w, h),
     lines: (p, w, h) => p.M(-w / 2, -h / 2 + 10).L(w / 2, -h / 2 + 10).M(-w / 2 + 10, -h / 2).L(-w / 2 + 10, h / 2),
     fit: (w, h) => ({ w: w + 10, h: h + 10 }),
     textBox: (w, h) => box(-w / 2 + 10, -h / 2 + 10, w / 2, h / 2),
   }),
   penShape({
-    id: 'delay', mermaid: 'delay', aliases: ['half-rounded-rectangle'], name: 'Delay', title: 'Half-rounded rectangle', category: 'process', size: { w: 130, h: 56 },
+    id: 'delay', name: 'Delay', title: 'Half-rounded rectangle', category: 'process', size: { w: 130, h: 56 },
     body: (p, w, h) => {
       const r = Math.min(h / 2, w / 2);
       p.M(-w / 2, -h / 2).L(w / 2 - r, -h / 2).A(r, h / 2, 0, 1, w / 2 - r, h / 2).L(-w / 2, h / 2).Z();
@@ -145,7 +146,7 @@ export const MORE: readonly ShapeDef[] = [
     textBox: (w, h) => box(-w / 2, -h / 2, w / 2 - Math.min(h / 2, w / 2) / 2, h / 2),
   }),
   penShape({
-    id: 'curv-trap', mermaid: 'curv-trap', aliases: ['curved-trapezoid', 'display'], name: 'Display', title: 'Curved trapezoid', category: 'process', size: { w: 150, h: 56 },
+    id: 'curv-trap', name: 'Display', title: 'Curved trapezoid', category: 'process', size: { w: 150, h: 56 },
     body: (p, w, h) => {
       const r = Math.min(h / 2, w / 3), t = Math.min(h / 4, w / 4);
       p.M(-w / 2, 0).L(-w / 2 + t, -h / 2).L(w / 2 - r, -h / 2).A(r, h / 2, 0, 1, w / 2 - r, h / 2).L(-w / 2 + t, h / 2).Z();
@@ -154,16 +155,16 @@ export const MORE: readonly ShapeDef[] = [
     textBox: (w, h) => box(-w / 2 + Math.min(h / 4, w / 4), -h / 2, w / 2 - Math.min(h / 2, w / 3) / 2, h / 2),
   }),
   penShape({
-    id: 'sl-rect', mermaid: 'sl-rect', aliases: ['manual-input', 'sloped-rectangle'], name: 'Manual input', title: 'Sloped rectangle', category: 'process', size: { w: 120, h: 72 },
+    id: 'sl-rect', name: 'Manual input', title: 'Sloped rectangle', category: 'process', size: { w: 120, h: 72 },
     body: (p, w, h) => p.M(-w / 2, -h / 2 + h / 3).L(w / 2, -h / 2).L(w / 2, h / 2).L(-w / 2, h / 2).Z(),
     fit: (w, h) => ({ w, h: h * 1.5 }),
     textBox: (w, h) => box(-w / 2, -h / 2 + h / 3, w / 2, h / 2),
   }),
-  ((): ShapeDef => {
+  ((): ShapeBody => {
     // Mermaid: ry = h / 2, rx = ry / (2.5 + h / 50)
     const rxOf = (w: number, h: number): number => Math.min(h / 2 / (2.5 + h / 50), w / 6);
     return penShape({
-      id: 'bow-rect', mermaid: 'bow-rect', aliases: ['stored-data', 'bow-tie-rectangle'], name: 'Stored data', title: 'Bow tie rectangle', category: 'process', size: { w: 130, h: 56 },
+      id: 'bow-rect', name: 'Stored data', title: 'Bow tie rectangle', category: 'process', size: { w: 130, h: 56 },
       body: (p, w, h) => {
         const rx = rxOf(w, h), hw = w / 2, hh = h / 2;
         p.M(hw, -hh).L(-hw + rx, -hh).A(rx, hh, 0, 0, -hw + rx, hh).L(hw, hh).A(rx, hh, 0, 1, hw, -hh).Z();
@@ -173,7 +174,7 @@ export const MORE: readonly ShapeDef[] = [
     });
   })(),
   penShape({
-    id: 'docs', mermaid: 'docs', aliases: ['documents', 'st-doc', 'stacked-document'], name: 'Multi-document', title: 'Stacked document', category: 'process', size: { w: 132, h: 76 },
+    id: 'docs', name: 'Multi-document', title: 'Stacked document', category: 'process', size: { w: 132, h: 76 },
     behind: [
       (p, w, h) => docPath(p, -w / 2 + 2 * STACK, -h / 2, w / 2, h / 2 - 2 * STACK),
       (p, w, h) => docPath(p, -w / 2 + STACK, -h / 2 + STACK, w / 2 - STACK, h / 2 - STACK),
@@ -189,7 +190,7 @@ export const MORE: readonly ShapeDef[] = [
     textBox: (w, h) => box(-w / 2, -h / 2 + 2 * STACK, w / 2 - 2 * STACK, h / 2 - DOCK(h)),
   }),
   penShape({
-    id: 'st-rect', mermaid: 'st-rect', aliases: ['procs', 'processes', 'stacked-rectangle'], name: 'Multi-process', title: 'Stacked rectangle', category: 'process', size: { w: 130, h: 66 },
+    id: 'st-rect', name: 'Multi-process', title: 'Stacked rectangle', category: 'process', size: { w: 130, h: 66 },
     behind: [
       (p, w, h) => rectPath(p, 5, -5, w - 10, h - 10),
       (p, w, h) => rectPath(p, 0, 0, w - 10, h - 10),
@@ -203,7 +204,7 @@ export const MORE: readonly ShapeDef[] = [
     textBox: (w, h) => box(-w / 2, -h / 2 + 10, w / 2 - 10, h / 2),
   }),
   penShape({
-    id: 'tag-doc', mermaid: 'tag-doc', aliases: ['tagged-document'], name: 'Tagged document', category: 'process', size: { w: 120, h: 64 },
+    id: 'tag-doc', name: 'Tagged document', category: 'process', size: { w: 120, h: 64 },
     body: (p, w, h) => docPath(p, -w / 2, -h / 2, w / 2, h / 2),
     lines: (p, w, h) => {
       const t = Math.min(w, h) * 0.22, k = h * 0.12;
@@ -213,7 +214,7 @@ export const MORE: readonly ShapeDef[] = [
     textBox: (w, h) => box(-w / 2, -h / 2, w / 2, h / 2 - h * 0.12),
   }),
   penShape({
-    id: 'tag-rect', mermaid: 'tag-rect', aliases: ['tagged-rectangle', 'tag-proc', 'tagged-process'], name: 'Tagged process', title: 'Tagged rectangle', category: 'process', size: { w: 120, h: 56 },
+    id: 'tag-rect', name: 'Tagged process', title: 'Tagged rectangle', category: 'process', size: { w: 120, h: 56 },
     body: (p, w, h) => rectPath(p, 0, 0, w, h),
     lines: (p, w, h) => {
       const t = Math.min(w, h) * 0.22;
@@ -221,14 +222,14 @@ export const MORE: readonly ShapeDef[] = [
     },
   }),
   penShape({
-    id: 'lin-doc', mermaid: 'lin-doc', aliases: ['lined-document'], name: 'Lined document', category: 'process', size: { w: 128, h: 64 },
+    id: 'lin-doc', name: 'Lined document', category: 'process', size: { w: 128, h: 64 },
     body: (p, w, h) => docPath(p, -w / 2, -h / 2, w / 2, h / 2),
     lines: (p, w, h) => p.M(-w / 2 + 8, -h / 2).L(-w / 2 + 8, h / 2 - h * 0.12),
     fit: (w, h) => ({ w: w + 8, h: h * 1.14 }),
     textBox: (w, h) => box(-w / 2 + 8, -h / 2, w / 2, h / 2 - h * 0.12),
   }),
   penShape({
-    id: 'flag', mermaid: 'flag', aliases: ['paper-tape'], name: 'Paper tape', title: 'Flag', category: 'process', size: { w: 120, h: 70 },
+    id: 'flag', name: 'Paper tape', title: 'Flag', category: 'process', size: { w: 120, h: 70 },
     body: (p, w, h) => {
       const a = h / 14, hw = w / 2, hh = h / 2;
       p.M(-hw, -hh + a).Q(-hw + w / 4, -hh - a, 0, -hh + a).Q(hw - w / 4, -hh + 3 * a, hw, -hh + a).L(hw, hh - a)
@@ -237,9 +238,9 @@ export const MORE: readonly ShapeDef[] = [
     fit: (w, h) => ({ w, h: h * 1.4 }),
     textBox: (w, h) => box(-w / 2, -h / 2 + h / 7, w / 2, h / 2 - h / 7),
   }),
-  ...([['brace', 'Comment', ['comment', 'brace-l'], 1, 0], ['brace-r', 'Comment right', [], 0, 1], ['braces', 'Comment with braces on both sides', [], 1, 1]] as const).map(
-    ([id, name, aliases, l, r]): ShapeDef => penShape({
-      id, mermaid: id, aliases, name, title: 'Curly brace', category: 'process', size: { w: 120, h: 56 },
+  ...([['brace', 'Comment', 1, 0], ['brace-r', 'Comment right', 0, 1], ['braces', 'Comment with braces on both sides', 1, 1]] as const).map(
+    ([id, name, l, r]): ShapeBody => penShape({
+      id, name, title: 'Curly brace', category: 'process', size: { w: 120, h: 56 },
       body: (p, w, h) => rectPath(p, 0, 0, w, h), open: 'none',
       lines: (p, w, h) => {
         const k = braceR(h, w);
@@ -251,7 +252,7 @@ export const MORE: readonly ShapeDef[] = [
     }),
   ),
   {
-    id: 'cross-circ', mermaid: 'cross-circ', aliases: ['summary', 'crossed-circle'], name: 'Summary', title: 'Crossed circle', category: 'process', size: { w: 60, h: 60 }, below: true,
+    id: 'cross-circ', name: 'Summary', title: 'Crossed circle', category: 'process', size: { w: 60, h: 60 }, below: true,
     draw: (b, st, extra) => {
       const dx = (b.w / 2) * Math.SQRT1_2, dy = (b.h / 2) * Math.SQRT1_2;
       const d = `M${P(b.x - dx, b.y - dy)} L${P(b.x + dx, b.y + dy)} M${P(b.x + dx, b.y - dy)} L${P(b.x - dx, b.y + dy)}`;
@@ -261,21 +262,21 @@ export const MORE: readonly ShapeDef[] = [
     fit: () => ({ w: 60, h: 60 }),
   },
   {
-    id: 'fork', mermaid: 'fork', aliases: ['join'], legacy: ['forkJoin', 'fork-bar'], name: 'Fork / join', title: 'Filled rectangle', category: 'process', size: { w: 70, h: 10 }, below: true,
+    id: 'fork', name: 'Fork / join', title: 'Filled rectangle', category: 'process', size: { w: 70, h: 10 }, below: true,
     draw: (b, st, extra) => [el('rect', { x: b.x - b.w / 2, y: b.y - b.h / 2, width: b.w, height: b.h, rx: 1, ...paint(st, extra), fill: st.stroke ?? '#222' })],
     outline: rectOutline,
     fit: () => ({ w: 70, h: 10 }),
   },
   penShape({
-    id: 'hourglass', mermaid: 'hourglass', aliases: ['collate'], name: 'Collate', title: 'Hourglass', category: 'process', size: { w: 30, h: 30 }, below: true,
+    id: 'hourglass', name: 'Collate', title: 'Hourglass', category: 'process', size: { w: 30, h: 30 }, below: true,
     body: (p, w, h) => p.M(-w / 2, -h / 2).L(w / 2, -h / 2).L(-w / 2, h / 2).L(w / 2, h / 2).Z(),
     fit: () => ({ w: 30, h: 30 }),
   }),
   // ---- technical
-  ((): ShapeDef => {
+  ((): ShapeBody => {
     const ryOf = (h: number): number => Math.min(9, h * 0.16);
     return penShape({
-      id: 'lin-cyl', mermaid: 'lin-cyl', aliases: ['disk', 'lined-cylinder'], name: 'Disk storage', title: 'Lined cylinder', category: 'technical', size: { w: 120, h: 76 },
+      id: 'lin-cyl', name: 'Disk storage', title: 'Lined cylinder', category: 'technical', size: { w: 120, h: 76 },
       body: (p, w, h) => {
         const ry = ryOf(h), hw = w / 2, hh = h / 2;
         p.M(-hw, -hh + ry).A(hw, ry, 0, 1, hw, -hh + ry).L(hw, hh - ry).A(hw, ry, 0, 1, -hw, hh - ry).Z();
@@ -289,14 +290,14 @@ export const MORE: readonly ShapeDef[] = [
     });
   })(),
   penShape({
-    id: 'datastore', mermaid: 'datastore', aliases: ['data-store'], name: 'Data store', category: 'technical', size: { w: 120, h: 56 },
+    id: 'datastore', name: 'Data store', category: 'technical', size: { w: 120, h: 56 },
     body: (p, w, h) => rectPath(p, 0, 0, w, h), open: 'fill',
     lines: (p, w, h) => p.M(-w / 2, -h / 2).L(w / 2, -h / 2).M(-w / 2, h / 2).L(w / 2, h / 2),
   }),
-  ((): ShapeDef => {
+  ((): ShapeBody => {
     const tab = (h: number): number => clamp(h * 0.14, 8, 14);
     return penShape({
-      id: 'folder', mermaid: 'folder', aliases: ['directory'], name: 'Folder', category: 'technical', size: { w: 120, h: 66 },
+      id: 'folder', name: 'Folder', category: 'technical', size: { w: 120, h: 66 },
       body: (p, w, h) => {
         const t = tab(h), tw = Math.min(w / 2, Math.max(w * 0.38, 28)), hw = w / 2, hh = h / 2;
         p.M(-hw, -hh).L(-hw + tw, -hh).L(-hw + tw, -hh + t).L(hw, -hh + t).L(hw, hh).L(-hw, hh).Z();
@@ -305,10 +306,10 @@ export const MORE: readonly ShapeDef[] = [
       textBox: (w, h) => box(-w / 2, -h / 2 + tab(h), w / 2, h / 2),
     });
   })(),
-  ((): ShapeDef => {
+  ((): ShapeBody => {
     const rim = (w: number): number => clamp(w * 0.08, 5, 12);
     return penShape({
-      id: 'bucket', mermaid: 'bucket', aliases: [], name: 'Bucket', category: 'technical', size: { w: 120, h: 76 },
+      id: 'bucket', name: 'Bucket', category: 'technical', size: { w: 120, h: 76 },
       body: (p, w, h) => {
         const r = rim(w), hw = w / 2, hh = h / 2, bw = w * 0.36;
         p.M(-hw, -hh + r).L(-bw, hh - r).A(bw, r, 0, 0, bw, hh - r).L(hw, -hh + r).A(hw, r, 0, 0, -hw, -hh + r).Z();
@@ -322,7 +323,7 @@ export const MORE: readonly ShapeDef[] = [
     });
   })(),
   {
-    id: 'console', mermaid: 'console', aliases: [], name: 'Console', title: 'Terminal window', category: 'technical', size: { w: 130, h: 76 },
+    id: 'console', name: 'Console', title: 'Terminal window', category: 'technical', size: { w: 130, h: 76 },
     draw: (b, st, extra) => {
       const x0 = b.x - b.w / 2, y0 = b.y - b.h / 2;
       return [
@@ -335,7 +336,7 @@ export const MORE: readonly ShapeDef[] = [
     textBox: (w, h) => box(-w / 2, -h / 2 + 20, w / 2, h / 2),
   },
   {
-    id: 'browser', mermaid: 'browser', aliases: [], name: 'Browser', title: 'Browser window', category: 'technical', size: { w: 140, h: 76 },
+    id: 'browser', name: 'Browser', title: 'Browser window', category: 'technical', size: { w: 140, h: 76 },
     draw: (b, st, extra) => {
       const x0 = b.x - b.w / 2, y0 = b.y - b.h / 2, bar = 18;
       const out: SceneNode[] = [
@@ -350,7 +351,7 @@ export const MORE: readonly ShapeDef[] = [
     fit: (w, h) => ({ w: Math.max(w, 90), h: h + 18 }),
     textBox: (w, h) => box(-w / 2, -h / 2 + 18, w / 2, h / 2),
   },
-  ((): ShapeDef => {
+  ((): ShapeBody => {
     // Mermaid: head radius 23 % of the width (16…56), overlapping the body by 27 % of it; body corners 17.7 % of the width
     const head = (w: number, h: number): { r: number; ov: number; top: number; br: number } => {
       const r = clamp(w * 0.23, 16, 56), ov = r * 0.27;
@@ -363,7 +364,7 @@ export const MORE: readonly ShapeDef[] = [
         .L(hw, hh - br).A(br, br, 0, 1, hw - br, hh).L(-hw + br, hh).A(br, br, 0, 1, -hw, hh - br).Z();
     };
     return {
-      id: 'person', mermaid: 'person', aliases: [], name: 'Person', category: 'technical', size: { w: 100, h: 110 },
+      id: 'person', name: 'Person', category: 'technical', size: { w: 100, h: 110 },
       draw: (b, st, extra) => {
         const { r, top, br } = head(b.w, b.h), pa = paint(st, extra);
         return [
@@ -380,27 +381,27 @@ export const MORE: readonly ShapeDef[] = [
     };
   })(),
   penShape({
-    id: 'cloud', mermaid: 'cloud', aliases: [], name: 'Cloud', category: 'technical', size: { w: 150, h: 90 },
+    id: 'cloud', name: 'Cloud', category: 'technical', size: { w: 150, h: 90 },
     body: (p, w, h) => around(p, w * 0.41, h * 0.37, 9, 1, 0.6),
     fit: (w, h) => ({ w: w * 1.45, h: h * 1.7 }),
     textBox: (w, h) => box(-w * 0.34, -h * 0.29, w * 0.34, h * 0.29),
   }),
   penShape({
-    id: 'bang', mermaid: 'bang', aliases: [], name: 'Bang', category: 'technical', size: { w: 150, h: 100 },
+    id: 'bang', name: 'Bang', category: 'technical', size: { w: 150, h: 100 },
     body: (p, w, h) => around(p, w / 2, h / 2, 14, 0, 0.75),
     fit: (w, h) => ({ w: w * 1.5, h: h * 1.9 }),
     textBox: (w, h) => box(-w * 0.33, -h * 0.26, w * 0.33, h * 0.26),
   }),
   // ---- annotations (also the state diagram's choice and notes)
   penShape({
-    id: 'choice', mermaid: 'choice', aliases: [], name: 'Choice', title: 'Small diamond', category: 'annotation', size: { w: 28, h: 28 }, below: true,
+    id: 'choice', name: 'Choice', title: 'Small diamond', category: 'annotation', size: { w: 28, h: 28 }, below: true,
     body: (p, w, h) => p.M(0, -h / 2).L(w / 2, 0).L(0, h / 2).L(-w / 2, 0).Z(),
     fit: () => ({ w: 28, h: 28 }),
   }),
-  ((): ShapeDef => {
+  ((): ShapeBody => {
     const fold = (w: number, h: number): number => Math.min(12, w / 4, h / 3);
     return penShape({
-      id: 'note', mermaid: 'note', aliases: [], name: 'Note', title: 'Folded corner', category: 'annotation', size: { w: 120, h: 56 },
+      id: 'note', name: 'Note', title: 'Folded corner', category: 'annotation', size: { w: 120, h: 56 },
       body: (p, w, h) => {
         const f = fold(w, h);
         p.M(-w / 2, -h / 2).L(w / 2 - f, -h / 2).L(w / 2, -h / 2 + f).L(w / 2, h / 2).L(-w / 2, h / 2).Z();

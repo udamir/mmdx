@@ -1,7 +1,7 @@
 // Shape outlines and preset-submenu sizing, shared by the style toolbar, the Shapes menu and the theme editor. Kept
 // apart from the toolbar so the editor can load the toolbar on first selection (§R5).
 import { patchChildren } from '../dom/patch.js';
-import { resolveShape } from '../core/shapes/registry.js';
+import { knownShape } from '../core/shapes/registry.js';
 import { s } from './h.js';
 
 /** Participant shape names that are not catalogue names. */
@@ -13,7 +13,7 @@ const PREVIEW_NAME: Readonly<Record<string, string>> = { box: 'rect' };
  * (an unknown name: an empty icon).
  */
 export function shapePreview(shape: string, size = 30): SVGSVGElement {
-  const def = resolveShape(PREVIEW_NAME[shape] ?? shape)?.def;
+  const def = knownShape(PREVIEW_NAME[shape] ?? shape);
   if (!def) return s('svg', { 'aria-hidden': 'true', focusable: 'false', viewBox: '0 0 32 32', width: String(size), height: String(size) }) as SVGSVGElement;
   const { w, h } = def.size;
   const side = Math.max(w * 1.15, h * 1.3);

@@ -1,7 +1,7 @@
 // TextScene (component architecture §7.3): the viewer's scene source. Source text → async render (the worker over
-// 300 lines, the diagram kind's parser and renderer loaded on demand), server-rendered SVG adoption, the Mermaid
-// fallback for unsupported types, the error card, and the reserved aspect ratio. Draws with the kernel's theme and
-// display settings.
+// 300 lines, the diagram kind's parser and renderer and the shapes beyond the 17 loaded on demand), server-rendered SVG
+// adoption, the Mermaid fallback for unsupported types, the error card, and the reserved aspect ratio. Draws with the
+// kernel's theme and display settings.
 import { renderWithMermaid } from '../../config.js';
 import { splitSource } from '../../core/meta/index.js';
 import { detectType } from '../../core/parse/dispatch.js';
@@ -13,7 +13,7 @@ import { cancelIdle, idle } from '../../dom/idle.js';
 import { renderInWorker, workerAvailable, WORKER_THRESHOLD_LINES } from '../../dom/worker-client.js';
 import { h } from '../../ui/h.js';
 import type { ViewCore } from '../core.js';
-import { lazyKinds, type KindsProvider } from '../kinds.js';
+import { drawShapes, lazyKinds, loadShapes, type KindsProvider } from '../kinds.js';
 import { BaseScene } from '../scene.js';
 
 export type FitMode = 'contain' | 'width' | 'none';
@@ -135,12 +135,27 @@ export class TextScene extends BaseScene {
       void renderInWorker(text, core.ctx, opts, this).then((wr) => {
         if (this.destroyed || seq !== this.renderSeq || text !== this.text) return;
         if (wr && 'error' in wr) this.showError([{ severity: 'error', code: 'doc.too-large', message: 'Rendering this diagram took too long' }], text);
-        else this.apply(wr ?? renderSourceWith(this.kinds.kinds(), text, core.ctx, opts), t0, true);
+        else if (wr) this.apply(wr, t0, true);
+        else this.renderHere(text, opts, t0);
       });
       return;
     }
     ++this.renderSeq;
-    this.apply(renderSourceWith(this.kinds.kinds(), text, core.ctx, opts), t0, true);
+    this.renderHere(text, opts, t0);
+  }
+
+  /**
+   * Renders on the main thread. A shape whose geometry is not loaded yet (the shapes beyond the 17) loads first and the
+   * render runs again; should it fail to load, the render with that shape as a rectangle shows.
+   */
+  private renderHere(text: string, opts: PipelineOptions, t0: number): void {
+    const [r, missing] = drawShapes(() => renderSourceWith(this.kinds.kinds(), text, this.core.ctx, opts));
+    if (!missing) {
+      this.apply(r, t0, true);
+      return;
+    }
+    const current = (): boolean => !this.destroyed && text === this.text;
+    void loadShapes().then(() => current() && this.renderNow(), () => current() && this.apply(r, t0, true));
   }
 
   private apply(r: Rendered, t0: number, announce: boolean): void {

@@ -6,7 +6,7 @@ import type { SceneNode, SvgAttrs } from '../scene/types.js';
 import type { StyleProps } from '../style.js';
 import type { CenterBox, Point, Rect } from '../types.js';
 import { Pen } from './pen.js';
-import type { ShapeDef } from './types.js';
+import type { ShapeBody } from './types.js';
 
 export const P = (x: number, y: number): string => `${fmt(x)},${fmt(y)}`;
 
@@ -44,7 +44,7 @@ export const box = (x0: number, y0: number, x1: number, y1: number): Rect => ({ 
 
 type Geo = (p: Pen, w: number, h: number) => void;
 
-export interface PenShape extends Omit<ShapeDef, 'draw' | 'outline'> {
+export interface PenShape extends Omit<ShapeBody, 'draw' | 'outline'> {
   /** The outline (its first subpath), painted with the style. */
   body: Geo;
   /** Lines drawn on top in the border colour. */
@@ -59,8 +59,8 @@ export interface PenShape extends Omit<ShapeDef, 'draw' | 'outline'> {
   open?: 'fill' | 'none';
 }
 
-/** A catalogue entry from path-builder geometry. */
-export function penShape(o: PenShape): ShapeDef {
+/** A catalogue entry (without its names) from path-builder geometry. */
+export function penShape(o: PenShape): ShapeBody {
   const { body, lines, marks, behind, hull, open, ...rest } = o;
   return {
     ...rest,

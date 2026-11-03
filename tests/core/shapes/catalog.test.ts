@@ -4,7 +4,11 @@
 // each shape's outline, and previews and lists come from the one table.
 import { beforeAll, describe, expect, it } from 'vitest';
 import { byShapeId, menuShapes, pickerShapes, resolveShape, shapeDef, SHAPES, shapesIn } from '../../../src/core/shapes/catalog.js';
+import { EXTENDED, registerExtendedShapes } from '../../../src/core/shapes/extended.js';
+import { shapeMisses } from '../../../src/core/shapes/misses.js';
+import { EXTENDED_NAMES } from '../../../src/core/shapes/names.js';
 import { onOutline, outlinePoints } from '../../../src/core/shapes/outline.js';
+import { forgetShapes, shapeById } from '../../../src/core/shapes/registry.js';
 import { portPoint } from '../../../src/core/render/common.js';
 import type { Side } from '../../../src/core/style.js';
 import type { CenterBox, Point } from '../../../src/core/types.js';
@@ -33,23 +37,46 @@ describe('names', () => {
     for (const [short, aliases] of Object.entries(MERMAID)) {
       const r = resolveShape(short);
       expect(r?.ok, short).toBe(true);
-      expect(r?.def.mermaid, short).toBe(short);
-      ids.add(r!.def.id);
-      for (const a of aliases) expect(resolveShape(a)?.def.id, a).toBe(r!.def.id);
+      expect(r?.names.mermaid, short).toBe(short);
+      ids.add(r!.names.id);
+      for (const a of aliases) expect(resolveShape(a)?.names.id, a).toBe(r!.names.id);
     }
     expect(ids.size).toBe(53);
-    expect(new Set(['sm-circ', 'f-circ', 'fr-circ', 'circle'].map((n) => resolveShape(n)?.def.id)).size).toBe(4);
-    expect(resolveShape('lin-cyl')?.def.id).not.toBe(resolveShape('cyl')?.def.id);
+    expect(new Set(['sm-circ', 'f-circ', 'fr-circ', 'circle'].map((n) => resolveShape(n)?.names.id)).size).toBe(4);
+    expect(resolveShape('lin-cyl')?.names.id).not.toBe(resolveShape('cyl')?.names.id);
   });
 
   it('keeps the old mmdx ids and reads legacy names, which Mermaid rejects', () => {
     for (const [name, id] of [['parallelogram', 'parallelogram'], ['lean_r', 'parallelogram'], ['notch_rect', 'card'], ['hcyl', 'hcyl'], ['queue', 'hcyl'], ['state-start', 'sm-circ']] as const) {
-      expect(resolveShape(name)?.def.id, name).toBe(id);
+      expect(resolveShape(name)?.names.id, name).toBe(id);
       expect(resolveShape(name)?.ok, name).toBe(false);
     }
     expect(resolveShape('constructor')).toBeUndefined();
     expect(resolveShape('__proto__')).toBeUndefined();
     expect(shapeDef('nope').id).toBe('rect');
+  });
+
+  it('the name table of the shapes beyond the 17 has exactly their entries, in catalogue order (T02.9)', () => {
+    expect(EXTENDED_NAMES.map((n) => n.id)).toEqual(EXTENDED.map((d) => d.id));
+    for (const d of EXTENDED) expect(Array.isArray(d.aliases), d.id).toBe(true);
+    expect(SHAPES.slice(17)).toEqual(EXTENDED);
+  });
+
+  it('a known shape whose geometry is not loaded resolves by name and draws as a counted rectangle (T02.9)', () => {
+    forgetShapes();
+    try {
+      const n = shapeMisses();
+      expect(resolveShape('lightning-bolt')?.names.id).toBe('bolt');
+      expect(shapeById('bolt')).toBeUndefined();
+      expect(shapeDef('lightning-bolt').id).toBe('rect');
+      expect(shapeMisses()).toBe(n + 1);
+      expect(shapeDef('diam').id).toBe('diamond');
+      expect(shapeDef('nope').id).toBe('rect');
+      expect(shapeMisses()).toBe(n + 1);
+    } finally {
+      registerExtendedShapes();
+    }
+    expect(shapeDef('lightning-bolt').id).toBe('bolt');
   });
 
   it('a theme names shapes by id or any catalogue name; the id key wins', () => {

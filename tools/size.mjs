@@ -55,30 +55,34 @@ for (const k of ['flowchart', 'sequence', 'er']) {
   const f = Object.keys(v.outs).find((x) => v.outs[x].entryPoint === `src/core/kinds/${k}.ts`);
   const extra = [...v.closure(f)].filter((x) => !v.base.has(x));
   if (k === 'flowchart') flow.push(...extra);
-  // flowchart: 72.6 kB with the shape catalogue (T02: Mermaid's 53 flowchart shapes plus the figures, each with its outline, text box and sizing, the node data reader and the outline clipping of connector ends; 72.2 kB measured, the catalogue alone about 8 kB). Sequence and ER only load the 17 shapes every renderer draws (61.6 and 61.2 kB measured).
+  // flowchart: 68.8 kB once the shapes beyond the 17 load on demand (T02.9: 68.4 kB measured, their geometry a chunk of its own, the "extended shapes" row; what stays over the 62 kB before the catalogue is the 17's outlines, text boxes and sizing, the outline clipping of connector ends, the node data reader and the name table of every shape, which the parser needs). Sequence and ER 62.4 kB: 62.0 and 61.6 kB measured (+0.4 kB: the viewer's base loads the shapes when a render misses one); the name table comes with the flowchart's parser.
+  // 72.6 kB with the shape catalogue (T02: Mermaid's 53 flowchart shapes plus the figures, each with its outline, text box and sizing, the node data reader and the outline clipping of connector ends; 72.2 kB measured, the catalogue alone about 8 kB). Sequence and ER only load the 17 shapes every renderer draws (61.6 and 61.2 kB measured).
   // 62.4 kB with the kind descriptor (T01: the kinds registry and the type's view kind, +0.6 kB); 61.6 kB with the 0.3 host hooks (+0.4 kB: the host's full screen in the zoom bar, setControls, registerThemes); 61 kB with the 0.3 fixes (+0.2 kB: own-key reads and writes in the metadata parser, the patcher drawing the diff's styled runs itself instead of through a hook the diff installed). 60.8 kB with the view kernel (component architecture §10.1: 60.3 kB once the kernel was split into modules, the blocks gained roving focus and the elements a shared lifecycle; 53.4 kB with every chrome module but the zoom bar on demand; 46 kB before). Provisional (decision 19 is open).
-  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), (k === 'flowchart' ? 72.6 : 62.4) * KB);
+  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), (k === 'flowchart' ? 68.8 : 62.4) * KB);
 }
+// a flowchart that draws one of the shapes beyond the 17 (T02.9): their geometry, 4.3 kB, loads before it renders (72.7 kB measured)
+report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...flow, ...lazy(v, 'src/core/shapes/extended.ts', new Set([...v.base, ...flow]))])), 73.1 * KB);
 // the viewer with History opened on a flowchart (no `@mmdx/studio/diff` on the page any more)
 {
   const loaded = new Set([...v.base, ...flow]);
   const hist = [...lazy(v, 'src/diff/history.ts', loaded), ...lazy(v, 'src/core/kinds/flowchart-diff.ts', loaded)];
-  // 133.8 kB with the shape catalogue (T02, 133.3 kB measured); 123.6 kB with the kind descriptor too (History also loads the flowchart's diff kind: 123.1 kB measured); 123.6 kB with the 0.3 fixes and host hooks together; 122.6 kB with History in place (the version panel first, the version view, animated switches, the overlay scrollbars); 113.4 kB once History loaded no parser or renderer it did not need
-  report('viewer + History opened', v.size(loaded) + v.size(new Set(hist)), 133.8 * KB);
+  // 130 kB once the shapes beyond the 17 load on demand (T02.9, 129.6 kB measured); 133.8 kB with the shape catalogue (T02, 133.3 kB measured); 123.6 kB with the kind descriptor too (History also loads the flowchart's diff kind: 123.1 kB measured); 123.6 kB with the 0.3 fixes and host hooks together; 122.6 kB with History in place (the version panel first, the version view, animated switches, the overlay scrollbars); 113.4 kB once History loaded no parser or renderer it did not need
+  report('viewer + History opened', v.size(loaded) + v.size(new Set(hist)), 130 * KB);
 }
 // core includes the diff engine (diffs, merged model, annotations, reports, renderDiffToSvg)
 // editor: 180 kB once the editor loads diagram types on demand (T01.9: 178.2 kB without the code of the types not shown; every type's editor code is a chunk of its own, measured in the "editor (first <type>)" rows); 188.2 kB with the view kernel (187.7 kB after the kernel split, the blocks merge and the element lifecycle; 173.2 kB measured in phase 3; 184.3 kB summed per chunk once History loads the clipboard ops on demand, which splits them into chunks of their own: 177.9 kB as one stream, as before; 165 kB before the kernel), provisional like the viewer's
 // diff: 86.5 kB with the kind descriptor (the per-type diffs left the entry for the diff kinds: 85.5 kB measured); 88.2 kB with the 0.3 fixes and host hooks together (87.8 kB before; 87.3 kB with animated pair switches, the Layers card and the overlay scrollbars; 84.8 kB after the kernel split, the blocks merge and the element lifecycle; component architecture §10.1: 81.8 kB once the all-kinds `diffDiagrams` left the entry and the side panels load on demand; 90.8 kB in phase 4a). The 60 kB target needs the kernel split further (decision 19).
 // core 64.8 and editor 192.2 kB with the shape catalogue (T02: 64.4 and 191.8 kB measured; the editor's first chunk already held the flowchart's parser and ops, which now read the catalogue, and the ops splice statements instead of regenerating lines)
-for (const [entry, budget] of [['core', 64.8], ['theme-editor', 120], ['editor', 192.2], ['diff', 86.5]]) {
+// core 64.4, editor 188.1 and diff 86.3 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9: 64, 187.7 and 85.9 kB measured; the parser and the ops read the name table only, the diff loads the shapes when a render misses one)
+for (const [entry, budget] of [['core', 64.4], ['theme-editor', 120], ['editor', 188.1], ['diff', 86.3]]) {
   const b = await bundle(entry);
   report(entry, b.size(b.base), budget * KB);
   if (entry === 'editor') {
     // the editor with a document of each type: its view, ops and edit kinds in one chunk (T01.9; 181.9, 187.4 and 180.4 kB measured)
-    // 201.5 kB with the shape catalogue (T02: 195.4, 201 and 194 kB measured)
-    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 201.5 * KB);
-    // 234.8 kB with the shape catalogue (T02, 234.3 kB measured); 224 kB once the editor loads diagram types on demand (220.7 kB measured); 233 kB before
-    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 234.8 * KB);
+    // 201.5 kB with the shape catalogue (T02: 195.4, 201 and 194 kB measured); 197.3 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9: 195.9, 196.9 and 189.9 kB measured)
+    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 197.3 * KB);
+    // 230.7 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 230.3 kB measured); 234.8 kB with the shape catalogue (T02, 234.3 kB measured); 224 kB once the editor loads diagram types on demand (220.7 kB measured); 233 kB before
+    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 230.7 * KB);
   }
 }
 
@@ -112,33 +116,38 @@ const loads = async (keys) => {
   for (const k of all) n += await chunkSize(k);
   return { n, all };
 };
-// a core kind's chunk (view kind `flowchart`, diff kind `flowchart-diff`): its own chunk, or (core imports it statically
-// too) the shared chunk the viewer and the diff load it from
-const kindChunk = (name) =>
-  manifest[`src/core/kinds/${name}.ts`] ? `src/core/kinds/${name}.ts` : Object.keys(manifest).find((k) => !k.startsWith('src/') && manifest[k].isDynamicEntry && manifest[k].name === name);
+// a core module the viewer and the diff load on demand (view kind `flowchart`, diff kind `flowchart-diff`, the shapes
+// beyond the 17): its own chunk, or (core imports it statically too) the shared chunk they load it from
+const lazyChunk = (path, name) =>
+  manifest[path] ? path : Object.keys(manifest).find((k) => !k.startsWith('src/') && manifest[k].isDynamicEntry && manifest[k].name === name);
+const kindChunk = (name) => lazyChunk(`src/core/kinds/${name}.ts`, name);
 const FLOW = kindChunk('flowchart');
 const FLOW_DIFF = kindChunk('flowchart-diff');
+const SHAPES = lazyChunk('src/core/shapes/extended.ts', 'extended');
 const HISTORY = ['src/view/modules/history.ts', 'src/diff/history.ts'];
 // budgets: the measurement once History stopped importing the editor's chunk and the diff its kinds and panels (component architecture §10.1), plus about 2 kB; the viewer, editor and diff rows re-measured after the kernel split, the blocks merge and the element lifecycle, and the viewer + History and diff rows again after History in place, plus about 0.5 kB; the viewer and diff rows again with the 0.3 host hooks (the `worker-inline` entry puts the worker client into a chunk of its own), plus about 0.3 kB, and the viewer + History and diff rows once more with the 0.3 fixes and the hooks together, plus about 0.3 kB
-// the shape catalogue (T02) added about 10 kB to every row with flowchart code (each row's measurement in its comment)
+// the shape catalogue (T02) added about 10 kB to every row with flowchart code (each row's measurement in its comment);
+// loading the shapes beyond the 17 on demand (T02.9) took about 4 kB of it out of the viewer's, the diff's and the editor's first chunks again
 const rows = [
-  // 74.8 kB with the shape catalogue (74.3 kB measured); 63.8 kB with the kind descriptor (T01); 63.2 kB before
-  ['viewer (first flowchart)', ['src/viewer.ts', FLOW], 74.8],
-  // the History button is in the tool dock, which loads with the `history` control (246.5 kB while History imported the editor's chunk); 143 kB with the shape catalogue (142.4 kB measured)
-  ['viewer + History opened', ['src/viewer.ts', FLOW, 'src/view/modules/tool-dock.ts', ...HISTORY, FLOW_DIFF], 143],
-  // the editor loads diagram types on demand (T01.9): 181 kB (178.8 kB measured; 194.6 kB before), the first document's type a chunk of its own; 191.6 kB with the shape catalogue (191.2 kB measured)
-  ['editor', ['src/editor.ts'], 191.6],
-  // 184.2 kB measured; 197.8 kB with the shape catalogue (197.3 kB measured)
-  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart.ts'], 197.8],
-  // 240.2 kB with the shape catalogue (239.7 kB measured)
-  ['editor + History opened', ['src/editor.ts', ...HISTORY], 240.2],
+  // 70.8 kB once the shapes beyond the 17 load on demand (T02.9, 70.4 kB measured); 74.8 kB with the shape catalogue (74.3 kB measured); 63.8 kB with the kind descriptor (T01); 63.2 kB before
+  ['viewer (first flowchart)', ['src/viewer.ts', FLOW], 70.8],
+  // a flowchart that draws one of the shapes beyond the 17: their geometry loads before it renders (T02.9, 74.7 kB measured)
+  ['viewer (flowchart, more shapes)', ['src/viewer.ts', FLOW, SHAPES], 75.1],
+  // the History button is in the tool dock, which loads with the `history` control (246.5 kB while History imported the editor's chunk); 143 kB with the shape catalogue (142.4 kB measured); 138.9 kB once the shapes beyond the 17 load on demand (T02.9, 138.5 kB measured)
+  ['viewer + History opened', ['src/viewer.ts', FLOW, 'src/view/modules/tool-dock.ts', ...HISTORY, FLOW_DIFF], 138.9],
+  // the editor loads diagram types on demand (T01.9): 181 kB (178.8 kB measured; 194.6 kB before), the first document's type a chunk of its own; 191.6 kB with the shape catalogue (191.2 kB measured); 187.4 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 187 kB measured)
+  ['editor', ['src/editor.ts'], 187.4],
+  // 184.2 kB measured; 197.8 kB with the shape catalogue (197.3 kB measured); 198.2 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 197.8 kB measured: the same code as before, in more chunks, each compressed on its own)
+  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart.ts'], 198.2],
+  // 240.2 kB with the shape catalogue (239.7 kB measured); 236.2 kB once the shapes beyond the 17 load on demand (T02.9, 235.8 kB measured)
+  ['editor + History opened', ['src/editor.ts', ...HISTORY], 236.2],
   // 125.2 kB while the entry re-exported the all-kinds diff
-  // 92.5 kB once the per-type diffs left the entry for the diff kinds (90.9 kB measured); 94.6 kB before
-  ['diff', ['src/diff.ts'], 92.5],
-  // a flowchart pair with the default panels (the change list) and the flowchart's diff kind; 128 kB with the shape catalogue (127.6 kB measured)
-  ['diff (first flowchart)', ['src/diff.ts', FLOW, FLOW_DIFF, 'src/diff/modules/panels.ts'], 128],
-  // 65.8 kB with the kind descriptor: the same code in more, smaller chunks (one per kind and layer), each compressed on its own (54.6 kB as one esbuild stream); 63 kB before; 76.8 kB with the shape catalogue (76.4 kB measured)
-  ['core', ['src/core.ts'], 76.8],
+  // 92.5 kB once the per-type diffs left the entry for the diff kinds (90.9 kB measured); 94.6 kB before; 91.5 kB with the shapes on demand (T02.9, 91.1 kB measured)
+  ['diff', ['src/diff.ts'], 91.5],
+  // a flowchart pair with the default panels (the change list) and the flowchart's diff kind; 128 kB with the shape catalogue (127.6 kB measured); 124 kB once the shapes beyond the 17 load on demand (T02.9, 123.6 kB measured)
+  ['diff (first flowchart)', ['src/diff.ts', FLOW, FLOW_DIFF, 'src/diff/modules/panels.ts'], 124],
+  // 65.8 kB with the kind descriptor: the same code in more, smaller chunks (one per kind and layer), each compressed on its own (54.6 kB as one esbuild stream); 63 kB before; 76.8 kB with the shape catalogue (76.4 kB measured); 77 kB with the shapes beyond the 17 in chunks of their own (T02.9, 76.6 kB measured: the name table and the geometry apart)
+  ['core', ['src/core.ts'], 77],
 ];
 for (const [name, keys, budget] of rows) report(name, (await loads(keys)).n, budget * KB);
 // the History chunk must not pull the editor in (component architecture §10): none of the chunks only the editor loads statically is in its static closure (shared: whatever the viewer and the diff can load, History aside)

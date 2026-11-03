@@ -3,17 +3,21 @@
 import type {
   BracketSpan, Direction, EdgeHead, EdgeLine, FlowEdge, FlowGroup, FlowLink, FlowMention, FlowNode, FlowNodeData, FlowStatement, FlowchartModel, MermaidStyle, NodeShape,
 } from '../model.js';
-import { resolveShape, SHAPES } from '../shapes/catalog.js';
+import { EXTENDED_NAMES } from '../shapes/names.js';
+import { namedShapes, registerShapeNames, resolveShape } from '../shapes/registry.js';
 import { diag } from '../types.js';
 import { cleanLabel, encodeLabel, isMarkdownString } from './label.js';
 import { ItemBudget, stripControl } from './limits.js';
 import { applySplices, openBlock, readNodeData, type NodeDataBlock, type Splice } from './node-data.js';
 import { parseStyleList } from './style.js';
 
-/** The bracket forms, from the shape catalogue: an opener with its closers and the shape each closer gives, longest openers first (`(((` before `((`). */
+// every Mermaid shape name, without the geometry of the shapes beyond the 17 (which loads when one is drawn, T02.9)
+registerShapeNames(EXTENDED_NAMES);
+
+/** The bracket forms, from the shapes' names: an opener with its closers and the shape each closer gives, longest openers first (`(((` before `((`). */
 const OPENERS: readonly (readonly [open: string, closers: readonly string[], shapes: readonly NodeShape[]])[] = (() => {
   const by = new Map<string, { closers: string[]; shapes: NodeShape[] }>();
-  for (const d of SHAPES) {
+  for (const d of namedShapes()) {
     if (!d.bracket) continue;
     let e = by.get(d.bracket[0]);
     if (!e) by.set(d.bracket[0], (e = { closers: [], shapes: [] }));
@@ -180,11 +184,11 @@ export function parseFlowchart(code: string): FlowchartModel {
       if (e.key === 'shape' && v !== null) {
         const name = String(v);
         const r = resolveShape(name);
-        n.shape = r?.def.id ?? 'rect';
+        n.shape = r?.names.id ?? 'rect';
         n.shapeFrom = 'data';
         if (!r) D.push(diag('warning', 'flow.unknown-shape', `unknown shape "${name}" — drawn as a rectangle (stock Mermaid fails on it)`, curLine, { params: { shape: name } }));
-        else if (!r.ok && r.def.mermaid) {
-          const to = r.def.mermaid;
+        else if (!r.ok && r.names.mermaid) {
+          const to = r.names.mermaid;
           D.push(diag('warning', 'flow.shape-name', `"${name}" is not a shape name Mermaid accepts — use "${to}"`, curLine, {
             params: { shape: name, name: to }, fix: { title: `Use "${to}"`, apply: fixShapeNames },
           }));
@@ -553,7 +557,7 @@ export function fixShapeNames(code: string): string {
       for (const e of b.entries) {
         if (e.key !== 'shape' || typeof e.value !== 'string') continue;
         const r = resolveShape(e.value);
-        if (r && !r.ok && r.def.mermaid) splices.push({ from: e.valueAt, to: e.valueEnd, text: r.def.mermaid });
+        if (r && !r.ok && r.names.mermaid) splices.push({ from: e.valueAt, to: e.valueEnd, text: r.names.mermaid });
       }
   return applySplices(code, splices);
 }

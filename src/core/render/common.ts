@@ -267,7 +267,7 @@ export const urlRef = (id: string | null): string | undefined => (id ? `url(#${i
 
 const P = (x: number, y: number): string => `${fmt(x)},${fmt(y)}`;
 
-/** Node shapes (the catalogue's entry for the name; an unknown name draws a rectangle). b = {x, y, w, h} centred at (x, y). */
+/** Node shapes (the catalogue's entry for the name; an unknown name, or one whose geometry is not loaded, draws a rectangle). b = {x, y, w, h} centred at (x, y). */
 export function shapeNodes(shape: string | undefined, b: CenterBox, st: StyleProps, extra: SvgAttrs = {}): SceneNode[] {
   return shapeDef(shape).draw(b, st, extra);
 }

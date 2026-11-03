@@ -1,17 +1,17 @@
 // Shapes of the other diagram types (T02.8, geometry only: their kinds draw them by name in T08–T11): the sequence
 // participant figures (Mermaid draws `database` and `queue` participants as the cylinder and the horizontal cylinder,
 // which are catalogue entries already), the mindmap's default node, and the frames of icon and image nodes (T06).
-// None has a Mermaid flowchart name but `icon`, so a flowchart keeps them in metadata.
+// None has a Mermaid flowchart name but `icon`, so a flowchart keeps them in metadata. Their names are in names.ts.
 import { el, g } from '../scene/build.js';
 import { fmt } from '../scene/serialize.js';
 import { box, detail, hitBox, P, penShape, rectOutline } from './draw.js';
-import type { ShapeDef } from './types.js';
+import type { ShapeBody } from './types.js';
 
 /** Figures stroked in the border colour on an invisible hit box (their label goes under them). */
-const figure = (o: Omit<ShapeDef, 'draw' | 'outline' | 'aliases' | 'category'> & { d(x: number, y: number, w: number, h: number): string }): ShapeDef => {
+const figure = (o: Omit<ShapeBody, 'draw' | 'outline' | 'category'> & { d(x: number, y: number, w: number, h: number): string }): ShapeBody => {
   const { d, ...rest } = o;
   return {
-    ...rest, aliases: [], category: 'figure', below: true,
+    ...rest, category: 'figure', below: true,
     draw: (b, st, extra) => [hitBox(b, extra), g({ ...detail(st), 'stroke-width': Math.max(1.5, st.strokeWidth ?? 1.5) }, [el('path', { d: d(b.x, b.y, b.w, b.h) })])],
     outline: rectOutline,
     fit: () => o.size,
@@ -21,7 +21,7 @@ const figure = (o: Omit<ShapeDef, 'draw' | 'outline' | 'aliases' | 'category'> &
 /** A circle path (two arcs) of radius r around (cx, cy). */
 const circle = (cx: number, cy: number, r: number): string => `M${P(cx, cy - r)} A${fmt(r)},${fmt(r)} 0 1 1 ${P(cx, cy + r)} A${fmt(r)},${fmt(r)} 0 1 1 ${P(cx, cy - r)} Z`;
 
-export const FIGURES: readonly ShapeDef[] = [
+export const FIGURES: readonly ShapeBody[] = [
   figure({
     id: 'actor', name: 'Actor', title: 'Stick figure', size: { w: 30, h: 52 },
     d: (x, y, w, h) => {
@@ -51,7 +51,7 @@ export const FIGURES: readonly ShapeDef[] = [
     },
   }),
   penShape({
-    id: 'collections', aliases: [], name: 'Collections', title: 'Stacked boxes', category: 'figure', size: { w: 124, h: 60 },
+    id: 'collections', name: 'Collections', title: 'Stacked boxes', category: 'figure', size: { w: 124, h: 60 },
     behind: [(p, w, h) => p.M(-w / 2 + 4, -h / 2).L(w / 2, -h / 2).L(w / 2, h / 2 - 4).L(-w / 2 + 4, h / 2 - 4).Z()],
     body: (p, w, h) => p.M(-w / 2, -h / 2 + 4).L(w / 2 - 4, -h / 2 + 4).L(w / 2 - 4, h / 2).L(-w / 2, h / 2).Z(),
     hull: (p, w, h) => p.M(-w / 2, -h / 2 + 4).L(-w / 2 + 4, -h / 2 + 4).L(-w / 2 + 4, -h / 2).L(w / 2, -h / 2).L(w / 2, h / 2 - 4).L(w / 2 - 4, h / 2 - 4).L(w / 2 - 4, h / 2).L(-w / 2, h / 2).Z(),
@@ -60,18 +60,18 @@ export const FIGURES: readonly ShapeDef[] = [
   }),
   // the mindmap's default node: no border, a line under the label
   penShape({
-    id: 'mm-default', aliases: [], legacy: ['defaultMindmapNode'], name: 'Mindmap node', title: 'Underlined text', category: 'figure', size: { w: 110, h: 44 },
+    id: 'mm-default', name: 'Mindmap node', title: 'Underlined text', category: 'figure', size: { w: 110, h: 44 },
     body: (p, w, h) => p.M(-w / 2, -h / 2).L(w / 2, -h / 2).L(w / 2, h / 2).L(-w / 2, h / 2).Z(), open: 'fill',
     lines: (p, w, h) => p.M(-w / 2, h / 2).L(w / 2, h / 2),
   }),
   // media frames (T06 draws the icon or the image inside; the label goes under them, Mermaid's `pos: b`)
   penShape({
-    id: 'icon', mermaid: 'icon', aliases: [], name: 'Icon', category: 'media', size: { w: 48, h: 48 }, below: true,
+    id: 'icon', name: 'Icon', category: 'media', size: { w: 48, h: 48 }, below: true,
     body: (p, w, h) => p.M(-w / 2, -h / 2).L(w / 2, -h / 2).L(w / 2, h / 2).L(-w / 2, h / 2).Z(), open: 'none',
     fit: () => ({ w: 48, h: 48 }),
   }),
   penShape({
-    id: 'image', aliases: [], legacy: ['imageSquare'], name: 'Image', category: 'media', size: { w: 96, h: 72 }, below: true,
+    id: 'image', name: 'Image', category: 'media', size: { w: 96, h: 72 }, below: true,
     body: (p, w, h) => p.M(-w / 2, -h / 2).L(w / 2, -h / 2).L(w / 2, h / 2).L(-w / 2, h / 2).Z(), open: 'none',
     fit: () => ({ w: 96, h: 72 }),
   }),

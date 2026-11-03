@@ -15,7 +15,7 @@ import {
 import type { BoxGeom, EdgeGeom, FlowGeometry, Port } from './types.js';
 import { onOutline } from '../shapes/outline.js';
 import type { ResolvedTheme } from '../theme/types.js';
-import { byShapeId, shapeDef } from '../shapes/catalog.js';
+import { byShapeId, shapeDef } from '../shapes/registry.js';
 import type { ShapeDef } from '../shapes/types.js';
 import type { Rect } from '../types.js';
 

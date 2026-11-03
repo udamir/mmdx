@@ -3,7 +3,7 @@
 import type { Direction, FlowEdge, FlowGroup, FlowchartModel } from '../model.js';
 import { cleanLabel, encodeLabel } from '../parse/label.js';
 import { applySplices, editBlock, type Splice } from '../parse/node-data.js';
-import { resolveShape, shapeDef } from '../shapes/catalog.js';
+import { resolveShape } from '../shapes/registry.js';
 import type { ItemRef } from '../types.js';
 import { edgeText, nodeDataOf, nodeDef } from './connect.js';
 import { rewriteStatement, statementSplice, type StatementEdit } from './flow-statements.js';
@@ -37,7 +37,7 @@ export interface AddFlowNodeOpts {
  */
 export function addFlowNode(code: string, model: FlowchartModel, { label = 'New', shape = 'rect', group = null, cls = null }: AddFlowNodeOpts = {}): SelectResult & { select: ItemRef; metaShape?: string } {
   const id = uniqueId(model, 'n');
-  const sd = shapeDef(shape);
+  const sd = (resolveShape(shape) ?? resolveShape('rect')!).names;
   const def = nodeDef({ id, label, shape: sd.id, inlineClass: cls });
   const data = !sd.bracket && sd.mermaid ? `  ${id}@{ shape: ${sd.mermaid} }` : null;
   const extra = !sd.mermaid ? { metaShape: sd.id } : {};
@@ -150,7 +150,7 @@ export function relabelGroup(code: string, model: FlowchartModel, gid: string, t
  */
 export function setFlowShape(code: string, model: FlowchartModel, id: string, shape: string): CodeResult | null {
   const n = model.nodes.get(id);
-  const sd = resolveShape(shape)?.def;
+  const sd = resolveShape(shape)?.names;
   if (!sd?.mermaid) return null;
   if (!n) return { code };
   const blocks = n.blocks ?? [];

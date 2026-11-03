@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { forgetKinds } from '../../src/core/kinds/registry.js';
+import { registerExtendedShapes } from '../../src/core/shapes/extended.js';
+import { forgetShapes, shapeById } from '../../src/core/shapes/registry.js';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -27,6 +29,46 @@ describe('kinds on demand', () => {
     expect(hasKind('er')).toBe(true);
     expect(host.shadowRoot!.querySelectorAll('.el[data-kind="entity"]').length).toBe(2);
     host.remove();
+  });
+
+  describe('the shapes beyond the 17 (T02.9)', () => {
+    afterEach(() => registerExtendedShapes());
+    const show = async (source: string): Promise<ShadowRoot> => {
+      const host = document.createElement('div');
+      document.body.append(host);
+      const rendered = new Promise((r) => host.addEventListener('mmdx-render', r, { once: true }));
+      new DiagramViewer(host, { lazy: false, source });
+      await rendered;
+      return host.shadowRoot!;
+    };
+
+    it('load before a flowchart that draws one renders, which then shows the shape', async () => {
+      forgetShapes();
+      expect(shapeById('bolt')).toBeUndefined();
+      const sr = await show('flowchart LR\n  A@{ shape: bolt } --> B');
+      expect(shapeById('bolt')).toBeDefined();
+      const a = sr.querySelector('.el[data-kind="node"][data-id="A"]')!;
+      expect(a.querySelector('path')?.getAttribute('d')).toMatch(/^M[\d.,]+ L/);
+      expect(a.querySelector('rect')).toBeNull();
+      sr.host.remove();
+    });
+
+    it('load for a shape a node takes from its metadata too', async () => {
+      forgetShapes();
+      const sr = await show('flowchart LR\n  A --> B\n%%@ node A {"shape":"collections"}');
+      expect(shapeById('collections')).toBeDefined();
+      expect(sr.querySelectorAll('.el[data-kind="node"][data-id="A"] path').length).toBe(2);
+      sr.host.remove();
+    });
+
+    it('do not load for a flowchart of the 17', async () => {
+      forgetShapes();
+      const sr = await show('flowchart LR\n  a[(DB)] --> b{Q} --> c([End])\n  d@{ shape: cyl }');
+      expect(sr.querySelectorAll('.el[data-kind="node"]').length).toBe(4);
+      expect(shapeById('bolt')).toBeUndefined();
+      expect(shapeById('collections')).toBeUndefined();
+      sr.host.remove();
+    });
   });
 });
 

@@ -5,6 +5,9 @@ import { describe, expect, it } from 'vitest';
 import type { HistoryAdapter, StaticVersion } from '../../src/adapters/history.js';
 import { createContext } from '../../src/core/context.js';
 import { changeKey } from '../../src/core/diff/merge.js';
+import type { FlowGeometry } from '../../src/core/render/types.js';
+import { registerExtendedShapes } from '../../src/core/shapes/extended.js';
+import { forgetShapes, shapeById } from '../../src/core/shapes/registry.js';
 import { DiffSession, type DiffSessionOptions } from '../../src/diff/session.js';
 
 const sample = (name: string, side: string): string => readFileSync(`apps/studio-site/diff-samples/${name}.${side}.mmd`, 'utf8');
@@ -42,6 +45,19 @@ describe('DiffSession', () => {
     expect(types(events)).toEqual(['mmdx-compare', 'mmdx-render']);
     expect((events[0]!.detail as { counts: unknown }).counts).toEqual(s.getDiff()!.counts);
     s.destroy();
+  });
+
+  it('loads the shapes beyond the 17 before it renders a version that draws one (T02.9)', async () => {
+    forgetShapes();
+    try {
+      const { s } = session();
+      await s.load({ before: 'flowchart LR\n  A --> B', after: 'flowchart LR\n  A@{ shape: bolt } --> B' });
+      expect(shapeById('bolt')).toBeDefined();
+      expect((s.rendered.peek()!.after.result.geom as FlowGeometry).nodes.get('A')?.shape).toBe('bolt');
+      s.destroy();
+    } finally {
+      registerExtendedShapes();
+    }
   });
 
   it('nothing to compare without both sources', async () => {

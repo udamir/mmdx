@@ -17,7 +17,7 @@ export interface NodeDefInput {
 
 /** `id["label"]` in the node's bracket shape (shapes Mermaid has no brackets for are written as rectangles). */
 export function nodeDef(n: NodeDefInput): string {
-  const [o, c] = resolveShape(n.shape)?.def.bracket ?? ['[', ']'];
+  const [o, c] = resolveShape(n.shape)?.names.bracket ?? ['[', ']'];
   return `${n.id}${o}"${encodeLabel(n.label)}"${c}${n.inlineClass ? `:::${n.inlineClass}` : ''}`;
 }
 
@@ -29,7 +29,7 @@ export function nodeDef(n: NodeDefInput): string {
 export function nodeDataOf(code: string, n: FlowNode, id: string): string | null {
   const entries = new Map<string, string>();
   for (const b of n.blocks ?? []) for (const e of b.entries) if (e.key !== 'label' && e.key !== 'shape') entries.set(e.key, code.slice(e.valueAt, e.valueEnd));
-  const def = resolveShape(n.shape)?.def;
+  const def = resolveShape(n.shape)?.names;
   if (def && !def.bracket && def.mermaid) entries.set('shape', def.mermaid);
   if (!entries.size) return null;
   return `${id}@{ ${[...entries].map(([k, v]) => `${/^[\w-]+$/.test(k) ? k : JSON.stringify(k)}: ${v}`).join(', ')} }`;

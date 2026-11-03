@@ -28,6 +28,7 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project f
 - **Relabelling, reconnecting and deleting keep the code as written**: node data, edge lengths and styles, chains, `&` groups, `:::` classes and edge ids stay; a statement is split only where an edit breaks it apart.
 - **One list of shapes**: the shape picker (now every flowchart shape, by category), Properties, the theme editor's shape tabs and the Shapes menu read the catalogue; a theme's `nodeShapes` may name a shape by any of its names (`cyl`, `lean-r`).
 - **`@{ shape: f-circ }`, `sm-circ`, `fr-circ` and `lin-cyl` look like Mermaid's**: they were drawn as a plain circle or cylinder.
+- **The shapes beyond the 17 former ones load on demand** in the viewer, History and `<mmdx-diff>`: their drawing code (about 4 kB gzip) arrives the first time a diagram shows one of them, and a page of flowcharts with the common shapes does without it; the editor loads it with its flowchart code. SSR, `renderToSvg`, the markdown plugins and the render worker draw every shape as before.
 
 ### Fixed
 

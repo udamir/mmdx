@@ -9,7 +9,7 @@ import { detectType } from '../core/parse/dispatch.js';
 import { diffKind, registerDiffs } from '../core/kinds/registry.js';
 import type { DiffKind } from '../core/kinds/diff-types.js';
 import type { DiagramType } from '../core/types.js';
-import { loadedKinds, loadKind } from '../view/kinds.js';
+import { loadedKinds, loadKind, renderShapes } from '../view/kinds.js';
 
 const diffImporters: Record<DiagramType, () => Promise<{ DIFF: DiffKind }>> = {
   flowchart: () => import('../core/kinds/flowchart-diff.js'),
@@ -32,11 +32,12 @@ export async function loadKindsOf(...sources: readonly string[]): Promise<void> 
 
 /**
  * Server-side and build-time rendering of a diff (CI bots, MR comments): two sources → one standalone SVG of a view.
- * The kinds of both versions load first; otherwise as `renderDiffToSvg` of `@mmdx/studio/core`.
+ * The kinds of both versions load first (and the shapes beyond the 17 when a version draws one); otherwise as
+ * `renderDiffToSvg` of `@mmdx/studio/core`.
  */
 export async function renderDiffToSvg(before: string, after: string, o: DiffRenderOptions & DiffSvgOptions & { ctx?: CoreContext } = {}): Promise<string> {
   await loadKindsOf(before, after);
-  return renderDiffToSvgWith(loadedKinds(), before, after, o);
+  return renderShapes(() => renderDiffToSvgWith(loadedKinds(), before, after, o));
 }
 
 /** Diff of two sources (Mermaid with or without `%%@` lines) for `@mmdx/studio/diff`: the kinds of both versions load first; otherwise as `diffDiagrams` of `@mmdx/studio/core`, which is synchronous and ships every parser. Never rejects on bad input. */

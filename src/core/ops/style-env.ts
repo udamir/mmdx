@@ -7,7 +7,7 @@ import { own } from '../own.js';
 import { withOps } from '../kinds/registry.js';
 import type { Presets } from '../kinds/types.js';
 import { effectivePage } from '../render/page.js';
-import { byShapeId, shapeIdOf } from '../shapes/catalog.js';
+import { byShapeId, shapeIdOf } from '../shapes/registry.js';
 import { mergeLayers, type StyleProps } from '../style.js';
 import type { ResolvedTheme, ThemeFile } from '../theme/types.js';
 import type { ItemKind, ItemRef } from '../types.js';
