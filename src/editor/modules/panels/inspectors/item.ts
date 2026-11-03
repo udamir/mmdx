@@ -11,6 +11,7 @@ import { applyMeta, styleEnv } from '../../../ops/doc.js';
 import { describe, labelSpec } from '../../../ops/label.js';
 import { field } from '../fields.js';
 import { attrEditor, relEditor } from '../props-er.js';
+import { mediaSection } from './media.js';
 import { itemTarget, layerRow, lineDefaults, lineFields, pickerSection, roundedBox, row, sect, type PanelCtx } from './shared.js';
 
 function textSection(p: PanelCtx, host: HTMLElement, kind: ItemKind, id: string): void {
@@ -44,7 +45,30 @@ function textSection(p: PanelCtx, host: HTMLElement, kind: ItemKind, id: string)
     }
   });
   inp.addEventListener('blur', go);
-  host.append(h('div', { class: 'prop-label' }, inp));
+  // the emoji picker inserts at the caret and applies the text (T05 §4.5); ⌘/Ctrl+; opens it as well
+  const emoji = core.has('pickEmoji') ? h('button', { type: 'button', class: 'prop-emoji', title: t('props.emoji'), 'aria-label': t('props.emoji') }, '☺') : null;
+  if (emoji) {
+    const pick = (): void => {
+      const at = [inp.selectionStart ?? inp.value.length, inp.selectionEnd ?? inp.value.length] as const;
+      core.run('pickEmoji', emoji, (e: string) => {
+        const v = inp.value.slice(0, at[0]) + e + inp.value.slice(at[1]);
+        inp.value = v;
+        const text = multi ? v.replace(/\s+$/, '') : v.trim();
+        core.applyCode(spec.apply(text), t('history.text'), { select: [{ kind, id }] });
+        core.popovers.close();
+      });
+    };
+    emoji.addEventListener('pointerdown', (ev) => ev.preventDefault());
+    emoji.addEventListener('click', pick);
+    inp.addEventListener('keydown', (ev) => {
+      const kev = ev as KeyboardEvent;
+      if (kev.key === ';' && (kev.metaKey || kev.ctrlKey)) {
+        kev.preventDefault();
+        pick();
+      }
+    });
+  }
+  host.append(h('div', { class: 'prop-label' }, inp, emoji));
   if (kind === 'entity') attrEditor(p, host, id);
   if (kind === 'rel') relEditor(p, host, id);
 }
@@ -76,6 +100,7 @@ export function itemInspector(p: PanelCtx, host: HTMLElement, kind: ItemKind, id
   const info = describe(M, kind, id);
   host.append(h('div', { class: 'insp-title' }, info.title), h('div', { class: 'insp-sub' }, info.sub));
   textSection(p, host, kind, id);
+  mediaSection(p, host, ref);
   layerRow(p, host, [ref]);
   if (presetsFor(env, kind)) pickerSection(p, host, ref);
   sect(host, t('props.appearance'));

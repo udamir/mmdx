@@ -22,6 +22,7 @@ import type { EditorCore, Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { saveItemAsPreset, presetPicker } from '../panels/presets.js';
 import { styleWithShapes } from '../../ops/shape.js';
+import { mediaOf, mediaTargets, setImageFit, setMediaOf } from '../../ops/media.js';
 import { applyDoc, applyMeta, DIAGRAM_TYPES, FLOW_DIRS, setAutonumberOn, setFlowDirection, styleEnv, switchDiagramType } from '../../ops/doc.js';
 import { canGroup } from '../../ops/group.js';
 import { LiveEdit } from '../../ops/live.js';
@@ -258,8 +259,9 @@ export const toolbarsModule: EditorModule = {
     let styleArgs: [ToolbarApi, StyleToolbarOptions] | null = null;
     let styleLoading: Promise<void> | null = null;
     // the style toolbar code loads with the first selection (prefetched when the browser is idle)
-    const ensureStyleBar = (): Promise<void> => (styleLoading ??= import('../../../ui/style-toolbar.js').then(({ createStyleToolbar }) => {
+    const ensureStyleBar = (): Promise<void> => (styleLoading ??= import('../../../ui/style-toolbar.js').then(({ createStyleToolbar, SHAPE_PALETTE_CSS }) => {
       if (!styleArgs || style || destroyed) return;
+      core.addCss([SHAPE_PALETTE_CSS]);
       style = createStyleToolbar(wrap, ...styleArgs);
       cleanups.push(() => style?.destroy());
       if (!scope.active) style.el.remove();
@@ -401,6 +403,23 @@ export const toolbarsModule: EditorModule = {
           if (s) void saveItemAsPreset(core, s);
         },
         inspect: () => void core.run('setPanel', 'properties', true),
+        // icons and images (T05): the kind's media of the selected item
+        media: () => {
+          const s = primary();
+          const m = s ? mediaOf(core, s) : null;
+          if (!s || !m) return null;
+          const fit = core.getM(s.kind, s.id)['imgFit'];
+          return { ...m, canIcon: !!editKind(core.model.type)?.setIcon && m.node !== 'image', ...(typeof fit === 'string' ? { fit } : {}) };
+        },
+        pickIcon: (anchor) => core.run('openIconPicker', anchor, { insert: false }),
+        pickImage: (anchor) => core.run('openImageTool', anchor, { insert: false }),
+        setMedia: (patch) => {
+          live.flush();
+          const { fit, ...rest } = patch;
+          const refs = mediaTargets(core, 'icon');
+          if (fit !== undefined) setImageFit(core, refs, fit);
+          if (Object.keys(rest).length) setMediaOf(core, refs, rest);
+        },
         bendCount: () => sameKind().reduce((n, s) => {
           const pts = core.getM(s.kind, s.id).points;
           return n + (Array.isArray(pts) ? pts.length : 0);

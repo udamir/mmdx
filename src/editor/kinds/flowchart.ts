@@ -13,8 +13,12 @@ import type { EditorCore } from '../core.js';
 import { focusLabel } from '../modules/shapes/drop.js';
 import { applyDoc } from '../ops/doc.js';
 import { metaOnlyShapes, shapeDoc } from '../ops/shape.js';
-import { shapeIcon } from './palette.js';
-import { menuShapes } from '../../core/shapes/catalog.js';
+import { shapeIcon, type PaletteItem } from './palette.js';
+import { PICKER_CATEGORIES, shapesIn, type ShapeDef } from '../../core/shapes/catalog.js';
+import { addFlowMediaNode, flowMedia, ICON_NODE_H, IMAGE_NODE_SIZE, setFlowIcon, setFlowImage, setFlowMedia, type IsIconToken } from '../../core/ops/flow-media.js';
+import { splitIconName } from '../../core/icons/names.js';
+import type { SelectResult } from '../../core/ops/types.js';
+import type { ItemRef } from '../../core/types.js';
 import type { EditKind } from './types.js';
 
 const one = (s: string): string => s.replace(/\n/g, ' ');
@@ -31,6 +35,47 @@ function groupAt(core: EditorCore, pt: Point): string | null {
   return (best as { id: string } | null)?.id ?? null;
 }
 
+/** A catalogue shape as a palette item: its name, the words search finds it by, its tooltip. */
+const shapeItem = (def: ShapeDef): PaletteItem => ({
+  key: def.id,
+  label: def.menu?.[1] ?? def.name,
+  icon: shapeIcon(def.id),
+  terms: [def.id, def.name, def.title ?? '', def.mermaid ?? '', ...def.aliases].filter(Boolean),
+  tip: `${def.name}${def.title && def.title !== def.name ? ` (${def.title})` : ''} · ${def.mermaid ?? 'mmdx only'}`,
+});
+
+const SECTIONS = PICKER_CATEGORIES.map((cat) => ({ title: `shapes.cat.${cat}`, items: shapesIn(cat).map(shapeItem) }));
+
+/** The registry's view of label tokens (registered packs and Font Awesome's form are icons). */
+const isIconOf = (core: EditorCore): IsIconToken => (t) => core.ctx.icons.resolve(t, 'token') !== null;
+
+/** A new node from an op placed at a point: positioned (and in the group there), its label opened for typing. */
+function placeNew(core: EditorCore, res: SelectResult & { select: ItemRef; metaShape?: string }, pt: Point, label: string, preset?: string): boolean {
+  const meta = cloneMeta(core.meta);
+  const m = ensureIn(meta, 'node', res.select.id);
+  Object.assign(m, { x: pt.x, y: pt.y }, res.metaShape ? { shape: res.metaShape } : {}, preset ? { preset } : {});
+  const ok = core.applyCode({ code: res.code, meta }, label, { select: [res.select] });
+  if (ok) focusLabel(core, res.select);
+  return ok;
+}
+
+/** An icon's words as a label (`tabler:brand-github` → "Brand github"). */
+const iconLabel = (name: string): string => {
+  const w = splitIconName(name)[1].replace(/^fa-/, '').replace(/[-_]+/g, ' ').trim();
+  return w ? w[0]!.toUpperCase() + w.slice(1) : 'Icon';
+};
+
+/** An image's file name as its caption (`…/team-photo.png` → "team photo"); "Image" otherwise. */
+const imageLabel = (url: string): string => {
+  if (!/^https?:/i.test(url)) return 'Image';
+  let file = url.split(/[?#]/)[0]!.split('/').pop() ?? '';
+  try {
+    file = decodeURIComponent(file);
+  } catch {
+    // keep it as written
+  }
+  return file.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ').trim().slice(0, 60) || 'Image';
+};
 
 export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
   type: 'flowchart',
@@ -101,21 +146,33 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
   palette: {
     mode: 'menu',
     title: 'Shapes',
-    // the catalogue's common shapes (the full categorised palette comes with T05)
-    items: menuShapes().map(({ def, label }) => ({ key: def.id, label, icon: shapeIcon(def.id) })),
+    // the catalogue's palette categories (T05): Basic, Process, Technical, Annotation
+    items: SECTIONS.flatMap((s) => s.items),
+    sections: SECTIONS,
+    layout: 'grid',
     presets: (item) => ({ kind: 'node', shape: item.key, fits: (p) => presetShape(p) === item.key }),
   },
   setShape: (code, M, ref, shape) => (ref.kind === 'node' ? setFlowShape(code, M, ref.id, shape) : null),
   drop(core, M, item, pt) {
     // the shape goes to the code (a bracket, else `n3@{ shape: … }`); one Mermaid lacks stays in metadata
     const res = addFlowNode(core.code, M, { label: item.label.split(' /')[0]!, shape: item.key, group: groupAt(core, pt) });
-    const meta = cloneMeta(core.meta);
-    const m = ensureIn(meta, 'node', res.select.id);
-    Object.assign(m, { x: pt.x, y: pt.y }, res.metaShape ? { shape: res.metaShape } : {}, item.preset ? { preset: item.preset } : {});
-    const ok = core.applyCode({ code: res.code, meta }, 'Add shape', { select: [res.select] });
-    if (ok) focusLabel(core, res.select);
-    return ok;
+    return placeNew(core, res, pt, 'Add shape', item.preset);
   },
+  // the Text tool: Mermaid's borderless `text` shape (`n3["Text"]` and `n3@{ shape: text }`), a node like any other
+  addText: (core, M, pt) => placeNew(core, addFlowNode(core.code, M, { label: 'Text', shape: 'text', group: groupAt(core, pt) }), pt, 'Add text'),
+  // icon and image nodes in Mermaid Chart's style: `n4["User"]` and `n4@{ icon: "tabler:user", form: "rounded", pos: "b", h: 60 }`
+  addIcon: (core, M, icon, pt) =>
+    placeNew(core, addFlowMediaNode(core.code, M, { label: iconLabel(icon), data: { icon, form: 'rounded', pos: 'b', h: ICON_NODE_H }, group: groupAt(core, pt) }), pt, 'Add icon'),
+  addImage: (core, M, url, pt) =>
+    placeNew(core, addFlowMediaNode(core.code, M, { label: imageLabel(url), data: { img: url, h: IMAGE_NODE_SIZE, w: IMAGE_NODE_SIZE, pos: 'b' }, group: groupAt(core, pt) }), pt, 'Add image'),
+  media(M, ref, core) {
+    if (ref.kind !== 'node') return null;
+    const m = flowMedia(M, ref.id, isIconOf(core));
+    return m ? { ...m, canImage: true } : null;
+  },
+  setIcon: (code, M, ref, icon, core) => (ref.kind === 'node' ? setFlowIcon(code, M, ref.id, icon, isIconOf(core)) : null),
+  setImage: (code, M, ref, url) => (ref.kind === 'node' ? setFlowImage(code, M, ref.id, url) : null),
+  setMedia: (code, M, ref, patch) => (ref.kind === 'node' ? setFlowMedia(code, M, ref.id, patch) : null),
   direction: (M) => M.direction,
   fixOf(core, M, d) {
     if (d.code !== 'flow.id-clash') return null;

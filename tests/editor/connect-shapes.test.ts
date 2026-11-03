@@ -16,14 +16,17 @@ const press = (el: Element, type: string, x = 0, y = 0): void => {
 };
 
 describe('shapes menu', () => {
-  test('flowchart: 11 shapes; S toggles; clicking an item adds a node in the middle and closes the menu; undo', () => {
+  test('flowchart: the catalogue by category; S toggles; clicking an item adds a node in the middle and closes the menu; undo', async () => {
     const { core, ed } = mount('flowchart TB\n  A["A"]\n', [shapesModule]);
     const menu = menuOf(core);
     expect(menu.hidden).toBe(true);
     core.dom.root.dispatchEvent(new KeyboardEvent('keydown', { key: 's', bubbles: true }));
     expect(menu.hidden).toBe(false);
-    expect(menu.querySelectorAll('.pal-item').length).toBe(11);
-    const queue = [...menu.querySelectorAll('.pal-item')].find((b) => b.textContent === 'Queue')!;
+    await vi.dynamicImportSettled();
+    expect([...menu.querySelectorAll('.sp-head')].map((x) => x.textContent)).toEqual(['Basic', 'Process', 'Technical', 'Annotation']);
+    expect(menu.querySelectorAll('.sp-tile').length).toBeGreaterThan(50);
+    const queue = menu.querySelector('.sp-tile[data-key="hcyl"]')!;
+    expect(queue.getAttribute('aria-label')).toBe('Queue');
     press(queue, 'pointerdown');
     press(queue, 'pointerup');
     expect(menu.hidden).toBe(true);
@@ -47,10 +50,11 @@ describe('shapes menu', () => {
     expect(core.getM('node', id)).toMatchObject({ x: core.snapV(g!.x + 3), y: core.snapV(g!.y + 3), preset: 'warning' });
   });
 
-  test('preset submenu opens beside a hovered item with a default tile', () => {
+  test('preset submenu opens beside a hovered item with a default tile', async () => {
     const { core } = mount('flowchart TB\n  A["A"]\n', [shapesModule]);
     core.run('toggleShapesMenu');
-    const item = menuOf(core).querySelector('.pal-item')!;
+    await vi.dynamicImportSettled();
+    const item = menuOf(core).querySelector('.sp-tile')!;
     item.dispatchEvent(new MouseEvent('pointerenter'));
     const sub = subOf(core);
     expect(sub.hidden).toBe(false);

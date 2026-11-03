@@ -5,6 +5,7 @@ import { erTableModule } from './er-table/index.js';
 import { connectModule } from './connect/index.js';
 import { sequenceModule } from './sequence/index.js';
 import { shapesModule } from './shapes/index.js';
+import { insertModule } from './insert/index.js';
 import { CHROME_MODULES, LAYOUT_MODULES, versionCopyModule } from './chrome/index.js';
 import { PANEL_MODULES } from './panels/index.js';
 
@@ -32,6 +33,7 @@ export const DEFAULT_MODULES: readonly EditorModule[] = ([
   connectModule,
   sequenceModule,
   shapesModule,
+  insertModule,
   ...LAYOUT_MODULES,
   ...PANEL_MODULES,
   ...CHROME_MODULES,

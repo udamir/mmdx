@@ -1,6 +1,7 @@
 // Shape popovers: the shape picker with the stacked style, and the fill (opacity and colour).
 import { h } from '../../h.js';
 import { knownShape, shapeIdOf } from '../../../core/shapes/registry.js';
+import { createShapePalette, type ShapePaletteItem } from '../../blocks/shape-palette.js';
 import { shapePreview } from '../../shape-preview.js';
 import { popLabel, slider } from '../../toolbar-kit.js';
 import { num, stackLevel, str } from '../controls.js';
@@ -14,22 +15,32 @@ export function shapePop(f: Fill): void {
   const key = sp.shapeKey ?? 'shape';
   if (sp.shapes) {
     pop.append(popLabel(t('tb.shape')));
-    const grid = h('div', { class: 'mtb-shapes', role: 'group', 'aria-label': t('tb.shape') });
-    // a node's shape may be written by any of its names (`cyl`): the button of its id is on
+    // the compact Shapes palette (T05 §4.2): the shapes by category, with search; the tooltip names the semantic and
+    // Mermaid names ("Manual operation · trap-t")
     const c0 = str(api.eff(key));
     const cur = c0 && !sp.shapes.includes(c0) ? shapeIdOf(c0) ?? c0 : c0;
+    const byTitle = new Map<string, ShapePaletteItem[]>();
     for (const shape of sp.shapes) {
-      // the tooltip: the semantic name and the Mermaid name ("Manual operation · trap-t")
       const def = knownShape(shape);
-      const tip = def && def.id === shape ? `${def.name}${def.mermaid ? ` · ${def.mermaid}` : ''}` : shape;
-      const b = h('button', { type: 'button', class: 'mtb-shape' + (shape === cur ? ' on' : ''), title: tip, 'aria-label': shape, 'aria-pressed': String(shape === cur) }, shapePreview(shape));
-      b.addEventListener('click', () => {
-        api.set(key, shape);
-        done();
+      const own = def && def.id === shape;
+      const title = own ? t(`tb.cat.${def.category}`) : '';
+      let items = byTitle.get(title);
+      if (!items) byTitle.set(title, (items = []));
+      items.push({
+        key: shape, label: own ? def.name : shape, tip: own ? `${def.name}${def.mermaid ? ` · ${def.mermaid}` : ' · mmdx only'}` : shape,
+        ...(own ? { terms: [def.id, def.title ?? '', def.mermaid ?? '', ...def.aliases] } : {}), icon: () => shapePreview(shape, 24),
       });
-      grid.append(b);
     }
-    pop.append(grid);
+    const sections = [...byTitle].map(([title, items]) => ({ title: byTitle.size > 1 ? title : '', items }));
+    const palette = createShapePalette({
+      t, compact: true, sections, current: cur, search: sp.shapes.length > 12,
+      onPick: (it) => {
+        api.set(key, it.key);
+        done();
+      },
+    });
+    palette.el.setAttribute('aria-label', t('tb.shape'));
+    pop.append(palette.el);
   }
   if (!STACKABLE.has(f.kind)) return;
   pop.append(popLabel(t('tb.stack')));

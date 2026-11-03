@@ -104,6 +104,11 @@ export const EDIT: EditKind<SequenceModel, SequenceGeometry> = {
       return shape ? { kind, shape } : { kind };
     },
   },
+  // the Text tool: a note (next to the participant nearest the point)
+  addText(core, M, pt) {
+    const note = EDIT.palette?.items.find((x) => 'key' in x && x.key === 'note');
+    return !!note && 'key' in note && !!EDIT.drop?.(core, M, note, pt);
+  },
   drop(core, M, item, pt) {
     const gm = core.geom;
     const pg = gm.type === 'sequence' ? gm : null;

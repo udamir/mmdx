@@ -89,17 +89,27 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
 // core 64.4, editor 188.1 and diff 86.3 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9: 64, 187.7 and 85.9 kB measured; the parser and the ops read the name table only, the diff loads the shapes when a render misses one)
 // core 65.7, editor 189.1 and diff 87.3 kB with media in the scene (T03: 65.3, 188.7 and 86.9 kB measured; what the viewer gained, plus in core the image policy check exported and in the diff its marks inside styled runs)
 // core 70.8, editor 191.5 and diff 89.6 kB with the icon registry (T04: 70.4, 191.1 and 89.2 kB measured; the registry stub in the editor and the diff, +2.4 and +2.3 kB; in core also `createIconRegistry` with the decoder loaded at once, for synchronous lookups on the server, and `iconNamesOf`, +5.1 kB)
-for (const [entry, budget] of [['core', 70.8], ['theme-editor', 120], ['editor', 191.5], ['diff', 89.6]]) {
+// editor 197 kB with the insert dock (T05: 196.5 kB measured, +5.4 kB: the dock's Text, Image, Icons, Container and Connector buttons, their shortcuts and labels, the emoji button of the inline editor, the toolbar's and Properties' media hooks, the menu drag shared with the icon picker, the popover's focus trap; the shape palette block, the pickers, the Connector and Container tools and the emoji data are lazy chunks, measured in their own rows)
+// theme-editor: 117.5 kB with T05 (113.8 kB before; its style toolbar's shape picker is the ShapePalette block)
+for (const [entry, budget] of [['core', 70.8], ['theme-editor', 120], ['editor', 197], ['diff', 89.6]]) {
   const b = await bundle(entry);
   report(entry, b.size(b.base), budget * KB);
   if (entry === 'editor') {
     // the editor with a document of each type: its view, ops and edit kinds in one chunk (T01.9; 181.9, 187.4 and 180.4 kB measured)
     // 201.5 kB with the shape catalogue (T02: 195.4, 201 and 194 kB measured); 197.3 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9: 195.9, 196.9 and 189.9 kB measured)
     // 198.4 kB with media in the scene (T03: 197, 198 and 190.9 kB measured); 200.8 kB with the icon registry (T04: 199.4, 200.4 and 193.4 kB measured)
-    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 200.8 * KB);
+    // 207 kB with the insert dock (T05: 206.5, 205.8 and 198.7 kB measured; the editor's +5.4 kB, and in the flowchart's edit kind the icon and image node ops and the palette's sections)
+    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 207 * KB);
+    // the insert dock's lazy chunks (T05): the pickers (icon picker, image tool, emoji picker and their glue), the shape palette block, the Connector and Container tools, the English emoji data (§4.5: at most 30 kB)
+    const loaded = new Set([...b.base, ...lazy(b, 'src/editor/kinds/flowchart.ts', b.base)]);
+    report('editor pickers (lazy chunk)', b.size(new Set(lazy(b, 'src/editor/modules/insert/media.ts', loaded))), 12.6 * KB);
+    report('shape palette (lazy chunk)', b.size(new Set(lazy(b, 'src/ui/blocks/shape-palette.ts', loaded))), 4 * KB);
+    report('insert tools (lazy chunk)', b.size(new Set(lazy(b, 'src/editor/modules/insert/tools.ts', loaded))), 3 * KB);
+    report('emoji data, English (lazy chunk)', b.size(new Set(lazy(b, 'src/emoji/en.ts', loaded))), 30 * KB);
     // 234.6 kB with the icon registry (T04, 234.2 kB measured)
     // 232.1 kB with media in the scene (T03, 231.7 kB measured); 230.7 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 230.3 kB measured); 234.8 kB with the shape catalogue (T02, 234.3 kB measured); 224 kB once the editor loads diagram types on demand (220.7 kB measured); 233 kB before
-    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 234.6 * KB);
+    // 239.9 kB with the insert dock (T05, 239.5 kB measured: the editor's +5.4 kB)
+    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 239.9 * KB);
   }
 }
 
@@ -162,13 +172,18 @@ const rows = [
   ['viewer + History opened', ['src/viewer.ts', FLOW, 'src/view/modules/tool-dock.ts', ...HISTORY, FLOW_DIFF], 143.1],
   // the editor loads diagram types on demand (T01.9): 181 kB (178.8 kB measured; 194.6 kB before), the first document's type a chunk of its own; 191.6 kB with the shape catalogue (191.2 kB measured); 187.4 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 187 kB measured)
   // 188.4 kB with media in the scene (T03, 188 kB measured); 191.1 kB with the icon registry (T04, 190.7 kB measured)
-  ['editor', ['src/editor.ts'], 191.1],
+  // 194.5 kB with the insert dock (T05, 194.1 kB measured: the dock's buttons, shortcuts and labels, the inline editor's emoji button, the media hooks of the toolbar and Properties; the pickers and the emoji data are lazy)
+  ['editor', ['src/editor.ts'], 194.5],
   // 184.2 kB measured; 197.8 kB with the shape catalogue (197.3 kB measured); 198.2 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 197.8 kB measured: the same code as before, in more chunks, each compressed on its own)
   // 199.2 kB with media in the scene (T03, 198.8 kB measured); 201.9 kB with the icon registry (T04, 201.5 kB measured)
-  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart.ts'], 201.9],
+  // 206.9 kB with the insert dock (T05, 206.5 kB measured: the editor's part, and the flowchart's icon and image node ops and palette sections)
+  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart.ts'], 206.9],
+  // the English emoji data (T05 §4.5: at most 30 kB), a lazy chunk of its own
+  ['emoji data, English (lazy chunk)', ['src/emoji/en.ts'], 30],
   // 240.2 kB with the shape catalogue (239.7 kB measured); 236.2 kB once the shapes beyond the 17 load on demand (T02.9, 235.8 kB measured)
   // 237.5 kB with media in the scene (T03, 237.1 kB measured); 240.2 kB with the icon registry (T04, 239.8 kB measured)
-  ['editor + History opened', ['src/editor.ts', ...HISTORY], 240.2],
+  // 243.6 kB with the insert dock (T05, 243.2 kB measured)
+  ['editor + History opened', ['src/editor.ts', ...HISTORY], 243.6],
   // 125.2 kB while the entry re-exported the all-kinds diff
   // 92.5 kB once the per-type diffs left the entry for the diff kinds (90.9 kB measured); 94.6 kB before; 91.5 kB with the shapes on demand (T02.9, 91.1 kB measured)
   // 92.5 kB with media in the scene (T03, 92.1 kB measured); 95.1 kB with the icon registry (T04, 94.7 kB measured)
@@ -182,6 +197,13 @@ const rows = [
   ['core', ['src/core.ts'], 84.1],
 ];
 for (const [name, keys, budget] of rows) report(name, (await loads(keys)).n, budget * KB);
+// the pickers' chunks (T05), beyond what the editor with a flowchart has loaded
+{
+  const have = (await loads(['src/editor.ts', 'src/editor/kinds/flowchart.ts'])).all;
+  let n = 0;
+  for (const k of libClosure('src/editor/modules/insert/media.ts')) if (!have.has(k)) n += await chunkSize(k);
+  report('editor pickers (lazy chunk)', n, 13 * KB);
+}
 // the built-in icon set is never part of an entry's static closure (it loads on first use, T04 §4.7)
 {
   const entries = Object.keys(manifest).filter((k) => manifest[k].isEntry);

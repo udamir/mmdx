@@ -8,7 +8,35 @@ export type { PaletteColor } from '../toolbar-kit.js';
 export type ToolbarControl =
   | 'shape' | 'font' | 'size' | 'bold' | 'align' | 'link' | 'textColor' | 'border' | 'fill' | 'line' | 'arrows'
   | 'routing' | 'lock' | 'paint' | 'group' | 'arrange' | 'activate' | 'editGroup' | 'ungroup' | 'delete' | 'order'
-  | 'layer' | 'presets' | 'reset' | 'more' | 'selection' | 'italic' | 'underline' | 'tableStyle' | 'wrap';
+  | 'layer' | 'presets' | 'reset' | 'more' | 'selection' | 'italic' | 'underline' | 'tableStyle' | 'wrap'
+  | 'icon' | 'media' | 'mediaSize';
+
+/** The selected item's icon and image (T05): what the Icon, Icon & image and size controls show. */
+export interface ToolbarMedia {
+  icon: string | null;
+  image: string | null;
+  /** An icon or image item with its own layout keys; null: an icon in its label. */
+  node: 'icon' | 'image' | null;
+  /** Label position (`t`, `b`), the icon's frame, the size, the aspect lock (`on`), the image fit (`contain`, `cover`, `stretch`). */
+  pos?: string;
+  form?: string;
+  w?: number;
+  h?: number;
+  constraint?: string;
+  fit?: string;
+  /** The Icon button is offered (the type can set this item's icon). */
+  canIcon: boolean;
+}
+
+/** A change of an icon or image item's layout keys (null removes one). */
+export interface ToolbarMediaPatch {
+  pos?: string | null;
+  form?: string | null;
+  w?: number | null;
+  h?: number | null;
+  constraint?: 'on' | 'off' | null;
+  fit?: string | null;
+}
 
 /** Which controls a kind of item gets, and which style keys they edit. */
 export interface KindSpec {
@@ -132,6 +160,14 @@ export interface ToolbarApi {
   bendCount?(): number;
   hasOwnCurve?(): boolean;
   resetCurve?(): void;
+  // icons and images (T05)
+  /** The selected item's icon and image (null: it takes none, the controls stay off). */
+  media?(): ToolbarMedia | null;
+  /** Opens the icon picker for the selection, beside the button. */
+  pickIcon?(anchor: HTMLElement): void;
+  /** Opens the image tool for the selection (replace the image). */
+  pickImage?(anchor: HTMLElement): void;
+  setMedia?(patch: ToolbarMediaPatch): void;
 }
 
 export interface StyleToolbarOptions {

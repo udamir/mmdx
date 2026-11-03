@@ -49,6 +49,9 @@ button.small { padding: 2px 10px; font-size: 12px; }
 .ratio-sep { color: var(--muted); padding: 0 2px; }
 .prop-label textarea, .prop-label input { width: 100%; font: 13px/1.4 var(--font); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; resize: vertical; background: var(--surface); white-space: pre-wrap; }
 .prop-label textarea { min-height: 54px; }
+.prop-label { position: relative; }
+.prop-label .prop-emoji { position: absolute; right: 4px; top: 4px; width: 24px; height: 24px; padding: 0; border: 0; background: none; font-size: 14px; line-height: 1; opacity: .7; }
+.prop-label .prop-emoji:hover { opacity: 1; }
 .attr-grid { display: flex; flex-direction: column; gap: 3px; margin: 4px 0; }
 .attr-line { display: grid; grid-template-columns: 1fr 30px 14px; gap: 4px; align-items: center; }
 .attr-line input { min-width: 0; width: 100%; font-size: 12px; padding: 3px 6px; font-family: var(--mono, ui-monospace, Menlo, monospace); }

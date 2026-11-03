@@ -25,7 +25,7 @@ export class PopoverManager {
    * Shows `el` (already positioned by the caller's CSS) and wires closing. Toggles if the same opener is used: the open
    * popover closes and `el` is not shown, so its `onClose` runs at once (the caller's cleanup of `el`).
    */
-  open(el: HTMLElement, opener: HTMLElement | null, opts: { onClose?: () => void; focus?: boolean } = {}): PopoverHandle {
+  open(el: HTMLElement, opener: HTMLElement | null, opts: { onClose?: () => void; focus?: boolean; trap?: boolean } = {}): PopoverHandle {
     if (this.current && opener && this.current.opener === opener) {
       this.close();
       opts.onClose?.();
@@ -51,6 +51,19 @@ export class PopoverManager {
       ev.stopPropagation();
       this.close(true);
     }, { signal: ac.signal });
+    // a dialog keeps Tab inside it (the pickers): past the last control back to the first, and the other way round
+    if (opts.trap)
+      el.addEventListener('keydown', (ev) => {
+        if (ev.key !== 'Tab') return;
+        const all = [...el.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], [tabindex]')].filter((x) => x.tabIndex >= 0 && !(x as HTMLButtonElement).disabled && !x.closest('[hidden]'));
+        if (!all.length) return;
+        const root = el.getRootNode() as Document | ShadowRoot;
+        const at = all.indexOf(root.activeElement as HTMLElement);
+        const next = ev.shiftKey ? (at <= 0 ? all.length - 1 : -1) : at === all.length - 1 || at < 0 ? 0 : -1;
+        if (next < 0) return;
+        ev.preventDefault();
+        all[next]!.focus();
+      }, { signal: ac.signal });
     // up / down (Home / End) move through the menu items
     const keys = rovingKeys(el, { orientation: 'vertical', selector: '[role^=menuitem], .mmdx-menu > button' });
     ac.signal.addEventListener('abort', () => keys.destroy());

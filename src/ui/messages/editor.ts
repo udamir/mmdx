@@ -101,4 +101,11 @@ export const EDITOR_MESSAGES: Messages = {
   'history.direction': 'Direction', 'history.autonumber': 'Message numbers', 'history.newDiagram': 'New diagram', 'history.theme': 'Theme',
   'history.order': 'Move in order', 'history.paletteAdd': 'Add colour', 'history.paletteRemove': 'Remove colour', 'history.autoLayout': 'Auto layout',
   'history.lock': 'Lock', 'history.unlock': 'Unlock',
+  // ---- insert dock (T05); the strings of its lazy parts are in editor-media.ts
+  'tools.text': 'Text — add a text block', 'tools.image': 'Image — add a picture by its URL', 'tools.icons': 'Icons — choose an icon to add',
+  'tools.container': 'Container — draw a frame around items to group them (or wrap the selection)', 'tools.connector': 'Connector — click a source, then a target (Esc ends)',
+  'help.text': 'Text', 'help.image': 'Image', 'help.icons': 'Icons', 'help.container': 'Container',
+  'help.connector': 'Connector (click a source, then a target)', 'help.emoji': 'Emoji while editing text', 'props.emoji': 'Insert emoji (⌘/Ctrl+;)',
+  'media.noUpload': 'Images can be added by URL; uploading is not configured here', 'media.noImages': 'Images cannot be added to this diagram type',
+  'history.icon': 'Icon', 'history.image': 'Image', 'history.media': 'Icon & image',
 };

@@ -1,6 +1,7 @@
 // Inline text editing (A.3 row 32): a text box over the item's label, styled like it. Enter applies (Shift+Enter =
 // new line where Mermaid allows several lines), Esc cancels, clicking away applies. Writes through the ops'
 // relabel functions (`labelSpec`, shared with Properties). Ported from prototype app.js (`inlineEdit`, `focusLabel`).
+// The emoji button at its end (and ⌘/Ctrl+;) opens the emoji picker (T05 §4.5), which inserts at the caret.
 import type { Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { labelSpec } from '../../ops/label.js';
@@ -13,6 +14,8 @@ export const INLINE_EDIT_CSS = /* css */ `
 .inline-edit, .inline-edit:focus, .inline-edit:focus-visible { outline: none; border: 0; box-shadow: none; }
 .inline-edit::selection { background: rgba(66, 98, 255, .22); }
 .text-editing text { visibility: hidden; }
+.inline-emoji { position: absolute; z-index: 31; width: 26px; height: 26px; padding: 0; border-radius: 7px; display: grid; place-items: center;
+  font-size: 15px; line-height: 1; background: var(--float); border: 1px solid var(--float-line); box-shadow: 0 2px 8px rgba(20,30,60,.12); }
 `;
 
 export const canvasInlineEditModule: EditorModule = {
@@ -58,6 +61,39 @@ export const canvasInlineEditModule: EditorModule = {
         textAlign: anchor === 'start' ? 'left' : anchor === 'end' ? 'right' : 'center',
       });
       wrap.append(ta);
+      // the emoji button (when the picker module is installed) at the editor's end
+      const emojiBtn = core.has('pickEmoji') ? document.createElement('button') : null;
+      let picking = false;
+      const pickEmoji = (): void => {
+        if (!emojiBtn) return;
+        picking = true;
+        core.run('pickEmoji', emojiBtn, (e: string) => {
+          ta.setRangeText(e, ta.selectionStart, ta.selectionEnd, 'end');
+          fit();
+        }, () => {
+          picking = false;
+          if (!closed) ta.focus();
+        });
+      };
+      if (emojiBtn) {
+        emojiBtn.type = 'button';
+        emojiBtn.className = 'inline-emoji';
+        emojiBtn.textContent = '☺';
+        emojiBtn.title = emojiBtn.ariaLabel = core.i18n.t('props.emoji');
+        emojiBtn.setAttribute('aria-label', core.i18n.t('props.emoji'));
+        // the text box keeps the focus (and its caret) on a press
+        emojiBtn.addEventListener('pointerdown', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+        });
+        emojiBtn.addEventListener('click', pickEmoji);
+        wrap.append(emojiBtn);
+      }
+      const placeEmoji = (): void => {
+        if (!emojiBtn) return;
+        emojiBtn.style.left = `${ta.offsetLeft + ta.offsetWidth + 6}px`;
+        emojiBtn.style.top = `${ta.offsetTop + Math.max(0, ta.offsetHeight / 2 - 13)}px`;
+      };
       ta.style.height = 'auto';
       ta.style.height = `${ta.scrollHeight}px`;
       // No jump: put the editor's first line exactly on the SVG's first line. A hidden copy of the editor tells where
@@ -89,7 +125,9 @@ export const canvasInlineEditModule: EditorModule = {
         ta.style.height = 'auto';
         ta.style.height = `${ta.scrollHeight}px`;
         ta.style.top = `${midY - ta.offsetHeight / 2}px`;
+        placeEmoji();
       };
+      placeEmoji();
       core.inlineEditing = { kind: item.kind, id: item.id };
       core.drawOverlay();
       for (const e of els) e.classList.add('text-editing');
@@ -101,6 +139,8 @@ export const canvasInlineEditModule: EditorModule = {
         core.inlineEditing = null;
         close = null;
         ta.remove();
+        emojiBtn?.remove();
+        if (picking) core.popovers.close();
         const v = spec.multi ? ta.value.replace(/\s+$/, '') : ta.value.replace(/\s*\n\s*/g, ' ').trim();
         if (!apply || v === spec.value || !core.applyCode(spec.apply(v), 'Edit text', { select: [item] })) core.draw();
         // back to the canvas (Enter / Esc), but never pull focus away from where a click went
@@ -110,7 +150,10 @@ export const canvasInlineEditModule: EditorModule = {
       ta.addEventListener('input', fit);
       ta.addEventListener('keydown', (ev) => {
         ev.stopPropagation();
-        if (ev.key === 'Escape') {
+        if (ev.key === ';' && (ev.metaKey || ev.ctrlKey) && emojiBtn) {
+          ev.preventDefault();
+          pickEmoji();
+        } else if (ev.key === 'Escape') {
           ev.preventDefault();
           done(false);
         } else if (ev.key === 'Enter' && !(ev.shiftKey && spec.multi)) {
@@ -118,7 +161,10 @@ export const canvasInlineEditModule: EditorModule = {
           done(true);
         }
       });
-      ta.addEventListener('blur', () => done(true));
+      // the emoji picker takes the focus for a while: the text stays open
+      ta.addEventListener('blur', () => {
+        if (!picking) done(true);
+      });
       ta.addEventListener('pointerdown', (ev) => ev.stopPropagation());
       ta.focus();
       ta.select();

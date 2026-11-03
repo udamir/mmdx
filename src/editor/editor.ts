@@ -50,6 +50,11 @@ export interface EditorOptions {
   modules?: readonly EditorModule[];
   /** The document's versions (a HistoryAdapter or a list with sources): shows the History button. */
   history?: HistoryAdapter | readonly StaticVersion[];
+  /**
+   * Uploads a picture dropped, pasted or chosen in the image tool and resolves to the URL the image item references
+   * (throw to refuse: the message shows as a toast). Without it images are added by URL only (no embedding).
+   */
+  uploadImage?: ((file: File) => Promise<{ url: string }>) | null;
 }
 
 export type SaveOutcome = 'saved' | 'cancelled' | 'conflict' | 'failed' | 'no-adapter';
@@ -111,6 +116,7 @@ export class DiagramEditor {
       ...(options.themeDark ? { themeDark: options.themeDark } : {}),
       ...(options.compact !== undefined ? { compact: options.compact } : {}),
     });
+    this.core.uploadImage = options.uploadImage ?? null;
     this.shadow = this.core.shadow;
     const core = this.core;
     const root = core.root;
@@ -268,6 +274,14 @@ export class DiagramEditor {
   /** Marks the current source (or `source`) as saved: `dirty` is false until the document changes again. */
   markSaved(source?: string): void {
     this.store.markSaved(source);
+  }
+
+  /** The host's picture upload (`EditorOptions.uploadImage`; null: images by URL only). */
+  get uploadImage(): ((file: File) => Promise<{ url: string }>) | null {
+    return this.core.uploadImage;
+  }
+  set uploadImage(f: ((file: File) => Promise<{ url: string }>) | null) {
+    this.core.uploadImage = typeof f === 'function' ? f : null;
   }
 
   /** The base name of exports (no extension). */
@@ -715,6 +729,9 @@ export class MmdxEditorElement extends MmdxElement<EditorOptions, DiagramEditor>
         case 'history':
           e.history = p.history ?? null;
           break;
+        case 'uploadImage':
+          e.uploadImage = p.uploadImage ?? null;
+          break;
         case 'ui':
           e.setUi(p.ui ?? 'auto');
           break;
@@ -785,6 +802,13 @@ export class MmdxEditorElement extends MmdxElement<EditorOptions, DiagramEditor>
   }
   set history(h: HistoryAdapter | readonly StaticVersion[] | null) {
     this.setOpt({ history: h ?? undefined });
+  }
+  /** The host's picture upload (no attribute): `editor.uploadImage = async (file) => ({ url })`; null: images by URL only. */
+  get uploadImage(): ((file: File) => Promise<{ url: string }>) | null {
+    return this.live?.uploadImage ?? this.props.uploadImage ?? null;
+  }
+  set uploadImage(f: ((file: File) => Promise<{ url: string }>) | null) {
+    this.setOpt({ uploadImage: f });
   }
   get panels(): EditorOptions['panels'] {
     return this.props.panels;

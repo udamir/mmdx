@@ -8,9 +8,10 @@ import type { StyleToolbarHandle, StyleToolbarOptions } from './style-toolbar/ty
 export { createStyleToolbar } from './style-toolbar/toolbar.js';
 export { bulkSpec, NODE_SHAPES, PARTICIPANT_SHAPES, TOOLBAR_KINDS } from './style-toolbar/kinds.js';
 export type {
-  ArrangeOp, KindSpec, LayerChoice, PaletteColor, SelectionType, StyleToolbarHandle, StyleToolbarOptions, ToolbarApi, ToolbarControl, ToolbarSelection,
+  ArrangeOp, KindSpec, LayerChoice, PaletteColor, SelectionType, ToolbarMedia, ToolbarMediaPatch, StyleToolbarHandle, StyleToolbarOptions, ToolbarApi, ToolbarControl, ToolbarSelection,
 } from './style-toolbar/types.js';
 export { fitPresetGrid, shapePreview } from './shape-preview.js';
+export { SHAPE_PALETTE_CSS } from './blocks/shape-palette.js';
 
 /** @deprecated The block Toolbar (ui/blocks/toolbar.ts) has this name: use `createStyleToolbar`. */
 export const createToolbar = createStyleToolbar;

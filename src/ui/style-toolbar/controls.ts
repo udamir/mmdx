@@ -242,6 +242,42 @@ export function control(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLEleme
     case 'wrap':
       // word wrap as a switch (participants: their text has no alignment to pick)
       return toggleKey('wrap', 'wrap', 'wrap', t('tb.wrapTip'), e('wrap') === true, undefined, true);
+    case 'icon': {
+      const m = api.media?.();
+      if (!m?.canIcon || !api.pickIcon) return h('span');
+      const title = m.icon ? t('tb.iconOf', { name: m.icon }) : t('tb.icon');
+      const b = h('button', { type: 'button', class: 'mtb-btn' + (m.icon ? ' has-icon' : ''), title, 'aria-label': title, 'aria-haspopup': 'dialog', dataset: { c: 'icon' } }, svgIcon('icon'));
+      // a dot marks an item that has an icon
+      if (m.icon) b.append(h('span', { class: 'mtb-dot', 'aria-hidden': 'true' }));
+      b.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        x.close();
+        api.pickIcon?.(b);
+      });
+      return b;
+    }
+    case 'media': {
+      const m = api.media?.();
+      if (!m?.node || !api.setMedia) return h('span');
+      return button('media', svgIcon('media'), t('tb.media'));
+    }
+    case 'mediaSize': {
+      const m = api.media?.();
+      if (!m?.node || !api.setMedia) return h('span');
+      const wrap = h('label', { class: 'mtb-msize', dataset: { c: 'mediaSize' }, title: t('tb.mediaH') }, h('span', { 'aria-hidden': 'true' }, 'H'));
+      const input = h('input', { class: 'mtb-num', type: 'text', inputMode: 'numeric', 'aria-label': t('tb.mediaH'), placeholder: 'auto' });
+      input.value = m.h !== undefined ? String(m.h) : '';
+      input.addEventListener('change', () => {
+        const v = input.value.trim() === '' ? null : Math.max(8, Math.min(2000, Number(input.value) || 0));
+        if (v === null || v >= 8) api.setMedia?.({ h: v });
+      });
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') input.blur();
+        if (ev.key !== 'Escape') ev.stopPropagation();
+      });
+      wrap.append(input);
+      return wrap;
+    }
     case 'selection': {
       const n = api.multiCount();
       const b = button('selection', h('span', { class: 'mtb-count' }, svgIcon('selection'), h('b', null, String(n))), t('tb.selection', { n }));

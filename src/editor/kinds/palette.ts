@@ -12,6 +12,17 @@ export interface PaletteItem {
   icon: () => SVGElement;
   /** Preset the item is added in (preset submenus). */
   preset?: string;
+  /** More words the palette's search finds it by (the shape's semantic, geometric and Mermaid names, aliases). */
+  terms?: readonly string[];
+  /** Tooltip (default: the label): the semantic name, the Mermaid name or "mmdx only". */
+  tip?: string;
+}
+
+/** A titled section of the Shapes palette (T05). */
+export interface PaletteSection {
+  /** i18n key (or text) of the heading. */
+  title: string;
+  items: readonly PaletteItem[];
 }
 
 export type PaletteEntry = PaletteItem | { sep: true };
@@ -25,6 +36,10 @@ export interface PaletteSpec {
   /** Menu title, or the grid's heading. */
   title: string;
   items: readonly PaletteEntry[];
+  /** Titled sections (default: `items` split at the separators, under the title). */
+  sections?: readonly PaletteSection[];
+  /** `grid`: small previews with tooltips (the shape catalogue); `list` (default): each item's icon and name. */
+  layout?: 'grid' | 'list';
   /** An item's presets submenu: the item kind whose presets it lists, the shape its previews draw, which presets fit (null: none). */
   presets(item: PaletteItem): { kind: ItemKind; shape?: string; fits?(preset: StyleProps | undefined): boolean } | null;
 }

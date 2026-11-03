@@ -6,6 +6,8 @@ import { svgMarkup } from '../toolbar-kit.js';
 // Icon bodies: a fixed, trusted set of SVG markup (never built from data).
 export const ICON: Readonly<Record<string, string>> = {
   shape: '<rect x="4.5" y="4.5" width="15" height="15" rx="4"/>',
+  icon: '<path d="M12 3.5l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.1l-5.1 2.8 1.1-5.6-4.2-3.9 5.7-.7z"/>',
+  media: '<rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M3.5 15.5l4.5-4.5 4 4 3-3 5 5"/><path d="M15.5 9.5h.01"/>',
   bold: '<path d="M8 5h5a3.2 3.2 0 0 1 0 6.4H8zM8 11.4h6a3.3 3.3 0 0 1 0 6.6H8z" stroke-width="2.2"/><path d="M5 21.5h14" stroke-width="1.6"/>',
   center: '<path d="M5 6h14M8 10h8M5 14h14M8 18h8"/>',
   wrap: '<path d="M4 6h16M4 12h13a3 3 0 0 1 0 6h-4"/><path d="M15 16l-2 2 2 2M4 18h5"/>',

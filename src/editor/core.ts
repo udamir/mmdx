@@ -178,6 +178,15 @@ export interface EditorActions {
   autoLayout(): void;
   plainMermaid(): Promise<void>;
   refreshToolbar(): void;
+  // insert dock (T05)
+  /** Adds a text block (the Text tool) at a diagram point, else in the middle of the canvas. */
+  addText(at?: { x: number; y: number }): void;
+  /** Opens the icon picker beside `anchor`: `insert` adds an icon item, else it sets the selected items' icon. */
+  openIconPicker(anchor?: HTMLElement | null, opts?: { insert?: boolean }): void;
+  /** Opens the image tool beside `anchor`: `insert` adds an image item, else it sets the selected item's image; `file` is uploaded at once. */
+  openImageTool(anchor?: HTMLElement | null, opts?: { insert?: boolean; file?: File; at?: { x: number; y: number } }): void;
+  /** Opens the emoji picker beside `anchor`; `onPick` inserts the chosen emoji (it stays open), `onClose` when it closes. */
+  pickEmoji(anchor: HTMLElement, onPick: (emoji: string) => void, onClose?: () => void): void;
 }
 
 export interface CoreDom {
@@ -240,6 +249,11 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   readonly codeFilter = signal('');
   /** Problems in the Mermaid code and the metadata (code panel → canvas issue bar, badge on the Code tool). */
   readonly issueCount = signal(0);
+  /**
+   * The host's upload of a dropped, pasted or chosen picture (T05 `uploadImage`): resolves to the URL the image item
+   * references (the editor never embeds files). Null: images are added by URL only.
+   */
+  uploadImage: ((file: File) => Promise<{ url: string }>) | null = null;
   /** Base name for exports (no extension); files opened through `openFiles` set it. */
   fileName = 'diagram';
   /** Session snap grid in diagram px (0 = off). Alt while dragging = free. */

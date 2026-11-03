@@ -3,6 +3,7 @@ import type { ToolbarControl } from '../types.js';
 import { arrangePop, layerPop, orderPop } from './arrange.js';
 import type { Filler } from './common.js';
 import { strokePop, arrowsPop, routingPop } from './line.js';
+import { mediaPop } from './media.js';
 import { morePop, selectionPop } from './more.js';
 import { presetsPop, tableStylePop } from './presets.js';
 import { fillPop, shapePop } from './shape.js';
@@ -16,5 +17,5 @@ export const POPS: Readonly<Partial<Record<ToolbarControl, Filler>>> = {
   border: strokePop, line: strokePop, arrows: arrowsPop, routing: routingPop,
   arrange: arrangePop, order: orderPop, layer: layerPop,
   presets: presetsPop, tableStyle: tableStylePop,
-  selection: selectionPop, more: morePop,
+  selection: selectionPop, more: morePop, media: mediaPop,
 };

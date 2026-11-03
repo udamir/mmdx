@@ -10,6 +10,7 @@
 import { h } from '../h.js';
 import { createI18n, registerMessages } from '../i18n.js';
 import { TOOLBAR_MESSAGES } from '../messages/toolbar.js';
+import { TOOLBAR_MEDIA_MESSAGES } from '../messages/toolbar-media.js';
 import { barKeys, createPopHost } from '../toolbar-kit.js';
 import { control, type StyleCtx } from './controls.js';
 import { bulkSpec, TOOLBAR_KINDS } from './kinds.js';
@@ -19,6 +20,7 @@ import type { KindSpec, StyleToolbarHandle, StyleToolbarOptions, ToolbarApi, Too
 /** `host` must already be in its final root (document or shadow root): outside clicks and Esc are listened for there. */
 export function createStyleToolbar(host: HTMLElement, api: ToolbarApi, opts: StyleToolbarOptions = {}): StyleToolbarHandle {
   registerMessages(TOOLBAR_MESSAGES);
+  registerMessages(TOOLBAR_MEDIA_MESSAGES);
   const t = (opts.i18n ?? createI18n()).t;
   const exclude = new Set<string>(opts.exclude ?? []);
   const bar = h('div', { class: 'mtb', role: 'toolbar', 'aria-label': t('tb.label'), part: 'toolbar' });

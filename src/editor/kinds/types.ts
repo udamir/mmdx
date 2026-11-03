@@ -2,6 +2,7 @@
 // (delete, group), copying, connecting, the Shapes menu, inspectors and toolbars. The editor loads it with the type's
 // view and ops kinds; a missing hook means the type does not offer that action.
 import type { Direction, SupportedModel } from '../../core/model.js';
+import type { MediaPatch } from '../../core/ops/flow-media.js';
 import type { CodeResult, ConnectResult, RefusableResult, SelectResult } from '../../core/ops/types.js';
 import type { GeometryIndex } from '../../core/render/types.js';
 import type { Diagnostic, ItemKind, ItemRef } from '../../core/types.js';
@@ -16,6 +17,26 @@ export interface ItemText {
   /** i18n key of the section title. */
   title: string;
   write(code: string, v: string): CodeResult;
+}
+
+export type { MediaPatch } from '../../core/ops/flow-media.js';
+
+/** An item's icon and image, as the insert UI, the selection toolbar and Properties show them (T05). */
+export interface ItemMedia {
+  /** Its icon (`pack:name`), if any. */
+  icon: string | null;
+  /** Its image URL, if any. */
+  image: string | null;
+  /** An icon or image item with layout keys of its own (position, frame, size, aspect lock); null: an icon in its label. */
+  node: 'icon' | 'image' | null;
+  /** The item can take an image (`setImage`). */
+  canImage: boolean;
+  /** Where the label goes (`t`, `b`), the icon's frame (`square`, `circle`, `rounded`), the size, the aspect lock (`on`, `off`). */
+  pos?: string;
+  form?: string;
+  w?: number;
+  h?: number;
+  constraint?: string;
 }
 
 export interface EditKind<M extends SupportedModel = SupportedModel, G extends GeometryIndex = GeometryIndex> {
@@ -70,6 +91,22 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   palette?: PaletteSpec;
   /** Adds a palette item at a (snapped) diagram point; false when refused (a toast says why). */
   drop?(core: EditorCore, model: M, item: PaletteItem, at: Point): boolean;
+
+  // ---- insert dock and media (T05): a missing hook hides its button or control ----
+  /** Adds a text block at a (snapped) diagram point (the dock's Text tool: a flowchart `text` shape, a sequence note). */
+  addText?(core: EditorCore, model: M, at: Point): boolean;
+  /** Adds an icon item (`pack:name`) at a point (the icon picker's insert mode). */
+  addIcon?(core: EditorCore, model: M, icon: string, at: Point): boolean;
+  /** Adds an image item at a point; `url` passed the image policy. */
+  addImage?(core: EditorCore, model: M, url: string, at: Point): boolean;
+  /** An item's icon and image (null: the item takes neither). */
+  media?(model: M, ref: ItemRef, core: EditorCore): ItemMedia | null;
+  /** Sets an item's icon in `code`, or removes it (null); null result: the item cannot take one. */
+  setIcon?(code: string, model: M, ref: ItemRef, icon: string | null, core: EditorCore): CodeResult | null;
+  /** Sets an item's image (a URL that passed the image policy), or removes it (null). */
+  setImage?(code: string, model: M, ref: ItemRef, url: string | null, core: EditorCore): CodeResult | null;
+  /** Changes an icon or image item's position, frame, size or aspect lock. */
+  setMedia?(code: string, model: M, ref: ItemRef, patch: MediaPatch, core: EditorCore): CodeResult | null;
 
   // ---- page, toolbars, problems ----
   /** The diagram's direction, when the type has one (flowchart, ER). */

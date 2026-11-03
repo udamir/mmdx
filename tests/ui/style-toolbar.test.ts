@@ -76,7 +76,7 @@ describe('style toolbar', () => {
     expect(set).toHaveBeenCalledWith('fontSize', 20);
     // shape picker
     (tb.el.querySelector('[data-c="shape"]') as HTMLButtonElement).click();
-    tb.el.querySelector<HTMLButtonElement>('.mtb-shape[aria-label="diamond"]')!.click();
+    tb.el.querySelector<HTMLButtonElement>('.sp-tile[data-key="diamond"]')!.click();
     expect(set).toHaveBeenCalledWith('shape', 'diamond');
   });
 
