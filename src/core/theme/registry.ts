@@ -7,13 +7,24 @@
 //
 // One instance per CoreContext: no module state, no storage, no network. Loading belongs to a ThemeSource, browser
 // edits to a ThemeStore (§8.3); they hand files to `register`.
-import type { Diagnostic } from '../types.js';
+import type { DiagramType, Diagnostic } from '../types.js';
 import { BASE_THEME_ID, currentThemeId } from './builtin-ids.js';
 import { resolveThemeColors } from './colors.js';
 import type { ResolvedTheme, ThemeFile, ThemeInfo } from './types.js';
 import { validateTheme } from './validate.js';
 
 /** The base theme (Default Light): every other theme extends it. */
+/** The empty section of each diagram type: every key present (ResolvedTheme), filled by the theme file. */
+const SECTION_DEFAULTS: { readonly [T in DiagramType]: () => ResolvedTheme[T] } = {
+  flowchart: () => ({ node: {}, nodePresets: {}, group: {}, groupPresets: {}, edge: {}, edgePresets: {}, pagePresets: {} }),
+  sequence: () => ({
+    participant: {}, participantPresets: {}, lifeline: {}, activation: {}, activationPresets: {}, message: {},
+    messagePresets: {}, note: {}, notePresets: {}, block: {}, blockPresets: {}, box: {}, boxPresets: {}, layout: {},
+    pagePresets: {},
+  }),
+  er: () => ({ entity: {}, entityPresets: {}, rel: {}, relPresets: {}, pagePresets: {} }),
+};
+
 export const BASELINE = BASE_THEME_ID;
 /** Longest `extends` chain followed above a theme before it is rooted on baseline. */
 export const MAX_EXTENDS_DEPTH = 5;
@@ -150,9 +161,6 @@ export class ThemeRegistry {
   #resolve(m: ThemeFile, basePalette: Record<string, string>): ResolvedTheme {
     const palette = m.palette ?? {};
     const t = resolveThemeColors(m, palette, basePalette);
-    const fc = t.flowchart ?? {};
-    const sq = t.sequence ?? {};
-    const er = t.er ?? {};
     const font = t.font ?? this.#files.get(BASELINE)?.font ?? DEFAULT_FONT;
     return {
       id: t.id,
@@ -162,17 +170,9 @@ export class ThemeRegistry {
       basePalette: { ...basePalette },
       font,
       canvas: { ...t.canvas, pad: t.canvas?.pad ?? DEFAULT_PAD },
-      flowchart: {
-        node: {}, nodePresets: {}, group: {}, groupPresets: {}, edge: {}, edgePresets: {}, pagePresets: {},
-        ...fc,
-      },
-      sequence: {
-        participant: {}, participantPresets: {}, lifeline: {}, activation: {}, activationPresets: {}, message: {},
-        messagePresets: {}, note: {}, notePresets: {}, block: {}, blockPresets: {}, box: {}, boxPresets: {}, layout: {},
-        pagePresets: {},
-        ...sq,
-      },
-      er: { entity: {}, entityPresets: {}, rel: {}, relPresets: {}, pagePresets: {}, ...er },
+      flowchart: { ...SECTION_DEFAULTS.flowchart(), ...t.flowchart },
+      sequence: { ...SECTION_DEFAULTS.sequence(), ...t.sequence },
+      er: { ...SECTION_DEFAULTS.er(), ...t.er },
     };
   }
 }

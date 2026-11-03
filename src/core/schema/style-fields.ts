@@ -3,7 +3,8 @@
 // `border`, `gap`, `rowH`, `mirror`, `blockSpan`) are declared here statically, so the generated JSON Schemas
 // (§5.4, §8.3) cover them. `themeJsonSchema()` / `metaJsonSchema()` generate draft 2020-12 schemas for theme files
 // and for `%%@` metadata from these definitions plus the shapes of core/theme/types and core/meta/types.
-import type { ItemKind } from '../types.js';
+import { DIAGRAM_TYPES } from '../kinds/info.js';
+import type { DiagramType, ItemKind } from '../types.js';
 import { THEME_SCHEMA_VERSION } from '../theme/types.js';
 import { META_VERSION } from '../meta/types.js';
 
@@ -89,14 +90,13 @@ export interface ThemeSectionItem {
   presets?: string;
 }
 
-/** What the theme editor shows, per diagram type: base style of each item type (+ its named presets). */
-export const THEME_SECTIONS: readonly { type: 'flowchart' | 'sequence' | 'er'; title: string; items: readonly ThemeSectionItem[] }[] = [
-  { type: 'flowchart', title: 'Flowchart', items: [
+const SECTION_UI: Readonly<Record<DiagramType, { title: string; items: readonly ThemeSectionItem[] }>> = {
+  flowchart: { title: 'Flowchart', items: [
     { key: 'node', label: 'Node', fields: STYLE_FIELDS.node, presets: 'nodePresets' },
     { key: 'group', label: 'Group (subgraph)', fields: STYLE_FIELDS.group, presets: 'groupPresets' },
     { key: 'edge', label: 'Connector', fields: STYLE_FIELDS.edge, presets: 'edgePresets' },
   ] },
-  { type: 'sequence', title: 'Sequence', items: [
+  sequence: { title: 'Sequence', items: [
     { key: 'participant', label: 'Participant', fields: STYLE_FIELDS.participant, presets: 'participantPresets' },
     { key: 'message', label: 'Message', fields: STYLE_FIELDS.message, presets: 'messagePresets' },
     { key: 'note', label: 'Note', fields: STYLE_FIELDS.note, presets: 'notePresets' },
@@ -105,11 +105,14 @@ export const THEME_SECTIONS: readonly { type: 'flowchart' | 'sequence' | 'er'; t
     { key: 'lifeline', label: 'Lifeline', fields: ['color', 'width', 'dash'] },
     { key: 'activation', label: 'Activation (process)', fields: STYLE_FIELDS.activation, presets: 'activationPresets' },
   ] },
-  { type: 'er', title: 'ER diagram', items: [
+  er: { title: 'ER diagram', items: [
     { key: 'entity', label: 'Table', fields: STYLE_FIELDS.entity, presets: 'entityPresets' },
     { key: 'rel', label: 'Relationship', fields: STYLE_FIELDS.rel, presets: 'relPresets' },
   ] },
-];
+};
+
+/** What the theme editor shows, per diagram type (in UI order): base style of each item type (+ its named presets). */
+export const THEME_SECTIONS: readonly { type: DiagramType; title: string; items: readonly ThemeSectionItem[] }[] = DIAGRAM_TYPES.map((type) => ({ type, ...SECTION_UI[type] }));
 
 /** The stored key of a field (`pshape` → `shape`). */
 export const fieldKey = (name: string): string => FIELD_DEFS[name]?.key ?? name;
