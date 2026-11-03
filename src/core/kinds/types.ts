@@ -18,6 +18,11 @@ import type { DiagramType, ItemKind, ItemRef } from '../types.js';
 /** Style presets by name. */
 export type Presets = Record<string, StyleProps>;
 
+/** A drawn item of a render: a box, or a connector's path (`d`, or its points) and label. */
+export type DrawnItem =
+  | { ref: ItemRef; box: BoxGeom & { hidden?: boolean } }
+  | { ref: ItemRef; d?: string; points?: readonly (readonly [number, number])[]; label?: BoxGeom | null };
+
 /** A connector and the items at its two ends. */
 export interface ConnectorEnds {
   ref: ItemRef;
@@ -75,6 +80,8 @@ export interface ViewKind<M extends SupportedModel = SupportedModel, G extends G
    * boxes of activation bars (the editor; the ops leave them out).
    */
   box(geom: G, ref: ItemRef & { foot?: boolean }, activations?: boolean): (BoxGeom & { hidden?: boolean }) | null;
+  /** Every item a render drew, with its box or its line (the editor's marquee, ⌘A and selection halos). */
+  drawn(geom: G): DrawnItem[];
   /** The frames (groups, boxes) around the lit items of a hover highlight. */
   frames?(model: M, lit: ReadonlySet<string>): ItemRef[];
   /** The diagram has no items yet. */

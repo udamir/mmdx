@@ -14,10 +14,12 @@ import { KIND_TO_COLL, type DiagramMeta, type ItemMeta } from '../core/meta/type
 import type { DiagramModel } from '../core/model.js';
 import { own, ownOr } from '../core/own.js';
 import { ALL_OPS_KINDS } from '../core/kinds/all-ops.js';
-import { registerOps, viewKind, withKind } from '../core/kinds/registry.js';
+import { registerOps, viewKind, withKind, withOps } from '../core/kinds/registry.js';
+import { ALL_EDIT_KINDS } from './kinds/all.js';
+import { registerEditKinds } from './kinds/registry.js';
 import { parse } from '../core/parse/index.js';
 import type { ClipboardData } from '../core/ops/clipboard.js';
-import { remapSequenceMeta } from '../core/ops/remap.js';
+import { remapMeta } from '../core/ops/meta-ops.js';
 import { currentPreset, type StyleEnv } from '../core/ops/style-env.js';
 import { renderDocument, type Rendered } from '../core/pipeline.js';
 import { pageScene } from '../core/render/index.js';
@@ -211,6 +213,18 @@ export interface EditorCoreOptions {
 export type PanelName = 'code' | 'properties' | 'layers';
 export type EditorPanels = Readonly<Record<PanelName, boolean> & Record<string, boolean>>;
 
+/** Item key → the group it is directly in, per model (the view kind's containers of kind `group`). */
+const parentCache = new WeakMap<object, Map<string, string>>();
+function groupParents(model: DiagramModel): Map<string, string> {
+  let m = parentCache.get(model);
+  if (!m) {
+    m = new Map();
+    for (const [c, p] of withKind(model, (k, mm) => k.parents(mm)) ?? []) if (p.kind === 'group') m.set(`${c.kind}:${c.id}`, p.id);
+    parentCache.set(model, m);
+  }
+  return m;
+}
+
 export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPanels> {
   readonly store: DocStore;
   readonly features: EditorFeatures;
@@ -287,8 +301,9 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       ...(o.themeDark ? { themeDark: o.themeDark } : {}),
       ...(o.compact !== undefined ? { compact: o.compact } : {}),
     });
-    // the editing ops of every kind (until the editor loads kinds on demand)
+    // the editing ops and edit kinds of every type (until the editor loads kinds on demand)
     registerOps(ALL_OPS_KINDS);
+    registerEditKinds(ALL_EDIT_KINDS);
     this.store = o.store;
     this.features = o.features;
     this.dialogs = new Dialogs(this.shadow, this.i18n.t);
@@ -658,8 +673,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       this.store.setCode(res.code, label);
       const model = this.model;
       // ops that return metadata have already carried it over to the new positional ids
-      if (!res.meta && model.type === 'sequence' && oldModel.type === 'sequence')
-        this.store.meta.set(remapSequenceMeta(this.meta, oldModel, oldCode, model, this.code));
+      if (!res.meta) this.store.meta.set(remapMeta(oldModel, oldCode, model, this.code, this.meta));
       const keep = (r: Sel): boolean => this.store.exists(r);
       if (opts.select !== undefined) this.select((opts.select ?? []).filter(keep));
       else {
@@ -796,18 +810,17 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   // ---- group editing (Miro-like) ------------------------------------------------------------------------------------
 
+  /** The group an item is directly in (null: none). */
   parentOf(it: ItemRef): string | null {
-    const M = this.model;
-    if (M.type !== 'flowchart') return null;
-    return (it.kind === 'node' ? M.nodes.get(it.id)?.parent : it.kind === 'group' ? M.groups.get(it.id)?.parent : null) ?? null;
+    return groupParents(this.model).get(`${it.kind}:${it.id}`) ?? null;
   }
 
   /** The outermost group around an item that a click selects (stops at lanes, locked groups and the entered group). */
   groupTarget(it: ItemRef, isLane: (gid: string) => boolean): string | null {
-    const M = this.model;
-    if (M.type !== 'flowchart' || (it.kind !== 'node' && it.kind !== 'group')) return null;
+    if (it.kind !== 'node' && it.kind !== 'group') return null;
+    const up = groupParents(this.model);
     let best: string | null = null;
-    for (let g = this.parentOf(it), guard = 0; g && guard < 64; g = M.groups.get(g)?.parent ?? null, guard++) {
+    for (let g = this.parentOf(it), guard = 0; g && guard < 64; g = up.get(`group:${g}`) ?? null, guard++) {
       if (g === this.enteredGroup.peek() || isLane(g)) break;
       if (!this.getM('group', g).locked) best = g;
     }
@@ -816,30 +829,13 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   insideGroup(it: ItemRef, gid: string): boolean {
     if (it.kind === 'group' && it.id === gid) return true;
-    const M = this.model;
-    if (M.type !== 'flowchart') return false;
-    for (let g = this.parentOf(it), guard = 0; g && guard < 64; g = M.groups.get(g)?.parent ?? null, guard++) if (g === gid) return true;
+    const up = groupParents(this.model);
+    for (let g = this.parentOf(it), guard = 0; g && guard < 64; g = up.get(`group:${g}`) ?? null, guard++) if (g === gid) return true;
     return false;
   }
 
   groupDescendants(gid: string): { nodes: string[]; groups: string[] } {
-    const M = this.model;
-    const nodes: string[] = [], groups: string[] = [];
-    if (M.type !== 'flowchart') return { nodes, groups };
-    const stack = [gid];
-    const seen = new Set<string>();
-    while (stack.length) {
-      const id = stack.pop()!;
-      if (seen.has(id)) continue;
-      seen.add(id);
-      for (const c of M.groups.get(id)?.children ?? []) {
-        if (M.groups.has(c)) {
-          groups.push(c);
-          stack.push(c);
-        } else if (M.nodes.has(c)) nodes.push(c);
-      }
-    }
-    return { nodes, groups };
+    return withOps(this.model, (k, m) => k.descendants?.(m, gid)) ?? { nodes: [], groups: [] };
   }
 
   /** The diagram has no items yet (empty-canvas hint). */
@@ -858,6 +854,6 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   /** A swim-lane group (preset `lane`): never selected by clicks inside it, by the marquee or by ⌘A. */
   isLane(gid: string): boolean {
-    return this.model.type === 'flowchart' && currentPreset(this.styleEnv(), { kind: 'group', id: gid }) === 'lane';
+    return this.store.exists({ kind: 'group', id: gid }) && currentPreset(this.styleEnv(), { kind: 'group', id: gid }) === 'lane';
   }
 }

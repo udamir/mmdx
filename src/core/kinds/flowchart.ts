@@ -101,6 +101,11 @@ export const VIEW: ViewKind<FlowchartModel, FlowGeometry> = {
     return out;
   },
   box: (g, it) => (it.kind === 'node' ? g.nodes.get(it.id) : it.kind === 'group' ? g.groups.get(it.id) : undefined) ?? null,
+  drawn: (g) => [
+    ...[...g.nodes].map(([id, box]) => ({ ref: { kind: 'node' as const, id }, box })),
+    ...[...g.groups].map(([id, box]) => ({ ref: { kind: 'group' as const, id }, box })),
+    ...[...g.edges].map(([id, e]) => ({ ref: { kind: 'edge' as const, id }, d: e.d, label: e.label })),
+  ],
   frames(model, lit) {
     const out: ItemRef[] = [];
     for (const nid of lit)

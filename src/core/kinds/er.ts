@@ -59,6 +59,10 @@ export const VIEW: ViewKind<ErModel, ErGeometry> = {
     return out;
   },
   box: (g, it) => (it.kind === 'entity' ? g.entities.get(it.id) : undefined) ?? null,
+  drawn: (g) => [
+    ...[...g.entities].map(([id, box]) => ({ ref: { kind: 'entity' as const, id }, box })),
+    ...[...g.rels].map(([id, r]) => ({ ref: { kind: 'rel' as const, id }, d: r.d, label: r.label })),
+  ],
   isEmpty: (model) => !model.entities.size,
   outline(model) {
     const out: OutlineItem[] = [];

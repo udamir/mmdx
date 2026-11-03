@@ -4,6 +4,8 @@
 // nudge, the selection overlay, View-mode links and hover highlight, roving keyboard focus and announcements.
 // Ported from prototype app.js (`decorateGroupEdit`, pointer handlers, `moveDrag`, `resizeDrag`, `multiMoveDrag`,
 // `cloneDrag`, `nudge`, `nudgeMulti`, `updateMarquee`, `finishMarquee`, `selectAll`, `drawOverlay` boxes).
+import { viewKind, withKind } from '../../../core/kinds/registry.js';
+import { withEdit } from '../../kinds/registry.js';
 import { cloneItems, cloneMeta, moveItem, moveItems, type MoveOpts } from '../../../core/ops/index.js';
 import { el } from '../../../core/scene/build.js';
 import type { SceneNode } from '../../../core/scene/types.js';
@@ -68,8 +70,7 @@ export const canvasSelectModule: EditorModule = {
       const gid = core.enteredGroup.peek();
       if (!gid) return;
       core.enteredGroup.set(null);
-      const M = core.model;
-      core.select(M.type === 'flowchart' && M.groups.has(gid) ? [{ kind: 'group', id: gid }] : []);
+      core.select(core.store.exists({ kind: 'group', id: gid }) ? [{ kind: 'group', id: gid }] : []);
       core.draw();
       core.fire('panels');
     };
@@ -98,8 +99,8 @@ export const canvasSelectModule: EditorModule = {
         const sel = core.selection();
         const entered = core.enteredGroup.peek();
         const g = core.geom;
-        if (entered && g.type === 'flowchart') {
-          const eb = g.groups.get(entered);
+        if (entered) {
+          const eb = core.boxOf({ kind: 'group', id: entered });
           if (eb && !eb.hidden) {
             const p = 6 / k;
             out.push(el('rect', { class: 'entered-box', x: eb.x - eb.w / 2 - p, y: eb.y - eb.h / 2 - p, width: eb.w + 2 * p, height: eb.h + 2 * p, rx: 8 / k, 'stroke-width': 2 / k }, 'entered-box'));
@@ -113,11 +114,13 @@ export const canvasSelectModule: EditorModule = {
           ({ x: b.x - b.w / 2 - 4 / k, y: b.y - b.h / 2 - 4 / k, w: b.w + 8 / k, h: b.h + 8 / k });
         // connectors in a multi-selection: a halo along the line (they have no box)
         if (sel.length > 1) {
+          const drawnLines = new Map<string, { d?: string; points?: readonly (readonly [number, number])[] }>();
+          if (sel.some((it) => LINE_KINDS.has(it.kind)))
+            for (const x of (g.type ? viewKind(g.type)?.drawn(g) : undefined) ?? []) if (!('box' in x)) drawnLines.set(selKey(x.ref), x);
           for (const it of sel) {
             if (!LINE_KINDS.has(it.kind)) continue;
-            const eg = g.type === 'flowchart' && it.kind === 'edge' ? g.edges.get(it.id) : g.type === 'er' && it.kind === 'rel' ? g.rels.get(it.id) : undefined;
-            const m = g.type === 'sequence' && it.kind === 'message' ? g.messages.get(it.id) : undefined;
-            const d = eg?.d ?? (m ? (m.self ? `M${m.x0},${m.y}h30v18h-30` : `M${m.x0},${m.y}H${m.x1}`) : '');
+            const line = drawnLines.get(selKey(it));
+            const d = line?.d ?? (line?.points?.length ? `M${line.points.map(([x, y]) => `${x},${y}`).join('L')}` : '');
             if (d) out.push(el('path', { class: 'sel-line', d, 'stroke-width': 7 / k }, `sel-line:${selKey(it)}`));
           }
         }
@@ -195,7 +198,7 @@ export const canvasSelectModule: EditorModule = {
     const cloneGesture = (items: readonly ItemRef[]): Gesture | null => {
       const res = cloneItems(core.code, core.meta, core.model, core.geom, items);
       if (!res) {
-        if (core.model.type === 'sequence') core.toast('Copying by Alt-drag works in flowcharts and ER diagrams');
+        if (core.model.type && !withEdit(core.model, (k) => k.altCopy)) core.toast('Copying by Alt-drag works in flowcharts and ER diagrams');
         return null;
       }
       core.begin();
@@ -375,7 +378,7 @@ export const canvasSelectModule: EditorModule = {
 
     // Alt/Option held over the canvas: the copy cursor on what an Alt-drag would copy
     const altCopy = (on: boolean): void => {
-      core.dom.root.classList.toggle('alt-copy', on && editing() && (core.model.type === 'flowchart' || core.model.type === 'er'));
+      core.dom.root.classList.toggle('alt-copy', on && editing() && !!withEdit(core.model, (k) => k.altCopy));
     };
     scope.listen(svg, 'pointermove', (ev) => altCopy(ev.altKey));
     scope.listen(svg, 'pointerleave', () => altCopy(false));
@@ -518,21 +521,8 @@ export const canvasSelectModule: EditorModule = {
     };
 
     /** Items in model order, for Tab / Shift+Tab (§13 roving focus). */
-    const tabOrder = (): Sel[] => {
-      const M = core.model;
-      if (M.type === 'flowchart')
-        return [...[...M.nodes.keys()].map((id): Sel => ({ kind: 'node', id })), ...[...M.groups.keys()].map((id): Sel => ({ kind: 'group', id })), ...M.edges.map((e): Sel => ({ kind: 'edge', id: e.id }))];
-      if (M.type === 'er') return [...[...M.entities.keys()].map((id): Sel => ({ kind: 'entity', id })), ...M.rels.map((r): Sel => ({ kind: 'rel', id: r.id }))];
-      if (M.type === 'sequence') {
-        const out: Sel[] = M.participants.map((p) => ({ kind: 'participant', id: p.id }));
-        for (const it of M.items) {
-          if (it.kind === 'message' || it.kind === 'note') out.push({ kind: it.kind, id: it.id });
-          else if (it.kind === 'blockStart') out.push({ kind: 'block', id: it.id });
-        }
-        return out;
-      }
-      return [];
-    };
+    const tabOrder = (): Sel[] => (withKind(core.model, (k, m) => k.items(m)) ?? []).filter((r) => r.kind !== 'box');
+
     const ensureVisible = (it: Sel): void => {
       const b = core.boxOf(it);
       if (!b) return;

@@ -1,13 +1,18 @@
 // Helpers shared by the canvas modules (selection, structure, inline text, copy style, empty state): what can be
 // selected by marquee / ⌘A, item labels for announcements, the selected-class marking and small DOM utilities.
+import { viewKind, withKind } from '../../../core/kinds/registry.js';
 import type { BoxGeom } from '../../../core/render/types.js';
 import { el, text } from '../../../core/scene/build.js';
 import type { SceneNode } from '../../../core/scene/types.js';
 import type { ItemKind, ItemRef } from '../../../core/types.js';
 import type { EditorCore, Sel } from '../../core.js';
+import { withEdit } from '../../kinds/registry.js';
 
 /** Connector kinds: flowchart edges, ER relationships and sequence messages. */
 export const LINE_KINDS: ReadonlySet<ItemKind> = new Set(['edge', 'rel', 'message']);
+
+/** Box kinds connectors attach to: flowchart nodes, ER tables and sequence participants. */
+export const CONNECTOR_ENDS: ReadonlySet<ItemKind> = new Set(['node', 'entity', 'participant']);
 
 /** An item a marquee or ⌘A can select: its box, and for a connector the drawn line and its label. */
 export interface Selectable {
@@ -30,7 +35,6 @@ export function selectable(core: EditorCore): Selectable[] {
   const box = (kind: ItemKind, id: string, b: BoxGeom & { hidden?: boolean }): void => {
     if (!b.hidden && drawn.has(`${kind}:${id}`)) out.push({ kind, id, b });
   };
-  const boxes = (kind: ItemKind, map: ReadonlyMap<string, BoxGeom & { hidden?: boolean }>): void => map.forEach((b, id) => box(kind, id, b));
   const line = (kind: ItemKind, id: string, pts: readonly (readonly [number, number])[], label?: BoxGeom | null): void => {
     if (!drawn.has(`${kind}:${id}`)) return;
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -47,20 +51,9 @@ export function selectable(core: EditorCore): Selectable[] {
     }
     if (x0 !== Infinity) out.push({ kind, id, b: { x: (x0 + x1) / 2, y: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 }, line: pts, label: label ?? null });
   };
-  if (g.type === 'flowchart') {
-    boxes('node', g.nodes);
-    boxes('group', g.groups);
-    g.edges.forEach((e, id) => line('edge', id, flattenPath(e.d), e.label));
-  } else if (g.type === 'er') {
-    boxes('entity', g.entities);
-    g.rels.forEach((r, id) => line('rel', id, flattenPath(r.d), r.label));
-  } else if (g.type === 'sequence') {
-    boxes('participant', g.participants);
-    boxes('box', g.boxes);
-    boxes('note', g.notes);
-    boxes('block', g.blocks);
-    g.activations.forEach((a, id) => box('activation', id, { x: a.x, y: (a.y0 + a.y1) / 2, w: a.w, h: a.y1 - a.y0 }));
-    g.messages.forEach((m, id) => line('message', id, m.self ? [[m.x0, m.y], [m.x0 + 30, m.y], [m.x0 + 30, m.y + 18], [m.x0, m.y + 18]] : [[m.x0, m.y], [m.x1, m.y]]));
+  for (const it of (g.type ? viewKind(g.type)?.drawn(g) : undefined) ?? []) {
+    if ('box' in it) box(it.ref.kind, it.ref.id, it.box);
+    else line(it.ref.kind, it.ref.id, it.points ?? flattenPath(it.d ?? ''), it.label);
   }
   return out;
 }
@@ -179,35 +172,15 @@ export function markSelection(core: EditorCore): void {
 
 /** The first line of an item's text (for announcements and the group-edit bar). */
 export function itemLabel(core: EditorCore, it: ItemRef): string {
-  const M = core.model;
-  let s = '';
-  if (M.type === 'flowchart') {
-    if (it.kind === 'node') s = M.nodes.get(it.id)?.label ?? '';
-    else if (it.kind === 'group') s = M.groups.get(it.id)?.label ?? '';
-    else if (it.kind === 'edge') s = M.edges.find((e) => e.id === it.id)?.label ?? '';
-  } else if (M.type === 'er') {
-    if (it.kind === 'entity') s = M.entities.get(it.id)?.label ?? '';
-    else if (it.kind === 'rel') s = M.rels.find((r) => r.id === it.id)?.label ?? '';
-  } else if (M.type === 'sequence') {
-    if (it.kind === 'participant') s = M.participants.find((p) => p.id === it.id)?.label ?? '';
-    else if (it.kind === 'box') s = M.boxes.find((b) => b.id === it.id)?.label ?? '';
-    else {
-      const x = M.items.find((i) => 'id' in i && i.id === it.id && (i.kind === it.kind || (it.kind === 'block' && i.kind === 'blockStart')));
-      if (x && 'text' in x) s = x.text;
-      else if (x && 'label' in x) s = x.label;
-    }
-  }
+  const s = withEdit(core.model, (k, m) => k.text(m, it)?.value) ?? '';
   return (s.split('\n')[0] ?? '').trim() || it.id;
 }
 
 /** Number of connectors at a box item. */
 export function connectionCount(core: EditorCore, it: ItemRef): number {
-  const M = core.model;
-  if (M.type === 'flowchart' && it.kind === 'node') return M.edges.filter((e) => e.from === it.id || e.to === it.id).length;
-  if (M.type === 'er' && it.kind === 'entity') return M.rels.filter((r) => r.from === it.id || r.to === it.id).length;
-  if (M.type === 'sequence' && it.kind === 'participant')
-    return M.items.filter((i) => i.kind === 'message' && (i.from === it.id || i.to === it.id)).length;
-  return -1;
+  if (!CONNECTOR_ENDS.has(it.kind)) return -1;
+  const ends = withKind(core.model, (k, m) => k.connectors(m)) ?? [];
+  return ends.filter((c) => c.from.id === it.id || c.to.id === it.id).length;
 }
 
 /** Is the primary selection exactly this item (participant foot included)? */

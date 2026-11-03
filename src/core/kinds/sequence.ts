@@ -146,6 +146,17 @@ export const VIEW: ViewKind<SequenceModel, SequenceGeometry> = {
     }
     return null;
   },
+  drawn: (g) => [
+    ...[...g.participants].map(([id, box]) => ({ ref: { kind: 'participant' as const, id }, box })),
+    ...[...g.boxes].map(([id, box]) => ({ ref: { kind: 'box' as const, id }, box })),
+    ...[...g.notes].map(([id, box]) => ({ ref: { kind: 'note' as const, id }, box })),
+    ...[...g.blocks].map(([id, box]) => ({ ref: { kind: 'block' as const, id }, box })),
+    ...[...g.activations].map(([id, a]) => ({ ref: { kind: 'activation' as const, id }, box: { x: a.x, y: (a.y0 + a.y1) / 2, w: a.w, h: a.y1 - a.y0 } })),
+    ...[...g.messages].map(([id, m]) => ({
+      ref: { kind: 'message' as const, id },
+      points: m.self ? [[m.x0, m.y], [m.x0 + 30, m.y], [m.x0 + 30, m.y + 18], [m.x0, m.y + 18]] as [number, number][] : [[m.x0, m.y], [m.x1, m.y]] as [number, number][],
+    })),
+  ],
   frames: (model, lit) => model.boxes.filter((b) => b.members.some((m) => lit.has(m))).map((b) => ({ kind: 'box', id: b.id })),
   isEmpty: (model) => !model.participants.length,
   outline(model) {
