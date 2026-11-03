@@ -4,10 +4,9 @@
 import type { DiagramMeta } from '../meta/types.js';
 import type { DiagramModel } from '../model.js';
 import { own } from '../own.js';
-import { edgePreset, flowPresets, groupPreset, nodePreset } from '../render/flowchart.js';
-import { erPresets } from '../render/er.js';
+import { withKind } from '../kinds/registry.js';
+import type { Presets } from '../kinds/types.js';
 import { effectivePage } from '../render/page.js';
-import { seqPresets } from '../render/sequence.js';
 import { mergeLayers, type StyleProps } from '../style.js';
 import type { ResolvedTheme, ThemeFile } from '../theme/types.js';
 import type { ItemKind, ItemRef } from '../types.js';
@@ -30,17 +29,14 @@ export interface StyleEnv {
   color?: (v: unknown) => string | undefined;
 }
 
-export type Presets = Record<string, StyleProps>;
+export type { Presets };
 
 const COLOR_KEYS = new Set(['fill', 'stroke', 'text', 'color', 'labelColor', 'titleColor', 'attrColor']);
 
 /** Theme presets plus the diagram's own, for an item kind of the current diagram type (undefined: no presets). */
 export function presetsFor(env: StyleEnv, kind: ItemKind): Presets | undefined {
   const { model, theme: T, meta } = env;
-  if (model.type === 'flowchart') return (flowPresets(T, meta) as unknown as Record<string, Presets>)[kind];
-  if (model.type === 'sequence') return (seqPresets(T, meta) as unknown as Record<string, Presets>)[kind];
-  if (model.type === 'er') return (erPresets(T, meta) as unknown as Record<string, Presets>)[kind];
-  return {};
+  return model.type ? withKind(model, (k) => k.presets(T, meta)[kind]) : {};
 }
 
 /** The theme's own default style of an item kind. */
@@ -71,22 +67,11 @@ export const isLocalPreset = (env: StyleEnv, kind: ItemKind, name: string): bool
   !!own(env.meta.styles[kind], name) && !Object.hasOwn(themePresetsOf(env, kind), name);
 
 /** The preset an item is drawn with: its own, else (flowchart) one derived from its Mermaid classes / shape / line. */
-export function currentPreset(env: StyleEnv, { kind, id }: ItemRef): string {
+export function currentPreset(env: StyleEnv, ref: ItemRef): string {
   const { model, meta } = env;
-  if (model.type === 'flowchart' && (kind === 'node' || kind === 'edge' || kind === 'group')) {
-    const P = flowPresets(env.theme, meta);
-    if (kind === 'node') {
-      const n = model.nodes.get(id);
-      return n ? nodePreset(n, meta, P) : '';
-    }
-    if (kind === 'edge') {
-      const e = model.edges.find((x) => x.id === id);
-      return e ? edgePreset(e, meta, P) : '';
-    }
-    const g = model.groups.get(id);
-    return g ? groupPreset(g, meta, P) : '';
-  }
-  const p = getM(meta, kind, id).preset;
+  const derived = withKind(model, (k, m) => k.codePreset?.(m, meta, env.theme, ref));
+  if (derived !== undefined) return derived;
+  const p = getM(meta, ref.kind, ref.id).preset;
   return typeof p === 'string' ? p : '';
 }
 
@@ -102,19 +87,17 @@ const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v 
 /** The shape a participant is drawn with — as the renderer: own > Mermaid's declaration / actor > preset > theme. */
 export function participantShapeOf(env: StyleEnv, id: string): string {
   const { model, meta, theme } = env;
-  const p = model.type === 'sequence' ? model.participants.find((x) => x.id === id) : undefined;
   const m = getM(meta, 'participant', id);
   const preset = typeof m.preset === 'string' ? m.preset : '';
-  return str(m.shape) ?? str(p?.shape) ?? (p?.kind === 'actor' ? 'actor' : undefined) ?? str(presetsFor(env, 'participant')?.[preset]?.shape) ?? str(theme.sequence.participant.shape) ?? 'box';
+  return str(m.shape) ?? withKind(model, (k, m) => k.codeShape?.(m, { kind: 'participant', id })) ?? str(presetsFor(env, 'participant')?.[preset]?.shape) ?? str(theme.sequence.participant.shape) ?? 'box';
 }
 
 /** The shape a node is drawn with (its own, its preset's or its Mermaid shape). */
 export function nodeShapeOf(env: StyleEnv, id: string): string {
   const { model, meta, theme } = env;
-  const n = model.type === 'flowchart' ? model.nodes.get(id) : undefined;
   const m = getM(meta, 'node', id);
   const pst = presetsFor(env, 'node')?.[currentPreset(env, { kind: 'node', id })];
-  return str(m.shape) ?? str(pst?.shape) ?? (n && n.shape !== 'rect' ? n.shape : str(theme.flowchart.node.shape) ?? 'rect');
+  return str(m.shape) ?? str(pst?.shape) ?? withKind(model, (k, m) => k.codeShape?.(m, { kind: 'node', id })) ?? str(theme.flowchart.node.shape) ?? 'rect';
 }
 
 /** Theme + shape default + diagram `_base` + preset, with colour values resolved when `env.color` is given. */
@@ -137,22 +120,19 @@ export function effectiveValue(env: StyleEnv, ref: ItemRef, k: string): unknown 
   const own = (getM(env.meta, kind, id) as Record<string, unknown>)[k];
   if (own !== undefined) return own;
   const { model } = env;
-  if (k === 'link' && kind === 'node') return model.type === 'flowchart' ? model.nodes.get(id)?.link : undefined;
+  if (k === 'link' && kind === 'node') return withKind(model, (k, m) => k.codeLink?.(m, ref));
   const page = (): unknown => effectivePage(model.type, env.meta, env.theme).routing;
   if (k === 'routing') return kind === 'edge' ? page() || 'curved' : baseStyleOf(env, kind, id).routing || page() || 'curved';
   const base = baseStyleOf(env, kind, id);
   if (k === 'shape' && kind === 'participant') return participantShapeOf(env, id);
-  if (k === 'shape' && kind === 'node') {
-    const n = model.type === 'flowchart' ? model.nodes.get(id) : undefined;
-    return str(presetsFor(env, 'node')?.[currentPreset(env, ref)]?.shape) ?? (n && n.shape !== 'rect' ? n.shape : base.shape);
-  }
+  if (k === 'shape' && kind === 'node')
+    return str(presetsFor(env, 'node')?.[currentPreset(env, ref)]?.shape) ?? withKind(model, (k, m) => k.codeShape?.(m, ref)) ?? base.shape;
   return base[k];
 }
 
 /** Arrow heads actually drawn at both ends of a flowchart edge. */
 export function edgeEndsOf(env: StyleEnv, id: string): { start: unknown; end: unknown } | null {
-  if (env.model.type !== 'flowchart') return null;
-  const e = env.model.edges.find((x) => x.id === id);
+  const e = withKind(env.model, (k, m) => k.codeEnds?.(m, { kind: 'edge', id }));
   if (!e) return null;
   const m = getM(env.meta, 'edge', id);
   const arrow = effectiveValue(env, { kind: 'edge', id }, 'arrow');

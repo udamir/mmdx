@@ -23,3 +23,13 @@ export const viewKind = (type: DiagramType | null | undefined): ViewKind | undef
 /** The view kind of a model (undefined for an unsupported diagram). */
 export const kindOf = <M extends SupportedModel>(model: DiagramModel): ViewKind<M> | undefined =>
   (model.type ? registered[model.type] : undefined) as ViewKind<M> | undefined;
+
+/**
+ * Calls `f` with the model's view kind and the model as a supported one; undefined for an unsupported diagram (or a
+ * kind that is not loaded, which cannot happen for a parsed model).
+ */
+export function withKind<R>(model: DiagramModel, f: (kind: ViewKind, model: SupportedModel) => R): R | undefined {
+  if (!model.type) return undefined;
+  const k = registered[model.type];
+  return k ? f(k, model) : undefined;
+}

@@ -7,7 +7,8 @@
 // is dropped instead of being written into the output.
 import { META_HEADER } from '../meta/index.js';
 import type { DiagramMeta } from '../meta/types.js';
-import type { DiagramModel } from '../model.js';
+import type { DiagramModel, FlowchartModel, SupportedModel } from '../model.js';
+import type { DiagramType } from '../types.js';
 import { mergeStyle, pickStyle } from '../render/common.js';
 import { edgePreset, flowPresets, groupPreset, nodePreset } from '../render/flowchart.js';
 import type { RenderContext } from '../render/types.js';
@@ -45,11 +46,21 @@ export function stripMetaLines(code: string): string {
  */
 export function toPortableMermaid(code: string, meta: DiagramMeta, model: DiagramModel, theme: ResolvedTheme, color: ColorResolver): string {
   const base = stripMetaLines(code);
-  if (model.type !== 'flowchart') return base;
+  const styles = model.type ? PORTABLE_STYLES[model.type] : undefined;
+  if (!model.type || !styles) return base;
   const ctx: RenderContext = { color, measure: createStaticMeasurer(), idPrefix: '', linkPolicy: DEFAULT_LINK_POLICY };
+  return [base.trimEnd(), '', PORTABLE_MARKER, ...styles(model, meta, theme, ctx)].join('\n') + '\n';
+}
+
+/** Style lines per diagram type (the types without any pass through with the `%%@` lines removed). */
+const PORTABLE_STYLES: Partial<Record<DiagramType, (model: SupportedModel, meta: DiagramMeta, theme: ResolvedTheme, ctx: RenderContext) => string[]>> = {
+  flowchart: (model, meta, theme, ctx) => flowchartStyles(model as FlowchartModel, meta, theme, ctx),
+};
+
+function flowchartStyles(model: FlowchartModel, meta: DiagramMeta, theme: ResolvedTheme, ctx: RenderContext): string[] {
   const P = flowPresets(theme, meta);
   const F = theme.flowchart;
-  const out = [base.trimEnd(), '', PORTABLE_MARKER];
+  const out: string[] = [];
   const byClass = new Map<string, string[]>();
   for (const n of model.nodes.values()) {
     const preset = nodePreset(n, meta, P);
@@ -86,5 +97,5 @@ export function toPortableMermaid(code: string, meta: DiagramMeta, model: Diagra
     if (st.dash) parts.push(`stroke-dasharray:${st.dash.replace(/\s+/g, ' ')}`);
     if (parts.length) out.push(`linkStyle ${e.index} ${parts.join(',')}`);
   }
-  return out.join('\n') + '\n';
+  return out;
 }
