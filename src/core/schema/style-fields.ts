@@ -4,6 +4,7 @@
 // (§5.4, §8.3) cover them. `themeJsonSchema()` / `metaJsonSchema()` generate draft 2020-12 schemas for theme files
 // and for `%%@` metadata from these definitions plus the shapes of core/theme/types and core/meta/types.
 import { DIAGRAM_TYPES } from '../kinds/info.js';
+import { PARTICIPANT_SHAPES, pickerShapes } from '../shapes/catalog.js';
 import type { DiagramType, ItemKind } from '../types.js';
 import { THEME_SCHEMA_VERSION } from '../theme/types.js';
 import { META_VERSION } from '../meta/types.js';
@@ -31,8 +32,9 @@ export const FIELD_DEFS: Readonly<Record<string, FieldDef>> = {
   fontWeight: { label: 'Font weight', type: 'select', options: ['400', '600', '700'] },
   radius: { label: 'Corner radius', type: 'number' },
   stack: { label: 'Stacked look', type: 'select', options: [['false', 'single'], ['true', 'stacked'], ['2', 'double']] },
-  shape: { label: 'Shape', type: 'select', options: ['rect', 'rounded', 'stadium', 'circle', 'doublecircle', 'diamond', 'hexagon', 'cylinder', 'hcyl', 'subroutine', 'parallelogram', 'parallelogram-alt', 'trapezoid', 'trapezoid-alt', 'asymmetric', 'document', 'card'] },
-  pshape: { key: 'shape', label: 'Shape', type: 'select', options: ['box', 'rounded', 'stadium', 'actor', 'database', 'hcyl'] },
+  // the shape catalogue's lists (values are ids; a flowchart writes Mermaid's names to the code)
+  shape: { label: 'Shape', type: 'select', options: pickerShapes().map((d) => [d.id, d.title ?? d.name] as const) },
+  pshape: { key: 'shape', label: 'Shape', type: 'select', options: PARTICIPANT_SHAPES.map(([n]) => n) },
   dash: { label: 'Line', type: 'select', options: [['none', 'solid'], ['6 4', 'dashed'], ['1.5 4', 'dotted'], ['10 4 2 4', 'dash-dot'], ['8 5', 'long dash']] },
   color: { label: 'Colour', type: 'color' }, width: { label: 'Width', type: 'number', step: 0.1 },
   arrow: { label: 'Arrow head', type: 'select', options: ['open', 'filled', 'arrow', 'none'] },

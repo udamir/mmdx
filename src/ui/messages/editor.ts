@@ -15,6 +15,7 @@ export const EDITOR_MESSAGES: Messages = {
   'problems.goto': 'Go to line {line}', 'problems.gotoMeta': 'Go to metadata line {line}', 'problems.fix': 'Fix: {label}',
   'problems.fixRename': 'Rename subgraph "{id}" → "{newId}"', 'problems.fixLabel': 'Fix id clash', 'problems.renamed': 'Subgraph renamed to "{id}" — its title is unchanged',
   'problems.undefinedClass': 'class "{cls}" is not defined — no classDef or style preset with this name',
+  'problems.metaShape1': '1 shape is only in layout data — stock Mermaid shows a rectangle', 'problems.metaShapeN': '{n} shapes are only in layout data — stock Mermaid shows rectangles', 'problems.fixMetaShape': 'Write shapes to the Mermaid code',
   'problems.count1': '{n} problem', 'problems.countN': '{n} problems', 'problems.inCode': 'in the Mermaid code', 'problems.inMeta': 'in the metadata',
   'problems.inBoth': 'in the Mermaid code and metadata', 'problems.lineN': 'line {line}', 'problems.openCode': 'Open code',
   'props.title': 'Properties', 'props.close': 'Close Properties', 'props.diagram': 'Diagram', 'props.nothingSelected': 'Nothing selected — page settings. Click an element to style it.',

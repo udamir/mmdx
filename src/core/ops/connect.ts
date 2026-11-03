@@ -1,16 +1,12 @@
 // Rewrites Mermaid source when connections are re-attached or created on the canvas (prototype connect.js).
 // Pure functions: (code, model, …) → new code plus where the change landed. The caller re-parses afterwards.
-import type { Cardinality, EdgeHead, EdgeLine, ErModel, FlowchartModel, NodeShape } from '../model.js';
+import type { Cardinality, EdgeHead, EdgeLine, ErModel, FlowNode, FlowchartModel, NodeShape } from '../model.js';
 import { encodeLabel } from '../parse/label.js';
+import { applySplices } from '../parse/node-data.js';
+import { resolveShape } from '../shapes/registry.js';
+import { lineOf, rewriteStatement, statementSplice } from './flow-statements.js';
 import type { ConnectResult, LineResult } from './types.js';
 import { indentOf } from './lines.js';
-
-const WRAP: Partial<Record<NodeShape, [string, string]>> = {
-  rect: ['[', ']'], rounded: ['(', ')'], stadium: ['([', '])'], subroutine: ['[[', ']]'], cylinder: ['[(', ')]'],
-  circle: ['((', '))'], doublecircle: ['(((', ')))'], diamond: ['{', '}'], hexagon: ['{{', '}}'],
-  parallelogram: ['[/', '/]'], 'parallelogram-alt': ['[\\', '\\]'], trapezoid: ['[/', '\\]'], 'trapezoid-alt': ['[\\', '/]'],
-  asymmetric: ['>', ']'],
-};
 
 export interface NodeDefInput {
   id: string;
@@ -21,8 +17,22 @@ export interface NodeDefInput {
 
 /** `id["label"]` in the node's bracket shape (shapes Mermaid has no brackets for are written as rectangles). */
 export function nodeDef(n: NodeDefInput): string {
-  const [o, c] = WRAP[n.shape as NodeShape] ?? ['[', ']'];
+  const [o, c] = resolveShape(n.shape)?.def.bracket ?? ['[', ']'];
   return `${n.id}${o}"${encodeLabel(n.label)}"${c}${n.inlineClass ? `:::${n.inlineClass}` : ''}`;
+}
+
+/**
+ * The node data a copy of a node is written with (`id@{ … }`, Mermaid Chart's separate statement): its `@{…}` entries
+ * as written (the last of each key), without the label (its bracket holds it), and its shape when no bracket can
+ * hold it. Null when there is nothing to write.
+ */
+export function nodeDataOf(code: string, n: FlowNode, id: string): string | null {
+  const entries = new Map<string, string>();
+  for (const b of n.blocks ?? []) for (const e of b.entries) if (e.key !== 'label' && e.key !== 'shape') entries.set(e.key, code.slice(e.valueAt, e.valueEnd));
+  const def = resolveShape(n.shape)?.def;
+  if (def && !def.bracket && def.mermaid) entries.set('shape', def.mermaid);
+  if (!entries.size) return null;
+  return `${id}@{ ${[...entries].map(([k, v]) => `${/^[\w-]+$/.test(k) ? k : JSON.stringify(k)}: ${v}`).join(', ')} }`;
 }
 
 export interface EdgeTextInput {
@@ -42,39 +52,29 @@ export function edgeText(e: EdgeTextInput, from: string, to: string): string {
 }
 
 /**
- * Re-attach one end (`a` = from, `b` = to) of a flowchart edge. The edge's source line is regenerated as one
- * statement per edge (chains like `A --> B --> C` are split), keeping inline node definitions.
+ * Re-attach one end (`a` = from, `b` = to) of a flowchart edge. Only the edge's own tokens change: an edge alone in its
+ * link gets the new end in place (the old end's definition stays, as its own statement); an edge of a chain or of an
+ * `&` group is split out of its statement, the rest of it kept as written.
  */
 export function reconnectFlow(code: string, model: FlowchartModel, edgeId: string, which: 'a' | 'b', newId: string): ConnectResult {
-  const lines = code.split('\n');
   const edge = model.edges.find((e) => e.id === edgeId);
-  if (!edge) return { code };
-  const li = edge.src;
-  const indent = indentOf(lines[li]);
-  const onLine = model.edges.filter((e) => e.src === li);
-  const at = onLine.indexOf(edge);
-  const next = onLine.map((e) => (e === edge ? { ...e, from: which === 'a' ? newId : e.from, to: which === 'b' ? newId : e.to } : e));
-  const out: string[] = [];
-  for (const n of model.nodes.values()) {
-    if (!n.lines.has(li)) continue;
-    const definedHere = n.defLine === li;
-    const onlyHere = [...n.lines].every((x) => x === li);
-    const stillUsed = next.some((e) => e.from === n.id || e.to === n.id);
-    if (definedHere) out.push(indent + nodeDef(n));
-    else if (onlyHere && !stillUsed) out.push(indent + n.id); // keep the node alive
-  }
+  if (!edge || edge.stmt === undefined) return { code };
+  const st = model.statements[edge.stmt]!;
+  const from = which === 'a' ? newId : edge.from, to = which === 'b' ? newId : edge.to;
   // Inside a subgraph, Mermaid would move a newly mentioned node into that subgraph,
   // so the re-attached edge goes to the end of the file (top level) instead.
-  const inGroup = [...model.groups.values()].some((g) => g.line < li && li < (g.endLine ?? Infinity));
-  const changed = next[at]!;
-  for (const e of next) if (e !== changed || !inGroup) out.push(indent + edgeText(e, e.from, e.to));
-  lines.splice(li, 1, ...out);
+  const inGroup = [...model.groups.values()].some((g) => g.line < st.line && st.line < (g.endLine ?? Infinity));
   if (inGroup) {
-    while (lines.length && !(lines[lines.length - 1] ?? '').trim()) lines.pop();
-    lines.push('  ' + edgeText(changed, changed.from, changed.to));
-    return { code: lines.join('\n') + '\n', from: changed.from, to: changed.to, line: lines.length - 1 };
+    const link = code.slice(st.links[edge.seg!]!.start, st.links[edge.seg!]!.end);
+    const r = rewriteStatement(code, model, edge.stmt, { take: edge.id });
+    let out = r ? applySplices(code, [statementSplice(code, st, r.text)]) : code;
+    out = `${out.trimEnd()}\n  ${from} ${link} ${to}\n`;
+    return { code: out, from, to, line: out.split('\n').length - 2 };
   }
-  return { code: lines.join('\n'), from: changed.from, to: changed.to, line: li + out.length - next.length + at };
+  const r = rewriteStatement(code, model, edge.stmt, { change: { id: edge.id, from, to } });
+  if (!r) return { code };
+  const out = applySplices(code, [statementSplice(code, st, r.text)]);
+  return { code: out, from, to, line: lineOf(out, st.start + Math.max(0, r.changedAt)) };
 }
 
 /** `from --> to` at the end of the code. */

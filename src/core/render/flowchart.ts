@@ -12,8 +12,12 @@ import {
   itemLink, LINK_COLOR, linkAttr, mergeStyle, outerBox, pickStyle, presetOf, presets, sideToward, stackedShapeNodes,
   textBlock, urlRef, withLink,
 } from './common.js';
-import type { BoxGeom, EdgeGeom, FlowGeometry } from './types.js';
+import type { BoxGeom, EdgeGeom, FlowGeometry, Port } from './types.js';
+import { onOutline } from '../shapes/outline.js';
 import type { ResolvedTheme } from '../theme/types.js';
+import { byShapeId, shapeDef } from '../shapes/catalog.js';
+import type { ShapeDef } from '../shapes/types.js';
+import type { Rect } from '../types.js';
 
 export interface FlowPresets {
   node: Record<string, StyleProps>;
@@ -85,14 +89,6 @@ interface GroupItem {
 
 const NO_META: ItemMeta = {};
 
-/** Width available to text inside a shape of outer width `w` (diamonds and circles leave less room at the sides). */
-function textAreaWidth(shape: string, w: number): number {
-  if (shape === 'diamond') return w / 1.3;
-  if (shape === 'circle' || shape === 'doublecircle') return w * 0.75;
-  if (shape === 'hexagon') return w - 30;
-  return w;
-}
-
 export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResult {
   const { ctx, theme: T, meta, opts } = env;
   const F = T.flowchart;
@@ -104,34 +100,33 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
 
   // ---- resolve node styles & sizes
   const nodes = new Map<string, NodeItem>();
+  const shapeStyles = byShapeId(F.nodeShapes);
   for (const n of model.nodes.values()) {
     const nm = m('nodes', n.id);
     const preset = nodePreset(n, meta, P);
     const pst = presetOf(P.node, preset);
     const classDefs = n.classes.filter((c) => !presetOf(P.node, c)).map((c) => model.classDefs[c]);
-    // the shape first: each shape has its own default style in the theme (flowchart.nodeShapes.<shape>)
-    const shape = str(nm.shape) || pst?.shape || (n.shape !== 'rect' ? n.shape : F.node.shape || 'rect');
-    const st = mergeStyle(ctx, F.node, F.nodeShapes?.[shape], baseStyle(meta, 'node'), pst, ...classDefs, n.style, pickStyle(nm));
+    // the shape first: each shape has its own default style in the theme (flowchart.nodeShapes.<shape>); names resolve
+    // through the catalogue (a Mermaid name in metadata or a preset is the same shape)
+    const def = shapeDef(str(nm.shape) || pst?.shape || (n.shape !== 'rect' ? n.shape : F.node.shape || 'rect'));
+    const shape = def.id;
+    const st = mergeStyle(ctx, F.node, shapeStyles?.[shape], baseStyle(meta, 'node'), pst, ...classDefs, n.style, pickStyle(nm));
     st.shape = shape;
     const fontSize = st.fontSize ?? 14, padX = st.padX ?? 0, padY = st.padY ?? 0;
     const fnt = font(fontSize, st.fontWeight, st.fontFamily || family);
     const fixedW = metaNum(nm.w);
-    // word wrap: lines break to fit the shape's width (its own width, else the style's maxW, else 200)
+    // word wrap: lines break to fit the shape's text box (in its own width, else the style's maxW, else 200)
+    const wrapW = fixedW ?? st.maxW ?? Math.max(st.minW ?? 0, 200);
     const lines = st.wrap
-      ? wrap(n.label, Math.max(20, textAreaWidth(shape, fixedW ?? st.maxW ?? Math.max(st.minW ?? 0, 200)) - padX * 2), fnt, ctx.measure)
+      ? wrap(n.label, Math.max(20, (def.below ? wrapW : textBox(def, wrapW, wrapW).w) - padX * 2), fnt, ctx.measure)
       : n.label.split('\n');
     const tw = textBlockWidth(lines, fnt, ctx.measure);
     let w = Math.max(st.minW ?? 0, tw + padX * 2);
     let h = Math.max(st.minH ?? 0, lines.length * fontSize * 1.3 + padY * 2);
-    if (shape === 'diamond') {
-      w = Math.max(w * 1.3, h * 1.6);
-      h = Math.max(h * 1.4, 70);
-    }
-    if (shape === 'circle' || shape === 'doublecircle') w = h = Math.max(w, h);
-    if (shape === 'hexagon') w += 30;
+    if (def.fit) ({ w, h } = def.fit(w, h));
     w = fixedW || w;
     // a wrapped label never overflows: the shape grows taller to fit its lines
-    h = st.wrap ? Math.max(metaNum(nm.h) ?? 0, h) : metaNum(nm.h) || h;
+    h = st.wrap && !def.below ? Math.max(metaNum(nm.h) ?? 0, h) : metaNum(nm.h) || h;
     nodes.set(n.id, { n, m: nm, st, preset, lines, w, h, x: NaN, y: NaN, ...xy(nm) });
   }
 
@@ -350,11 +345,17 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
   }
 
   const edgeNodes: SceneNode[] = [], labelNodes: SceneNode[] = [];
+  const onShape = (id: string, b: CenterBox, port: Port): Port => {
+    const N = nodes.get(id);
+    return N ? onOutline(shapeDef(N.st.shape), b, port) : port;
+  };
   const edgeGeom = new Map<string, EdgeGeom>();
   for (const x of visibleEdges) {
     const { e, m: em, st } = x;
-    const p = ports.get(e.id);
-    if (!p) continue;
+    const pp = ports.get(e.id);
+    if (!pp) continue;
+    // the layout's ports sit on the sides of the boxes: each end moves onto its node's outline (T02.3)
+    const p = { a: onShape(e.from, x.a, pp.a), b: onShape(e.to, x.b, pp.b) };
     const routing = str(em.routing) || routingDefault;
     const path = edgePath(p.a, p.b, { routing, curve: st.curve ?? 1, points: x.points });
     const endType = str(em.endArrow) || (e.end === 'arrow' ? st.arrow : e.end);
@@ -409,21 +410,29 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
   }
 
   const nodeNodes: SceneNode[] = [];
+  // labels drawn under their shapes, which the bounds must hold too
+  const belowLabels: CenterBox[] = [];
   const lineOf = (N: NodeItem): number => firstLine(N.n.defLine, N.n.lines);
   for (const [id, N] of [...nodes].sort((a, b) => byLine(lineOf(a[1]), lineOf(b[1])))) {
     if (hiddenNodes.has(id)) continue;
     const { st } = N;
     const href = itemLink(ctx, N.m.link, N.n.link);
     const fontSize = st.fontSize ?? 14, padX = st.padX ?? 0, padY = st.padY ?? 0;
-    const align = st.align || 'center';
-    const tx = align === 'left' ? N.x - N.w / 2 + padX : align === 'right' ? N.x + N.w / 2 - padX : N.x + (st.shape === 'hcyl' ? -4 : 0);
+    const def = shapeDef(st.shape);
     const blockH = N.lines.length * fontSize * 1.3;
-    const ty =
-      st.valign === 'top'
-        ? N.y - N.h / 2 + padY + blockH / 2 + (st.shape === 'cylinder' ? 10 : 0)
-        : st.valign === 'bottom'
-          ? N.y + N.h / 2 - padY - blockH / 2
-          : N.y + (st.shape === 'cylinder' ? 4 : 0);
+    let align = st.align || 'center';
+    let tx: number, ty: number;
+    if (def.below) {
+      // small marks keep their size: the label goes under them (none when it is only the id, as Mermaid shows none)
+      align = 'center';
+      tx = N.x;
+      ty = N.y + N.h / 2 + 6 + blockH / 2;
+      if (N.n.label !== N.n.id) belowLabels.push({ x: tx, y: ty, w: textBlockWidth(N.lines, font(fontSize, st.fontWeight, st.fontFamily || family), ctx.measure), h: blockH });
+    } else {
+      const tb = textBox(def, N.w, N.h);
+      tx = align === 'left' ? N.x + tb.x + padX : align === 'right' ? N.x + tb.x + tb.w - padX : N.x + tb.x + tb.w / 2;
+      ty = st.valign === 'top' ? N.y + tb.y + padY + blockH / 2 : st.valign === 'bottom' ? N.y + tb.y + tb.h - padY - blockH / 2 : N.y + tb.y + tb.h / 2;
+    }
     const label = textBlock(N.lines, tx, ty, {
       size: fontSize,
       weight: st.fontWeight,
@@ -433,7 +442,8 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
       anchor: align === 'left' ? 'start' : align === 'right' ? 'end' : 'middle',
       underline: !!href,
     });
-    nodeNodes.push(itemGroup('node', id, 'node', [...stackedShapeNodes(st.shape, N, st), ...withLink(href, [label])], linkAttr(href)));
+    const shown = !def.below || N.n.label !== N.n.id;
+    nodeNodes.push(itemGroup('node', id, 'node', [...stackedShapeNodes(st.shape, N, st), ...(shown ? withLink(href, [label]) : [])], linkAttr(href)));
   }
 
   // ---- bounds
@@ -447,6 +457,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
   for (const [id, N] of nodes) if (!hiddenNodes.has(id)) grow(N);
   for (const G of groups.values()) if (!G.empty && !groupHidden.has(G.g.id)) grow(G.box);
   for (const eg of edgeGeom.values()) if (eg.label) grow(eg.label);
+  for (const b of belowLabels) grow(b);
   if (x0 === Infinity) {
     x0 = 0;
     y0 = 0;
@@ -462,6 +473,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
       [...nodes].map(([id, N]) => {
         const b: BoxGeom & { auto?: boolean } = { x: N.x, y: N.y, w: N.w, h: N.h, stack: N.st.stack, hidden: hiddenNodes.has(id) };
         if (N.auto) b.auto = true;
+        if (N.st.shape && N.st.shape !== 'rect') b.shape = N.st.shape;
         return [id, b];
       }),
     ),
@@ -486,6 +498,9 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
 }
 
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
+
+/** Where a shape's label goes, relative to its centre (the whole box unless the catalogue says otherwise). */
+const textBox = (def: ShapeDef, w: number, h: number): Rect => def.textBox?.(w, h) ?? { x: -w / 2, y: -h / 2, w, h };
 
 function xy(m: ItemMeta): Partial<Point> {
   const o: Partial<Point> = {};

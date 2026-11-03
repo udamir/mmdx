@@ -1,38 +1,27 @@
 // Mermaid flowchart parser (the commonly used subset, A.9).
 // Line fields are 0-based whole lines; statements split by `;` share a line.
 import type {
-  Direction, EdgeHead, EdgeLine, FlowEdge, FlowGroup, FlowNode, FlowchartModel, MermaidStyle, NodeShape,
+  BracketSpan, Direction, EdgeHead, EdgeLine, FlowEdge, FlowGroup, FlowLink, FlowMention, FlowNode, FlowNodeData, FlowStatement, FlowchartModel, MermaidStyle, NodeShape,
 } from '../model.js';
+import { resolveShape, SHAPES } from '../shapes/catalog.js';
 import { diag } from '../types.js';
 import { cleanLabel, encodeLabel, isMarkdownString } from './label.js';
 import { ItemBudget, stripControl } from './limits.js';
+import { applySplices, openBlock, readNodeData, type NodeDataBlock, type Splice } from './node-data.js';
 import { parseStyleList } from './style.js';
 
-type Opener = readonly [open: string, closers: readonly string[], shape: NodeShape, alt?: NodeShape];
-const OPENERS: readonly Opener[] = [
-  ['(((', [')))'], 'doublecircle'],
-  ['((', ['))'], 'circle'],
-  ['([', ['])'], 'stadium'],
-  ['[[', [']]'], 'subroutine'],
-  ['[(', [')]'], 'cylinder'],
-  ['{{', ['}}'], 'hexagon'],
-  ['[/', ['/]', '\\]'], 'parallelogram', 'trapezoid'],
-  ['[\\', ['\\]', '/]'], 'parallelogram-alt', 'trapezoid-alt'],
-  ['(', [')'], 'rounded'],
-  ['[', [']'], 'rect'],
-  ['{', ['}'], 'diamond'],
-  ['>', [']'], 'asymmetric'],
-];
-// A Map, not an object: `@{ shape: constructor }` must not find Object.prototype members.
-const NEW_SHAPES = new Map<string, NodeShape>(Object.entries({
-  rect: 'rect', rounded: 'rounded', stadium: 'stadium', circle: 'circle', diamond: 'diamond', hex: 'hexagon',
-  hexagon: 'hexagon', cyl: 'cylinder', cylinder: 'cylinder', db: 'cylinder', database: 'cylinder',
-  'h-cyl': 'hcyl', das: 'hcyl', 'lin-cyl': 'cylinder', subproc: 'subroutine', 'dbl-circ': 'doublecircle',
-  lean_r: 'parallelogram', 'lean-r': 'parallelogram', lean_l: 'parallelogram-alt', 'lean-l': 'parallelogram-alt',
-  trap_b: 'trapezoid', 'trap-b': 'trapezoid', trap_t: 'trapezoid-alt', 'trap-t': 'trapezoid-alt', doc: 'document',
-  document: 'document', 'sm-circ': 'circle', 'f-circ': 'circle', notch_rect: 'card', card: 'card',
-} satisfies Record<string, NodeShape>));
-
+/** The bracket forms, from the shape catalogue: an opener with its closers and the shape each closer gives, longest openers first (`(((` before `((`). */
+const OPENERS: readonly (readonly [open: string, closers: readonly string[], shapes: readonly NodeShape[]])[] = (() => {
+  const by = new Map<string, { closers: string[]; shapes: NodeShape[] }>();
+  for (const d of SHAPES) {
+    if (!d.bracket) continue;
+    let e = by.get(d.bracket[0]);
+    if (!e) by.set(d.bracket[0], (e = { closers: [], shapes: [] }));
+    e.closers.push(d.bracket[1]);
+    e.shapes.push(d.id);
+  }
+  return [...by].sort((a, b) => b[0].length - a[0].length).map(([open, e]) => [open, e.closers, e.shapes] as const);
+})();
 const ID = /^[A-Za-z0-9_À-￿](?:[A-Za-z0-9_À-￿]|-(?=[A-Za-z0-9_À-￿]))*/;
 // `-- text -->`: the opener, then the first closer that follows a whitespace run. Two regexes instead of the
 // prototype's `\s+(.+?)\s+(closer)`, which backtracks cubically on long runs of spaces.
@@ -45,18 +34,27 @@ const EDGE_ID = /^([A-Za-z0-9_][\w-]*)@(?=[<ox]?[-=.])/;
 const HEADER = /^(flowchart|graph)(-elk)?\b\s*(TB|TD|BT|LR|RL)?/i;
 const ELK_HINT = /\b(?:layout\s*:\s*["']?elk|defaultRenderer["']?\s*:\s*["']?elk)/i;
 
-function splitStatements(line: string): string[] {
-  const out: string[] = [];
-  let cur = '', q = false, depth = 0;
-  for (const ch of line) {
+/** The statements of a line split at `;` (outside quotes and brackets), trimmed, each with its offset in the line. */
+function splitStatements(line: string): { t: string; off: number }[] {
+  const out: { t: string; off: number }[] = [];
+  let q = false, depth = 0, start = 0;
+  const push = (end: number): void => {
+    const raw = line.slice(start, end);
+    const t = raw.trim();
+    if (t) out.push({ t, off: start + (raw.length - raw.trimStart().length) });
+  };
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]!;
     if (ch === '"') q = !q;
     if (!q && '[({'.includes(ch)) depth++;
     if (!q && '])}'.includes(ch)) depth = Math.max(0, depth - 1);
-    if (ch === ';' && !q && depth === 0) { out.push(cur); cur = ''; continue; }
-    cur += ch;
+    if (ch === ';' && !q && depth === 0) {
+      push(i);
+      start = i + 1;
+    }
   }
-  out.push(cur);
-  return out.map((s) => s.trim()).filter(Boolean);
+  push(line.length);
+  return out;
 }
 
 /**
@@ -86,15 +84,26 @@ class Finder {
   }
 }
 
-function inlineEdge(F: Finder, pos: number): { start?: string; body: string; raw: string; end?: string; length: number } | null {
+interface InlineEdge {
+  start?: string;
+  body: string;
+  raw: string;
+  end?: string;
+  length: number;
+  /** The same link without its text (`-- a -->` → `-->`, `-. a .->` → `-.->`). */
+  arrow: string;
+}
+
+function inlineEdge(F: Finder, pos: number): InlineEdge | null {
   const rest = F.s.slice(pos);
   const o = INLINE_OPEN.exec(rest);
   if (!o) return null;
   const c = F.inlineClose(pos + o[0].length + 1); // the label has at least one character
   if (!c) return null;
   const at = c.index - pos;
-  const r: { start?: string; body: string; raw: string; end?: string; length: number } = {
+  const r: InlineEdge = {
     body: (o[2] ?? '') + (c[1] ?? ''), raw: rest.slice(o[0].length, at), length: at + c[0].length,
+    arrow: (o[1] ?? '') + (o[2] === '-.' ? '-' : '') + (c[1] ?? '') + (c[2] ?? ''),
   };
   if (o[1]) r.start = o[1];
   if (c[2]) r.end = c[2];
@@ -110,13 +119,16 @@ export function emptyFlowchart(): FlowchartModel {
     // null-prototype records: `classDef __proto__ …` is just a name
     classDefs: Object.create(null) as Record<string, MermaidStyle>,
     linkStyles: Object.create(null) as Record<string, MermaidStyle>,
-    undefinedClasses: [], idClashes: [], diagnostics: [],
+    undefinedClasses: [], idClashes: [], statements: [], diagnostics: [],
   };
 }
 
 interface StyleRef { id: string; line: number; what: 'class' | 'style' }
-interface ReadNode { id: string; p: number }
-interface ReadEdge { p: number; label: string; line: EdgeLine; start: EdgeHead; end: EdgeHead; minlen: number }
+interface ReadNode { id: string; p: number; mention: FlowMention }
+interface ReadEdge { p: number; label: string; line: EdgeLine; start: EdgeHead; end: EdgeHead; minlen: number; link: FlowLink }
+
+/** The node data keys typed onto a node (besides `shape` and `label`). */
+const DATA_STRINGS = ['labelType', 'icon', 'form', 'pos', 'img', 'constraint'] as const;
 
 export function parseFlowchart(code: string): FlowchartModel {
   const model = emptyFlowchart();
@@ -127,6 +139,7 @@ export function parseFlowchart(code: string): FlowchartModel {
   const edgeIds = new Set<string>();
   let curLine = 0; // source line of the statement being parsed (0-based)
   let F = new Finder('');
+  let base = 0; // code offset of the statement being parsed
   const lines = code.split('\n');
   let headerSeen = false;
   // Style statements, checked once the whole file is read (classDefs may come after their use).
@@ -158,26 +171,51 @@ export function parseFlowchart(code: string): FlowchartModel {
     return n;
   };
 
+  /** Node data onto a node: its shape and label, the other keys Mermaid knows typed, every entry kept with the block. */
+  const applyBlock = (n: FlowNode, block: NodeDataBlock): void => {
+    (n.blocks ??= []).push(block);
+    n.defLine ??= curLine;
+    for (const e of block.entries) {
+      const v = e.value;
+      if (e.key === 'shape' && v !== null) {
+        const name = String(v);
+        const r = resolveShape(name);
+        n.shape = r?.def.id ?? 'rect';
+        n.shapeFrom = 'data';
+        if (!r) D.push(diag('warning', 'flow.unknown-shape', `unknown shape "${name}" — drawn as a rectangle (stock Mermaid fails on it)`, curLine, { params: { shape: name } }));
+        else if (!r.ok && r.def.mermaid) {
+          const to = r.def.mermaid;
+          D.push(diag('warning', 'flow.shape-name', `"${name}" is not a shape name Mermaid accepts — use "${to}"`, curLine, {
+            params: { shape: name, name: to }, fix: { title: `Use "${to}"`, apply: fixShapeNames },
+          }));
+        } else if (!r.ok) D.push(diag('warning', 'flow.shape-name', `the "${name}" shape is drawn by mmdx only — stock Mermaid fails on it`, curLine, { params: { shape: name } }));
+      } else if (e.key === 'label' && v !== null) {
+        n.label = label(String(v));
+        n.labelFrom = 'data';
+      } else if ((e.key === 'w' || e.key === 'h') && Number.isFinite(Number(v)) && v !== null && v !== '') (n.data ??= {})[e.key] = Number(v);
+      else if ((DATA_STRINGS as readonly string[]).includes(e.key) && v !== null) (n.data ??= {})[e.key as (typeof DATA_STRINGS)[number]] = String(v);
+    }
+  };
+
   const readNode = (s: string, pos: number): ReadNode | null => {
     const m = ID.exec(s.slice(pos));
     if (!m) return null;
     const id = m[0];
     let p = pos + id.length;
-    let text: string | undefined, shape: NodeShape | undefined;
+    const idEnd = p;
+    let text: string | undefined, shape: NodeShape | undefined, bracket: BracketSpan | undefined, block: NodeDataBlock | undefined;
     const rest = s.slice(p);
     if (rest.startsWith('@{')) {
-      const brace = F.indexOf('}', p);
-      const end = brace < 0 ? -1 : brace - p;
-      if (end >= 0) {
-        const body = rest.slice(2, end);
-        const sm = /shape\s*:\s*"?([\w-]+)"?/.exec(body);
-        const lm = /label\s*:\s*"([^"]*)"/.exec(body);
-        if (sm) shape = NEW_SHAPES.get(sm[1] ?? '') ?? 'rect';
-        if (lm) text = lm[1] ?? '';
-        p += end + 1;
+      const b = readNodeData(s, p + 1, base);
+      if (b) {
+        block = b;
+        p = b.end - base;
+      } else {
+        D.push(diag('warning', 'flow.node-data', `"${id}@{" is not closed — the node data is ignored`, curLine, { params: { id } }));
+        p = s.length;
       }
     } else {
-      for (const [open, closers, shp, alt] of OPENERS) {
+      for (const [open, closers, shapes] of OPENERS) {
         if (!rest.startsWith(open)) continue;
         let i = open.length;
         let t = '';
@@ -199,17 +237,29 @@ export function parseFlowchart(code: string): FlowchartModel {
         if (best < 0) break;
         if (!quoted) t = rest.slice(i, best);
         text = t;
-        shape = which === 1 && alt ? alt : shp;
-        p += best + (closers[which] ?? '').length;
+        shape = shapes[which];
+        const close = closers[which] ?? '';
+        bracket = { start: base + p, text: [base + p + open.length, base + p + best], end: base + p + best + close.length, open, close };
+        p += best + close.length;
         break;
       }
     }
+    const mention = (): FlowMention => ({ id, start: base + pos, end: base + p, idEnd: base + idEnd, def: text !== undefined || !!block });
     const g = model.groups.get(id);
-    if (g && text === undefined) { g.lines.add(curLine); return { id, p }; }
+    if (g && text === undefined) { g.lines.add(curLine); return { id, p, mention: mention() }; }
     const n = touchNode(id);
-    if (!n) return { id, p };
-    if (text !== undefined) { n.label = label(text); n.defLine ??= curLine; }
-    if (shape) n.shape = shape;
+    if (!n) return { id, p, mention: mention() };
+    if (text !== undefined) {
+      n.label = label(text);
+      n.defLine ??= curLine;
+      n.labelFrom = 'bracket';
+      if (bracket) n.bracket = bracket;
+    }
+    if (shape) {
+      n.shape = shape;
+      n.shapeFrom = 'bracket';
+    }
+    if (block) applyBlock(n, block);
     const cm = /^:::([\w-]+)/.exec(s.slice(p));
     if (cm && cm[1]) {
       n.classes.push(cm[1]);
@@ -217,53 +267,60 @@ export function parseFlowchart(code: string): FlowchartModel {
       p += cm[0].length;
       classUses.push({ cls: cm[1], line: curLine });
     }
-    return { id, p };
+    return { id, p, mention: mention() };
   };
 
-  const readNodeGroup = (s: string, pos: number): { ids: string[]; p: number } => {
-    const ids: string[] = [];
+  const readNodeGroup = (s: string, pos: number): { ids: string[]; mentions: FlowMention[]; p: number } => {
+    const ids: string[] = [], mentions: FlowMention[] = [];
     let p = pos;
     for (;;) {
       while (s[p] === ' ' || s[p] === '\t') p++;
       const r = readNode(s, p);
       if (!r) break;
       ids.push(r.id);
+      mentions.push(r.mention);
       p = r.p;
       const amp = /^\s*&\s*/.exec(s.slice(p));
       if (!amp) break;
       p += amp[0].length;
     }
-    return { ids, p };
+    return { ids, mentions, p };
   };
 
   const readEdge = (s: string, pos: number): ReadEdge | null => {
     let p = pos;
     while (s[p] === ' ' || s[p] === '\t') p++;
+    const l0 = p;
+    let idEnd: number | undefined;
     const idm = EDGE_ID.exec(s.slice(p));
     if (idm && idm[1]) {
       edgeIds.add(idm[1]);
       D.push(diag('warning', 'flow.edge-id', `edge ids are not supported — "${idm[1]}@" is ignored`, curLine, { params: { id: idm[1] } }));
       p += idm[0].length;
+      idEnd = base + p;
     }
     const rest = s.slice(p);
-    let raw: string | undefined, body: string, start: string | undefined, end: string | undefined;
+    let raw: string | undefined, body: string, start: string | undefined, end: string | undefined, arrow: string;
     const inline = inlineEdge(F, p);
-    if (inline) { ({ start, body, raw, end } = inline); p += inline.length; }
+    if (inline) { ({ start, body, raw, end, arrow } = inline); p += inline.length; }
     else {
       const m = EDGE.exec(rest);
       if (!m) return null;
-      start = m[1]; body = m[2] ?? ''; end = m[3];
+      start = m[1]; body = m[2] ?? ''; end = m[3]; arrow = m[0];
       p += m[0].length;
     }
     const pm = PIPE.exec(s.slice(p));
     if (pm) { raw = pm[1] ?? ''; p += pm[0].length; }
     const line: EdgeLine = body.includes('=') ? 'thick' : body.includes('.') ? 'dotted' : 'solid';
     const minlen = Math.max(1, (body.match(/[-=.]/g) ?? []).length - 1);
-    return { p, label: raw == null ? '' : label(raw), line, start: headOf(start), end: headOf(end), minlen };
+    const link: FlowLink = { start: base + l0, end: base + p, arrow };
+    if (idEnd !== undefined) link.idEnd = idEnd;
+    return { p, label: raw == null ? '' : label(raw), line, start: headOf(start), end: headOf(end), minlen, link };
   };
 
-  const statement = (t: string, li: number): void => {
+  const statement = (t: string, li: number, at: number): void => {
     F = new Finder(t);
+    base = at;
     let m: RegExpExecArray | null;
     if ((m = /^subgraph\s+(.+)$/.exec(t))) {
       const rest = (m[1] ?? '').trim();
@@ -349,11 +406,18 @@ export function parseFlowchart(code: string): FlowchartModel {
     let left = first.ids;
     let p = first.p;
     if (!left.length) { D.push(diag('warning', 'flow.cannot-parse', `cannot parse "${t}"`, li)); return; }
+    const stmt = model.statements.length;
+    const st: FlowStatement = { line: li, start: at, end: at + p, groups: [first.mentions], links: [] };
+    model.statements.push(st);
     for (;;) {
       const e = readEdge(t, p);
       if (!e) break;
       const r = readNodeGroup(t, e.p);
       if (!r.ids.length) { D.push(diag('warning', 'flow.edge-no-target', 'edge without target', li)); break; }
+      st.links.push(e.link);
+      st.groups.push(r.mentions);
+      st.end = at + r.p;
+      const seg = st.links.length - 1;
       for (const a of left) {
         for (const b of r.ids) {
           if (!budget.take(li)) return;
@@ -362,7 +426,7 @@ export function parseFlowchart(code: string): FlowchartModel {
           edgeCount.set(key, n);
           const edge: FlowEdge = {
             id: n > 1 ? `${key}#${n}` : key, from: a, to: b, label: e.label, line: e.line,
-            start: e.start, end: e.end, minlen: e.minlen, index: model.edges.length, src: li,
+            start: e.start, end: e.end, minlen: e.minlen, index: model.edges.length, src: li, stmt, seg,
           };
           model.edges.push(edge);
         }
@@ -374,17 +438,28 @@ export function parseFlowchart(code: string): FlowchartModel {
     if (tail) D.push(diag('warning', 'flow.ignored-text', `ignored "${tail}"`, li));
   };
 
+  // code offset of each line (spans are offsets into the code)
+  const lineStart: number[] = [];
+  for (let i = 0, off = 0; i < lines.length; off += (lines[i] ?? '').length + 1, i++) lineStart.push(off);
   for (let li = 0; li < lines.length && !budget.over; li++) {
-    const t0 = (lines[li] ?? '').trim();
+    let raw = lines[li] ?? '';
+    let t0 = raw.trim();
     curLine = li;
     if (!t0) continue;
+    // a node data block written over several lines: its statement goes on until the block closes
+    const first = li;
+    if (!t0.startsWith('%%') && openBlock(t0)) {
+      while (li + 1 < lines.length && openBlock(raw.trim())) raw += '\n' + (lines[++li] ?? '');
+      t0 = raw.trim();
+    }
+    const lineBase = (lineStart[first] ?? 0) + (raw.length - raw.trimStart().length);
     if (t0.startsWith('%%')) {
       if (t0.startsWith('%%{') && ELK_HINT.test(t0)) D.push(diag('warning', 'flow.elk', 'ELK layout hints are not supported — the built-in layout is used', li));
       continue;
     }
     let stmts = splitStatements(t0);
     if (!headerSeen) {
-      const h = HEADER.exec(stmts[0] ?? '');
+      const h = HEADER.exec(stmts[0]?.t ?? '');
       if (h) {
         headerSeen = true;
         model.direction = ((h[3] ?? 'TB').toUpperCase().replace('TD', 'TB')) as Direction;
@@ -398,9 +473,9 @@ export function parseFlowchart(code: string): FlowchartModel {
         continue;
       }
     }
-    for (const t of stmts) {
+    for (const { t, off } of stmts) {
       if (budget.over) break;
-      statement(t, li);
+      statement(t, first, lineBase + off);
     }
   }
 
@@ -464,6 +539,23 @@ export function parseFlowchart(code: string): FlowchartModel {
     }
   }
   return model;
+}
+
+/**
+ * The `flow.shape-name` fix: every shape name Mermaid rejects (`lean_r`, `parallelogram`, an uppercase name) becomes
+ * the shape's shortName, in place.
+ */
+export function fixShapeNames(code: string): string {
+  const model = parseFlowchart(code);
+  const splices: Splice[] = [];
+  for (const n of model.nodes.values())
+    for (const b of n.blocks ?? [])
+      for (const e of b.entries) {
+        if (e.key !== 'shape' || typeof e.value !== 'string') continue;
+        const r = resolveShape(e.value);
+        if (r && !r.ok && r.def.mermaid) splices.push({ from: e.valueAt, to: e.valueEnd, text: r.def.mermaid });
+      }
+  return applySplices(code, splices);
 }
 
 function clashFreeId(model: FlowchartModel, id: string): string {

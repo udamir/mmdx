@@ -2,7 +2,7 @@
 // targets over item metadata, several items and the page settings, the layer row, the preset tiles, the multi-selection
 // actions and the geometry field defaults.
 import { layerDefs, layerOf } from '../../../../core/layers.js';
-import { setLayer } from '../../../../core/ops/meta-ops.js';
+import { setLayer, setStyle } from '../../../../core/ops/meta-ops.js';
 import { relativeColor } from '../../../../core/theme/colors.js';
 import type { ItemRef } from '../../../../core/types.js';
 import { h } from '../../../../ui/h.js';
@@ -11,6 +11,7 @@ import { applyMeta } from '../../../ops/doc.js';
 import { canGroup } from '../../../ops/group.js';
 import type { LiveEdit } from '../../../ops/live.js';
 import { pageEff } from '../../../ops/page.js';
+import { styleWithShapes } from '../../../ops/shape.js';
 import type { FieldTarget } from '../fields.js';
 import { presetPicker } from '../presets.js';
 
@@ -42,6 +43,8 @@ export function itemTarget(p: PanelCtx, ref: ItemRef, base: Readonly<Record<stri
       if (isLive) live.run(t('history.style'), f);
       else {
         live.flush();
+        // a shape goes to the code where the type keeps shapes there (and one kept only in metadata moves there)
+        if (styleWithShapes(core, [ref], { [k]: v }, t('history.style'), (meta) => setStyle(meta, [ref], k === 'shape' ? {} : { [k]: v }).meta)) return;
         core.change(t('history.style'), f);
       }
     },
@@ -82,6 +85,7 @@ export function bulkTarget(p: PanelCtx, refs: readonly ItemRef[], bases: readonl
       if (isLive) live.run(t('history.style'), f);
       else {
         live.flush();
+        if (styleWithShapes(core, refs, { [k]: v }, t('history.style'), (meta) => setStyle(meta, refs, k === 'shape' ? {} : { [k]: v }).meta)) return;
         core.change(t('history.style'), f);
       }
     },

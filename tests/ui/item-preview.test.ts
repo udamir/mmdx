@@ -5,6 +5,7 @@ import { parseFlowchart } from '../../src/core/parse/flowchart.js';
 import { ALL_VIEW_KINDS } from '../../src/core/kinds/all.js';
 import { drawItemPreview, drawItemPreviewWith, ITEM_SAMPLES, renderItemSample, renderItemSampleWith, type PreviewKind } from '../../src/ui/item-preview.js';
 import { fitPresetGrid, shapePreview } from '../../src/ui/shape-preview.js';
+import { SHAPES } from '../../src/core/shapes/catalog.js';
 
 const theme = getShared().themes.get('default-light');
 
@@ -51,6 +52,11 @@ describe('shape previews', () => {
     expect(svg.getAttribute('aria-hidden')).toBe('true');
     expect(svg.querySelector('path')).not.toBeNull();
     expect(shapePreview('nope').childElementCount).toBe(0);
+  });
+
+  it('draws every catalogue shape (the same drawing as the canvas) and the participant shapes', () => {
+    for (const s of SHAPES) expect(shapePreview(s.id).childElementCount, s.id).toBeGreaterThan(0);
+    for (const name of ['box', 'actor', 'database', 'hcyl']) expect(shapePreview(name).childElementCount, name).toBeGreaterThan(0);
   });
 
   it('fitPresetGrid sizes the submenu to its tiles and the room', () => {

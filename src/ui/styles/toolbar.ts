@@ -47,7 +47,7 @@ export const TOOLBAR_CSS = /* css */ `
 .mtb-choice { border: 0; background: none; border-radius: 8px; padding: 6px 8px; color: var(--ink-2); display: grid; place-items: center; }
 .mtb-choice:hover { background: var(--float-2); }
 .mtb-choice.on { background: var(--accent-2); color: var(--accent); }
-.mtb-shapes { display: grid; grid-template-columns: repeat(5, 36px); gap: 4px; }
+.mtb-shapes { display: grid; grid-template-columns: repeat(8, 36px); gap: 4px; max-height: 300px; overflow-y: auto; }
 .mtb-shape { border: 0; background: none; border-radius: 8px; width: 36px; height: 36px; display: grid; place-items: center; color: var(--ink-2); padding: 0; }
 .mtb-shape svg { width: 26px; height: 26px; display: block; }
 .mtb-shape:hover { background: var(--float-2); }

@@ -1,51 +1,21 @@
 // Flowchart editing ops as Mermaid source rewrites (prototype edit.js, flowchart part).
 // Every function takes (code, model, …) and returns the new code (+ what to select); the caller re-parses.
-import type { Direction, FlowEdge, FlowGroup, FlowNode, FlowchartModel } from '../model.js';
-import { encodeLabel } from '../parse/label.js';
+import type { Direction, FlowEdge, FlowGroup, FlowchartModel } from '../model.js';
+import { cleanLabel, encodeLabel } from '../parse/label.js';
+import { applySplices, editBlock, type Splice } from '../parse/node-data.js';
+import { resolveShape, shapeDef } from '../shapes/catalog.js';
 import type { ItemRef } from '../types.js';
-import { edgeText, nodeDef } from './connect.js';
+import { edgeText, nodeDataOf, nodeDef } from './connect.js';
+import { rewriteStatement, statementSplice, type StatementEdit } from './flow-statements.js';
 import { copyIds, uniqueId } from './ids.js';
 import { append, applyEdits, contentEnd, indentOf, splice, type LineEdit } from './lines.js';
+
+/** An edge as its own statement with the link as written (`a -.->|"x"| b`), else as `edgeText` writes it. */
+export function linkOf(code: string, model: FlowchartModel, e: FlowEdge, from: string, to: string): string {
+  const link = e.stmt !== undefined && e.seg !== undefined ? model.statements[e.stmt]?.links[e.seg] : undefined;
+  return link ? `${from} ${code.slice(link.idEnd ?? link.start, link.end)} ${to}` : edgeText(e, from, to);
+}
 import type { CloneInto, CloneResult, CodeResult, SelectResult } from './types.js';
-
-/** Per-line indexes of a model, built once per op so line regeneration stays linear. */
-interface LineIndex {
-  nodes: Map<number, FlowNode[]>;
-  edges: Map<number, FlowEdge[]>;
-}
-
-function lineIndex(model: FlowchartModel): LineIndex {
-  const nodes = new Map<number, FlowNode[]>(), edges = new Map<number, FlowEdge[]>();
-  for (const n of model.nodes.values()) for (const li of n.lines) (nodes.get(li) ?? nodes.set(li, []).get(li)!).push(n);
-  for (const e of model.edges) (edges.get(e.src) ?? edges.set(e.src, []).get(e.src)!).push(e);
-  return { nodes, edges };
-}
-
-interface RegenOpts {
-  edgeFn?: (e: FlowEdge) => FlowEdge | null;
-  nodeFn?: (n: FlowNode) => FlowNode;
-  drop?: ReadonlySet<string>;
-}
-
-// Regenerate one statement line: inline node definitions first, then its edges.
-function regenFlowLine(lines: readonly string[], idx: LineIndex, li: number, { edgeFn = (e) => e, nodeFn = (n) => n, drop = new Set() }: RegenOpts = {}): string[] {
-  const indent = indentOf(lines[li]);
-  const edges: FlowEdge[] = [];
-  for (const e of idx.edges.get(li) ?? []) {
-    const x = edgeFn(e);
-    if (x && !drop.has(x.from) && !drop.has(x.to)) edges.push(x);
-  }
-  const used = new Set<string>();
-  for (const e of edges) used.add(e.from).add(e.to);
-  const out: string[] = [];
-  for (const n of idx.nodes.get(li) ?? []) {
-    if (drop.has(n.id)) continue;
-    if (n.defLine === li) out.push(indent + nodeDef(nodeFn(n)));
-    else if (!used.has(n.id) && n.lines.size === 1) out.push(indent + n.id); // only listed here: keep it alive
-  }
-  for (const e of edges) out.push(indent + edgeText(e, e.from, e.to));
-  return out;
-}
 
 type StatementKind = 'class' | 'ref' | 'other' | 'stmt';
 const statementKind = (t: string): StatementKind =>
@@ -60,71 +30,109 @@ export interface AddFlowNodeOpts {
   cls?: string | null;
 }
 
-/** A new node `n<k>["label"]` at the end of the code, or at the end of a subgraph. */
-export function addFlowNode(code: string, model: FlowchartModel, { label = 'New', shape = 'rect', group = null, cls = null }: AddFlowNodeOpts = {}): SelectResult & { select: ItemRef } {
+/**
+ * A new node `n<k>["label"]` at the end of the code, or at the end of a subgraph, in its shape: a bracket where one
+ * exists (`n3{"Decision"}`), else the label in `[ ]` and a separate `n3@{ shape: lin-cyl }` after the graph's statements.
+ * A shape Mermaid lacks comes back as `metaShape` (the caller keeps it in metadata).
+ */
+export function addFlowNode(code: string, model: FlowchartModel, { label = 'New', shape = 'rect', group = null, cls = null }: AddFlowNodeOpts = {}): SelectResult & { select: ItemRef; metaShape?: string } {
   const id = uniqueId(model, 'n');
-  const def = nodeDef({ id, label, shape, inlineClass: cls });
+  const sd = shapeDef(shape);
+  const def = nodeDef({ id, label, shape: sd.id, inlineClass: cls });
+  const data = !sd.bracket && sd.mermaid ? `  ${id}@{ shape: ${sd.mermaid} }` : null;
+  const extra = !sd.mermaid ? { metaShape: sd.id } : {};
   const g = group ? model.groups.get(group) : undefined;
   if (g && g.endLine != null) {
     const L = code.split('\n');
-    return { code: splice(code, g.endLine, 0, [indentOf(L[g.line]) + '  ' + def]), select: { kind: 'node', id } };
+    const out = splice(code, g.endLine, 0, [indentOf(L[g.line]) + '  ' + def]);
+    return { code: data ? append(out, [data]) : out, select: { kind: 'node', id }, ...extra };
   }
-  return { code: append(code, ['  ' + def]), select: { kind: 'node', id } };
+  return { code: append(code, data ? ['  ' + def, data] : ['  ' + def]), select: { kind: 'node', id }, ...extra };
+}
+
+/** Rewrites the statements an edit touches (in place, by splicing). */
+function rewrite(code: string, model: FlowchartModel, edits: ReadonlyMap<number, StatementEdit>, more: Splice[] = []): string {
+  const splices = [...more];
+  for (const [si, edit] of edits) {
+    const st = model.statements[si];
+    const r = st ? rewriteStatement(code, model, si, edit) : null;
+    if (st && r) splices.push(statementSplice(code, st, r.text));
+  }
+  return applySplices(code, splices);
+}
+
+/** The splice that replaces whole line `li` (with its newline) by `ins` lines. */
+function lineSplice(code: string, li: number, ins: readonly string[]): Splice {
+  let from = 0;
+  for (let i = 0; i < li; i++) from = code.indexOf('\n', from) + 1;
+  const e = code.indexOf('\n', from);
+  if (!ins.length) return e < 0 ? { from: Math.max(0, from - 1), to: code.length, text: '' } : { from, to: e + 1, text: '' };
+  return { from, to: e < 0 ? code.length : e, text: ins.join('\n') };
 }
 
 /**
  * Deletes nodes (with their edges and `class` / `style` / `click` mentions), edges and subgraph frames.
- * Deleting a group removes the frame only; its contents move up one level.
+ * Deleting a group removes the frame only; its contents move up one level. Statements keep everything the deleted
+ * items leave (a chain is split only where an edge goes, an `&` group only loses a node).
  */
 export function deleteFlow(code: string, model: FlowchartModel, items: readonly ItemRef[]): CodeResult {
   const L = code.split('\n');
   const drop = new Set(items.filter((s) => s.kind === 'node').map((s) => s.id));
   const dropEdges = new Set(items.filter((s) => s.kind === 'edge').map((s) => s.id));
   const groups = items.filter((s) => s.kind === 'group').map((s) => model.groups.get(s.id)).filter((g): g is FlowGroup => !!g);
-  const affected = new Set<number>();
-  for (const id of drop) model.nodes.get(id)?.lines.forEach((li) => affected.add(li));
-  for (const e of model.edges) if (dropEdges.has(e.id) || drop.has(e.from) || drop.has(e.to)) affected.add(e.src);
-  const idx = lineIndex(model);
-  const edits: LineEdit[] = [];
-  for (const li of affected) {
+  const edits = new Map<number, StatementEdit>();
+  model.statements.forEach((st, si) => {
+    if (st.groups.some((g) => g.some((m) => drop.has(m.id)))) edits.set(si, { dropNodes: drop, dropEdges });
+  });
+  for (const e of model.edges)
+    if (e.stmt !== undefined && (dropEdges.has(e.id) || drop.has(e.from) || drop.has(e.to))) edits.set(e.stmt, { dropNodes: drop, dropEdges });
+  // `class`, `style` and `click` lines name the nodes they apply to
+  const lines = new Set<number>();
+  for (const id of drop) model.nodes.get(id)?.lines.forEach((li) => lines.add(li));
+  const splices: Splice[] = [];
+  for (const li of lines) {
     const t = (L[li] ?? '').trim();
     const kind = statementKind(t);
     if (kind === 'class') {
       const m = /^class\s+(\S+)\s+(.+)$/.exec(t);
       const ids = m ? (m[1] ?? '').split(',').filter((x) => !drop.has(x)) : [];
-      edits.push({ at: li, del: 1, ins: m && ids.length ? [`${indentOf(L[li])}class ${ids.join(',')} ${m[2]}`] : [] });
+      splices.push(lineSplice(code, li, m && ids.length ? [`${indentOf(L[li])}class ${ids.join(',')} ${m[2]}`] : []));
     } else if (kind === 'ref') {
       const id = t.split(/\s+/)[1] ?? '';
-      if (drop.has(id)) edits.push({ at: li, del: 1, ins: [] });
-    } else if (kind === 'stmt') {
-      edits.push({ at: li, del: 1, ins: regenFlowLine(L, idx, li, { drop, edgeFn: (e) => (dropEdges.has(e.id) ? null : e) }) });
+      if (drop.has(id)) splices.push(lineSplice(code, li, []));
     }
   }
   for (const g of groups) {
-    edits.push({ at: g.line, del: 1, ins: [] });
-    if (g.endLine != null) edits.push({ at: g.endLine, del: 1, ins: [] });
+    splices.push(lineSplice(code, g.line, []));
+    if (g.endLine != null) splices.push(lineSplice(code, g.endLine, []));
   }
-  return { code: applyEdits(code, edits) };
+  return { code: rewrite(code, model, edits, splices) };
 }
 
-/** New label for a node: its defining statement is regenerated, or a definition is added (in its subgraph). */
+/**
+ * New label for a node, written where its label is: in its bracket (`A["new"]`), or in the `label` of its node data;
+ * a node without either gets a definition (in its subgraph).
+ */
 export function relabelFlowNode(code: string, model: FlowchartModel, id: string, label: string): CodeResult {
   const n = model.nodes.get(id);
   if (!n) return { code };
+  const text = `"${encodeLabel(label)}"`;
+  const block = [...(n.blocks ?? [])].reverse().find((b) => b.entries.some((e) => e.key === 'label'));
+  if (block && (n.labelFrom === 'data' || !n.bracket)) return { code: applySplices(code, editBlock(code, block, { label: text }, new Set(['label']))) };
+  if (n.bracket) return { code: applySplices(code, [{ from: n.bracket.text[0], to: n.bracket.text[1], text }]) };
   const L = code.split('\n');
-  if (n.defLine != null)
-    return { code: splice(code, n.defLine, 1, regenFlowLine(L, lineIndex(model), n.defLine, { nodeFn: (x) => (x.id === id ? { ...x, label } : x) })) };
-  const def = nodeDef({ ...n, label });
+  // node data gives the shape: the definition only brings the label
+  const def = nodeDef({ ...n, label, shape: n.shapeFrom === 'data' ? 'rect' : n.shape });
   const g = n.parent ? model.groups.get(n.parent) : undefined;
   if (g && g.endLine != null) return { code: splice(code, g.endLine, 0, [indentOf(L[g.line]) + '  ' + def]) };
   return { code: splice(code, 1, 0, ['  ' + def]) };
 }
 
+/** New label for an edge: only its link changes (its arrow as written); an edge of an `&` group is split out first. */
 export function relabelFlowEdge(code: string, model: FlowchartModel, edgeId: string, label: string): CodeResult {
   const e = model.edges.find((x) => x.id === edgeId);
-  if (!e) return { code };
-  const L = code.split('\n');
-  return { code: splice(code, e.src, 1, regenFlowLine(L, lineIndex(model), e.src, { edgeFn: (x) => (x.id === edgeId ? { ...x, label } : x) })) };
+  if (!e || e.stmt === undefined) return { code };
+  return { code: rewrite(code, model, new Map([[e.stmt, { change: { id: e.id, from: e.from, to: e.to, label } }]])) };
 }
 
 export function relabelGroup(code: string, model: FlowchartModel, gid: string, title: string): CodeResult {
@@ -132,6 +140,41 @@ export function relabelGroup(code: string, model: FlowchartModel, gid: string, t
   if (!g) return { code };
   const L = code.split('\n');
   return { code: splice(code, g.line, 1, [`${indentOf(L[g.line])}subgraph ${gid} ["${encodeLabel(title)}"]`]) };
+}
+
+/**
+ * Writes a node's shape to the Mermaid code (T02.6, in Mermaid Chart's style): the shape in node data the node has
+ * already (changed in place), else a bracket swap where both shapes have one, else a separate `id@{ shape: … }`
+ * statement after the graph's statements (the label stays in its bracket). Null for a shape Mermaid lacks (the caller
+ * keeps it in metadata).
+ */
+export function setFlowShape(code: string, model: FlowchartModel, id: string, shape: string): CodeResult | null {
+  const n = model.nodes.get(id);
+  const sd = resolveShape(shape)?.def;
+  if (!sd?.mermaid) return null;
+  if (!n) return { code };
+  const blocks = n.blocks ?? [];
+  const block = [...blocks].reverse().find((b) => b.entries.some((e) => e.key === 'shape')) ?? blocks[blocks.length - 1];
+  // node data after the last bracket decides the shape: change it there
+  if (block && (!n.bracket || block.open > n.bracket.start)) {
+    if (n.shape === sd.id && n.shapeFrom === 'data') return { code };
+    return { code: applySplices(code, editBlock(code, block, { shape: sd.mermaid }, new Set(['shape']))) };
+  }
+  if (n.bracket && sd.bracket) {
+    if (n.shape === sd.id) return { code };
+    const [o, c] = sd.bracket;
+    const t = code.slice(n.bracket.text[0], n.bracket.text[1]);
+    // an unquoted label that holds bracket characters would end the new bracket early: quoted
+    const text = /^\s*"/.test(t) || !/[[\](){}<>/\\]/.test(t) ? t : `"${encodeLabel(cleanLabel(t))}"`;
+    return { code: applySplices(code, [{ from: n.bracket.start, to: n.bracket.end, text: o + text + c }]) };
+  }
+  if (!n.bracket && sd.id === 'rect' && n.shape === 'rect') return { code };
+  if (!n.bracket && sd.bracket && !blocks.length) {
+    // only mentioned in edges: a definition at its first mention
+    const m = model.statements.flatMap((st) => st.groups.flat()).filter((x) => x.id === id).sort((a, b) => a.start - b.start)[0];
+    if (m) return { code: applySplices(code, [{ from: m.start, to: m.idEnd, text: nodeDef({ id, label: n.label, shape: sd.id }).replace(/:::.*$/, '') }]) };
+  }
+  return { code: append(code, [`  ${id}@{ shape: ${sd.mermaid} }`]) };
 }
 
 /**
@@ -250,6 +293,9 @@ export function cloneFlow(code: string, model: FlowchartModel, items: readonly I
     const cls = n.classes;
     const own = n.inlineClass || cls[0];
     const out = [ind + nodeDef({ id: map[id]!, label: n.label, shape: n.shape, inlineClass: own })];
+    // the node's data (and a shape no bracket holds) goes with the copy
+    const data = nodeDataOf(code, n, map[id]!);
+    if (data) out.push(ind + data);
     const extra = cls.filter((c) => c !== own);
     if (extra.length) out.push(`${ind}class ${map[id]} ${extra.join(',')}`);
     return out;
@@ -276,7 +322,8 @@ export function cloneFlow(code: string, model: FlowchartModel, items: readonly I
     if (pg?.endLine != null) edits.push({ at: pg.endLine, del: 0, ins: lines });
     else atEnd.push(...lines);
   }
-  for (const e of model.edges) if (nodes.has(e.from) && nodes.has(e.to)) atEnd.push('  ' + edgeText(e, map[e.from]!, map[e.to]!));
+  // the copied edges keep their links as written (length, style, label)
+  for (const e of model.edges) if (nodes.has(e.from) && nodes.has(e.to)) atEnd.push('  ' + linkOf(code, model, e, map[e.from]!, map[e.to]!));
   if (atEnd.length) edits.push({ at: end, del: 0, ins: atEnd });
   return { code: applyEdits(target, edits).replace(/\s+$/, '') + '\n', map };
 }

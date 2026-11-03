@@ -30,7 +30,9 @@ describe('shapes menu', () => {
     const sel = core.primary()!;
     expect(sel.kind).toBe('node');
     expect(lines(core)).toContain(`${sel.id}["Queue"]`);
-    expect(core.getM('node', sel.id).shape).toBe('hcyl'); // not a Mermaid shape: rect + meta shape
+    // no bracket for it: the shape goes in a separate node data statement (T02.6), not in metadata
+    expect(lines(core)).toContain(`${sel.id}@{ shape: h-cyl }`);
+    expect(core.getM('node', sel.id).shape).toBeUndefined();
     ed.undo();
     expect(core.model.type === 'flowchart' && core.model.nodes.has(sel.id)).toBe(false);
   });

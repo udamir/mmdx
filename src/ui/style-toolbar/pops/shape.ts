@@ -1,5 +1,6 @@
 // Shape popovers: the shape picker with the stacked style, and the fill (opacity and colour).
 import { h } from '../../h.js';
+import { resolveShape, shapeIdOf } from '../../../core/shapes/registry.js';
 import { shapePreview } from '../../shape-preview.js';
 import { popLabel, slider } from '../../toolbar-kit.js';
 import { num, stackLevel, str } from '../controls.js';
@@ -14,9 +15,14 @@ export function shapePop(f: Fill): void {
   if (sp.shapes) {
     pop.append(popLabel(t('tb.shape')));
     const grid = h('div', { class: 'mtb-shapes', role: 'group', 'aria-label': t('tb.shape') });
-    const cur = str(api.eff(key));
+    // a node's shape may be written by any of its names (`cyl`): the button of its id is on
+    const c0 = str(api.eff(key));
+    const cur = c0 && !sp.shapes.includes(c0) ? shapeIdOf(c0) ?? c0 : c0;
     for (const shape of sp.shapes) {
-      const b = h('button', { type: 'button', class: 'mtb-shape' + (shape === cur ? ' on' : ''), title: shape, 'aria-label': shape, 'aria-pressed': String(shape === cur) }, shapePreview(shape));
+      // the tooltip: the semantic name and the Mermaid name ("Manual operation · trap-t")
+      const def = resolveShape(shape)?.def;
+      const tip = def && def.id === shape ? `${def.name}${def.mermaid ? ` · ${def.mermaid}` : ''}` : shape;
+      const b = h('button', { type: 'button', class: 'mtb-shape' + (shape === cur ? ' on' : ''), title: tip, 'aria-label': shape, 'aria-pressed': String(shape === cur) }, shapePreview(shape));
       b.addEventListener('click', () => {
         api.set(key, shape);
         done();

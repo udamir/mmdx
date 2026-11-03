@@ -7,6 +7,7 @@ import { own } from '../own.js';
 import { withOps } from '../kinds/registry.js';
 import type { Presets } from '../kinds/types.js';
 import { effectivePage } from '../render/page.js';
+import { byShapeId, shapeIdOf } from '../shapes/catalog.js';
 import { mergeLayers, type StyleProps } from '../style.js';
 import type { ResolvedTheme, ThemeFile } from '../theme/types.js';
 import type { ItemKind, ItemRef } from '../types.js';
@@ -97,7 +98,9 @@ export function nodeShapeOf(env: StyleEnv, id: string): string {
   const { model, meta, theme } = env;
   const m = getM(meta, 'node', id);
   const pst = presetsFor(env, 'node')?.[currentPreset(env, { kind: 'node', id })];
-  return str(m.shape) ?? str(pst?.shape) ?? withOps(model, (k, m) => k.codeShape?.(m, { kind: 'node', id })) ?? str(theme.flowchart.node.shape) ?? 'rect';
+  const n = str(m.shape) ?? str(pst?.shape) ?? withOps(model, (k, m) => k.codeShape?.(m, { kind: 'node', id })) ?? str(theme.flowchart.node.shape) ?? 'rect';
+  // any name of a shape (`cyl`) is its catalogue id (`cylinder`)
+  return shapeIdOf(n) ?? n;
 }
 
 /** Theme + shape default + diagram `_base` + preset, with colour values resolved when `env.color` is given. */
@@ -105,7 +108,7 @@ export function baseStyleOf(env: StyleEnv, kind: ItemKind, id: string | null): S
   const { theme, meta } = env;
   const preset = id != null ? currentPreset(env, { kind, id }) : '';
   const shapeDef = id == null ? undefined
-    : kind === 'node' ? theme.flowchart.nodeShapes?.[nodeShapeOf(env, id)]
+    : kind === 'node' ? byShapeId(theme.flowchart.nodeShapes)?.[nodeShapeOf(env, id)]
       : kind === 'participant' ? theme.sequence.participantShapes?.[participantShapeOf(env, id)]
         : undefined;
   const layers: (object | undefined)[] = [defaultsFor(theme, kind), shapeDef, meta.styles[kind]?.['_base'], presetsFor(env, kind)?.[preset]];

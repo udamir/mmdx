@@ -41,6 +41,8 @@ export interface BoxGeom {
   h: number;
   stack?: boolean | number | undefined;
   hidden?: boolean;
+  /** The catalogue shape drawn in the box, when not a rectangle (connector ends, magnets and highlight frames follow its outline). */
+  shape?: string;
 }
 
 export interface Port extends Point {

@@ -12,6 +12,7 @@ import type { LayeredOptions, LayoutEdge, LayoutNode } from '../layout/layered.j
 import type { CanvasMeta, DiagramMeta } from '../meta/types.js';
 import type { ResolvedTheme } from '../theme/types.js';
 import type { GeometryIndex, HiddenSets, Port, RenderContext, RenderOptions } from './types.js';
+import { shapeDef, shapeIdOf } from '../shapes/registry.js';
 
 // ---- style ----------------------------------------------------------------------------------------------------
 
@@ -266,109 +267,9 @@ export const urlRef = (id: string | null): string | undefined => (id ? `url(#${i
 
 const P = (x: number, y: number): string => `${fmt(x)},${fmt(y)}`;
 
-function paint(st: StyleProps, extra: SvgAttrs): SvgAttrs {
-  return {
-    fill: st.fill ?? '#fff',
-    stroke: st.stroke ?? '#222',
-    'stroke-width': st.strokeWidth ?? 1.5,
-    'stroke-dasharray': st.dash || undefined,
-    'fill-opacity': st.fillOpacity,
-    'stroke-opacity': st.strokeOpacity,
-    ...extra,
-  };
-}
-
-/** Node shapes. b = {x, y, w, h} centred at (x, y). */
+/** Node shapes (the catalogue's entry for the name; an unknown name draws a rectangle). b = {x, y, w, h} centred at (x, y). */
 export function shapeNodes(shape: string | undefined, b: CenterBox, st: StyleProps, extra: SvgAttrs = {}): SceneNode[] {
-  const x = b.x - b.w / 2, y = b.y - b.h / 2, w = b.w, h = b.h;
-  const pa = paint(st, extra);
-  const r = st.radius ?? 8;
-  const line = { fill: 'none', stroke: st.stroke, 'stroke-width': st.strokeWidth ?? 1.5 };
-  const rect = (rx: number): SceneNode => el('rect', { x, y, width: w, height: h, rx, ...pa });
-  switch (shape) {
-    case 'rounded':
-      return [rect(Math.max(r, 14))];
-    case 'stadium':
-      return [rect(h / 2)];
-    case 'circle':
-      return [el('ellipse', { cx: b.x, cy: b.y, rx: w / 2, ry: h / 2, ...pa })];
-    case 'doublecircle':
-      return [
-        el('ellipse', { cx: b.x, cy: b.y, rx: w / 2, ry: h / 2, ...pa }),
-        el('ellipse', { cx: b.x, cy: b.y, rx: w / 2 - 5, ry: h / 2 - 5, ...line }),
-      ];
-    case 'diamond':
-      return [el('path', { d: `M${P(b.x, y)} L${P(x + w, b.y)} L${P(b.x, y + h)} L${P(x, b.y)} Z`, 'stroke-linejoin': 'round', ...pa })];
-    case 'hexagon': {
-      const k = Math.min(h / 2, w / 4);
-      return [
-        el('path', {
-          d: `M${P(x + k, y)} L${P(x + w - k, y)} L${P(x + w, b.y)} L${P(x + w - k, y + h)} L${P(x + k, y + h)} L${P(x, b.y)} Z`,
-          'stroke-linejoin': 'round',
-          ...pa,
-        }),
-      ];
-    }
-    case 'parallelogram':
-    case 'parallelogram-alt': {
-      const k = Math.min(h * 0.4, w / 5), s = shape === 'parallelogram';
-      return [
-        el('path', {
-          d: `M${P(x + (s ? k : 0), y)} L${P(x + w - (s ? 0 : k), y)} L${P(x + w - (s ? k : 0), y + h)} L${P(x + (s ? 0 : k), y + h)} Z`,
-          ...pa,
-        }),
-      ];
-    }
-    case 'trapezoid':
-    case 'trapezoid-alt': {
-      const k = Math.min(h * 0.4, w / 5), up = shape === 'trapezoid';
-      return [
-        el('path', {
-          d: `M${P(x + (up ? k : 0), y)} L${P(x + w - (up ? k : 0), y)} L${P(x + w - (up ? 0 : k), y + h)} L${P(x + (up ? 0 : k), y + h)} Z`,
-          ...pa,
-        }),
-      ];
-    }
-    case 'asymmetric': {
-      const k = h / 3;
-      return [el('path', { d: `M${P(x, y)} L${P(x + w, y)} L${P(x + w, y + h)} L${P(x, y + h)} L${P(x + k, b.y)} Z`, ...pa })];
-    }
-    case 'subroutine':
-      return [
-        rect(Math.min(r, 4)),
-        el('path', { d: `M${P(x + 9, y)} V${fmt(y + h)} M${P(x + w - 9, y)} V${fmt(y + h)}`, stroke: st.stroke, 'stroke-width': st.strokeWidth ?? 1.5 }),
-      ];
-    case 'cylinder': {
-      const ry = Math.min(9, h * 0.16);
-      return [
-        el('path', {
-          d: `M${P(x, y + ry)} A${fmt(w / 2)},${fmt(ry)} 0 0 1 ${P(x + w, y + ry)} V${fmt(y + h - ry)} A${fmt(w / 2)},${fmt(ry)} 0 0 1 ${P(x, y + h - ry)} Z`,
-          ...pa,
-        }),
-        el('path', { d: `M${P(x, y + ry)} A${fmt(w / 2)},${fmt(ry)} 0 0 0 ${P(x + w, y + ry)}`, ...line }),
-      ];
-    }
-    case 'hcyl': {
-      const rx = Math.min(10, w * 0.1);
-      return [
-        el('path', {
-          d: `M${P(x + rx, y)} H${fmt(x + w - rx)} A${fmt(rx)},${fmt(h / 2)} 0 0 1 ${P(x + w - rx, y + h)} H${fmt(x + rx)} A${fmt(rx)},${fmt(h / 2)} 0 0 1 ${P(x + rx, y)} Z`,
-          ...pa,
-        }),
-        el('path', { d: `M${P(x + w - rx, y)} A${fmt(rx)},${fmt(h / 2)} 0 0 0 ${P(x + w - rx, y + h)}`, ...line }),
-      ];
-    }
-    case 'document': {
-      const k = h * 0.12;
-      return [el('path', { d: `M${P(x, y)} H${fmt(x + w)} V${fmt(y + h - k)} Q${P(x + w * 0.75, y + h - 3 * k)} ${P(b.x, y + h - k)} T${P(x, y + h - k)} Z`, ...pa })];
-    }
-    case 'card': {
-      const k = 12;
-      return [el('path', { d: `M${P(x + k, y)} H${fmt(x + w)} V${fmt(y + h)} H${fmt(x)} V${fmt(y + k)} Z`, ...pa })];
-    }
-    default:
-      return [rect(r)];
-  }
+  return shapeDef(shape).draw(b, st, extra);
 }
 
 /** The "stacked cards" look: false | true (one copy) | 2 | 3 copies shifted up-right behind the shape. */
@@ -726,7 +627,11 @@ export function cachedLayout(
 }
 
 /** The node shape a flowchart preset draws (its own shape, else the shape it was saved for). */
-export const presetShape = (p: StyleProps | undefined): string => p?.shape || p?.for || 'rect';
+export const presetShape = (p: StyleProps | undefined): string => {
+  const n = p?.shape || p?.for || 'rect';
+  // a Mermaid name (`cyl`) is the shape's id (`cylinder`)
+  return shapeIdOf(n) ?? n;
+};
 
 /** The participant shape a sequence preset draws. */
 export const participantPresetShape = (p: StyleProps | undefined): string => p?.shape || p?.for || 'box';

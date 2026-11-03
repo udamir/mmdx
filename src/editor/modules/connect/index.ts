@@ -5,7 +5,7 @@
 import { KIND_TO_COLL, type ItemMeta } from '../../../core/meta/types.js';
 import { opsKind, reparse } from '../../../core/kinds/registry.js';
 import { cloneMeta, ensure as ensureIn } from '../../../core/ops/meta-util.js';
-import { outerBox, portPoint } from '../../../core/render/common.js';
+import { outerBox } from '../../../core/render/common.js';
 import type { EdgeGeom } from '../../../core/render/types.js';
 import { el, g } from '../../../core/scene/build.js';
 import type { SceneNode } from '../../../core/scene/types.js';
@@ -15,7 +15,7 @@ import type { EditorCore, Gesture, Hit, Sel } from '../../core.js';
 import { editKind, withEdit } from '../../kinds/registry.js';
 import type { EditorModule } from '../../module.js';
 import { CONNECT_CSS } from './css.js';
-import { canConnect, deepInside, endpointBox, endpointId, geomBoxOf, MAGNETS, projectToBox, targetAt } from './geometry.js';
+import { canConnect, deepInside, endpointBox, endpointId, geomBoxOf, MAGNETS, portOn, projectToBox, targetAt } from './geometry.js';
 
 export { MAGNETS, canConnect, deepInside, geomBoxOf, projectToBox, targetAt } from './geometry.js';
 
@@ -28,7 +28,7 @@ interface Linking {
 }
 
 interface Magnets {
-  box: CenterBox;
+  box: CenterBox & { shape?: string };
   side?: Side | undefined;
   at?: number | undefined;
 }
@@ -133,13 +133,13 @@ export const connectModule: EditorModule = {
 
     // ---- painters ------------------------------------------------------------------------------------------------
 
-    const connectDots = (b: CenterBox & { stack?: unknown }, s: Sel, k: number): SceneNode[] => {
+    const connectDots = (b: CenterBox & { stack?: unknown; shape?: string }, s: Sel, k: number): SceneNode[] => {
       if (s.kind === 'participant') return []; // messages start from lifelines instead (sequence module: ◀ ▶)
       if (!canConnect(core, s.kind, s.id) || core.getM(s.kind, s.id).locked) return [];
-      const box = outerBox(b, b.stack);
+      const box: CenterBox & { shape?: string } = { ...outerBox(b, b.stack), ...(b.shape ? { shape: b.shape } : {}) };
       const off = 16 / k, r = 6 / k;
       return (['t', 'r', 'b', 'l'] as Side[]).map((side) => {
-        const p = portPoint(box, side, 0.5);
+        const p = portOn(box, side, 0.5);
         const x = p.x + p.n.x * off, y = p.y + p.n.y * off;
         return g({ class: 'conn-dot', 'data-handle': 'new', 'data-side': side, 'data-kind': s.kind, 'data-id': s.id }, [
           el('circle', { cx: x, cy: y, r: r * 1.9, fill: 'transparent', stroke: 'none' }),
@@ -155,7 +155,7 @@ export const connectModule: EditorModule = {
       const r = 3.6 / k, out: SceneNode[] = [];
       for (const side of ['t', 'r', 'b', 'l'] as Side[])
         for (const at of MAGNETS) {
-          const p = portPoint(mg.box, side, at);
+          const p = portOn(mg.box, side, at);
           const on = side === mg.side && Math.abs(at - (mg.at ?? -1)) < 0.001;
           out.push(el('circle', { class: on ? 'magnet on' : 'magnet', cx: p.x, cy: p.y, r: on ? r * 1.6 : r, 'stroke-width': 1.4 / k }));
         }
@@ -225,7 +225,7 @@ export const connectModule: EditorModule = {
     const newDrag = (hit: Hit, side: Side, src: ItemRef): Gesture | null => {
       const srcBox = geomBoxOf(core, src.kind, src.id);
       if (!srcBox) return null;
-      const a = portPoint(srcBox, side, 0.5);
+      const a = portOn(srcBox, side, 0.5);
       const p0 = hit.p;
       linking = { a, b: a, target: null };
       return {
@@ -236,7 +236,7 @@ export const connectModule: EditorModule = {
           if (t && box) {
             const auto = src.kind === 'participant' || deepInside(box, cur, core.viewport.state.k);
             const pr = auto ? null : projectToBox(box, cur, ev.altKey);
-            const tip = pr ? portPoint(box, pr.side, pr.at) : { x: box.x, y: box.y };
+            const tip = pr ? portOn(box, pr.side, pr.at) : { x: box.x, y: box.y };
             linking = { a, b: tip, target: t };
             if (pr) {
               linking.side = pr.side;

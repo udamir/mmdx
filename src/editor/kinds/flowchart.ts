@@ -1,7 +1,7 @@
 // The flowchart edit kind.
 import type { FlowchartModel } from '../../core/model.js';
 import { addFlowEdge, edgeText, nodeDef, reconnectFlow } from '../../core/ops/connect.js';
-import { deleteFlow, groupFlow, relabelFlowEdge, relabelFlowNode, relabelGroup, ungroupFlow } from '../../core/ops/flowchart.js';
+import { deleteFlow, groupFlow, relabelFlowEdge, relabelFlowNode, relabelGroup, setFlowShape, ungroupFlow } from '../../core/ops/flowchart.js';
 import type { FlowGeometry } from '../../core/render/types.js';
 import type { Sel } from '../core.js';
 import { cloneMeta, ensure as ensureIn } from '../../core/ops/meta-util.js';
@@ -12,13 +12,12 @@ import type { Point } from '../../core/types.js';
 import type { EditorCore } from '../core.js';
 import { focusLabel } from '../modules/shapes/drop.js';
 import { applyDoc } from '../ops/doc.js';
+import { metaOnlyShapes, shapeDoc } from '../ops/shape.js';
 import { shapeIcon } from './palette.js';
+import { menuShapes } from '../../core/shapes/catalog.js';
 import type { EditKind } from './types.js';
 
 const one = (s: string): string => s.replace(/\n/g, ' ');
-
-/** Shapes Mermaid draws natively; the others are stored as `rect` + meta `shape`. */
-const MERMAID_SHAPES: ReadonlySet<string> = new Set(['rect', 'rounded', 'stadium', 'diamond', 'parallelogram', 'cylinder', 'subroutine', 'circle', 'hexagon']);
 
 /** The innermost visible group around a point (a dropped shape joins it). */
 function groupAt(core: EditorCore, pt: Point): string | null {
@@ -102,18 +101,17 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
   palette: {
     mode: 'menu',
     title: 'Shapes',
-    items: ([
-      ['rect', 'Process'], ['rounded', 'Step'], ['stadium', 'Start / End'], ['diamond', 'Decision'], ['parallelogram', 'Input / Output'],
-      ['cylinder', 'Database'], ['hcyl', 'Queue'], ['document', 'Document'], ['subroutine', 'Subprocess'], ['circle', 'Event'], ['hexagon', 'Preparation'],
-    ] as const).map(([key, label]) => ({ key, label, icon: shapeIcon(key) })),
+    // the catalogue's common shapes (the full categorised palette comes with T05)
+    items: menuShapes().map(({ def, label }) => ({ key: def.id, label, icon: shapeIcon(def.id) })),
     presets: (item) => ({ kind: 'node', shape: item.key, fits: (p) => presetShape(p) === item.key }),
   },
+  setShape: (code, M, ref, shape) => (ref.kind === 'node' ? setFlowShape(code, M, ref.id, shape) : null),
   drop(core, M, item, pt) {
-    const native = MERMAID_SHAPES.has(item.key);
-    const res = addFlowNode(core.code, M, { label: item.label.split(' /')[0]!, shape: native ? item.key : 'rect', group: groupAt(core, pt) });
+    // the shape goes to the code (a bracket, else `n3@{ shape: … }`); one Mermaid lacks stays in metadata
+    const res = addFlowNode(core.code, M, { label: item.label.split(' /')[0]!, shape: item.key, group: groupAt(core, pt) });
     const meta = cloneMeta(core.meta);
     const m = ensureIn(meta, 'node', res.select.id);
-    Object.assign(m, { x: pt.x, y: pt.y }, native ? {} : { shape: item.key }, item.preset ? { preset: item.preset } : {});
+    Object.assign(m, { x: pt.x, y: pt.y }, res.metaShape ? { shape: res.metaShape } : {}, item.preset ? { preset: item.preset } : {});
     const ok = core.applyCode({ code: res.code, meta }, 'Add shape', { select: [res.select] });
     if (ok) focusLabel(core, res.select);
     return ok;
@@ -132,12 +130,26 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
     };
   },
   problems(core, M) {
-    if (!M.undefinedClasses.length) return [];
+    const t = core.i18n.t;
+    const out: { line: number | null; msg: string; fix?: { label: string; run(): void } }[] = [];
+    // files of mmdx 0.1–0.3 kept shapes in metadata: stock Mermaid shows rectangles until they move to the code
+    const metaOnly = metaOnlyShapes(core, [...M.nodes.keys()].map((id) => ({ kind: 'node' as const, id })));
+    if (metaOnly.length)
+      out.push({
+        line: null, msg: t(metaOnly.length === 1 ? 'problems.metaShape1' : 'problems.metaShapeN', { n: metaOnly.length }),
+        fix: {
+          label: t('problems.fixMetaShape'),
+          run: () => {
+            const doc = shapeDoc(core, metaOnly, null);
+            if (doc) applyDoc(core, t('problems.fixMetaShape'), doc, null);
+          },
+        },
+      });
+    if (!M.undefinedClasses.length) return out;
     // a class is fine when it names a classDef or a node / subgraph preset
     const P = flowPresets(core.result.theme, core.meta);
-    const out: { line: number; msg: string }[] = [];
     for (const { cls, line } of M.undefinedClasses)
-      if (!Object.hasOwn(P.node, cls) && !Object.hasOwn(P.group, cls)) out.push({ line: line + 1, msg: core.i18n.t('problems.undefinedClass', { cls }) });
+      if (!Object.hasOwn(P.node, cls) && !Object.hasOwn(P.group, cls)) out.push({ line: line + 1, msg: t('problems.undefinedClass', { cls }) });
     return out;
   },
 };

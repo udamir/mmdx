@@ -1,6 +1,10 @@
 // Parsed diagram models (§5.2). The shapes follow the prototype parsers so the ported ops keep working: they rely on
 // the 0-based source line fields (`lines`, `defLine`, `src`, `line` / `endLine`). Statements split by `;` share a line.
 import type { Diagnostic, DiagramType } from './types.js';
+import type { NodeDataBlock } from './parse/node-data.js';
+import type { ShapeId } from './shapes/types.js';
+
+export type { DataEntry, DataValue, NodeDataBlock } from './parse/node-data.js';
 
 /** Style parsed from Mermaid `style` / `classDef` / `linkStyle` (already validated, see core/validate). */
 export interface MermaidStyle {
@@ -20,10 +24,60 @@ export interface BaseModel {
 
 export type Direction = 'TB' | 'BT' | 'LR' | 'RL';
 
-export type NodeShape =
-  | 'rect' | 'rounded' | 'stadium' | 'subroutine' | 'cylinder' | 'circle' | 'doublecircle' | 'diamond' | 'hexagon'
-  | 'parallelogram' | 'parallelogram-alt' | 'trapezoid' | 'trapezoid-alt' | 'asymmetric' | 'hcyl' | 'document' | 'card'
-  | 'queue';
+/** A node's shape: a canonical id of the shape catalogue (core/shapes). */
+export type NodeShape = ShapeId;
+
+/** The node data keys Mermaid knows besides `shape` and `label` (`A@{ icon: "fa:user", form: square }`), typed. */
+export interface FlowNodeData {
+  labelType?: string;
+  icon?: string;
+  form?: string;
+  pos?: string;
+  img?: string;
+  constraint?: string;
+  w?: number;
+  h?: number;
+}
+
+/** Where a node's bracket definition is in the code (`A["Label"]`): offsets of the opener, the text between and the end. */
+export interface BracketSpan {
+  start: number;
+  /** The text between the brackets as written (quotes included). */
+  text: [number, number];
+  end: number;
+  open: string;
+  close: string;
+}
+
+/** A node as a statement mentions it: its id and everything written with it (bracket, `@{…}`, `:::class`). */
+export interface FlowMention {
+  id: string;
+  start: number;
+  end: number;
+  /** End of the id itself. */
+  idEnd: number;
+  /** The mention defines the node (a bracket or node data). */
+  def: boolean;
+}
+
+/** A link as written between two node groups: the whole token (an edge id and the label included) and the bare arrow. */
+export interface FlowLink {
+  start: number;
+  end: number;
+  /** The arrow without its label (`-->`, `-.->`, `<==>`), keeping its length and heads. */
+  arrow: string;
+  /** End of an edge id prefix (`e1@`), when there is one. */
+  idEnd?: number;
+}
+
+/** A node statement (`A & B --> C -.-> D`): its node groups and the links between them, with code offsets. */
+export interface FlowStatement {
+  line: number;
+  start: number;
+  end: number;
+  groups: FlowMention[][];
+  links: FlowLink[];
+}
 
 export interface FlowNode {
   id: string;
@@ -42,6 +96,16 @@ export interface FlowNode {
   defLine: number | null;
   /** `click A href "…"` target, unvalidated (the renderer applies the link policy). */
   link?: string;
+  /** The node data keys Mermaid knows (typed), from its `@{…}` blocks. */
+  data?: FlowNodeData;
+  /** Every `@{…}` block of the node, in code order, with the offsets of its entries (lossless editing). */
+  blocks?: NodeDataBlock[];
+  /** Its last bracket definition (the one Mermaid keeps). */
+  bracket?: BracketSpan;
+  /** What gave the node its shape last: a bracket or node data (absent: neither, a rectangle). */
+  shapeFrom?: 'bracket' | 'data';
+  /** What gave the node its label last. */
+  labelFrom?: 'bracket' | 'data';
 }
 
 export interface FlowGroup {
@@ -77,6 +141,9 @@ export interface FlowEdge {
   index: number;
   /** Source line. */
   src: number;
+  /** The statement it is written in (`model.statements`) and the link of that statement it comes from. */
+  stmt?: number;
+  seg?: number;
 }
 
 export interface FlowchartModel extends BaseModel {
@@ -92,6 +159,8 @@ export interface FlowchartModel extends BaseModel {
   undefinedClasses: { cls: string; line: number }[];
   /** Ids used both by a subgraph and by a real node definition (Mermaid fails on these). */
   idClashes: string[];
+  /** The node statements, with the offsets the ops splice (T02.5). */
+  statements: FlowStatement[];
 }
 
 // ---- sequence ---------------------------------------------------------------------------------------------------

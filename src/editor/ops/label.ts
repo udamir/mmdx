@@ -1,10 +1,12 @@
 // Item text ops of the editor (no UI): how an item's text is read and written back to Mermaid (the inline editor and
 // the Properties panel), and the title / sub line that describes an item.
+import type { DiagramMeta } from '../../core/meta/types.js';
 import type { DiagramModel } from '../../core/model.js';
 import type { CodeResult } from '../../core/ops/types.js';
 import type { ItemKind } from '../../core/types.js';
 import type { EditorCore } from '../core.js';
 import { withEdit } from '../kinds/registry.js';
+import { shapeDoc } from './shape.js';
 
 /** Title and sub line of the Properties panel for an item. */
 export function describe(M: DiagramModel, kind: ItemKind, id: string): { title: string; sub: string } {
@@ -21,7 +23,7 @@ export interface LabelSpec {
    * or an undo changed the document applies to the current code); null when the item is gone — or, for the positional
    * ids of sequence items, now names an item whose text is no longer the one being edited.
    */
-  apply(v: string): CodeResult | null;
+  apply(v: string): (CodeResult & { meta?: DiagramMeta }) | null;
 }
 
 interface TextOf {
@@ -51,7 +53,9 @@ export function labelSpec(core: EditorCore, kind: ItemKind, id: string): LabelSp
       if (!core.store.exists({ kind, id })) return null;
       const now = textOf(core, kind, id);
       if (!now || (POSITIONAL.has(kind) && now.value !== at.value)) return null;
-      return now.write(v);
+      // a shape the item keeps only in metadata moves to the code with the edit (T02.6)
+      const res = now.write(v);
+      return shapeDoc(core, [{ kind, id }], null, { code: res.code, meta: core.meta }) ?? res;
     },
   };
 }

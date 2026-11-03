@@ -79,7 +79,9 @@ describe('connect: end handles', () => {
     const g = core.geom.type === 'flowchart' ? core.geom.edges.get('A->B')! : null;
     const c = box(core, 'C');
     drag(core, handle(core, '[data-handle="end"][data-end="b"]'), g!.b, { x: c.x, y: c.y });
-    expect(lines(core).some((l) => /^A --> C$/.test(l))).toBe(true);
+    // only the end changes (T02.5): A keeps its definition in place, B's moves to a statement of its own
+    expect(lines(core).some((l) => /^A\["A"\] --> C$/.test(l))).toBe(true);
+    expect(lines(core)).toContain('B["B"]');
     expect(core.primary()).toEqual({ kind: 'edge', id: 'A->C' });
     ed.undo();
     expect(lines(core).join('\n')).toContain('A["A"] --> B["B"]');

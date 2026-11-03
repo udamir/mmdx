@@ -1,13 +1,15 @@
 // The button sets of the style toolbar per item kind (prototype KIND plus the order / layer / presets rearrangement
 // done at load), the bulk-edit variant of a kind's set, and the value lists its popovers offer.
+import { PARTICIPANT_SHAPES as PARTICIPANTS, pickerShapes } from '../../core/shapes/catalog.js';
 import type { KindSpec, ToolbarControl } from './types.js';
 
 /** Font sizes the size steppers go through. */
 export const SIZES = [8, 10, 11, 12, 13, 14, 16, 18, 20, 22, 24, 28, 32, 36, 40, 48, 64];
 /** Kinds that can be drawn stacked. */
 export const STACKABLE = new Set(['node', 'group', 'participant', 'entity']);
-export const NODE_SHAPES = ['rect', 'rounded', 'stadium', 'circle', 'diamond', 'hexagon', 'parallelogram', 'trapezoid', 'cylinder', 'hcyl', 'document', 'card', 'subroutine', 'doublecircle', 'asymmetric'] as const;
-export const PARTICIPANT_SHAPES = ['box', 'rounded', 'stadium', 'database', 'hcyl', 'actor'] as const;
+/** The shape pickers' lists, from the shape catalogue (flowchart nodes: by category; participants: their own names). */
+export const NODE_SHAPES: readonly string[] = pickerShapes().map((d) => d.id);
+export const PARTICIPANT_SHAPES: readonly string[] = PARTICIPANTS.map(([n]) => n);
 export const DASHES: readonly (readonly [string, string])[] = [['none', 'solid'], ['6 4', 'dashed'], ['1.5 4', 'dotted']];
 export const ARROWS = ['none', 'open', 'filled', 'arrow', 'circle', 'dot', 'cross'] as const;
 export const ROUTINGS = ['curved', 'orthogonal', 'straight'] as const;

@@ -12,7 +12,8 @@ import type { ItemRef } from '../../../core/types.js';
 import { h, icon } from '../../../ui/h.js';
 import { drawItemPreview } from '../../../ui/item-preview.js';
 import type { EditorCore } from '../../core.js';
-import { applyMeta, styleEnv } from '../../ops/doc.js';
+import { applyDoc, applyMeta, styleEnv } from '../../ops/doc.js';
+import { shapeDoc } from '../../ops/shape.js';
 
 const ICON_SAVE = 'M5 4.5h11l3 3V19a.5.5 0 0 1-.5.5h-13A.5.5 0 0 1 5 19zM8.5 4.5v4h6v-4M12 12.5v5M9.5 15h5';
 const ICON_RESET = 'M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4 4v4.5h4.5';
@@ -118,7 +119,9 @@ export function presetPicker(core: EditorCore, grid: HTMLElement, ref: ItemRef, 
       + (modified && isOn ? ` — ${t('presets.tipModified')}` : '');
     b.addEventListener('click', () => {
       const out = cloneMeta(core.meta);
-      for (const target of opts.targets?.filter((x) => x.kind === kind) ?? [ref]) {
+      const targets = opts.targets?.filter((x) => x.kind === kind) ?? [ref];
+      const reshape: ItemRef[] = [];
+      for (const target of targets) {
         const m = ensure(out, kind, target.id);
         if (name) m.preset = name;
         else delete m.preset;
@@ -126,11 +129,17 @@ export function presetPicker(core: EditorCore, grid: HTMLElement, ref: ItemRef, 
         if (forShape && !(name && P[name]?.shape === forShape)) {
           const codeShape = withOps(core.model, (k, mm) => k.codeShape?.(mm, { kind: 'node', id: target.id })) ?? 'rect';
           if (forShape === codeShape && !P[name]?.shape) delete m.shape;
-          else m.shape = forShape;
+          else {
+            m.shape = forShape;
+            reshape.push(target);
+          }
         }
         tidy(out, kind, target.id);
       }
-      applyMeta(core, t('history.preset'), { meta: out });
+      // the shape goes to the code where the type keeps shapes there
+      const doc = forShape && reshape.length ? shapeDoc(core, reshape, forShape, { code: core.code, meta: out }) : null;
+      if (doc) applyDoc(core, t('history.preset'), doc, null);
+      else applyMeta(core, t('history.preset'), { meta: out });
       done();
     });
     if (isLocal) {

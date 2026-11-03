@@ -21,6 +21,7 @@ import { h } from '../../../ui/h.js';
 import type { EditorCore, Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { saveItemAsPreset, presetPicker } from '../panels/presets.js';
+import { styleWithShapes } from '../../ops/shape.js';
 import { applyDoc, applyMeta, DIAGRAM_TYPES, FLOW_DIRS, setAutonumberOn, setFlowDirection, styleEnv, switchDiagramType } from '../../ops/doc.js';
 import { canGroup } from '../../ops/group.js';
 import { LiveEdit } from '../../ops/live.js';
@@ -219,6 +220,17 @@ export const toolbarsModule: EditorModule = {
       const lines = mixed ? targets.filter((x) => LINE_KINDS.has(x.kind)) : [];
       const boxes = lines.length ? targets.filter((x) => !LINE_KINDS.has(x.kind)) : targets;
       const textPatch = lines.length ? Object.fromEntries(Object.entries(patch).filter(([key]) => !BOX_LOOK.has(key))) : {};
+      // a picked shape goes to the code where the type keeps shapes there (one history step with the rest of the patch)
+      if (typeof patch['shape'] === 'string' && patch['shape']) {
+        live.flush();
+        const rest = Object.fromEntries(Object.entries(patch).filter(([key]) => key !== 'shape'));
+        const done = styleWithShapes(core, boxes, patch, t('history.style'), (meta) => {
+          let m = setStyle(meta, boxes, rest, { multi: multi() }).meta;
+          if (Object.keys(textPatch).length) m = setStyle(m, lines, textPatch, { multi: true }).meta;
+          return m;
+        });
+        if (done) return;
+      }
       live.run(t('history.style'), () => {
         let meta = setStyle(core.meta, boxes, patch, { multi: multi() }).meta;
         if (Object.keys(textPatch).length) meta = setStyle(meta, lines, textPatch, { multi: true }).meta;

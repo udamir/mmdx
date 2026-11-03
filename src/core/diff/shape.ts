@@ -1,14 +1,17 @@
 // Where a diff highlight goes: an item's outline from the renderer's geometry index (a box, or a connector's path with
 // its label). Each diagram type's view kind maps its geometry onto these with `boxShape` / `pathShape`.
+import { shapeDef } from '../shapes/registry.js';
+import { outlinePath } from '../shapes/outline.js';
 import type { Rect } from '../types.js';
 
-export type ItemShape = { t: 'rect'; r: Rect } | { t: 'path'; d: string; label: Rect | null; mid: { x: number; y: number } };
+/** A box (with its shape's outline grown by the frame's padding, when not a rectangle), or a connector's path. */
+export type ItemShape = { t: 'rect'; r: Rect; d?: string } | { t: 'path'; d: string; label: Rect | null; mid: { x: number; y: number } };
 
 const box = (b: { x: number; y: number; w: number; h: number }): Rect => ({ x: b.x - b.w / 2, y: b.y - b.h / 2, w: b.w, h: b.h });
 
 /** The shape of a box given by its centre (null when missing or hidden). */
-export const boxShape = (b: { x: number; y: number; w: number; h: number; hidden?: boolean } | undefined): ItemShape | null =>
-  b && !b.hidden ? { t: 'rect', r: box(b) } : null;
+export const boxShape = (b: { x: number; y: number; w: number; h: number; hidden?: boolean; shape?: string } | undefined): ItemShape | null =>
+  b && !b.hidden ? (b.shape ? { t: 'rect', r: box(b), d: outlinePath(shapeDef(b.shape), b, 8) } : { t: 'rect', r: box(b) }) : null;
 
 /** The shape of a connector: its path, its label box and a middle point to badge. */
 export function pathShape(e: { d: string; label: { x: number; y: number; w: number; h: number } | null; points: [number, number][]; a: { x: number; y: number }; b: { x: number; y: number } } | undefined): ItemShape | null {

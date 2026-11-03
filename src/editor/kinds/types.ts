@@ -58,6 +58,13 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   /** The id of a re-attached connector in the model after the rewrite. */
   reconnected?(model: M, r: ConnectResult): string | undefined;
 
+  // ---- shapes ----
+  /**
+   * Writes an item's shape to the Mermaid code (flowchart: a bracket or `@{ shape }`); null when the code cannot hold
+   * it (a shape Mermaid lacks, an item without code shapes): the editor keeps it in metadata.
+   */
+  setShape?(code: string, model: M, ref: ItemRef, shape: string): CodeResult | null;
+
   // ---- Shapes menu ----
   /** What the Shapes dock button offers. */
   palette?: PaletteSpec;
@@ -79,8 +86,8 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   orderTitle?: string;
   /** A fix of a diagnostic the type handles itself (flowchart: an id used by a node and a subgraph). */
   fixOf?(core: EditorCore, model: M, d: Diagnostic): { label: string; run(): void } | null;
-  /** More problems of the code (flowchart: classes that name no classDef or preset). */
-  problems?(core: EditorCore, model: M): { line: number; msg: string }[];
+  /** More problems of the code (flowchart: classes that name no classDef or preset, shapes kept only in metadata), with a fix where there is one. */
+  problems?(core: EditorCore, model: M): { line: number | null; msg: string; fix?: { label: string; run(): void } }[];
 
   /** Geometry of the type (for typing the hooks that take it). */
   readonly geom?: G;

@@ -2,7 +2,10 @@
 // `targetAt`, `deepInside`, `projectToBox`, `MAGNETS`, `endpointBox`, `endpointId`).
 import { opsKind, withKind } from '../../../core/kinds/registry.js';
 import { currentPreset } from '../../../core/ops/style-env.js';
-import { outerBox } from '../../../core/render/common.js';
+import { outerBox, portPoint } from '../../../core/render/common.js';
+import type { Port } from '../../../core/render/types.js';
+import { shapeDef } from '../../../core/shapes/registry.js';
+import { onOutline } from '../../../core/shapes/outline.js';
 import type { Side } from '../../../core/style.js';
 import type { CenterBox, ItemKind, ItemRef, Point } from '../../../core/types.js';
 import type { EditorCore } from '../../core.js';
@@ -24,12 +27,19 @@ export function canConnect(core: EditorCore, kind: ItemKind, id: string): boolea
   return currentPreset({ model: core.model, meta: core.meta, theme: r.theme, color: r.rctx.color }, { kind, id }) !== 'lane';
 }
 
-/** The box connectors attach to (stacked shapes grow by their offset). */
-export function geomBoxOf(core: EditorCore, kind: ItemKind, id: string): (CenterBox & { hidden?: boolean }) | null {
-  const b = kindsOf(core).includes(kind) ? (core.boxOf({ kind, id }) as (CenterBox & { stack?: unknown; hidden?: boolean }) | null) : null;
+/** The box connectors attach to (stacked shapes grow by their offset), with the shape drawn in it. */
+export function geomBoxOf(core: EditorCore, kind: ItemKind, id: string): (CenterBox & { hidden?: boolean; shape?: string }) | null {
+  const b = kindsOf(core).includes(kind) ? (core.boxOf({ kind, id }) as (CenterBox & { stack?: unknown; hidden?: boolean; shape?: string }) | null) : null;
   if (!b) return null;
-  const o = outerBox(b, b.stack);
+  const o: CenterBox & { hidden?: boolean; shape?: string } = { ...outerBox(b, b.stack) };
+  if (b.shape) o.shape = b.shape;
   return b.hidden ? { ...o, hidden: true } : o;
+}
+
+/** A port on a box's side at `at`, on the outline of the shape drawn there (where the renderer ends a connector). */
+export function portOn(b: CenterBox & { shape?: string }, side: Side, at: number): Port {
+  const p = portPoint(b, side, at);
+  return b.shape ? onOutline(shapeDef(b.shape), b, p) : p;
 }
 
 /** True when the point is well inside the box (not near an edge): let the renderer pick the side. */
@@ -96,7 +106,7 @@ export function endpointId(core: EditorCore, kind: ItemKind, id: string, which: 
   return c ? (which === 'a' ? c.from.id : c.to.id) : null;
 }
 
-export function endpointBox(core: EditorCore, kind: ItemKind, id: string, which: 'a' | 'b'): CenterBox | null {
+export function endpointBox(core: EditorCore, kind: ItemKind, id: string, which: 'a' | 'b'): (CenterBox & { shape?: string }) | null {
   const target = endpointId(core, kind, id, which);
   if (target == null) return null;
   for (const k of kindsOf(core)) {

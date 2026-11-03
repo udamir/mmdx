@@ -34,14 +34,15 @@ describe('flowchart nodes', () => {
     ['A[/t/]', 'parallelogram'], ['A[\\t\\]', 'parallelogram-alt'], ['A[/t\\]', 'trapezoid'], ['A[\\t/]', 'trapezoid-alt'],
     ['A>t]', 'asymmetric'],
     ['A@{ shape: cyl, label: "t" }', 'cylinder'], ['A@{ shape: "lean-r", label: "t" }', 'parallelogram'],
-    ['A@{ shape: notch_rect, label: "t" }', 'card'], ['A@{ shape: doc, label: "t" }', 'document'],
-    ['A@{ shape: das, label: "t" }', 'hcyl'], ['A@{ shape: constructor, label: "t" }', 'rect'],
-  ])('%s -> %s', (src, shape) => {
+    ['A@{ shape: notch_rect, label: "t" }', 'card', 'flow.shape-name'], ['A@{ shape: doc, label: "t" }', 'document'],
+    ['A@{ shape: das, label: "t" }', 'hcyl'], ['A@{ shape: constructor, label: "t" }', 'rect', 'flow.unknown-shape'],
+  ])('%s -> %s', (src, shape, warning?: string) => {
     const m = parseFlowchart(`flowchart LR\n  ${src}`);
     expect(node(m, 'A').shape).toBe(shape);
     expect(node(m, 'A').label).toBe('t');
     expect(node(m, 'A').defLine).toBe(1);
-    expect(m.diagnostics).toEqual([]);
+    // Mermaid rejects `notch_rect` (an underscore) and knows no `constructor` shape
+    expect(m.diagnostics.map((d) => d.code)).toEqual(warning ? [warning] : []);
   });
   it('reads quoted labels with <br>, #quot; and #35;', () => {
     const m = parseFlowchart('flowchart LR\n  A["a<br>b #quot;c#quot; #35;1"]\n  B("x [y] (z)")');

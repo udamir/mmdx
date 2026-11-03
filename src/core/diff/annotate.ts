@@ -170,7 +170,10 @@ function highlight(key: string, s: ItemShape, mark: Mark, badge: string, dashed:
   const parts: SceneNode[] = [];
   let anchor: { x: number; y: number };
   if (s.t === 'rect') {
-    parts.push(outline(s.r, 8, 10));
+    // a shape's own outline (a diamond, a circle), grown like the box frame
+    parts.push(s.d
+      ? el('path', { class: 'dx-outline', d: s.d, fill: bg, 'fill-opacity': 0.6, stroke: c, 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-dasharray': dashed ? '7 5' : undefined, 'vector-effect': 'non-scaling-stroke' })
+      : outline(s.r, 8, 10));
     anchor = { x: s.r.x + s.r.w + 8, y: s.r.y - 8 };
   } else {
     parts.push(el('path', { class: 'dx-stroke', d: s.d, fill: 'none', stroke: c, 'stroke-width': 9, 'stroke-opacity': 0.35, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-dasharray': dashed ? '14 8' : undefined }));

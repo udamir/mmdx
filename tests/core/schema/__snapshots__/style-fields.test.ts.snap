@@ -229,23 +229,226 @@ exports[`style fields > field definitions 1`] = `
   "shape": {
     "label": "Shape",
     "options": [
-      "rect",
-      "rounded",
-      "stadium",
-      "circle",
-      "doublecircle",
-      "diamond",
-      "hexagon",
-      "cylinder",
-      "hcyl",
-      "subroutine",
-      "parallelogram",
-      "parallelogram-alt",
-      "trapezoid",
-      "trapezoid-alt",
-      "asymmetric",
-      "document",
-      "card",
+      [
+        "rect",
+        "Rectangle",
+      ],
+      [
+        "rounded",
+        "Rounded rectangle",
+      ],
+      [
+        "stadium",
+        "Stadium",
+      ],
+      [
+        "circle",
+        "Circle",
+      ],
+      [
+        "doublecircle",
+        "Double circle",
+      ],
+      [
+        "diamond",
+        "Diamond",
+      ],
+      [
+        "hexagon",
+        "Hexagon",
+      ],
+      [
+        "parallelogram",
+        "Lean right",
+      ],
+      [
+        "parallelogram-alt",
+        "Lean left",
+      ],
+      [
+        "trapezoid",
+        "Trapezoid base bottom",
+      ],
+      [
+        "trapezoid-alt",
+        "Trapezoid base top",
+      ],
+      [
+        "asymmetric",
+        "Flag",
+      ],
+      [
+        "text",
+        "Text block",
+      ],
+      [
+        "tri",
+        "Triangle",
+      ],
+      [
+        "flip-tri",
+        "Flipped triangle",
+      ],
+      [
+        "notch-pent",
+        "Trapezoidal pentagon",
+      ],
+      [
+        "bolt",
+        "Lightning bolt",
+      ],
+      [
+        "sm-circ",
+        "Small circle",
+      ],
+      [
+        "fr-circ",
+        "Framed circle",
+      ],
+      [
+        "f-circ",
+        "Filled circle",
+      ],
+      [
+        "subroutine",
+        "Framed rectangle",
+      ],
+      [
+        "document",
+        "Document",
+      ],
+      [
+        "card",
+        "Notched rectangle",
+      ],
+      [
+        "lin-rect",
+        "Lined rectangle",
+      ],
+      [
+        "div-rect",
+        "Divided rectangle",
+      ],
+      [
+        "win-pane",
+        "Window pane",
+      ],
+      [
+        "delay",
+        "Half-rounded rectangle",
+      ],
+      [
+        "curv-trap",
+        "Curved trapezoid",
+      ],
+      [
+        "sl-rect",
+        "Sloped rectangle",
+      ],
+      [
+        "bow-rect",
+        "Bow tie rectangle",
+      ],
+      [
+        "docs",
+        "Stacked document",
+      ],
+      [
+        "st-rect",
+        "Stacked rectangle",
+      ],
+      [
+        "tag-doc",
+        "Tagged document",
+      ],
+      [
+        "tag-rect",
+        "Tagged rectangle",
+      ],
+      [
+        "lin-doc",
+        "Lined document",
+      ],
+      [
+        "flag",
+        "Flag",
+      ],
+      [
+        "brace",
+        "Curly brace",
+      ],
+      [
+        "brace-r",
+        "Curly brace",
+      ],
+      [
+        "braces",
+        "Curly brace",
+      ],
+      [
+        "cross-circ",
+        "Crossed circle",
+      ],
+      [
+        "fork",
+        "Filled rectangle",
+      ],
+      [
+        "hourglass",
+        "Hourglass",
+      ],
+      [
+        "cylinder",
+        "Cylinder",
+      ],
+      [
+        "hcyl",
+        "Horizontal cylinder",
+      ],
+      [
+        "lin-cyl",
+        "Lined cylinder",
+      ],
+      [
+        "datastore",
+        "Data store",
+      ],
+      [
+        "folder",
+        "Folder",
+      ],
+      [
+        "bucket",
+        "Bucket",
+      ],
+      [
+        "console",
+        "Terminal window",
+      ],
+      [
+        "browser",
+        "Browser window",
+      ],
+      [
+        "person",
+        "Person",
+      ],
+      [
+        "cloud",
+        "Cloud",
+      ],
+      [
+        "bang",
+        "Bang",
+      ],
+      [
+        "choice",
+        "Small diamond",
+      ],
+      [
+        "note",
+        "Folded corner",
+      ],
     ],
     "type": "select",
   },

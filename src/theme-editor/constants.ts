@@ -1,6 +1,7 @@
 // Fixed data of the theme editor: fonts, sample diagrams, shape tabs, field option lists.
 import { DIAGRAM_TYPES } from '../core/kinds/info.js';
 import { participantPresetShape, presetShape } from '../core/render/index.js';
+import { PARTICIPANT_SHAPES, pickerShapes } from '../core/shapes/catalog.js';
 import type { DiagramType } from '../core/types.js';
 import type { ToolbarControl } from '../ui/style-toolbar.js';
 import type { Obj } from './util.js';
@@ -51,10 +52,9 @@ export const DEFAULT_SAMPLES: Readonly<Record<DiagramType, string>> = {
 };
 export const TYPES: readonly DiagramType[] = DIAGRAM_TYPES;
 
-const NODE_SHAPES: readonly (readonly [string, string])[] = [['rect', 'Rectangle'], ['rounded', 'Rounded'], ['stadium', 'Stadium'], ['circle', 'Circle'], ['doublecircle', 'Double circle'],
-  ['diamond', 'Diamond'], ['hexagon', 'Hexagon'], ['parallelogram', 'Parallelogram'], ['trapezoid', 'Trapezoid'], ['asymmetric', 'Flag'],
-  ['cylinder', 'Cylinder'], ['hcyl', 'Queue (horizontal cylinder)'], ['document', 'Document'], ['card', 'Card'], ['subroutine', 'Subroutine']];
-const PART_SHAPES: readonly (readonly [string, string])[] = [['box', 'Box'], ['rounded', 'Rounded'], ['stadium', 'Stadium'], ['actor', 'Stick figure'], ['database', 'Database'], ['hcyl', 'Queue (horizontal cylinder)']];
+// from the shape catalogue: flowchart shapes by category (Basic, Process, Technical, Annotation), with their names
+const NODE_SHAPES: readonly (readonly [string, string])[] = pickerShapes().map((d) => [d.id, d.title ?? d.name] as const);
+const PART_SHAPES = PARTICIPANT_SHAPES;
 
 export interface ShapeTabs {
   key: 'nodeShapes' | 'participantShapes';
