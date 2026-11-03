@@ -3,6 +3,7 @@
 // of a diagram without items. Ported from prototype index.html `#typeChooser` / `#emptyHint` and app.js
 // (`typeChooser` click handler, `placeEmptyHint`, `centerView`).
 import { startDiagram } from '../../../core/ops/index.js';
+import { KIND_INFO } from '../../../core/kinds/info.js';
 import type { DiagramType } from '../../../core/types.js';
 import { h, s } from '../../../ui/h.js';
 import type { EditorCore } from '../../core.js';
@@ -34,11 +35,7 @@ const ICONS: Record<DiagramType, Shape[]> = {
   sequence: [R(6, 4, 24, 12, 3), R(66, 4, 24, 12, 3), P('M18 16v44M78 16v44', { 'stroke-dasharray': '3 3' }), P('M18 28h56M70 24l4 4-4 4M78 44H22M26 40l-4 4 4 4', { 'stroke-linecap': 'round' })],
   er: [R(4, 6, 34, 40, 4), P('M4 16h34M10 24h20M10 32h16'), R(58, 18, 34, 40, 4), P('M58 28h34M64 36h20M64 44h16M38 26h10v12h10M52 34l6 4-6 4', { 'stroke-linecap': 'round' })],
 };
-const CARDS: [DiagramType, string, string][] = [
-  ['flowchart', 'Flowchart', 'Boxes, decisions, groups and arrows'],
-  ['sequence', 'Sequence', 'Participants and the messages between them'],
-  ['er', 'ER diagram', 'Tables, columns and relationships'],
-];
+const CARDS: [DiagramType, string, string][] = Object.values(KIND_INFO).map((k) => [k.type, k.name, k.blurb]);
 
 const pictogram = (t: DiagramType): SVGElement =>
   s('svg', { viewBox: '0 0 96 64', width: '96', height: '64', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linejoin': 'round', 'aria-hidden': 'true' },

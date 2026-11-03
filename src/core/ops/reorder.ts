@@ -3,6 +3,7 @@
 // diagrams. An item moves past its neighbour statement — a whole block when the neighbour is a block — and never
 // leaves its container (subgraph, box, loop…), so membership is unchanged.
 import { minOf } from '../geom.js';
+import { isHeaderLine } from '../kinds/info.js';
 import type { DiagramModel } from '../model.js';
 import type { ItemRef } from '../types.js';
 import { activationsBalanced } from './activations.js';
@@ -70,7 +71,6 @@ export function unitOf(model: DiagramModel, sel: ItemRef): LineSpan | null {
 }
 
 const skip = (t: string): boolean => !t || t.startsWith('%%');
-const isHeader = (t: string): boolean => /^(flowchart|graph|sequenceDiagram|erDiagram)\b/.test(t);
 const isBoundary = (t: string): boolean => /^(else|and|option)\b/.test(t) || t === 'end' || t === '}';
 
 /**
@@ -90,7 +90,7 @@ export function moveStatement(code: string, model: DiagramModel, sel: ItemRef, d
   const t = (L[i] ?? '').trim();
   let nb: LineSpan;
   if (dir < 0) {
-    if (isHeader(t)) return { code, reason: 'Already first' };
+    if (isHeaderLine(t)) return { code, reason: 'Already first' };
     if (byStart.has(i) || /^(else|and|option)\b/.test(t)) return { code, reason: 'Already first in its group' };
     nb = byEnd.get(i) ?? { start: i, end: i };
   } else {

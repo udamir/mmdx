@@ -1,6 +1,7 @@
 // Metadata-only (and small whole-document) operations of the editor, ported from prototype app.js as pure
 // functions: (code, meta, model, …) → { code, meta }. Each one clones the metadata first; the input is never
 // mutated. Prompts, confirmations, toasts and redraws stay in the editor (see the notes on each function).
+import { KIND_INFO } from '../kinds/info.js';
 import { maxOf, minOf } from '../geom.js';
 import { activationsOf } from '../ids.js';
 import type { DiagramMeta, ItemMeta } from '../meta/types.js';
@@ -616,20 +617,17 @@ export function fixIdClash(code: string, meta: DiagramMeta, model: FlowchartMode
 
 // ---- diagram type, direction, autonumber (rows 52, 85) ------------------------------------------------------------
 
-/** First line of a new diagram of each type. */
-export const DIAGRAM_START: Readonly<Record<DiagramType, string>> = { flowchart: 'flowchart TB\n', sequence: 'sequenceDiagram\n', er: 'erDiagram\n' };
-
 /**
  * Type switch: Mermaid diagram types cannot be converted into each other, so another type starts a new diagram
  * (the editor confirms first, and resets the file name and view). Returns the new document.
  */
 export function newDiagram(type: DiagramType): { code: string; meta: DiagramMeta } {
-  return { code: DIAGRAM_START[type], meta: { canvas: {}, styles: {} } };
+  return { code: KIND_INFO[type].starter, meta: { canvas: {}, styles: {} } };
 }
 
 /** Empty Mermaid (no header): the chosen type is written as the first line; theme and layout settings stay. */
 export function startDiagram(code: string, type: DiagramType): CodeResult {
-  return { code: DIAGRAM_START[type] + code.replace(/^\s+/, '') };
+  return { code: KIND_INFO[type].starter + code.replace(/^\s+/, '') };
 }
 
 /**

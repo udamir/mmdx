@@ -10,6 +10,7 @@ import { defineEditor, type DiagramEditor, type MmdxEditorElement } from '../edi
 import { readDocumentFiles } from '../editor/modules/chrome/document.js';
 import { download } from '../dom/export.js';
 import { renderSource, standaloneSvg } from '../core/pipeline.js';
+import { KIND_INFO } from '../core/kinds/info.js';
 import { starterSource, type StarterType } from '../core/starter.js';
 import { contentId, type HistoryAdapter, type StaticVersion } from '../adapters/history.js';
 import type { BlockHandle } from '../ui/blocks/block.js';
@@ -327,7 +328,7 @@ export class DiagramStudio {
     });
     openMenu({
       popovers: this.pops, opener, label: 'New diagram', align: 'left', within: this.host,
-      entries: [item('Flowchart', 'flowchart'), item('Sequence diagram', 'sequence'), item('Entity–relationship (ER) diagram', 'er')].map((e) => ({ label: e.label, run: () => void e.run() })),
+      entries: Object.values(KIND_INFO).map((k) => item(k.title, k.type)).map((e) => ({ label: e.label, run: () => void e.run() })),
     });
   }
 

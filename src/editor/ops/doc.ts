@@ -5,10 +5,11 @@ import type { DiagramMeta } from '../../core/meta/types.js';
 import type { Direction, DiagramType } from '../../core/model.js';
 import { newDiagram, setAutonumber, setDirection } from '../../core/ops/meta-ops.js';
 import type { StyleEnv } from '../../core/ops/style-env.js';
+import { KIND_INFO } from '../../core/kinds/info.js';
 import type { MetaResult } from '../../core/ops/types.js';
 import type { EditorCore, Sel } from '../core.js';
 
-export const DIAGRAM_TYPES: readonly (readonly [DiagramType, string])[] = [['flowchart', 'type.flowchart'], ['sequence', 'type.sequence'], ['er', 'type.er']];
+export const DIAGRAM_TYPES: readonly (readonly [DiagramType, string])[] = Object.values(KIND_INFO).map((k) => [k.type, k.label] as const);
 export const FLOW_DIRS: readonly (readonly [Direction, string])[] = [['TB', 'dir.TB'], ['LR', 'dir.LR'], ['BT', 'dir.BT'], ['RL', 'dir.RL']];
 
 /** The style environment (model, metadata, active theme, colour resolver) of the current document. */
@@ -38,7 +39,7 @@ export function applyDoc(core: EditorCore, label: string, doc: { code: string; m
 export async function switchDiagramType(core: EditorCore, type: DiagramType): Promise<void> {
   const t = core.i18n.t;
   if (type === core.model.type) return;
-  const label = t(`type.${type}`);
+  const label = t(KIND_INFO[type].label);
   if (core.model.type && !(await core.dialogs.confirm(t('type.switchTitle', { type: label }), t('type.switchMsg', { type: label.toLowerCase() }), { ok: t('type.switchOk'), danger: true }))) return;
   const doc = newDiagram(type);
   const group = core.enteredGroup.peek(), page = core.pageSelected.peek();
