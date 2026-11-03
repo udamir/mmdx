@@ -16,7 +16,7 @@ flowchart LR
 - **Icon nodes** — `A@{ icon: "logos:aws-ec2" }` in a flowchart takes any `pack:name`.
 - **Mindmap icons** — `::icon(fa fa-book)`, `::icon(fa-solid fa-car)`, `::icon(mdi mdi-skull-outline)`: CSS class forms as Mermaid's mindmap writes them.
 
-Labels in every diagram type use tokens. Stock Mermaid draws `fa*` tokens (in all types but sequence diagrams) and icon nodes; tokens of other packs show as text there. The diagram types draw icons as they gain icon support: flowchart icon nodes and labels first, then mindmap, state, sequence and ER labels.
+Labels in every diagram type use tokens. Stock Mermaid draws `fa*` tokens (in all types but sequence diagrams) and icon nodes; tokens of other packs show as text there. The diagram types draw icons as they gain icon support: flowcharts draw icon nodes and tokens in node, edge and subgraph labels (see [Flowchart content](/guide/flowchart)); mindmap, state, sequence and ER labels follow.
 
 ## The built-in set
 

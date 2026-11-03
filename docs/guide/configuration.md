@@ -99,7 +99,7 @@ Placeholders in braces (`{nodes}`) are filled in by the component. The English c
 | `src/ui/messages/diff.ts`, `blocks-diff.ts` | `<mmdx-diff>` and History |
 | `src/ui/messages/theme-editor.ts` | `<mmdx-theme-editor>` |
 | `src/ui/messages/blocks.ts`, `blocks-panels.ts` | Shared UI pieces |
-| `src/ui/messages/editor-media.ts`, `toolbar-media.ts`, `blocks-media.ts` | The editor's insert dock: shape palette, icon picker, image tool, emoji picker (registered when they load) |
+| `src/ui/messages/editor-media.ts`, `toolbar-media.ts`, `blocks-media.ts` | The editor's insert dock: shape palette, icon picker, image tool, emoji picker; the icon and image controls of Properties and the toolbar (registered when they load) |
 
 The English strings of a component are registered when the component is first used, so a page with only viewers ships only the viewer's strings. The accessible name of a viewer (`label.flowchart`, `label.sequence`, `label.er`) can also be set per element with the `label` attribute.
 

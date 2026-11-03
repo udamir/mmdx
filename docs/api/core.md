@@ -330,6 +330,8 @@ interface RenderResult {
   pageSettings: CanvasMeta; // effective page settings (theme < page preset < diagram)
   geom: GeometryIndex;      // geometry per item (boxes, ports, edge paths) for hit testing and overlays
   presetsUsed: Partial<Record<ItemKind, Map<string, number>>>; // preset name → item count, `(none)` for no preset
+  diagnostics?: Diagnostic[]; // what the render reported (image.blocked, icon.unknown, image.size-unknown…)
+  a11y?: { title?: string; desc?: string }; // the diagram's accTitle / accDescr: the standalone SVG's <title> and <desc>
 }
 ```
 
@@ -356,11 +358,15 @@ interface CoreContext {
   imagePolicy: ImagePolicy;
   /** Icon packs: `pack:name` tokens, icon nodes and mindmap icons are looked up here. */
   icons: IconRegistry;
+  /** Natural sizes of content images, where the host can load them (the components set the browser's); see below. */
+  imageSizes?: { get(url: string): { w: number; h: number } | null | undefined };
   locale?: string;
 }
 ```
 
 Everything instance-scoped that the core needs; there are no module singletons. Each context also keeps a bounded cache of automatic layouts. The components build theirs from [`configure()`](/api/configuration#configure).
+
+`imageSizes` lets a flowchart image node without `w` and `h` be drawn at its picture's size: `get` returns the size, `undefined` while it is being loaded (render again when it arrives), or `null` when it cannot be known. Without it (Node, the render worker) such images are 96 × 96 with an `image.size-unknown` note. See [Flowchart content](/guide/flowchart#image-nodes).
 
 ### `ALL_KINDS`
 

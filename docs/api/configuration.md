@@ -274,7 +274,7 @@ Texts may contain `{name}` placeholders, replaced by the parameter of that name 
 
 Every key with its English text, grouped by the component that registers it. A key that two tables share is listed once (the texts are the same).
 
-::: details Viewer base strings (42 keys)
+::: details Viewer base strings (43 keys)
 
 Bundled with every component (`src/ui/i18n.ts`): zoom, full screen, view settings, pen, export, code view, errors and the diagram's accessible label.
 
@@ -292,6 +292,7 @@ Bundled with every component (`src/ui/i18n.ts`): zoom, full screen, view setting
 | `layers.display` | Display |
 | `layers.labels` | Connector labels |
 | `layers.hover` | Hover highlight |
+| `layers.animate` | Animate edges |
 | `layers.show` | Show layer |
 | `layers.hide` | Hide layer |
 | `layers.default` | Default |

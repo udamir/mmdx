@@ -91,7 +91,7 @@ Each attribute sets the `ViewerOptions` option of the same name in camelCase (`t
 | — | `layers` | `readonly string[]` | from metadata | Ids of the visible layers |
 | `labels` | — | `boolean` | `true` | Show connector labels |
 | `hover-highlight` | — | `boolean` | `true` | Highlight the connected items of the item under the pointer |
-| `label` | — | `string` | generated | Accessible name, e.g. "Flowchart: 12 nodes, 14 connections" |
+| `label` | — | `string` | generated | Accessible name: the diagram's `accTitle` when it has one, else generated, e.g. "Flowchart: 12 nodes, 14 connections" (an `accDescr` becomes the accessible description) |
 | `ui` | — | `'light' \| 'dark' \| 'auto'` | `auto` | Chrome colour scheme |
 | `scheme-toggle` | — | `boolean` | `true` | With the `theme` control: the light / dark toggle next to the theme menu. `false` keeps the menu and hides the toggle, for hosts that set `ui` themselves |
 | `compact` | — | `boolean \| 'auto'` | `auto` | The compact chrome (smaller, icon-only); automatic on small hosts |
@@ -156,7 +156,7 @@ The viewer has the editor's chrome. Each piece is behind a control of `controls`
 |---|---|
 | `zoom` | The zoom bar (bottom right): zoom out, zoom level, zoom in, fit, and the `?` help popup |
 | `fullscreen` | The full-screen button on the zoom bar (also shows the zoom bar without the help) |
-| `layers` | The View settings panel: the diagram's layers to show or hide, connector labels and hover highlight |
+| `layers` | The View settings panel: the diagram's layers to show or hide, connector labels, hover highlight and **Animate edges** (flowchart edges with `animate`; on by default, and still while the system asks for reduced motion) |
 | `pen` | The presenting pen in the tool dock (strokes fade away), with the Hand tool next to it |
 | `code` | The code panel: the diagram's Mermaid code without the layout metadata and styles, highlighted, with a Copy button. `list` is an alias |
 | `history` | The History button in the tool dock (with a `history`) |

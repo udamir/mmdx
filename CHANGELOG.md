@@ -27,6 +27,13 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project f
 - **Image tool**: an image by URL, checked live against the image policy, adds a flowchart image node (`n5@{ img: "https://…", h: 200, w: 200, pos: "b" }`) or sets a selected node's image. Pictures are never embedded: dropped, pasted or chosen files go to the host's new `uploadImage` hook (an editor option and property), with an offer to reduce pictures over 1600 px; without it they are refused with a toast.
 - **Emoji picker**: a ☺ button and `⌘;` / `Ctrl+;` while editing a label on the canvas, and in the Properties label fields — groups, recents, search by CLDR name and keyword, skin tones — inserting the emoji at the caret as plain text. The data (English, from emojibase, MIT) is a lazy chunk under 30 kB gzip, built by `tools/build-emoji.mjs`.
 - **Icon and image controls**: the floating toolbar's Icon button (a dot marks an item with one), an Icon & image popover and an H field for icon and image nodes, and Icon and Image sections in Properties (frame, label position, width, height, aspect lock, fit), written to the node's data in the Mermaid code.
+- **Flowchart icon and image nodes are drawn**: `@{ icon, form, label, pos, h, w }` as the icon in its frame (none, square, circle, rounded — painted with the node's fill and stroke, the icon in the code's stroke colour) with its caption above or below, sized as Mermaid sizes it; `@{ img, label, pos, w, h, constraint }` as the picture, at its own size when `w` and `h` are not given (the viewer and the editor lay the diagram out again once the browser knows it; 96 × 96 with an `image.size-unknown` note where it cannot), with the aspect lock and the layout metadata's `imgFit`. The selection box holds the asset and the caption; connectors end on the asset. See [Flowchart content](https://udamir.github.io/mmdx/guide/flowchart).
+- **Icons in flowchart labels**: `fa:fa-car Car`, `fab:fa-github` and tokens of any registered pack are drawn as icons in node and edge labels and subgraph titles.
+- **Markdown labels**: flowchart labels written as markdown strings (`` "`**bold** *italic*`" ``) are drawn with their emphasis and line breaks and wrap by themselves at 200 px (`markdownAutoWrap: false` and `flowchart.wrappingWidth` in the frontmatter change that). In the editor, Bold and Italic above the label being edited (`⌘B`, `⌘I`) wrap the selected words in `**` / `*`, and **Make rich text** turns a plain label into a markdown string.
+- **More of Mermaid's flowchart syntax**: invisible links (`~~~`, layout only); edge ids (`A e1@--> B`, which become the edge's metadata id) and edge data — `animate` and `animation` (dashes flowing along the line, still in exports, stopped by reduced motion and by the new **Animate edges** view setting) and `curve`; `linkStyle … color` (the label's colour) and `interpolate`; the frontmatter's `flowchart.curve`; `classDef default`; several classes (`class a,b c1,c2`, `A:::c1:::c2`); classes on subgraphs; `click … "tooltip"` as a hover tooltip; the `title` drawn above the diagram; `accTitle` and `accDescr` (also the `accDescr { … }` block) as the SVG's `<title>` and `<desc>` and the viewer's accessible name and description; a repeated `subgraph X` adds to the first, as in Mermaid 12.1.
+- **Files from Mermaid Chart** open as they are (node data in separate statements, `@{ shape: text}`, `style` on icon nodes, `layout: fixed` kept and ignored) and stay unchanged until edited.
+- **Editing icon and image nodes**: the resize handle sizes the icon or picture and writes `h` / `w` into its node data; **Convert to icon node** (toolbar popover and Properties) makes a label's leading icon the node's.
+- Two examples: Architecture with icons and Icons, images and rich labels.
 
 ### Changed (breaking)
 
@@ -37,6 +44,7 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project f
 - **`rehypeMmdx`'s transformer returns a promise** when the page's diagrams reference icons that are not loaded yet (unified awaits it); without such icons it stays synchronous.
 - **`CoreContext` has an `imagePolicy`** (and so does the render context): `createContext()` and the components fill it with `DEFAULT_IMAGE_POLICY`; a context built by hand needs it.
 - **`NodeShape` is a shape catalogue id** (`ShapeId`): the 17 former names plus Mermaid's short names for the others; `queue`, which no parser produced, is gone (the name reads as the horizontal cylinder). `FlowchartModel` has `statements` (the code offsets the editing ops splice), and a node its `@{…}` data (`data`, `blocks`).
+- **A flowchart edge's `id` is its own id when the code gives it one** (`A e1@--> B` is `e1`; `key` keeps `A->B`), and `EdgeLine` has `invisible` (`~~~`). A node with `icon` or `img` data has the shape `icon` or `image`, as Mermaid draws it.
 
 ### Changed
 
@@ -49,12 +57,20 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project f
 - **`@{ shape: f-circ }`, `sm-circ`, `fr-circ` and `lin-cyl` look like Mermaid's**: they were drawn as a plain circle or cylinder.
 - **Emoji are measured as one glyph on the server**: the static measurer (SSR, `renderToSvg`, the markdown plugins) counts graphemes, so `👨‍👩‍👧`, `❤️`, `👍🏽` and flags are 1.15 em wide instead of one em per code point, and boxes with emoji no longer come out too wide. Text without emoji measures as before.
 - **The shapes beyond the 17 former ones load on demand** in the viewer, History and `<mmdx-diff>`: their drawing code (about 4 kB gzip) arrives the first time a diagram shows one of them, and a page of flowcharts with the common shapes does without it; the editor loads it with its flowchart code. SSR, `renderToSvg`, the markdown plugins and the render worker draw every shape as before.
+- **Flowchart links have Mermaid's length**: `---`, `===`, `-.-`, `-.->` and labelled links (`-- a -->`) were one rank too long, so automatic layouts of diagrams with them change (the dashes, equals or dots beyond the shortest form count, as in Mermaid).
+- **Markdown strings are no longer reported** as shown as plain text (`flow.markdown-label` is gone), nor edge ids and edge data as unsupported (`flow.edge-id`).
+- **The code that draws rich labels, icons and images loads on demand** in the viewer, History and `<mmdx-diff>`, with the shapes beyond the 17, the first time a diagram needs it; the editor, SSR, `renderToSvg`, the markdown plugins and the render worker have it at once.
+- A `title` statement in a flowchart is drawn but reported (`flow.title-statement`: stock Mermaid fails on it), with a fix that moves it to the frontmatter.
 
 ### Fixed
 
 - An unknown `@{ shape }` name is reported instead of silently becoming a rectangle; `notch-rect` and the other hyphenated names Mermaid documents are read.
 - A `}` or `,` inside a quoted `@{ label: "…" }` no longer ends the node data; single-quoted labels are read.
 - Diagrams rendered in the render worker (over 300 lines) use the component's link policy instead of the default one.
+- A flowchart's `accDescr { … }` block no longer turns its lines into nodes, and the target of a `~~~` link is no longer lost.
+- `classDef default` and classes on subgraphs are applied; `stroke-dasharray: none` clears a dash.
+- `</br>` breaks a line in labels, as `<br>` does.
+- Giving a label to a node defined only by its node data no longer writes it into the frontmatter.
 
 ## 0.3.0 — Hooks for sandboxed hosts
 

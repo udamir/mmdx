@@ -66,7 +66,7 @@ Each metadata line is:
 | Line | Holds |
 |---|---|
 | `%%@ canvas {…}` | Format version, page size and proportions, page background, routing default, page preset |
-| `%%@ node <id>`, `group <id>`, `edge <from>-><to>` | Flowchart item position, size, preset and style overrides |
+| `%%@ node <id>`, `group <id>`, `edge <from>-><to>` (or `edge <edge id>`) | Flowchart item position, size, preset and style overrides |
 | `%%@ participant <id>`, `message m1`, `note n1`, `block b1`, `box box1`, `activation B:1` | Sequence diagram items |
 | `%%@ entity <name>`, `rel <A>--<B>` | ER tables and relationships |
 | `%%@ style.<kind> <name> {…}` | A style preset defined in this diagram (`style.node`, `style.edge`, `style.entity`, …) |
@@ -84,6 +84,7 @@ The keys an item line may carry:
 | `points`, `fromSide`, `toSide`, `fromAt`, `toAt`, `labelDx`, `labelDy` | Connector bend points, ports and label offset |
 | `dy` | Vertical shift of sequence items |
 | `attrs` | ER attribute highlights |
+| `imgFit` | How a flowchart image node's picture fills its box: `contain` (default), `cover` or `stretch` — Mermaid has only the aspect lock, `constraint` in the node data |
 | Style keys | `fill`, `stroke`, `strokeWidth`, `radius`, `shape`, `fontSize`, `color`, `arrow`, `routing`, … (style overrides) |
 
 Unknown keys are kept on round-trip.
@@ -112,13 +113,15 @@ Most ids come from the Mermaid code: node, group, participant and entity ids as 
 
 | Item | Id | Example |
 |---|---|---|
-| Flowchart edge | `<from>-><to>` | `edge api->auth` |
+| Flowchart edge | its id when the code gives it one (`api e1@--> auth`), else `<from>-><to>` | `edge e1`, `edge api->auth` |
 | Repeated edge between the same nodes | `#2`, `#3`, … appended | `edge api->auth#2` |
 | ER relationship | `<A>--<B>`, repeated ones with `#2`, … | `rel object--relation#2` |
 | Sequence message, note, block, box | numbered in source order | `message m1`, `note n2`, `block b1`, `box box1` |
 | Sequence activation | participant and the activation's number on it, in the order they open | `activation B:1` |
 
 Items without a position are laid out automatically and keep their place once moved.
+
+An edge that gets an id in the code (`A e1@--> B`) still reads what its line had under `A->B`; the editor moves it to `edge e1` on the next edit, and back when the id is removed. An icon or image node's size is not metadata: it is `h` / `w` in the node data, in the code (see [Flowchart content](/guide/flowchart)).
 
 ## Style resolution
 

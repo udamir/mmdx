@@ -235,7 +235,7 @@ Click a shape to add it in the middle of the canvas, or drag it where it goes (i
   Drag an icon from the grid to place it.
 - From the floating toolbar's **Icon** button (the first one; a dot marks an item with an icon) or the Properties panel (selection mode), it sets the selected items' icon: an icon node's `icon` key, and on any other node a `pack:name` token at the start of its label (`fa:fa-car Car`, `azure:computer-vision Vision`), replacing the one it has. **Remove icon** takes it away.
 
-For an icon node, the toolbar's **Icon & image** popover and the Properties panel set the label's position (above or below), the frame (none, square, circle, rounded), the width, and the toolbar's **H** field its height — all written to its node data. Sequence, ER and the other types get their icon items in later releases; their items show no Icon button until then.
+For an icon node, the toolbar's **Icon & image** popover and the Properties panel set the label's position (above or below), the frame (none, square, circle, rounded), the width, and the toolbar's **H** field its height — all written to its node data. Dragging the resize handle of an icon or image node sizes its icon or picture (an icon stays square, an image with **Keep aspect ratio** keeps its aspect) and writes `h` and `w` into its node data when you let go, so stock Mermaid draws it the same size. A node whose label starts with an icon token has **Convert to icon node** in the popover and in Properties: the icon becomes the node's and the rest of the label its caption. Properties notes when a label's icon is drawn by mmdx only (stock Mermaid draws Font Awesome tokens and shows other packs' as text). Sequence, ER and the other types get their icon items in later releases; their items show no Icon button until then. What mmdx draws for icon and image nodes is described in [Flowchart content](/guide/flowchart).
 
 ### Images
 
@@ -253,6 +253,10 @@ editor.uploadImage = async (file) => {
 ```
 
 From the dock, an image adds a flowchart **image node** whose caption is the file name: `n5["team photo"]` and `n5@{ img: "https://…", h: 200, w: 200, pos: "b" }`. With a node selected (the toolbar's Icon & image popover, or Properties), the tool sets or replaces its image — a node without one becomes an image node — and **Remove image** takes it away. The popover and Properties set the caption's position, width and height, **Keep aspect ratio** (`constraint: "on"`) and the fit (contain, cover, stretch; kept in the layout metadata, as Mermaid has no such key).
+
+### Markdown labels
+
+A flowchart label written as a Mermaid markdown string (`` A["`**Bold** text`"] ``) is drawn with its emphasis and edited with its `**` and `*` as typed: above the text box on the canvas, **B** and **I** (`⌘B`, `⌘I`) wrap the selected words in `**` or `*`, or take them off again. A plain label has **Make rich text** there instead: the label is then written as a markdown string, and B and I appear. The floating toolbar's Bold styles a whole plain label, in the layout metadata, as before. See [Flowchart content → Markdown labels](/guide/flowchart#markdown-labels).
 
 ### Emoji
 
@@ -299,6 +303,7 @@ Shortcuts work while the focus is inside the editor; `?` lists those that apply 
 | `V`, `H`, `S`, `P` | Pointer, Hand, Shapes menu, pen |
 | `T`, `G`, `N`, `B`, `A` | Text, Image, Icons, Container, Connector ([insert dock](#insert-dock)) |
 | `⌘;` | Emoji, while editing text |
+| `⌘B`, `⌘I` | Bold, italic of the selected words, while editing a markdown label |
 | `C`, `I`, `L`, `⇧H` | Code, Properties, Layers panels; History |
 | `F`, `0` | Fit |
 | `+` / `=`, `-` | Zoom in, zoom out |
