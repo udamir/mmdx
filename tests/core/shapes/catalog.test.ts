@@ -180,3 +180,19 @@ describe('connector ends on the outline (T02.3)', () => {
     }
   });
 });
+
+describe('the Shapes menu list (Mermaid Chart sections)', () => {
+  it('lists each catalogue shape once: a Mermaid name and all its aliases are one tile', async () => {
+    const { SHAPE_MENU } = await import('../../../src/core/shapes/menu.js');
+    const { shapeIdOf } = await import('../../../src/core/shapes/catalog.js');
+    const ids = SHAPE_MENU.flatMap((s) => s.ids);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(new Set(ids)).toEqual(new Set(pickerShapes().map((d) => d.id)));
+    // `proc`, `process` and `rectangle` are the rect tile; every other alias its shape's
+    for (const id of ids) {
+      const def = shapeById(id)!;
+      for (const name of [def.mermaid, ...def.aliases].filter((x): x is string => !!x)) expect(shapeIdOf(name), name).toBe(id);
+    }
+    expect(['proc', 'process', 'rectangle', 'rect'].map(shapeIdOf)).toEqual(['rect', 'rect', 'rect', 'rect']);
+  });
+});
