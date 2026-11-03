@@ -43,6 +43,7 @@ const blank = starterSource('sequence'); // 'flowchart' | 'sequence' | 'er'
 | `allowfullscreen` | The viewer's [`fullscreen`](#full-screen) property |
 | `localStorage` | [`preloadedStorage`](#storage) or `memoryStorage` |
 | Relative `fetch` of theme files | [`registerThemes`](#themes) |
+| CDN icon packs | Bundled packs in [`configure({ iconPacks })`](#icons) |
 | Module workers from URLs | [`useInlineWorker`](#worker) |
 | Relative `fetch` of diagrams | The [`source` property and adapters](#loading-diagrams) |
 
@@ -108,6 +109,10 @@ registerThemes(await host.storage.get('themes') ?? []);
 ```
 
 See [Themes](/guide/themes#registering-themes).
+
+## Icons
+
+The built-in icon set is a chunk of the library and needs no network. Register other icon packs bundled with your app (`{ name: 'logos', icons }` from `import logos from '@iconify-json/logos/icons.json'`, or a `loader` that imports the file), not through a loader that fetches from a CDN; a host that keeps converted cloud packs can read them through its API in the loader. See [Icons](/guide/icons#registering-packs).
 
 ## Worker
 

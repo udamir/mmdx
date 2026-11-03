@@ -234,16 +234,18 @@ function renderToSvg(src: string, opts?: {
   ctx?: CoreContext;
   layers?: 'visible' | 'all';
   ssr?: boolean;
+  iconPacks?: readonly IconPack[];
 }): Promise<string>
 ```
 
-Build-time and server-side rendering: a source → a standalone `<svg xmlns=…>` document. It uses the static text measurer unless the context brings another one, so the output is the same on every machine.
+Build-time and server-side rendering: a source → a standalone `<svg xmlns=…>` document. It uses the static text measurer unless the context brings another one, so the output is the same on every machine. The icons the source references are loaded before it renders (see [Icons](/guide/icons#on-the-server)).
 
 | Option | Default | Meaning |
 |---|---|---|
 | `theme` | Default Light | Theme id to draw with. Diagrams do not carry a theme. An id the registry does not have falls back to Default Light |
 | `ctx` | `createContext()` | The context: theme registry (Default Light and Default Dark), measurer, link policy, id prefix |
 | `layers` | `'visible'` | `'all'` draws items on hidden layers too |
+| `iconPacks` | — | Icon packs over the context's registry for this render (the context's registry is not changed) |
 | `ssr` | `false` | Marks the SVG with `data-mmdx-ssr="1"` and `data-mmdx-measure` (`static`, `canvas` or `custom`). An `<mmdx-viewer>` that has such an SVG as a direct child shows it (and takes its aspect ratio) until its own first render |
 
 ```ts
@@ -339,7 +341,7 @@ interface RenderResult {
 function createContext(opts?: Partial<CoreContext>): CoreContext
 ```
 
-A fresh context. Omitted fields get defaults: `themes` a registry with the built-in themes (`createDefaultRegistry()`), `measure` the static measurer, `idPrefix` a new unique prefix, `linkPolicy` `DEFAULT_LINK_POLICY`, `imagePolicy` `DEFAULT_IMAGE_POLICY`.
+A fresh context. Omitted fields get defaults: `themes` a registry with the built-in themes (`createDefaultRegistry()`), `measure` the static measurer, `idPrefix` a new unique prefix, `linkPolicy` `DEFAULT_LINK_POLICY`, `imagePolicy` `DEFAULT_IMAGE_POLICY`, `icons` an icon registry with the built-in set (its decoder loads on the first lookup: `renderToSvg` waits for it; pass `createIconRegistry(packs)` for lookups that are ready at once).
 
 ### `CoreContext`
 
@@ -352,6 +354,8 @@ interface CoreContext {
   linkPolicy: LinkPolicy;
   /** Which image URLs diagram content may use. */
   imagePolicy: ImagePolicy;
+  /** Icon packs: `pack:name` tokens, icon nodes and mindmap icons are looked up here. */
+  icons: IconRegistry;
   locale?: string;
 }
 ```
@@ -612,6 +616,54 @@ type SafeImageUrl = string & { readonly [SAFE_IMAGE_URL]: true };
 ```
 
 A branded string: the only kind the scene accepts for an `<image>`'s `href` — a URL that passed `checkImageUrl()`, or an icon image mmdx built itself.
+
+## Icons
+
+See the [Icons](/guide/icons) guide for packs, names and the built-in set.
+
+### `createIconRegistry()`
+
+```ts
+function createIconRegistry(packs?: readonly IconPack[], opts?: { builtin?: boolean; now?: () => number }): IconRegistry
+```
+
+An icon registry of these packs plus the built-in Tabler subset under `tabler` (`builtin: false` leaves it out), with the code that decodes icons loaded at once, so lookups of packs given with `icons` are ready synchronously. Pass it as a context's `icons` (`createContext({ icons })`).
+
+### `IconRegistry`
+
+| Member | Meaning |
+|---|---|
+| `add(packs)` | Registers packs; a pack of a registered name replaces it |
+| `setBuiltin(on)` | Turns the built-in subset on or off |
+| `extend(packs)` | A registry with these packs over this one's, sharing its loads and change events |
+| `has(pack)` | Whether a pack of this name is registered (loaded or not): label tokens with its prefix are icons |
+| `packNames()` / `packList()` | The registered packs; `packList()` with `loaded`, `failed`, `builtin` and the pack's `info` |
+| `resolve(written, form?)` | The canonical `pack:name` of a reference, or null: `form` `'token'` (labels, the default), `'node'` (`@{ icon }`) or `'class'` (mindmap `::icon()`) |
+| `get(name)` | `{ status: 'ready', icon, fallback? }`, `{ status: 'loading' }` or `{ status: 'missing', reason }` (`pack`, `icon`, `invalid`, `failed`); starts the loads it needs |
+| `preload(names)` | Loads what these icons need; resolves when each is ready or missing |
+| `load(pack)` | Loads one pack |
+| `packData(pack)` | A loaded pack's Iconify JSON, else null |
+| `onChange(cb)` | Called with the pack names when a load finishes or packs change; returns a remover |
+
+### `iconNamesOf()`
+
+```ts
+function iconNamesOf(input: string | object | Iterable<string>, registry: { has(pack: string): boolean }): string[]
+```
+
+The icons a source text, a parsed model or a list of labels references, as canonical names (`fa:fa-car` → `fa:car`): what to `preload` before rendering.
+
+### `IconPack`
+
+```ts
+interface IconPack {
+  name: string;
+  icons?: IconifyJSON;
+  loader?: () => Promise<IconifyJSON>;
+}
+```
+
+As Mermaid's `registerIconPacks` takes it. `IconifyJSON` is the subset of Iconify's format mmdx reads: `prefix`, `icons` (`body`, `width`, `height`, `left`, `top`, `rotate`, `hFlip`, `vFlip`, `hidden`), `aliases`, the default `width` / `height` / `left` / `top`, `info`, `categories`, and mmdx's `keywords` (search words per icon).
 
 ## Layers
 

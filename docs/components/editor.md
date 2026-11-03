@@ -96,6 +96,7 @@ Each attribute sets the `EditorOptions` option of the same name in camelCase (`r
 | — | `themeSource` | `ThemeSource` | `configure({ themeSource })` | Where themes the page has not loaded come from |
 | — | — | `toolbar: 'floating' \| 'none'` | `floating` | `DiagramEditor` option, read when the editor is created; `none` turns off the floating style toolbar |
 | — | — | `ctx: Partial<CoreContext>` | the shared context | `DiagramEditor` option, read when the editor is created |
+| — | — | `iconPacks: IconPack[]` | — | `DiagramEditor` option: icon packs of this editor over the shared ones (see [Icons](/guide/icons#registering-packs)); read when the editor is created |
 
 Read-only properties of the element: `instance` (the `DiagramEditor`, `null` while not connected), `dirty` (unsaved changes) and `historySession` (while History is open).
 

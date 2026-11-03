@@ -92,6 +92,7 @@ Each attribute sets the `DiffOptions` option of the same name in camelCase (`the
 | — | `storage` | `StorageAdapter` | `localStorage` (`mmdx.` keys), else in memory | Where UI preferences are kept (panels, light / dark, theme pick) |
 | — | `themeSource` | `ThemeSource` | `configure({ themeSource })` | Where themes the page has not loaded come from |
 | — | `ctx` | `Partial<CoreContext>` | the shared context | Read when the component is created |
+| — | — | `iconPacks: IconPack[]` | — | `DiagramDiff` option: icon packs of this component over the shared ones (see [Icons](/guide/icons#registering-packs)); read when it is created |
 
 Read-only property of the element: `instance` (the `DiagramDiff`, `null` while not connected).
 

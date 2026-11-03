@@ -109,6 +109,7 @@ export default defineConfig({
           items: [
             { text: 'Themes', link: '/guide/themes' },
             { text: 'Shapes', link: '/guide/shapes' },
+            { text: 'Icons', link: '/guide/icons' },
             { text: 'Configuration', link: '/guide/configuration' },
             { text: 'Saving documents', link: '/guide/documents' },
             { text: 'Version history', link: '/guide/history' },

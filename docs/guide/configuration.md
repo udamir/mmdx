@@ -14,6 +14,7 @@ configure({
   i18n: { locale: 'de', messages: { 'zoom.fit': 'Einpassen' } },
   linkPolicy: { protocols: ['https:', 'mailto:'], target: '_blank' },
   imagePolicy: { ...DEFAULT_IMAGE_POLICY, hosts: ['images.example.com'] }, // images only from this host
+  iconPacks: [{ name: 'logos', loader: () => import('@iconify-json/logos/icons.json').then((m) => m.default) }],
   fonts: { Inter: '/fonts/inter.woff2' },                 // embedded into PNG exports
   mermaid: () => import('mermaid').then((m) => m.default),
 });
@@ -28,6 +29,8 @@ Call it before the elements are created (before they are connected); a later cal
 | `i18n` | `{ locale, messages? }` | `en`, English | The locale and a catalog of UI strings that replaces the bundled English. See [UI strings](#ui-strings-i18n) |
 | `linkPolicy` | `{ protocols, target? }` | `https:`, `http:`, `mailto:`; `_blank` | Which link protocols diagrams may use and where links open. See [Security](/guide/security#link-policy) |
 | `imagePolicy` | `{ protocols, dataTypes, maxDataBytes, hosts?, relative? }` | `https:` only, any host; `data:` (base64 PNG, JPEG, GIF, WebP, SVG, AVIF up to 256 KiB) and relative URLs off | Which image URLs diagrams may show. `protocols: []` turns images off; `hosts` limits them to a list (`*.example.com` matches its subdomains); `'data:'` in `protocols` allows embedded images; `relative: true` allows `./img/logo.png`, resolved against the page. A refused image is drawn as a placeholder with an `image.blocked` warning. See [Security](/guide/security#image-policy) |
+| `iconPacks` | `IconPack[]` | — | Icon packs diagrams draw `pack:name` icons from, as Mermaid's `registerIconPacks` takes them: `{ name, icons }` or `{ name, loader }` (called on the first icon of the pack a diagram shows). Merged across calls; stock Mermaid receives the same packs. See [Icons](/guide/icons) |
+| `builtinIcons` | `boolean` | `true` | The built-in Tabler subset under `tabler:` (a lazy chunk), which also draws look-alikes for Font Awesome names when no Font Awesome pack is registered. See [Icons](/guide/icons#the-built-in-set) |
 | `fonts` | `Record<string, string \| ArrayBuffer>` | — | Font files embedded into PNG exports: family name → URL or bytes. Without them, PNG export uses locally installed fonts |
 | `mermaid` | a Mermaid instance or `() => Promise<…>` | `import('mermaid')` when installed | Stock Mermaid for diagram types mmdx does not draw and for the editor's "Plain Mermaid" preview |
 | `measure` | `TextMeasurer` | a canvas measurer (static estimate where no canvas exists) | How text is measured for layout |
@@ -108,7 +111,8 @@ The English strings of a component are registered when the component is first us
 | `themeSource` | viewer, editor, diff | Where this component loads unknown themes from |
 | `storage` | viewer, editor, diff, theme editor, studio | Where UI preferences are kept (default `localStorage` under `mmdx.` keys, memory where it is unavailable) |
 | `theme`, `theme-dark`, `ui` (attributes) | viewer, editor, diff | The theme and the chrome scheme |
-| `ctx` | diff (property); the `ctx` option of `DiagramViewer`, `DiagramEditor` and `DiagramDiff` | A partial `CoreContext`: `themes` (a registry of its own), `measure`, `linkPolicy`, `imagePolicy`, `locale` |
+| `ctx` | diff (property); the `ctx` option of `DiagramViewer`, `DiagramEditor` and `DiagramDiff` | A partial `CoreContext`: `themes` (a registry of its own), `measure`, `linkPolicy`, `imagePolicy`, `icons` (an icon registry of its own), `locale` |
+| `iconPacks` | the `iconPacks` option of `DiagramViewer`, `DiagramEditor` and `DiagramDiff` | Icon packs of this component, over the shared ones of `configure({ iconPacks })` |
 
 ```ts
 import { DiagramViewer } from '@mmdx/studio/viewer';

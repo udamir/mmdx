@@ -33,7 +33,7 @@ Every entry re-exports the same functions over one shared configuration object, 
 function configure(c: Config): void;
 ```
 
-Sets app-level defaults. Only the fields you pass change; the others keep their current value, so several calls add up. `fonts` is merged with the fonts given before; every other field replaces the previous value (`i18n` replaces the whole catalog: a second call with other `messages` drops the first call's).
+Sets app-level defaults. Only the fields you pass change; the others keep their current value, so several calls add up. `fonts` is merged with the fonts given before and `iconPacks` with the packs registered before (a pack of a registered name replaces it); every other field replaces the previous value (`i18n` replaces the whole catalog: a second call with other `messages` drops the first call's).
 
 Call it before creating elements. Most values are copied into a component when it is created, so a later call applies to components created afterwards; a few are read each time they are used:
 
@@ -42,11 +42,12 @@ Call it before creating elements. Most values are copied into a component when i
 | `themes`, `measure`, `linkPolicy`, `imagePolicy` | When a component is created (they form its core context) |
 | `i18n` | When a component is created |
 | `themeSource` | Each time a component needs a theme that is not registered |
+| `iconPacks`, `builtinIcons` | On each render: packs registered later reach every component (one shared icon registry) |
 | `mermaid` | On the first render with stock Mermaid; later changes have no effect |
 | `fonts` | On each PNG export |
 | `debug` | Not read in this version |
 
-A component can override the shared values for itself: the `ctx` option of the viewer, editor, theme editor and diff takes a `Partial<CoreContext>` (`themes`, `measure`, `linkPolicy`, `imagePolicy`, `locale`, `idPrefix`), and the `themeSource` property of `<mmdx-viewer>` and `<mmdx-diff>` takes precedence over the shared `themeSource`. `ctx` is read only when the component is created.
+A component can override the shared values for itself: the `ctx` option of the viewer, editor, theme editor and diff takes a `Partial<CoreContext>` (`themes`, `measure`, `linkPolicy`, `imagePolicy`, `icons`, `locale`, `idPrefix`), the `iconPacks` option of the viewer, editor and diff adds icon packs of the component's own over the shared ones, and the `themeSource` property of `<mmdx-viewer>` and `<mmdx-diff>` takes precedence over the shared `themeSource`. `ctx` is read only when the component is created.
 
 ### `Config`
 
@@ -59,6 +60,10 @@ interface Config {
   linkPolicy?: LinkPolicy;
   /** Which image URLs diagrams may show: `https:` only by default; `http:` and `data:` can be enabled. */
   imagePolicy?: ImagePolicy;
+  /** Icon packs (as Mermaid's `registerIconPacks` takes them); merged across calls. */
+  iconPacks?: IconPack[];
+  /** The built-in Tabler subset under `tabler` (default true). */
+  builtinIcons?: boolean;
   /** A Mermaid instance, or a loader; default: `import('mermaid')` when installed. */
   mermaid?: MermaidLike | (() => Promise<MermaidLike>);
   /** Font files for PNG export: family name → URL or bytes. */
@@ -76,6 +81,8 @@ interface Config {
 | `i18n` | `{ locale: string; messages?: Messages }` | `locale: 'en'`, the bundled English strings |
 | `linkPolicy` | [`LinkPolicy`](/api/core#linkpolicy) | `{ protocols: ['https:', 'http:', 'mailto:'], target: '_blank' }` |
 | `imagePolicy` | [`ImagePolicy`](/api/core#imagepolicy) | `DEFAULT_IMAGE_POLICY`: `https:` from any host; no `data:`, `http:` or relative URLs |
+| `iconPacks` | [`IconPack`](/api/core#iconpack)`[]` | none (the built-in set only) |
+| `builtinIcons` | `boolean` | `true` |
 | `mermaid` | `MermaidLike \| (() => Promise<MermaidLike>)` | `import('mermaid')` (the optional peer dependency) |
 | `fonts` | `Record<string, string \| ArrayBuffer>` | `{}` |
 | `debug` | `boolean` | `false` |
@@ -104,9 +111,17 @@ Which link URLs a diagram may carry and how they open ([`LinkPolicy`](/api/core#
 
 Which image URLs a diagram may show ([`ImagePolicy`](/api/core#imagepolicy)): `protocols` (`'https:'`, `'http:'`, `'data:'`; `[]` turns images off), `hosts` (an allow-list of host names, `*.example.com` for subdomains), `relative` (allow relative URLs), and for `data:` URLs `dataTypes` and `maxDataBytes`. An image the policy refuses is drawn as a placeholder and reported as an `image.blocked` warning. Icons are drawn by mmdx itself and do not go through it. Diagrams rendered in the render worker use the component's policy. See [Security](/guide/security#image-policy).
 
+#### `iconPacks`
+
+Icon packs diagrams draw `pack:name` icons from ([`IconPack`](/api/core#iconpack): `{ name, icons }` with an Iconify JSON pack, or `{ name, loader }` with a function that resolves to one). `name` is the prefix diagrams write and overrides the pack's own `prefix`. A loader is called the first time a diagram shows one of the pack's icons, once per page, and a failed load is tried again 30 s later; while it loads, its icons are drawn as empty boxes and the components render again when it is done. Packs of several calls are merged; a pack of a registered name replaces it, and a `tabler` pack replaces the built-in subset. Stock Mermaid receives the same packs. The icon packs are one shared registry, so packs registered after a component started reach it too. See [Icons](/guide/icons).
+
+#### `builtinIcons`
+
+Whether the built-in Tabler subset is registered under `tabler` (default `true`): about 250 generic icons in a chunk loaded on first use, which also draws look-alikes for common Font Awesome names when no Font Awesome pack is registered (`icon.fa-fallback`).
+
 #### `mermaid`
 
-The stock Mermaid used for diagram types mmdx does not draw itself (the viewer's `fallback="mermaid"`, the default) and for the editor's Plain Mermaid preview. Pass a `MermaidLike` instance or a loader that resolves to one; without it, the first such render runs `import('mermaid')`, which needs the optional `mermaid` package installed. The instance is resolved once per page, on first use. Renders go through one queue shared by all components (Mermaid keeps global configuration), in a detached container, with `securityLevel: 'strict'` and Mermaid's `dark` or `default` theme following the component's scheme.
+The stock Mermaid used for diagram types mmdx does not draw itself (the viewer's `fallback="mermaid"`, the default) and for the editor's Plain Mermaid preview. Before a render it receives the component's icon packs through `registerIconPacks` (the built-in set as `tabler` included), each time the set of packs changed. Pass a `MermaidLike` instance or a loader that resolves to one; without it, the first such render runs `import('mermaid')`, which needs the optional `mermaid` package installed. The instance is resolved once per page, on first use. Renders go through one queue shared by all components (Mermaid keeps global configuration), in a detached container, with `securityLevel: 'strict'` and Mermaid's `dark` or `default` theme following the component's scheme.
 
 #### `fonts`
 
@@ -122,6 +137,8 @@ Declared for development (logging operations and exposing a state getter). In th
 interface MermaidLike {
   initialize(cfg: Record<string, unknown>): void;
   render(id: string, text: string, container?: Element): Promise<{ svg: string }>;
+  /** Mermaid 11.1+; mmdx forwards its icon packs through it. */
+  registerIconPacks?(packs: { name: string; icons?: unknown; loader?: () => Promise<unknown> }[]): void;
 }
 ```
 
