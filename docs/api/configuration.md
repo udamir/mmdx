@@ -1,6 +1,6 @@
 # Configuration
 
-App-level settings that every component on the page reads: `configure()` sets the shared defaults (theme registry, theme source, text measurer, UI language, link policy, stock Mermaid, PNG fonts), `registerThemes()` and `registerBuiltinThemes()` fill the shared theme registry, `setWorkerUrl()` decides where the render worker comes from, and `upgradeMermaidBlocks()` turns Mermaid code blocks of a rendered page into viewers.
+App-level settings that every component on the page reads: `configure()` sets the shared defaults (theme registry, theme source, text measurer, UI language, link and image policies, stock Mermaid, PNG fonts), `registerThemes()` and `registerBuiltinThemes()` fill the shared theme registry, `setWorkerUrl()` decides where the render worker comes from, and `upgradeMermaidBlocks()` turns Mermaid code blocks of a rendered page into viewers.
 
 ```ts
 import { configure, registerThemes, registerBuiltinThemes, setWorkerUrl, upgradeMermaidBlocks, type Config } from '@mmdx/studio/viewer';
@@ -23,7 +23,7 @@ configure({
 | `setWorkerUrl`, `upgradeMermaidBlocks` | `@mmdx/studio/viewer` |
 | `useInlineWorker`, `workerSource` | `@mmdx/studio/worker-inline` (see [Inline worker](/api/worker-inline)) |
 
-Every entry re-exports the same functions over one shared configuration object, so `configure()` imported from the viewer entry also configures an editor on the same page, as long as both come from the same copy of the package. The types `Config` refers to come from other entries: `ThemeRegistry`, `TextMeasurer`, `LinkPolicy`, `createStaticMeasurer`, `DEFAULT_LINK_POLICY` and `BUILTIN_THEMES` from `@mmdx/studio/core` (see [Core](/api/core)), `ThemeSource` and `fetchThemeSource` from `@mmdx/studio/adapters` (see [Adapters](/api/adapters#fetchthemesource)).
+Every entry re-exports the same functions over one shared configuration object, so `configure()` imported from the viewer entry also configures an editor on the same page, as long as both come from the same copy of the package. The types `Config` refers to come from other entries: `ThemeRegistry`, `TextMeasurer`, `LinkPolicy`, `ImagePolicy`, `createStaticMeasurer`, `DEFAULT_LINK_POLICY`, `DEFAULT_IMAGE_POLICY` and `BUILTIN_THEMES` from `@mmdx/studio/core` (see [Core](/api/core)), `ThemeSource` and `fetchThemeSource` from `@mmdx/studio/adapters` (see [Adapters](/api/adapters#fetchthemesource)).
 
 ## Shared configuration
 
@@ -39,14 +39,14 @@ Call it before creating elements. Most values are copied into a component when i
 
 | Field | Read |
 |---|---|
-| `themes`, `measure`, `linkPolicy` | When a component is created (they form its core context) |
+| `themes`, `measure`, `linkPolicy`, `imagePolicy` | When a component is created (they form its core context) |
 | `i18n` | When a component is created |
 | `themeSource` | Each time a component needs a theme that is not registered |
 | `mermaid` | On the first render with stock Mermaid; later changes have no effect |
 | `fonts` | On each PNG export |
 | `debug` | Not read in this version |
 
-A component can override the shared values for itself: the `ctx` option of the viewer, editor, theme editor and diff takes a `Partial<CoreContext>` (`themes`, `measure`, `linkPolicy`, `locale`, `idPrefix`), and the `themeSource` property of `<mmdx-viewer>` and `<mmdx-diff>` takes precedence over the shared `themeSource`. `ctx` is read only when the component is created.
+A component can override the shared values for itself: the `ctx` option of the viewer, editor, theme editor and diff takes a `Partial<CoreContext>` (`themes`, `measure`, `linkPolicy`, `imagePolicy`, `locale`, `idPrefix`), and the `themeSource` property of `<mmdx-viewer>` and `<mmdx-diff>` takes precedence over the shared `themeSource`. `ctx` is read only when the component is created.
 
 ### `Config`
 
@@ -57,6 +57,8 @@ interface Config {
   measure?: TextMeasurer;
   i18n?: { locale: string; messages?: Messages };
   linkPolicy?: LinkPolicy;
+  /** Which image URLs diagrams may show: `https:` only by default; `http:` and `data:` can be enabled. */
+  imagePolicy?: ImagePolicy;
   /** A Mermaid instance, or a loader; default: `import('mermaid')` when installed. */
   mermaid?: MermaidLike | (() => Promise<MermaidLike>);
   /** Font files for PNG export: family name → URL or bytes. */
@@ -73,6 +75,7 @@ interface Config {
 | `measure` | [`TextMeasurer`](/api/core#createstaticmeasurer) | A canvas measurer, or the static measurer where no 2D canvas works (jsdom) |
 | `i18n` | `{ locale: string; messages?: Messages }` | `locale: 'en'`, the bundled English strings |
 | `linkPolicy` | [`LinkPolicy`](/api/core#linkpolicy) | `{ protocols: ['https:', 'http:', 'mailto:'], target: '_blank' }` |
+| `imagePolicy` | [`ImagePolicy`](/api/core#imagepolicy) | `DEFAULT_IMAGE_POLICY`: `https:` from any host; no `data:`, `http:` or relative URLs |
 | `mermaid` | `MermaidLike \| (() => Promise<MermaidLike>)` | `import('mermaid')` (the optional peer dependency) |
 | `fonts` | `Record<string, string \| ArrayBuffer>` | `{}` |
 | `debug` | `boolean` | `false` |
@@ -96,6 +99,10 @@ The UI language: `locale` (a BCP 47 tag) and an optional catalog of `messages` (
 #### `linkPolicy`
 
 Which link URLs a diagram may carry and how they open ([`LinkPolicy`](/api/core#linkpolicy)): `protocols` lists the allowed protocols in lower case with the colon (relative URLs always pass), `target` is the `target` for opened links (`'_blank'`, `'_self'`, `'_top'` or `'_parent'`; `_blank` when omitted). A link the policy rejects is not rendered as a link.
+
+#### `imagePolicy`
+
+Which image URLs a diagram may show ([`ImagePolicy`](/api/core#imagepolicy)): `protocols` (`'https:'`, `'http:'`, `'data:'`; `[]` turns images off), `hosts` (an allow-list of host names, `*.example.com` for subdomains), `relative` (allow relative URLs), and for `data:` URLs `dataTypes` and `maxDataBytes`. An image the policy refuses is drawn as a placeholder and reported as an `image.blocked` warning. Icons are drawn by mmdx itself and do not go through it. Diagrams rendered in the render worker use the component's policy. See [Security](/guide/security#image-policy).
 
 #### `mermaid`
 

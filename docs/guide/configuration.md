@@ -7,11 +7,13 @@ App-level settings go through `configure()`, which sets the defaults every compo
 ```ts
 import { configure } from '@mmdx/studio/viewer'; // also exported by the editor, theme editor, diff and studio entries
 import { fetchThemeSource } from '@mmdx/studio/adapters';
+import { DEFAULT_IMAGE_POLICY } from '@mmdx/studio/core';
 
 configure({
   themeSource: fetchThemeSource('/themes/index.json'),   // themes a component needs but the page has not loaded
   i18n: { locale: 'de', messages: { 'zoom.fit': 'Einpassen' } },
   linkPolicy: { protocols: ['https:', 'mailto:'], target: '_blank' },
+  imagePolicy: { ...DEFAULT_IMAGE_POLICY, hosts: ['images.example.com'] }, // images only from this host
   fonts: { Inter: '/fonts/inter.woff2' },                 // embedded into PNG exports
   mermaid: () => import('mermaid').then((m) => m.default),
 });
@@ -25,6 +27,7 @@ Call it before the elements are created (before they are connected); a later cal
 | `themes` | `ThemeRegistry` | a registry with Default Light | The shared theme registry. Prefer [`registerThemes`](#registerthemes) to add themes to the default one |
 | `i18n` | `{ locale, messages? }` | `en`, English | The locale and a catalog of UI strings that replaces the bundled English. See [UI strings](#ui-strings-i18n) |
 | `linkPolicy` | `{ protocols, target? }` | `https:`, `http:`, `mailto:`; `_blank` | Which link protocols diagrams may use and where links open. See [Security](/guide/security#link-policy) |
+| `imagePolicy` | `{ protocols, dataTypes, maxDataBytes, hosts?, relative? }` | `https:` only, any host; `data:` (base64 PNG, JPEG, GIF, WebP, SVG, AVIF up to 256 KiB) and relative URLs off | Which image URLs diagrams may show. `protocols: []` turns images off; `hosts` limits them to a list (`*.example.com` matches its subdomains); `'data:'` in `protocols` allows embedded images; `relative: true` allows `./img/logo.png`, resolved against the page. A refused image is drawn as a placeholder with an `image.blocked` warning. See [Security](/guide/security#image-policy) |
 | `fonts` | `Record<string, string \| ArrayBuffer>` | — | Font files embedded into PNG exports: family name → URL or bytes. Without them, PNG export uses locally installed fonts |
 | `mermaid` | a Mermaid instance or `() => Promise<…>` | `import('mermaid')` when installed | Stock Mermaid for diagram types mmdx does not draw and for the editor's "Plain Mermaid" preview |
 | `measure` | `TextMeasurer` | a canvas measurer (static estimate where no canvas exists) | How text is measured for layout |
@@ -105,7 +108,7 @@ The English strings of a component are registered when the component is first us
 | `themeSource` | viewer, editor, diff | Where this component loads unknown themes from |
 | `storage` | viewer, editor, diff, theme editor, studio | Where UI preferences are kept (default `localStorage` under `mmdx.` keys, memory where it is unavailable) |
 | `theme`, `theme-dark`, `ui` (attributes) | viewer, editor, diff | The theme and the chrome scheme |
-| `ctx` | diff (property); the `ctx` option of `DiagramViewer`, `DiagramEditor` and `DiagramDiff` | A partial `CoreContext`: `themes` (a registry of its own), `measure`, `linkPolicy`, `locale` |
+| `ctx` | diff (property); the `ctx` option of `DiagramViewer`, `DiagramEditor` and `DiagramDiff` | A partial `CoreContext`: `themes` (a registry of its own), `measure`, `linkPolicy`, `imagePolicy`, `locale` |
 
 ```ts
 import { DiagramViewer } from '@mmdx/studio/viewer';

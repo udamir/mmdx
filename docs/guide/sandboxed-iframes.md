@@ -177,10 +177,12 @@ function newDiagram(type: StarterType) {
 The components run under this Content Security Policy (the one in [Security](/guide/security#content-security-policy)):
 
 ```http
-Content-Security-Policy: script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:
+Content-Security-Policy: script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; img-src 'self' data: blob: https://images.example.com
 ```
 
 - `script-src 'self'`: the library and its chunks are part of your bundle; nothing is evaluated from strings.
 - `worker-src 'self' blob:`: the render worker from its file or, with `useInlineWorker()`, from a `blob:` URL. Without `blob:`, `useInlineWorker()` cannot start the worker and diagrams render on the main thread.
 
-A frame that sets `default-src` or `img-src` also needs `img-src blob:` for PNG export (the SVG is drawn into a canvas through a `blob:` image), and `connect-src` for the APIs your adapters call and the font files of `configure({ fonts })`. See [Security](/guide/security).
+- `img-src 'self' data: blob:` and your image hosts: icons are drawn as `data:` images, PNG export draws the SVG into a canvas through a `blob:` image, and diagrams show remote images from the hosts the [image policy](/guide/security#image-policy) allows (`https:` by default). A frame whose CSP leaves out an image host shows the image as broken, though the policy allowed it; set the same hosts in both, or turn images off (`configure({ imagePolicy: { ...DEFAULT_IMAGE_POLICY, protocols: [] } })`), which draws placeholders instead.
+
+The frame also needs `connect-src` for the APIs your adapters call, the font files of `configure({ fonts })`, and, for PNG export of diagrams with remote images, the image hosts: the export fetches each image to put it into the PNG, and an image host must answer with CORS headers (`Access-Control-Allow-Origin`) for it to be included — a sandboxed frame without `allow-same-origin` has an opaque `null` origin, so the host must allow `*`. An image that cannot be fetched is a placeholder in the PNG, with a toast and an `export.image-missing` warning. See [Security](/guide/security).

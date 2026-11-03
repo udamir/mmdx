@@ -93,7 +93,7 @@ Typed by `ViewerEventMap` (`@mmdx/studio/viewer`). The History events are listed
 | Event | Detail | Cancelable | Bubbles / composed | When |
 |---|---|---|---|---|
 | `mmdx-render` | `{ bounds: Rect; type: string \| null; durationMs: number }` | no | yes | After every render: the first one and each re-render (new `source` or `src`, theme, layers, labels). With the stock Mermaid fallback, `type` is `null`, `bounds` all `0` and `durationMs` `0` |
-| `mmdx-error` | `{ diagnostics: Diagnostic[] }` | no | yes | A render reports warnings or errors (`info` diagnostics are left out, except `theme.missing`); a render fails and the error panel shows (e.g. `load.failed` when `src` cannot be fetched); `toPng()` could not embed fonts (`export.font-missing`, `info`) |
+| `mmdx-error` | `{ diagnostics: Diagnostic[] }` | no | yes | A render reports warnings or errors (`info` diagnostics are left out, except `theme.missing`); a render fails and the error panel shows (e.g. `load.failed` when `src` cannot be fetched); `toPng()` could not embed fonts (`export.font-missing`, `info`) or remote images (`export.image-missing`, `warning`) |
 | `mmdx-link` | `{ href: string; id: string \| null }` | yes | yes | A click on a link in the diagram (not the end of a pan, not with the pen). `id` is the item's id |
 | `mmdx-fullscreen-request` | `{ enter: boolean }` | yes | yes | The full-screen button is pressed, before anything happens; `enter` is `true` when it would enter full screen |
 | `mmdx-fullscreen` | `{ active: boolean }` | no | yes | Full screen started or ended (the browser's, or the host's through the `fullscreen` property) |
@@ -120,7 +120,7 @@ The editor has no exported event map; the shapes below are the ones it dispatche
 | `mmdx-fullscreen-request` | `{ enter: boolean }` | yes | yes | As on the viewer |
 | `mmdx-fullscreen` | `{ active: boolean }` | no | yes | As on the viewer |
 | `mmdx-ui` | `{ ui: 'light' \| 'dark' }` | no | yes | The user picked light or dark with the scheme toggle |
-| `mmdx-error` | `{ diagnostics: Diagnostic[] }` | no | yes | The adapter's load failed (`load.failed`), a save failed (`save.failed`), an export failed (`export.failed`), a PNG export used local fonts (`export.font-missing`, `warning`) |
+| `mmdx-error` | `{ diagnostics: Diagnostic[] }` | no | yes | The adapter's load failed (`load.failed`), a save failed (`save.failed`), an export failed (`export.failed`), a PNG export used local fonts (`export.font-missing`, `warning`) or left out remote images whose host does not allow CORS (`export.image-missing`, `warning`) |
 
 Saving runs `mmdx-save` → `adapter.save(source, { version })` → `mmdx-saved`, or `mmdx-conflict` and the dialog, or `mmdx-error` when the adapter throws.
 
@@ -163,7 +163,7 @@ Typed by `DiffEventMap` (`@mmdx/studio/diff`, which also exports `DiffResult`, `
 | `mmdx-version` | `{ base: string \| null; head: string \| null; viewing?: string }` | no | yes | The compared pair changed (`setPair()`, the timeline) or a version is viewed as it is (`viewVersion(id)`, with `viewing`); sync your URL here |
 | `mmdx-export` | `{ kind: DiffExportKind; name: string; data: string \| Blob }` | yes | yes | An export is built (`exportAs()` or the menu), before the download |
 | `mmdx-render` | `{ bounds: Rect; type: string \| null; durationMs: number }` | no | yes | After every render; `bounds` of the diff (of the viewed version in History mode), `type` of the After version |
-| `mmdx-error` | `{ diagnostics: Diagnostic[] }` | no | yes | Render warnings or errors of either version (`info` left out, except `theme.missing`); a version or a page of the history could not be loaded (`load.failed`) |
+| `mmdx-error` | `{ diagnostics: Diagnostic[] }` | no | yes | Render warnings or errors of either version (`info` left out, except `theme.missing`); a version or a page of the history could not be loaded (`load.failed`); `toPng()` left out remote images (`export.image-missing`, `warning`) |
 | `mmdx-fullscreen` | `{ active: boolean }` | no | yes | Full screen started or ended |
 | `mmdx-fullscreen-request` | `{ enter: boolean }` | yes | yes | The full-screen button is pressed, before anything happens (dispatched by the shared zoom bar; not declared in `DiffEventMap`) |
 | `mmdx-link` | `{ href: string; id: string \| null }` | yes | yes | ⌘ / Ctrl + click on a link in the diagram |
@@ -212,7 +212,7 @@ interface Diagnostic {
 }
 ```
 
-Besides the parser's and renderer's codes, the components send `load.failed`, `save.failed`, `export.failed`, `export.font-missing`, `doc.too-large` (a render in the worker took too long), `mermaid.failed` (the stock Mermaid fallback failed) and `theme.missing`. Switch on `code`, not on `message`.
+Besides the parser's and renderer's codes (the renderer's `image.blocked`: an image the [image policy](/guide/security#image-policy) refused, with its `reason` in `params`), the components send `load.failed`, `save.failed`, `export.failed`, `export.font-missing`, `export.image-missing`, `doc.too-large` (a render in the worker took too long), `mermaid.failed` (the stock Mermaid fallback failed) and `theme.missing`. Switch on `code`, not on `message`.
 
 ## React wrappers
 

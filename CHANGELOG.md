@@ -11,12 +11,16 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project f
 - **Shape name warnings**: an unknown shape name (`flow.unknown-shape`) and a name Mermaid rejects such as `lean_r` (`flow.shape-name`, with a fix that writes the short name).
 - **`flow.meta-shape`**: the editor's code panel lists flowchart shapes kept only in metadata (files of 0.1–0.3), with a fix that writes them to the code.
 - A Storybook story with every shape next to stock Mermaid's drawing of it.
+- **Image policy**: `configure({ imagePolicy })`, the components' `ctx` and `createContext({ imagePolicy })` decide which image URLs a diagram may show — `https:` from any host by default; `http:`, embedded `data:` images (base64 PNG, JPEG, GIF, WebP, SVG or AVIF up to a size) and relative URLs only when the host enables them; `hosts` limits images to a list and `protocols: []` turns them off. A refused image is never written to the SVG: it is drawn as a placeholder and reported as an `image.blocked` warning with the reason. `checkImageUrl`, `safeImageUrl`, `DEFAULT_IMAGE_POLICY` and the `ImagePolicy` type are exported from `@mmdx/studio/core` ([Security → Image policy](https://udamir.github.io/mmdx/guide/security#image-policy)).
+- **Images, inline icons and bold and italic text in the drawing**: the groundwork for image and icon nodes and Mermaid's markdown labels — images fitted into a box (contain, cover or stretch), icons inside a line of text, bold and italic words that wrap like plain text, and changed words that keep their styling in the diff. The diagram types start using them with the image and icon nodes.
+- **PNG export includes remote images**: each image is fetched (CORS, no credentials) and put into the PNG; one whose host does not allow it is a placeholder, with a toast and an `export.image-missing` warning.
 
 ### Changed (breaking)
 
 - **`<mmdx-studio>` keeps no diagram in the URL**: no `#d=…` in the address bar and no Share button; `persist` takes only `local`.
 - **`encodeHash` and `decodeHash` are removed** from `@mmdx/studio` and `@mmdx/studio/adapters`.
 - **`Kinds` is the diagram types' view kinds by type** (`ALL_KINDS.flowchart`, …) instead of `{ parsers, renderers }`; the `…With` functions take it as before.
+- **`CoreContext` has an `imagePolicy`** (and so does the render context): `createContext()` and the components fill it with `DEFAULT_IMAGE_POLICY`; a context built by hand needs it.
 - **`NodeShape` is a shape catalogue id** (`ShapeId`): the 17 former names plus Mermaid's short names for the others; `queue`, which no parser produced, is gone (the name reads as the horizontal cylinder). `FlowchartModel` has `statements` (the code offsets the editing ops splice), and a node its `@{…}` data (`data`, `blocks`).
 
 ### Changed
@@ -28,12 +32,14 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project f
 - **Relabelling, reconnecting and deleting keep the code as written**: node data, edge lengths and styles, chains, `&` groups, `:::` classes and edge ids stay; a statement is split only where an edit breaks it apart.
 - **One list of shapes**: the shape picker (now every flowchart shape, by category), Properties, the theme editor's shape tabs and the Shapes menu read the catalogue; a theme's `nodeShapes` may name a shape by any of its names (`cyl`, `lean-r`).
 - **`@{ shape: f-circ }`, `sm-circ`, `fr-circ` and `lin-cyl` look like Mermaid's**: they were drawn as a plain circle or cylinder.
+- **Emoji are measured as one glyph on the server**: the static measurer (SSR, `renderToSvg`, the markdown plugins) counts graphemes, so `👨‍👩‍👧`, `❤️`, `👍🏽` and flags are 1.15 em wide instead of one em per code point, and boxes with emoji no longer come out too wide. Text without emoji measures as before.
 - **The shapes beyond the 17 former ones load on demand** in the viewer, History and `<mmdx-diff>`: their drawing code (about 4 kB gzip) arrives the first time a diagram shows one of them, and a page of flowcharts with the common shapes does without it; the editor loads it with its flowchart code. SSR, `renderToSvg`, the markdown plugins and the render worker draw every shape as before.
 
 ### Fixed
 
 - An unknown `@{ shape }` name is reported instead of silently becoming a rectangle; `notch-rect` and the other hyphenated names Mermaid documents are read.
 - A `}` or `,` inside a quoted `@{ label: "…" }` no longer ends the node data; single-quoted labels are read.
+- Diagrams rendered in the render worker (over 300 lines) use the component's link policy instead of the default one.
 
 ## 0.3.0 — Hooks for sandboxed hosts
 

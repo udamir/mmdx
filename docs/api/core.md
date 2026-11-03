@@ -339,7 +339,7 @@ interface RenderResult {
 function createContext(opts?: Partial<CoreContext>): CoreContext
 ```
 
-A fresh context. Omitted fields get defaults: `themes` a registry with the built-in themes (`createDefaultRegistry()`), `measure` the static measurer, `idPrefix` a new unique prefix, `linkPolicy` `DEFAULT_LINK_POLICY`.
+A fresh context. Omitted fields get defaults: `themes` a registry with the built-in themes (`createDefaultRegistry()`), `measure` the static measurer, `idPrefix` a new unique prefix, `linkPolicy` `DEFAULT_LINK_POLICY`, `imagePolicy` `DEFAULT_IMAGE_POLICY`.
 
 ### `CoreContext`
 
@@ -350,6 +350,8 @@ interface CoreContext {
   /** Unique per instance, so SVG <defs> ids (markers, patterns) never collide between diagrams on one page. */
   idPrefix: string;
   linkPolicy: LinkPolicy;
+  /** Which image URLs diagram content may use. */
+  imagePolicy: ImagePolicy;
   locale?: string;
 }
 ```
@@ -382,7 +384,7 @@ interface FontSpec {
 }
 ```
 
-Layout depends on text widths, so every environment measures through a `TextMeasurer`. The static one estimates advance widths from a table close to Open Sans Regular (monospace families use 0.6 em per character; bold adds about 6 %), deterministic across machines, with a bounded cache. In browsers the components use a canvas measurer. Pass your own (`kind: 'custom'`) in `createContext({ measure })` or [`configure({ measure })`](/api/configuration#configure) for exact metrics.
+Layout depends on text widths, so every environment measures through a `TextMeasurer`. The static one estimates advance widths from a table close to Open Sans Regular (monospace families use 0.6 em per character; bold adds about 6 %), deterministic across machines, with a bounded cache. It counts graphemes (`Intl.Segmenter`): an emoji is 1.15 em however many code points it is made of (a ZWJ family, a skin tone, a flag, a keycap), and joiners and variation selectors add nothing. In browsers the components use a canvas measurer. Pass your own (`kind: 'custom'`) in `createContext({ measure })` or [`configure({ measure })`](/api/configuration#configure) for exact metrics.
 
 ### `serializeNode()`
 
@@ -553,7 +555,63 @@ const DEFAULT_LINK_POLICY: LinkPolicy = { protocols: ['https:', 'http:', 'mailto
 type SafeUrl = string & { readonly [SAFE_URL]: true };
 ```
 
-A branded string: a URL that passed `safeUrl()`, the only kind the scene accepts for `href`.
+A branded string: a URL that passed `safeUrl()`, the only kind the scene accepts for a link's `href`.
+
+## Images
+
+### `checkImageUrl()` / `safeImageUrl()`
+
+```ts
+function checkImageUrl(raw: unknown, policy?: ImagePolicy): { url: SafeImageUrl } | { reason: ImageBlockReason }
+function safeImageUrl(raw: unknown, policy?: ImagePolicy): SafeImageUrl | null
+
+type ImageBlockReason = 'invalid' | 'protocol' | 'data-off' | 'data-type' | 'data-size' | 'host' | 'relative';
+```
+
+Checks an image URL from a diagram against the image policy (default `DEFAULT_IMAGE_POLICY`): no control characters, whitespace or backslashes, at most 2 048 characters; the protocol in `protocols`; the host in `hosts` when the policy has them (no user info); a `data:` URL only as base64 of one of `dataTypes`, at most `maxDataBytes` decoded; a relative URL only with `relative: true`, never protocol-relative. `checkImageUrl` gives the reason of a refusal, which renderers report as the `reason` of an `image.blocked` warning; the image is then drawn as a placeholder.
+
+```ts
+safeImageUrl('https://example.com/logo.png');   // 'https://example.com/logo.png'
+checkImageUrl('data:image/png;base64,iVBOR…');  // { reason: 'data-off' }
+checkImageUrl('http://example.com/logo.png');   // { reason: 'protocol' }
+```
+
+### `ImagePolicy`
+
+```ts
+interface ImagePolicy {
+  /** Allowed protocols; `[]` turns content images off. */
+  protocols: readonly ('https:' | 'http:' | 'data:')[];
+  /** With `data:` enabled: the accepted MIME types (base64 only). */
+  dataTypes: readonly ImageDataType[];   // 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' | 'image/svg+xml' | 'image/avif'
+  /** With `data:` enabled: the largest decoded image in bytes. */
+  maxDataBytes: number;
+  /** Host names remote images may come from; `*.example.com` matches its subdomains. Default: any host. */
+  hosts?: readonly string[];
+  /** Relative URLs, resolved against the page that shows the diagram. Default off. */
+  relative?: boolean;
+}
+```
+
+Set it per context (`createContext({ imagePolicy })`) or for every component with [`configure({ imagePolicy })`](/api/configuration#configure). See [Security](/guide/security#image-policy).
+
+### `DEFAULT_IMAGE_POLICY`
+
+```ts
+const DEFAULT_IMAGE_POLICY: ImagePolicy = {
+  protocols: ['https:'],
+  dataTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml', 'image/avif'],
+  maxDataBytes: 256 * 1024,
+};
+```
+
+### `SafeImageUrl`
+
+```ts
+type SafeImageUrl = string & { readonly [SAFE_IMAGE_URL]: true };
+```
+
+A branded string: the only kind the scene accepts for an `<image>`'s `href` — a URL that passed `checkImageUrl()`, or an icon image mmdx built itself.
 
 ## Layers
 

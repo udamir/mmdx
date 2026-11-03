@@ -75,8 +75,9 @@ const ctx = createContext({
 | Field | Default | Meaning |
 |---|---|---|
 | `themes` | a registry with Default Light and Default Dark | The `ThemeRegistry` themes are looked up in |
-| `measure` | `createStaticMeasurer()` | How text is measured for layout |
+| `measure` | `createStaticMeasurer()` | How text is measured for layout (an emoji counts as one 1.15 em glyph, however many code points it has) |
 | `linkPolicy` | `DEFAULT_LINK_POLICY` | Allowed link protocols and the link target |
+| `imagePolicy` | `DEFAULT_IMAGE_POLICY` | Which image URLs diagrams may show (`https:` only by default). The SVG keeps the URLs as they are and the server fetches nothing; a refused image is a placeholder with an `image.blocked` warning. See [Security](/guide/security#image-policy) |
 | `idPrefix` | a unique prefix | Prefix of SVG `<defs>` ids, so ids never collide between diagrams on one page |
 | `locale` | — | The locale |
 
