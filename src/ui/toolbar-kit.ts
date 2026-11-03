@@ -104,7 +104,12 @@ export function createPopHost(o: PopHostOptions): PopHost {
     const barTop = bar.getBoundingClientRect().top - host.getBoundingClientRect().top;
     const below = host.clientHeight - (barTop + bar.offsetHeight + 8) - 8;
     const above = barTop - 16;
-    if (pop.scrollHeight <= below || below >= above) {
+    const room = host.clientHeight - 16;
+    if (pop.scrollHeight > below && pop.scrollHeight > above && pop.scrollHeight <= room) {
+      // fits neither below nor above the bar, but in the host: moved up over it rather than scrolled
+      pop.style.maxHeight = 'none';
+      pop.style.top = `${host.clientHeight - 8 - pop.scrollHeight - barTop}px`;
+    } else if (pop.scrollHeight <= below || below >= above) {
       pop.style.top = `${bar.offsetHeight + 8}px`;
       pop.style.maxHeight = `${Math.max(160, below)}px`;
     } else {

@@ -107,10 +107,7 @@ export const EDITOR_MESSAGES: Messages = {
   'props.resetGroup': 'Reset positions in this group', 'props.resetGroupTip': 'Forget the hand-placed positions inside the group; auto layout arranges its contents again',
   'props.resetGroupNone': 'Nothing to reset — the group has no hand-placed positions',
   // ---- insert dock (T05); the strings of its lazy parts are in editor-media.ts
-  'tools.text': 'Text — add a text block', 'tools.image': 'Image — add a picture by its URL', 'tools.icons': 'Icons — choose an icon to add',
-  'tools.container': 'Container — draw a frame around items to group them (or wrap the selection)', 'tools.connector': 'Connector — click a source, then a target (Esc ends)',
-  'help.text': 'Text', 'help.image': 'Image', 'help.icons': 'Icons', 'help.container': 'Container',
-  'help.connector': 'Connector (click a source, then a target)', 'help.emoji': 'Emoji while editing text', 'props.emoji': 'Insert emoji (⌘/Ctrl+;)',
+  'tools.image': 'Image — add a picture by its URL', 'help.image': 'Image', 'help.emoji': 'Emoji while editing text', 'props.emoji': 'Insert emoji (⌘/Ctrl+;)',
   'media.noUpload': 'Images can be added by URL; uploading is not configured here', 'media.noImages': 'Images cannot be added to this diagram type',
   'history.icon': 'Icon', 'history.image': 'Image', 'history.media': 'Icon & image',
   // ---- markdown labels (T06)

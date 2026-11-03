@@ -97,10 +97,6 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   drop?(core: EditorCore, model: M, item: PaletteItem, at: Point): boolean;
 
   // ---- insert dock and media (T05): a missing hook hides its button or control ----
-  /** Adds a text block at a (snapped) diagram point (the dock's Text tool: a flowchart `text` shape, a sequence note). */
-  addText?(core: EditorCore, model: M, at: Point): boolean;
-  /** Adds an icon item (`pack:name`) at a point (the icon picker's insert mode). */
-  addIcon?(core: EditorCore, model: M, icon: string, at: Point): boolean;
   /** Adds an image item at a point; `url` passed the image policy. */
   addImage?(core: EditorCore, model: M, url: string, at: Point): boolean;
   /** An item's icon and image (null: the item takes neither). */

@@ -26,7 +26,7 @@ export type SlotName =
   | 'canvas'
   | 'overlay';
 
-export type Tool = 'pointer' | 'hand' | 'pen' | 'shapes' | 'paint' | 'connect' | 'container';
+export type Tool = 'pointer' | 'hand' | 'pen' | 'shapes' | 'paint';
 
 /** Display settings shared by every canvas (view settings card). */
 export interface Display {

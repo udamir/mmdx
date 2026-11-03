@@ -181,10 +181,8 @@ export interface EditorActions {
   plainMermaid(): Promise<void>;
   refreshToolbar(): void;
   // insert dock (T05)
-  /** Adds a text block (the Text tool) at a diagram point, else in the middle of the canvas. */
-  addText(at?: { x: number; y: number }): void;
-  /** Opens the icon picker beside `anchor`: `insert` adds an icon item, else it sets the selected items' icon. */
-  openIconPicker(anchor?: HTMLElement | null, opts?: { insert?: boolean }): void;
+  /** Opens the icon picker beside `anchor`: it sets the selected items' icon. */
+  openIconPicker(anchor?: HTMLElement | null): void;
   /** Opens the image tool beside `anchor`: `insert` adds an image item, else it sets the selected item's image; `file` is uploaded at once. */
   openImageTool(anchor?: HTMLElement | null, opts?: { insert?: boolean; file?: File; at?: { x: number; y: number } }): void;
   /** Opens the emoji picker beside `anchor`; `onPick` inserts the chosen emoji (it stays open), `onClose` when it closes. */

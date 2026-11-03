@@ -1,6 +1,5 @@
 // Shapes-menu content of the edit kinds: the palette item type and the fixed icons the kinds' palettes use (prototype
 // app.js `PALETTE_ITEMS`, `blockIcon`, `NOTE_ICON`, `TABLE_ICON`). Icons are fixed constants built with createElementNS.
-import type { StyleProps } from '../../core/style.js';
 import type { ItemKind } from '../../core/types.js';
 import { s } from '../../ui/h.js';
 import { shapePreview } from '../../ui/shape-preview.js';
@@ -40,8 +39,10 @@ export interface PaletteSpec {
   sections?: readonly PaletteSection[];
   /** `grid`: small previews with tooltips (the shape catalogue); `list` (default): each item's icon and name. */
   layout?: 'grid' | 'list';
-  /** An item's presets submenu: the item kind whose presets it lists, the shape its previews draw, which presets fit (null: none). */
-  presets(item: PaletteItem): { kind: ItemKind; shape?: string; fits?(preset: StyleProps | undefined): boolean } | null;
+  /** The menu's search field (default true). */
+  search?: boolean;
+  /** `grid` mode: the item kind whose presets the grid lists (ER tables). */
+  presets?(item: PaletteItem): { kind: ItemKind } | null;
 }
 
 const icon30 = (stroke: string, ...children: SVGElement[]): SVGElement =>

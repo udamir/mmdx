@@ -123,7 +123,6 @@ for (const [entry, budget] of [['core', 94.1], ['theme-editor', 141.4], ['editor
     const loaded = new Set([...b.base, ...lazy(b, 'src/editor/kinds/flowchart.ts', b.base)]);
     report('editor pickers (lazy chunk)', b.size(new Set(lazy(b, 'src/editor/modules/insert/media.ts', loaded))), 12.6 * KB);
     report('shape palette (lazy chunk)', b.size(new Set(lazy(b, 'src/ui/blocks/shape-palette.ts', loaded))), 4 * KB);
-    report('insert tools (lazy chunk)', b.size(new Set(lazy(b, 'src/editor/modules/insert/tools.ts', loaded))), 3 * KB);
     report('emoji data, English (lazy chunk)', b.size(new Set(lazy(b, 'src/emoji/en.ts', loaded))), 30 * KB);
     // 234.6 kB with the icon registry (T04, 234.2 kB measured)
     // 232.1 kB with media in the scene (T03, 231.7 kB measured); 230.7 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 230.3 kB measured); 234.8 kB with the shape catalogue (T02, 234.3 kB measured); 224 kB once the editor loads diagram types on demand (220.7 kB measured); 233 kB before

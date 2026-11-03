@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// The insert dock and its pickers (T05): per-kind buttons, the Text tool, icons and images inserted and set through
-// the flowchart's edit kind (every output parsed by stock Mermaid 11.17), the image policy and the host's
-// `uploadImage`, emoji at the caret, the Shapes palette (search, recents, Alt-click replace), the Connector and
-// Container tools, the selection toolbar's media controls and the Properties sections.
+// The insert dock and its pickers (T05): the Image button per kind (no Text, Icons, Container or Connector tools: those
+// are made inline), icons set and images inserted and set through the flowchart's edit kind (every output parsed by
+// stock Mermaid 11.17), the image policy and the host's `uploadImage`, emoji at the caret, the Shapes palette
+// (Alt-click replace), the selection toolbar's media controls and the Properties sections.
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
@@ -56,74 +56,53 @@ const input = (el: HTMLInputElement, v: string): void => {
 };
 
 describe('insert dock', () => {
-  test('buttons follow what the diagram type offers', async () => {
+  test('the dock offers Image only; text, icons, containers and connectors are made inline', async () => {
     const e = mount('flowchart LR\n  A --> B\n');
     await e.whenLoaded?.();
     await settle();
-    const shown = (): string[] => ['text', 'image', 'icons', 'container', 'connector'].filter((n) => !$(`.vt-${n}`)!.hidden);
-    expect(shown()).toEqual(['text', 'image', 'icons', 'container', 'connector']);
+    expect($('.vt-image')!.hidden).toBe(false);
+    for (const n of ['text', 'icons', 'container', 'connector']) expect($(`.vt-${n}`)).toBeNull();
+    // the tooltip carries the shortcut
+    expect($('.vt-image')!.title).toContain('(G)');
     e.setSource('sequenceDiagram\n  A->>B: hi\n');
     await settle();
     e.core.fire('model');
-    expect(shown()).toEqual(['text', 'container', 'connector']);
-    e.setSource('erDiagram\n  A ||--o{ B : has\n');
+    expect($('.vt-image')!.hidden).toBe(true);
+    // T, N, B and A no longer insert anything
+    const before = e.core.code;
+    for (const k of ['t', 'n', 'b', 'a']) key(k);
     await settle();
-    e.core.fire('model');
-    expect(shown()).toEqual(['connector']);
-    // the tooltips carry the shortcuts
-    expect($('.vt-icons')!.title).toContain('(N)');
-  });
-
-  test('T adds a text block: Mermaid\'s text shape', async () => {
-    const e = mount('flowchart LR\n  A --> B\n');
-    await settle();
-    key('t');
-    const id = e.core.primary()!.id;
-    expect(e.core.code).toContain(`  ${id}["Text"]\n  ${id}@{ shape: text }`);
-    await valid(e.core.code);
+    expect(e.core.code).toBe(before);
+    expect(e.core.tool.peek()).toBe('pointer');
   });
 });
 
 describe('icons', () => {
-  test('insert mode: a search, a tile, an icon node in Mermaid Chart\'s style', async () => {
+  test('without a selection the picker does not open: a toast asks for one', async () => {
     const e = mount('flowchart LR\n  A --> B\n');
     await settle();
-    e.core.run('openIconPicker', null, { insert: true });
+    e.core.run('openIconPicker', null);
     await settle();
-    const pop = $('.ins-pop .ip')!;
-    expect(pop.getAttribute('aria-label')).toBe('Choose an icon…');
-    // only the built-in set: the hint shows
-    expect($('.ip-hint')!.hidden).toBe(false);
-    input($<HTMLInputElement>('.ip-search')!, 'user');
-    const tile = $<HTMLButtonElement>('.ip-rows .ip-tile[aria-label="tabler:user"]')!;
-    expect(tile.title).toContain('MIT');
-    tile.click();
-    const id = e.core.primary()!.id;
-    expect(e.core.code).toContain(`  ${id}["User"]\n  ${id}@{ icon: "tabler:user", form: "rounded", pos: "b", h: 60 }`);
     expect($('.ins-pop')).toBeNull();
-    await valid(e.core.code);
-    // the icon is remembered
-    e.core.run('openIconPicker', null, { insert: true });
-    await settle();
-    expect($$('.ip-row .ip-tile').map((b) => b.getAttribute('aria-label'))).toEqual(['tabler:user']);
+    expect(host.shadowRoot!.textContent).toContain('Select an item to give it an icon');
   });
 
   test('selection mode: a label token on a node, replaced, then removed; one undo step each', async () => {
     const e = mount('flowchart LR\n  A["Car"] --> B');
     await settle();
     e.core.select([{ kind: 'node', id: 'A' }]);
-    e.core.run('openIconPicker', null, {});
+    e.core.run('openIconPicker', null);
     await settle();
     input($<HTMLInputElement>('.ip-search')!, 'car');
     $<HTMLButtonElement>('.ip-tile[aria-label="tabler:car"]')!.click();
     expect(e.core.code).toBe('flowchart LR\n  A["tabler:car Car"] --> B');
-    e.core.run('openIconPicker', null, {});
+    e.core.run('openIconPicker', null);
     await settle();
     expect($<HTMLButtonElement>('.ip-foot button')!.textContent).toBe('Remove icon');
     input($<HTMLInputElement>('.ip-search')!, 'truck');
     $<HTMLButtonElement>('.ip-tile[aria-label="tabler:truck"]')!.click();
     expect(e.core.code).toBe('flowchart LR\n  A["tabler:truck Car"] --> B');
-    e.core.run('openIconPicker', null, {});
+    e.core.run('openIconPicker', null);
     await settle();
     $<HTMLButtonElement>('.ip-foot button')!.click();
     expect(e.core.code).toBe('flowchart LR\n  A["Car"] --> B');
@@ -136,7 +115,7 @@ describe('icons', () => {
     const e = mount('flowchart LR\n  n4["User"]\n  n4@{ icon: "tabler:user", form: "rounded", pos: "b", h: 60 }');
     await settle();
     e.core.select([{ kind: 'node', id: 'n4' }]);
-    e.core.run('openIconPicker', null, {});
+    e.core.run('openIconPicker', null);
     await settle();
     expect($('.ip-tile.on')?.getAttribute('aria-label') ?? 'tabler:user').toBe('tabler:user');
     input($<HTMLInputElement>('.ip-search')!, 'car');
@@ -149,7 +128,8 @@ describe('icons', () => {
     const loader = vi.fn(async () => ({ prefix: 'demo', icons: { gear: { body: '<path d="M1 1h10v10z"/>' } }, info: { name: 'Demo', license: { title: 'CC0' } } }));
     ed = new DiagramEditor(host, { value: 'flowchart LR\n  A\n', storage: memoryStorage(), iconPacks: [{ name: 'demo', loader }] });
     await settle();
-    ed.core.run('openIconPicker', null, { insert: true });
+    ed.core.select([{ kind: 'node', id: 'A' }]);
+    ed.core.run('openIconPicker', null);
     await settle();
     expect($('.ip-hint')!.hidden).toBe(true);
     expect($<HTMLInputElement>('.ip-search')!.placeholder).toBe('Search icons, demo and more');
@@ -264,15 +244,12 @@ describe('emoji', () => {
 });
 
 describe('shapes palette', () => {
-  test('search, recents and Alt-click replace', async () => {
+  test('a click adds the shape; Alt-click replace', async () => {
     const e = mount('flowchart LR\n  A["A"] --> B\n');
     await settle();
     e.core.run('toggleShapesMenu');
     await settle();
     const menu = $('.shapes-menu')!;
-    input(menu.querySelector<HTMLInputElement>('.sp-search')!, 'data');
-    const hits = [...menu.querySelectorAll('.sp-tile')].map((b) => b.getAttribute('data-key'));
-    expect(hits).toEqual(expect.arrayContaining(['cylinder', 'datastore', 'parallelogram', 'bow-rect']));
     const tile = (k: string): HTMLElement => menu.querySelector<HTMLElement>(`.sp-tile[data-key="${k}"]`)!;
     const click = (el: HTMLElement, alt = false): void => {
       el.dispatchEvent(pev('pointerdown', { x: 0, y: 0 }, { altKey: alt }));
@@ -281,59 +258,13 @@ describe('shapes palette', () => {
     click(tile('datastore'));
     const id = e.core.primary()!.id;
     expect(e.core.code).toContain(`${id}@{ shape: datastore }`);
-    // recently used: a row at the top
     e.core.run('toggleShapesMenu');
     await settle();
-    expect(menu.querySelector('.sp-head')!.textContent).toBe('Recently used');
-    expect(menu.querySelector('.sp-grid .sp-tile')!.getAttribute('data-key')).toBe('datastore');
     // Alt-click with a node selected gives it the shape
     e.core.select([{ kind: 'node', id: 'A' }]);
     click(tile('diamond'), true);
     expect(e.core.code).toContain('A{"A"} --> B');
     expect(e.core.model.type === 'flowchart' && e.core.model.nodes.size).toBe(3);
-    await valid(e.core.code);
-  });
-});
-
-describe('tools', () => {
-  const nodeEl = (id: string): Element => $(`.el[data-kind="node"][data-id="${id}"]`)!;
-
-  test('Connector: click a source, then a target; Esc ends the tool', async () => {
-    const e = mount('flowchart LR\n  A["A"]\n  B["B"]\n  C["C"]\n');
-    await settle();
-    key('a');
-    await settle();
-    expect(e.core.tool.peek()).toBe('connect');
-    press(e.core, nodeEl('A'), { x: 0, y: 0 });
-    press(e.core, nodeEl('B'), { x: 0, y: 0 });
-    expect(e.core.code).toContain('A --> B');
-    expect(e.core.primary()?.kind).toBe('edge');
-    press(e.core, nodeEl('B'), { x: 0, y: 0 });
-    press(e.core, nodeEl('C'), { x: 0, y: 0 });
-    expect(e.core.code).toContain('B --> C');
-    key('Escape');
-    expect(e.core.tool.peek()).toBe('pointer');
-    await valid(e.core.code);
-  });
-
-  test('Container: a frame drawn around nodes wraps them in a subgraph; with a selection it wraps at once', async () => {
-    const e = mount('flowchart LR\n  A["A"] --> B["B"]\n  C["C"]\n');
-    await settle();
-    const g = e.core.geom.type === 'flowchart' ? e.core.geom : null;
-    const a = g!.nodes.get('A')!, b = g!.nodes.get('B')!;
-    key('b');
-    await settle();
-    expect(e.core.tool.peek()).toBe('container');
-    const p0 = { x: Math.min(a.x - a.w / 2, b.x - b.w / 2) - 10, y: Math.min(a.y - a.h / 2, b.y - b.h / 2) - 10 };
-    const p1 = { x: Math.max(a.x + a.w / 2, b.x + b.w / 2) + 10, y: Math.max(a.y + a.h / 2, b.y + b.h / 2) + 10 };
-    const gest = e.core.startGesture(pev('pointerdown', p0), e.core.hitTest({ target: e.core.dom.svg, clientX: p0.x, clientY: p0.y }))!;
-    gest.move(p1.x - p0.x, p1.y - p0.y, pev('pointermove', p1));
-    gest.end?.(pev('pointerup', p1));
-    await settle();
-    const M = e.core.model;
-    const sub = M.type === 'flowchart' ? [...M.groups.values()][0] : undefined;
-    expect(sub?.children.sort()).toEqual(['A', 'B']);
-    expect(e.core.tool.peek()).toBe('pointer');
     await valid(e.core.code);
   });
 });

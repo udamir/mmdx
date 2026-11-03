@@ -7,19 +7,26 @@ import { s } from './h.js';
 /** Participant shape names that are not catalogue names. */
 const PREVIEW_NAME: Readonly<Record<string, string>> = { box: 'rect' };
 
+/** The text block has no outline: its preview is a "T" (32 × 32 stroke path). */
+const TEXT_GLYPH = 'M8 10V7h16v3M16 7v18M12 25h8';
+
 /**
  * Outline of a node / participant shape (shape pickers, theme editor shape tabs, the Shapes menu): the catalogue's own
  * drawing at the shape's default size, scaled into the icon with a 1.8 px stroke, so a preview cannot drift from the canvas
- * (an unknown name: an empty icon).
+ * (the borderless text block: a "T"; an unknown name: an empty icon).
  */
 export function shapePreview(shape: string, size = 30): SVGSVGElement {
+  if (shape === 'text') {
+    return s('svg', { 'aria-hidden': 'true', focusable: 'false', viewBox: '0 0 32 32', width: String(size), height: String(size), fill: 'none', stroke: 'currentColor',
+      'stroke-width': '2.2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, s('path', { d: TEXT_GLYPH })) as SVGSVGElement;
+  }
   const def = knownShape(PREVIEW_NAME[shape] ?? shape);
   if (!def) return s('svg', { 'aria-hidden': 'true', focusable: 'false', viewBox: '0 0 32 32', width: String(size), height: String(size) }) as SVGSVGElement;
   const { w, h } = def.size;
   const side = Math.max(w * 1.15, h * 1.3);
   const el = s('svg', { 'aria-hidden': 'true', focusable: 'false', viewBox: `${-side / 2} ${-side / 2} ${side} ${side}`, width: String(size), height: String(size), 'stroke-linejoin': 'round' }) as SVGSVGElement;
   const k = side / 32;
-  patchChildren(el, def.draw({ x: 0, y: 0, w, h }, { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8 * k, radius: 4 * k }, {}));
+  patchChildren(el, def.draw({ x: 0, y: 0, w, h }, { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8 * k, radius: 0 }, {}));
   return el;
 }
 

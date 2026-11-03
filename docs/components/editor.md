@@ -191,7 +191,7 @@ editor.features = 'code-panel properties layers';  // only these
 
 ## Panels and tools
 
-- **Tool dock** (left): Pointer (V), the [insert dock](#insert-dock) — Shapes (S; Table in an ER diagram), Text (T), Image (G), Icons (N), Container (B) and Connector (A) — Hand (H), the pen (P), the Code (C), Properties (I) and Layers (L) panel toggles, History (⇧H), and Undo / Redo. Edit-only tools hide in View mode.
+- **Tool dock** (left): Pointer (V), the [insert dock](#insert-dock) — Shapes (S; Table in an ER diagram) and Image (G) — Hand (H), the pen (P), the Code (C), Properties (I) and Layers (L) panel toggles, History (⇧H), and Undo / Redo. Edit-only tools hide in View mode.
 - **Code panel** (left): the Mermaid code, editable, with live parsing and its problems; the Metadata tab shows the `%%@` lines. `focusCode(line)` opens it at a line.
 - **Properties** and **Layers** (right): the selected items' style, presets and stacking; the diagram's layers. In View mode the right panel is View settings.
 - **Floating style toolbar** over the selection, and the **page toolbar** while the page is selected.
@@ -219,35 +219,22 @@ The tools below Pointer add things to the diagram. Each diagram type offers what
 
 | Button | Key | Does | Flowchart | Sequence | ER | Mindmap |
 |---|---|---|---|---|---|---|
-| Shapes | `S` | The [shape palette](#shapes) | Every Mermaid shape, by category | Participants, notes, blocks | Table presets | The 7 mindmap shapes, as a child of the selected node |
-| Text | `T` | Adds a text block in the middle of the canvas | Mermaid's borderless `text` shape | A note | — | A node |
+| Shapes | `S` | The [shape palette](#shapes) | Every Mermaid shape, by section | Participants, notes, blocks | Table presets | The 7 mindmap shapes, as a child of the selected node |
 | Image | `G` | The [image tool](#images) | An image node | — | — | A node with a picture (metadata `img`) |
-| Icons | `N` | The [icon picker](#icons) | An icon node | — | — | A node whose label starts with the icon |
-| Container | `B` | Draw a frame around items to put them in a container; with a selection, wraps it at once | A subgraph | A box | — | — |
-| Connector | `A` | Click a source, then a target; the tool stays on for the next one, Esc ends it | An edge | A message | A relationship | — |
 
-The design's `I`, `C` and `L` keys already open Properties, the Code panel and Layers, so Icons, Container and Connector take `N`, `B` and `A`. The tooltips and the `?` popup show the keys. The pickers load the first time one opens.
+Everything else is made where you work, without a dock tool: a text block is a shape of the Shapes menu (the "T"), an icon is set on the selected items from the floating toolbar or Properties ([icons](#icons)), a container wraps the selection with ⌘G, and a connector is drawn from a node's connection handles. The tooltips and the `?` popup show the keys. The pickers load the first time one opens.
 
 ### Shapes
 
-The palette lists the flowchart's shapes in four sections — Basic, Process, Technical and Annotation — as previews drawn by the shape catalogue, with a tooltip naming the shape, its Mermaid name, or "mmdx only". Type in the search field to find a shape by its name, its geometric name, its Mermaid name or an alias (`data` finds the database, data store, data input and stored data shapes). The last eight shapes you added are in a row at the top (kept in `storage`).
+The palette lists the flowchart's shapes as Mermaid Chart lays them out — Basic, Process and Technical, six to a row, each shape once — as previews drawn by the shape catalogue, with a tooltip naming the shape and its Mermaid name, or "mmdx only". The shapes Mermaid Chart lacks (`datastore`, `folder`, `bucket`, `console`, `browser`, `person`, the mindmap's `cloud` and `bang`, `note`, `choice`) end the Technical section. Every section is open at once, without a scrollbar; there is no search field and no recently used row.
 
-Click a shape to add it in the middle of the canvas, or drag it where it goes (into a subgraph to put it there). Hover a shape for its style presets. With nodes selected, **Alt-click** gives them that shape instead of adding a node. The floating toolbar's shape picker is a compact form of the same palette. See [Shapes](/guide/shapes) for how shapes are written to the code.
+Click a shape to add it in the middle of the canvas, or drag it where it goes (into a subgraph to put it there). With nodes selected, **Alt-click** gives them that shape instead of adding a node. A new shape takes the default style; give it a preset afterwards from the floating toolbar or Properties. The floating toolbar's shape picker shows the same list, with the stacked style (single, stacked, double) below it; **Reset style** (⋮) clears it with the item's other style values. See [Shapes](/guide/shapes) for how shapes are written to the code.
 
 ### Icons
 
 **Choose an icon…** searches every registered icon pack — the built-in Tabler set, and the packs your page registers (`configure({ iconPacks })`, see [Icons](/guide/icons)). A chip per pack narrows the search; a pack that is registered but not loaded yet loads when you choose its chip. Recently used icons come first; hovering or focusing an icon shows its name and its pack's licence. While only the built-in set is registered, a hint says that more packs can be added.
 
-- From the dock (insert mode), an icon adds a flowchart **icon node** in Mermaid Chart's style — the label in its bracket, the node data in a statement of its own:
-
-  ```mermaid
-  flowchart LR
-    n4["User"]
-    n4@{ icon: "tabler:user", form: "rounded", pos: "b", h: 60 }
-  ```
-
-  Drag an icon from the grid to place it.
-- From the floating toolbar's **Icon** button (the first one; a dot marks an item with an icon) or the Properties panel (selection mode), it sets the selected items' icon: an icon node's `icon` key, and on any other node a `pack:name` token at the start of its label (`fa:fa-car Car`, `azure:computer-vision Vision`), replacing the one it has. **Remove icon** takes it away.
+The picker opens from the floating toolbar's **Icon** button (the first one; a dot marks an item with an icon) or the Properties panel, and sets the selected items' icon: an icon node's `icon` key, and on any other node a `pack:name` token at the start of its label (`fa:fa-car Car`, `azure:computer-vision Vision`), replacing the one it has. **Remove icon** takes it away. An icon node is written in Mermaid Chart's style — the label in its bracket, the node data in a statement of its own (`n4["User"]` and `n4@{ icon: "tabler:user", form: "rounded", pos: "b", h: 60 }`); **Convert to icon node** makes one from a node whose label starts with an icon.
 
 For an icon node, the toolbar's **Icon & image** popover and the Properties panel set the label's position (above or below), the frame (none, square, circle, rounded), the width, and the toolbar's **H** field its height — all written to its node data. Dragging the resize handle of an icon or image node sizes its icon or picture (an icon stays square, an image with **Keep aspect ratio** keeps its aspect) and writes `h` and `w` into its node data when you let go, so stock Mermaid draws it the same size. A node whose label starts with an icon token has **Convert to icon node** in the popover and in Properties: the icon becomes the node's and the rest of the label its caption. Properties notes when a label's icon is drawn by mmdx only (stock Mermaid draws Font Awesome tokens and shows other packs' as text). In a mindmap, the icon is a label token at the start of the node's text, which replaces an `::icon()` line the node has (see [Mindmaps](/guide/mindmap#icons)). Sequence, ER and the other types get their icon items in later releases; their items show no Icon button until then. What mmdx draws for icon and image nodes is described in [Flowchart content](/guide/flowchart).
 
@@ -344,7 +331,7 @@ Shortcuts work while the focus is inside the editor; `?` lists those that apply 
 | Keys | Action |
 |---|---|
 | `V`, `H`, `S`, `P` | Pointer, Hand, Shapes menu, pen |
-| `T`, `G`, `N`, `B`, `A` | Text, Image, Icons, Container, Connector ([insert dock](#insert-dock)) |
+| `G` | Image ([insert dock](#insert-dock)) |
 | `⌘;` | Emoji, while editing text |
 | `⌘B`, `⌘I` | Bold, italic of the selected words, while editing a markdown label |
 | `C`, `I`, `L`, `⇧H` | Code, Properties, Layers panels; History |

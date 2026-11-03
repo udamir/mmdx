@@ -7,16 +7,16 @@ import type { Sel } from '../core.js';
 import { cloneMeta, ensure as ensureIn } from '../../core/ops/meta-util.js';
 import { addFlowNode } from '../../core/ops/flowchart.js';
 import { fixIdClash } from '../../core/ops/meta-ops.js';
-import { flowPresets, presetShape } from '../../core/render/flow-presets.js';
+import { flowPresets } from '../../core/render/flow-presets.js';
 import type { Point } from '../../core/types.js';
 import type { EditorCore } from '../core.js';
 import { focusLabel } from '../modules/shapes/drop.js';
 import { applyDoc } from '../ops/doc.js';
 import { metaOnlyShapes, shapeDoc } from '../ops/shape.js';
 import { shapeIcon, type PaletteItem } from './palette.js';
-import { PICKER_CATEGORIES, shapesIn, type ShapeDef } from '../../core/shapes/catalog.js';
-import { addFlowMediaNode, flowMedia, ICON_NODE_H, IMAGE_NODE_SIZE, setFlowIcon, setFlowImage, setFlowMedia, type IsIconToken } from '../../core/ops/flow-media.js';
-import { splitIconName } from '../../core/icons/names.js';
+import { shapeById, type ShapeDef } from '../../core/shapes/catalog.js';
+import { SHAPE_MENU } from '../../core/shapes/menu.js';
+import { addFlowMediaNode, flowMedia, IMAGE_NODE_SIZE, setFlowIcon, setFlowImage, setFlowMedia, type IsIconToken } from '../../core/ops/flow-media.js';
 import type { SelectResult } from '../../core/ops/types.js';
 import type { ItemRef } from '../../core/types.js';
 import type { EditKind } from './types.js';
@@ -44,7 +44,11 @@ const shapeItem = (def: ShapeDef): PaletteItem => ({
   tip: `${def.name}${def.title && def.title !== def.name ? ` (${def.title})` : ''} · ${def.mermaid ?? 'mmdx only'}`,
 });
 
-const SECTIONS = PICKER_CATEGORIES.map((cat) => ({ title: `shapes.cat.${cat}`, items: shapesIn(cat).map(shapeItem) }));
+/** The Shapes menu: Mermaid Chart's sections (shared with the toolbar's shape picker). */
+const SECTIONS = SHAPE_MENU.map(({ cat, ids }) => ({
+  title: `shapes.cat.${cat}`,
+  items: ids.map(shapeById).filter((d): d is ShapeDef => !!d).map(shapeItem),
+}));
 
 /** The registry's view of label tokens (registered packs and Font Awesome's form are icons). */
 const isIconOf = (core: EditorCore): IsIconToken => (t) => core.ctx.icons.resolve(t, 'token') !== null;
@@ -58,12 +62,6 @@ function placeNew(core: EditorCore, res: SelectResult & { select: ItemRef; metaS
   if (ok) focusLabel(core, res.select);
   return ok;
 }
-
-/** An icon's words as a label (`tabler:brand-github` → "Brand github"). */
-const iconLabel = (name: string): string => {
-  const w = splitIconName(name)[1].replace(/^fa-/, '').replace(/[-_]+/g, ' ').trim();
-  return w ? w[0]!.toUpperCase() + w.slice(1) : 'Icon';
-};
 
 /** An image's file name as its caption (`…/team-photo.png` → "team photo"); "Image" otherwise. */
 const imageLabel = (url: string): string => {
@@ -157,11 +155,11 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
   palette: {
     mode: 'menu',
     title: 'Shapes',
-    // the catalogue's palette categories (T05): Basic, Process, Technical, Annotation
+    // Mermaid Chart's sections, compact: no search field, no recently used row
     items: SECTIONS.flatMap((s) => s.items),
     sections: SECTIONS,
     layout: 'grid',
-    presets: (item) => ({ kind: 'node', shape: item.key, fits: (p) => presetShape(p) === item.key }),
+    search: false,
   },
   setShape: (code, M, ref, shape) => (ref.kind === 'node' ? setFlowShape(code, M, ref.id, shape) : null),
   drop(core, M, item, pt) {
@@ -169,11 +167,7 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
     const res = addFlowNode(core.code, M, { label: item.label.split(' /')[0]!, shape: item.key, group: groupAt(core, pt) });
     return placeNew(core, res, pt, 'Add shape', item.preset);
   },
-  // the Text tool: Mermaid's borderless `text` shape (`n3["Text"]` and `n3@{ shape: text }`), a node like any other
-  addText: (core, M, pt) => placeNew(core, addFlowNode(core.code, M, { label: 'Text', shape: 'text', group: groupAt(core, pt) }), pt, 'Add text'),
-  // icon and image nodes in Mermaid Chart's style: `n4["User"]` and `n4@{ icon: "tabler:user", form: "rounded", pos: "b", h: 60 }`
-  addIcon: (core, M, icon, pt) =>
-    placeNew(core, addFlowMediaNode(core.code, M, { label: iconLabel(icon), data: { icon, form: 'rounded', pos: 'b', h: ICON_NODE_H }, group: groupAt(core, pt) }), pt, 'Add icon'),
+  // image nodes in Mermaid Chart's style: `n4["Photo"]` and `n4@{ img: "https://…", h: 100, w: 100, pos: "b" }`
   addImage: (core, M, url, pt) =>
     placeNew(core, addFlowMediaNode(core.code, M, { label: imageLabel(url), data: { img: url, h: IMAGE_NODE_SIZE, w: IMAGE_NODE_SIZE, pos: 'b' }, group: groupAt(core, pt) }), pt, 'Add image'),
   media(M, ref, core) {

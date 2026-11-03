@@ -8,18 +8,9 @@ import type { Sel } from '../core.js';
 import { reparse } from '../../core/kinds/registry.js';
 import type { BlockKind, SeqBlockStart, SeqMessage, SeqNote } from '../../core/model.js';
 import { addNote, addParticipant, seqInsertAfter, wrapBlock } from '../../core/ops/sequence.js';
-import type { ItemKind } from '../../core/types.js';
 import { applyThenStyle, focusLabel, setPreset } from '../modules/shapes/drop.js';
 import { blockIcon, noteIcon, shapeIcon } from './palette.js';
 import type { EditKind } from './types.js';
-
-/** Palette item → the preset kind it is styled with. */
-const SEQ_PRESET_KIND: Readonly<Record<string, ItemKind>> = {
-  participant: 'participant', actor: 'participant', database: 'participant', note: 'note', loop: 'block', alt: 'block', opt: 'block', rect: 'block',
-};
-
-/** Palette item → the participant shape its previews show. */
-const SEQ_SHAPE: Readonly<Record<string, string>> = { participant: 'box', actor: 'actor', database: 'database' };
 
 export const EDIT: EditKind<SequenceModel, SequenceGeometry> = {
   type: 'sequence',
@@ -97,17 +88,6 @@ export const EDIT: EditKind<SequenceModel, SequenceGeometry> = {
       { key: 'opt', label: 'Optional — drop on a message', icon: blockIcon('opt') },
       { key: 'rect', label: 'Highlight — drop on a message', icon: blockIcon('hl') },
     ],
-    presets: (item) => {
-      const kind = SEQ_PRESET_KIND[item.key];
-      if (!kind) return null;
-      const shape = SEQ_SHAPE[item.key];
-      return shape ? { kind, shape } : { kind };
-    },
-  },
-  // the Text tool: a note (next to the participant nearest the point)
-  addText(core, M, pt) {
-    const note = EDIT.palette?.items.find((x) => 'key' in x && x.key === 'note');
-    return !!note && 'key' in note && !!EDIT.drop?.(core, M, note, pt);
   },
   drop(core, M, item, pt) {
     const gm = core.geom;

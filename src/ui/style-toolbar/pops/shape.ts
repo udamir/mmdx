@@ -1,5 +1,6 @@
 // Shape popovers: the shape picker with the stacked style, and the fill (opacity and colour).
 import { h } from '../../h.js';
+import { SHAPE_MENU } from '../../../core/shapes/menu.js';
 import { knownShape, shapeIdOf } from '../../../core/shapes/registry.js';
 import { createShapePalette, type ShapePaletteItem } from '../../blocks/shape-palette.js';
 import { shapePreview } from '../../shape-preview.js';
@@ -14,26 +15,38 @@ export function shapePop(f: Fill): void {
   const { t, api } = x;
   const key = sp.shapeKey ?? 'shape';
   if (sp.shapes) {
-    pop.append(popLabel(t('tb.shape')));
-    // the compact Shapes palette (T05 §4.2): the shapes by category, with search; the tooltip names the semantic and
-    // Mermaid names ("Manual operation · trap-t")
+    // the Shapes menu's grid (T05 §4.2): the catalogue's shapes in Mermaid Chart's sections, any other list by
+    // category; six to a row, no search, no scrolling; the tooltip names the semantic and Mermaid names
+    // ("Manual operation · trap-t")
     const c0 = str(api.eff(key));
     const cur = c0 && !sp.shapes.includes(c0) ? shapeIdOf(c0) ?? c0 : c0;
-    const byTitle = new Map<string, ShapePaletteItem[]>();
-    for (const shape of sp.shapes) {
+    const item = (shape: string): ShapePaletteItem => {
       const def = knownShape(shape);
       const own = def && def.id === shape;
-      const title = own ? t(`tb.cat.${def.category}`) : '';
-      let items = byTitle.get(title);
-      if (!items) byTitle.set(title, (items = []));
-      items.push({
+      return {
         key: shape, label: own ? def.name : shape, tip: own ? `${def.name}${def.mermaid ? ` · ${def.mermaid}` : ' · mmdx only'}` : shape,
         ...(own ? { terms: [def.id, def.title ?? '', def.mermaid ?? '', ...def.aliases] } : {}), icon: () => shapePreview(shape, 24),
-      });
+      };
+    };
+    const has = new Set(sp.shapes);
+    const inMenu = new Set(SHAPE_MENU.flatMap((s) => s.ids));
+    let sections: { title: string; items: ShapePaletteItem[] }[];
+    if (sp.shapes.every((s) => inMenu.has(s))) {
+      sections = SHAPE_MENU.map((s) => ({ title: t(`tb.cat.${s.cat}`), items: s.ids.filter((id) => has.has(id)).map(item) })).filter((s) => s.items.length);
+    } else {
+      const byTitle = new Map<string, ShapePaletteItem[]>();
+      for (const shape of sp.shapes) {
+        const def = knownShape(shape);
+        const title = def && def.id === shape ? t(`tb.cat.${def.category}`) : '';
+        let items = byTitle.get(title);
+        if (!items) byTitle.set(title, (items = []));
+        items.push(item(shape));
+      }
+      sections = [...byTitle].map(([title, items]) => ({ title: byTitle.size > 1 ? title : '', items }));
     }
-    const sections = [...byTitle].map(([title, items]) => ({ title: byTitle.size > 1 ? title : '', items }));
+    pop.classList.add('mtb-shapes');
     const palette = createShapePalette({
-      t, compact: true, sections, current: cur, search: sp.shapes.length > 12,
+      t, compact: true, cols: 6, sections, current: cur, search: false,
       onPick: (it) => {
         api.set(key, it.key);
         done();
@@ -55,12 +68,6 @@ export function shapePop(f: Fill): void {
     row.append(b);
   }
   pop.append(row);
-  const inh = h('button', { type: 'button', class: 'link' }, t('tb.usePreset'));
-  inh.addEventListener('click', () => {
-    api.set('stack', undefined);
-    done();
-  });
-  pop.append(inh);
 }
 
 export function fillPop(f: Fill): void {

@@ -8,7 +8,6 @@ import { reparse } from '../../core/kinds/registry.js';
 import { leadingIcon, type IsIconToken } from '../../core/ops/icon-token.js';
 import { addMindChild, addMindRoot, deleteMind, mindFragment, mindNodeAt, MIND_NEW, relabelMind, remapMindMeta, setMindColorBy, setMindIcon, setMindShape } from '../../core/ops/mindmap.js';
 import { cloneMeta, ensure as ensureIn } from '../../core/ops/meta-util.js';
-import { withIconToken } from '../../core/ops/icon-token.js';
 import { MIND_SHAPES } from '../../core/parse/mindmap.js';
 import { registerExtendedShapes } from '../../core/shapes/extended.js';
 import type { MindmapGeometry } from '../../core/render/types.js';
@@ -94,12 +93,9 @@ export const EDIT: EditKind<MindmapModel, MindmapGeometry> = {
     title: 'Mindmap shapes',
     items: ITEMS,
     layout: 'list',
-    presets: (item) => ({ kind: 'node', shape: item.key }),
   },
   // a shape from the menu: a new child of the selected node (or the one nearest the drop)
   drop: (core, M, item, pt) => addNode(core, M, pt, MIND_NEW, (MIND_SHAPES as readonly string[]).includes(item.key) ? (item.key as MindShape) : 'mm-default', 'Add node', item.preset ? { preset: item.preset } : undefined),
-  addText: (core, M, pt) => addNode(core, M, pt, MIND_NEW, 'mm-default', 'Add node'),
-  addIcon: (core, M, icon, pt) => addNode(core, M, pt, withIconToken(MIND_NEW, icon, isIconOf(core)), 'mm-default', 'Add icon'),
   addImage: (core, M, url, pt) => addNode(core, M, pt, 'Image', 'mm-default', 'Add image', { img: url }),
   media(M, ref, core) {
     const n = ref.kind === 'node' ? M.nodes.get(ref.id) : undefined;

@@ -28,6 +28,17 @@ export const TOOLBAR_CSS = /* css */ `
 .mtb-pop { position: absolute; top: 60px; left: 0; width: 220px; overflow: auto; background: var(--float); border: 1px solid var(--float-line); border-radius: 14px; padding: 12px;
   box-shadow: 0 10px 34px rgba(20, 30, 60, .18); cursor: default; z-index: 1; }
 .mtb-label { color: var(--ink-2); font-size: 12px; margin: 8px 0 6px; }
+/* the shape picker: the Shapes menu's grid of six, every section open without a scrollbar */
+.mtb-pop.mtb-shapes { width: auto; overflow: visible; padding: 8px 12px 12px; display: flex; flex-direction: column; }
+.mtb-shapes .sp { gap: 0; }
+.mtb-shapes .sp.compact .sp-head { font-size: 12px; font-weight: 500; color: var(--ink-2); padding: 6px 2px 2px; }
+.mtb-shapes .sp.compact .sp-grid { grid-template-columns: repeat(6, 34px); gap: 0 4px; }
+.mtb-shapes .sp.compact .sp-tile { width: 34px; height: 34px; border-radius: 7px; }
+.mtb-shapes .sp.compact .sp-tile svg { width: 24px; height: 24px; }
+.mtb-shapes .mtb-label { margin: 8px 2px 4px; }
+.mtb-shapes .mtb-stacks { margin: 0; }
+.mtb-shapes .mtb-stack { flex-direction: row; justify-content: center; gap: 6px; padding: 4px; }
+.mtb-shapes .mtb-stack svg { width: 22px; height: 22px; }
 .mtb-label:first-child { margin-top: 0; }
 .mtb-colors { display: grid; grid-template-columns: repeat(6, 26px); gap: 7px; }
 .mtb-sw { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(0,0,0,.18); padding: 0; position: relative; }
@@ -52,11 +63,6 @@ export const TOOLBAR_CSS = /* css */ `
 .mtb-dot { position: absolute; right: 5px; top: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); pointer-events: none; }
 .mtb-msize { display: flex; align-items: center; gap: 2px; color: var(--muted); font-size: 12px; padding-left: 6px; }
 .mtb-check { display: flex; align-items: center; gap: 6px; font-size: 12px; margin: 4px 0 8px; }
-.mtb-shapes { display: grid; grid-template-columns: repeat(8, 36px); gap: 4px; max-height: 300px; overflow-y: auto; }
-.mtb-shape { border: 0; background: none; border-radius: 8px; width: 36px; height: 36px; display: grid; place-items: center; color: var(--ink-2); padding: 0; }
-.mtb-shape svg { width: 26px; height: 26px; display: block; }
-.mtb-shape:hover { background: var(--float-2); }
-.mtb-shape.on { background: var(--accent-2); color: var(--accent); }
 .mtb-list { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow: auto; }
 .mtb-item { border: 0; background: none; text-align: left; padding: 6px 8px; border-radius: 8px; font-size: 13px; }
 .mtb-item:hover:not(:disabled), .mtb-item:focus-visible { background: var(--float-2); }

@@ -4,8 +4,14 @@ export const SHAPES_CSS = /* css */ `
   max-height: min(560px, calc(100% - 140px)); overflow: auto; box-sizing: border-box;
   background: var(--float); border: 1px solid var(--float-line); border-radius: 14px; padding: 8px; box-shadow: 0 8px 28px rgba(20,30,60,.16); }
 .shapes-menu[hidden] { display: none; }
-.shapes-menu.grid { width: 276px; }
 .shapes-menu .sp-title { padding: 4px 6px 6px; }
+/* the shape catalogue (flowchart): Mermaid Chart's compact grid of six, every section open without a scrollbar */
+.shapes-menu.grid { width: auto; max-height: calc(100% - 16px); padding: 4px 10px 8px; }
+.shapes-menu.grid .sp { gap: 0; }
+.shapes-menu.grid .sp-head { font-size: 12.5px; font-weight: 500; color: var(--ink-2); padding: 8px 2px 2px; }
+.shapes-menu.grid .sp-grid { grid-template-columns: repeat(6, 34px); gap: 0 4px; }
+.shapes-menu.grid .sp-tile { width: 34px; height: 34px; border-radius: 7px; }
+.shapes-menu.grid .sp-tile svg { width: 24px; height: 24px; }
 .pal-ghost { position: absolute; z-index: 100; pointer-events: none; opacity: .85; transform: translate(-50%, -50%); color: var(--ink-2);
   filter: drop-shadow(0 4px 10px rgba(0,0,0,.18)); }
 .shapes-sub { position: absolute; z-index: 23; overflow: auto; background: var(--float); border: 1px solid var(--float-line); border-radius: 14px;

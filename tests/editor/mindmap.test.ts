@@ -227,7 +227,8 @@ describe('mindmap: the edit kind', () => {
     expect(k.drop!(core, core.model as never, item as never, { x: 0, y: 0 })).toBe(true);
     expect(body(core)[5]).toBe('      )New idea(');
     const e = await mount('mindmap\n');
-    expect(k.addText!(e.core, e.core.model as never, { x: 0, y: 0 })).toBe(true);
+    const plain = k.palette!.items.find((x) => 'key' in x && x.key === 'mm-default')!;
+    expect(k.drop!(e.core, e.core.model as never, plain as never, { x: 0, y: 0 })).toBe(true);
     expect(e.core.code.trimEnd()).toBe('mindmap\n  ((New idea))');
   });
 });

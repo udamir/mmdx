@@ -1,8 +1,8 @@
 // The editor's pickers (T05 §4.3–4.5), a lazy chunk of the insert module: the icon picker over the icon registry
 // (`searchIcons`, previews by `iconImage`), the image tool (the image policy's check, the host's `uploadImage`, an
 // offer to reduce big pictures) and the emoji picker (the emoji data, a chunk of its own per locale). Each opens as a
-// dialog popover beside its button, with Tab kept inside; in insert mode a choice adds an item through the edit kind
-// (`addIcon`, `addImage`), else it sets the selected items' icon or image (`setIcon`, `setImage`).
+// dialog popover beside its button, with Tab kept inside. A chosen icon goes on the selected items (`setIcon`); the image
+// tool in insert mode adds an image item through the edit kind (`addImage`), else it sets the selected item's image.
 import { checkImageUrl } from '../../../core/media/policy.js';
 import { iconImage } from '../../../core/icons/draw.js';
 import { searchIcons } from '../../../core/icons/search.js';
@@ -19,7 +19,7 @@ import { reduceImage, imageSize } from '../../../dom/downscale.js';
 import type { EditorCore } from '../../core.js';
 import { editKind, withEdit } from '../../kinds/registry.js';
 import { mediaOf, mediaTargets, setIconOf, setImageOf } from '../../ops/media.js';
-import { canvasCenter, startMenuDrag } from '../shapes/drag.js';
+import { canvasCenter } from '../shapes/drag.js';
 
 registerMessages(BLOCK_MESSAGES_MEDIA);
 registerMessages(EDITOR_MEDIA_MESSAGES);
@@ -73,23 +73,20 @@ const spot = (core: EditorCore, at?: Point): Point => {
 
 // ---- icon picker -----------------------------------------------------------------------------------------------------
 
-export function openIconPicker(core: EditorCore, anchor: HTMLElement | null, o: { insert?: boolean }): void {
+export function openIconPicker(core: EditorCore, anchor: HTMLElement | null): void {
   if (anchor && core.popovers.isOpenFor(anchor)) return core.popovers.close();
-  core.addCss([ICON_PICKER_CSS, MEDIA_CSS]);
   const t = core.i18n.t;
-  const kind = editKind(core.model.type);
-  const targets = o.insert ? [] : mediaTargets(core, 'icon');
-  const insert = !targets.length;
-  if (insert && !kind?.addIcon) return core.toast(t('media.noIcons'));
+  const targets = mediaTargets(core, 'icon');
+  if (!targets.length) return core.toast(t('media.selectIcon'));
+  core.addCss([ICON_PICKER_CSS, MEDIA_CSS]);
   const reg = core.ctx.icons;
   const ink = inkOf(core);
   const current = targets.length === 1 ? mediaOf(core, targets[0]!)?.icon ?? null : null;
   const hasIcon = targets.some((r) => !!mediaOf(core, r)?.icon);
   const close = (): void => core.popovers.close(true);
-  const choose = (name: string, at?: Point): void => {
+  const choose = (name: string): void => {
     remember(core, RECENT_ICONS, name, 16);
-    if (insert) withEdit(core.model, (k, m) => k.addIcon?.(core, m, name, spot(core, at)));
-    else setIconOf(core, targets, name);
+    setIconOf(core, targets, name);
   };
   const picker = createIconPicker({
     t,
@@ -114,14 +111,6 @@ export function openIconPicker(core: EditorCore, anchor: HTMLElement | null, o: 
       choose(name);
       close();
     },
-    ...(insert ? {
-      onPointerDown: (name: string, ev: PointerEvent, el: HTMLElement) => startMenuDrag(core, ev, el, {
-        ghost: () => h('img', { src: iconImage(reg, name, { color: ink, size: 40 }).href, alt: '', width: 40, height: 40 }),
-        inside: [el.closest('.ins-pop')],
-        drop: (at) => choose(name, at),
-        done: close,
-      }),
-    } : {}),
     onRemove: hasIcon ? () => {
       setIconOf(core, targets, null);
       close();

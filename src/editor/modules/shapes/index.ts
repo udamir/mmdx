@@ -1,8 +1,8 @@
 // Shapes menu (A.3 rows 30–31, T05 §4.2): the kind's palette in the ShapePalette block (a lazy chunk, loaded the first
-// time the menu opens) — sections with headings, search, recently used items; drag an item onto the canvas or click it
-// to add it in the middle; Alt-click gives the selected nodes its shape instead; preset submenus beside it (2–5 × 2–5
-// grid sized to the free space); ER: the table presets instead. `S` toggles it.
-// Ported from prototype/app.js `buildPalette`, `showShapePresets`, `showTablePresets`, `toggleTablePresets`,
+// time the menu opens) — sections with headings and, unless the kind turns it off, a search field; drag an item onto the canvas or click it
+// to add it in the middle; Alt-click gives the selected nodes its shape instead; ER: the table presets instead (a 2–5 ×
+// 2–5 grid sized to the free space). `S` toggles it.
+// Ported from prototype/app.js `buildPalette`, `showTablePresets`, `toggleTablePresets`,
 // `setShapesMenu`, `startPaletteDrag`, `groupAt`, `dropPaletteItem`. The dock buttons are built by the panels module,
 // which calls `core.run('toggleShapesMenu', button)`.
 import { presetsFor } from '../../../core/ops/style-env.js';
@@ -30,17 +30,6 @@ const paletteOf = (core: EditorCore): PaletteSpec | undefined => editKind(core.m
 
 /** `subShape` while the grid palette (ER table presets) is open. */
 const GRID = '#grid';
-
-/** Recently used palette items kept per diagram type (the editor's storage service). */
-const RECENT = 8;
-const recentKey = (type: string | null): string => `shapes.recent.${type ?? ''}`;
-
-/** Remembers a palette item as recently used. */
-export function noteRecentShape(core: EditorCore, key: string): void {
-  const k = recentKey(core.model.type);
-  const list = (core.storage.get<string[]>(k) ?? []).filter((x) => typeof x === 'string' && x !== key);
-  core.storage.set(k, [key, ...list].slice(0, RECENT));
-}
 
 /** The block's chunk (with its CSS), loaded the first time a palette shows. */
 let paletteChunk: Promise<typeof import('../../../ui/blocks/shape-palette.js')> | null = null;
@@ -107,9 +96,10 @@ export const shapesModule: EditorModule = {
         const asBlock = (it: PaletteItem): ShapePaletteItem => ({ key: it.key, label: it.label, tip: it.tip ?? `${it.label} — ${t('shapes.dragTip')}`, ...(it.terms ? { terms: it.terms } : {}), icon: it.icon });
         palette?.destroy();
         palette = m.createShapePalette({
-          t, title: pal.title, layout: pal.layout ?? 'list',
+          // the grid (Mermaid Chart's) has no heading above its sections
+          t, ...(pal.layout === 'grid' ? {} : { title: pal.title }), layout: pal.layout ?? 'list',
           sections: sec.map((x) => ({ title: x.title ? t(x.title) : '', items: x.items.map(asBlock) })),
-          recent: core.storage.get<string[]>(recentKey(type)) ?? [],
+          search: pal.search !== false,
           onPointerDown: (bi, ev, el) => {
             const it = byKey.get(bi.key);
             if (it) startDrag(it, ev, el);
@@ -117,10 +107,6 @@ export const shapesModule: EditorModule = {
           onPick: (bi, ev) => {
             const it = byKey.get(bi.key);
             if (it) addItem(it, canvasCenter(core), ev.altKey);
-          },
-          onHover: (bi, el) => {
-            const it = byKey.get(bi.key);
-            if (it && pal.presets(it)) showShapePresets(it, el);
           },
         });
         menu.replaceChildren(palette.el);
@@ -139,7 +125,6 @@ export const shapesModule: EditorModule = {
       if (alt && nodes.length && kind?.setShape && !it.preset) {
         styleWithShapes(core, nodes, { shape: it.key }, core.i18n.t('history.style'), (m) => m);
       } else if (!dropPaletteItem(core, it, at)) return;
-      noteRecentShape(core, it.key);
       setMenu(false);
       hideTablePresets();
       core.setTool('pointer');
@@ -154,8 +139,11 @@ export const shapesModule: EditorModule = {
       }
       const dr = dock.getBoundingClientRect(), rr = root.getBoundingClientRect();
       if (!dr.width && !dr.height) return;
+      // centred on the dock, moved up or down only as far as needed to stay inside the editor
+      const mh = menu.getBoundingClientRect().height;
+      const top = Math.max(8, Math.min(dr.top + dr.height / 2 - rr.top - mh / 2, rr.height - 8 - mh));
       menu.style.left = `${dr.right - rr.left + 8}px`;
-      menu.style.top = `${dr.top + dr.height / 2 - rr.top}px`;
+      menu.style.top = `${top + mh / 2}px`;
     };
 
     const hideSub = (): void => {
@@ -167,10 +155,7 @@ export const shapesModule: EditorModule = {
       const type = core.model.type;
       if (open && paletteOf(core)?.mode !== 'menu') open = false;
       if (open && (builtFor !== type || !menu.childElementCount)) build();
-      else if (open) {
-        palette?.update({ recent: core.storage.get<string[]>(recentKey(type)) ?? [] });
-        palette?.setQuery('');
-      }
+      else if (open) palette?.setQuery('');
       menu.hidden = !open;
       if (!open) hideSub();
       markAnchor(open);
@@ -192,39 +177,11 @@ export const shapesModule: EditorModule = {
 
     const env = (): Parameters<typeof presetsFor>[0] => ({ model: core.model, meta: core.meta, theme: core.result.theme, color: core.result.rctx.color });
 
-    function showShapePresets(item: PaletteItem, btn: HTMLElement): void {
-      if (subShape === item.key && !sub.hidden) return;
-      subShape = item.key;
-      sub.hidden = false;
-      sub.replaceChildren(h('div', { class: 'mtb-label' }, `Presets — ${item.label.split(' /')[0]!.split(' — ')[0]!}`));
-      const grid = h('div', { class: 'pp-grid' });
-      sub.append(grid);
-      const spec = paletteOf(core)?.presets(item);
-      if (!spec) return;
-      const kind: ItemKind = spec.kind;
-      const P = presetsFor(env(), kind) ?? {};
-      const names = ['', ...Object.keys(P).filter((p) => p !== '_base' && (!spec.fits || spec.fits(P[p])))];
-      const pics: [HTMLElement, string][] = [];
-      for (const name of names) {
-        const { b, pic } = presetTile(item, name, `${name ? `Preset "${name}"` : 'Default style'} — click to add, or drag onto the canvas`);
-        grid.append(b);
-        pics.push([pic, name]);
-      }
-      // beside the Shapes menu, level with the hovered item, sized to the free canvas and the number of presets;
-      // moved up only as far as needed to stay inside the canvas
-      const rr = root.getBoundingClientRect(), mr = menu.getBoundingClientRect(), ar = btn.getBoundingClientRect();
-      const { w: ww, h: hh } = fitPresetGrid(sub, rr.right - mr.right - 16, rr.height - 16);
-      // narrow canvas: slide left (over the menu) rather than be cut off by the canvas edge
-      sub.style.left = `${Math.min(mr.right + 8, rr.right - 8 - ww) - rr.left}px`;
-      sub.style.top = `${Math.max(rr.top + 8, Math.min(ar.top - 12, rr.bottom - 8 - hh)) - rr.top}px`;
-      for (const [pic, name] of pics) preview(pic, previewKind(core.model.type, kind), name, 40, spec.shape);
-    }
-
     /** The grid palette's one item (ER tables) and its presets. */
     const gridItem = (): { item: PaletteItem; kind: ItemKind } | null => {
       const pal = paletteOf(core);
       const item = pal?.mode === 'grid' ? pal.items.find(isItem) : undefined;
-      const spec = item ? pal?.presets(item) : null;
+      const spec = item ? pal?.presets?.(item) : null;
       return item && spec ? { item, kind: spec.kind } : null;
     };
 
@@ -285,7 +242,7 @@ export const shapesModule: EditorModule = {
         signal: ac.signal,
         drop: (at, e, click) => {
           if (click) addItem(item, at, e.altKey);
-          else if (dropPaletteItem(core, item, at)) noteRecentShape(core, item.key);
+          else dropPaletteItem(core, item, at);
         },
         done: () => {
           setMenu(false);

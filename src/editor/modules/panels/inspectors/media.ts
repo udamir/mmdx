@@ -55,7 +55,7 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
   if (k.setIcon && m.node !== 'image') {
     sect(host, t('props.icon'));
     const pick = h('button', { type: 'button' }, t('props.choose'));
-    pick.addEventListener('click', () => core.run('openIconPicker', pick, { insert: false }));
+    pick.addEventListener('click', () => core.run('openIconPicker', pick));
     const name = h('code', { class: 'hint' }, m.icon ?? t('props.iconNone'));
     const ctl: (Node | null)[] = [name, pick];
     if (m.icon) {

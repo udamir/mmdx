@@ -15,7 +15,7 @@ export const TOOLBAR_MESSAGES: Messages = {
   'tb.orderSeq': 'Order in the Mermaid code — earlier / later ({keys})', 'tb.orderMind': 'Order among its siblings — earlier / later ({keys})', 'tb.order': 'Order in the Mermaid code — send backward / bring forward ({keys})',
   'tb.layer': 'Layer — move to another layer', 'tb.presets': 'Style presets', 'tb.reset': 'Back to the inherited style',
   'tb.resetNone': 'Nothing changed here', 'tb.more': 'More', 'tb.shape': 'Shape', 'tb.single': 'Single', 'tb.stacked': 'Stacked',
-  'tb.double': 'Double', 'tb.usePreset': 'Use style preset', 'tb.alignH': 'Align {v}', 'tb.alignV': 'Vertical {v}',
+  'tb.double': 'Double', 'tb.alignH': 'Align {v}', 'tb.alignV': 'Vertical {v}',
   'tb.pos.left': 'left', 'tb.pos.center': 'center', 'tb.pos.right': 'right', 'tb.pos.top': 'top', 'tb.pos.middle': 'middle', 'tb.pos.bottom': 'bottom',
   'tb.zindex': 'Change z-index', 'tb.zindexN': 'Change z-index: {n}',
   'tb.orderNone': 'Nothing to reorder it with here — it is the only item in its container.',
