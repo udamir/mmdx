@@ -3,6 +3,7 @@
 //   %%@ node metrics {…,"layer":"L1"}                      membership; no "layer" = Default
 // Hiding a layer hides its items and everything attached to them (connectors, messages, group contents): the
 // renderers cascade from the direct ids computed here.
+import { withKind } from './kinds/registry.js';
 import type { DiagramMeta, ItemMeta, LayerMeta } from './meta/types.js';
 import { KIND_TO_COLL } from './meta/types.js';
 import type { DiagramModel } from './model.js';
@@ -40,24 +41,7 @@ export function layerOf(meta: DiagramMeta, kind: ItemKind, id: string): string {
 
 /** Every item of the diagram that can be on a layer. */
 export function layerItems(model: DiagramModel): ItemRef[] {
-  const out: ItemRef[] = [];
-  if (model.type === 'flowchart') {
-    for (const id of model.nodes.keys()) out.push({ kind: 'node', id });
-    for (const id of model.groups.keys()) out.push({ kind: 'group', id });
-    for (const e of model.edges) out.push({ kind: 'edge', id: e.id });
-  } else if (model.type === 'sequence') {
-    for (const p of model.participants) out.push({ kind: 'participant', id: p.id });
-    for (const it of model.items) {
-      if (it.kind === 'message') out.push({ kind: 'message', id: it.id });
-      else if (it.kind === 'note') out.push({ kind: 'note', id: it.id });
-      else if (it.kind === 'blockStart') out.push({ kind: 'block', id: it.id });
-    }
-    for (const b of model.boxes) out.push({ kind: 'box', id: b.id });
-  } else if (model.type === 'er') {
-    for (const id of model.entities.keys()) out.push({ kind: 'entity', id });
-    for (const r of model.rels) out.push({ kind: 'rel', id: r.id });
-  }
-  return out;
+  return withKind(model, (k, m) => k.items(m)) ?? [];
 }
 
 /**
@@ -73,9 +57,7 @@ export function hiddenByLayers(model: DiagramModel, meta: DiagramMeta, visible?:
     (sets[kind] ??= new Set()).add(id);
   };
   for (const it of layerItems(model)) if (hidden.has(layerOf(meta, it.kind, it.id))) add(it.kind, it.id);
-  // a hidden box hides its participants (and through them their messages and notes)
-  if (model.type === 'sequence')
-    for (const b of model.boxes) if (sets.box?.has(b.id)) for (const p of b.members) add('participant', p);
+  withKind(model, (k, m) => k.hideWith?.(m, sets));
   return sets;
 }
 
@@ -88,21 +70,7 @@ export function effectiveLayers(model: DiagramModel, meta: DiagramMeta): (kind: 
   const out = new Map<string, string>();
   const key = (k: ItemKind, id: string): string => `${k}:${id}`;
   const parent = new Map<string, string>();
-  if (model.type === 'flowchart') {
-    for (const n of model.nodes.values()) if (n.parent) parent.set(key('node', n.id), key('group', n.parent));
-    for (const g of model.groups.values()) if (g.parent) parent.set(key('group', g.id), key('group', g.parent));
-  } else if (model.type === 'sequence') {
-    for (const b of model.boxes) for (const p of b.members) parent.set(key('participant', p), key('box', b.id));
-    const stack: string[] = [];
-    for (const it of model.items) {
-      const top = stack[stack.length - 1];
-      if (it.kind === 'blockStart') {
-        if (top) parent.set(key('block', it.id), key('block', top));
-        stack.push(it.id);
-      } else if (it.kind === 'blockEnd') stack.pop();
-      else if ((it.kind === 'message' || it.kind === 'note') && top) parent.set(key(it.kind, it.id), key('block', top));
-    }
-  }
+  for (const [c, p] of withKind(model, (k, m) => k.parents(m)) ?? []) parent.set(key(c.kind, c.id), key(p.kind, p.id));
   const own = (k: string): string | null => {
     const i = k.indexOf(':');
     const l = layerOf(meta, k.slice(0, i) as ItemKind, k.slice(i + 1));
@@ -132,15 +100,10 @@ export function effectiveLayers(model: DiagramModel, meta: DiagramMeta): (kind: 
   };
   for (const it of layerItems(model)) resolve(key(it.kind, it.id));
   // connectors on the Default layer follow their ends when both are on the same other layer
-  const ends: [ItemKind, { id: string; from: string; to: string }, ItemKind][] =
-    model.type === 'flowchart' ? model.edges.map((e) => ['edge', e, 'node'])
-    : model.type === 'er' ? model.rels.map((r) => ['rel', r, 'entity'])
-    : model.type === 'sequence' ? model.items.flatMap((i) => (i.kind === 'message' ? [['message', i, 'participant'] as [ItemKind, typeof i, ItemKind]] : []))
-    : [];
-  for (const [kind, c, endKind] of ends) {
-    if (out.get(key(kind, c.id)) !== DEFAULT_LAYER) continue;
-    const a = out.get(key(endKind, c.from)), b = out.get(key(endKind, c.to));
-    if (a && a === b && a !== DEFAULT_LAYER) out.set(key(kind, c.id), a);
+  for (const { ref, from, to } of withKind(model, (k, m) => k.connectors(m)) ?? []) {
+    if (out.get(key(ref.kind, ref.id)) !== DEFAULT_LAYER) continue;
+    const a = out.get(key(from.kind, from.id)), b = out.get(key(to.kind, to.id));
+    if (a && a === b && a !== DEFAULT_LAYER) out.set(key(ref.kind, ref.id), a);
   }
   return (kind, id) => out.get(key(kind, id)) ?? DEFAULT_LAYER;
 }

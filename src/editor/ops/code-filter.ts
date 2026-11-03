@@ -1,28 +1,12 @@
 // The code panel's filter (A.1 rows 3–4), pure: the items and the Mermaid lines a query finds (each token an element
 // id, or text), and the filtered view with `%% - N hidden` folds whose edits are written back into the full file.
-import { activationsOf } from '../../core/ids.js';
+import { withKind } from '../../core/kinds/registry.js';
 import { relatedLines } from '../../core/item-lines.js';
 import type { DiagramModel } from '../../core/model.js';
-import type { ItemKind, ItemRef } from '../../core/types.js';
+import type { ItemRef } from '../../core/types.js';
 
 /** The element whose id is exactly `tok` (any kind in the current diagram). */
-function findElement(M: DiagramModel, tok: string): ItemRef | null {
-  if (M.type === 'flowchart') {
-    if (M.nodes.has(tok)) return { kind: 'node', id: tok };
-    if (M.groups.has(tok)) return { kind: 'group', id: tok };
-    if (M.edges.some((e) => e.id === tok)) return { kind: 'edge', id: tok };
-  } else if (M.type === 'er') {
-    if (M.entities.has(tok)) return { kind: 'entity', id: tok };
-    if (M.rels.some((r) => r.id === tok)) return { kind: 'rel', id: tok };
-  } else if (M.type === 'sequence') {
-    if (M.participants.some((p) => p.id === tok)) return { kind: 'participant', id: tok };
-    if (M.boxes.some((b) => b.id === tok)) return { kind: 'box', id: tok };
-    const it = M.items.find((x) => (x.kind === 'message' || x.kind === 'note' || x.kind === 'blockStart') && x.id === tok);
-    if (it) return { kind: it.kind === 'blockStart' ? 'block' : (it.kind as 'message' | 'note'), id: tok };
-    if (activationsOf(M).some((a) => a.id === tok)) return { kind: 'activation', id: tok };
-  }
-  return null;
-}
+const findElement = (M: DiagramModel, tok: string): ItemRef | null => withKind(M, (k, m) => k.find(m, tok)) ?? null;
 
 /**
  * The items a code filter query finds (selected while filtering): per token, the element with exactly that id, else
@@ -34,23 +18,7 @@ export function filterItems(M: DiagramModel, query: string): ItemRef[] | null {
   const tokens = query.trim().split(/\s+/).filter(Boolean);
   if (!tokens.length) return null;
   // every item with the text it is found by
-  const all: { ref: ItemRef; text: string }[] = [];
-  const add = (kind: ItemKind, id: string, ...parts: (string | undefined)[]): void => void all.push({ ref: { kind, id }, text: parts.filter(Boolean).join('\n').toLowerCase() });
-  if (M.type === 'flowchart') {
-    for (const n of M.nodes.values()) add('node', n.id, n.id, n.label, ...n.classes);
-    for (const g of M.groups.values()) add('group', g.id, g.id, g.label, ...(g.classes ?? []));
-    for (const e of M.edges) add('edge', e.id, e.label);
-  } else if (M.type === 'er') {
-    for (const e of M.entities.values()) add('entity', e.id, e.id, e.label, ...e.attrs.map((a) => `${a.type} ${a.name} ${a.comment}`));
-    for (const r of M.rels) add('rel', r.id, r.label);
-  } else if (M.type === 'sequence') {
-    for (const p of M.participants) add('participant', p.id, p.id, p.label);
-    for (const b of M.boxes) add('box', b.id, b.label);
-    for (const it of M.items) {
-      if (it.kind === 'message' || it.kind === 'note') add(it.kind, it.id, it.text);
-      else if (it.kind === 'blockStart') add('block', it.id, it.label);
-    }
-  }
+  const all = (withKind(M, (k, m) => k.search(m)) ?? []).map(({ ref, texts }) => ({ ref, text: texts.filter(Boolean).join('\n').toLowerCase() }));
   const found = new Set<string>();
   for (const tok of tokens) {
     const el = findElement(M, tok);

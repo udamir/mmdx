@@ -13,6 +13,7 @@ import { normalizeMeta, splitSource, type DiagramDocument } from '../core/meta/i
 import { KIND_TO_COLL, type DiagramMeta, type ItemMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
 import { own, ownOr } from '../core/own.js';
+import { viewKind, withKind } from '../core/kinds/registry.js';
 import { parse } from '../core/parse/index.js';
 import type { ClipboardData } from '../core/ops/clipboard.js';
 import { remapSequenceMeta } from '../core/ops/remap.js';
@@ -469,21 +470,10 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   /** Geometry box of an item (participant foot when asked), or null. */
   boxOf(it: Sel | null): (BoxGeom & { hidden?: boolean }) | null {
     const g = this.geom;
-    if (!it) return null;
-    if (g.type === 'flowchart') return it.kind === 'node' ? g.nodes.get(it.id) ?? null : it.kind === 'group' ? g.groups.get(it.id) ?? null : null;
-    if (g.type === 'er') return it.kind === 'entity' ? g.entities.get(it.id) ?? null : null;
-    if (g.type === 'sequence') {
-      if (it.kind === 'participant') return (it.foot ? g.participantFeet.get(it.id) : null) ?? g.participants.get(it.id) ?? null;
-      if (it.kind === 'box') return g.boxes.get(it.id) ?? null;
-      if (it.kind === 'block') return g.blocks.get(it.id) ?? null;
-      if (it.kind === 'note') return g.notes.get(it.id) ?? null;
-      if (it.kind === 'activation') {
-        const a = g.activations.get(it.id);
-        return a ? { x: a.x, y: (a.y0 + a.y1) / 2, w: a.w, h: a.y1 - a.y0 } : null;
-      }
-    }
-    return null;
+    if (!it || !g.type) return null;
+    return viewKind(g.type)?.box(g, it, true) ?? null;
   }
+
 
   // ---- rendering --------------------------------------------------------------------------------------------------
 
@@ -851,12 +841,9 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   /** The diagram has no items yet (empty-canvas hint). */
   isEmptyDiagram(): boolean {
-    const M = this.model;
-    if (M.type === 'flowchart') return !M.nodes.size;
-    if (M.type === 'sequence') return !M.participants.length;
-    if (M.type === 'er') return !M.entities.size;
-    return false;
+    return withKind(this.model, (k, m) => k.isEmpty(m)) ?? false;
   }
+
 
   // ---- style environment (canvas module, additive) -----------------------------------------------------------------
 

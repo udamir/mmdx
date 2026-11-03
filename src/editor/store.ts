@@ -3,7 +3,7 @@
 import { joinSource, normalizeMeta, splitSource, type DiagramDocument } from '../core/meta/index.js';
 import type { DiagramMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
-import { activationsOf } from '../core/ids.js';
+import { elementExists } from '../core/ops/ids.js';
 import { parse } from '../core/parse/index.js';
 import type { Diagnostic, ItemRef } from '../core/types.js';
 import { computed, signal, type ReadSignal } from '../ui/signal.js';
@@ -270,19 +270,5 @@ function sameRefs(a: readonly ItemRef[], b: readonly ItemRef[]): boolean {
 
 /** Item existence for selection repair after undo / reload. */
 export function itemExists(model: DiagramModel, r: ItemRef, _meta?: DiagramMeta): boolean {
-  switch (model.type) {
-    case 'flowchart':
-      return r.kind === 'node' ? model.nodes.has(r.id) : r.kind === 'group' ? model.groups.has(r.id) : r.kind === 'edge' ? model.edges.some((e) => e.id === r.id) : false;
-    case 'sequence':
-      if (r.kind === 'participant') return model.participants.some((p) => p.id === r.id);
-      if (r.kind === 'box') return model.boxes.some((b) => b.id === r.id);
-      if (r.kind === 'message' || r.kind === 'note') return model.items.some((i) => i.kind === r.kind && i.id === r.id);
-      if (r.kind === 'block') return model.items.some((i) => i.kind === 'blockStart' && i.id === r.id);
-      if (r.kind === 'activation') return activationsOf(model).some((a) => a.id === r.id);
-      return false;
-    case 'er':
-      return r.kind === 'entity' ? model.entities.has(r.id) : r.kind === 'rel' ? model.rels.some((x) => x.id === r.id) : false;
-    default:
-      return false;
-  }
+  return elementExists(model, r);
 }

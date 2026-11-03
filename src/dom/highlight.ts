@@ -1,5 +1,6 @@
 // Hover highlight (A.7 row 68): hovering a box lights it, its connectors (and their labels), the boxes at their
 // other ends and the frames (groups, sequence boxes) around the lit items; everything else dims.
+import { withKind } from '../core/kinds/registry.js';
 import type { DiagramModel } from '../core/model.js';
 
 const BOXES = '.el.node, .el.entity, .el.participant';
@@ -44,15 +45,8 @@ export function hoverHighlight(root: Element, target: Element | null, model: Dia
       if (eid) for (const n of byData(root, 'data-id', eid)) if (n.classList.contains('elabel')) n.classList.add('hl');
     }
   // frames stay visible only around highlighted items
-  if (model?.type === 'flowchart') {
-    for (const nid of lit)
-      for (let g = model.nodes.get(nid)?.parent ?? null, guard = 0; g && guard < 64; g = model.groups.get(g)?.parent ?? null, guard++)
-        for (const n of byData(root, 'data-id', g)) if (n.getAttribute('data-kind') === 'group') n.classList.add('hl');
-  } else if (model?.type === 'sequence') {
-    for (const b of model.boxes)
-      if (b.members.some((m) => lit.has(m)))
-        for (const n of byData(root, 'data-id', b.id)) if (n.getAttribute('data-kind') === 'box') n.classList.add('hl');
-  }
+  const frames = model ? withKind(model, (k, m) => k.frames?.(m, lit)) ?? [] : [];
+  for (const f of frames) for (const n of byData(root, 'data-id', f.id)) if (n.getAttribute('data-kind') === f.kind) n.classList.add('hl');
   return `${el.getAttribute('data-kind')}:${id}`;
 }
 
