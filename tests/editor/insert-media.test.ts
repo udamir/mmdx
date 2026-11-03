@@ -278,7 +278,7 @@ describe('selection toolbar and Properties', () => {
     await settle();
     e.core.run('refreshToolbar');
     const bar = $('.mtb')!;
-    expect(bar.querySelector('[data-c="icon"] .mtb-dot')).not.toBeNull();
+    expect(bar.querySelector('[data-c="icon"] .mtb-has')).not.toBeNull();
     expect(bar.querySelector('[data-c="media"]')).not.toBeNull();
     const h = bar.querySelector<HTMLInputElement>('[data-c="mediaSize"] input')!;
     expect(h.value).toBe('60');
@@ -295,7 +295,7 @@ describe('selection toolbar and Properties', () => {
     e.core.select([{ kind: 'node', id: 'A' }]);
     e.core.run('refreshToolbar');
     expect(bar.querySelector('[data-c="icon"]')).not.toBeNull();
-    expect(bar.querySelector('[data-c="icon"] .mtb-dot')).toBeNull();
+    expect(bar.querySelector('[data-c="icon"] .mtb-has')).toBeNull();
     expect(bar.querySelector('[data-c="media"]')).toBeNull();
     const edge = e.core.model.type === 'flowchart' ? e.core.model.edges[0]!.id : '';
     e.core.select([{ kind: 'edge', id: edge }]);

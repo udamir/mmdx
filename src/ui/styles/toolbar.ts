@@ -60,7 +60,7 @@ export const TOOLBAR_CSS = /* css */ `
 .mtb-choice.on { background: var(--accent-2); color: var(--accent); }
 .mtb-words .mtb-choice { font-size: 12px; }
 .mtb-btn.has-icon { position: relative; }
-.mtb-dot { position: absolute; right: 5px; top: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); pointer-events: none; }
+.mtb-has { position: absolute; right: 5px; top: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); pointer-events: none; }
 .mtb-msize { display: flex; align-items: center; gap: 2px; color: var(--muted); font-size: 12px; padding-left: 6px; }
 .mtb-check { display: flex; align-items: center; gap: 6px; font-size: 12px; margin: 4px 0 8px; }
 .mtb-list { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow: auto; }

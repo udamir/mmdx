@@ -341,3 +341,11 @@ describe('page toolbar', () => {
     expect(pt.el.querySelector<HTMLInputElement>('.mtb-pop input[type=color]')!.value).toBe('#4f46e5');
   });
 });
+
+describe('toolbar CSS', () => {
+  it('the Fill swatch class has one rule: the Icon button marks an icon with a class of its own', async () => {
+    const { TOOLBAR_CSS } = await import('../../src/ui/styles/toolbar.js');
+    expect(TOOLBAR_CSS.match(/^\.mtb-dot \{/gm)).toHaveLength(1);
+    expect(TOOLBAR_CSS).toMatch(/^\.mtb-has \{ position: absolute;/m);
+  });
+});
