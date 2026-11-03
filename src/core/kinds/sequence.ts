@@ -1,4 +1,6 @@
 // The sequence view kind: what drawing a sequence needs (the viewer loads it on demand, core bundles it in ALL_KINDS).
+import { boxShape } from '../diff/shape.js';
+import { diffSequence, mergeSequence } from '../diff/sequence.js';
 import { activationsOf } from '../ids.js';
 import type { SequenceModel } from '../model.js';
 import type { OutlineItem } from '../outline.js';
@@ -164,4 +166,20 @@ export const VIEW: ViewKind<SequenceModel, SequenceGeometry> = {
     const messages = model.items.filter((i) => i.kind === 'message').length;
     return model.participants.length ? { key: 'label.sequence', params: { participants: model.participants.length, messages } } : { key: 'label.empty', params: {} };
   },
+  diff: diffSequence,
+  merge: mergeSequence,
+  shape(geom, { kind, id }) {
+    if (kind === 'participant') return boxShape(geom.participants.get(id));
+    if (kind === 'note') return boxShape(geom.notes.get(id));
+    if (kind === 'block') return boxShape(geom.blocks.get(id));
+    if (kind === 'box') return boxShape(geom.boxes.get(id));
+    if (kind === 'message') {
+      const m = geom.messages.get(id);
+      if (!m) return null;
+      const x0 = Math.min(m.x0, m.x1), x1 = Math.max(m.x0, m.x1);
+      return { t: 'rect', r: m.self ? { x: x0 - 6, y: m.y - 26, w: x1 - x0 + 40, h: 62 } : { x: x0, y: m.y - 26, w: x1 - x0, h: 36 } };
+    }
+    return null;
+  },
+  positionalIds: true,
 };

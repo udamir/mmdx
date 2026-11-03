@@ -8,6 +8,9 @@ import type { OutlineItem } from '../outline.js';
 import type { RenderEnv, SubResult } from '../render/common.js';
 import type { BoxGeom, GeometryIndex } from '../render/types.js';
 import type { Summary } from '../summary.js';
+import type { MergeEnv } from '../diff/merge.js';
+import type { ItemShape } from '../diff/shape.js';
+import type { FieldChange, ItemChange } from '../diff/types.js';
 import type { StyleProps } from '../style.js';
 import type { ResolvedTheme } from '../theme/types.js';
 import type { DiagramType, ItemKind, ItemRef } from '../types.js';
@@ -80,6 +83,16 @@ export interface ViewKind<M extends SupportedModel = SupportedModel, G extends G
   outline(model: M): OutlineItem[];
   /** The generated accessible name. */
   summary(model: M): Summary;
+
+  // ---- diff ----
+  /** Adds the item changes (and diagram-wide field changes) between two versions of this type. */
+  diff(a: M, b: M, ma: DiagramMeta, mb: DiagramMeta, items: ItemChange[], doc: FieldChange[]): void;
+  /** The merged picture of a diff: the after version plus the removed items, changed text marked. */
+  merge(env: MergeEnv, a: M, b: M): M;
+  /** Where a diff highlight of an item goes. */
+  shape(geom: G, ref: ItemRef): ItemShape | null;
+  /** Item ids are positions (sequence messages…): the diff cannot transplant layout metadata between versions by id. */
+  positionalIds?: boolean;
 }
 
 /** The diagram types a pipeline can handle (the viewer: the ones it loaded; core: all of them). */

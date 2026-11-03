@@ -1,4 +1,6 @@
 // The er view kind: what drawing a er needs (the viewer loads it on demand, core bundles it in ALL_KINDS).
+import { boxShape, pathShape } from '../diff/shape.js';
+import { diffEr, mergeEr } from '../diff/er.js';
 import type { ErModel } from '../model.js';
 import type { OutlineItem } from '../outline.js';
 import type { ErGeometry } from '../render/types.js';
@@ -71,4 +73,7 @@ export const VIEW: ViewKind<ErModel, ErGeometry> = {
     return out;
   },
   summary: (model) => (model.entities.size ? { key: 'label.er', params: { entities: model.entities.size, rels: model.rels.length } } : { key: 'label.empty', params: {} }),
+  diff: diffEr,
+  merge: mergeEr,
+  shape: (g, { kind, id }) => (kind === 'entity' ? boxShape(g.entities.get(id)) : kind === 'rel' ? pathShape(g.rels.get(id)) : null),
 };

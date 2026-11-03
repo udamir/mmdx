@@ -13,6 +13,8 @@ import type { GeometryIndex, RenderResult } from '../render/types.js';
 import type { ItemKind, Rect } from '../types.js';
 import type { ChangeFacet, ItemChange } from './types.js';
 import { beforeKey, changeKey } from './merge.js';
+import type { ItemShape } from './shape.js';
+import { viewKind } from '../kinds/registry.js';
 
 /** A highlight colour family: the filter of a change. */
 export type Mark = 'added' | 'removed' | ChangeFacet;
@@ -54,40 +56,11 @@ export const DIFF_COLORS: Record<'light' | 'dark', DiffColors> = {
 
 // ---- shapes -----------------------------------------------------------------------------------------------------
 
-export type ItemShape = { t: 'rect'; r: Rect } | { t: 'path'; d: string; label: Rect | null; mid: { x: number; y: number } };
-
-const box = (b: { x: number; y: number; w: number; h: number }): Rect => ({ x: b.x - b.w / 2, y: b.y - b.h / 2, w: b.w, h: b.h });
+export type { ItemShape };
 
 /** Where an item is drawn, from the renderer's geometry index. */
 export function shapeOf(geom: GeometryIndex, kind: ItemKind, id: string): ItemShape | null {
-  const rect = (b: { x: number; y: number; w: number; h: number; hidden?: boolean } | undefined): ItemShape | null => (b && !b.hidden ? { t: 'rect', r: box(b) } : null);
-  const path = (e: { d: string; label: { x: number; y: number; w: number; h: number } | null; points: [number, number][]; a: { x: number; y: number }; b: { x: number; y: number } } | undefined): ItemShape | null => {
-    if (!e) return null;
-    const p = e.points[Math.floor(e.points.length / 2)];
-    const mid = e.label ? { x: e.label.x, y: e.label.y } : p ? { x: p[0], y: p[1] } : { x: (e.a.x + e.b.x) / 2, y: (e.a.y + e.b.y) / 2 };
-    return { t: 'path', d: e.d, label: e.label ? box(e.label) : null, mid };
-  };
-  switch (geom.type) {
-    case 'flowchart':
-      return kind === 'node' ? rect(geom.nodes.get(id)) : kind === 'group' ? rect(geom.groups.get(id)) : kind === 'edge' ? path(geom.edges.get(id)) : null;
-    case 'er':
-      return kind === 'entity' ? rect(geom.entities.get(id)) : kind === 'rel' ? path(geom.rels.get(id)) : null;
-    case 'sequence': {
-      if (kind === 'participant') return rect(geom.participants.get(id));
-      if (kind === 'note') return rect(geom.notes.get(id));
-      if (kind === 'block') return rect(geom.blocks.get(id));
-      if (kind === 'box') return rect(geom.boxes.get(id));
-      if (kind === 'message') {
-        const m = geom.messages.get(id);
-        if (!m) return null;
-        const x0 = Math.min(m.x0, m.x1), x1 = Math.max(m.x0, m.x1);
-        return { t: 'rect', r: m.self ? { x: x0 - 6, y: m.y - 26, w: x1 - x0 + 40, h: 62 } : { x: x0, y: m.y - 26, w: x1 - x0, h: 36 } };
-      }
-      return null;
-    }
-    default:
-      return null;
-  }
+  return geom.type ? viewKind(geom.type)?.shape(geom, { kind, id }) ?? null : null;
 }
 
 export const centreOf = (s: ItemShape): { x: number; y: number } => (s.t === 'rect' ? { x: s.r.x + s.r.w / 2, y: s.r.y + s.r.h / 2 } : s.mid);

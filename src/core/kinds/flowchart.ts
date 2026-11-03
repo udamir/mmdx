@@ -1,4 +1,6 @@
 // The flowchart view kind: what drawing a flowchart needs (the viewer loads it on demand, core bundles it in ALL_KINDS).
+import { boxShape, pathShape } from '../diff/shape.js';
+import { diffFlowchart, mergeFlowchart } from '../diff/flowchart.js';
 import type { FlowchartModel } from '../model.js';
 import type { OutlineItem } from '../outline.js';
 import type { FlowGeometry } from '../render/types.js';
@@ -118,4 +120,7 @@ export const VIEW: ViewKind<FlowchartModel, FlowGeometry> = {
     return out;
   },
   summary: (model) => (model.nodes.size ? { key: 'label.flowchart', params: { nodes: model.nodes.size, edges: model.edges.length } } : { key: 'label.empty', params: {} }),
+  diff: diffFlowchart,
+  merge: mergeFlowchart,
+  shape: (g, { kind, id }) => (kind === 'node' ? boxShape(g.nodes.get(id)) : kind === 'group' ? boxShape(g.groups.get(id)) : kind === 'edge' ? pathShape(g.edges.get(id)) : null),
 };
