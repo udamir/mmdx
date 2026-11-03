@@ -143,9 +143,16 @@ export function control(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLEleme
       const b = s('circle', { cx: '12', cy: '12', r: '8', fill: 'none', 'stroke-width': String(w + 1) });
       b.setAttribute('stroke', isNone(col) ? 'var(--faint)' : str(col));
       if (dash && dash !== 'none') {
-        const da = dash.split(' ').map((n) => Number(n) * 1.2).join(' ');
-        a.setAttribute('stroke-dasharray', da);
-        b.setAttribute('stroke-dasharray', da);
+        // a ring of round dots (dotted) or short dashes (dashed) along the circle, whatever the border's width: the
+        // item's own dash pattern at this size would stand out from the ring as spikes
+        const dotted = (Number(dash.split(' ')[0]) || 0) <= 2;
+        const seg = (2 * Math.PI * 8) / (dotted ? 10 : 8);
+        const da = dotted ? `0 ${seg.toFixed(3)}` : `${(seg * 0.55).toFixed(3)} ${(seg * 0.45).toFixed(3)}`;
+        for (const [c, sw] of [[a, 5], [b, 3]] as const) {
+          c.setAttribute('stroke-dasharray', da);
+          c.setAttribute('stroke-linecap', 'round');
+          c.setAttribute('stroke-width', String(dotted ? sw : sw - 0.5));
+        }
       }
       el.append(a, b);
       return button('border', el, t('tb.border'));
