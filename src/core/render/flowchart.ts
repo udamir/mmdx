@@ -164,7 +164,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
   const imageSize = (url: string, w0: number | undefined, h0: number | undefined, lock: boolean, line: number | null): { w: number; h: number } => {
     if (w0 && h0 && !lock) return { w: clampSize(w0), h: clampSize(h0) };
     const k = kit();
-    const ok = k ? k.checkImageUrl(url, ctx.imagePolicy) : null;
+    const ok = k ? k.checkImageUrl(url, ctx.imagePolicy, ctx.resolveUrl) : null;
     // undefined: the browser is loading it (the component renders again when it arrives); null: it cannot be known
     const nat = !ok || !('url' in ok) ? undefined : ctx.imageSizes ? ctx.imageSizes.get(ok.url) : null;
     if (nat) {

@@ -7,7 +7,7 @@ import type { SceneNode, SceneText, SvgAttrs } from '../scene/types.js';
 import { mergeLayers, type Side, type StyleProps } from '../style.js';
 import type { FontSpec } from '../text/measure.js';
 import type { CenterBox, Diagnostic, ItemKind, Point, Rect } from '../types.js';
-import { cleanDash, cleanFontFamily, safeUrl, toNumber, type SafeUrl } from '../validate.js';
+import { cleanDash, cleanFontFamily, resolveContentUrl, safeUrl, toNumber, type SafeUrl } from '../validate.js';
 import type { LayeredOptions, LayoutEdge, LayoutNode } from '../layout/layered.js';
 import type { CanvasMeta, DiagramMeta } from '../meta/types.js';
 import type { ResolvedTheme } from '../theme/types.js';
@@ -127,9 +127,12 @@ export function itemGroup(
 /** Links render blue and underlined (prototype `LINK_COLOR`). */
 export const LINK_COLOR = '#2b5bd7';
 
-/** The item's link if the link policy accepts it, else null (rejected links are not rendered as links). */
+/**
+ * The item's link — through the host's resolver (`ctx.resolveUrl`) — if the link policy accepts it, else null (rejected
+ * links are not rendered as links).
+ */
 export const itemLink = (ctx: RenderContext, ...candidates: unknown[]): SafeUrl | null => {
-  for (const c of candidates) if (c !== undefined && c !== null && c !== '') return safeUrl(c, ctx.linkPolicy);
+  for (const c of candidates) if (c !== undefined && c !== null && c !== '') return safeUrl(resolveContentUrl(c, 'link', ctx.resolveUrl), ctx.linkPolicy);
   return null;
 };
 

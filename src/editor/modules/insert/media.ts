@@ -143,7 +143,7 @@ export function openImageTool(core: EditorCore, anchor: HTMLElement | null, o: {
     value: current,
     submitLabel: insert ? t('image.add') : t('image.replace'),
     check: (url) => {
-      const r = checkImageUrl(url, core.ctx.imagePolicy);
+      const r = checkImageUrl(url, core.ctx.imagePolicy, core.ctx.resolveUrl);
       return 'reason' in r ? t(`image.reason.${r.reason}`) : null;
     },
     upload: upload ? async (file) => (await upload(file)).url : null,
@@ -151,7 +151,7 @@ export function openImageTool(core: EditorCore, anchor: HTMLElement | null, o: {
     reduce: reduceImage,
     onSubmit: (url) => {
       // the URL passed the policy in the block; checked again here (an upload's URL as well)
-      if ('reason' in checkImageUrl(url, core.ctx.imagePolicy)) return core.toast(t('media.blocked'), { error: true });
+      if ('reason' in checkImageUrl(url, core.ctx.imagePolicy, core.ctx.resolveUrl)) return core.toast(t('media.blocked'), { error: true });
       if (insert) withEdit(core.model, (k, m) => k.addImage?.(core, m, url, spot(core, o.at)));
       else setImageOf(core, targets, url);
       close();

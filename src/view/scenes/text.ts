@@ -130,7 +130,8 @@ export class TextScene extends BaseScene {
     const opts: PipelineOptions = { hideLabels: !display.labels, theme };
     const layers = core.visibleLayers.peek();
     if (layers) opts.visibleLayers = layers;
-    if (countLines(text) > WORKER_THRESHOLD_LINES && workerAvailable()) {
+    // the host's URL resolver is a function: it does not reach the worker
+    if (countLines(text) > WORKER_THRESHOLD_LINES && workerAvailable() && !core.ctx.resolveUrl) {
       const seq = ++this.renderSeq;
       void renderInWorker(text, core.ctx, opts, this).then((wr) => {
         if (this.destroyed || seq !== this.renderSeq || text !== this.text) return;

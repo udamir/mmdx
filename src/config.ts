@@ -9,7 +9,7 @@ import { BASELINE_THEME } from './core/theme/baseline.js';
 import { BUILTIN_IDS } from './core/theme/builtin-ids.js';
 import type { Diagnostic } from './core/types.js';
 import { createStaticMeasurer, type TextMeasurer } from './core/text/measure.js';
-import { DEFAULT_IMAGE_POLICY, DEFAULT_LINK_POLICY, type ImagePolicy, type LinkPolicy } from './core/validate.js';
+import { DEFAULT_IMAGE_POLICY, DEFAULT_LINK_POLICY, type ImagePolicy, type LinkPolicy, type UrlResolver } from './core/validate.js';
 import { createCanvasMeasurer } from './dom/measure.js';
 import { createI18n, type I18n, type Messages } from './ui/i18n.js';
 
@@ -29,6 +29,12 @@ export interface Config {
   linkPolicy?: LinkPolicy;
   /** Which image URLs diagrams may show (T03): `https:` only by default; `http:` and `data:` can be enabled. */
   imagePolicy?: ImagePolicy;
+  /**
+   * Resolves the URLs diagrams point at — images and links — before the image and link policies check them: return
+   * the URL to use (a relative path made absolute, an attachment's name made its download URL), or null / undefined to
+   * use the URL as written. The diagram's code keeps what was written.
+   */
+  resolveUrl?: UrlResolver;
   /**
    * Icon packs (T04), as Mermaid's `registerIconPacks` takes them: `{ name, icons }` or `{ name, loader }` (called on the
    * first icon of the pack a diagram shows). Merged across calls; a pack of a registered name replaces it. Stock
@@ -51,6 +57,7 @@ interface Shared {
   i18n: I18n;
   linkPolicy: LinkPolicy;
   imagePolicy: ImagePolicy;
+  resolveUrl: UrlResolver | undefined;
   icons: IconRegistry;
   themeSource: ThemeSource | undefined;
   mermaid: Config['mermaid'];
@@ -67,6 +74,7 @@ function defaults(): Shared {
     i18n: createI18n(),
     linkPolicy: DEFAULT_LINK_POLICY,
     imagePolicy: DEFAULT_IMAGE_POLICY,
+    resolveUrl: undefined,
     icons: new IconRegistry(),
     themeSource: undefined,
     mermaid: undefined,
@@ -83,6 +91,7 @@ export function configure(c: Config): void {
   if (c.i18n) s.i18n = createI18n(c.i18n.locale, c.i18n.messages);
   if (c.linkPolicy) s.linkPolicy = c.linkPolicy;
   if (c.imagePolicy) s.imagePolicy = c.imagePolicy;
+  if (c.resolveUrl) s.resolveUrl = c.resolveUrl;
   if (c.iconPacks) s.icons.add(c.iconPacks);
   if (c.builtinIcons !== undefined) s.icons.setBuiltin(c.builtinIcons);
   if (c.themeSource) s.themeSource = c.themeSource;
@@ -102,7 +111,10 @@ export function getShared(): Shared {
 export function instanceContext(over: Partial<CoreContext> = {}, iconPacks?: readonly IconPack[]): CoreContext {
   const s = getShared();
   const icons = over.icons ?? (iconPacks?.length ? s.icons.extend(iconPacks) : s.icons);
-  return createContextWith({ themes: s.themes, measure: s.measure, linkPolicy: s.linkPolicy, imagePolicy: s.imagePolicy, locale: s.i18n.locale, ...over, icons });
+  return createContextWith({
+    themes: s.themes, measure: s.measure, linkPolicy: s.linkPolicy, imagePolicy: s.imagePolicy, locale: s.i18n.locale,
+    ...(s.resolveUrl ? { resolveUrl: s.resolveUrl } : {}), ...over, icons,
+  });
 }
 
 /**

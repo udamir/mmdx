@@ -45,3 +45,18 @@ describe('theme stores', () => {
     expect((await s.list()).map((t) => t.id)).not.toContain('mine');
   });
 });
+
+describe('relativeUrlResolver', () => {
+  it('makes relative URLs absolute against the base; absolute, protocol-relative and fragment URLs stay', async () => {
+    const { relativeUrlResolver } = await import('../../src/adapters.js');
+    const r = relativeUrlResolver('https://docs.example/project/diagrams/');
+    expect(r('img/logo.png', 'image')).toBe('https://docs.example/project/diagrams/img/logo.png');
+    expect(r('../guide.md', 'link')).toBe('https://docs.example/project/guide.md');
+    expect(r('/files/a.png', 'image')).toBe('https://docs.example/files/a.png');
+    expect(r('https://cdn.example/x.png', 'image')).toBeNull();
+    expect(r('mailto:a@example.com', 'link')).toBeNull();
+    expect(r('//cdn.example/x.png', 'image')).toBeNull();
+    expect(r('#part', 'link')).toBeNull();
+    expect(relativeUrlResolver('not a url')('x.png', 'image')).toBeNull();
+  });
+});

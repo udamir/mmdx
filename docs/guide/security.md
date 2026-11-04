@@ -100,6 +100,23 @@ Set it app-wide with `configure({ imagePolicy })`, per component through the `ct
 
 Icons are not images from the diagram: mmdx builds each icon's SVG itself from a validated icon body and draws it as a `data:image/svg+xml` image, which runs no script and loads nothing. The image policy does not apply to them, and their markup is never put into the page. An icon body from a pack is read by a strict SVG tokenizer and written out again from what it read: shapes, gradients, masks, clip paths, filters and `use` only, geometry, paint and transform attributes; `<script>`, `<foreignObject>`, `<image>`, `on*` attributes, an `href` or `url()` that is not `#id`, entities and bodies over 64 KB are refused, and the icon is drawn as a placeholder. See [Icons](/guide/icons#security).
 
+## Resolving URLs
+
+A host decides what the URLs in its diagrams point at with `configure({ resolveUrl })` (or the `ctx` option, or `createContext({ resolveUrl })` for a render): a function called with each image and link URL as written and its kind, `'image'` or `'link'`. It returns the URL to use — a relative path made absolute against the document's folder, an attachment's name made its download URL — or null / undefined to use the URL as written; a resolver that throws leaves it as written too. The result then goes through the image or link policy like a written URL, so a resolver that makes `logo.png` into `https://tracker.example/files/logo.png` lets it show under the default policy (`relative` stays off), and one that returns an `http:` URL is still refused. The diagram's code and metadata keep what was written; only the SVG carries the resolved URLs.
+
+```ts
+import { configure } from '@mmdx/studio/viewer';
+
+configure({
+  resolveUrl: (url, kind) => {
+    if (/^[a-z][a-z0-9+.-]*:|^[/#?]/i.test(url)) return null; // absolute, root-relative or a fragment: as written
+    return kind === 'image' ? `${issue.url}/attachments/${encodeURIComponent(url)}` : new URL(url, document.baseURI).href;
+  },
+});
+```
+
+A function does not reach the render worker, so while a resolver is set every diagram renders on the main thread.
+
 PNG export draws the SVG through an image, which loads no external resources, so it fetches each remote image first (`mode: 'cors'`, no credentials, 10 s and 5 MB at most) and puts it inline. An image host that sends no CORS headers cannot be included: the PNG shows the placeholder there, a toast says how many images are missing, and `mmdx-error` carries an `export.image-missing` warning. SVG export and server-side rendering keep the URLs as they are and fetch nothing.
 
 ## Limits

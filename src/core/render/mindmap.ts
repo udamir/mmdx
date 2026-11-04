@@ -150,7 +150,7 @@ export function renderMindmap(model: MindmapModel, env: RenderEnv): SubResult {
     let image: Item['image'] = null;
     if (typeof nm.img === 'string') {
       const kk = kit();
-      const ok = kk ? kk.checkImageUrl(url, ctx.imagePolicy) : null;
+      const ok = kk ? kk.checkImageUrl(url, ctx.imagePolicy, ctx.resolveUrl) : null;
       const nat = ok && 'url' in ok ? ctx.imageSizes?.get(ok.url) : null;
       const r = nat ? Math.min(1, IMAGE.max / Math.max(nat.w, nat.h)) : 1;
       image = { url, w: nat ? nat.w * r : IMAGE.w, h: nat ? nat.h * r : IMAGE.h };

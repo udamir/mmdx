@@ -39,7 +39,7 @@ Call it before creating elements. Most values are copied into a component when i
 
 | Field | Read |
 |---|---|
-| `themes`, `measure`, `linkPolicy`, `imagePolicy` | When a component is created (they form its core context) |
+| `themes`, `measure`, `linkPolicy`, `imagePolicy`, `resolveUrl` | When a component is created (they form its core context) |
 | `i18n` | When a component is created |
 | `themeSource` | Each time a component needs a theme that is not registered |
 | `iconPacks`, `builtinIcons` | On each render: packs registered later reach every component (one shared icon registry) |
@@ -47,7 +47,7 @@ Call it before creating elements. Most values are copied into a component when i
 | `fonts` | On each PNG export |
 | `debug` | Not read in this version |
 
-A component can override the shared values for itself: the `ctx` option of the viewer, editor, theme editor and diff takes a `Partial<CoreContext>` (`themes`, `measure`, `linkPolicy`, `imagePolicy`, `icons`, `locale`, `idPrefix`), the `iconPacks` option of the viewer, editor and diff adds icon packs of the component's own over the shared ones, and the `themeSource` property of `<mmdx-viewer>` and `<mmdx-diff>` takes precedence over the shared `themeSource`. `ctx` is read only when the component is created.
+A component can override the shared values for itself: the `ctx` option of the viewer, editor, theme editor and diff takes a `Partial<CoreContext>` (`themes`, `measure`, `linkPolicy`, `imagePolicy`, `resolveUrl`, `icons`, `locale`, `idPrefix`), the `iconPacks` option of the viewer, editor and diff adds icon packs of the component's own over the shared ones, and the `themeSource` property of `<mmdx-viewer>` and `<mmdx-diff>` takes precedence over the shared `themeSource`. `ctx` is read only when the component is created.
 
 ### `Config`
 
@@ -60,6 +60,8 @@ interface Config {
   linkPolicy?: LinkPolicy;
   /** Which image URLs diagrams may show: `https:` only by default; `http:` and `data:` can be enabled. */
   imagePolicy?: ImagePolicy;
+  /** Resolves the image and link URLs diagrams point at before the policies check them (null: as written). */
+  resolveUrl?: UrlResolver;
   /** Icon packs (as Mermaid's `registerIconPacks` takes them); merged across calls. */
   iconPacks?: IconPack[];
   /** The built-in Tabler subset under `tabler` (default true). */
@@ -81,6 +83,7 @@ interface Config {
 | `i18n` | `{ locale: string; messages?: Messages }` | `locale: 'en'`, the bundled English strings |
 | `linkPolicy` | [`LinkPolicy`](/api/core#linkpolicy) | `{ protocols: ['https:', 'http:', 'mailto:'], target: '_blank' }` |
 | `imagePolicy` | [`ImagePolicy`](/api/core#imagepolicy) | `DEFAULT_IMAGE_POLICY`: `https:` from any host; no `data:`, `http:` or relative URLs |
+| `resolveUrl` | [`UrlResolver`](/api/core#urlresolver) | none: URLs as written |
 | `iconPacks` | [`IconPack`](/api/core#iconpack)`[]` | none (the built-in set only) |
 | `builtinIcons` | `boolean` | `true` |
 | `mermaid` | `MermaidLike \| (() => Promise<MermaidLike>)` | `import('mermaid')` (the optional peer dependency) |
@@ -110,6 +113,10 @@ Which link URLs a diagram may carry and how they open ([`LinkPolicy`](/api/core#
 #### `imagePolicy`
 
 Which image URLs a diagram may show ([`ImagePolicy`](/api/core#imagepolicy)): `protocols` (`'https:'`, `'http:'`, `'data:'`; `[]` turns images off), `hosts` (an allow-list of host names, `*.example.com` for subdomains), `relative` (allow relative URLs), and for `data:` URLs `dataTypes` and `maxDataBytes`. An image the policy refuses is drawn as a placeholder and reported as an `image.blocked` warning. Icons are drawn by mmdx itself and do not go through it. Diagrams rendered in the render worker use the component's policy. See [Security](/guide/security#image-policy).
+
+#### `resolveUrl`
+
+What the URLs diagrams point at mean ([`UrlResolver`](/api/core#urlresolver)): `(url, kind) => string | null | undefined`, called with each image (`kind` `'image'`) and link (`'link'`) URL as written. It returns the URL to use — a relative path made absolute, an attachment's name made its download URL — or null / undefined to use the URL as written (a resolver that throws: as written too). The result goes through the image or link policy like a written URL; the diagram's code keeps what was written. While a resolver is set, diagrams render on the main thread (a function does not reach the render worker). See [Security](/guide/security#resolving-urls).
 
 #### `iconPacks`
 

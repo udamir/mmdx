@@ -16,7 +16,10 @@ export type { RenderResult, GeometryIndex } from './core/render/types.js';
 export { serializeNode, serializeNodes, fmt } from './core/scene/serialize.js';
 export type { SceneNode } from './core/scene/types.js';
 export { createStaticMeasurer, type TextMeasurer, type FontSpec } from './core/text/measure.js';
-export { safeUrl, DEFAULT_LINK_POLICY, DEFAULT_IMAGE_POLICY, type LinkPolicy, type SafeUrl, type ImagePolicy, type ImageDataType, type SafeImageUrl } from './core/validate.js';
+export {
+  safeUrl, resolveContentUrl, DEFAULT_LINK_POLICY, DEFAULT_IMAGE_POLICY,
+  type LinkPolicy, type SafeUrl, type ImagePolicy, type ImageDataType, type SafeImageUrl, type UrlResolver, type ContentUrlKind,
+} from './core/validate.js';
 export { safeImageUrl, checkImageUrl, type ImageBlockReason } from './core/media/policy.js';
 export { createIconRegistry } from './core/icons/index.js';
 export { iconNamesOf } from './core/icons/scan.js';

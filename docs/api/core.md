@@ -364,6 +364,8 @@ interface CoreContext {
   linkPolicy: LinkPolicy;
   /** Which image URLs diagram content may use. */
   imagePolicy: ImagePolicy;
+  /** The host's resolver of image and link URLs, applied before the policies check them; see UrlResolver. */
+  resolveUrl?: UrlResolver;
   /** Icon packs: `pack:name` tokens, icon nodes and mindmap icons are looked up here. */
   icons: IconRegistry;
   /** Natural sizes of content images, where the host can load them (the components set the browser's); see below. */
@@ -577,16 +579,26 @@ A branded string: a URL that passed `safeUrl()`, the only kind the scene accepts
 
 ## Images
 
+### `UrlResolver`
+
+```ts
+type ContentUrlKind = 'image' | 'link';
+type UrlResolver = (url: string, kind: ContentUrlKind) => string | null | undefined;
+function resolveContentUrl(raw: unknown, kind: ContentUrlKind, resolve: UrlResolver | undefined): unknown;
+```
+
+The host's resolver of the URLs diagram content points at (`CoreContext.resolveUrl`, [`configure({ resolveUrl })`](/api/configuration#resolveurl)): called with each image and link URL as written (trimmed) and its kind, it returns the URL to use, or null / undefined to keep the written one. Renderers apply it before the image policy (`checkImageUrl`) and the link policy (`safeUrl`) check the URL, so the policies see the result; the code keeps what was written. `resolveContentUrl` applies a resolver the way renderers do: the written value when there is none, it declines, it throws, or the value is not a non-empty string. See [Security](/guide/security#resolving-urls).
+
 ### `checkImageUrl()` / `safeImageUrl()`
 
 ```ts
-function checkImageUrl(raw: unknown, policy?: ImagePolicy): { url: SafeImageUrl } | { reason: ImageBlockReason }
-function safeImageUrl(raw: unknown, policy?: ImagePolicy): SafeImageUrl | null
+function checkImageUrl(raw: unknown, policy?: ImagePolicy, resolve?: UrlResolver): { url: SafeImageUrl } | { reason: ImageBlockReason }
+function safeImageUrl(raw: unknown, policy?: ImagePolicy, resolve?: UrlResolver): SafeImageUrl | null
 
 type ImageBlockReason = 'invalid' | 'protocol' | 'data-off' | 'data-type' | 'data-size' | 'host' | 'relative';
 ```
 
-Checks an image URL from a diagram against the image policy (default `DEFAULT_IMAGE_POLICY`): no control characters, whitespace or backslashes, at most 2 048 characters; the protocol in `protocols`; the host in `hosts` when the policy has them (no user info); a `data:` URL only as base64 of one of `dataTypes`, at most `maxDataBytes` decoded; a relative URL only with `relative: true`, never protocol-relative. `checkImageUrl` gives the reason of a refusal, which renderers report as the `reason` of an `image.blocked` warning; the image is then drawn as a placeholder.
+Checks an image URL from a diagram against the image policy (default `DEFAULT_IMAGE_POLICY`): no control characters, whitespace or backslashes, at most 2 048 characters; the protocol in `protocols`; the host in `hosts` when the policy has them (no user info); a `data:` URL only as base64 of one of `dataTypes`, at most `maxDataBytes` decoded; a relative URL only with `relative: true`, never protocol-relative. With `resolve`, the URL the resolver returns for `raw` is the one checked (see [`UrlResolver`](#urlresolver)). `checkImageUrl` gives the reason of a refusal, which renderers report as the `reason` of an `image.blocked` warning; the image is then drawn as a placeholder.
 
 ```ts
 safeImageUrl('https://example.com/logo.png');   // 'https://example.com/logo.png'

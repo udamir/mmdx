@@ -4,7 +4,7 @@ import type { CanvasMeta, DiagramMeta } from '../meta/types.js';
 import type { SceneNode } from '../scene/types.js';
 import type { FontSpec, TextMeasurer } from '../text/measure.js';
 import type { Diagnostic, ItemKind, Point, Rect } from '../types.js';
-import type { ImagePolicy, LinkPolicy } from '../validate.js';
+import type { ImagePolicy, LinkPolicy, UrlResolver } from '../validate.js';
 import type { ResolvedTheme } from '../theme/types.js';
 
 /** Everything a renderer needs from its environment; instance-scoped, never global. */
@@ -15,6 +15,8 @@ export interface RenderContext {
   linkPolicy: LinkPolicy;
   /** Which image URLs from diagram content are drawn (core/media/image.ts draws the others as placeholders). */
   imagePolicy: ImagePolicy;
+  /** The host's resolver of content URLs (images and links), applied before the policies check them. */
+  resolveUrl?: UrlResolver;
   /** Icon lookups (T04): renderers draw icons through core/icons/draw.ts (`drawIcon`, `iconResolver`). */
   icons: IconLookup;
   /**

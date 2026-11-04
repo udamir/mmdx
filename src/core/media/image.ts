@@ -88,7 +88,7 @@ export interface DrawImage {
 export function drawImage(env: { ctx: RenderContext; diagnostics: Diagnostic[] }, src: unknown, o: DrawImage): SceneNode[] {
   // no URL yet (an image the editor added, waiting for one): the placeholder, without a reason or a warning
   if (src === '') return [imagePlaceholder(o.box, { ...(o.color ? { color: o.color } : {}), ...(o.family ? { family: o.family } : {}) })];
-  const r = checkImageUrl(src, env.ctx.imagePolicy);
+  const r = checkImageUrl(src, env.ctx.imagePolicy, env.ctx.resolveUrl);
   if ('url' in r) return imageNodes(r.url, o.box, o.fit, `${env.ctx.idPrefix}img-${o.key.replace(/[^a-zA-Z0-9-]/g, (ch) => `_${ch.codePointAt(0)!.toString(16)}`)}`);
   const why = BLOCKED_TEXT[r.reason];
   const url = typeof src === 'string' ? (src.length > 80 ? `${src.slice(0, 77)}…` : src) : '';

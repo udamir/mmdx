@@ -105,6 +105,27 @@ export interface LinkPolicy {
 
 export const DEFAULT_LINK_POLICY: LinkPolicy = { protocols: ['https:', 'http:', 'mailto:'], target: '_blank' };
 
+/** What a URL from diagram content is for. */
+export type ContentUrlKind = 'image' | 'link';
+
+/**
+ * The host's resolver of content URLs (`configure({ resolveUrl })`): the URL to use for one written in a diagram — a
+ * relative path made absolute, an attachment's name made its download URL — or null / undefined to use it as written.
+ * The result goes through the image or link policy like a written URL; the diagram's code keeps what was written.
+ */
+export type UrlResolver = (url: string, kind: ContentUrlKind) => string | null | undefined;
+
+/** A content URL through the host's resolver: as written without one, when it declines, or when it throws. */
+export function resolveContentUrl(raw: unknown, kind: ContentUrlKind, resolve: UrlResolver | undefined): unknown {
+  if (!resolve || typeof raw !== 'string' || !raw.trim()) return raw;
+  try {
+    const r = resolve(raw.trim(), kind);
+    return typeof r === 'string' ? r : raw;
+  } catch {
+    return raw;
+  }
+}
+
 declare const SAFE_URL: unique symbol;
 /** A URL that passed `safeUrl()` — the only kind the scene accepts for `href`. */
 export type SafeUrl = string & { readonly [SAFE_URL]: true };

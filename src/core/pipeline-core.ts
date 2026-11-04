@@ -58,6 +58,7 @@ export function renderContext(ctx: CoreContext, theme: ResolvedTheme, doc: Diagr
     layoutCache: cache,
   };
   if (ctx.imageSizes) r.imageSizes = ctx.imageSizes;
+  if (ctx.resolveUrl) r.resolveUrl = ctx.resolveUrl;
   return r;
 }
 

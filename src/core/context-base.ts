@@ -4,7 +4,7 @@ import { IconRegistry } from './icons/registry.js';
 import type { ThemeRegistry } from './theme/registry.js';
 import type { ImageSizes } from './render/types.js';
 import { createStaticMeasurer, type TextMeasurer } from './text/measure.js';
-import { DEFAULT_IMAGE_POLICY, DEFAULT_LINK_POLICY, type ImagePolicy, type LinkPolicy } from './validate.js';
+import { DEFAULT_IMAGE_POLICY, DEFAULT_LINK_POLICY, type ImagePolicy, type LinkPolicy, type UrlResolver } from './validate.js';
 
 export interface CoreContext {
   themes: ThemeRegistry;
@@ -19,6 +19,12 @@ export interface CoreContext {
    * registry of `configure({ iconPacks })` (or extend it with their own packs); SSR builds one with `createIconRegistry`.
    */
   icons: IconRegistry;
+  /**
+   * The host's resolver of content URLs (images and links): what a relative (or any) URL written in a diagram points
+   * at, before the image and link policies check it. Functions do not reach the render worker: with a resolver, every
+   * diagram renders on the main thread.
+   */
+  resolveUrl?: UrlResolver;
   /** Natural sizes of content images (T06), when the host can load them: components set the browser's lookup. */
   imageSizes?: ImageSizes;
   locale?: string;
@@ -41,5 +47,6 @@ export function createContextWith(opts: Partial<CoreContext> & { themes: ThemeRe
     icons: opts.icons ?? new IconRegistry(),
   };
   if (opts.locale !== undefined) ctx.locale = opts.locale;
+  if (opts.resolveUrl) ctx.resolveUrl = opts.resolveUrl;
   return ctx;
 }

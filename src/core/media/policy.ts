@@ -1,7 +1,7 @@
 // The image policy check (T03): the one place a URL from diagram content becomes a `SafeImageUrl`. The policy's type
 // and default live in validate.ts with the link policy (every context carries them); this module is only loaded by
 // the code that draws content images, so a page without them does not download it.
-import { DEFAULT_IMAGE_POLICY, type ImageDataType, type ImagePolicy, type SafeImageUrl } from '../validate.js';
+import { DEFAULT_IMAGE_POLICY, resolveContentUrl, type ImageDataType, type ImagePolicy, type SafeImageUrl, type UrlResolver } from '../validate.js';
 
 /** Why an image URL was refused (the `reason` of the `image.blocked` diagnostic). */
 export type ImageBlockReason = 'invalid' | 'protocol' | 'data-off' | 'data-type' | 'data-size' | 'host' | 'relative';
@@ -18,9 +18,11 @@ const hostMatches = (host: string, pattern: string): boolean => {
  * Checks an image URL from diagram content against the policy: the same syntax checks as `safeUrl` (no control
  * characters, whitespace or backslash; at most 2048 characters except `data:`), the protocol, for `data:` a base64
  * payload of an accepted type within `maxDataBytes`, the host allow-list, and relative URLs only when enabled (never
- * protocol-relative `//host`).
+ * protocol-relative `//host`). With the host's `resolve`, the URL it returns is checked (a relative path it made
+ * absolute passes as such).
  */
-export function checkImageUrl(raw: unknown, policy: ImagePolicy = DEFAULT_IMAGE_POLICY): { url: SafeImageUrl } | { reason: ImageBlockReason } {
+export function checkImageUrl(src: unknown, policy: ImagePolicy = DEFAULT_IMAGE_POLICY, resolve?: UrlResolver): { url: SafeImageUrl } | { reason: ImageBlockReason } {
+  const raw = resolveContentUrl(src, 'image', resolve);
   if (typeof raw !== 'string') return { reason: 'invalid' };
   const s = raw.trim();
   // eslint-disable-next-line no-control-regex
@@ -55,7 +57,7 @@ export function checkImageUrl(raw: unknown, policy: ImagePolicy = DEFAULT_IMAGE_
 }
 
 /** The URL if the image policy accepts it, else null (`checkImageUrl` gives the reason). */
-export function safeImageUrl(raw: unknown, policy: ImagePolicy = DEFAULT_IMAGE_POLICY): SafeImageUrl | null {
-  const r = checkImageUrl(raw, policy);
+export function safeImageUrl(raw: unknown, policy: ImagePolicy = DEFAULT_IMAGE_POLICY, resolve?: UrlResolver): SafeImageUrl | null {
+  const r = checkImageUrl(raw, policy, resolve);
   return 'url' in r ? r.url : null;
 }

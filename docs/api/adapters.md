@@ -1,14 +1,14 @@
 # Adapters
 
-`@mmdx/studio/adapters` holds the host adapters: where the components keep UI preferences (`StorageAdapter`), where they read and save themes (`ThemeSource`, `ThemeStore`), how the editor loads and saves its document (`DocumentAdapter`), and where the History reads the versions of a diagram (`HistoryAdapter`). The library never talks to a backend by itself: every adapter is an object of a few async functions, and the built-in ones cover memory, `localStorage`, plain HTTP and static files. The entry defines no element and loads no diagram code.
+`@mmdx/studio/adapters` holds the host adapters: where the components keep UI preferences (`StorageAdapter`), where they read and save themes (`ThemeSource`, `ThemeStore`), how the editor loads and saves its document (`DocumentAdapter`), where the History reads the versions of a diagram (`HistoryAdapter`), and what the image and link URLs in a diagram point at (`UrlResolver`). The library never talks to a backend by itself: every adapter is an object of a few async functions, and the built-in ones cover memory, `localStorage`, plain HTTP and static files. The entry defines no element and loads no diagram code.
 
 ```ts
 import {
   memoryStorage, localStorageAdapter, preloadedStorage,
   memoryThemeStore, fetchThemeSource, localStorageThemeStore, isLocalEdit,
   memoryDocumentAdapter, httpDocumentAdapter,
-  staticHistory, httpHistoryAdapter, contentId,
-  type StorageAdapter, type ThemeSource, type ThemeStore, type DocumentAdapter, type HistoryAdapter,
+  staticHistory, httpHistoryAdapter, contentId, relativeUrlResolver,
+  type StorageAdapter, type ThemeSource, type ThemeStore, type DocumentAdapter, type HistoryAdapter, type UrlResolver,
 } from '@mmdx/studio/adapters';
 ```
 
@@ -604,3 +604,37 @@ const history: HistoryAdapter = {
 };
 diff.history = history;
 ```
+
+## URLs
+
+### `UrlResolver`
+
+```ts
+type UrlResolver = (url: string, kind: 'image' | 'link') => string | null | undefined;
+```
+
+What the URLs written in a diagram point at, set with [`configure({ resolveUrl })`](/api/configuration#resolveurl) or a component's `ctx`: called with each image and link URL as written, it returns the URL to use, or null / undefined to keep the written one. The image and link policies check the result; the diagram's code keeps what was written. A wrapper writes its own when its URLs mean something of its own — an issue tracker's attachments, for instance:
+
+```ts
+configure({
+  resolveUrl: (url, kind) => (kind === 'image' && !/^[a-z][a-z0-9+.-]*:|^[/#]/i.test(url) ? `${issueUrl}/attachments/${encodeURIComponent(url)}` : null),
+});
+```
+
+See [Security → Resolving URLs](/guide/security#resolving-urls).
+
+### `relativeUrlResolver()`
+
+```ts
+function relativeUrlResolver(base: string | URL): UrlResolver
+```
+
+A resolver that makes relative image and link URLs (`img/logo.png`, `../guide.md`, `/files/a.png`) absolute against `base`, the folder of the document the diagram comes from; URLs with a scheme, protocol-relative ones (`//host/…`) and fragments (`#part`) stay as written, and so does a URL the base cannot resolve.
+
+```ts
+import { configure } from '@mmdx/studio/viewer';
+import { relativeUrlResolver } from '@mmdx/studio/adapters';
+
+configure({ resolveUrl: relativeUrlResolver(new URL('./diagrams/', location.href)) });
+```
+
