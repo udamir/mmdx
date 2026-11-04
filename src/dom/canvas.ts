@@ -16,7 +16,8 @@ import { signal, type Signal } from '../ui/signal.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 /** A zoom shown as a CSS scale is written to the scene this long after its last step. */
-const ZOOM_SETTLE_MS = 150;
+/** A CSS-shown zoom or pan is written for real after the gesture rests this long; a wheel notch burst is one zoom. */
+const ZOOM_SETTLE_MS = 300, PAN_SETTLE_MS = 150;
 /** A pan shown by CSS is written for real once it moved this part of the canvas size. */
 const PAN_COMMIT = 0.25;
 
@@ -408,7 +409,7 @@ export class DiagramCanvas {
     }
     this.svg.style.transform = `translate(${dx}px, ${dy}px) scale(${sc})`;
     if (this.settle) clearTimeout(this.settle);
-    this.settle = setTimeout(() => this.writeView(this.view.peek()), ZOOM_SETTLE_MS);
+    this.settle = setTimeout(() => this.writeView(this.view.peek()), sc === 1 ? PAN_SETTLE_MS : ZOOM_SETTLE_MS);
   }
 
   private writeView(v: ViewState): void {

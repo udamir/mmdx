@@ -100,7 +100,7 @@ describe('DiagramCanvas', () => {
       expect(c.vp.getAttribute('transform')).toBe(before);
       expect(c.svg.style.transform).toContain('scale(');
       expect(c.svg.getBoundingClientRect().width).toBe(400);
-      vi.advanceTimersByTime(200);
+      vi.advanceTimersByTime(350);
       expect(c.svg.style.transform).toBe('');
       const v = c.view.peek();
       expect(c.vp.getAttribute('transform')).toBe(`translate(${v.tx},${v.ty}) scale(${v.k})`);

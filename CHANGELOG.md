@@ -15,10 +15,11 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project f
 
 ### Performance
 
-- A wheel or pinch zoom shows as a CSS scale of the canvas and writes the scene transform once the zoom rests (no text layout per step).
+- A wheel or pinch zoom shows as a CSS scale of the canvas and writes the scene transform once the zoom rests, 300 ms after the last step, so a burst of wheel notches lays out the text once.
+- A wheel or drag pan shows as a CSS translate of the canvas on its own compositor layer (no repaint per step) and writes the scene transform when it rests or has moved a quarter of the canvas.
+- The page has a 1px edge instead of a blurred drop-shadow: the blur redrew a screen-sized region on every repaint once zoomed in.
 - The patcher skips subtrees whose scene nodes did not change, and attributes whose raw value did not change.
 - `--dx-inv` is set only while diff badges are shown (it restyled every element on every zoom).
-- The code editor rebuilds only the lines that changed, and lines off screen skip layout while unwrapped.
 - Roving tab stops update when the page is idle; the style toolbar is not placed while an item is dragged; multi-selection marks the scene in one pass.
 - Colour resolution is remembered per theme and diagram palette.
 
