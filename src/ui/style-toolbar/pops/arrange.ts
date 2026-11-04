@@ -33,9 +33,37 @@ export function arrangePop(f: Fill): void {
 export function orderPop(f: Fill): void {
   const { pop, x } = f;
   const { t, api } = x;
-  const o = api.order?.();
+  const z = api.zIndex?.();
   const lab = popLabel(t('tb.zindex'));
   pop.append(lab);
+  if (z) {
+    // one scale for every kind: higher draws over lower; no value of its own means the theme's value for the kind
+    const input = h('input', { class: 'mtb-num', type: 'number', min: '-99', max: '99', step: '1', 'aria-label': t('tb.zindex'), 'data-f': 'z' });
+    input.value = String(z.value);
+    input.classList.toggle('inherited', !z.own);
+    const fromTheme = h('button', { type: 'button', class: 'link', 'data-f': 'z-theme', disabled: !z.own }, t('tb.fromTheme'));
+    const apply = (v: number | undefined): void => {
+      api.set('z', v);
+      api.commit?.();
+      const nz = api.zIndex?.();
+      if (nz) {
+        input.value = String(nz.value);
+        input.classList.toggle('inherited', !nz.own);
+        fromTheme.disabled = !nz.own;
+      }
+    };
+    input.addEventListener('change', () => {
+      const v = Math.round(Number(input.value));
+      if (Number.isFinite(v)) apply(Math.max(-99, Math.min(99, v)));
+    });
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Escape') ev.stopPropagation();
+    });
+    fromTheme.addEventListener('click', () => apply(undefined));
+    pop.append(h('div', { class: 'mtb-z' }, input, fromTheme), h('div', { class: 'mtb-note' }, t('tb.zindexHint')));
+    return;
+  }
+  const o = api.order?.();
   if (!o || o.count < 2) {
     pop.append(h('div', { class: 'mtb-note' }, t('tb.orderNone')));
     return;

@@ -6,6 +6,8 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project f
 
 ### Changed (breaking)
 
+- **Z-index is one style key, `z`, for every flowchart and ER item** (−99–99, higher draws over lower). The theme sets it per kind (base theme: groups `0`, connectors and relations `1`, nodes and tables `2`); an item, a preset or `style.<kind> _base` overrides it, and "From theme" in the toolbar removes the override. Connector labels now draw with their connector, so a label no longer shows over an unrelated node; give the connector a higher `z` to lift it. The toolbar's z-index control and ⌘[ / ⌘] change `z` instead of moving the statement in the Mermaid code (sequence diagrams keep the code order).
+
 - **`<mmdx-studio>` keeps no diagram in the URL**: no `#d=…` in the address bar and no Share button; `persist` takes only `local`.
 - **`encodeHash` and `decodeHash` are removed** from `@mmdx/studio` and `@mmdx/studio/adapters`.
 

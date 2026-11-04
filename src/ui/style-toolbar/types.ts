@@ -106,6 +106,8 @@ export interface ToolbarApi {
   groupEditing?(): string | null | undefined;
   editGroup?(): void;
   del?(): void;
+  /** The item's z-index (flowchart and ER): the effective value and whether the item sets it (else the theme does). */
+  zIndex?(): { value: number; own: boolean } | null;
   order?(): { index: number; count: number; labels: readonly [string, string] | readonly string[] } | null;
   orderPreview?(index: number): void;
   orderCommit?(): void;
