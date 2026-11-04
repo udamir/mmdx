@@ -12,6 +12,7 @@ import { download } from '../dom/export.js';
 import { renderSource, standaloneSvg } from '../core/pipeline.js';
 import { starterSource, type StarterType } from '../core/starter.js';
 import { contentId, type HistoryAdapter, type StaticVersion } from '../adapters/history.js';
+import type { WheelMode } from '../dom/viewport.js';
 import type { BlockHandle } from '../ui/blocks/block.js';
 import { createSegmented, type SegmentedOption, type SegmentedProps } from '../ui/blocks/segmented.js';
 import { MENU_CSS, openMenu } from '../ui/blocks/menu.js';
@@ -46,6 +47,8 @@ export interface StudioOptions {
   /** Example id to open when nothing is stored. */
   initial?: string;
   storage?: StorageAdapter;
+  /** What the mouse wheel does on the canvas: see the editor's `wheel`. */
+  wheel?: WheelMode;
 }
 
 const STORE_KEY = 'studio.doc';
@@ -123,6 +126,7 @@ export class DiagramStudio {
     this.editorEl = document.createElement('mmdx-editor');
     this.editorEl.features = { open: true };
     this.editorEl.setAttribute('ui', this.ui);
+    if (opts.wheel) this.editorEl.setAttribute('wheel', opts.wheel);
     this.nameEl = h('span', { class: 'name', title: 'File name' });
     const newBtn = h('button', { type: 'button', class: 'primary', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: () => this.openNewMenu(newBtn) }, '＋ New');
     const exBtn = h('button', { type: 'button', onclick: () => void this.openGallery() }, 'Examples');

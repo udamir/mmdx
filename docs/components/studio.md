@@ -39,6 +39,7 @@ The attributes are read when the studio is created; changing them later has no e
 | `persist` | — | `'local'[]` | `local` | `local` keeps the last document in browser storage; empty keeps nothing |
 | `initial` | — | `string` | the first example | Example id to open when nothing is stored and the URL holds no diagram |
 | — | `storage` | `StorageAdapter` | `localStorage` (`mmdx.` keys), else in memory | Where the document, the versions, edited themes and preferences are kept |
+| `wheel` | — | `'ctrl' \| 'always' \| 'zoom' \| 'never'` | `always` | The mouse wheel on the canvas: see the editor's `wheel` |
 
 Read-only properties of the element: `instance` (the `DiagramStudio`, `null` while not connected) and `editor` (the inner `DiagramEditor`).
 

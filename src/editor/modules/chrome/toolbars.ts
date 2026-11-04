@@ -410,14 +410,11 @@ export const toolbarsModule: EditorModule = {
     }
 
     // ---- the page's own action bar and its badge
+    // the page is the render's bounds: placed from the view transform, never measured (a DOM read here forced a
+    // layout of the whole picture on every pan and zoom step)
     const pageRect = (): Rect | null => {
-      const r = core.dom.page.querySelector('rect.page')?.getBoundingClientRect();
-      if (!r || (!r.width && !r.height)) {
-        const b = core.result.result.bounds;
-        return b.w ? core.rectOnScreen(b) : null;
-      }
-      const wr = wrap.getBoundingClientRect();
-      return { x: r.left - wr.left, y: r.top - wr.top, w: r.width, h: r.height };
+      const b = core.result.result.bounds;
+      return b.w ? core.rectOnScreen(b) : null;
     };
     const canvasVal = (k: string): unknown => (pageEff(core) as Record<string, unknown>)[k] ?? (core.result.theme.canvas as unknown as Record<string, unknown>)[k];
     const seqDefaults = (): Record<string, unknown> => {
@@ -537,6 +534,7 @@ export const toolbarsModule: EditorModule = {
       void ensurePageBar();
     }, sig);
     badge.addEventListener('pointerdown', (ev) => ev.stopPropagation(), sig);
+    let badgeH = 0;
     const placeBadge = (): void => {
       const type = core.model.type;
       const r = pageRect();
@@ -547,7 +545,8 @@ export const toolbarsModule: EditorModule = {
       badge.title = t('page.badgeTip', { type: label });
       const on = core.pageSelected.peek() && !core.selection().length;
       badge.setAttribute('aria-pressed', String(on));
-      badge.style.transform = `translate(${Math.round(r.x)}px, ${Math.round(r.y - (badge.offsetHeight || 22) - 6)}px)`;
+      badgeH ||= badge.offsetHeight;
+      badge.style.transform = `translate(${Math.round(r.x)}px, ${Math.round(r.y - (badgeH || 22) - 6)}px)`;
     };
 
     // ---- keep both bars in step: rebuilt when what they show changes, else only re-placed
@@ -555,6 +554,9 @@ export const toolbarsModule: EditorModule = {
     let pageKey = '';
     const sync = (force = false): void => {
       placeBadge();
+      // the bars are invisible while an item is dragged (`.ed.dragging`): placing them each move would only force
+      // layouts; the commit at the end draws, and places them, once
+      if (core.dragging && !force) return;
       if (page) {
         const { gap: _g, rowH: _r, ...shown } = core.meta.canvas; // slider values change while dragging: leave them out
         const key = `${core.pageSelected.peek()}|${core.mode.peek()}|${core.selection().length}|${core.model.type}|${core.model.type === 'flowchart' || core.model.type === 'er' ? core.model.direction : ''}|${core.model.type === 'sequence' ? core.model.autonumber : ''}|${JSON.stringify(shown)}`;

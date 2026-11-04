@@ -50,7 +50,7 @@ export function attrValue(name: string, v: AttrValue): string | null {
   if (v === true) return name.startsWith('aria-') ? 'true' : '';
   const s = typeof v === 'number' ? fmt(v) : v;
   // `url(...)` only as a local fragment (markers, patterns); never `url(javascript:…)` or remote images
-  if (/url\s*\(/i.test(s) && !(URL_ATTRS.has(name) && LOCAL_URL.test(s.trim()))) return null;
+  if (s.includes('(') && /url\s*\(/i.test(s) && !(URL_ATTRS.has(name) && LOCAL_URL.test(s.trim()))) return null;
   return s;
 }
 

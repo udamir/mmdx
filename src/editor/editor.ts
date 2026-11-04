@@ -2,6 +2,7 @@
 // its feature modules; the custom element is a thin wrapper around it.
 import { EDITOR_MESSAGES } from '../ui/messages/editor.js';
 import { registerMessages } from '../ui/i18n.js';
+import type { WheelMode } from '../dom/viewport.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import { TOOLBAR_MESSAGES } from '../ui/messages/toolbar.js';
 import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from '../elements/base.js';
@@ -39,6 +40,8 @@ export interface EditorOptions {
   themeDark?: string;
   /** The `compact` preset (§7.6): the same chrome, smaller and icon-only; automatic below a host size by default. */
   compact?: boolean | 'auto';
+  /** What the mouse wheel does on the canvas (default `always`: scroll pans, ⌘/Ctrl+wheel zooms; `zoom`: scroll zooms). */
+  wheel?: WheelMode;
   /** Ask before leaving the page with unsaved changes (opt-in; SPAs handle this themselves). */
   guardUnload?: boolean;
   /** File name used for exports. */
@@ -106,6 +109,7 @@ export class DiagramEditor {
       ...(options.theme ? { theme: options.theme } : {}),
       ...(options.themeDark ? { themeDark: options.themeDark } : {}),
       ...(options.compact !== undefined ? { compact: options.compact } : {}),
+      ...(options.wheel ? { wheel: options.wheel } : {}),
     });
     this.shadow = this.core.shadow;
     const core = this.core;
@@ -665,6 +669,7 @@ const ATTRS: Readonly<Record<string, AttrSpec<EditorOptions>>> = {
   'guard-unload': ['guardUnload', (v) => (v === null ? undefined : v !== 'false')],
   name: ['name', (v) => v || undefined], theme: ['theme', text], 'theme-dark': ['themeDark', text],
   compact: ['compact', (v) => (v === null ? undefined : v === 'auto' ? 'auto' : v !== 'false')],
+  wheel: ['wheel', (v) => (v === 'ctrl' || v === 'always' || v === 'zoom' || v === 'never' ? v : undefined)],
   features: ['features', (v) => {
     if (v === null) return undefined;
     const on = new Set(words(v).map((w) => w.replace(/-(\w)/g, (_, c: string) => c.toUpperCase())));
@@ -723,6 +728,9 @@ export class MmdxEditorElement extends MmdxElement<EditorOptions, DiagramEditor>
           break;
         case 'compact':
           core.setCompact(p.compact ?? 'auto');
+          break;
+        case 'wheel':
+          core.canvas.setOptions({ wheel: p.wheel ?? 'always' });
           break;
         case 'panels':
           core.panels.set({ ...core.panels.peek(), ...p.panels });

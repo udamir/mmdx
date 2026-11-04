@@ -53,13 +53,19 @@ function create(n: SceneNode): Element {
   return el;
 }
 
+const gone = (v: unknown): boolean => v === undefined || v === null || v === false;
+
 function setAttrs(el: Element, prev: SvgAttrs | null, next: SvgAttrs): void {
+  // a drag re-renders every item: most values are the same as last time, so compare the raw values first and format
+  // only what changed
   if (prev)
-    for (const k of Object.keys(prev))
-      if (!(k in next) || attrValue(k, next[k]) === null) {
-        if (isAllowedAttr(k)) el.removeAttribute(k);
-      }
-  for (const [k, v] of Object.entries(next)) {
+    for (const k in prev) {
+      const v = next[k];
+      if ((gone(v) || attrValue(k, v) === null) && !gone(prev[k]) && isAllowedAttr(k)) el.removeAttribute(k);
+    }
+  for (const k in next) {
+    const v = next[k];
+    if (prev && prev[k] === v) continue;
     if (!isAllowedAttr(k)) continue;
     const s = attrValue(k, v);
     if (s === null) {
@@ -96,7 +102,46 @@ function setLines(el: Element, lines: readonly TextLine[]): void {
   for (let i = lines.length; i < spans.length; i++) spans[i]!.remove();
 }
 
+function sameAttrs(a: SvgAttrs, b: SvgAttrs): boolean {
+  let n = 0;
+  for (const k in a) {
+    if (a[k] !== b[k]) return false;
+    n++;
+  }
+  for (const _ in b) n--;
+  return n === 0;
+}
+
+function sameLines(a: readonly TextLine[], b: readonly TextLine[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i]!, y = b[i]!;
+    if (x.text !== y.text || x.x !== y.x || x.y !== y.y || x.runs !== y.runs) return false;
+  }
+  return true;
+}
+
+/**
+ * The same picture as last time (plain value compare, no DOM reads): a drag re-renders every item, but only the
+ * dragged ones and their connectors change.
+ */
+function same(a: SceneNode, b: SceneNode): boolean {
+  if (a === b) return true;
+  if (a.t !== b.t || a.key !== b.key) return false;
+  if (a.t === 'a') return a.href === (b as typeof a).href && sameKids(a.children, (b as typeof a).children);
+  if (!sameAttrs(a.attrs, (b as typeof a).attrs)) return false;
+  if (a.t === 'text') return sameLines(a.lines, (b as typeof a).lines);
+  return !('children' in a) || sameKids(a.children, (b as typeof a).children);
+}
+
+function sameKids(a: readonly SceneNode[], b: readonly SceneNode[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (!same(a[i]!, b[i]!)) return false;
+  return true;
+}
+
 function update(el: Element, prev: SceneNode | null, n: SceneNode): void {
+  if (prev && same(prev, n)) return;
   if (n.t === 'a') {
     // href was checked by safeUrl() when the scene was built; set both forms for older engines
     if (el.getAttribute('href') !== n.href) {
