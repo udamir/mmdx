@@ -93,6 +93,8 @@ function build(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLElement {
 
   switch (c) {
     case 'shape':
+      // an icon or image node has no shape of its own (Mermaid draws the icon or the picture)
+      if (api.media?.()?.node) return h('span');
       return button('shape', sp.shapes ? svgIcon('shape') : stackPreview(Math.max(1, stackLevel(e('stack'))), 24), sp.shapes ? t('tb.shapeStack') : t('tb.stack'));
     case 'font': {
       const fam = str(e('fontFamily'));
@@ -273,8 +275,9 @@ function build(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLElement {
       // word wrap as a switch (participants: their text has no alignment to pick)
       return toggleKey('wrap', 'wrap', 'wrap', t('tb.wrapTip'), e('wrap') === true, undefined, true);
     case 'icon': {
+      // an icon on any item (a mindmap node's `::icon`); an image or icon node picks its icon as its source instead
       const m = api.media?.();
-      if (!m?.canIcon || !api.pickIcon) return h('span');
+      if (!m?.canIcon || m.node || !api.pickIcon) return h('span');
       const title = m.icon ? t('tb.iconOf', { name: m.icon }) : t('tb.icon');
       const b = h('button', { type: 'button', class: 'mtb-btn' + (m.icon ? ' has-icon' : ''), title, 'aria-label': title, 'aria-haspopup': 'dialog', dataset: { c: 'icon' } }, svgIcon('icon'));
       // a dot marks an item that has an icon
@@ -286,28 +289,18 @@ function build(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLElement {
       });
       return b;
     }
-    case 'media': {
+    case 'source': {
+      // what an image node shows: a picture (its URL) or an icon
       const m = api.media?.();
-      // an icon or image node, or an icon in the label (which can become an icon node)
-      if (!(m?.node || m?.icon) || !api.setMedia) return h('span');
-      return button('media', svgIcon('media'), t('tb.media'));
+      if (!m?.node || !api.pickImage || !api.pickIcon) return h('span');
+      return button('source', svgIcon(m.node === 'icon' ? 'icon' : 'media'), m.node === 'icon' ? t('tb.sourceIcon', { name: m.icon ?? '' }) : t('tb.sourceImage'));
     }
-    case 'mediaSize': {
+    case 'media': {
+      // an image node's settings, per its source: the icon's frame or the picture's fit and aspect lock, and the label's
+      // position (sizes are in Properties)
       const m = api.media?.();
       if (!m?.node || !api.setMedia) return h('span');
-      const wrap = h('label', { class: 'mtb-msize', dataset: { c: 'mediaSize' }, title: t('tb.mediaH') }, h('span', { 'aria-hidden': 'true' }, 'H'));
-      const input = h('input', { class: 'mtb-num', type: 'text', inputMode: 'numeric', 'aria-label': t('tb.mediaH'), placeholder: 'auto' });
-      input.value = m.h !== undefined ? String(m.h) : '';
-      input.addEventListener('change', () => {
-        const v = input.value.trim() === '' ? null : Math.max(8, Math.min(2000, Number(input.value) || 0));
-        if (v === null || v >= 8) api.setMedia?.({ h: v });
-      });
-      input.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter') input.blur();
-        if (ev.key !== 'Escape') ev.stopPropagation();
-      });
-      wrap.append(input);
-      return wrap;
+      return button('media', svgIcon('mediaSettings'), m.node === 'icon' ? t('tb.mediaIcon') : t('tb.mediaImage'));
     }
     case 'selection': {
       const n = api.multiCount();

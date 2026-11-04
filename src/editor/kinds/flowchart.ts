@@ -175,7 +175,9 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
   media(M, ref, core) {
     if (ref.kind !== 'node') return null;
     const m = flowMedia(M, ref.id, isIconOf(core));
-    return m ? { ...m, canImage: true } : null;
+    // an icon is the source of an image node instead of its picture: only image and icon nodes take one (a label's icon
+    // token stays as written)
+    return m ? { ...m, canImage: true, canIcon: m.node !== null } : null;
   },
   setIcon: (code, M, ref, icon, core) => (ref.kind === 'node' ? setFlowIcon(code, M, ref.id, icon, isIconOf(core)) : null),
   setImage: (code, M, ref, url) => (ref.kind === 'node' ? setFlowImage(code, M, ref.id, url) : null),

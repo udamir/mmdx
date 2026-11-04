@@ -466,7 +466,7 @@ export const toolbarsModule: EditorModule = {
           const m = s ? mediaOf(core, s) : null;
           if (!s || !m) return null;
           const fit = core.getM(s.kind, s.id)['imgFit'];
-          return { ...m, canIcon: !!editKind(core.model.type)?.setIcon && m.node !== 'image', ...(typeof fit === 'string' ? { fit } : {}) };
+          return { ...m, canIcon: (m.canIcon ?? true) && !!editKind(core.model.type)?.setIcon && m.node !== 'image', ...(typeof fit === 'string' ? { fit } : {}) };
         },
         pickIcon: (anchor) => core.run('openIconPicker', anchor),
         pickImage: (anchor) => core.run('openImageTool', anchor, { insert: false }),

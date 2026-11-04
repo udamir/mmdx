@@ -50,6 +50,9 @@ export const ICON: Readonly<Record<string, string>> = {
   down: '<path d="M7 10l5 5 5-5"/>',
   plus: '<path d="M12 5v14M5 12h14" stroke-width="2.2"/>',
   italic: '<path d="M10 5h8M6 19h8M14.5 5l-5 14"/>',
+  mediaSettings: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
+  labelTop: '<path d="M6 4.5h12" stroke-width="2"/><rect x="7" y="8.5" width="10" height="10" rx="2"/>',
+  labelBottom: '<rect x="7" y="4.5" width="10" height="10" rx="2"/><path d="M6 19.5h12" stroke-width="2"/>',
   boldGlyph: '<path d="M8 5h5a3.2 3.2 0 0 1 0 6.4H8zM8 11.4h6a3.3 3.3 0 0 1 0 6.6H8z" stroke-width="2.2"/>',
   strike: '<path d="M16.5 7.5c-.6-1.6-2.3-2.7-4.5-2.7-2.6 0-4.4 1.4-4.4 3.4 0 1.5 1 2.4 3 3M4.5 12h15M8 16.3c.6 1.8 2.3 2.9 4.4 2.9 2.7 0 4.6-1.4 4.6-3.6 0-.8-.3-1.5-.8-2"/>',
   table: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10"/>',
@@ -89,6 +92,15 @@ export function arrowPreview(a: string, start = false): SVGSVGElement {
 export function routingPreview(r: string): SVGSVGElement {
   const el = s('svg', { viewBox: '0 0 42 24', width: '42', height: '24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }) as SVGSVGElement;
   el.append(s('path', { d: ROUTING_PATH[r] ?? '' }));
+  return el;
+}
+
+/** An icon node's frame around a small star: none, square, circle, rounded (a dashed square for none). */
+export function framePreview(form: string, size = 24): SVGSVGElement {
+  const el = s('svg', { viewBox: '0 0 24 24', width: String(size), height: String(size), 'aria-hidden': 'true', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.6', 'stroke-linejoin': 'round' }) as SVGSVGElement;
+  const frame = form === 'circle' ? s('circle', { cx: '12', cy: '12', r: '8.5' })
+    : s('rect', { x: '3.5', y: '3.5', width: '17', height: '17', rx: form === 'rounded' ? '5' : form === 'square' ? '1' : '1', ...(form ? {} : { 'stroke-dasharray': '2 2.4', opacity: '.55' }) });
+  el.append(frame, s('path', { d: 'M12 7.6l1.3 2.7 3 .4-2.2 2.1.5 3-2.6-1.4-2.6 1.4.5-3-2.2-2.1 3-.4z', 'stroke-width': '1.3' }));
   return el;
 }
 

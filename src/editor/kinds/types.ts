@@ -36,6 +36,8 @@ export interface ItemMedia {
   node: 'icon' | 'image' | null;
   /** The item can take an image (`setImage`). */
   canImage: boolean;
+  /** The item's icon can be set (`setIcon`): a flowchart's image and icon nodes only (an icon is their source instead of a picture), every mindmap node (`::icon`); default true. */
+  canIcon?: boolean;
   /** Where the label goes (`t`, `b`), the icon's frame (`square`, `circle`, `rounded`), the size, the aspect lock (`on`, `off`). */
   pos?: string;
   form?: string;

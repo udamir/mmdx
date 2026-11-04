@@ -52,7 +52,15 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
   const k = editKind(core.model.type);
   const m = mediaOf(core, ref);
   if (!k || !m) return;
-  if (k.setIcon && m.node !== 'image') {
+  // a label's icon token on a node that takes no icon of its own (a flowchart's plain shapes): it can become an icon node
+  if (m.canIcon === false && !m.node && m.icon && k.setMedia) {
+    sect(host, t('props.icon'));
+    if (!isFaPack(splitIconName(m.icon)[0])) host.append(h('div', { class: 'hint' }, t('props.iconTokenMmdx')));
+    const conv = h('button', { type: 'button' }, t('props.toIconNode'));
+    conv.addEventListener('click', () => void setMediaOf(core, [ref], { node: 'icon' }));
+    host.append(row(t('props.icon'), h('code', { class: 'hint' }, m.icon), conv));
+  }
+  if (k.setIcon && m.node !== 'image' && m.canIcon !== false) {
     sect(host, t('props.icon'));
     const pick = h('button', { type: 'button' }, t('props.choose'));
     pick.addEventListener('click', () => core.run('openIconPicker', pick));
@@ -74,6 +82,12 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
       }
     }
     if (m.node === 'icon') {
+      // the node's source is an icon: a picture can replace it
+      if (k.setImage && m.canImage) {
+        const img = h('button', { type: 'button' }, t('props.useImage'));
+        img.addEventListener('click', () => core.run('openImageTool', img, { insert: false }));
+        host.append(row('', img));
+      }
       host.append(row(t('props.iconForm'), choice(t('props.iconForm'), ['', 'square', 'circle', 'rounded'], m.form ?? '', (v) => t(`media.form.${v || 'none'}`), (v) => void setMediaOf(core, [ref], { form: v || null }))));
       layoutRows(p, host, ref, m);
     }
@@ -91,6 +105,12 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
     }
     host.append(row(t('props.imageUrl'), ...ctl));
     if (m.node === 'image') {
+      // the node's source is a picture: an icon can replace it
+      if (k.setIcon && m.canIcon !== false) {
+        const ic = h('button', { type: 'button' }, t('props.useIcon'));
+        ic.addEventListener('click', () => core.run('openIconPicker', ic));
+        host.append(row('', ic));
+      }
       layoutRows(p, host, ref, m);
       const lock = h('input', { type: 'checkbox', 'aria-label': t('props.aspect') });
       lock.checked = m.constraint === 'on';

@@ -107,7 +107,8 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
 // theme editor 142.2 kB with the dash patterns drawn at the line's width and the text block's "T" preview (141.8 kB measured: it carries every renderer and the shape previews statically)
 // theme editor 143.2 and diff 91.9 kB with the responsive canvas (142.8 and 91.5 kB measured: the canvas's +0.7 kB; the editor stays within 199.3 kB, 199 kB measured)
 // core 94.6, theme editor 144 and editor 201.1 kB with rich text labels (94.2, 143.6 and 200.7 kB measured: underline and strike in the markdown parser; the toolbar's text format menu, which the theme editor's toolbar carries too; in the editor also the formatting of the selected words and the inline editor's keys)
-for (const [entry, budget] of [['core', 94.6], ['theme-editor', 144], ['editor', 201.1], ['diff', 91.9]]) {
+// theme editor 144.4 kB with an image node's source and settings on the style toolbar (144 kB measured)
+for (const [entry, budget] of [['core', 94.6], ['theme-editor', 144.4], ['editor', 201.1], ['diff', 91.9]]) {
   const b = await bundle(entry);
   report(entry, b.size(b.base), budget * KB);
   if (entry === 'editor') {
