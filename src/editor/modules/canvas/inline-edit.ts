@@ -1,7 +1,8 @@
 // Inline text editing (A.3 row 32): a text box over the item's label, styled like it. Enter applies (Shift+Enter =
 // new line where Mermaid allows several lines), Esc cancels, clicking away applies. Writes through the ops'
 // relabel functions (`labelSpec`, shared with Properties). Ported from prototype app.js (`inlineEdit`, `focusLabel`).
-// The emoji button at its end (and ⌘/Ctrl+;) opens the emoji picker (T05 §4.5), which inserts at the caret. A label
+// ⌘/Ctrl+; opens the emoji picker (T05 §4.5) under the text box, which inserts at the caret (the Properties panel's
+// label fields have the picker's button; the canvas shows none over the text). A label
 // that can be a markdown string is rich text (T06 §3.4): the toolbar's text format menu and ⌘/Ctrl+B, I, U and ⇧⌘/Ctrl+X
 // format the selected words, or the whole text when nothing is selected (ops/format.ts), and the label is written as a
 // markdown string once it has formatting.
@@ -18,8 +19,6 @@ export const INLINE_EDIT_CSS = /* css */ `
 .inline-edit, .inline-edit:focus, .inline-edit:focus-visible { outline: none; border: 0; box-shadow: none; }
 .inline-edit::selection { background: rgba(66, 98, 255, .22); }
 .text-editing text { visibility: hidden; }
-.inline-emoji { position: absolute; z-index: 31; width: 26px; height: 26px; padding: 0; border-radius: 7px; display: grid; place-items: center;
-  font-size: 15px; line-height: 1; background: var(--float); border: 1px solid var(--float-line); box-shadow: 0 2px 8px rgba(20,30,60,.12); }
 `;
 
 /** ⌘/Ctrl + these keys format the selected words (⇧: with Shift). */
@@ -68,13 +67,11 @@ export const canvasInlineEditModule: EditorModule = {
         textAlign: anchor === 'start' ? 'left' : anchor === 'end' ? 'right' : 'center',
       });
       wrap.append(ta);
-      // the emoji button (when the picker module is installed) at the editor's end
-      const emojiBtn = core.has('pickEmoji') ? document.createElement('button') : null;
+      // ⌘/Ctrl+; opens the emoji picker (when its module is installed) under the text box
       let picking = false;
       const pickEmoji = (): void => {
-        if (!emojiBtn) return;
         picking = true;
-        core.run('pickEmoji', emojiBtn, (e: string) => {
+        core.run('pickEmoji', ta, (e: string) => {
           ta.setRangeText(e, ta.selectionStart, ta.selectionEnd, 'end');
           fit();
         }, () => {
@@ -82,20 +79,6 @@ export const canvasInlineEditModule: EditorModule = {
           if (!closed) ta.focus();
         });
       };
-      if (emojiBtn) {
-        emojiBtn.type = 'button';
-        emojiBtn.className = 'inline-emoji';
-        emojiBtn.textContent = '☺';
-        emojiBtn.title = emojiBtn.ariaLabel = core.i18n.t('props.emoji');
-        emojiBtn.setAttribute('aria-label', core.i18n.t('props.emoji'));
-        // the text box keeps the focus (and its caret) on a press
-        emojiBtn.addEventListener('pointerdown', (ev) => {
-          ev.preventDefault();
-          ev.stopPropagation();
-        });
-        emojiBtn.addEventListener('click', pickEmoji);
-        wrap.append(emojiBtn);
-      }
       // rich text (T06): the toolbar's text format menu and the keys format the selected words, else the whole text
       const rich = spec.markdown || spec.canMarkdown;
       let formatted = false;
@@ -125,11 +108,6 @@ export const canvasInlineEditModule: EditorModule = {
         if (key === shown) return;
         shown = key;
         if (core.has('refreshToolbar')) core.run('refreshToolbar');
-      };
-      const placeEmoji = (): void => {
-        if (!emojiBtn) return;
-        emojiBtn.style.left = `${ta.offsetLeft + ta.offsetWidth + 6}px`;
-        emojiBtn.style.top = `${ta.offsetTop + Math.max(0, ta.offsetHeight / 2 - 13)}px`;
       };
       ta.style.height = 'auto';
       ta.style.height = `${ta.scrollHeight}px`;
@@ -162,9 +140,7 @@ export const canvasInlineEditModule: EditorModule = {
         ta.style.height = 'auto';
         ta.style.height = `${ta.scrollHeight}px`;
         ta.style.top = `${midY - ta.offsetHeight / 2}px`;
-        placeEmoji();
       };
-      placeEmoji();
       core.inlineEditing = { kind: item.kind, id: item.id };
       core.textEdit = rich ? session : null;
       core.drawOverlay();
@@ -178,7 +154,6 @@ export const canvasInlineEditModule: EditorModule = {
         if (core.textEdit === session) core.textEdit = null;
         close = null;
         ta.remove();
-        emojiBtn?.remove();
         if (picking) core.popovers.close();
         const v = spec.multi ? ta.value.replace(/\s+$/, '') : ta.value.replace(/\s*\n\s*/g, ' ').trim();
         // formatted words make the label a markdown string; one already is stays one
@@ -196,7 +171,7 @@ export const canvasInlineEditModule: EditorModule = {
       for (const ev of ['select', 'keyup', 'pointerup'] as const) ta.addEventListener(ev, changed);
       ta.addEventListener('keydown', (ev) => {
         ev.stopPropagation();
-        if (ev.key === ';' && (ev.metaKey || ev.ctrlKey) && emojiBtn) {
+        if (ev.key === ';' && (ev.metaKey || ev.ctrlKey) && core.has('pickEmoji')) {
           ev.preventDefault();
           pickEmoji();
         } else if (rich && (ev.metaKey || ev.ctrlKey) && !ev.altKey && FORMAT_KEYS[`${ev.shiftKey ? '⇧' : ''}${ev.key.toLowerCase()}`]) {

@@ -264,7 +264,7 @@ Flowchart and mindmap labels are rich text: a Mermaid markdown string (`` A["`**
 
 ### Emoji
 
-While you edit a label on the canvas, the ☺ button at the end of the text box (or `⌘;` / `Ctrl+;`) opens the emoji picker: the emoji by group, recently used ones, search by name and keyword, and a skin tone. A chosen emoji goes in at the caret as plain text, so it shows wherever the diagram does; the picker stays open for more. The label fields of the Properties panel have the same button. The emoji data (English) loads the first time the picker opens.
+While you edit a label on the canvas, `⌘;` / `Ctrl+;` opens the emoji picker under the text box (the label fields of the Properties panel have a ☺ button for it): the emoji by group, recently used ones, search by name and keyword, and a skin tone. A chosen emoji goes in at the caret as plain text, so it shows wherever the diagram does; the picker stays open for more. The emoji data (English) loads the first time the picker opens.
 
 ## Mindmaps
 

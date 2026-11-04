@@ -241,14 +241,15 @@ describe('images', () => {
 });
 
 describe('emoji', () => {
-  test('the inline editor: the button inserts at the caret (multi-line node and single-line edge label)', async () => {
+  test('the inline editor: ⌘/Ctrl+; opens the picker, which inserts at the caret (multi-line node and single-line edge label); no button over the text', async () => {
     const e = mount('flowchart LR\n  A["Hello world"] -->|"go"| B\n');
     await settle();
     e.core.select([{ kind: 'node', id: 'A' }]);
     expect(e.core.run('inlineEdit', { kind: 'node', id: 'A' })).toBe(true);
     const ta = $<HTMLTextAreaElement>('.inline-edit')!;
     ta.setSelectionRange(5, 5);
-    $<HTMLButtonElement>('.inline-emoji')!.click();
+    expect($('.inline-emoji')).toBeNull();
+    ta.dispatchEvent(new KeyboardEvent('keydown', { key: ';', metaKey: true, bubbles: true }));
     await settle();
     input($<HTMLInputElement>('.ep-search')!, 'rocket');
     $<HTMLButtonElement>('.ep-e[aria-label="rocket"]')!.click();
@@ -258,7 +259,7 @@ describe('emoji', () => {
     e.core.popovers.close();
     key('Enter', ta);
     expect(e.core.code).toContain('A["Hello🚀 world"]');
-    // an edge label (one line), opened with ⌘/Ctrl+;
+    // an edge label (one line)
     const edge = e.core.model.type === 'flowchart' ? e.core.model.edges[0]!.id : '';
     expect(e.core.run('inlineEdit', { kind: 'edge', id: edge })).toBe(true);
     const ta2 = $<HTMLTextAreaElement>('.inline-edit')!;
