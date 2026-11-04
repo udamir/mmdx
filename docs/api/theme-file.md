@@ -151,6 +151,7 @@ Not every key applies to every item type: see [which keys each item reads](#flow
 | `strokeOpacity` | `number` | 0–1 | Border or line opacity |
 | `radius` | `number` | 0–100000 | Corner radius |
 | `stack` | `boolean \| number` | `false`, `true`, integer 0–10 | Copies drawn behind the shape: `true` is one, `2` and `3` are two and three (at most 3 are drawn) |
+| `z` | `number` | integer −99–99 | Z-index on one scale for every kind: a higher value draws over a lower one. Equal values draw groups, then connectors, then their labels, then shapes. The base theme sets group `0`, connector and relation `1`, node and entity `2` |
 | `dash` | `string` | Up to 8 numbers 0–1000, separated by spaces or commas; `""` or `"none"` is solid | Dash pattern of the border or line (`"6 4"` dashed, `"1.5 4"` dotted) |
 | `shape` | `string` | A name matching `[A-Za-z][\w-]{0,39}` | Node or participant shape (see [`nodeShapes`](#nodeshapes)) |
 
@@ -244,9 +245,9 @@ Keys each item reads. The first column lists what the theme editor and the Prope
 
 | Item | Editable keys | Also read |
 |---|---|---|
-| `node` | `fill`, `stroke`, `text`, `strokeWidth`, `fontSize`, `fontWeight`, `align`, `valign`, `wrap`, `radius`, `stack`, `shape`, `dash` | `padX`, `padY`, `minW`, `minH`, `maxW`, `fontFamily`, `fillOpacity`, `strokeOpacity` |
-| `group` | `fill`, `stroke`, `strokeWidth`, `radius`, `stack`, `titleSize`, `titleColor`, `titleWeight`, `titleAlign`, `pad`, `padTop` | `dash`, `fontFamily`, `fillOpacity`, `strokeOpacity` |
-| `edge` | `color`, `width`, `dash`, `arrow`, `labelColor`, `labelSize`, `curve` | `fontFamily`, `fontWeight`, `strokeOpacity` |
+| `node` | `fill`, `stroke`, `text`, `strokeWidth`, `fontSize`, `fontWeight`, `align`, `valign`, `wrap`, `radius`, `stack`, `shape`, `dash`, `z` | `padX`, `padY`, `minW`, `minH`, `maxW`, `fontFamily`, `fillOpacity`, `strokeOpacity` |
+| `group` | `fill`, `stroke`, `strokeWidth`, `radius`, `stack`, `titleSize`, `titleColor`, `titleWeight`, `titleAlign`, `pad`, `padTop`, `z` | `dash`, `fontFamily`, `fillOpacity`, `strokeOpacity` |
+| `edge` | `color`, `width`, `dash`, `arrow`, `labelColor`, `labelSize`, `curve`, `z` | `fontFamily`, `fontWeight`, `strokeOpacity` |
 
 Some presets are picked without being named: a node drawn as a cylinder (`[(…)]`) takes `db` and a diamond (`{…}`) takes `decision`; a dotted edge (`-.->`) takes `sync` and a thick edge (`==>`) takes `strong`; a group without a preset takes `box`. Each applies only when the theme defines it.
 
@@ -348,8 +349,8 @@ Participant presets: `blue`, `green`, `yellow`, `pink`. Activation presets: `acc
 
 | Item | Editable keys | Also read |
 |---|---|---|
-| `entity` | `fill`, `stroke`, `text`, `strokeWidth`, `radius`, `stack`, `titleSize`, `attrSize`, `attrColor`, `mode`, `showTypes`, `showComments`, `pkUnderline`, `maxW` | `padX`, `padY`, `minW`, `titleWeight`, `fontFamily`, `fillOpacity`, `strokeOpacity` |
-| `rel` | `color`, `width`, `dash`, `labelSize`, `labelColor`, `curve`, `routing`, `labelAt` | `fontWeight`, `fontFamily`, `strokeOpacity` |
+| `entity` | `fill`, `stroke`, `text`, `strokeWidth`, `radius`, `stack`, `titleSize`, `attrSize`, `attrColor`, `mode`, `showTypes`, `showComments`, `pkUnderline`, `maxW`, `z` | `padX`, `padY`, `minW`, `titleWeight`, `fontFamily`, `fillOpacity`, `strokeOpacity` |
+| `rel` | `color`, `width`, `dash`, `labelSize`, `labelColor`, `curve`, `routing`, `labelAt`, `z` | `fontWeight`, `fontFamily`, `strokeOpacity` |
 
 An identifying relationship (`--`) is always solid; `dash` applies to non-identifying ones (`..`). A diagram's page `routing` overrides the theme's `rel.routing` unless the relationship sets its own.
 

@@ -317,8 +317,8 @@ export const canvasStructureModule: EditorModule = {
       { id: 'group', keys: ['mod+g'], label: 'Group', group: 'Edit', editOnly: true, run: () => void groupSelection() },
       { id: 'ungroup', keys: ['mod+shift+g'], label: 'Ungroup', group: 'Edit', editOnly: true, run: () => ungroupSelection() },
       { id: 'delete', keys: ['delete'], label: 'Delete', group: 'Edit', editOnly: true, run: () => (core.selection().length ? deleteSelection() : false) },
-      { id: 'order-back', keys: ['mod+['], label: 'Move back in the code order', group: 'Edit', editOnly: true, run: () => (core.selection().length ? void core.run('moveSelection', -1) : false) },
-      { id: 'order-forward', keys: ['mod+]'], label: 'Move forward in the code order', group: 'Edit', editOnly: true, run: () => (core.selection().length ? void core.run('moveSelection', 1) : false) },
+      { id: 'order-back', keys: ['mod+['], label: 'Send backward (z-index; sequence: earlier in the code)', group: 'Edit', editOnly: true, run: () => (core.selection().length ? void core.run('moveSelection', -1) : false) },
+      { id: 'order-forward', keys: ['mod+]'], label: 'Bring forward (z-index; sequence: later in the code)', group: 'Edit', editOnly: true, run: () => (core.selection().length ? void core.run('moveSelection', 1) : false) },
       { id: 'board-menu', keys: ['shift+f10', 'contextmenu'], label: 'Open the context menu', group: 'Edit', editOnly: true, run: () => keyboardMenu() },
     );
 

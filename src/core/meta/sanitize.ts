@@ -62,7 +62,7 @@ const CLEANERS: Record<string, Cleaner> = {
   w: SIZE, h: SIZE, minW: SIZE, minH: SIZE, maxW: SIZE, padX: SIZE, padY: SIZE, pad: SIZE, padTop: SIZE,
   radius: SIZE, margin: SIZE, gap: SIZE, rowH: SIZE, top: SIZE, blockGapTop: SIZE, blockGapBottom: SIZE, blockPad: SIZE,
   lineH: num(0, 10),
-  strokeWidth: num(0, 100), width: num(0, 100),
+  strokeWidth: num(0, 100), width: num(0, 100), z: int(-99, 99),
   fontSize: FONT_SIZE, titleSize: FONT_SIZE, labelSize: FONT_SIZE, attrSize: FONT_SIZE,
   fillOpacity: UNIT, strokeOpacity: UNIT, fromAt: UNIT, toAt: UNIT, labelAt: UNIT,
   curve: num(-100, 100),

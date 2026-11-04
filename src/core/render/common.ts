@@ -57,7 +57,7 @@ export function mergeStyle(ctx: RenderContext, ...layers: (object | null | undef
 const STYLE_KEYS = [
   'fill', 'stroke', 'strokeWidth', 'text', 'fontSize', 'fontWeight', 'radius', 'stack', 'dash', 'shape', 'color', 'width',
   'arrow', 'labelColor', 'labelSize', 'curve', 'titleSize', 'titleColor', 'titleAlign', 'titleWeight', 'pad', 'padTop',
-  'fillOpacity', 'strokeOpacity', 'fontFamily', 'align', 'valign', 'wrap', 'attrSize', 'attrColor',
+  'fillOpacity', 'strokeOpacity', 'fontFamily', 'align', 'valign', 'wrap', 'attrSize', 'attrColor', 'z',
 ] as const;
 
 /** The style keys of an item's metadata (plus kind-specific `extra` keys). */
@@ -105,6 +105,30 @@ export function firstLine(defLine: number | null | undefined, lines: ReadonlySet
 }
 
 export const byLine = (a: number, b: number): number => (a === b ? 0 : a < b ? -1 : 1);
+
+// ---- stacking (z-index) ---------------------------------------------------------------------------------------
+
+/**
+ * Stacking when neither the theme nor the item sets `z`: containers at the back, then lines, then shapes. One scale
+ * for every kind: an item with a higher `z` draws over one with a lower `z`, whatever their kinds.
+ */
+export const DEFAULT_Z: Readonly<Record<string, number>> = { group: 0, box: 0, edge: 1, rel: 1, node: 2, entity: 2 };
+
+/** Order inside one `z`: containers, then lines, then their labels, then shapes. */
+export const Z_BAND = { box: 0, line: 1, label: 2, shape: 3 } as const;
+
+export interface ZItem {
+  z: number;
+  band: number;
+  node: SceneNode;
+}
+
+/** The item's `z` (its style, else the kind's default). */
+export const zOf = (st: { z?: number | undefined }, kind: string): number => (typeof st.z === 'number' && Number.isFinite(st.z) ? st.z : DEFAULT_Z[kind] ?? 0);
+
+/** Scene nodes back to front: by `z`, then band, then the order they were drawn in (a stable sort). */
+export const zSorted = (items: readonly ZItem[]): SceneNode[] =>
+  items.map((it, i) => ({ it, i })).sort((a, b) => a.it.z - b.it.z || a.it.band - b.it.band || a.i - b.i).map((x) => x.it.node);
 
 // ---- items and links ------------------------------------------------------------------------------------------
 

@@ -79,6 +79,9 @@ export const TOOLBAR_CSS = /* css */ `
 .mtb-layer .dot.off { background: var(--faint); }
 .mtb-layer em { margin-left: auto; font-size: 11px; color: var(--muted); font-style: normal; }
 .mtb-range { width: 100%; margin: 6px 0 2px; accent-color: #4262ff; cursor: ew-resize; }
+.mtb-z { display: flex; align-items: center; gap: 8px; margin: 6px 0 2px; }
+.mtb-z .mtb-num { width: 64px; background: var(--float-2); }
+.mtb-z .mtb-num.inherited { color: var(--muted); }
 .mtb-note { font-size: 12px; color: var(--muted); line-height: 1.4; }
 .mtb-arrange { display: flex; gap: 6px; }
 .mtb-arrange-grid { display: grid; grid-template-columns: repeat(3, 40px); gap: 2px; }

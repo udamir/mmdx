@@ -246,7 +246,7 @@ Shortcuts work while the focus is inside the editor; `?` lists those that apply 
 | `⌘A`, `⌘C`, `⌘V`, `⌘D` | Select all, copy, paste (at the pointer), duplicate |
 | `⌘⌥C`, `⌘⌥V` | Copy style, paste style |
 | `⌘G`, `⇧⌘G` | Group, ungroup |
-| `⌘[`, `⌘]` | Move back, forward in the code order |
+| `⌘[`, `⌘]` | Send backward, bring forward: z-index ±1 (flowchart, ER); earlier, later in the code (sequence) |
 | `Del` / `⌫` | Delete |
 | Arrows, `⇧` + arrows | Move the selection by 1 px, 10 px (View mode: pan) |
 | `Tab`, `⇧Tab` | Select the next, previous item |

@@ -18,6 +18,8 @@ export interface StyleProps {
   radius?: number;
   /** false / true (one copy) / 2 / 3 copies behind the shape. */
   stack?: boolean | number;
+  /** Stacking on one scale for every kind (-99…99): higher draws over lower. Unset: the theme's value for the kind. */
+  z?: number;
   dash?: string;
   shape?: string;
   // text

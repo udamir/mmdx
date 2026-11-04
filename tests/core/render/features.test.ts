@@ -42,10 +42,26 @@ describe('scene structure', () => {
     }
   });
 
-  it('z-order: groups, edges, nodes, labels', () => {
-    const { result } = renderProd('flowchart LR\n  subgraph G\n    A -->|x| B\n  end');
-    const kinds = result.body.map((n) => (n.t === 'g' ? `${String(n.attrs['class'])}` : n.t));
-    expect(kinds).toEqual(['el group', 'el edge', 'el node', 'el node', 'el elabel']);
+  const stacking = (src: string): string[] =>
+    renderProd(src).result.body.map((n) => (n.t === 'g' ? `${String(n.attrs['class']).replace('el ', '')}:${String(n.attrs['data-id'])}` : n.t));
+
+  it('z-order: one scale for every kind; by default groups, then edges with their labels, then nodes', () => {
+    expect(stacking('flowchart LR\n  subgraph G\n    A -->|x| B\n  end')).toEqual(['group:G', 'edge:A->B', 'elabel:A->B', 'node:A', 'node:B']);
+  });
+
+  it('z-order: an item `z` lifts it over any kind; equal z keeps the default order', () => {
+    // the edge and its label over both nodes
+    expect(stacking('flowchart LR\n  A -->|x| B\n%%@ edge A->B {"z":5}')).toEqual(['node:A', 'node:B', 'edge:A->B', 'elabel:A->B']);
+    // a node behind its group
+    expect(stacking('flowchart LR\n  subgraph G\n    A\n  end\n%%@ node A {"z":-1}')).toEqual(['node:A', 'group:G']);
+    // the theme sets the default per kind
+    expect(stacking('flowchart LR\n  A -->|x| B\n%%@ style.edge _base {"z":3}')[0]).toBe('node:A');
+  });
+
+  it('z-order (ER): relations with their labels under tables, unless lifted', () => {
+    const src = 'erDiagram\n  A ||--o{ B : has';
+    expect(stacking(src).map((k) => k.split(':')[0])).toEqual(['rel', 'elabel', 'entity', 'entity']);
+    expect(stacking(`${src}\n%%@ entity A {"z":0}`)[0]).toBe('entity:A');
   });
 
   it('mirrored participants carry data-foot', () => {

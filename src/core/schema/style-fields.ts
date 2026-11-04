@@ -29,6 +29,7 @@ export const FIELD_DEFS: Readonly<Record<string, FieldDef>> = {
   strokeWidth: { label: 'Border width', type: 'number', step: 0.1 }, fontSize: { label: 'Font size', type: 'number' },
   fontWeight: { label: 'Font weight', type: 'select', options: ['400', '600', '700'] },
   radius: { label: 'Corner radius', type: 'number' },
+  z: { label: 'Z-index', type: 'number', step: 1, min: -99, max: 99 },
   stack: { label: 'Stacked look', type: 'select', options: [['false', 'single'], ['true', 'stacked'], ['2', 'double']] },
   shape: { label: 'Shape', type: 'select', options: ['rect', 'rounded', 'stadium', 'circle', 'doublecircle', 'diamond', 'hexagon', 'cylinder', 'hcyl', 'subroutine', 'parallelogram', 'parallelogram-alt', 'trapezoid', 'trapezoid-alt', 'asymmetric', 'document', 'card'] },
   pshape: { key: 'shape', label: 'Shape', type: 'select', options: ['box', 'rounded', 'stadium', 'actor', 'database', 'hcyl'] },
@@ -69,15 +70,15 @@ export const PAGE_FIELDS: readonly string[] = ['background', 'border'];
 export const SEQUENCE_PAGE_FIELDS: readonly string[] = ['gap', 'rowH', 'mirror', 'blockSpan'];
 
 export const STYLE_FIELDS: Readonly<Record<ItemKind, readonly string[]>> = {
-  node: ['fill', 'stroke', 'text', 'strokeWidth', 'fontSize', 'fontWeight', 'align', 'valign', 'wrap', 'radius', 'stack', 'shape', 'dash'],
-  group: ['fill', 'stroke', 'strokeWidth', 'radius', 'stack', 'titleSize', 'titleColor', 'titleWeight', 'titleAlign', 'pad', 'padTop'],
-  edge: ['color', 'width', 'dash', 'arrow', 'labelColor', 'labelSize', 'curve'],
+  node: ['fill', 'stroke', 'text', 'strokeWidth', 'fontSize', 'fontWeight', 'align', 'valign', 'wrap', 'radius', 'stack', 'shape', 'dash', 'z'],
+  group: ['fill', 'stroke', 'strokeWidth', 'radius', 'stack', 'titleSize', 'titleColor', 'titleWeight', 'titleAlign', 'pad', 'padTop', 'z'],
+  edge: ['color', 'width', 'dash', 'arrow', 'labelColor', 'labelSize', 'curve', 'z'],
   participant: ['fill', 'stroke', 'text', 'strokeWidth', 'fontSize', 'wrap', 'radius', 'stack', 'pshape'],
   message: ['color', 'width', 'dash', 'arrow', 'labelSize', 'labelColor', 'labelOnLine'],
   block: ['fill', 'stroke', 'strokeWidth', 'labelSize', 'labelColor', 'showTag', 'radius'],
   note: ['fill', 'stroke', 'strokeWidth', 'dash', 'text', 'fontSize'],
-  entity: ['fill', 'stroke', 'text', 'strokeWidth', 'radius', 'stack', 'titleSize', 'attrSize', 'attrColor', 'mode', 'showTypes', 'showComments', 'pkUnderline', 'maxW'],
-  rel: ['color', 'width', 'dash', 'labelSize', 'labelColor', 'curve', 'routing', 'labelAt'],
+  entity: ['fill', 'stroke', 'text', 'strokeWidth', 'radius', 'stack', 'titleSize', 'attrSize', 'attrColor', 'mode', 'showTypes', 'showComments', 'pkUnderline', 'maxW', 'z'],
+  rel: ['color', 'width', 'dash', 'labelSize', 'labelColor', 'curve', 'routing', 'labelAt', 'z'],
   activation: ['fill', 'stroke', 'strokeWidth', 'dash', 'barW'],
   box: ['fill', 'stroke', 'strokeWidth', 'dash', 'text', 'labelSize'],
 };

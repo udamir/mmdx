@@ -14,6 +14,7 @@ import {
   assignPorts, baseStyle, byLine, cachedLayout, countBy, crowFoot, edgePath, firstLine, font, haloLabel, hiddenOf, isSide,
   itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle, metaNum, metaPoints, outerBox, pickStyle, presetOf, presets,
   sideToward, stackedShapeNodes, textBlock, withLink, type RenderEnv, type SubResult,
+  Z_BAND, zOf, zSorted, type ZItem,
 } from './common.js';
 import type { BoxGeom, EdgeGeom, ErGeometry, RenderContext } from './types.js';
 
@@ -143,6 +144,7 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
   );
 
   const relNodes: SceneNode[] = [], labelNodes: SceneNode[] = [], entNodes: SceneNode[] = [];
+  const zItems: ZItem[] = [];
   const relGeom = new Map<string, EdgeGeom>();
   for (const x of vis) {
     const { r, m, st } = x;
@@ -168,6 +170,8 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
         { 'data-from': r.from, 'data-to': r.to },
       ),
     );
+    const rz = zOf(st, 'rel');
+    zItems.push({ z: rz, band: Z_BAND.line, node: relNodes[relNodes.length - 1]! });
     let labelBox: BoxGeom | null = null;
     if (r.label && !opts.hideLabels) {
       const lp = path.at(metaNum(m.labelAt) ?? 1 - (st.labelAt ?? 0.18));
@@ -190,6 +194,7 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
           'label',
         ),
       );
+      zItems.push({ z: rz, band: Z_BAND.label, node: labelNodes[labelNodes.length - 1]! });
       let lw = 0;
       for (const l of lines) lw = Math.max(lw, ctx.measure.width(l, font(size, 400, st.fontFamily || family)));
       labelBox = { x: lx, y: ly, w: lw, h: lines.length * size * 1.25 };
@@ -210,14 +215,15 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
         }),
       ]),
     );
+    zItems.push({ z: zOf(x.st, 'rel'), band: Z_BAND.line, node: relNodes[relNodes.length - 1]! });
   }
 
   const lineOf = (x: Ent): number => firstLine(x.e.defLine, x.e.lines);
-  // a table being edited (table view, larger than its card) is drawn over its neighbours
-  const order = (a: [string, Ent], b: [string, Ent]): number => Number(tableView.has(a[0])) - Number(tableView.has(b[0])) || byLine(lineOf(a[1]), lineOf(b[1]));
-  for (const [id, x] of [...ents].sort(order)) {
+  for (const [id, x] of [...ents].sort((a, b) => byLine(lineOf(a[1]), lineOf(b[1])))) {
     if (x.hidden) continue;
     entNodes.push(itemGroup('entity', id, 'entity', [...stackedShapeNodes('rect', x, x.st), ...x.draw(x.x, x.y)], linkAttr(x.href)));
+    // a table being edited (table view, larger than its card) is drawn over everything
+    zItems.push({ z: tableView.has(id) ? Number.MAX_SAFE_INTEGER : zOf(x.st, 'entity'), band: Z_BAND.shape, node: entNodes[entNodes.length - 1]! });
   }
 
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -250,7 +256,7 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
   };
   return {
     defs: [],
-    body: [...relNodes, ...entNodes, ...labelNodes],
+    body: zSorted(zItems),
     bounds,
     geom,
     presetsUsed: {

@@ -10,7 +10,7 @@ import type { CenterBox, Point } from '../types.js';
 import {
   assignPorts, baseStyle, cachedLayout, metaNum, metaPoints, type RenderEnv, type SubResult, byLine, countBy, Defs, edgePath, firstLine, font, haloLabel, hiddenOf, isSide, itemGroup,
   itemLink, LINK_COLOR, linkAttr, mergeStyle, outerBox, pickStyle, presetOf, presets, sideToward, stackedShapeNodes,
-  textBlock, urlRef, withLink,
+  textBlock, urlRef, withLink, Z_BAND, zOf, zSorted, type ZItem,
 } from './common.js';
 import type { BoxGeom, EdgeGeom, FlowGeometry } from './types.js';
 import type { ResolvedTheme } from '../theme/types.js';
@@ -325,6 +325,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
   );
 
   // ---- draw
+  const zItems: ZItem[] = [];
   const groupNodes: SceneNode[] = [];
   for (const G of [...groups.values()].sort((a, b) => a.depth - b.depth || a.g.order - b.g.order)) {
     if (groupHidden.has(G.g.id) || G.empty) continue;
@@ -347,6 +348,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
       children.push(...withLink(href, [title]));
     }
     groupNodes.push(itemGroup('group', G.g.id, 'group', children, linkAttr(href)));
+    zItems.push({ z: zOf(st, 'group'), band: Z_BAND.box, node: groupNodes[groupNodes.length - 1]! });
   }
 
   const edgeNodes: SceneNode[] = [], labelNodes: SceneNode[] = [];
@@ -386,6 +388,8 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
         { 'data-from': e.from, 'data-to': e.to },
       ),
     );
+    const ez = zOf(st, 'edge');
+    zItems.push({ z: ez, band: Z_BAND.line, node: edgeNodes[edgeNodes.length - 1]! });
     let labelBox: BoxGeom | null = null;
     if (e.label && !opts.hideLabels) {
       const lp = path.at(metaNum(em.labelAt) ?? 0.5);
@@ -402,6 +406,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
         underline: !!href,
       });
       labelNodes.push(itemGroup('edge', e.id, 'elabel', withLink(href, [label]), { 'data-part': 'label', 'data-from': e.from, 'data-to': e.to, ...linkAttr(href) }, 'label'));
+      zItems.push({ z: ez, band: Z_BAND.label, node: labelNodes[labelNodes.length - 1]! });
       const lw = textBlockWidth(lines, font(labelSize, 400, st.fontFamily || family), ctx.measure);
       labelBox = { x: lx, y: ly, w: lw, h: lines.length * labelSize * 1.25 };
     }
@@ -434,6 +439,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
       underline: !!href,
     });
     nodeNodes.push(itemGroup('node', id, 'node', [...stackedShapeNodes(st.shape, N, st), ...withLink(href, [label])], linkAttr(href)));
+    zItems.push({ z: zOf(st, 'node'), band: Z_BAND.shape, node: nodeNodes[nodeNodes.length - 1]! });
   }
 
   // ---- bounds
@@ -475,7 +481,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
   };
   return {
     defs: defs.nodes(),
-    body: [...groupNodes, ...edgeNodes, ...nodeNodes, ...labelNodes],
+    body: zSorted(zItems),
     bounds,
     geom,
     presetsUsed: {

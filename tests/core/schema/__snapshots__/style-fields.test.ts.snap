@@ -380,6 +380,13 @@ exports[`style fields > field definitions 1`] = `
     "label": "Y",
     "type": "number",
   },
+  "z": {
+    "label": "Z-index",
+    "max": 99,
+    "min": -99,
+    "step": 1,
+    "type": "number",
+  },
 }
 `;
 
@@ -417,6 +424,7 @@ exports[`style fields > fields of each item kind 1`] = `
     "labelColor",
     "labelSize",
     "curve",
+    "z",
   ],
   "entity": [
     "fill",
@@ -433,6 +441,7 @@ exports[`style fields > fields of each item kind 1`] = `
     "showComments",
     "pkUnderline",
     "maxW",
+    "z",
   ],
   "group": [
     "fill",
@@ -446,6 +455,7 @@ exports[`style fields > fields of each item kind 1`] = `
     "titleAlign",
     "pad",
     "padTop",
+    "z",
   ],
   "message": [
     "color",
@@ -470,6 +480,7 @@ exports[`style fields > fields of each item kind 1`] = `
     "stack",
     "shape",
     "dash",
+    "z",
   ],
   "note": [
     "fill",
@@ -499,6 +510,7 @@ exports[`style fields > fields of each item kind 1`] = `
     "curve",
     "routing",
     "labelAt",
+    "z",
   ],
 }
 `;
@@ -522,6 +534,7 @@ exports[`style fields > theme editor sections 1`] = `
           "stack",
           "shape",
           "dash",
+          "z",
         ],
         "key": "node",
         "label": "Node",
@@ -540,6 +553,7 @@ exports[`style fields > theme editor sections 1`] = `
           "titleAlign",
           "pad",
           "padTop",
+          "z",
         ],
         "key": "group",
         "label": "Group (subgraph)",
@@ -554,6 +568,7 @@ exports[`style fields > theme editor sections 1`] = `
           "labelColor",
           "labelSize",
           "curve",
+          "z",
         ],
         "key": "edge",
         "label": "Connector",
@@ -678,6 +693,7 @@ exports[`style fields > theme editor sections 1`] = `
           "showComments",
           "pkUnderline",
           "maxW",
+          "z",
         ],
         "key": "entity",
         "label": "Table",
@@ -693,6 +709,7 @@ exports[`style fields > theme editor sections 1`] = `
           "curve",
           "routing",
           "labelAt",
+          "z",
         ],
         "key": "rel",
         "label": "Relationship",

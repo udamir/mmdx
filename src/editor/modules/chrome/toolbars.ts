@@ -26,6 +26,9 @@ import { canGroup } from '../../ops/group.js';
 import { LiveEdit } from '../../ops/live.js';
 import { choosePagePreset, pageEff, RATIOS, setPageRatio, setPageSizeMode, setPageValue } from '../../ops/page.js';
 import { LINE_KINDS } from '../canvas/shared.js';
+import { DEFAULT_Z } from '../../../core/render/common.js';
+
+const Z_KINDS: ReadonlySet<string> = new Set(Object.keys(DEFAULT_Z));
 
 export const TOOLBARS_CSS = /* css */ `
 ${TOOLBAR_CSS}
@@ -185,8 +188,21 @@ export const toolbarsModule: EditorModule = {
       ord = null;
       style?.refresh();
     };
+    // flowchart and ER items stack by `z` (one scale for every kind); sequence items keep their code order
+    const zOn = (s: Sel | null | undefined): s is Sel => !!s && core.model.type !== 'sequence' && Z_KINDS.has(s.kind);
+    const zOf = (s: Sel): number => {
+      const v = effectiveValue(env(), s, 'z');
+      return typeof v === 'number' ? v : DEFAULT_Z[s.kind] ?? 0;
+    };
     const moveSelection = (dir: -1 | 1): void => {
       const sel = core.selection();
+      if (sel.length && sel.every(zOn)) {
+        let meta = core.meta;
+        for (const s of sel) meta = setStyle(meta, [s], { z: Math.max(-99, Math.min(99, zOf(s) + dir)) }).meta;
+        applyMeta(core, t('history.order'), { meta });
+        style?.refresh();
+        return;
+      }
       if (sel.length !== 1) {
         core.toast(t('order.selectOne'));
         return;
@@ -334,7 +350,12 @@ export const toolbarsModule: EditorModule = {
           else core.run('enterGroup', s.id);
         },
         del: () => core.run('deleteSelection'),
+        zIndex: () => {
+          const s = primary();
+          return zOn(s) && !multi() ? { value: zOf(s), own: typeof core.getM(s.kind, s.id).z === 'number' } : null;
+        },
         order: () => {
+          if (zOn(primary())) return null;
           const o = orderInfo();
           return o && o.states.length > 1 ? { index: o.shown ?? o.index, count: o.states.length, labels: o.labels.map((l) => t(`order.${l}`)) } : null;
         },
