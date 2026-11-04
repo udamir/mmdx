@@ -49,7 +49,7 @@ export function mediaPop(f: Fill): void {
     const lock = h('input', { type: 'checkbox' });
     lock.checked = m.constraint === 'on';
     lock.addEventListener('change', () => set({ constraint: lock.checked ? 'on' : null }));
-    pop.append(h('label', { class: 'mtb-check' }, lock, ' ', t('tb.aspect')));
+    pop.append(h('label', { class: 'mtb-checkrow' }, lock, h('span', null, t('tb.aspect'))));
   }
   pop.append(popLabel(t('tb.labelPos')), choiceRow(['t', 'b'], m.pos ?? 'b', (v) => set({ pos: v }), (v) => svgIcon(v === 't' ? 'labelTop' : 'labelBottom'), (v) => t(v === 't' ? 'tb.labelAbove' : 'tb.labelBelow')));
 }

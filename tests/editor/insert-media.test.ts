@@ -348,7 +348,12 @@ describe('selection toolbar and Properties', () => {
     expect([...$$('.mtb-pop .mtb-choice')].map((b) => b.getAttribute('title') ?? b.textContent)).toEqual(['Replace image…', 'Use an icon instead…']);
     $<HTMLButtonElement>('.mtb [data-c="media"]')!.click();
     expect([...$$('.mtb-pop .mtb-choice')].map((b) => b.getAttribute('title') ?? b.textContent)).toEqual(['Contain', 'Cover', 'Stretch', 'Above', 'Below']);
-    expect($('.mtb-pop .mtb-check input')).not.toBeNull();
+    // the aspect lock is a checkbox row of its own (not the 16 px tick box of the presets list)
+    const lock = $<HTMLInputElement>('.mtb-pop .mtb-checkrow input[type="checkbox"]')!;
+    expect(lock.closest('label')!.textContent).toBe('Keep aspect ratio');
+    lock.checked = true;
+    lock.dispatchEvent(new Event('change'));
+    expect(e.core.code).toContain('constraint: "on"');
   });
 
   test('Properties: the Image section of an image node writes its size and aspect lock', async () => {
