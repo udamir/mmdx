@@ -11,6 +11,9 @@ export type ToolbarControl =
   | 'layer' | 'presets' | 'reset' | 'more' | 'selection' | 'italic' | 'underline' | 'tableStyle' | 'wrap'
   | 'icon' | 'media' | 'mediaSize';
 
+/** A text format of rich labels: bold, italic, underline, strike. */
+export type TextFormat = 'b' | 'i' | 'u' | 's';
+
 /** The selected item's icon and image (T05): what the Icon, Icon & image and size controls show. */
 export interface ToolbarMedia {
   icon: string | null;
@@ -138,6 +141,17 @@ export interface ToolbarApi {
   groupEditing?(): string | null | undefined;
   editGroup?(): void;
   del?(): void;
+  /**
+   * The text formats of a label that can be rich (a markdown string): of the selected words while its text is edited,
+   * else of the whole label. Absent or null: Bold is a switch of the item's style.
+   */
+  textFormats?(): Readonly<Record<TextFormat, boolean>> | null;
+  /** Toggles a format on the selected words while the text is edited, else on the whole label. */
+  textFormat?(f: TextFormat): void;
+  /** Part of the label's text is selected: the controls that only style a whole label (font, size, alignment, link, text colour) are off. */
+  textPartial?(): boolean;
+  /** The label's text is being edited: the text format controls keep its focus and selection. */
+  textEditing?(): boolean;
   order?(): { index: number; count: number; labels: readonly [string, string] | readonly string[] } | null;
   orderPreview?(index: number): void;
   orderCommit?(): void;

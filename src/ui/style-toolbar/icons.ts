@@ -50,6 +50,8 @@ export const ICON: Readonly<Record<string, string>> = {
   down: '<path d="M7 10l5 5 5-5"/>',
   plus: '<path d="M12 5v14M5 12h14" stroke-width="2.2"/>',
   italic: '<path d="M10 5h8M6 19h8M14.5 5l-5 14"/>',
+  boldGlyph: '<path d="M8 5h5a3.2 3.2 0 0 1 0 6.4H8zM8 11.4h6a3.3 3.3 0 0 1 0 6.6H8z" stroke-width="2.2"/>',
+  strike: '<path d="M16.5 7.5c-.6-1.6-2.3-2.7-4.5-2.7-2.6 0-4.4 1.4-4.4 3.4 0 1.5 1 2.4 3 3M4.5 12h15M8 16.3c.6 1.8 2.3 2.9 4.4 2.9 2.7 0 4.6-1.4 4.6-3.6 0-.8-.3-1.5-.8-2"/>',
   table: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10"/>',
   underline: '<path d="M7 4.5v6a5 5 0 0 0 10 0v-6M5.5 20h13"/>',
   selection: '<path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><path d="M9 12.5l2 2 4-4.5"/>',

@@ -16,6 +16,9 @@ export const registerMediaKit = (k: MediaKit): void => void (kit = k);
 /** Forgets the kit (tests of the on-demand path). */
 export const forgetMediaKit = (): void => void (kit = null);
 
+/** The kit if it is loaded, without counting a miss (the editor reads labels with it; its rich types load it). */
+export const loadedMediaKit = (): MediaKit | null => kit;
+
 /** The kit, or null after counting a miss (the caller draws without it; the render runs again once it has loaded). */
 export function mediaKit(): MediaKit | null {
   if (!kit) missShape();

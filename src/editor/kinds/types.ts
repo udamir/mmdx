@@ -19,7 +19,7 @@ export interface ItemText {
   write(code: string, v: string): CodeResult;
   /** The text is a markdown string (`**bold**` and `*italic*` are styled words; T06). */
   markdown?: boolean;
-  /** Writes the text as a markdown string ("Make rich text"); absent: the item's text cannot be one. */
+  /** Writes the text as a markdown string (once it is formatted); absent: the item's text cannot be one. */
   writeMarkdown?(code: string, v: string): CodeResult;
 }
 

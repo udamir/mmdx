@@ -1,4 +1,4 @@
-// Rich text in the scene (T03): lines of runs (core/text/rich.ts) drawn as one `<text>` — bold, italic and changed
+// Rich text in the scene (T03): lines of runs (core/text/rich.ts) drawn as one `<text>` — bold, italic, underlined, struck and changed
 // words as styled `<tspan>`s — plus an `<image>` per inline icon beside it, in the same item group. A line with icons
 // is laid out run by run: its text starts at its left edge (`anchor: 'start'`) and every run after an icon is a text
 // chunk of its own, placed after the icon's gap (and after its own leading space, which SVG would collapse). Lines
@@ -11,7 +11,7 @@ import { parseInline, runFont, runsText, runWidth, type IconResolver } from '../
 import { textAttrs, type TextOpts } from './common.js';
 
 /** Whether a line needs its runs (styling, marks or icons); a single plain run is drawn as text. */
-const styledLine = (runs: readonly TextRun[]): boolean => runs.some((r) => r.icon || r.bold || r.italic || r.mark);
+const styledLine = (runs: readonly TextRun[]): boolean => runs.some((r) => r.icon || r.bold || r.italic || r.underline || r.strike || r.mark);
 
 /**
  * Lines of runs centred vertically on y, like `textBlock`: the `<text>` first, then the images of its icons

@@ -106,7 +106,8 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
 // core 94.1, theme editor 141.4, editor 199.3 and diff 91 kB with mindmaps (T08: 93.7, 141, 198.9 and 90.6 kB measured; core and the theme editor carry every kind statically, +8.3 and +7.7 kB: the mindmap's parser, tidy tree layout, renderer, ops and diff; the editor +1.5 kB: the mindmap module's keys, which come before the canvas's, the type's names, the Page properties hook, previews per diagram type and the theme section — its kinds and gestures are lazy chunks, measured in the "editor (first mindmap)" row; the diff +0.2 kB, what every viewer gained)
 // theme editor 142.2 kB with the dash patterns drawn at the line's width and the text block's "T" preview (141.8 kB measured: it carries every renderer and the shape previews statically)
 // theme editor 143.2 and diff 91.9 kB with the responsive canvas (142.8 and 91.5 kB measured: the canvas's +0.7 kB; the editor stays within 199.3 kB, 199 kB measured)
-for (const [entry, budget] of [['core', 94.1], ['theme-editor', 143.2], ['editor', 199.3], ['diff', 91.9]]) {
+// core 94.6, theme editor 144 and editor 201.1 kB with rich text labels (94.2, 143.6 and 200.7 kB measured: underline and strike in the markdown parser; the toolbar's text format menu, which the theme editor's toolbar carries too; in the editor also the formatting of the selected words and the inline editor's keys)
+for (const [entry, budget] of [['core', 94.6], ['theme-editor', 144], ['editor', 201.1], ['diff', 91.9]]) {
   const b = await bundle(entry);
   report(entry, b.size(b.base), budget * KB);
   if (entry === 'editor') {
@@ -118,12 +119,14 @@ for (const [entry, budget] of [['core', 94.1], ['theme-editor', 143.2], ['editor
     // 225.6 kB with the compound layout (T07: 225.2, 206.6 and 199.2 kB measured; the flowchart's +5.1 kB and the editor's +0.9 kB)
     // 227.6 kB with mindmaps (T08: 227.2, 208.4 and 201.1 kB measured: the editor's +1.5 kB)
     // 228.1 kB with the responsive canvas (227.7, 208.5 and 201.2 kB measured: the editor's +1 kB, the canvas's and the toolbars' idle placement)
-    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 228.1 * KB);
+    // 229.9 kB with rich text labels (229.5, 210.2 and 202.9 kB measured: the editor's +1.4 kB)
+    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 229.9 * KB);
     {
       // a mindmap: its kinds and the mindmap module's gestures, both loaded with the first mindmap (T08: 228.3 kB measured; the view, ops and edit kinds with the geometry of bang and cloud and the media kit, which its edit kind registers as the flowchart's does, and the drag, handles and keys of the outline)
       const kind = lazy(b, 'src/editor/kinds/mindmap.ts', b.base);
       const gestures = lazy(b, 'src/editor/modules/mindmap/gestures.ts', new Set([...b.base, ...kind]));
-      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 228.7 * KB);
+      // 230.7 kB with rich text labels (230.3 kB measured)
+      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 230.7 * KB);
     }
     // the insert dock's lazy chunks (T05): the pickers (icon picker, image tool, emoji picker and their glue), the shape palette block, the Connector and Container tools, the English emoji data (§4.5: at most 30 kB)
     const loaded = new Set([...b.base, ...lazy(b, 'src/editor/kinds/flowchart.ts', b.base)]);
@@ -135,7 +138,8 @@ for (const [entry, budget] of [['core', 94.1], ['theme-editor', 143.2], ['editor
     // 239.9 kB with the insert dock (T05, 239.5 kB measured: the editor's +5.4 kB)
     // 240.5 kB with the compound layout (T07, 240.1 kB measured: the editor's +0.9 kB)
     // 242.4 kB with mindmaps (T08, 242 kB measured: the editor's +1.5 kB)
-    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 242.4 * KB);
+    // 244.1 kB with rich text labels (243.7 kB measured)
+    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 244.1 * KB);
   }
 }
 
@@ -214,7 +218,8 @@ const rows = [
   // 194.9 kB with the compound layout (T07, 194.5 kB measured: "Reset positions in this group" in the group toolbar's menu, the board menu and Properties)
   // 196.6 kB with mindmaps (T08, 196.2 kB measured: the mindmap module's keys, Page properties, previews per diagram type; its gestures and kinds are lazy)
   // 197.1 kB with the responsive canvas (196.7 kB measured: the editor's +1 kB)
-  ['editor', ['src/editor.ts'], 197.1],
+  // 198.8 kB with rich text labels (198.4 kB measured: the editor's +1.7 kB, the text format menu and the formatting of the selected words)
+  ['editor', ['src/editor.ts'], 198.8],
   // 184.2 kB measured; 197.8 kB with the shape catalogue (197.3 kB measured); 198.2 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 197.8 kB measured: the same code as before, in more chunks, each compressed on its own)
   // 199.2 kB with media in the scene (T03, 198.8 kB measured); 201.9 kB with the icon registry (T04, 201.5 kB measured)
   // 206.9 kB with the insert dock (T05, 206.5 kB measured: the editor's part, and the flowchart's icon and image node ops and palette sections)
@@ -227,7 +232,8 @@ const rows = [
   ['viewer (first mindmap)', ['src/viewer.ts', kindChunk('mindmap')], 72.3],
   // the first mindmap in the editor (T08, 225.7 kB measured): its kinds and the mindmap module's gestures
   // 226.7 kB with the responsive canvas (226.3 kB measured)
-  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap.ts', 'src/editor/modules/mindmap/gestures.ts'], 226.7],
+  // 228.4 kB with rich text labels (228 kB measured)
+  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap.ts', 'src/editor/modules/mindmap/gestures.ts'], 228.4],
   // the English emoji data (T05 §4.5: at most 30 kB), a lazy chunk of its own
   ['emoji data, English (lazy chunk)', ['src/emoji/en.ts'], 30],
   // 240.2 kB with the shape catalogue (239.7 kB measured); 236.2 kB once the shapes beyond the 17 load on demand (T02.9, 235.8 kB measured)
@@ -236,7 +242,8 @@ const rows = [
   // 244 kB with the compound layout (T07, 243.6 kB measured)
   // 245.8 kB with mindmaps (T08, 245.4 kB measured)
   // 246.2 kB with the responsive canvas (245.8 kB measured)
-  ['editor + History opened', ['src/editor.ts', ...HISTORY], 246.2],
+  // 247.9 kB with rich text labels (247.5 kB measured)
+  ['editor + History opened', ['src/editor.ts', ...HISTORY], 247.9],
   // 125.2 kB while the entry re-exported the all-kinds diff
   // 92.5 kB once the per-type diffs left the entry for the diff kinds (90.9 kB measured); 94.6 kB before; 91.5 kB with the shapes on demand (T02.9, 91.1 kB measured)
   // 92.5 kB with media in the scene (T03, 92.1 kB measured); 95.1 kB with the icon registry (T04, 94.7 kB measured)

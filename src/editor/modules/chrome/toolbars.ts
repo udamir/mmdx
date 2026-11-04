@@ -18,7 +18,7 @@ import type { PageToolbarApi, PageToolbarHandle, SequenceLayoutState } from '../
 import type { ArrangeOp, ToolbarApi, StyleToolbarHandle, StyleToolbarOptions } from '../../../ui/style-toolbar.js';
 import { TOOLBAR_CSS } from '../../../ui/styles/toolbar.js';
 import { h } from '../../../ui/h.js';
-import type { EditorCore, Sel } from '../../core.js';
+import type { EditorCore, Sel, TextEditSession } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { saveItemAsPreset, presetPicker } from '../panels/presets.js';
 import { styleWithShapes } from '../../ops/shape.js';
@@ -28,6 +28,8 @@ import { canGroup, groupResetState, resetSelectedGroup } from '../../ops/group.j
 import { LiveEdit } from '../../ops/live.js';
 import { choosePagePreset, pageEff, RATIOS, setPageRatio, setPageSizeMode, setPageValue } from '../../ops/page.js';
 import { LINE_KINDS } from '../canvas/shared.js';
+import { formatsAt, hasMarkup, toggleFormat } from '../../ops/format.js';
+import { labelSpec } from '../../ops/label.js';
 
 export const TOOLBARS_CSS = /* css */ `
 ${TOOLBAR_CSS}
@@ -118,7 +120,8 @@ export const toolbarsModule: EditorModule = {
     const live = new LiveEdit(core);
     const wrap = core.dom.wrap;
 
-    const primary = (): Sel | null => (core.mode.peek() === 'edit' && !core.inlineEditing ? core.selection()[0] ?? null : null);
+    // the item whose text is being edited keeps its toolbar: the text format menu acts on the selected words
+    const primary = (): Sel | null => (core.mode.peek() !== 'edit' ? null : core.inlineEditing ? { ...core.inlineEditing } : core.selection()[0] ?? null);
     const multi = (): boolean => core.selection().length > 1;
     const env = () => styleEnv(core);
 
@@ -204,6 +207,39 @@ export const toolbarsModule: EditorModule = {
     cleanups.push(core.provide('moveSelection', moveSelection));
 
     // ---- the style toolbar
+    /**
+     * What the text format menu formats: the open text editor (its selected words, else its whole text), else the
+     * selected item's whole label; null when the label cannot be rich (a markdown string), where Bold is a style switch.
+     */
+    const textTarget = (): Pick<TextEditSession, 'formats' | 'format'> | null => {
+      if (core.inlineEditing) return core.textEdit?.rich ? core.textEdit : null;
+      const s = primary();
+      if (!s || multi()) return null;
+      const spec = labelSpec(core, s.kind, s.id);
+      if (!spec || !(spec.markdown || spec.canMarkdown)) return null;
+      // a label made bold by its style (the layout metadata or the theme) reads as bold too
+      const key = WEIGHT_KEY[s.kind] ?? 'fontWeight';
+      const weight = (): number => {
+        const w = effectiveValue(env(), s, key);
+        return typeof w === 'number' ? w : w === 'bold' ? 700 : Number(w) || 400;
+      };
+      return {
+        formats: () => {
+          const f = formatsAt(spec.value, 0, 0);
+          return { ...f, b: f.b || weight() >= 600 };
+        },
+        format: (f) => {
+          live.flush();
+          const marked = formatsAt(spec.value, 0, 0).b;
+          if (f === 'b' && !marked && weight() >= 600) {
+            setOverride(key, 400);
+            return;
+          }
+          const r = toggleFormat(spec.value, 0, 0, f);
+          core.applyCode(spec.apply(r.text, spec.markdown || hasMarkup(r.text)), 'Format text', { select: [s] });
+        },
+      };
+    };
     const effRaw = (k: string): unknown => {
       const s = primary();
       if (!s) return undefined;
@@ -348,6 +384,10 @@ export const toolbarsModule: EditorModule = {
           else core.run('enterGroup', s.id);
         },
         del: () => core.run('deleteSelection'),
+        textFormats: () => textTarget()?.formats() ?? null,
+        textFormat: (f) => textTarget()?.format(f),
+        textPartial: () => !!core.textEdit?.partial(),
+        textEditing: () => !!core.inlineEditing,
         order: () => {
           const o = orderInfo();
           return o && o.states.length > 1 ? { index: o.shown ?? o.index, count: o.states.length, labels: o.labels.map((l) => t(`order.${l}`)) } : null;
@@ -611,7 +651,9 @@ export const toolbarsModule: EditorModule = {
         if (styleArgs && core.selection().length) void ensureStyleBar();
         return;
       }
-      const key = core.mode.peek() === 'edit' && !core.inlineEditing ? selKey(core.selection()) + `|${core.tool.peek()}` : '';
+      const te = core.textEdit;
+      const text = core.inlineEditing ? `|text:${te ? `${te.partial()}${JSON.stringify(te.formats())}` : ''}` : '';
+      const key = core.mode.peek() === 'edit' ? selKey(core.inlineEditing ? [core.inlineEditing] : core.selection()) + `|${core.tool.peek()}${text}` : '';
       if (ordering) {
         style.place();
         return;

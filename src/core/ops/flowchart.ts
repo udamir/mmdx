@@ -116,7 +116,7 @@ export function deleteFlow(code: string, model: FlowchartModel, items: readonly 
 export function relabelFlowNode(code: string, model: FlowchartModel, id: string, label: string, md = !!model.nodes.get(id)?.md): CodeResult {
   const n = model.nodes.get(id);
   if (!n) return { code };
-  // a markdown label stays one (its emphasis is part of the text); `md` writes a plain one as one ("Make rich text")
+  // a markdown label stays one (its emphasis is part of the text); `md` writes a plain one as one (once the editor formats it)
   const text = labelText(label, md);
   const block = [...(n.blocks ?? [])].reverse().find((b) => b.entries.some((e) => e.key === 'label'));
   if (block && (n.labelFrom === 'data' || !n.bracket)) return { code: applySplices(code, editBlock(code, block, { label: text }, new Set(['label']))) };

@@ -27,6 +27,7 @@ import type { BoxGeom, GeometryIndex } from '../core/render/types.js';
 import type { SceneNode } from '../core/scene/types.js';
 import type { ItemKind, ItemRef, Rect } from '../core/types.js';
 import { itemKey } from '../core/types.js';
+import type { TextFormat, TextFormats } from './ops/format.js';
 import { HIGHLIGHT_CSS } from '../dom/highlight.js';
 import type { Viewport, WheelMode } from '../dom/viewport.js';
 import { Dialogs, DIALOG_CSS } from '../ui/dialog.js';
@@ -76,6 +77,18 @@ export interface VersionView {
   source: string;
   doc: DiagramDocument;
   model: DiagramModel;
+}
+
+/** What the inline text editor offers the toolbar: its selection's formats, and formatting it. */
+export interface TextEditSession {
+  /** The label can be rich (a markdown string): its words can be bold, italic, underlined and struck. */
+  readonly rich: boolean;
+  /** Part of the text is selected: formats act on it, and what styles only a whole label is off. */
+  partial(): boolean;
+  /** The formats of the selected words, or of the whole text when nothing is selected. */
+  formats(): TextFormats;
+  /** Toggles a format on the selected words, or on the whole text when nothing is selected. */
+  format(f: TextFormat): void;
 }
 
 /** A selected item; `foot` marks the mirrored copy of a participant at the bottom of a sequence diagram. */
@@ -264,6 +277,8 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   foot = false;
   /** An inline text editor is open over this item: no handles around it. */
   inlineEditing: ItemRef | null = null;
+  /** The open inline text editor's formatting (the toolbar's text format menu acts on its selection); null: none open. */
+  textEdit: TextEditSession | null = null;
   /** ER table whose attributes are being edited: drawn as a table with an empty row for a new attribute. */
   tableView: string | null = null;
   /** Item under the pointer (connection dots on hover). */

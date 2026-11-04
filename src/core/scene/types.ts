@@ -18,7 +18,7 @@ export interface TextLine {
   x: number;
   y: number;
   /**
-   * The line as runs: removed and added words (the merged picture of a diff), bold and italic words (markdown labels,
+   * The line as runs: removed and added words (the merged picture of a diff), bold, italic, underlined and struck words (markdown labels,
    * core/text/rich.ts) and inline icons; `text` is then their plain text. Drawn as `<tspan>`s inside the line's
    * `<tspan>` (`class="dx-del"` / `"dx-ins"`, `font-weight`, `font-style`); icon runs draw nothing here, their image
    * is a sibling of the `<text>` (`richText`).
@@ -33,6 +33,10 @@ export interface TextRun {
   mark: 'ins' | 'del' | null;
   bold?: boolean;
   italic?: boolean;
+  /** `<u>…</u>` in a markdown string. */
+  underline?: boolean;
+  /** `<s>…</s>` (or `<del>`, `<strike>`) in a markdown string. */
+  strike?: boolean;
   /** An inline icon: `text` is empty, the run is `size` wide and its image is drawn beside the text. */
   icon?: { href: SafeImageUrl; size: number; name: string };
   /** Where the run starts (a run after an icon in a line with `anchor: 'start'`): a new positioned text chunk. */

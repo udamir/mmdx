@@ -107,52 +107,57 @@ describe('resizing icon and image nodes (§3.6)', () => {
   });
 });
 
-describe('markdown labels in the inline editor (§3.4)', () => {
+describe('rich labels in the inline editor (§3.4)', () => {
   const ta = (core: EditorCore): HTMLTextAreaElement => core.dom.wrap.querySelector<HTMLTextAreaElement>('textarea.inline-edit')!;
-  const press = (t: HTMLTextAreaElement, key: string, mod = false): void =>
-    void t.dispatchEvent(new KeyboardEvent('keydown', { key, ctrlKey: mod, metaKey: mod, bubbles: true, cancelable: true }));
+  const press = (t: HTMLTextAreaElement, key: string, mod = false, shift = false): void =>
+    void t.dispatchEvent(new KeyboardEvent('keydown', { key, ctrlKey: mod, metaKey: mod, shiftKey: shift, bubbles: true, cancelable: true }));
 
-  it('Bold and Italic wrap the selection in ** / * (and take them off again); the label stays a markdown string', async () => {
+  it('formats the selected words (the toolbar\'s menu, ⌘B, ⌘I, ⌘U, ⇧⌘X) and takes them off again; no "Make rich text"', async () => {
     const { core } = await mount('flowchart LR\n  A["`Hello world`"] --> B\n');
     expect(core.run('inlineEdit', { kind: 'node', id: 'A' })).toBe(true);
     const t = ta(core);
-    const bar = core.dom.wrap.querySelector('.inline-md')!;
-    expect(Array.from(bar.querySelectorAll('button')).map((b) => b.textContent)).toEqual(['B', 'I']);
+    expect(core.dom.wrap.querySelector('.inline-md')).toBeNull();
+    const te = core.textEdit!;
+    expect(te.rich).toBe(true);
+    // the editor opens with the whole text selected: not a part of it
+    expect(te.partial()).toBe(false);
     t.setSelectionRange(6, 11);
-    bar.querySelector<HTMLButtonElement>('.md-b')!.click();
+    expect(te.partial()).toBe(true);
+    te.format('b');
     expect(t.value).toBe('Hello **world**');
     expect([t.selectionStart, t.selectionEnd]).toEqual([8, 13]);
-    bar.querySelector<HTMLButtonElement>('.md-b')!.click();
+    expect(te.formats()).toEqual({ b: true, i: false, u: false, s: false });
+    te.format('b');
     expect(t.value).toBe('Hello world');
     t.setSelectionRange(0, 5);
     press(t, 'i', true);
-    expect(t.value).toBe('*Hello* world');
+    press(t, 'u', true);
+    expect(t.value).toBe('*<u>Hello</u>* world');
+    t.setSelectionRange(t.value.length - 5, t.value.length);
+    press(t, 'X', true, true);
+    expect(t.value).toBe('*<u>Hello</u>* <s>world</s>');
     press(t, 'Enter');
-    expect(core.code).toContain('A["`*Hello* world`"]');
+    expect(core.textEdit).toBeNull();
+    expect(core.code).toContain('A["`*<u>Hello</u>* <s>world</s>`"]');
     await valid(core.code);
   });
 
-  it('a plain label offers "Make rich text": the edit is written as a markdown string', async () => {
+  it('nothing selected formats the whole text; a plain label becomes a markdown string only once it is formatted', async () => {
     const { core } = await mount('flowchart LR\n  A -->|"plain"| B\n');
     const edge = core.model.type === 'flowchart' ? core.model.edges[0]!.id : '';
     expect(core.run('inlineEdit', { kind: 'edge', id: edge })).toBe(true);
-    const bar = core.dom.wrap.querySelector('.inline-md')!;
-    const rich = bar.querySelector<HTMLButtonElement>('.md-rich')!;
-    expect(rich.textContent).toBe('Make rich text');
-    rich.click();
-    expect(bar.querySelector('.md-b')).not.toBeNull();
     const t = ta(core);
-    t.setSelectionRange(0, 5);
-    press(t, 'b', true);
+    t.setSelectionRange(2, 2);
+    core.textEdit!.format('b');
+    expect(t.value).toBe('**plain**');
     press(t, 'Enter');
     expect(core.code).toContain('A -->|"`**plain**`"| B');
     await valid(core.code);
-    // the plain label unchanged but made rich is written too
+    // an edit without formatting keeps a plain label plain
     expect(core.run('inlineEdit', { kind: 'node', id: 'B' })).toBe(true);
-    core.dom.wrap.querySelector<HTMLButtonElement>('.inline-md .md-rich')!.click();
+    ta(core).value = 'Bee';
     press(ta(core), 'Enter');
-    expect(core.code).toContain('B["`B`"]');
-    await valid(core.code);
+    expect(core.code).toContain('B["Bee"]');
   });
 });
 

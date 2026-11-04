@@ -91,7 +91,7 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
     }
     return null;
   },
-  // markdown labels (T06): the text with its `**` / `*` as typed; "Make rich text" rewrites a plain label as one
+  // markdown labels (T06): the text with its `**` / `*` as typed; a plain label is rewritten as one once it is formatted
   text(M, { kind, id }) {
     if (kind === 'node') {
       const n = M.nodes.get(id);

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Flowchart content ops (T06): markdown labels written back as markdown strings and "Make rich text", "Convert to icon
+// Flowchart content ops (T06): markdown labels written back as markdown strings, a plain label written as one, "Convert to icon
 // node", an icon or image node's size in its node data (what a resize writes), invisible links in copies, edge-id
 // metadata following the code, the `title` fix, and the Mermaid Chart sample: every output parsed by stock Mermaid
 // 11.17, the sample unchanged by a no-op edit.
@@ -42,7 +42,7 @@ describe('markdown labels (§3.4)', () => {
     for (const x of [a, e, g, c]) await valid(x);
   });
 
-  it('"Make rich text": a plain label written as a markdown string; the copy of a markdown node stays one', async () => {
+  it('a plain label written as a markdown string (once formatted); the copy of a markdown node stays one', async () => {
     const code = 'flowchart LR\n  A["plain"] -->|"no"| B\n  subgraph S ["Plain"]\n    B\n  end';
     const m = P(code);
     const a = relabelFlowNode(code, m, 'A', '**rich**', true).code;

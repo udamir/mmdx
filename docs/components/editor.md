@@ -260,7 +260,7 @@ From the dock, an image adds a flowchart **image node** whose caption is the fil
 
 ### Markdown labels
 
-A flowchart label written as a Mermaid markdown string (`` A["`**Bold** text`"] ``) is drawn with its emphasis and edited with its `**` and `*` as typed: above the text box on the canvas, **B** and **I** (`⌘B`, `⌘I`) wrap the selected words in `**` or `*`, or take them off again. A plain label has **Make rich text** there instead: the label is then written as a markdown string, and B and I appear. The floating toolbar's Bold styles a whole plain label, in the layout metadata, as before. See [Flowchart content → Markdown labels](/guide/flowchart#markdown-labels).
+Flowchart and mindmap labels are rich text: a Mermaid markdown string (`` A["`**Bold** text`"] ``) is drawn with its emphasis, underline (`<u>…</u>`) and strikethrough (`<s>…</s>`), and edited with its marks as typed. The floating toolbar's **B** opens the text format menu — bold, italic, underline, strikethrough (`⌘B`, `⌘I`, `⌘U`, `⇧⌘X` in the text box) — which formats the selected words, or takes the format off them again; with no words selected, or the label not being edited, it formats the whole text (a label made bold by its style reads as bold, and Bold then turns the style off). While some words are selected, the font, size, alignment, link and text colour are off, as Mermaid styles those only for a whole label. A plain label is written as a markdown string once it has formatting; an edit without formatting keeps it plain. Labels of the other diagram types keep Bold as a switch of the item's style. See [Flowchart content → Markdown labels](/guide/flowchart#markdown-labels).
 
 ### Emoji
 
@@ -287,7 +287,7 @@ A mindmap is edited like an outline: the structure is the indentation of the Mer
 
 - **Handles**: the selected node has a `+` on its outer side, which adds a child, and, when it has children, a chevron beside it that folds or unfolds the branch. A folded branch shows a +N badge with the number of hidden nodes; clicking it unfolds the branch. Folding is stored (metadata `collapsed`), so a viewer opens the map folded the same way.
 - **Dragging**: drop a node onto another to make it its last child, or between two siblings to put it there (a line shows where). A first-level branch dropped on the other side of the root moves to that side (metadata `side`). Alt-drag drops a copy. The root does not move.
-- **Text**: the text is written in the node's own delimiters, and quoted only when it needs it (`["a (b)"]`); a bare node whose new text cannot stand alone is written in Mermaid's other form of the default shape, `(-"…"-)`. Every mindmap label is drawn as markdown; Bold, Italic and **Make rich text** above the text box work as for [flowchart labels](#markdown-labels) and write a markdown string.
+- **Text**: the text is written in the node's own delimiters, and quoted only when it needs it (`["a (b)"]`); a bare node whose new text cannot stand alone is written in Mermaid's other form of the default shape, `(-"…"-)`. Every mindmap label is drawn as markdown; the text format menu works as for [flowchart labels](#markdown-labels) and writes a markdown string.
 - **Shapes**: the Shapes menu lists Mermaid's seven mindmap shapes and adds a node of that shape as a child of the selected node (else of the node nearest the drop, else the root; an empty map gets its root). The toolbar's shape picker writes the delimiters of those seven; any other shape of the catalogue is kept in the layout metadata and drawn by mmdx only.
 - **Icons and images**: the Icons tool adds a node with an icon token at the start of its text (`fa:fa-book New idea`), or sets the icon of the selected node; the Image tool adds a node with a picture, or sets the selected node's, in metadata `img` (Mermaid's mindmap has no image syntax).
 - **Copies**: duplicated and pasted branches get new written ids where theirs are taken (`api` becomes `api_2`), and duplicates keep their originals' looks. Pasting indented text, a Markdown list (`-`, `*`, `+`, `1.`) or a Mermaid mindmap onto a selected node adds it as a subtree of that node: one node per line of text or list item, a pasted mindmap's nodes as they are written.
@@ -336,7 +336,7 @@ Shortcuts work while the focus is inside the editor; `?` lists those that apply 
 | `V`, `H`, `S`, `P` | Pointer, Hand, Shapes menu, pen |
 | `G` | Image ([insert dock](#insert-dock)) |
 | `⌘;` | Emoji, while editing text |
-| `⌘B`, `⌘I` | Bold, italic of the selected words, while editing a markdown label |
+| `⌘B`, `⌘I`, `⌘U`, `⇧⌘X` | Bold, italic, underline, strikethrough of the selected words (the whole text when none is selected), while editing a flowchart or mindmap label |
 | `C`, `I`, `L`, `⇧H` | Code, Properties, Layers panels; History |
 | `F`, `0` | Fit |
 | `+` / `=`, `-` | Zoom in, zoom out |

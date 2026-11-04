@@ -51,9 +51,9 @@ flowchart LR
   on two lines`"] -->|"`**yes**`"| B
 ````
 
-A label written as a markdown string (backticks inside the quotes) draws `**bold**`, `__bold__`, `*italic*` and `_italic_`, breaks lines where the string does (a line break in the code, `<br/>`), and wraps by itself at 200 px — or at the node's width when it has one stored. Plain labels stay plain text: their stars are characters, as in Mermaid 11.13 and later. In the frontmatter, `markdownAutoWrap: false` turns the wrapping off and `flowchart.wrappingWidth` sets its width.
+A label written as a markdown string (backticks inside the quotes) draws `**bold**`, `__bold__`, `*italic*` and `_italic_`, underlines `<u>…</u>` and strikes `<s>…</s>` (also `<del>`, `<strike>`: the inline HTML Mermaid passes through), breaks lines where the string does (a line break in the code, `<br/>`), and wraps by itself at 200 px — or at the node's width when it has one stored. Plain labels stay plain text: their stars are characters, as in Mermaid 11.13 and later. In the frontmatter, `markdownAutoWrap: false` turns the wrapping off and `flowchart.wrappingWidth` sets its width.
 
-In the editor, a markdown label is edited with its `**` and `*` as typed: the Bold and Italic buttons above the text box (`⌘B`, `⌘I`) wrap the selected words, and on a plain label **Make rich text** turns it into a markdown string. The floating toolbar's Bold still styles a whole plain label (in the layout metadata).
+In the editor, labels are rich text, edited with their marks as typed. The floating toolbar's **B** opens the text format menu — bold, italic, underline, strikethrough (`⌘B`, `⌘I`, `⌘U`, `⇧⌘X` while editing) — which formats the selected words, or the whole text when none is selected or the label is not being edited. While some words are selected, the font, size, alignment, link and text colour are off: Mermaid styles those only for a whole label. A plain label is written as a markdown string once it has formatting.
 
 ## Links
 

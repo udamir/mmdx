@@ -20,7 +20,7 @@ export interface LabelSpec {
   title: string;
   /** The text is a markdown string (the inline editor's Bold and Italic wrap the selection, T06). */
   markdown: boolean;
-  /** The text can be turned into a markdown string ("Make rich text"). */
+  /** The text can be a markdown string: the editor formats its words (rich text). */
   canMarkdown: boolean;
   /**
    * Rewrites the code with a new text, against the document as it is when called (an edit typed while a remote update
@@ -62,7 +62,7 @@ export function labelSpec(core: EditorCore, kind: ItemKind, id: string): LabelSp
       if (!core.store.exists({ kind, id })) return null;
       const now = textOf(core, kind, id);
       if (!now || (POSITIONAL.has(kind) && now.value !== at.value)) return null;
-      // a shape the item keeps only in metadata moves to the code with the edit (T02.6); "Make rich text" writes a markdown string
+      // a shape the item keeps only in metadata moves to the code with the edit (T02.6); formatted text writes a markdown string
       const res = markdown && !now.markdown && now.writeMarkdown ? now.writeMarkdown(v) : now.write(v);
       return shapeDoc(core, [{ kind, id }], null, { code: res.code, meta: core.meta }) ?? res;
     },

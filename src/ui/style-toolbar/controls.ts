@@ -47,8 +47,24 @@ export function setSize(x: StyleCtx, sp: KindSpec, v: number): void {
   else x.api.set(sp.size ?? 'fontSize', v);
 }
 
+/** Controls that style a whole label only: off while part of its text is selected. */
+const WHOLE_LABEL: ReadonlySet<ToolbarControl> = new Set(['font', 'size', 'align', 'link', 'textColor']);
+
 /** The bar button of control `c` (an empty span when the host does not offer it). */
 export function control(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLElement {
+  const el = build(c, sp, x);
+  if (WHOLE_LABEL.has(c) && x.api.textPartial?.()) {
+    const tip = x.t('tb.wholeOnly');
+    for (const b of [el, ...el.querySelectorAll<HTMLElement>('button, input')]) {
+      if (b instanceof HTMLButtonElement || b instanceof HTMLInputElement) b.disabled = true;
+    }
+    el.title = tip;
+    el.classList.add('off');
+  }
+  return el;
+}
+
+function build(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLElement {
   const { t, api } = x;
   const e = (k: string): unknown => api.eff(k);
 
@@ -113,6 +129,13 @@ export function control(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLEleme
       return wrap;
     }
     case 'bold': {
+      // a label that can be rich: the text format menu (bold, italic, underline, strike)
+      const f = api.textFormats?.();
+      if (f) {
+        const b = button('bold', svgIcon('bold'), t('tb.format'), true);
+        if (f.b || f.i || f.u || f.s) b.classList.add('active');
+        return b;
+      }
       const key = sp.bold ?? 'fontWeight';
       const on = (num(e(key)) ?? (e(key) === 'bold' ? 700 : 400)) >= 600;
       return toggleKey('bold', key, 'bold', t('tb.bold'), on, 400, 700);

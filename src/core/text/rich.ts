@@ -1,6 +1,6 @@
 // Rich text runs (T03): a label as runs of plain, bold and italic text and inline icons, measured and wrapped run by
 // run. `parseInline` reads Mermaid's markdown strings (`**bold**`, `*italic*`, `_italic_`, as Mermaid's markdown
-// labels) and icon tokens (`fa:fa-car`, `pack:name`), which a resolver the caller passes turns into images (the icon
+// labels, and the inline HTML Mermaid passes through: `<u>underline</u>`, `<s>`, `<del>` or `<strike>` struck) and icon tokens (`fa:fa-car`, `pack:name`), which a resolver the caller passes turns into images (the icon
 // registry, T04); a token the resolver does not know stays text. A plain label is one run, and wraps exactly as
 // `wrap()` wraps it, so nothing changes for plain labels. `render/rich-text.ts` draws the lines.
 //
@@ -23,7 +23,7 @@ export interface IconRef {
 export type IconResolver = (token: string) => IconRef | null;
 
 export interface InlineOptions {
-  /** The label is a Mermaid markdown string: read `**bold**`, `__bold__`, `*italic*` and `_italic_`. */
+  /** The label is a Mermaid markdown string: read `**bold**`, `__bold__`, `*italic*`, `_italic_`, `<u>…</u>` and `<s>…</s>`. */
   markdown?: boolean;
   /** Turns icon tokens into icon runs (T04's registry). Without it, tokens are text. */
   icons?: IconResolver;
@@ -45,7 +45,18 @@ interface Delim {
   closes: ('b' | 'i')[];
 }
 
-type Token = string | Delim;
+/** An inline HTML tag Mermaid's markdown passes through: underline, or struck text. */
+interface Tag {
+  tag: 'u' | 's';
+  end: boolean;
+}
+
+type Token = string | Delim | Tag;
+
+const isDelim = (t: Token): t is Delim => typeof t !== 'string' && 'ch' in t;
+
+/** `<u>`, `</u>`, `<s>`, `<del>`, `<strike>` and their ends (case-insensitive). */
+const TAG = /^<(\/?)(u|s|del|strike)>/i;
 
 const SPACE = /\s/u;
 const PUNCT = /[\p{P}\p{S}]/u;
@@ -59,6 +70,14 @@ function tokenize(s: string): Token[] {
     if (c === '\\' && i + 1 < s.length && /[*_\\]/.test(s[i + 1]!)) {
       buf += s[i + 1];
       i += 2;
+      continue;
+    }
+    const tag = c === '<' ? TAG.exec(s.slice(i, i + 9)) : null;
+    if (tag) {
+      if (buf) out.push(buf);
+      buf = '';
+      out.push({ tag: tag[2]!.toLowerCase() === 'u' ? 'u' : 's', end: tag[1] === '/' });
+      i += tag[0].length;
       continue;
     }
     if (c !== '*' && c !== '_') {
@@ -86,12 +105,12 @@ function tokenize(s: string): Token[] {
 function pairEmphasis(tokens: Token[]): void {
   const dead = new Set<Delim>();
   tokens.forEach((closer, ci) => {
-    if (typeof closer === 'string' || !closer.close) return;
+    if (!isDelim(closer) || !closer.close) return;
     while (closer.n > 0) {
       let oi = -1;
       for (let k = ci - 1; k >= 0; k--) {
         const o = tokens[k]!;
-        if (typeof o === 'string' || dead.has(o) || o.ch !== closer.ch || !o.open || o.n === 0) continue;
+        if (!isDelim(o) || dead.has(o) || o.ch !== closer.ch || !o.open || o.n === 0) continue;
         // the rule of three: `*a**b*` does not pair the single with the double
         if ((o.close || closer.open) && (o.len + closer.len) % 3 === 0 && (o.len % 3 !== 0 || closer.len % 3 !== 0)) continue;
         oi = k;
@@ -107,13 +126,14 @@ function pairEmphasis(tokens: Token[]): void {
       // delimiters between them can no longer pair (they stay text)
       for (let k = oi + 1; k < ci; k++) {
         const d = tokens[k]!;
-        if (typeof d !== 'string') dead.add(d);
+        if (isDelim(d)) dead.add(d);
       }
     }
   });
 }
 
-const sameStyle = (a: TextRun, b: TextRun): boolean => !a.icon && !b.icon && a.mark === b.mark && !a.bold === !b.bold && !a.italic === !b.italic && b.x === undefined;
+const sameStyle = (a: TextRun, b: TextRun): boolean =>
+  !a.icon && !b.icon && a.mark === b.mark && !a.bold === !b.bold && !a.italic === !b.italic && !a.underline === !b.underline && !a.strike === !b.strike && b.x === undefined;
 
 /** Appends text in a style, merging with the last run when it has the same style. */
 function push(out: TextRun[], r: TextRun): void {
@@ -123,19 +143,21 @@ function push(out: TextRun[], r: TextRun): void {
   else out.push(r);
 }
 
-const styled = (text: string, bold: boolean, italic: boolean): TextRun => {
+const styled = (text: string, bold: boolean, italic: boolean, underline: boolean, strike: boolean): TextRun => {
   const r: TextRun = { text, mark: null };
   if (bold) r.bold = true;
   if (italic) r.italic = true;
+  if (underline) r.underline = true;
+  if (strike) r.strike = true;
   return r;
 };
 
-/** Markdown emphasis → runs (unpaired delimiters stay text). */
+/** Markdown emphasis and the underline / strike tags → runs (unpaired delimiters stay text; an unclosed tag lasts to the end, as in HTML). */
 function emphasis(s: string): TextRun[] {
   const tokens = tokenize(s);
   pairEmphasis(tokens);
   const out: TextRun[] = [];
-  let b = 0, i = 0;
+  let b = 0, i = 0, u = 0, st = 0;
   const step = (styles: readonly ('b' | 'i')[], d: number): void => {
     for (const c of styles) {
       if (c === 'b') b += d;
@@ -144,12 +166,17 @@ function emphasis(s: string): TextRun[] {
   };
   for (const t of tokens) {
     if (typeof t === 'string') {
-      push(out, styled(t, b > 0, i > 0));
+      push(out, styled(t, b > 0, i > 0, u > 0, st > 0));
+      continue;
+    }
+    if (!isDelim(t)) {
+      if (t.tag === 'u') u = Math.max(0, u + (t.end ? -1 : 1));
+      else st = Math.max(0, st + (t.end ? -1 : 1));
       continue;
     }
     // the styles it closes first, then its unmatched characters as text, then the styles it opens
     step(t.closes, -1);
-    if (t.n) push(out, styled(t.ch.repeat(t.n), b > 0, i > 0));
+    if (t.n) push(out, styled(t.ch.repeat(t.n), b > 0, i > 0, u > 0, st > 0));
     step(t.opens, 1);
   }
   return out;
@@ -213,7 +240,7 @@ export const runsText = (runs: readonly TextRun[]): string => runs.map((r) => r.
 export const runsLabel = (runs: readonly TextRun[]): string => runs.map((r) => (r.icon ? r.icon.name : r.text)).join('').trim();
 
 /** Runs that are one plain text (no styling, no icons): they wrap as plain text does. */
-const isPlain = (runs: readonly TextRun[]): boolean => runs.every((r) => !r.icon && !r.bold && !r.italic && !r.mark && r.x === undefined);
+const isPlain = (runs: readonly TextRun[]): boolean => runs.every((r) => !r.icon && !r.bold && !r.italic && !r.underline && !r.strike && !r.mark && r.x === undefined);
 
 interface Word {
   /** The space before the word (in its run's style), null at a paragraph's start and around icons. */
