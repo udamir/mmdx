@@ -157,7 +157,7 @@ describe('images', () => {
     expect(add.disabled).toBe(false);
     add.click();
     const id = e.core.primary()!.id;
-    expect(e.core.code).toContain(`  ${id}["team photo"]\n  ${id}@{ img: "https://example.com/team-photo.png", h: 200, w: 200, pos: "b" }`);
+    expect(e.core.code).toContain(`  ${id}["team photo"]\n  ${id}@{ img: "https://example.com/team-photo.png", h: 200, w: 200, pos: "b", constraint: "on" }`);
     await valid(e.core.code);
   });
 
@@ -170,7 +170,7 @@ describe('images', () => {
     btn.dispatchEvent(pev('pointerup', { x: 0, y: 0 }));
     await settle();
     const id = e.core.primary()!.id;
-    expect(e.core.code).toContain(`  ${id}["Image"]\n  ${id}@{ img: "", h: 200, w: 200, pos: "b" }`);
+    expect(e.core.code).toContain(`  ${id}["Image"]\n  ${id}@{ img: "", h: 200, w: 200, pos: "b", constraint: "on" }`);
     // no popover, no label editing: the node is selected
     expect($('.ins-pop')).toBeNull();
     expect(e.core.model.type === 'flowchart' && e.core.model.nodes.get(id)?.shape).toBe('image');
@@ -185,7 +185,7 @@ describe('images', () => {
     expect($<HTMLInputElement>('.imp-url')!.value).toBe('');
     input($<HTMLInputElement>('.imp-url')!, 'https://example.com/a.png');
     key('Enter', $('.imp-url')!);
-    expect(e.core.code).toContain(`  ${id}@{ img: "https://example.com/a.png", h: 200, w: 200, pos: "b" }`);
+    expect(e.core.code).toContain(`  ${id}@{ img: "https://example.com/a.png", h: 200, w: 200, pos: "b", constraint: "on" }`);
     // the G key adds another one in the middle
     key('g');
     await settle();
@@ -201,7 +201,7 @@ describe('images', () => {
     await settle();
     input($<HTMLInputElement>('.imp-url')!, 'https://example.com/a.png');
     key('Enter', $('.imp-url')!);
-    expect(e.core.code).toBe('flowchart LR\n  A["Photo"]\n  A@{ img: "https://example.com/a.png", h: 200, w: 200, pos: "b" }\n');
+    expect(e.core.code).toBe('flowchart LR\n  A["Photo"]\n  A@{ img: "https://example.com/a.png", h: 200, w: 200, pos: "b", constraint: "on" }\n');
     e.core.run('openImageTool', null, {});
     await settle();
     expect($<HTMLInputElement>('.imp-url')!.value).toBe('https://example.com/a.png');
@@ -337,7 +337,7 @@ describe('selection toolbar and Properties', () => {
     expect(controls()).not.toContain('media');
   });
 
-  test('a picture\'s source and settings: its fit and aspect lock, the label position', async () => {
+  test('a picture\'s source and settings: its fit and the label position; the aspect lock is in Properties only', async () => {
     const e = mount('flowchart LR\n  A["Photo"]\n  A@{ img: "https://example.com/a.png", h: 200, w: 200, pos: "b" }\n');
     await settle();
     e.core.select([{ kind: 'node', id: 'A' }]);
@@ -348,12 +348,7 @@ describe('selection toolbar and Properties', () => {
     expect([...$$('.mtb-pop .mtb-choice')].map((b) => b.getAttribute('title') ?? b.textContent)).toEqual(['Replace image…', 'Use an icon instead…']);
     $<HTMLButtonElement>('.mtb [data-c="media"]')!.click();
     expect([...$$('.mtb-pop .mtb-choice')].map((b) => b.getAttribute('title') ?? b.textContent)).toEqual(['Contain', 'Cover', 'Stretch', 'Above', 'Below']);
-    // the aspect lock is a checkbox row of its own (not the 16 px tick box of the presets list)
-    const lock = $<HTMLInputElement>('.mtb-pop .mtb-checkrow input[type="checkbox"]')!;
-    expect(lock.closest('label')!.textContent).toBe('Keep aspect ratio');
-    lock.checked = true;
-    lock.dispatchEvent(new Event('change'));
-    expect(e.core.code).toContain('constraint: "on"');
+    expect($('.mtb-pop input[type="checkbox"]')).toBeNull();
   });
 
   test('Properties: the Image section of an image node writes its size and aspect lock', async () => {

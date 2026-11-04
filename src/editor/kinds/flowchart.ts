@@ -171,7 +171,7 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
   // image nodes in Mermaid Chart's style: `n4["Photo"]` and `n4@{ img: "https://…", h: 100, w: 100, pos: "b" }`
   // an empty URL is the placeholder (`img: ""`): the node is selected, its picture chosen from the toolbar or Properties
   addImage: (core, M, url, pt) =>
-    placeNew(core, addFlowMediaNode(core.code, M, { label: imageLabel(url), data: { img: url, h: IMAGE_NODE_SIZE, w: IMAGE_NODE_SIZE, pos: 'b' }, group: groupAt(core, pt) }), pt, 'Add image', undefined, !!url),
+    placeNew(core, addFlowMediaNode(core.code, M, { label: imageLabel(url), data: { img: url, h: IMAGE_NODE_SIZE, w: IMAGE_NODE_SIZE, pos: 'b', constraint: 'on' }, group: groupAt(core, pt) }), pt, 'Add image', undefined, !!url),
   media(M, ref, core) {
     if (ref.kind !== 'node') return null;
     const m = flowMedia(M, ref.id, isIconOf(core));

@@ -167,6 +167,8 @@ export function setFlowImage(code: string, model: FlowchartModel, id: string, ur
   if (d.h === undefined) patch['h'] = IMAGE_NODE_SIZE;
   if (d.w === undefined) patch['w'] = IMAGE_NODE_SIZE;
   if (d.pos === undefined) patch['pos'] = 'b';
+  // a picture keeps its aspect ratio unless Properties turns the lock off (Mermaid's default is off: it is written)
+  if (d.constraint === undefined) patch['constraint'] = 'on';
   return writeNodeData(code, model, id, patch);
 }
 

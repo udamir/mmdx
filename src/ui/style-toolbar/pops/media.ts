@@ -1,5 +1,5 @@
 // The popovers of an image node (T05 §4.6), whose source is a picture or an icon: the source, and the settings — an
-// icon's frame or a picture's fit and aspect lock, and the label's position; sizes are in Properties. Values come from `api.media()`, writes go through
+// icon's frame or a picture's fit, and the label's position; the aspect lock and sizes are in Properties. Values come from `api.media()`, writes go through
 // `api.setMedia` (the editor: the item's node data in the Mermaid code).
 import { h } from '../../h.js';
 import { choiceRow, popLabel } from '../../toolbar-kit.js';
@@ -32,7 +32,7 @@ export function sourcePop(f: Fill): void {
   }, (v) => svgIcon(v === 'icon' ? 'icon' : 'media'), (v) => (v === 'icon' ? (m.node === 'icon' ? t('tb.replaceIcon') : t('tb.useIcon')) : m.node === 'image' ? t('tb.replaceImage') : t('tb.useImage'))));
 }
 
-/** An image node's settings, per its source: an icon's frame or a picture's fit and aspect lock, and the label's position. */
+/** An image node's settings, per its source: an icon's frame or a picture's fit, and the label's position (the aspect lock and sizes are in Properties). */
 export function mediaPop(f: Fill): void {
   const { pop, x, again } = f;
   const { t, api } = x;
@@ -46,10 +46,6 @@ export function mediaPop(f: Fill): void {
     pop.append(popLabel(t('tb.iconForm')), choiceRow(['', 'square', 'circle', 'rounded'], m.form ?? '', (v) => set({ form: v || null }), (v) => framePreview(v, 28), (v) => t(`tb.form.${v || 'none'}`)));
   } else {
     pop.append(popLabel(t('tb.fit')), texts(['contain', 'cover', 'stretch'], m.fit ?? 'contain', (v) => t(`tb.fit.${v}`), (v) => set({ fit: v })));
-    const lock = h('input', { type: 'checkbox' });
-    lock.checked = m.constraint === 'on';
-    lock.addEventListener('change', () => set({ constraint: lock.checked ? 'on' : null }));
-    pop.append(h('label', { class: 'mtb-checkrow' }, lock, h('span', null, t('tb.aspect'))));
   }
   pop.append(popLabel(t('tb.labelPos')), choiceRow(['t', 'b'], m.pos ?? 'b', (v) => set({ pos: v }), (v) => svgIcon(v === 't' ? 'labelTop' : 'labelBottom'), (v) => t(v === 't' ? 'tb.labelAbove' : 'tb.labelBelow')));
 }
