@@ -92,6 +92,7 @@ Each attribute sets the `EditorOptions` option of the same name in camelCase (`r
 | `theme-dark` | — | `string` | — | The theme while the chrome is dark; `auto` picks the dark theme linked to `theme` |
 | `ui` | — | `'light' \| 'dark' \| 'auto'` | `auto` | Chrome colour scheme |
 | `compact` | — | `boolean \| 'auto'` | `auto` | The compact chrome (smaller, icon-only); automatic on small hosts |
+| `wheel` | — | `'ctrl' \| 'always' \| 'zoom' \| 'never'` | `always` | The mouse wheel on the canvas: `always` pans (⌘ / Ctrl + wheel zooms), `zoom` zooms at the pointer (Shift + wheel pans); see the viewer's `wheel` |
 | — | `modules` | `readonly EditorModule[]` | `DEFAULT_MODULES` | The editor's feature modules (advanced: add or replace modules) |
 | — | `themeSource` | `ThemeSource` | `configure({ themeSource })` | Where themes the page has not loaded come from |
 | — | — | `toolbar: 'floating' \| 'none'` | `floating` | `DiagramEditor` option, read when the editor is created; `none` turns off the floating style toolbar |

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DiagramCanvas } from '../../src/dom/canvas.js';
 import { StrokeStore } from '../../src/dom/pen.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
@@ -79,6 +79,38 @@ describe('DiagramCanvas', () => {
     expect(b.view.peek().k).toBeCloseTo(v.k * 2);
     a.restoreView(snap);
     expect(a.view.peek().k).toBeCloseTo(v.k);
+  });
+
+  it('a wheel zoom shows as a CSS scale first and is written to the scene once it rests', () => {
+    vi.useFakeTimers();
+    // the engine's box of the svg: scaled by its CSS transform, as a browser reports it
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      const w = (this as HTMLElement).style?.transform ? 800 : 400;
+      return { x: 0, y: 0, left: 0, top: 0, width: w, height: 300, right: w, bottom: 300, toJSON: () => ({}) } as DOMRect;
+    });
+    try {
+      const host = document.createElement('div');
+      document.body.append(host);
+      const c = new DiagramCanvas(host, { interaction: 'pan-zoom', wheel: 'always' });
+      c.setBounds({ x: 0, y: 0, w: 200, h: 100 }, { fit: true });
+      const before = c.vp.getAttribute('transform');
+      const k0 = c.view.peek().k;
+      c.svg.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, ctrlKey: true, clientX: 100, clientY: 100, cancelable: true }));
+      expect(c.view.peek().k).toBeGreaterThan(k0);
+      expect(c.vp.getAttribute('transform')).toBe(before);
+      expect(c.svg.style.transform).toContain('scale(');
+      expect(c.svg.getBoundingClientRect().width).toBe(400);
+      vi.advanceTimersByTime(200);
+      expect(c.svg.style.transform).toBe('');
+      const v = c.view.peek();
+      expect(c.vp.getAttribute('transform')).toBe(`translate(${v.tx},${v.ty}) scale(${v.k})`);
+      c.zoomBy(2); // not a wheel step: written at once
+      expect(c.vp.getAttribute('transform')).toContain(`scale(${c.view.peek().k})`);
+      c.destroy();
+    } finally {
+      spy.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it('a destroyed linked canvas is unlinked from the other one; onDestroy hooks run once', () => {

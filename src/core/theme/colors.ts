@@ -147,11 +147,17 @@ export function createColorResolver(theme: Pick<ResolvedTheme, 'palette' | 'base
   }
   // prototype order: the theme's own palette, then the diagram palette, then baseline names the theme lacks
   const merged: Record<string, string> = { ...theme.basePalette, ...own, ...theme.palette };
+  // a render resolves the same few colours for every item: remember them (bounded: values come from the document)
+  const memo = new Map<string, string | undefined>();
   return (v) => {
     if (typeof v !== 'string') return undefined;
+    if (memo.has(v)) return memo.get(v);
     const s = v.trim();
     const r = s[0] === '@' ? resolveColor(s, merged) : s;
-    return isColorLiteral(r) ? r.trim() : undefined;
+    const out = isColorLiteral(r) ? r.trim() : undefined;
+    if (memo.size >= 1024) memo.clear();
+    memo.set(v, out);
+    return out;
   };
 }
 

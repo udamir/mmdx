@@ -9,6 +9,19 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project f
 - **`<mmdx-studio>` keeps no diagram in the URL**: no `#d=…` in the address bar and no Share button; `persist` takes only `local`.
 - **`encodeHash` and `decodeHash` are removed** from `@mmdx/studio` and `@mmdx/studio/adapters`.
 
+### Added
+
+- **`wheel: 'zoom'`** (viewport, `<mmdx-editor wheel>`, `<mmdx-studio wheel>`): the mouse wheel zooms at the pointer; Shift+wheel and a sideways scroll pan.
+
+### Performance
+
+- A wheel or pinch zoom shows as a CSS scale of the canvas and writes the scene transform once the zoom rests (no text layout per step).
+- The patcher skips subtrees whose scene nodes did not change, and attributes whose raw value did not change.
+- `--dx-inv` is set only while diff badges are shown (it restyled every element on every zoom).
+- The code editor rebuilds only the lines that changed, and lines off screen skip layout while unwrapped.
+- Roving tab stops update when the page is idle; the style toolbar is not placed while an item is dragged; multi-selection marks the scene in one pass.
+- Colour resolution is remembered per theme and diagram palette.
+
 ## 0.3.0 — Hooks for sandboxed hosts
 
 Hooks for hosts that embed mmdx in sandboxed iframes (no `allowfullscreen`, no `localStorage`, no fetches, no module workers from URLs).

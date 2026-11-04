@@ -12,7 +12,7 @@ const key = (el: Element, k: string): KeyboardEvent => {
   return ev;
 };
 const mk = (f: string): HTMLButtonElement => createIconButton({ icon: null, text: f, label: f, f }).el;
-const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+const tick = (): Promise<void> => new Promise((r) => requestAnimationFrame(() => r())); // the tab stop follows when the page is idle (jsdom: the next frame)
 
 afterEach(() => document.body.replaceChildren());
 

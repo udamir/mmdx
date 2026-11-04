@@ -15,6 +15,8 @@ import { Viewport, type ViewState, type WheelMode } from './viewport.js';
 import { signal, type Signal } from '../ui/signal.js';
 
 const NS = 'http://www.w3.org/2000/svg';
+/** A zoom shown as a CSS scale is written to the scene this long after its last step. */
+const ZOOM_SETTLE_MS = 150;
 
 /** Styles of the canvas layers every product adopts (ink strokes, the pen cursor). */
 export const CANVAS_CSS = /* css */ `
@@ -93,6 +95,11 @@ export class DiagramCanvas {
   private destroyed = false;
   private penActive = false;
   private insetsOverride: (() => Insets) | null = null;
+  /** The view written to the `vp` transform; a zoom burst shows the rest as a CSS scale of the svg (see onChange). */
+  private applied: ViewState = { k: 1, tx: 0, ty: 0 };
+  /** The svg's box before the CSS scale, while one is shown (what every reader of the svg's box gets meanwhile). */
+  private unscaled: DOMRect | null = null;
+  private settle: ReturnType<typeof setTimeout> | null = null;
 
   constructor(container: HTMLElement | null, opts: CanvasOptions) {
     this.o = { ...opts };
@@ -117,6 +124,10 @@ export class DiagramCanvas {
     this.svg.append(this.defs, this.vp);
     this.el = container ?? document.createElement('div');
     this.el.append(this.svg);
+    // while a zoom is shown by a CSS scale, the svg's box is the unscaled one: pointer and placement math (here and in
+    // the modules) stays in the coordinates of the view state
+    const box = this.svg.getBoundingClientRect.bind(this.svg);
+    this.svg.getBoundingClientRect = () => this.unscaled ?? box();
     this.setInteraction(opts.interaction);
   }
 
@@ -180,11 +191,26 @@ export class DiagramCanvas {
     patchChildren(this.body, p.body);
     patchChildren(this.runs, p.runs ?? []);
     if (p.overlay) patchChildren(this.overlay, p.overlay);
+    this.badges();
   }
 
   /** Painters' output (editor handles, diff highlights). */
   setOverlay(nodes: readonly SceneNode[]): void {
     patchChildren(this.overlay, nodes);
+    this.badges();
+  }
+
+  /**
+   * Only diff badges read `--dx-inv` (they keep their size at any zoom). An inherited property on the root restyles
+   * every element when it changes, so it is set only while the picture has badges: plain zooming restyles nothing.
+   */
+  private hasBadges = false;
+  private badges(): void {
+    const on = !!this.svg.querySelector('.dx-badge');
+    if (on === this.hasBadges) return;
+    this.hasBadges = on;
+    if (on) this.svg.style.setProperty('--dx-inv', String(1 / (this.view.peek().k || 1)));
+    else this.svg.style.removeProperty('--dx-inv');
   }
 
   /** Drops the picture and the patch state (a new scene owner repaints in full). */
@@ -348,13 +374,46 @@ export class DiagramCanvas {
     for (const off of [...this.unlinks]) off();
     this.vpt?.destroy();
     this.vpt = null;
+    if (this.settle) clearTimeout(this.settle);
     this.svg.remove();
     for (const f of this.destroyHooks.splice(0)) f();
   }
 
-  private onChange(v: ViewState): void {
+  /**
+   * A new scale makes the engine lay out every text of the scene again (SVG text is sized for the screen scale): on a
+   * large diagram that is most of a frame per wheel step. So a zoom shows as a CSS scale of the whole svg (composited,
+   * no layout) and writes the real transform once the zoom rests. A pan alone is cheap, and a single zoom (a button, a
+   * fit) is written at once.
+   */
+  private applyView(v: ViewState): void {
+    const a = this.applied;
+    if (!this.unscaled && (v.k === a.k || !this.vpt?.wheeling)) {
+      this.writeView(v);
+      return;
+    }
+    if (!this.unscaled) this.unscaled = this.svg.getBoundingClientRect();
+    const sc = v.k / a.k;
+    this.svg.style.transformOrigin = '0 0';
+    this.svg.style.transform = `translate(${v.tx - sc * a.tx}px, ${v.ty - sc * a.ty}px) scale(${sc})`;
+    if (this.settle) clearTimeout(this.settle);
+    this.settle = setTimeout(() => this.writeView(this.view.peek()), ZOOM_SETTLE_MS);
+  }
+
+  private writeView(v: ViewState): void {
+    if (this.settle) clearTimeout(this.settle);
+    this.settle = null;
+    if (this.unscaled) {
+      this.unscaled = null;
+      this.svg.style.removeProperty('transform');
+      this.svg.style.removeProperty('transform-origin');
+    }
+    this.applied = { k: v.k, tx: v.tx, ty: v.ty };
     this.vp.setAttribute('transform', `translate(${v.tx},${v.ty}) scale(${v.k})`);
-    this.svg.style.setProperty('--dx-inv', String(1 / v.k));
+  }
+
+  private onChange(v: ViewState): void {
+    this.applyView(v);
+    if (this.hasBadges) this.svg.style.setProperty('--dx-inv', String(1 / v.k));
     this.view.set({ k: v.k, tx: v.tx, ty: v.ty });
     this.o.onView?.(v);
     if (this.linking) return;
@@ -380,6 +439,7 @@ export class DiagramCanvas {
   /** Non-interactive canvases: the whole page fills the element through the viewBox. */
   private applyStatic(): void {
     if (this.o.interaction !== 'static') return;
+    this.writeView({ k: 1, tx: 0, ty: 0 });
     this.vp.removeAttribute('transform');
     this.view.set({ k: 1, tx: 0, ty: 0 });
     const b = this.bounds;

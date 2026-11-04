@@ -94,7 +94,14 @@ export function rovingKeys(el: HTMLElement, o: RovingOptions): RovingHandle {
     }, { signal });
     // hidden / disabled items change from outside (signals): keep a valid tab stop
     if (typeof MutationObserver !== 'undefined') {
-      const mo = new MutationObserver(() => queueMicrotask(sync));
+      // checkVisibility forces a layout: one sync, when the page is idle (after a paint the layout is clean and cheap to
+      // read), however many mutations come meanwhile (a drag updates the panels on every move)
+      let queued = 0;
+      const later = (f: () => void): number =>
+        typeof requestIdleCallback === 'function' ? requestIdleCallback(f, { timeout: 300 }) : typeof requestAnimationFrame === 'function' ? requestAnimationFrame(f) : (setTimeout(f, 0) as unknown as number);
+      const mo = new MutationObserver(() => {
+        if (!queued) queued = later(() => { queued = 0; if (!signal.aborted) sync(); });
+      });
       mo.observe(el, { subtree: true, childList: true, attributes: true, attributeFilter: ['hidden', 'disabled', 'class'] });
       signal.addEventListener('abort', () => mo.disconnect());
     }
