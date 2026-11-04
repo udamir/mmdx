@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DiagramCanvas } from '../../src/dom/canvas.js';
 import { StrokeStore } from '../../src/dom/pen.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
@@ -125,4 +125,116 @@ describe('DiagramCanvas', () => {
     store.setActive(false);
     expect(a.svg.classList.contains('pen-on')).toBe(false);
   });
+
+  describe('a gesture is shown by CSS and written when it rests', () => {
+    // a browser's box of an element includes its CSS transform: the svg's box at 400 × 300, scaled by its transform
+    const box = function (this: Element): DOMRect {
+      const m = /scale\(([\d.]+)\)/.exec((this as HTMLElement).style?.transform ?? '');
+      const s = m ? Number(m[1]) : 1;
+      return { x: 0, y: 0, left: 0, top: 0, width: 400 * s, height: 300 * s, right: 400 * s, bottom: 300 * s, toJSON: () => ({}) } as DOMRect;
+    };
+    const wheel = (el: Element, o: WheelEventInit): void => void el.dispatchEvent(new WheelEvent('wheel', { clientX: 100, clientY: 100, bubbles: true, cancelable: true, ...o }));
+    const setup = (): DiagramCanvas => {
+      const host = document.createElement('div');
+      document.body.append(host);
+      const c = new DiagramCanvas(host, { interaction: 'pan-zoom', wheel: 'always' });
+      c.setBounds({ x: 0, y: 0, w: 200, h: 100 }, { fit: true });
+      return c;
+    };
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.useRealTimers();
+    });
+
+    it('a wheel zoom burst: a CSS scale meanwhile (the box reads unscaled), the scene transform once, after it rests', () => {
+      vi.useFakeTimers();
+      vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(box);
+      const c = setup();
+      const before = c.vp.getAttribute('transform');
+      wheel(c.svg, { deltaY: -100, ctrlKey: true });
+      wheel(c.svg, { deltaY: -100, ctrlKey: true });
+      const v = c.view.peek();
+      expect(c.vp.getAttribute('transform')).toBe(before);
+      expect(c.svg.style.transform).toMatch(/scale\(/);
+      expect(c.svg.getBoundingClientRect().width).toBe(400);
+      // pointer math follows the view state: the point under the pointer is where the view puts it
+      const p = c.toDiagram(100, 100);
+      expect(c.toScreen(p).x).toBeCloseTo(100);
+      vi.advanceTimersByTime(299);
+      expect(c.vp.getAttribute('transform')).toBe(before);
+      vi.advanceTimersByTime(1);
+      expect(c.vp.getAttribute('transform')).toBe(`translate(${v.tx},${v.ty}) scale(${v.k})`);
+      expect(c.svg.style.transform).toBe('');
+      expect(c.svg.style.willChange).toBe('');
+      c.destroy();
+    });
+
+    it('a single change (a button, a fit) is written at once and ends a CSS-shown gesture', () => {
+      vi.useFakeTimers();
+      vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(box);
+      const c = setup();
+      wheel(c.svg, { deltaY: 40 });
+      expect(c.svg.style.transform).toMatch(/translate\(/);
+      c.zoomBy(2);
+      const v = c.view.peek();
+      expect(c.vp.getAttribute('transform')).toBe(`translate(${v.tx},${v.ty}) scale(${v.k})`);
+      expect(c.svg.style.transform).toBe('');
+      c.destroy();
+    });
+
+    it('a drag pan: a CSS translate, written when it rests, or on the way once it passed a quarter of the canvas', () => {
+      vi.useFakeTimers();
+      vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(box);
+      const c = setup();
+      const before = c.vp.getAttribute('transform');
+      ptr('pointerdown', 100, 100, c.svg);
+      ptr('pointermove', 130, 100, c.svg);
+      expect(c.vp.getAttribute('transform')).toBe(before);
+      expect(c.svg.style.transform).toBe('translate(30px, 0px) scale(1)');
+      ptr('pointermove', 260, 100, c.svg);
+      const v = c.view.peek();
+      expect(c.vp.getAttribute('transform')).toBe(`translate(${v.tx},${v.ty}) scale(${v.k})`);
+      expect(c.svg.style.transform).toBe('');
+      ptr('pointermove', 270, 100, c.svg);
+      ptr('pointerup', 270, 100, c.svg);
+      vi.advanceTimersByTime(150);
+      const w = c.view.peek();
+      expect(c.vp.getAttribute('transform')).toBe(`translate(${w.tx},${w.ty}) scale(${w.k})`);
+      c.destroy();
+    });
+
+    it('a linked canvas follows a gesture the same way', () => {
+      vi.useFakeTimers();
+      vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(box);
+      const a = setup(), b = setup();
+      a.link(b);
+      const before = b.vp.getAttribute('transform');
+      wheel(a.svg, { deltaY: -100, ctrlKey: true });
+      expect(b.vp.getAttribute('transform')).toBe(before);
+      expect(b.svg.style.transform).toMatch(/scale\(/);
+      vi.advanceTimersByTime(300);
+      expect(b.svg.style.transform).toBe('');
+      expect(b.vp.getAttribute('transform')).not.toBe(before);
+    });
+  });
+
+  it('--dx-inv is on the svg only while the picture may have diff badges (badges drawn, or a morph shown)', () => {
+    const c = new DiagramCanvas(null, { interaction: 'pan-zoom' });
+    sized(c.svg);
+    c.setBounds({ x: 0, y: 0, w: 200, h: 100 }, { fit: true });
+    c.show({ defs: [], page: [], body: [item('node', 'a')] });
+    c.zoomBy(2);
+    expect(c.svg.style.getPropertyValue('--dx-inv')).toBe('');
+    c.setOverlay([{ t: 'g', key: 'b', attrs: { class: 'dx-badge' }, children: [] }]);
+    expect(Number(c.svg.style.getPropertyValue('--dx-inv'))).toBeCloseTo(1 / c.view.peek().k);
+    c.zoomBy(2);
+    expect(Number(c.svg.style.getPropertyValue('--dx-inv'))).toBeCloseTo(1 / c.view.peek().k);
+    c.setOverlay([]);
+    expect(c.svg.style.getPropertyValue('--dx-inv')).toBe('');
+    c.setMorph({ dispose: () => undefined });
+    expect(c.svg.style.getPropertyValue('--dx-inv')).not.toBe('');
+    c.show({ defs: [], page: [], body: [] });
+    expect(c.svg.style.getPropertyValue('--dx-inv')).toBe('');
+  });
 });
+

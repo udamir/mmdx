@@ -48,6 +48,7 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project f
 - **Mindmaps in the diff and History**: nodes matched by written id, place in the tree, label and parent, then label; a new parent or sibling order is a layout change, label, shape, icon and picture are content, classes and looks are style; the merged picture keeps removed nodes in their old place and marks renamed labels word by word.
 - The viewer's accessible name of a mindmap is "Mindmap: N nodes" (`label.mindmap`), and `outline()` gives its tree. New strings: `label.mindmap`, `type.mindmap`, `group.noMindmap`, `tools.mindShapes`, `tb.orderMind`, `page.mindLayout`, `page.colorBy`, `page.colorByBranch`, `page.colorByDepth`, `te.mindmap`, `te.item.root`, `te.item.branch`, `te.item.section`.
 - Two examples: Mindmap: Product launch and Mindmap: Study notes, with their version histories.
+- **`wheel: 'zoom'`**: the mouse wheel zooms at the pointer, and Shift + wheel and a sideways scroll pan — a new value of the viewer's and `<mmdx-diff>`'s `wheel`, and a new `wheel` option and attribute of `<mmdx-editor>` and `<mmdx-studio>` (default `always`).
 
 ### Changed (breaking)
 
@@ -77,6 +78,8 @@ All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project f
 - **Flowchart links have Mermaid's length**: `---`, `===`, `-.-`, `-.->` and labelled links (`-- a -->`) were one rank too long, so automatic layouts of diagrams with them change (the dashes, equals or dots beyond the shortest form count, as in Mermaid).
 - **Markdown strings are no longer reported** as shown as plain text (`flow.markdown-label` is gone), nor edge ids and edge data as unsupported (`flow.edge-id`).
 - **The code that draws rich labels, icons and images loads on demand** in the viewer, History and `<mmdx-diff>`, with the shapes beyond the 17, the first time a diagram needs it; the editor, SSR, `renderToSvg`, the markdown plugins and the render worker have it at once.
+- **Zoom, pan and editing stay responsive on large diagrams**: a wheel or pinch zoom and a wheel or drag pan are shown as a CSS transform of the canvas and written to the drawing once the gesture rests (300 ms after a zoom, 150 ms after a pan, or on the way once a pan has moved a quarter of the canvas), so the text is laid out once per burst instead of on every step; the patcher leaves items that did not change alone; `--dx-inv` is set only while diff badges may be shown; colours are resolved once per theme and diagram palette; the multi-selection is marked in one pass; toolbars are not placed while an item is dragged; keyboard tab stops are updated when the page is idle.
+- **The editor's page has a 1 px edge instead of a blurred shadow**: the blur redrew the whole screen on every repaint once zoomed in.
 - A `title` statement in a flowchart is drawn but reported (`flow.title-statement`: stock Mermaid fails on it), with a fix that moves it to the frontmatter.
 
 ### Fixed

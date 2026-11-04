@@ -53,8 +53,8 @@ export function attrValue(name: string, v: AttrValue): string | null {
   if (v === true) return name.startsWith('aria-') ? 'true' : '';
   const s = typeof v === 'number' ? fmt(v) : v;
   // `url(...)` only as a local fragment (markers, patterns, clip paths); never `url(javascript:…)` or a remote
-  // resource: images are `<image>` nodes whose href passed the image policy
-  if (/url\s*\(/i.test(s) && !(URL_ATTRS.has(name) && LOCAL_URL.test(s.trim()))) return null;
+  // resource: images are `<image>` nodes whose href passed the image policy (no `(`: no regex run, most values)
+  if (s.includes('(') && /url\s*\(/i.test(s) && !(URL_ATTRS.has(name) && LOCAL_URL.test(s.trim()))) return null;
   return s;
 }
 

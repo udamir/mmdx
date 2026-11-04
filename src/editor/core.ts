@@ -28,7 +28,7 @@ import type { SceneNode } from '../core/scene/types.js';
 import type { ItemKind, ItemRef, Rect } from '../core/types.js';
 import { itemKey } from '../core/types.js';
 import { HIGHLIGHT_CSS } from '../dom/highlight.js';
-import type { Viewport } from '../dom/viewport.js';
+import type { Viewport, WheelMode } from '../dom/viewport.js';
 import { Dialogs, DIALOG_CSS } from '../ui/dialog.js';
 import { signal, type Signal } from '../ui/signal.js';
 import { ALIASES } from '../ui/styles/base.js';
@@ -216,6 +216,8 @@ export interface EditorCoreOptions {
   theme?: string;
   themeDark?: string;
   compact?: boolean | 'auto';
+  /** What the mouse wheel does on the canvas (default `always`). */
+  wheel?: WheelMode;
   /** CSS of the installed modules' that is not in their `css` (adopted after the editor's own). */
   css?: readonly string[];
 }
@@ -300,7 +302,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       areaClass: 'canvas-wrap',
       initialMode: 'edit',
       canvas: {
-        interaction: 'pan-zoom', wheel: 'always', panOnDrag: false, minK: 0.05, maxK: 6, pad: 40, svgClass: 'canvas', part: 'canvas',
+        interaction: 'pan-zoom', wheel: o.wheel ?? 'always', panOnDrag: false, minK: 0.05, maxK: 6, pad: 40, svgClass: 'canvas', part: 'canvas',
         pageClass: 'page-layer page-shadow',
         onView: () => {
           this.fire('view');
@@ -564,13 +566,20 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   private decorate(): void {
     const body = this.dom.body;
     for (const n of Array.from(body.querySelectorAll('.selected, .text-editing'))) n.classList.remove('selected', 'text-editing');
+    // one pass over the scene, however many items are selected
+    const marks = new Map<string, string[]>();
     const mark = (r: ItemRef, cls: string): void => {
-      for (const n of Array.from(body.querySelectorAll('.el[data-id]')))
-        if (n.getAttribute('data-id') === r.id && n.getAttribute('data-kind') === r.kind) n.classList.add(cls);
+      const k = itemKey(r);
+      marks.set(k, [...(marks.get(k) ?? []), cls]);
     };
     const sel = this.selection();
     if (sel.length > 1) for (const r of sel) mark(r, 'selected');
     if (this.inlineEditing) mark(this.inlineEditing, 'text-editing');
+    if (marks.size)
+      for (const n of Array.from(body.querySelectorAll('.el[data-id]'))) {
+        const c = marks.get(`${n.getAttribute('data-kind')}:${n.getAttribute('data-id')}`);
+        if (c) n.classList.add(...c);
+      }
     this.dom.root.classList.toggle('group-edit', !!this.enteredGroup.peek() && this.mode.peek() === 'edit');
   }
 

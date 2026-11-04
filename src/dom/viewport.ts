@@ -9,7 +9,7 @@ export interface ViewState {
   ty: number;
 }
 
-export type WheelMode = 'ctrl' | 'always' | 'never';
+export type WheelMode = 'ctrl' | 'always' | 'zoom' | 'never';
 
 export interface ViewportOptions {
   minK?: number;
@@ -18,7 +18,8 @@ export interface ViewportOptions {
   pad?: number;
   /**
    * `ctrl`: only ⌘/Ctrl+wheel (and trackpad pinch) zooms; plain scrolling is left to the page, so a docs page never
-   * traps the scroll. `always`: plain wheel pans and ⌘/Ctrl+wheel zooms (editor). `never`: wheel is ignored.
+   * traps the scroll. `always`: plain wheel pans and ⌘/Ctrl+wheel zooms (editor). `zoom`: plain wheel zooms at the
+   * pointer; Shift+wheel and a sideways scroll pan. `never`: wheel is ignored.
    */
   wheel?: WheelMode;
   /** Primary-button drag on the element pans (viewer, Hand tool). */
@@ -32,6 +33,8 @@ export class Viewport {
   readonly state: ViewState = { k: 1, tx: 0, ty: 0 };
   /** Keep fitting the content (e.g. on resize) until the user pans or zooms. */
   auto = true;
+  /** True while a wheel or pinch step applies: one of a burst, which the canvas may show cheaply until it rests. */
+  wheeling = false;
   private bounds: Rect | null = null;
   private drag: { x: number; y: number; tx: number; ty: number; id: number } | null = null;
   private gestureScale = 1;
@@ -66,7 +69,12 @@ export class Viewport {
       e.preventDefault();
       const g = e as Event & { scale: number; clientX: number; clientY: number };
       const p = this.local(g);
-      this.zoomAt(g.scale / this.gestureScale, p.x, p.y);
+      this.wheeling = true;
+      try {
+        this.zoomAt(g.scale / this.gestureScale, p.x, p.y);
+      } finally {
+        this.wheeling = false;
+      }
       this.gestureScale = g.scale;
     }, sig);
     // a resize while the view glides to a fit (panels sliding) goes on gliding to the new fit
@@ -192,13 +200,23 @@ export class Viewport {
   }
 
   private onWheel(ev: WheelEvent): void {
-    const zoom = ev.ctrlKey || ev.metaKey;
-    if (this.o.wheel === 'never' || (this.o.wheel === 'ctrl' && !zoom)) return;
+    const mod = ev.ctrlKey || ev.metaKey;
+    const mode = this.o.wheel;
+    if (mode === 'never' || (mode === 'ctrl' && !mod)) return;
+    // `zoom`: a mostly vertical scroll without Shift zooms; Shift and sideways scrolls pan
+    const zoom = mod || (mode === 'zoom' && !ev.shiftKey && Math.abs(ev.deltaY) >= Math.abs(ev.deltaX));
     ev.preventDefault();
     const p = this.local(ev);
-    // trackpad pinch arrives as Ctrl+wheel with small steps: zoom faster per step
-    if (zoom) this.zoomAt(Math.exp(-ev.deltaY * (Math.abs(ev.deltaY) < 40 ? 0.012 : 0.0022)), p.x, p.y);
-    else this.panBy(-ev.deltaX, -ev.deltaY);
+    this.wheeling = true;
+    try {
+      // trackpad pinch arrives as Ctrl+wheel with small steps: zoom faster per step
+      if (zoom) this.zoomAt(Math.exp(-ev.deltaY * (Math.abs(ev.deltaY) < 40 ? 0.012 : 0.0022)), p.x, p.y);
+      // Shift+wheel of a mouse the browser did not turn sideways itself
+      else if (mode === 'zoom' && ev.shiftKey && !ev.deltaX) this.panBy(-ev.deltaY, 0);
+      else this.panBy(-ev.deltaX, -ev.deltaY);
+    } finally {
+      this.wheeling = false;
+    }
   }
 
   private onDown(ev: PointerEvent): void {

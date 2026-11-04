@@ -84,7 +84,7 @@ Each attribute sets the `DiffOptions` option of the same name in camelCase (`the
 | `theme-dark` | — | `string` | — | The theme while the chrome is dark; `auto` picks the dark theme linked to `theme` |
 | `ui` | — | `'light' \| 'dark' \| 'auto'` | `auto` | Chrome colour scheme |
 | `compact` | — | `boolean \| 'auto'` | `auto` | The compact chrome (smaller, icon-only); automatic on small hosts |
-| `wheel` | — | `'always' \| 'ctrl' \| 'never'` | `always` | `always`: the wheel pans and ⌘ / Ctrl + wheel or pinch zooms; `ctrl`: only ⌘ / Ctrl + wheel zooms; `never` |
+| `wheel` | — | `'always' \| 'zoom' \| 'ctrl' \| 'never'` | `always` | `always`: the wheel pans and ⌘ / Ctrl + wheel or pinch zooms; `zoom`: the wheel zooms at the pointer, Shift + wheel pans; `ctrl`: only ⌘ / Ctrl + wheel zooms; `never` |
 | `name` | — | `string` | `diagram` | File name stem of exports |
 | `label` | — | `string` | generated | Accessible name, e.g. "Diagram diff: 2 added, 1 removed, 5 changed" |
 | — | `loader` | `(url: string) => Promise<string>` | `fetch` | How `before` and `after` are fetched |

@@ -43,18 +43,24 @@ export interface Rendered {
 }
 
 const layoutCaches = new WeakMap<CoreContext, Lru<string, Map<string, Point>>>();
+/** The last colour resolver per instance: kept while the theme and the diagram palette stay (a drag renders often). */
+const resolvers = new WeakMap<CoreContext, { theme: ResolvedTheme; palette: string; color: RenderContext['color'] }>();
 
 /** The render context for one theme and diagram palette, with the instance's bounded layout cache. */
 export function renderContext(ctx: CoreContext, theme: ResolvedTheme, doc: DiagramDocument): RenderContext {
   let cache = layoutCaches.get(ctx);
   if (!cache) layoutCaches.set(ctx, (cache = new Lru(64)));
+  // resolved themes are not changed in place (the registry makes a new one), so the object tells a theme apart
+  const palette = diagramPaletteOf(doc.meta.styles), key = JSON.stringify(palette);
+  let c = resolvers.get(ctx);
+  if (c?.theme !== theme || c.palette !== key) resolvers.set(ctx, (c = { theme, palette: key, color: createColorResolver(theme, palette) }));
   const r: RenderContext = {
     measure: ctx.measure,
     idPrefix: ctx.idPrefix,
     linkPolicy: ctx.linkPolicy,
     imagePolicy: ctx.imagePolicy,
     icons: ctx.icons,
-    color: createColorResolver(theme, diagramPaletteOf(doc.meta.styles)),
+    color: c.color,
     layoutCache: cache,
   };
   if (ctx.imageSizes) r.imageSizes = ctx.imageSizes;

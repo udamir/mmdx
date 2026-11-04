@@ -63,11 +63,13 @@ for (const k of ['flowchart', 'sequence', 'er', 'mindmap']) {
   // flowchart: 68.8 kB once the shapes beyond the 17 load on demand (T02.9: 68.4 kB measured, their geometry a chunk of its own, the "extended shapes" row; what stays over the 62 kB before the catalogue is the 17's outlines, text boxes and sizing, the outline clipping of connector ends, the node data reader and the name table of every shape, which the parser needs). Sequence and ER 62.4 kB: 62.0 and 61.6 kB measured (+0.4 kB: the viewer's base loads the shapes when a render misses one); the name table comes with the flowchart's parser.
   // 72.6 kB with the shape catalogue (T02: Mermaid's 53 flowchart shapes plus the figures, each with its outline, text box and sizing, the node data reader and the outline clipping of connector ends; 72.2 kB measured, the catalogue alone about 8 kB). Sequence and ER only load the 17 shapes every renderer draws (61.6 and 61.2 kB measured).
   // 62.4 kB with the kind descriptor (T01: the kinds registry and the type's view kind, +0.6 kB); 61.6 kB with the 0.3 host hooks (+0.4 kB: the host's full screen in the zoom bar, setControls, registerThemes); 61 kB with the 0.3 fixes (+0.2 kB: own-key reads and writes in the metadata parser, the patcher drawing the diff's styled runs itself instead of through a hook the diff installed). 60.8 kB with the view kernel (component architecture §10.1: 60.3 kB once the kernel was split into modules, the blocks gained roving focus and the elements a shared lifecycle; 53.4 kB with every chrome module but the zoom bar on demand; 46 kB before). Provisional (decision 19 is open).
-  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), (k === 'flowchart' ? 84 : k === 'mindmap' ? 69.3 : 67.4) * KB);
+  // flowchart 85, sequence and ER 68.4, mindmap 70.3 kB with the responsive canvas (84.6, 68, 67.7 and 69.9 kB measured; every viewer +0.7 kB: zoom and pan shown as a CSS transform until the gesture rests, the patcher's value compare, `--dx-inv` only with diff badges, `wheel: 'zoom'`)
+  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), (k === 'flowchart' ? 85 : k === 'mindmap' ? 70.3 : 68.4) * KB);
 }
 // a flowchart that draws one of the shapes beyond the 17 (T02.9): their geometry, 4.3 kB, loads before it renders (72.7 kB measured; 73.5 kB with media in the scene, T03; 76.3 kB with the icon registry, T04); since T06 the chunk also holds the media kit (rich labels, icons, images), which a flowchart with markdown, icon tokens, icon or image nodes loads the same way (86.8 kB measured: +5.5 kB the flowchart's own growth, +5 kB the kit); 92.7 kB with the compound layout (T07, 92.3 kB measured: the flowchart's +5.1 kB)
 // 93.4 kB with mindmaps (T08, 93 kB measured: the viewer's +0.2 kB)
-report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...flow, ...lazy(v, 'src/core/shapes/extended.ts', new Set([...v.base, ...flow]))])), 93.4 * KB);
+// 94.5 kB with the responsive canvas (94.1 kB measured: the viewer's +0.7 kB)
+report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...flow, ...lazy(v, 'src/core/shapes/extended.ts', new Set([...v.base, ...flow]))])), 94.5 * KB);
 // the built-in icon set (T04 §4.7: about 250 Tabler icons with keywords and the Font Awesome look-alikes), a lazy chunk of its own that loads with the first built-in icon; the decoder (body validation and transforms) loads with the first icon of any pack (19.1 and 2.5 kB measured; 20.1 kB in the library build)
 {
   const icons = lazy(v, 'src/icons/builtin.ts', v.base);
@@ -87,7 +89,8 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
   // 133.9 kB with the icon registry (T04, 133.5 kB measured: the viewer's +2.8 kB)
   // 131.1 kB with media in the scene (T03, 130.7 kB measured: the viewer's +0.8 kB, and the diff's marks inside styled runs); 130 kB once the shapes beyond the 17 load on demand (T02.9, 129.6 kB measured); 133.8 kB with the shape catalogue (T02, 133.3 kB measured); 123.6 kB with the kind descriptor too (History also loads the flowchart's diff kind: 123.1 kB measured); 123.6 kB with the 0.3 fixes and host hooks together; 122.6 kB with History in place (the version panel first, the version view, animated switches, the overlay scrollbars); 113.4 kB once History loaded no parser or renderer it did not need
   // 145.6 kB with mindmaps (T08, 145.2 kB measured: the viewer's +0.2 kB and the diff's)
-  report('viewer + History opened', v.size(loaded) + v.size(new Set(hist)), 145.6 * KB);
+  // 146.6 kB with the responsive canvas (146.2 kB measured: the viewer's +0.7 kB)
+  report('viewer + History opened', v.size(loaded) + v.size(new Set(hist)), 146.6 * KB);
 }
 // core includes the diff engine (diffs, merged model, annotations, reports, renderDiffToSvg)
 // editor: 180 kB once the editor loads diagram types on demand (T01.9: 178.2 kB without the code of the types not shown; every type's editor code is a chunk of its own, measured in the "editor (first <type>)" rows); 188.2 kB with the view kernel (187.7 kB after the kernel split, the blocks merge and the element lifecycle; 173.2 kB measured in phase 3; 184.3 kB summed per chunk once History loads the clipboard ops on demand, which splits them into chunks of their own: 177.9 kB as one stream, as before; 165 kB before the kernel), provisional like the viewer's
@@ -102,7 +105,8 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
 // core 85.4, theme editor 133.3 and editor 197.4 kB with the compound layout (T07: 85, 132.9 and 197 kB measured; core and the theme editor carry the flowchart's renderer statically, +5.9 kB with "Reset positions in this group" in core's ops; the editor's base +0.9 kB: that action in the group toolbar's menu, the board menu on a group and Properties). The diff is unchanged (90.1 kB)
 // core 94.1, theme editor 141.4, editor 199.3 and diff 91 kB with mindmaps (T08: 93.7, 141, 198.9 and 90.6 kB measured; core and the theme editor carry every kind statically, +8.3 and +7.7 kB: the mindmap's parser, tidy tree layout, renderer, ops and diff; the editor +1.5 kB: the mindmap module's keys, which come before the canvas's, the type's names, the Page properties hook, previews per diagram type and the theme section — its kinds and gestures are lazy chunks, measured in the "editor (first mindmap)" row; the diff +0.2 kB, what every viewer gained)
 // theme editor 142.2 kB with the dash patterns drawn at the line's width and the text block's "T" preview (141.8 kB measured: it carries every renderer and the shape previews statically)
-for (const [entry, budget] of [['core', 94.1], ['theme-editor', 142.2], ['editor', 199.3], ['diff', 91]]) {
+// theme editor 143.2 and diff 91.9 kB with the responsive canvas (142.8 and 91.5 kB measured: the canvas's +0.7 kB; the editor stays within 199.3 kB, 199 kB measured)
+for (const [entry, budget] of [['core', 94.1], ['theme-editor', 143.2], ['editor', 199.3], ['diff', 91.9]]) {
   const b = await bundle(entry);
   report(entry, b.size(b.base), budget * KB);
   if (entry === 'editor') {
@@ -113,7 +117,8 @@ for (const [entry, budget] of [['core', 94.1], ['theme-editor', 142.2], ['editor
     // 219 kB with flowchart content (T06: 218.6, 205.7 and 198.4 kB measured; the flowchart's +12.1 kB: its renderer's growth, the media kit, which the catalogue the edit kind reads registers with the shapes, and the parser's growth in the base)
     // 225.6 kB with the compound layout (T07: 225.2, 206.6 and 199.2 kB measured; the flowchart's +5.1 kB and the editor's +0.9 kB)
     // 227.6 kB with mindmaps (T08: 227.2, 208.4 and 201.1 kB measured: the editor's +1.5 kB)
-    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 227.6 * KB);
+    // 228.1 kB with the responsive canvas (227.7, 208.5 and 201.2 kB measured: the editor's +1 kB, the canvas's and the toolbars' idle placement)
+    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 228.1 * KB);
     {
       // a mindmap: its kinds and the mindmap module's gestures, both loaded with the first mindmap (T08: 228.3 kB measured; the view, ops and edit kinds with the geometry of bang and cloud and the media kit, which its edit kind registers as the flowchart's does, and the drag, handles and keys of the outline)
       const kind = lazy(b, 'src/editor/kinds/mindmap.ts', b.base);
@@ -185,13 +190,15 @@ const rows = [
   // 80.1 kB with flowchart content (T06, 79.7 kB measured: the viewer's +0.7 kB and the flowchart's parser and renderer; the media kit is in the shapes' lazy chunk)
   // 85.7 kB with the compound layout (T07, 85.3 kB measured: the flowchart's renderer +5.1 kB)
   // 86.3 kB with mindmaps (T08, 85.9 kB measured: the viewer's +0.2 kB, the theme's mindmap section and the type's names)
-  ['viewer (first flowchart)', ['src/viewer.ts', FLOW], 86.3],
+  // 87.4 kB with the responsive canvas (87 kB measured: the viewer's +0.8 kB)
+  ['viewer (first flowchart)', ['src/viewer.ts', FLOW], 87.4],
   // a flowchart that draws one of the shapes beyond the 17: their geometry loads before it renders (T02.9, 74.7 kB measured)
   // 75.8 kB with media in the scene (T03, 75.4 kB measured); 79 kB with the icon registry (T04, 78.6 kB measured)
   // 89.9 kB with flowchart content (T06, 89.5 kB measured: the chunk also holds the media kit)
   // 95.5 kB with the compound layout (T07, 95.1 kB measured)
   // 96.2 kB with mindmaps (T08, 95.8 kB measured)
-  ['viewer (flowchart, more shapes)', ['src/viewer.ts', FLOW, SHAPES], 96.2],
+  // 97.3 kB with the responsive canvas (96.9 kB measured)
+  ['viewer (flowchart, more shapes)', ['src/viewer.ts', FLOW, SHAPES], 97.3],
   // the built-in icon set, a lazy chunk of its own (T04 §4.7: at most 25 kB)
   ['built-in icons (lazy chunk)', [BUILTIN_ICONS], 25],
   // the History button is in the tool dock, which loads with the `history` control (246.5 kB while History imported the editor's chunk); 143 kB with the shape catalogue (142.4 kB measured); 138.9 kB once the shapes beyond the 17 load on demand (T02.9, 138.5 kB measured)
@@ -199,13 +206,15 @@ const rows = [
   // 148.6 kB with flowchart content (T06, 148.2 kB measured)
   // 154.2 kB with the compound layout (T07, 153.8 kB measured)
   // 154.9 kB with mindmaps (T08, 154.5 kB measured)
-  ['viewer + History opened', ['src/viewer.ts', FLOW, 'src/view/modules/tool-dock.ts', ...HISTORY, FLOW_DIFF], 154.9],
+  // 155.9 kB with the responsive canvas (155.5 kB measured)
+  ['viewer + History opened', ['src/viewer.ts', FLOW, 'src/view/modules/tool-dock.ts', ...HISTORY, FLOW_DIFF], 155.9],
   // the editor loads diagram types on demand (T01.9): 181 kB (178.8 kB measured; 194.6 kB before), the first document's type a chunk of its own; 191.6 kB with the shape catalogue (191.2 kB measured); 187.4 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 187 kB measured)
   // 188.4 kB with media in the scene (T03, 188 kB measured); 191.1 kB with the icon registry (T04, 190.7 kB measured)
   // 194.5 kB with the insert dock (T05, 194.1 kB measured: the dock's buttons, shortcuts and labels, the inline editor's emoji button, the media hooks of the toolbar and Properties; the pickers and the emoji data are lazy)
   // 194.9 kB with the compound layout (T07, 194.5 kB measured: "Reset positions in this group" in the group toolbar's menu, the board menu and Properties)
   // 196.6 kB with mindmaps (T08, 196.2 kB measured: the mindmap module's keys, Page properties, previews per diagram type; its gestures and kinds are lazy)
-  ['editor', ['src/editor.ts'], 196.6],
+  // 197.1 kB with the responsive canvas (196.7 kB measured: the editor's +1 kB)
+  ['editor', ['src/editor.ts'], 197.1],
   // 184.2 kB measured; 197.8 kB with the shape catalogue (197.3 kB measured); 198.2 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 197.8 kB measured: the same code as before, in more chunks, each compressed on its own)
   // 199.2 kB with media in the scene (T03, 198.8 kB measured); 201.9 kB with the icon registry (T04, 201.5 kB measured)
   // 206.9 kB with the insert dock (T05, 206.5 kB measured: the editor's part, and the flowchart's icon and image node ops and palette sections)
@@ -214,9 +223,11 @@ const rows = [
   // 227.5 kB with mindmaps (T08, 227.1 kB measured: the editor's +1.5 kB)
   ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart.ts'], 227.5],
   // the first mindmap (T08, 70.8 kB measured): the viewer and the mindmap's kind chunk (parser, tidy tree layout, renderer)
-  ['viewer (first mindmap)', ['src/viewer.ts', kindChunk('mindmap')], 71.2],
+  // 72.3 kB with the responsive canvas (71.9 kB measured)
+  ['viewer (first mindmap)', ['src/viewer.ts', kindChunk('mindmap')], 72.3],
   // the first mindmap in the editor (T08, 225.7 kB measured): its kinds and the mindmap module's gestures
-  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap.ts', 'src/editor/modules/mindmap/gestures.ts'], 226.1],
+  // 226.7 kB with the responsive canvas (226.3 kB measured)
+  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap.ts', 'src/editor/modules/mindmap/gestures.ts'], 226.7],
   // the English emoji data (T05 §4.5: at most 30 kB), a lazy chunk of its own
   ['emoji data, English (lazy chunk)', ['src/emoji/en.ts'], 30],
   // 240.2 kB with the shape catalogue (239.7 kB measured); 236.2 kB once the shapes beyond the 17 load on demand (T02.9, 235.8 kB measured)
@@ -224,26 +235,30 @@ const rows = [
   // 243.6 kB with the insert dock (T05, 243.2 kB measured)
   // 244 kB with the compound layout (T07, 243.6 kB measured)
   // 245.8 kB with mindmaps (T08, 245.4 kB measured)
-  ['editor + History opened', ['src/editor.ts', ...HISTORY], 245.8],
+  // 246.2 kB with the responsive canvas (245.8 kB measured)
+  ['editor + History opened', ['src/editor.ts', ...HISTORY], 246.2],
   // 125.2 kB while the entry re-exported the all-kinds diff
   // 92.5 kB once the per-type diffs left the entry for the diff kinds (90.9 kB measured); 94.6 kB before; 91.5 kB with the shapes on demand (T02.9, 91.1 kB measured)
   // 92.5 kB with media in the scene (T03, 92.1 kB measured); 95.1 kB with the icon registry (T04, 94.7 kB measured)
   // 95.8 kB with flowchart content (T06, 95.4 kB measured)
   // 96.4 kB with mindmaps (T08, 96 kB measured)
-  ['diff', ['src/diff.ts'], 96.4],
+  // 97.2 kB with the responsive canvas (96.8 kB measured)
+  ['diff', ['src/diff.ts'], 97.2],
   // a flowchart pair with the default panels (the change list) and the flowchart's diff kind; 128 kB with the shape catalogue (127.6 kB measured); 124 kB once the shapes beyond the 17 load on demand (T02.9, 123.6 kB measured)
   // 125 kB with media in the scene (T03, 124.6 kB measured); 127.7 kB with the icon registry (T04, 127.3 kB measured)
   // 133.1 kB with flowchart content (T06, 132.7 kB measured: the flowchart's parser and renderer)
   // 138.7 kB with the compound layout (T07, 138.3 kB measured: the flowchart's renderer +5.1 kB)
   // 139.4 kB with mindmaps (T08, 139 kB measured)
-  ['diff (first flowchart)', ['src/diff.ts', FLOW, FLOW_DIFF, 'src/diff/modules/panels.ts'], 139.4],
+  // 140.4 kB with the responsive canvas (140 kB measured)
+  ['diff (first flowchart)', ['src/diff.ts', FLOW, FLOW_DIFF, 'src/diff/modules/panels.ts'], 140.4],
   // 65.8 kB with the kind descriptor: the same code in more, smaller chunks (one per kind and layer), each compressed on its own (54.6 kB as one esbuild stream); 63 kB before; 76.8 kB with the shape catalogue (76.4 kB measured); 77 kB with the shapes beyond the 17 in chunks of their own (T02.9, 76.6 kB measured: the name table and the geometry apart)
   // 78.5 kB with media in the scene (T03, 78.1 kB measured: the image policy check, `safeImageUrl` / `checkImageUrl`, is exported)
   // 84.1 kB with the icon registry (T04, 83.7 kB measured: the registry, `createIconRegistry` with its decoder for synchronous lookups on the server, `iconNamesOf`)
   // 93.9 kB with flowchart content (T06, 93.5 kB measured: the flowchart's parser and renderer and the media kit, which core's kinds register statically)
   // 99.5 kB with the compound layout (T07, 99.1 kB measured: the compound layout, the router, the renderer's part, "Reset positions in this group")
   // 110.4 kB with mindmaps (T08, 110 kB measured: every kind is in core, the mindmap's parser, layout, renderer, ops and diff)
-  ['core', ['src/core.ts'], 110.4],
+  // 110.9 kB with the responsive canvas (110.5 kB measured: the colour resolver's memo and the cheaper `url()` check)
+  ['core', ['src/core.ts'], 110.9],
 ];
 for (const [name, keys, budget] of rows) report(name, (await loads(keys)).n, budget * KB);
 // the pickers' chunks (T05), beyond what the editor with a flowchart has loaded

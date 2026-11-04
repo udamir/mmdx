@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
+import { nextIdle } from '../../../src/dom/idle.js';
 import { createIconButton } from '../../../src/ui/blocks/button.js';
 import { createSchemeToggle } from '../../../src/ui/blocks/scheme-toggle.js';
 import { createToolbar } from '../../../src/ui/blocks/toolbar.js';
@@ -53,7 +54,9 @@ describe('Toolbar', () => {
     expect(items.map((x) => x.tabIndex)).toEqual([0, -1, -1]);
     (document.activeElement as HTMLElement).blur();
     items[0]!.hidden = true;
+    // the stop follows when the page is idle (checking visibility forces a layout), once for any number of mutations
     await tick();
+    await nextIdle();
     expect(items.map((x) => x.tabIndex)).toEqual([-1, 0, -1]);
   });
 
