@@ -3,7 +3,7 @@
 import { h } from '../../h.js';
 import { choiceRow, popLabel, slider } from '../../toolbar-kit.js';
 import { num, str } from '../controls.js';
-import { arrowPreview, dashPreview, routingPreview } from '../icons.js';
+import { animationPreview, arrowPreview, dashPreview, routingPreview } from '../icons.js';
 import { ARROWS, DASHES, ROUTINGS } from '../kinds.js';
 import { colors, type Fill } from './common.js';
 
@@ -25,6 +25,14 @@ export function strokePop(f: Fill): void {
   pop.append(step(f, t('tb.thickness'), num(api.eff(wKey)) ?? 1.5, 0.5, 8, 0.5, (v) => api.set(wKey, v), (v) => `${v}px`));
   pop.append(step(f, t('tb.opacity'), num(api.eff('strokeOpacity')) ?? 1, 0, 1, 0.05, (v) => api.set('strokeOpacity', v >= 1 ? undefined : v), pct));
   if (!isLine && kind !== 'block') pop.append(step(f, t('tb.corners'), num(api.eff('radius')) ?? 0, 0, 40, 1, (v) => api.set('radius', v), (v) => `${v}`));
+  // a connector's animation (dashes flowing along it), where its type writes one
+  const anim = isLine ? api.animation?.() : null;
+  if (anim) {
+    pop.append(popLabel(t('tb.animation')), choiceRow(['off', 'fast', 'slow'], anim, (v) => {
+      api.setAnimation?.(v as 'off' | 'fast' | 'slow');
+      again();
+    }, animationPreview, (v) => t(`tb.anim.${v}`)));
+  }
   const cKey = isLine ? 'color' : 'stroke';
   colors(f, api.eff(cKey), (c) => {
     api.set(cKey, c);

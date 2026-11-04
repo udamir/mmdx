@@ -30,6 +30,7 @@ import { choosePagePreset, pageEff, RATIOS, setPageRatio, setPageSizeMode, setPa
 import { LINE_KINDS } from '../canvas/shared.js';
 import { formatsAt, hasMarkup, toggleFormat } from '../../ops/format.js';
 import { labelSpec } from '../../ops/label.js';
+import { animationOf, setAnimation } from '../../ops/animation.js';
 
 export const TOOLBARS_CSS = /* css */ `
 ${TOOLBAR_CSS}
@@ -339,6 +340,16 @@ export const toolbarsModule: EditorModule = {
         customColor: (hex) => relativeColor(hex, core.result.theme.palette),
         themeFont: () => core.result.theme.font,
         themeFontName: () => (core.result.theme.font.split(',')[0] ?? '').replace(/['"]/g, '').trim(),
+        animation: () => {
+          const s = primary();
+          return s && !multi() ? animationOf(core, s) : null;
+        },
+        setAnimation: (a) => {
+          const s = primary();
+          if (!s) return;
+          live.flush();
+          setAnimation(core, s, a);
+        },
         edgeEnds: () => {
           const s = primary();
           const e = s ? withOps(core.model, (k, m) => k.codeEnds?.(m, s)) : null;

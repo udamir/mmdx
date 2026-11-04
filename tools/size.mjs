@@ -120,7 +120,8 @@ for (const [entry, budget] of [['core', 94.6], ['theme-editor', 144], ['editor',
     // 227.6 kB with mindmaps (T08: 227.2, 208.4 and 201.1 kB measured: the editor's +1.5 kB)
     // 228.1 kB with the responsive canvas (227.7, 208.5 and 201.2 kB measured: the editor's +1 kB, the canvas's and the toolbars' idle placement)
     // 229.9 kB with rich text labels (229.5, 210.2 and 202.9 kB measured: the editor's +1.4 kB)
-    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 229.9 * KB);
+    // 230.6 kB with animated connectors (230.2 kB measured: the flowchart's edge animation op in its editor chunk)
+    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 230.6 * KB);
     {
       // a mindmap: its kinds and the mindmap module's gestures, both loaded with the first mindmap (T08: 228.3 kB measured; the view, ops and edit kinds with the geometry of bang and cloud and the media kit, which its edit kind registers as the flowchart's does, and the drag, handles and keys of the outline)
       const kind = lazy(b, 'src/editor/kinds/mindmap.ts', b.base);

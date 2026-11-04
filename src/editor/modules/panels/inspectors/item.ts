@@ -8,6 +8,7 @@ import { STYLE_FIELDS } from '../../../../core/schema/style-fields.js';
 import type { ItemKind, ItemRef } from '../../../../core/types.js';
 import { h } from '../../../../ui/h.js';
 import { applyMeta, styleEnv } from '../../../ops/doc.js';
+import { animationOf, setAnimation } from '../../../ops/animation.js';
 import { groupResetState, resetSelectedGroup } from '../../../ops/group.js';
 import { describe, labelSpec } from '../../../ops/label.js';
 import { field } from '../fields.js';
@@ -108,6 +109,15 @@ export function itemInspector(p: PanelCtx, host: HTMLElement, kind: ItemKind, id
   const base = baseStyleOf(env, kind, id);
   const target = itemTarget(p, ref, base);
   for (const f of STYLE_FIELDS[kind] ?? []) field(core.i18n, host, f, target);
+  // a connector's animation, where its type writes one (flowchart: Mermaid's edge data)
+  const anim = animationOf(core, ref);
+  if (anim) {
+    const sel = h('select', { 'aria-label': t('tb.animation') });
+    for (const v of ['off', 'fast', 'slow'] as const) sel.append(h('option', { value: v }, t(`props.anim.${v}`)));
+    sel.value = anim;
+    sel.addEventListener('change', () => setAnimation(core, ref, sel.value as 'off' | 'fast' | 'slow'));
+    host.append(row(t('tb.animation'), sel));
+  }
   if (kind === 'box') return; // placed by its participants
 
   sect(host, t('props.geometry'));

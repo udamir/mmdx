@@ -262,6 +262,10 @@ From the dock, an image adds a flowchart **image node** whose caption is the fil
 
 Flowchart and mindmap labels are rich text: a Mermaid markdown string (`` A["`**Bold** text`"] ``) is drawn with its emphasis, underline (`<u>…</u>`) and strikethrough (`<s>…</s>`), and edited with its marks as typed. The floating toolbar's **B** opens the text format menu — bold, italic, underline, strikethrough (`⌘B`, `⌘I`, `⌘U`, `⇧⌘X` in the text box) — which formats the selected words, or takes the format off them again; with no words selected, or the label not being edited, it formats the whole text (a label made bold by its style reads as bold, and Bold then turns the style off). While some words are selected, the font, size, alignment, link and text colour are off, as Mermaid styles those only for a whole label. A plain label is written as a markdown string once it has formatting; an edit without formatting keeps it plain. Labels of the other diagram types keep Bold as a switch of the item's style. See [Flowchart content → Markdown labels](/guide/flowchart#markdown-labels).
 
+### Animated connectors
+
+A flowchart connector can be animated as Mermaid animates it, with dashes flowing along the line: **Animation** in the floating toolbar's line popover and in Properties is Off, Fast or Slow. Fast writes `animate: true` and Slow `animation: slow` into the edge's data; a connector written without an id gets one first (`A e1@--> B`, then `e1@{ animate: true }`), and one edge of an `&` group is written as a statement of its own. Off takes the keys out again, with the data statement when nothing else is in it. The **Animate edges** view setting stops the motion on screen; exports draw still dashes.
+
 ### Emoji
 
 While you edit a label on the canvas, `⌘;` / `Ctrl+;` opens the emoji picker under the text box (the label fields of the Properties panel have a ☺ button for it): the emoji by group, recently used ones, search by name and keyword, and a skin tone. A chosen emoji goes in at the caret as plain text, so it shows wherever the diagram does; the picker stays open for more. The emoji data (English) loads the first time the picker opens.

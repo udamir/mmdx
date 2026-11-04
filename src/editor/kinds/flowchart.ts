@@ -18,6 +18,7 @@ import { shapeById, type ShapeDef } from '../../core/shapes/catalog.js';
 import { SHAPE_MENU } from '../../core/shapes/menu.js';
 import { addFlowMediaNode, flowMedia, IMAGE_NODE_SIZE, setFlowIcon, setFlowImage, setFlowMedia, type IsIconToken } from '../../core/ops/flow-media.js';
 import type { SelectResult } from '../../core/ops/types.js';
+import { flowEdgeAnimation, setFlowEdgeAnimation } from '../../core/ops/flow-edge.js';
 import type { ItemRef } from '../../core/types.js';
 import type { EditKind } from './types.js';
 
@@ -179,6 +180,9 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
   setIcon: (code, M, ref, icon, core) => (ref.kind === 'node' ? setFlowIcon(code, M, ref.id, icon, isIconOf(core)) : null),
   setImage: (code, M, ref, url) => (ref.kind === 'node' ? setFlowImage(code, M, ref.id, url) : null),
   setMedia: (code, M, ref, patch, core) => (ref.kind === 'node' ? setFlowMedia(code, M, ref.id, patch, isIconOf(core)) : null),
+  // Mermaid 11.10's edge animation: `e1@{ animate: true }`, `e1@{ animation: slow }` (the edge gets an id if it has none)
+  animation: (M, ref) => (ref.kind === 'edge' ? flowEdgeAnimation(M, ref.id) : null),
+  setAnimation: (code, M, ref, a) => (ref.kind === 'edge' ? setFlowEdgeAnimation(code, M, ref.id, a) : null),
   direction: (M) => M.direction,
   fixOf(core, M, d) {
     if (d.code !== 'flow.id-clash') return null;

@@ -92,6 +92,18 @@ export function routingPreview(r: string): SVGSVGElement {
   return el;
 }
 
+/** A connector's animation: a still line (`off`), or dashes with one (`slow`) or two (`fast`) chevrons of flow. */
+export function animationPreview(a: string): SVGSVGElement {
+  const el = s('svg', { viewBox: '0 0 44 12', width: '44', height: '12', 'aria-hidden': 'true', fill: 'none', stroke: 'currentColor', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }) as SVGSVGElement;
+  if (a === 'off') {
+    el.append(s('path', { d: 'M3 6h38', 'stroke-width': '2.4' }));
+    return el;
+  }
+  el.append(s('path', { d: 'M3 6h22', 'stroke-width': '2.4', 'stroke-dasharray': '4 3' }));
+  el.append(s('path', { d: a === 'fast' ? 'M29 2l4 4-4 4M35 2l4 4-4 4' : 'M32 2l4 4-4 4', 'stroke-width': '2' }));
+  return el;
+}
+
 export function dashPreview(d: string): SVGSVGElement {
   const el = s('svg', { viewBox: '0 0 44 12', width: '44', height: '12', 'aria-hidden': 'true' }) as SVGSVGElement;
   const p = s('path', { d: 'M3 6h38', stroke: 'currentColor', 'stroke-width': '2.4', 'stroke-linecap': 'round' });

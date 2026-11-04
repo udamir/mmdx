@@ -43,6 +43,7 @@ export const TOOLBAR_MESSAGES: Messages = {
   'tb.kind.message': 'Messages', 'tb.kind.note': 'Notes', 'tb.kind.block': 'Blocks', 'tb.kind.box': 'Boxes',
   'tb.kind.activation': 'Processes', 'tb.kind.entity': 'Tables', 'tb.kind.rel': 'Relationships', 'tb.kind.attr': 'Attributes',
   'tb.italic': 'Italic', 'tb.underline': 'Underline', 'tb.strike': 'Strikethrough',
+  'tb.animation': 'Animation', 'tb.anim.off': 'Not animated', 'tb.anim.fast': 'Animated — fast (Mermaid: animate: true)', 'tb.anim.slow': 'Animated — slow (Mermaid: animation: slow)',
   'tb.format': 'Text format — bold, italic, underline, strikethrough: the selected words, or the whole text when none is selected',
   'tb.wholeOnly': 'Styles the whole text — clear the text selection to use it',
   'tb.tableStyle': 'Table style — layout and columns', 'tb.layout': 'Layout', 'tb.layout.compact': 'Compact', 'tb.layout.table': 'Table',

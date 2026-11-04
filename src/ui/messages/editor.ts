@@ -97,7 +97,7 @@ export const EDITOR_MESSAGES: Messages = {
   'history.renameLayer': 'Rename layer', 'history.deleteLayer': 'Delete layer', 'history.hideLayer': 'Hide layer', 'history.showLayer': 'Show layer',
   'history.preset': 'Preset', 'history.savePreset': 'Save preset', 'history.updatePreset': 'Update preset', 'history.deletePreset': 'Delete preset',
   'history.resetStyle': 'Reset style', 'history.resetAll': 'Reset overrides', 'history.resetLabel': 'Reset label offset', 'history.resetCurve': 'Reset curve',
-  'history.frame': 'Fixed frame', 'history.pagePreset': 'Page preset', 'history.pageSize': 'Page size', 'history.pageRatio': 'Proportions',
+  'history.frame': 'Fixed frame', 'history.animation': 'Animation', 'props.anim.off': 'Off', 'props.anim.fast': 'Fast', 'props.anim.slow': 'Slow', 'history.pagePreset': 'Page preset', 'history.pageSize': 'Page size', 'history.pageRatio': 'Proportions',
   'history.direction': 'Direction', 'history.autonumber': 'Message numbers', 'history.newDiagram': 'New diagram', 'history.theme': 'Theme',
   'history.order': 'Move in order', 'history.paletteAdd': 'Add colour', 'history.paletteRemove': 'Remove colour', 'history.autoLayout': 'Auto layout',
   'history.lock': 'Lock', 'history.unlock': 'Unlock',

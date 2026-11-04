@@ -120,6 +120,9 @@ export interface ToolbarApi {
   themeFontName(): string;
   /** The Mermaid arrow ends of the selected edge ("Use Mermaid arrows"). */
   edgeEnds?(): { start?: string | undefined; end?: string | undefined };
+  /** A connector's animation (dashes flowing along it); absent or null: its type has none to set. */
+  animation?(): 'off' | 'fast' | 'slow' | null;
+  setAnimation?(a: 'off' | 'fast' | 'slow'): void;
   /** Selection box in host coordinates; null hides the bar (scrolled away). */
   anchorRect(): Rect | null;
   /** Free horizontal strip of the host [left, right] (not over side panels). */

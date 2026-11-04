@@ -2,6 +2,7 @@
 // (delete, group), copying, connecting, the Shapes menu, inspectors and toolbars. The editor loads it with the type's
 // view and ops kinds; a missing hook means the type does not offer that action.
 import type { Direction, SupportedModel } from '../../core/model.js';
+import type { EdgeAnimation } from '../../core/ops/flow-edge.js';
 import type { MediaPatch } from '../../core/ops/flow-media.js';
 import type { CodeResult, ConnectResult, RefusableResult, SelectResult } from '../../core/ops/types.js';
 import type { GeometryIndex } from '../../core/render/types.js';
@@ -109,6 +110,10 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   imageInMeta?: boolean;
   /** Changes an icon or image item's position, frame, size or aspect lock. */
   setMedia?(code: string, model: M, ref: ItemRef, patch: MediaPatch, core: EditorCore): CodeResult | null;
+  /** A connector's animation (dashes flowing along it); null: the item has none to set. */
+  animation?(model: M, ref: ItemRef): EdgeAnimation | null;
+  /** Sets a connector's animation in `code`; null: it cannot be written. */
+  setAnimation?(code: string, model: M, ref: ItemRef, a: EdgeAnimation): SelectResult | null;
 
   // ---- page, toolbars, problems ----
   /** The diagram's direction, when the type has one (flowchart, ER). */
