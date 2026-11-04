@@ -17,6 +17,8 @@ import { signal, type Signal } from '../ui/signal.js';
 const NS = 'http://www.w3.org/2000/svg';
 /** A zoom shown as a CSS scale is written to the scene this long after its last step. */
 const ZOOM_SETTLE_MS = 150;
+/** A pan shown by CSS is written for real once it moved this part of the canvas size. */
+const PAN_COMMIT = 0.25;
 
 /** Styles of the canvas layers every product adopts (ink strokes, the pen cursor). */
 export const CANVAS_CSS = /* css */ `
@@ -380,21 +382,31 @@ export class DiagramCanvas {
   }
 
   /**
-   * A new scale makes the engine lay out every text of the scene again (SVG text is sized for the screen scale): on a
-   * large diagram that is most of a frame per wheel step. So a zoom shows as a CSS scale of the whole svg (composited,
-   * no layout) and writes the real transform once the zoom rests. A pan alone is cheap, and a single zoom (a button, a
-   * fit) is written at once.
+   * A new scale makes the engine lay out every text of the scene again (SVG text is sized for the screen scale), and a
+   * new translate repaints every item: on a large diagram either is most of a frame per step. So a wheel zoom, a wheel
+   * pan and a drag pan show as a CSS transform of the whole svg (its own composited layer, no layout, no repaint) and
+   * write the real transform once the gesture rests. A pan that goes far is written on the way, so the strip of the scene
+   * that was off screen never stays blank for long. A single change (a button, a fit) is written at once.
    */
   private applyView(v: ViewState): void {
     const a = this.applied;
-    if (!this.unscaled && (v.k === a.k || !this.vpt?.wheeling)) {
+    if (!this.unscaled && !this.vpt?.wheeling && !this.vpt?.panning) {
       this.writeView(v);
       return;
     }
-    if (!this.unscaled) this.unscaled = this.svg.getBoundingClientRect();
     const sc = v.k / a.k;
-    this.svg.style.transformOrigin = '0 0';
-    this.svg.style.transform = `translate(${v.tx - sc * a.tx}px, ${v.ty - sc * a.ty}px) scale(${sc})`;
+    const dx = v.tx - sc * a.tx, dy = v.ty - sc * a.ty;
+    const box = this.unscaled ?? this.svg.getBoundingClientRect();
+    if (sc === 1 && (Math.abs(dx) > box.width * PAN_COMMIT || Math.abs(dy) > box.height * PAN_COMMIT)) {
+      this.writeView(v);
+      return;
+    }
+    if (!this.unscaled) {
+      this.unscaled = box;
+      this.svg.style.willChange = 'transform';
+      this.svg.style.transformOrigin = '0 0';
+    }
+    this.svg.style.transform = `translate(${dx}px, ${dy}px) scale(${sc})`;
     if (this.settle) clearTimeout(this.settle);
     this.settle = setTimeout(() => this.writeView(this.view.peek()), ZOOM_SETTLE_MS);
   }
@@ -406,6 +418,7 @@ export class DiagramCanvas {
       this.unscaled = null;
       this.svg.style.removeProperty('transform');
       this.svg.style.removeProperty('transform-origin');
+      this.svg.style.removeProperty('will-change');
     }
     this.applied = { k: v.k, tx: v.tx, ty: v.ty };
     this.vp.setAttribute('transform', `translate(${v.tx},${v.ty}) scale(${v.k})`);

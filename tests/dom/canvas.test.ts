@@ -113,6 +113,32 @@ describe('DiagramCanvas', () => {
     }
   });
 
+  it('a wheel pan shows as a CSS translate on its own layer, a far pan is written on the way', () => {
+    vi.useFakeTimers();
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 0, left: 0, top: 0, width: 400, height: 300, right: 400, bottom: 300, toJSON: () => ({}) } as DOMRect);
+    try {
+      const host = document.createElement('div');
+      document.body.append(host);
+      const c = new DiagramCanvas(host, { interaction: 'pan-zoom', wheel: 'always' });
+      c.setBounds({ x: 0, y: 0, w: 200, h: 100 }, { fit: true });
+      const before = c.vp.getAttribute('transform');
+      c.svg.dispatchEvent(new WheelEvent('wheel', { deltaX: 30, deltaY: 0, clientX: 100, clientY: 100, cancelable: true }));
+      expect(c.vp.getAttribute('transform')).toBe(before);
+      expect(c.svg.style.transform).toBe('translate(-30px, 0px) scale(1)');
+      expect(c.svg.style.willChange).toBe('transform');
+      // past a quarter of the width: written at once
+      c.svg.dispatchEvent(new WheelEvent('wheel', { deltaX: 80, deltaY: 0, clientX: 100, clientY: 100, cancelable: true }));
+      const v = c.view.peek();
+      expect(c.vp.getAttribute('transform')).toBe(`translate(${v.tx},${v.ty}) scale(${v.k})`);
+      expect(c.svg.style.transform).toBe('');
+      expect(c.svg.style.willChange).toBe('');
+      c.destroy();
+    } finally {
+      spy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
   it('a destroyed linked canvas is unlinked from the other one; onDestroy hooks run once', () => {
     const host = document.createElement('div');
     document.body.append(host);
