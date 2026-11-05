@@ -7,20 +7,32 @@
 // sits at its creating message's row and its lifeline starts there; a destroyed one's lifeline ends at its destroying
 // message with a cross. A participant's Mermaid links (`link`, `links`) are its item link (the first one) and the
 // viewer's menu (`data-links`, all of them).
+//
+// Participant types and media (T10.2): Mermaid's 8 types draw natively — box, database (the cylinder), collections
+// (stacked boxes) and queue (the horizontal cylinder) with the name inside; actor, boundary, control and entity as
+// their catalogue figure (core/shapes/figures.ts) with the name under it. A participant's icon (the leading token of
+// its name, above the name unless `iconPos` says otherwise) and its image (metadata `img`, else its `properties` icon
+// URL, Mermaid's undocumented corner image) draw as in every kind (render/decorate.ts), and its head grows to hold
+// them. Icon tokens in names, messages and notes draw through the media kit (a lazy chunk; Mermaid has no markdown in
+// sequence diagrams, so only the tokens); emoji are text.
+import { ICON_TOKEN } from '../icons/names.js';
 import { ActivationTracker } from '../ids.js';
 import type { DiagramMeta, ItemMeta } from '../meta/types.js';
 import type { Participant, SeqBlockStart, SeqMessage, SeqNote, SequenceModel } from '../model.js';
 import { messageNumbers } from '../parse/sequence.js';
 import { el, g } from '../scene/build.js';
-import type { SceneNode } from '../scene/types.js';
+import type { SceneNode, TextRun } from '../scene/types.js';
+import { shapeDef } from '../shapes/registry.js';
 import type { StyleProps } from '../style.js';
+import type { FontSpec } from '../text/measure.js';
 import type { ResolvedTheme } from '../theme/types.js';
 import { textBlockWidth, wrap } from '../text/wrap.js';
 import { fmt } from '../scene/serialize.js';
 import {
   baseStyle, countBy, Defs, font, hiddenOf, itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle, metaNum, pickStyle,
-  presetOf, presets, shapeNodes, stackedShapeNodes, textBlock, urlRef, withLink, type RenderEnv, type SubResult,
+  presetOf, presets, shapeNodes, stackedShapeNodes, textBlock, urlRef, withLink, type RenderEnv, type SubResult, type TextOpts,
 } from './common.js';
+import { decorate, decorated, decoratedSize, decoration, lazyKit, type Decoration } from './decorate.js';
 import type { BoxGeom, SequenceGeometry } from './types.js';
 import { dashAttrs } from './dash.js';
 
@@ -63,12 +75,27 @@ interface Layout {
   blockTags: boolean;
 }
 
+/** A text's lines, plain or as runs (icon tokens), and its width. */
+interface Txt {
+  lines: string[];
+  rich?: TextRun[][];
+  w: number;
+}
+
 interface Part {
   p: Participant;
   m: ItemMeta;
   st: StyleProps;
   preset: string;
-  lines: string[];
+  /** The name (without the icon token when the icon is drawn apart). */
+  name: Txt;
+  /** The size the name is drawn at (a figure's name is smaller). */
+  nameSize: number;
+  /** The icon and the image beside the name; `fromCode`: the image is the `properties` icon. */
+  deco: Decoration;
+  fromCode: boolean;
+  /** The figure drawn above the name (actor, boundary, control, entity), else null: the name is inside the shape. */
+  figure: { w: number; h: number } | null;
   w: number;
   h: number;
   hidden: boolean;
@@ -95,6 +122,7 @@ interface MsgOut {
   y: number;
   x0: number;
   x1: number;
+  text: Txt;
   lines: string[];
   lh: number;
   num: number;
@@ -115,6 +143,18 @@ interface BlockOut {
 
 const NO_META: ItemMeta = {};
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
+
+/** The shapes Mermaid draws as a figure with the name under it; the actor's own stick figure is 52 px tall, the others 40. */
+const FIGURES = new Set(['actor', 'boundary', 'control', 'entity']);
+const ACTOR_H = 52, FIGURE_H = 40;
+
+/** The image a participant shows: metadata `img`, else the URL of its `properties` icon (`@…`, an embedded picture, is not read). */
+function imageMeta(m: ItemMeta, p: Participant): { meta: ItemMeta; fromCode: boolean } {
+  const icon = p.properties?.['icon'];
+  const url = typeof icon === 'string' ? icon.trim() : '';
+  if (typeof m.img === 'string' || !url || url.startsWith('@')) return { meta: m, fromCode: false };
+  return { meta: { ...m, img: url }, fromCode: true };
+}
 
 export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult {
   const { ctx, theme: T, meta, opts } = env;
@@ -144,28 +184,63 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
   const mt = <K extends 'participants' | 'messages' | 'notes' | 'blocks' | 'boxes' | 'activations'>(k: K, id: string): ItemMeta =>
     meta[k]?.[id] ?? NO_META;
 
+  // icon tokens in names, messages and notes draw through the media kit (a lazy chunk), asked for only when a text has one
+  const kit = lazyKit();
+  const hasIcons = (s: string): boolean => s.includes(':') && [...s.matchAll(ICON_TOKEN)].some((t) => ctx.icons.resolve(t[2]!, 'token') !== null);
+  /** A text's lines (wrapped at `maxW` when given): runs when it holds icon tokens, else plain as before. */
+  const textOf = (text: string, fnt: FontSpec, color: string | undefined, line: number | undefined, maxW?: number): Txt => {
+    const k = hasIcons(text) ? kit() : null;
+    const runs = k ? k.labelRuns(text, { icons: k.iconResolver(ctx, color, fnt.size, line === undefined ? { diagnostics: env.diagnostics } : { diagnostics: env.diagnostics, line }), iconSize: fnt.size }) : null;
+    if (k && runs) {
+      const r = k.wrapRuns(runs, maxW ?? 0, fnt, ctx.measure);
+      const out: Txt = { lines: r.map(k.runsText), w: k.runsBlockWidth(r, fnt, ctx.measure) };
+      if (k.richLines(r)) out.rich = r;
+      return out;
+    }
+    const lines = maxW !== undefined ? wrap(text, maxW, fnt, ctx.measure) : text.split('\n');
+    return { lines, w: textBlockWidth(lines, fnt, ctx.measure) };
+  };
+  const drawText = (t: Txt, x: number, y: number, o: TextOpts): SceneNode[] => {
+    const k = t.rich ? kit() : null;
+    return k && t.rich ? k.richText(t.rich, x, y, { ...o, measure: ctx.measure }) : [textBlock(t.lines, x, y, o)];
+  };
+
   // ---- participants
   const parts: Part[] = model.participants.map((p) => {
     const m = mt('participants', p.id);
     const preset = str(m.preset) ?? '';
     const pst = presetOf(P.participant, preset);
-    // the shape first (own > Mermaid's declaration / actor > preset > theme): each shape has its own default style
-    // in the theme (sequence.participantShapes.<shape>)
+    // the shape first (own > Mermaid's type / actor > preset > theme): each shape has its own default style in the
+    // theme (sequence.participantShapes.<shape>)
     const shape = str(m.shape) || p.shape || (p.kind === 'actor' ? 'actor' : null) || pst?.shape || S.participant.shape || 'box';
     const st = mergeStyle(ctx, S.participant, S.participantShapes?.[shape], baseStyle(meta, 'participant'), pst, pickStyle(m));
     st.shape = shape;
-    const fontSize = st.fontSize ?? 14, padX = st.padX ?? 0;
+    const fontSize = st.fontSize ?? 14, padX = st.padX ?? 0, padY = st.padY ?? 8;
     const fnt = font(fontSize, st.fontWeight, st.fontFamily || family);
+    // the figures beyond the actor are catalogue geometry (in the viewer, loaded on demand: core/shapes/registry.ts)
+    const def = FIGURES.has(shape) && shape !== 'actor' ? shapeDef(shape) : null;
+    const figure = shape === 'actor' ? { w: 28, h: ACTOR_H } : def ? { w: (def.size.w * FIGURE_H) / def.size.h, h: FIGURE_H } : null;
+    const nameSize = figure ? fontSize * 0.6 : fontSize;
+    // the icon (above the name by default) and the image
+    const img = imageMeta(m, p);
+    const deco = decoration(ctx, kit, { label: p.label, meta: img.meta, fontSize: nameSize, color: st.text, pos: 't' });
+    const line = p.defLine ?? Math.min(...p.lines);
     const fixedW = metaNum(m.w);
     // word wrap: lines break to fit the participant's width (its own width, else the style's maxW, else minW / 200)
-    const lines = st.wrap
-      ? wrap(p.label, Math.max(20, (fixedW || st.maxW || Math.max(st.minW ?? 0, 200)) - padX * 2), fnt, ctx.measure)
-      : p.label.split('\n');
-    const w = fixedW || Math.max(st.minW ?? 0, textBlockWidth(lines, fnt, ctx.measure) + 2 * padX);
+    const maxW = st.wrap ? Math.max(20, (fixedW || st.maxW || Math.max(st.minW ?? 0, 200)) - padX * 2) : undefined;
+    // a figure's name with inline icons is laid out at the size it is drawn at (a plain one keeps its width measured at
+    // the head's size, as before)
+    const nameFnt = figure && hasIcons(deco.label) ? font(nameSize, st.fontWeight, st.fontFamily || family) : fnt;
+    const name = textOf(deco.label, nameFnt, deco.inlineColor ?? st.text, Number.isFinite(line) ? line : undefined, maxW);
+    const textH = name.lines.length * nameSize * 1.3;
+    const block = decorated(deco) ? decoratedSize(deco, { w: name.w, h: textH }) : null;
+    const w = fixedW || Math.max(st.minW ?? 0, (block?.w ?? name.w) + 2 * padX);
     let h = metaNum(m.h) || st.h || 40;
-    // a wrapped name never overflows: the head grows taller to fit its lines (an actor's name sits under the figure)
-    if (st.wrap && shape !== 'actor') h = Math.max(h, lines.length * fontSize * 1.3 + 2 * (st.padY ?? 8));
-    return { p, m, st, preset, lines, w, h, hidden: hidden.participant.has(p.id) };
+    // a wrapped name never overflows: the head grows taller to fit its lines (a figure's name sits under the figure)
+    if (st.wrap && !figure) h = Math.max(h, textH + 2 * padY);
+    // the icon and the image too: inside the shape, or with the name under the figure
+    if (block) h = Math.max(h, figure ? 4 + figure.h + 6 + block.h + 4 : block.h + 2 * padY);
+    return { p, m, st, preset, name, nameSize, deco, fromCode: img.fromCode, figure, w, h, hidden: hidden.participant.has(p.id) };
   });
   const idx = new Map(parts.map((x, i) => [x.p.id, i]));
   const msgStyle = (it: SeqMessage): { m: ItemMeta; preset: string; st: StyleProps } => {
@@ -179,11 +254,19 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
   parts.forEach((x, i) => {
     cx[i] = i === 0 ? L.margin + x.w / 2 : cx[i - 1]! + parts[i - 1]!.w / 2 + L.gap + x.w / 2;
   });
+  // a message's text, read once (its icon tokens report their misses once)
+  const msgTexts = new Map<string, Txt>();
+  const msgText = (it: SeqMessage, st: StyleProps): Txt => {
+    let t = msgTexts.get(it.id);
+    if (!t) msgTexts.set(it.id, (t = textOf(it.text, font(st.labelSize ?? 14, st.fontWeight || 400, st.fontFamily || family), st.labelColor ?? undefined, it.src)));
+    return t;
+  };
   const need: [number, number, number][] = [];
   for (const it of model.items) {
     if (it.kind !== 'message') continue;
     const { st } = msgStyle(it);
-    const lw = textBlockWidth(it.text.split('\n'), font(st.labelSize ?? 14, 400, family), ctx.measure);
+    const T = msgText(it, st);
+    const lw = T.rich ? T.w : textBlockWidth(T.lines, font(st.labelSize ?? 14, 400, family), ctx.measure);
     const a = idx.get(it.from), b = idx.get(it.to);
     if (a === undefined || b === undefined) continue;
     if (a === b) need.push([a, a + 1, lw + 90]);
@@ -210,7 +293,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
   for (const x of parts) if (!x.p.createdBy) headH = Math.max(headH, x.h);
   let y = top + headH + 40;
   const msgs: MsgOut[] = [];
-  const notes: { it: SeqNote; st: StyleProps; m: ItemMeta; x0: number; x1: number; y0: number; h: number; lines: string[]; hidden: boolean }[] = [];
+  const notes: { it: SeqNote; st: StyleProps; m: ItemMeta; x0: number; x1: number; y0: number; h: number; text: Txt; hidden: boolean }[] = [];
   const blocks: BlockOut[] = [];
   const acts: { id: string; pid: string; y0: number; y1: number; level: number; st: StyleProps; w: number; from?: string; to?: string }[] = [];
   const blockStack: BlockOut[] = [];
@@ -276,7 +359,8 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
       const { m, st, preset } = msgStyle(it);
       const isHidden = hidden.participant.has(it.from) || hidden.participant.has(it.to) || hidden.message.has(it.id) || inHiddenBlock();
       y += metaNum(m.dy) || 0;
-      const lines = it.text.split('\n');
+      const text = msgText(it, st);
+      const lines = text.lines;
       const lh = (st.labelSize ?? 14) * L.lineH;
       const labelH = lines.length * lh;
       const self = it.from === it.to;
@@ -284,7 +368,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
       if (self) {
         const ly = y + 14;
         const x0 = actEdge(it.from, 1);
-        msgs.push({ it, st, m, preset, hidden: isHidden, self: true, y: ly, x0, x1: x0 + 60, lines, lh, num, bg: currentFill() });
+        msgs.push({ it, st, m, preset, hidden: isHidden, self: true, y: ly, x0, x1: x0 + 60, text, lines, lh, num, bg: currentFill() });
         y = ly + 34 + Math.max(0, labelH - 30);
       } else {
         const made = createdBy.get(it.id);
@@ -302,7 +386,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
           made.createdY = ly;
           x1 = cxOf(it.to) - dir * (made.w / 2 + 3);
         }
-        msgs.push({ it, st, m, preset, hidden: isHidden, self: false, y: ly, x0, x1, lines, lh, num, bg: currentFill() });
+        msgs.push({ it, st, m, preset, hidden: isHidden, self: false, y: ly, x0, x1, text, lines, lh, num, bg: currentFill() });
         if (it.deactivate) deactivate(it.from, ly + 12, it.id);
         y = ly + (st.labelOnLine ? Math.max(L.rowH, labelH + 18) / 2 : 12);
         if (made && made.p.id === it.to) y += made.h / 2;
@@ -321,9 +405,10 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
       const m = mt('notes', it.id);
       const st = mergeStyle(ctx, S.note, baseStyle(meta, 'note'), presetOf(P.note, str(m.preset)), pickStyle(m));
       y += metaNum(m.dy) || 0;
-      const lines = it.text.split('\n');
       const fontSize = st.fontSize ?? 14;
-      const tw = textBlockWidth(lines, font(fontSize, 400, family), ctx.measure) + 24;
+      const text = textOf(it.text, font(fontSize, 400, family), st.text, it.src);
+      const lines = text.lines;
+      const tw = text.w + 24;
       const xs = it.targets.map(cxOf);
       let x0: number, x1: number;
       if (it.pos === 'over') {
@@ -348,7 +433,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
       }
       const h = lines.length * fontSize * 1.3 + 16;
       notes.push({
-        it, st, m, x0, x1, y0: y + 6, h, lines,
+        it, st, m, x0, x1, y0: y + 6, h, text,
         hidden: it.targets.some((t) => hidden.participant.has(t)) || hidden.note.has(it.id) || inHiddenBlock(),
       });
       y += h + 18;
@@ -535,7 +620,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
       itemGroup('note', n.it.id, 'note', [
         ...shapeNodes('rect', box, st),
         ...withLink(href, [
-          textBlock(n.lines, box.x, box.y, {
+          ...drawText(n.text, box.x, box.y, {
             size: st.fontSize ?? 14, weight: st.fontWeight || 400, color: href ? LINK_COLOR : st.text, family: st.fontFamily || family, underline: !!href,
           }),
         ]),
@@ -570,7 +655,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
         // the loop comes back leftwards; a reversed head sits where it leaves the lifeline
         ...halfHead(it, it.reverse ? x : x + 2, it.reverse ? yy : yy + 24, -1, -1, size, width * 0.75, st.color),
         ...withLink(href, [
-          textBlock(gm.lines, x + 66, yy + 12, {
+          ...drawText(gm.text, x + 66, yy + 12, {
             size: labelSize, color: labelColor, family: st.fontFamily || family, weight: st.fontWeight || 400, anchor: 'start', lh: L.lineH, underline: !!href,
           }),
         ]),
@@ -593,13 +678,13 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
       if (it.central === 'from' || it.central === 'both') inner.push(el('circle', { cx: x0 - dir * CENTRAL_R, cy: yy, r: CENTRAL_R, fill: st.color }));
       if (it.text && !opts.hideLabels) {
         const cxm = (x0 + x1) / 2;
-        const tw = textBlockWidth(gm.lines, font(labelSize, st.fontWeight || 400, st.fontFamily || family), ctx.measure);
+        const tw = gm.text.rich ? gm.text.w : textBlockWidth(gm.lines, font(labelSize, st.fontWeight || 400, st.fontFamily || family), ctx.measure);
         const th = gm.lines.length * gm.lh;
         const ty = st.labelOnLine ? yy : yy - th / 2 - 6;
         if (st.labelOnLine) inner.push(el('rect', { x: cxm - tw / 2 - 6, y: ty - th / 2, width: tw + 12, height: th, fill: gm.bg }));
         inner.push(
           ...withLink(href, [
-            textBlock(gm.lines, cxm, ty, {
+            ...drawText(gm.text, cxm, ty, {
               size: labelSize, color: labelColor, family: st.fontFamily || family, weight: st.fontWeight || 400, lh: L.lineH, underline: !!href,
             }),
           ]),
@@ -611,6 +696,37 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     body.push(itemGroup('message', it.id, 'message', inner, { 'data-from': it.from, 'data-to': it.to, ...linkAttr(href) }));
   }
   // participant heads (and optional mirrored feet)
+  /** A participant's head centred on (px, cy): its shape or figure, its icon and image, its name. */
+  const headNodes = (x: Part, px: number, cy: number, href: ReturnType<typeof itemLink>, foot: boolean): SceneNode[] => {
+    const { st, figure, deco } = x;
+    const color = href ? LINK_COLOR : st.text;
+    const to: TextOpts = { size: x.nameSize, weight: st.fontWeight, color, family: st.fontFamily || family, underline: !!href };
+    const text = { w: x.name.w, h: x.name.lines.length * x.nameSize * 1.3 };
+    // the assets of the foot are the head's again: its diagnostics are not repeated, its images get keys of their own
+    const at = (top: number): { nodes: SceneNode[]; y: number; x: number } => {
+      if (!decorated(deco)) return { nodes: [], x: px, y: top + text.h / 2 };
+      const D = decorate(foot ? { ctx, diagnostics: [] } : env, kit, deco, px, top, text, {
+        key: foot ? `${x.p.id}:foot` : x.p.id, line: x.p.defLine ?? Math.min(...x.p.lines), family, ...(st.text ? { color: st.text } : {}), source: x.fromCode ? 'code' : 'meta',
+      });
+      return { nodes: D.nodes, x: D.contentBox.x, y: D.contentBox.y };
+    };
+    if (figure) {
+      // the figure at the top, the name (with its icon and image) under it
+      const top = cy - x.h / 2 + 4;
+      const fig = st.shape === 'actor'
+        ? [g({ fill: 'none', stroke: st.stroke, 'stroke-width': 2 }, [
+          el('circle', { cx: px, cy: top + 8, r: 8 }),
+          el('path', { d: `M${fmt(px)},${fmt(top + 16)} v20 M${fmt(px - 14)},${fmt(top + 24)} h28 M${fmt(px)},${fmt(top + 36)} l-12,16 M${fmt(px)},${fmt(top + 36)} l12,16` }),
+        ])]
+        : shapeDef(st.shape).draw({ x: px, y: top + figure.h / 2, w: figure.w, h: figure.h }, st, {});
+      const name = at(top + figure.h + 6);
+      return [...fig, ...name.nodes, ...withLink(href, drawText(x.name, name.x, name.y, to))];
+    }
+    const shape = st.shape === 'database' ? 'cylinder' : st.shape === 'box' ? 'rect' : st.shape;
+    const block = decorated(deco) ? decoratedSize(deco, text) : text;
+    const name = at(cy + (shape === 'cylinder' ? 4 : 0) - block.h / 2);
+    return [...stackedShapeNodes(shape, { x: px, y: cy, w: x.w, h: x.h }, st), ...name.nodes, ...withLink(href, drawText(x.name, name.x, name.y, to))];
+  };
   const partGeom = new Map<string, BoxGeom>(), footGeom = new Map<string, BoxGeom>();
   parts.forEach((x, i) => {
     if (x.hidden) return;
@@ -619,13 +735,13 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     const href = x.m.link ? itemLink(ctx, x.m.link) : firstLink(ctx, x.p);
     const attrs = { ...linkAttr(href), ...menuAttr(ctx, x.p) };
     const hy = x.createdY ?? top + x.h / 2;
-    body.push(itemGroup('participant', x.p.id, 'participant', participantNodes(x, px, hy, family, href), attrs));
+    body.push(itemGroup('participant', x.p.id, 'participant', headNodes(x, px, hy, href, false), attrs));
     if (L.mirror) {
       // the copy at the bottom: selectable / resizable like the head (data-foot tells the editor which one was picked);
       // a destroyed participant's copy sits under its cross
       const fy = x.destroyedY !== undefined ? x.destroyedY + 14 + x.h / 2 : bottom + x.h / 2;
       body.push(
-        itemGroup('participant', x.p.id, 'participant', participantNodes(x, px, fy, family, href), { 'data-foot': '1', ...attrs }, 'foot'),
+        itemGroup('participant', x.p.id, 'participant', headNodes(x, px, fy, href, true), { 'data-foot': '1', ...attrs }, 'foot'),
       );
       footGeom.set(x.p.id, { x: px, y: fy, w: x.w, h: x.h });
     }
@@ -713,32 +829,6 @@ function menuAttr(ctx: RenderEnv['ctx'], p: Participant): Record<string, string>
     if (href) list.push([l.label || l.url, href]);
   }
   return list.length > 1 ? { 'data-links': JSON.stringify(list) } : {};
-}
-
-function participantNodes(x: Part, cx: number, cy: number, family0: string, href: ReturnType<typeof itemLink>): SceneNode[] {
-  const { st, lines } = x;
-  const family = st.fontFamily || family0;
-  const color = href ? LINK_COLOR : st.text;
-  const fontSize = st.fontSize ?? 14;
-  if (st.shape === 'actor') {
-    const top = cy - x.h / 2 + 4;
-    // the name of a stick figure (figure: top … top + 52, centred on cx), under the figure
-    const size = fontSize * 0.6, half = (lines.length * size * 1.3) / 2;
-    return [
-      g({ fill: 'none', stroke: st.stroke, 'stroke-width': 2 }, [
-        el('circle', { cx, cy: top + 8, r: 8 }),
-        el('path', {
-          d: `M${fmt(cx)},${fmt(top + 16)} v20 M${fmt(cx - 14)},${fmt(top + 24)} h28 M${fmt(cx)},${fmt(top + 36)} l-12,16 M${fmt(cx)},${fmt(top + 36)} l12,16`,
-        }),
-      ]),
-      ...withLink(href, [textBlock(lines, cx, top + 58 + half, { size, weight: st.fontWeight, color, family, underline: !!href })]),
-    ];
-  }
-  const shape = st.shape === 'database' ? 'cylinder' : st.shape === 'box' ? 'rect' : st.shape;
-  return [
-    ...stackedShapeNodes(shape, { x: cx, y: cy, w: x.w, h: x.h }, st),
-    ...withLink(href, [textBlock(lines, cx, cy + (shape === 'cylinder' ? 4 : 0), { size: fontSize, weight: st.fontWeight, color, family, underline: !!href })]),
-  ];
 }
 
 const toNum = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);

@@ -6,12 +6,16 @@
 // message's arrow is changed in place (`()` and `+` / `-` kept), the message reversed or one end re-attached; a note
 // is put left of, right of or over its participant. Every rewrite reads its line through the parser's own scans
 // (`lexMessage`, `lexDecl`).
+//
+// T10.2: a participant's type is written as Mermaid writes it — `actor` and `participant` as the keyword, the other six
+// as `@{ "type": "…" }` (the block's other entries, the alias and `create` kept); a participant without a declaration
+// gets one on the line it is first mentioned on, so the order Mermaid draws stays (`declare`, which renames use too).
 import { maxOf, minOf } from '../geom.js';
 import { activationsOf } from '../ids.js';
 import type { BlockKind, Participant, SeqBlockStart, SeqItem, SeqMessage, SeqNote, SequenceModel } from '../model.js';
 import { encodeLabel } from '../parse/label.js';
-import { applySplices, editBlock } from '../parse/node-data.js';
-import { arrowKind, lexDecl, lexMessage } from '../parse/sequence.js';
+import { applySplices, editBlock, type Splice } from '../parse/node-data.js';
+import { arrowKind, lexDecl, lexMessage, type ParticipantType } from '../parse/sequence.js';
 import type { ItemRef } from '../types.js';
 import { activationsBalanced } from './activations.js';
 import { blocksOf } from './reorder.js';
@@ -42,8 +46,27 @@ const declOf = (p: Participant, L: readonly string[]): string => (p.defLine != n
 // Free text after `as` / `:` / a block keyword: one line in the code (newlines → <br>), quotes kept as typed.
 const seqText = (s: string): string => encodeLabel(s).replace(/#quot;/g, '"');
 
+/** `@{ "type": … }` of a type the keyword cannot write ('' for `participant` and `actor`). */
+const typeBlock = (type: ParticipantType | undefined): string => (type && type !== 'participant' && type !== 'actor' ? `@{ "type": "${type}" }` : '');
+
+/**
+ * A declaration for a participant that has none yet, on the line it is first mentioned on (indented as that line), so
+ * the order Mermaid draws participants in (first mention) stays: the participants mentioned on that line before it
+ * are declared there too, ahead of it. `decl` is its declaration without the indent.
+ */
+function declare(code: string, model: SequenceModel, p: Participant, decl: string): string {
+  const L = code.split('\n');
+  const first = (q: Participant): number => minOf([...q.lines]);
+  const at = first(p);
+  const before = model.participants.slice(0, model.participants.indexOf(p)).filter((q) => q.defLine == null && first(q) === at);
+  const ind = indentOf(L[at]) || '  ';
+  return splice(code, at, 0, [...before.map((q) => `${ind}${declWord(q)} ${q.id}`), `${ind}${decl}`]);
+}
+
 export interface AddParticipantOpts {
   kind?: 'participant' | 'actor';
+  /** A Mermaid type the keyword cannot write (`database`, `queue`…): `@{ "type": … }`. */
+  type?: ParticipantType;
   label?: string;
   /** Insert before this participant (else last). */
   beforeId?: string | null;
@@ -53,10 +76,10 @@ export interface AddParticipantOpts {
  * Inserts a participant before `beforeId` (or last). All participants outside boxes are written as explicit
  * declarations in display order, so the visual order is exactly what the user dropped.
  */
-export function addParticipant(code: string, model: SequenceModel, { kind = 'participant', label, beforeId = null }: AddParticipantOpts = {}): SelectResult & { select: ItemRef } {
+export function addParticipant(code: string, model: SequenceModel, { kind = 'participant', type, label, beforeId = null }: AddParticipantOpts = {}): SelectResult & { select: ItemRef } {
   const id = uniqueId(model, kind === 'actor' ? 'Actor' : 'P');
   const L = code.split('\n');
-  const mine = `${kind === 'actor' ? 'actor' : 'participant'} ${id}${label ? ` as ${seqText(label)}` : ''}`;
+  const mine = `${kind === 'actor' ? 'actor' : 'participant'} ${id}${typeBlock(type)}${label ? ` as ${seqText(label)}` : ''}`;
   const free = model.participants.filter((p) => !p.box);
   const list: string[] = [];
   let placed = false;
@@ -120,7 +143,7 @@ export function relabelSeq(code: string, model: SequenceModel, sel: ItemRef, tex
       if (line !== null) return { code: splice(code, p.defLine, 1, [line]) };
       return { code: splice(code, p.defLine, 1, [`${indentOf(L[p.defLine])}${declWord(p)} ${p.id}${want ? ` as ${want}` : ''}`]) };
     }
-    return { code: splice(code, lastDeclLine(model, code) + 1, 0, [`  ${declWord(p)} ${p.id}${want ? ` as ${want}` : ''}`]) };
+    return want ? { code: declare(code, model, p, `${declWord(p)} ${p.id} as ${want}`) } : { code };
   }
   const it = model.items.find((x) => (x.kind === 'message' || x.kind === 'note' || x.kind === 'blockStart') && x.id === sel.id);
   if (!it) return { code };
@@ -150,6 +173,52 @@ function renameDecl(line: string, want: string): string | null {
   if (!want) return line;
   const at = d.dataEnd ?? d.idEnd;
   return `${line.slice(0, at)} as ${want}${line.slice(at)}`;
+}
+
+const DECL_WORD = /^(\s*(?:create\s+)?)(participant|actor)\b/i;
+
+/**
+ * A participant of Mermaid type `type`: `actor` / `participant` as the keyword (a `type` entry of its block goes, and a
+ * block left empty with it), the other six as `@{ "type": … }` after the id (an entry the block has is rewritten,
+ * keeping its quotes; the keyword becomes `participant`). Null when Mermaid 11.17 could not read it (it takes no
+ * `@{…}` after an id with a hyphen or `=`): the editor keeps the shape in metadata then.
+ */
+export function setParticipantType(code: string, model: SequenceModel, id: string, type: ParticipantType): CodeResult | null {
+  const p = model.participants.find((x) => x.id === id);
+  if (!p) return null;
+  const block = typeBlock(type);
+  const word = type === 'actor' ? 'actor' : 'participant';
+  if (p.defLine == null) {
+    if (block && /[-=]/.test(p.id)) return null;
+    return type === 'participant' ? { code } : { code: declare(code, model, p, `${word} ${p.id}${block}`) };
+  }
+  const L = code.split('\n');
+  const line = L[p.defLine] ?? '';
+  const d = lexDecl(line);
+  const w = DECL_WORD.exec(line);
+  if (!d || !w) return null;
+  const out: Splice[] = [];
+  const at = w[1]!.length;
+  if (w[2]!.toLowerCase() !== word) out.push({ from: at, to: at + w[2]!.length, text: word });
+  const data = d.data;
+  const entry = data ? [...data.entries].reverse().find((e) => e.key === 'type') : undefined;
+  if (!block) {
+    // the keyword writes it: the block's type goes (the whole block when nothing else is in it)
+    if (data && entry && d.dataAt !== undefined && d.dataEnd !== undefined && data.entries.every((e) => e.key === 'type')) out.push({ from: d.dataAt, to: d.dataEnd, text: '' });
+    else if (data && entry) out.push(...editBlock(line, data, { type: undefined }));
+  } else if (data && entry) {
+    if (entry.value !== type) out.push(...editBlock(line, data, { type: line[entry.valueAt] === '"' ? `"${type}"` : type }, new Set(['type'])));
+  } else if (data) {
+    // a new entry, quoted as the block's first one is (`"alias": "…"` JSON, `alias: …` YAML)
+    const q = data.entries[0] && line[data.entries[0].at] === '"' ? '"' : '';
+    out.push(...editBlock(line, data, { [`${q}type${q}`]: `${q}${type}${q}` }, new Set([`${q}type${q}`])));
+  } else {
+    if (/[-=]/.test(d.id)) return null;
+    out.push({ from: d.idEnd, to: d.idEnd, text: block });
+  }
+  if (!out.length) return { code };
+  L[p.defLine] = applySplices(line, out);
+  return { code: L.join('\n') };
 }
 
 /** `Note over <over>: note` after line `afterLine` (else at the end). */

@@ -64,7 +64,8 @@ describe('insert dock', () => {
     for (const n of ['text', 'icons', 'container', 'connector']) expect($(`.vt-${n}`)).toBeNull();
     // the tooltip carries the shortcut
     expect($('.vt-image')!.title).toContain('(G)');
-    e.setSource('sequenceDiagram\n  A->>B: hi\n');
+    // a type without images (ER entities, T10 §6 Q2) hides the button; sequence participants take images since T10.2
+    e.setSource('erDiagram\n  A ||--o{ B : has\n');
     await settle();
     e.core.fire('model');
     expect($('.vt-image')!.hidden).toBe(true);

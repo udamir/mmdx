@@ -10,6 +10,11 @@
 //
 // Mermaid 12.1 syntax that 11.17 rejects (whitespace before `@{`, a hyphen in an id with `@{}`, `Link` / `Links` /
 // `Properties` / `Details` as ids) is read and reported with the info `seq.v12-syntax`; mmdx never writes it.
+//
+// T10.2: a participant's type is Mermaid's — `@{ "type": "…" }` (one of the 8 types; it outranks the `actor` keyword,
+// as in Mermaid's SequenceDB) else the keyword — read into its shape (`participant` → `box`); a type Mermaid does not
+// draw warns `seq.bad-type`. Its `properties` icon (`{"icon": "https://…"}`, Mermaid's undocumented corner image) is
+// the participant's image unless its metadata has one (render/sequence.ts).
 import type {
   BlockKind, MessageHead, Participant, SeqBlockStart, SeqBox, SeqItem, SeqLink, SeqMessage, SeqNumbering, SequenceModel,
 } from '../model.js';
@@ -221,6 +226,26 @@ export function lexDecl(line: string): DeclLex | null {
   return null;
 }
 
+// ---- participant types -----------------------------------------------------------------------------------------
+
+/** Mermaid's participant types (`PARTICIPANT_TYPE` in its SequenceDB, 11.17 and 12.2), in the toolbar's order. */
+export const PARTICIPANT_TYPES = ['participant', 'actor', 'boundary', 'control', 'entity', 'database', 'collections', 'queue'] as const;
+export type ParticipantType = (typeof PARTICIPANT_TYPES)[number];
+const TYPES = new Set<string>(PARTICIPANT_TYPES);
+
+/** The shape a Mermaid type is drawn with (its own name; `participant` is the box). */
+export const typeShape = (type: ParticipantType): string => (type === 'participant' ? 'box' : type);
+
+/**
+ * The Mermaid type that writes a participant shape (`box` → `participant`; `hcyl`, the queue's look, → `queue`), or
+ * null for the looks only mmdx draws (rounded, stadium: metadata `shape`).
+ */
+export function shapeType(shape: string): ParticipantType | null {
+  if (shape === 'box') return 'participant';
+  if (shape === 'hcyl') return 'queue';
+  return shape !== 'participant' && TYPES.has(shape) ? (shape as ParticipantType) : null;
+}
+
 // ---- the parser ------------------------------------------------------------------------------------------------
 
 const BLOCKS: readonly BlockKind[] = ['loop', 'alt', 'opt', 'par', 'critical', 'break', 'rect'];
@@ -336,8 +361,10 @@ export function parseSequence(code: string): SequenceModel {
         creating = p;
       }
       if (box && p.box !== box.id) { p.box = box.id; if (!box.members.includes(p.id)) box.members.push(p.id); }
+      // Mermaid: the block's type outranks the keyword
       const typ = val('type');
-      if (typ && /^\w+$/.test(typ)) p.shape = typ;
+      if (typ !== undefined && TYPES.has(typ)) p.shape = typeShape(typ as ParticipantType);
+      else if (typ !== undefined) D.push(diag('warning', 'seq.bad-type', `"${typ}" is not a participant type (Mermaid draws nothing for it): ${PARTICIPANT_TYPES.join(', ')}`, li));
       if (decl.v12) v12(decl.v12, li);
       continue;
     }

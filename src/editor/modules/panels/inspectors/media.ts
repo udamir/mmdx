@@ -3,7 +3,8 @@
 // (checked against the image policy when the image tool opens), its size, fit and aspect lock. Writes go to the
 // Mermaid code through `setIcon`, `setImage` and `setMedia` (a flowchart's node data); the fit is metadata. In the types
 // that draw icons and images beside the label (`decorated`: mindmap nodes, states), the icon's place and size and the
-// image's size are metadata too (T10 §4.6).
+// image's size are metadata too (T10 §4.6), the icon's place defaulting to the type's (`iconPos`: above a participant's
+// name); a type whose stock Mermaid shows every label token as text (`iconsAsText`: sequence) says so.
 import type { ItemRef } from '../../../../core/types.js';
 import { h } from '../../../../ui/h.js';
 import { registerMessages } from '../../../../ui/i18n.js';
@@ -68,7 +69,8 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
     host.append(row(t('props.icon'), ...ctl));
     // an icon in the label (T06 §3.3, §3.6): stock Mermaid draws Font Awesome tokens only; the icon can become the node
     if (!m.node && m.icon) {
-      if (!isFaPack(splitIconName(m.icon)[0])) host.append(h('div', { class: 'hint' }, t('props.iconTokenMmdx')));
+      if (k.iconsAsText) host.append(h('div', { class: 'hint' }, t('props.iconTokenText')));
+      else if (!isFaPack(splitIconName(m.icon)[0])) host.append(h('div', { class: 'hint' }, t('props.iconTokenMmdx')));
       if (k.setMedia) {
         const conv = h('button', { type: 'button' }, t('props.toIconNode'));
         conv.addEventListener('click', () => void setMediaOf(core, [ref], { node: 'icon' }));
@@ -78,7 +80,7 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
     if (k.decorated && !m.node && m.icon) {
       // where the icon is drawn (inline before the text, above, below) and its size (inline: the font's)
       const meta = core.getM(ref.kind, ref.id);
-      const pos = typeof meta['iconPos'] === 'string' ? meta['iconPos'] : 'l';
+      const pos = typeof meta['iconPos'] === 'string' ? meta['iconPos'] : k.iconPos ?? 'l';
       host.append(row(t('props.iconPos'), choice(t('props.iconPos'), ['l', 't', 'b'], pos, (v) => t(`media.iconPos.${v}`), (v) => setDecoration(core, [ref], 'iconPos', v))));
       host.append(row(t('props.iconSize'), size(t('props.iconSize'), typeof meta['iconSize'] === 'number' ? meta['iconSize'] : undefined, (v) => setDecoration(core, [ref], 'iconSize', v))));
     }

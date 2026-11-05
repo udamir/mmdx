@@ -134,6 +134,10 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
    * fit are item metadata (`iconPos`, `iconSize`, `imgW`, `imgH`, `imgFit`), which Properties edits.
    */
   decorated?: boolean;
+  /** Where a label's icon token is drawn without metadata `iconPos` (default `l`, inline; sequence participants: `t`). */
+  iconPos?: 'l' | 't' | 'b';
+  /** Stock Mermaid shows every icon token in the type's labels as text (sequence): Properties says so. */
+  iconsAsText?: boolean;
   /** Changes an icon or image item's position, frame, size or aspect lock. */
   setMedia?(code: string, model: M, ref: ItemRef, patch: MediaPatch, core: EditorCore): CodeResult | null;
 

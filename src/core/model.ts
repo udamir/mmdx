@@ -213,7 +213,7 @@ export interface FlowchartModel extends BaseModel {
 
 // ---- sequence ---------------------------------------------------------------------------------------------------
 
-export type ParticipantShape = 'box' | 'rounded' | 'stadium' | 'actor' | 'database' | 'queue' | string;
+export type ParticipantShape = 'box' | 'actor' | 'boundary' | 'control' | 'entity' | 'database' | 'collections' | 'queue' | string;
 
 export interface Participant {
   id: string;
@@ -223,7 +223,7 @@ export interface Participant {
   box: string | null;
   lines: Set<number>;
   defLine?: number;
-  /** From `@{ "type": "…" }`. */
+  /** Mermaid's type from `@{ "type": "…" }`, as its shape (`participant` → `box`; without one: `kind`). */
   shape?: ParticipantShape;
   /** Declared with `create`. */
   created?: boolean;

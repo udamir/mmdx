@@ -1,5 +1,5 @@
 // An item's icon and image beside its label (T10 §4.5): one helper for every kind whose code has no icon or image node
-// of its own — mindmap nodes, states, and next sequence participants and ER entities — so sizes, spacing and
+// of its own — mindmap nodes, states, sequence participants and next ER entities — so sizes, spacing and
 // placeholders look the same everywhere. The flowchart keeps its icon and image nodes (Mermaid's `@{ icon }` and
 // `@{ img }`, T06), which have their own sizing rules.
 //
@@ -147,8 +147,9 @@ export function decoratedSize(d: Decoration, text: { w: number; h: number }): { 
 export interface DecorateOptions {
   /** The image's key, unique among the diagram's images (its cover clip path's id). */
   key: string;
-  /** Where diagnostics point (the item's line). */
+  /** Where diagnostics point (the item's line), and whether the image is written in the code (default: metadata). */
   line?: number;
+  source?: 'code' | 'meta';
   /** The placeholder's colour (the text's) and caption font. */
   color?: string;
   family?: string;
@@ -175,7 +176,7 @@ export function decorate(
   let y = top;
   if (d.image) {
     const b: Rect = { x: x - d.image.w / 2, y, w: d.image.w, h: d.image.h };
-    if (k) nodes.push(...k.drawImage(env, d.image.url, { box: b, fit: d.image.fit, key: o.key, source: 'meta', ...at, ...(o.color ? { color: o.color } : {}), ...(o.family ? { family: o.family } : {}) }));
+    if (k) nodes.push(...k.drawImage(env, d.image.url, { box: b, fit: d.image.fit, key: o.key, source: o.source ?? 'meta', ...at, ...(o.color ? { color: o.color } : {}), ...(o.family ? { family: o.family } : {}) }));
     y += d.image.h + DECO_GAP;
   }
   const icon = (b: Rect): void => {

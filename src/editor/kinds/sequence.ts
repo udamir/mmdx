@@ -2,13 +2,21 @@
 // action, re-attaching an end (`reconnect`; the sequence module drags the end circles), a note's placement (left of,
 // right of, over), a block's branches (Add / Delete branch in the toolbar, their conditions and Delete in Properties),
 // par, critical and break in the palette; a rect has no text (its argument is its colour).
+//
+// T10.2: the shape picker writes Mermaid's 8 participant types to the code (`actor`, `participant`, else
+// `@{ "type": … }`; the looks only mmdx draws stay metadata `shape`); an icon is a token at the start of the name, in
+// its alias (one is added: `participant A as fa:fa-user A`), drawn above the name; an image is metadata `img` (no
+// Mermaid syntax), and the image tool drops a participant holding it.
 import { activationsOf } from '../../core/ids.js';
 import type { SequenceModel } from '../../core/model.js';
 import { addSeqMessage } from '../../core/ops/connect.js';
+import { leadingIcon, withIconToken, type IsIconToken } from '../../core/ops/icon-token.js';
 import {
   addBranch, boxParticipants, BRANCH_WORD, branchLabels, deleteSeq, MESSAGE_ARROWS, reattachMessage, relabelBox, relabelBranch, relabelSeq,
-  removeActivation, removeBranch, reverseMessage, setMessageArrow, setNotePlacement, unboxParticipants,
+  removeActivation, removeBranch, reverseMessage, setMessageArrow, setNotePlacement, setParticipantType, unboxParticipants,
 } from '../../core/ops/sequence.js';
+import { shapeType } from '../../core/parse/sequence.js';
+import { registerExtendedShapes } from '../../core/shapes/extended.js';
 import type { RefusableResult } from '../../core/ops/types.js';
 import type { ItemRef } from '../../core/types.js';
 import type { SequenceGeometry } from '../../core/render/types.js';
@@ -19,6 +27,12 @@ import { addNote, addParticipant, seqInsertAfter, wrapBlock } from '../../core/o
 import { applyThenStyle, focusLabel, setPreset } from '../modules/shapes/drop.js';
 import { blockIcon, noteIcon, shapeIcon } from './palette.js';
 import type { EditKind, ItemAction, PropControl } from './types.js';
+
+// the participant figures (boundary, control, entity, collections) and icon tokens in the shape picker's previews and
+// the canvas: this chunk registers the extended geometry and the media kit statically, as the state chunk does
+registerExtendedShapes();
+
+const isIconOf = (core: EditorCore): IsIconToken => (t) => core.ctx.icons.resolve(t, 'token') !== null;
 
 const reparseSeq = (code: string): SequenceModel | null => {
   const N = reparse(code);
@@ -123,9 +137,8 @@ export const EDIT: EditKind<SequenceModel, SequenceGeometry> = {
       .filter((o): o is { id: string; x: number } => o.x != null)
       .sort((a, b) => a.x - b.x);
     if (item.key === 'participant' || item.key === 'actor' || item.key === 'database') {
-      const res = addParticipant(core.code, M, { kind: item.key === 'actor' ? 'actor' : 'participant', beforeId: px.find((o) => o.x > pt.x)?.id ?? null });
-      const ok = applyThenStyle(core, res.code, 'Add participant', res.select, () =>
-        setPreset(core, 'participant', res.select.id, item.preset, item.key === 'database' ? { shape: 'database' } : {}));
+      const res = addParticipant(core.code, M, { kind: item.key === 'actor' ? 'actor' : 'participant', ...(item.key === 'database' ? { type: 'database' as const } : {}), beforeId: px.find((o) => o.x > pt.x)?.id ?? null });
+      const ok = applyThenStyle(core, res.code, 'Add participant', res.select, () => setPreset(core, 'participant', res.select.id, item.preset));
       if (ok) focusLabel(core, res.select);
       return ok;
     }
@@ -173,6 +186,38 @@ export const EDIT: EditKind<SequenceModel, SequenceGeometry> = {
     if (ok) focusLabel(core, sel);
     return ok;
   },
+  // Mermaid's 8 types go to the code; the looks only mmdx draws (rounded, stadium) stay metadata
+  setShape(code, M, ref, shape) {
+    const type = ref.kind === 'participant' ? shapeType(shape) : null;
+    return type ? setParticipantType(code, M, ref.id, type) : null;
+  },
+  // the image tool: a participant holding the image, before the one right of the point
+  addImage(core, M, url, pt) {
+    const gm = core.geom;
+    const right = M.participants
+      .map((p) => ({ id: p.id, x: gm.type === 'sequence' ? gm.participants.get(p.id)?.x : undefined }))
+      .filter((o): o is { id: string; x: number } => o.x != null && o.x > pt.x)
+      .sort((a, b) => a.x - b.x)[0];
+    const res = addParticipant(core.code, M, { beforeId: right?.id ?? null });
+    return applyThenStyle(core, res.code, 'Add participant', res.select, () => setPreset(core, 'participant', res.select.id, undefined, { img: url }));
+  },
+  media(M, ref, core) {
+    const p = ref.kind === 'participant' ? M.participants.find((x) => x.id === ref.id) : undefined;
+    if (!p) return null;
+    const img = core.meta.participants?.[p.id]?.img;
+    return { icon: leadingIcon(p.label, isIconOf(core))?.name ?? null, image: typeof img === 'string' ? img : null, node: null, canImage: true };
+  },
+  // a token at the start of the name: in the alias (`as …` or `@{ "alias" }`), one added when there is none
+  setIcon(code, M, ref, icon, core) {
+    const p = ref.kind === 'participant' ? M.participants.find((x) => x.id === ref.id) : undefined;
+    return p ? relabelSeq(code, M, ref, withIconToken(p.label, icon, isIconOf(core))) : null;
+  },
+  // images are metadata (`img`): the editor writes them (imageInMeta), so this write is never asked for
+  setImage: () => null,
+  imageInMeta: true,
+  decorated: true,
+  iconPos: 't',
+  iconsAsText: true,
   codeArrow(core, M, ref) {
     if (ref.kind !== 'message') return null;
     const m = M.items.find((x): x is SeqMessage => x.kind === 'message' && x.id === ref.id);

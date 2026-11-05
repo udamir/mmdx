@@ -63,13 +63,14 @@ export const setMediaOf = (core: EditorCore, refs: readonly ItemRef[], patch: Me
 
 /**
  * Metadata keys of the icon and the image beside a label (T10 §4.6: `iconPos`, `iconSize`, `imgW`, `imgH`; null or the
- * default removes the key), in one history step.
+ * default — the type's `iconPos`, else `l` — removes the key), in one history step.
  */
 export function setDecoration(core: EditorCore, refs: readonly ItemRef[], key: 'iconPos' | 'iconSize' | 'imgW' | 'imgH', value: string | number | null): void {
+  const pos = editKind(core.model.type)?.iconPos ?? 'l';
   core.change(core.i18n.t('history.media'), () => {
     for (const r of refs) {
       const m = core.ensure(r.kind, r.id);
-      if (value === null || value === '' || (key === 'iconPos' && value === 'l')) delete m[key];
+      if (value === null || value === '' || (key === 'iconPos' && value === pos)) delete m[key];
       else (m as Record<string, unknown>)[key] = value;
       core.tidy(r.kind, r.id);
     }

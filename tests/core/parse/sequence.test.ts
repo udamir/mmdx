@@ -6,7 +6,7 @@ import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import type { SeqMessage, SequenceModel } from '../../../src/core/model.js';
-import { ARROW_KINDS, lexDecl, lexMessage, messageNumbers, parseSequence } from '../../../src/core/parse/sequence.js';
+import { ARROW_KINDS, lexDecl, lexMessage, messageNumbers, parseSequence, shapeType } from '../../../src/core/parse/sequence.js';
 import { stockResults } from '../../helpers/mermaid.js';
 
 const P = (src: string) => parseSequence(`sequenceDiagram\n${src}`);
@@ -305,9 +305,27 @@ const CORPUS = [
   'sequenceDiagram\n  A->>()B: to\n  A()->>B: from\n  A()->>()B: both\n  A-|\\B: half\n  B//-A: stick back\n  A--\\\\B: dotted stick',
   'sequenceDiagram\n  A->>B: hi\n  create participant C\n  B->>C: make\n  create actor D as Dee\n  C->>D: make\n  destroy C\n  C-->>B: bye\n  destroy D\n  B->>D: end',
   'sequenceDiagram\n  autonumber 5 2\n  my-svc->>Alice Smith: a\n  A/B-->>C(x): b\n  autonumber off\n  a-b-c-)d: c',
+  // T10.2: every type; the block's type outranks the keyword
+  'sequenceDiagram\n  participant A@{ "type": "boundary" }\n  participant B@{ type: control }\n  actor C@{ "type": "entity" }\n  participant D@{ "type": "collections" } as Docs\n  participant E@{ "type": "queue" }\n  actor F@{ "type": "participant" }\n  participant G@{ "type": "actor" }\n  A->>G: x',
   // (no `box`: Mermaid checks its colour through `window`)
   'sequenceDiagram\n  participant A\n  participant B\n  loop every\n    A->>+B: go\n    B-->>-A: back\n  end\n  Note over A,B: n\n  alt x\n    A->>B: 1\n  else y\n    A->>B: 2\n  end',
 ];
+
+describe('participant types (T10.2)', () => {
+  it('the block\'s type is the shape (participant → box), outranking the keyword; a type Mermaid does not draw warns', () => {
+    const m = P('  actor A@{ "type": "participant" }\n  participant B@{ "type": "actor" }\n  participant C@{ "type": "robot" }\n  actor D\n  A->>B: x');
+    expect(m.participants.map((p) => [p.id, p.shape])).toEqual([['A', 'box'], ['B', 'actor'], ['C', undefined], ['D', undefined]]);
+    expect(m.participants[3]!.kind).toBe('actor');
+    expect(m.diagnostics.filter((d) => d.code === 'seq.bad-type').map((d) => d.range?.line)).toEqual([3]);
+  });
+  it('shapes back to the types that write them: hcyl is the queue, rounded and stadium have none', () => {
+    expect(['box', 'actor', 'boundary', 'queue', 'hcyl', 'rounded', 'stadium', 'participant'].map(shapeType)).toEqual(['participant', 'actor', 'boundary', 'queue', 'queue', null, null, null]);
+  });
+  it('the `properties` icon is kept in the model', () => {
+    const m = P('  participant A\n  properties A: {"icon": "https://example.com/a.png", "class": "x"}\n  A->>A: hi');
+    expect(m.participants[0]!.properties).toEqual({ icon: 'https://example.com/a.png', class: 'x' });
+  });
+});
 
 describe('sequence: the model against Mermaid\'s SequenceDB (12.2 and 11.17)', () => {
   for (const pkg of ['mermaid', 'mermaid-11'])
@@ -318,7 +336,7 @@ describe('sequence: the model against Mermaid\'s SequenceDB (12.2 and 11.17)', (
       mod.diagram.parser.parse(src + '\n');
       const m = parseSequence(src);
       expect(m.diagnostics.filter((d) => d.severity !== 'info')).toEqual([]);
-      expect(m.participants.map((p) => [p.id, p.label, p.shape ?? (p.kind === 'actor' ? 'actor' : 'participant')])).toEqual(
+      expect(m.participants.map((p) => [p.id, p.label, p.shape === 'box' ? 'participant' : p.shape ?? (p.kind === 'actor' ? 'actor' : 'participant')])).toEqual(
         [...db.getActors()].map(([id, a]) => [id, a.description, a.type]),
       );
       const theirs = db.getMessages().filter((x) => x.from && x.to && x.type !== 2); // 2: a note

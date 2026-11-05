@@ -34,7 +34,7 @@ export const FIELD_DEFS: Readonly<Record<string, FieldDef>> = {
   stack: { label: 'Stacked look', type: 'select', options: [['false', 'single'], ['true', 'stacked'], ['2', 'double']] },
   // the shape catalogue's lists (values are ids; a flowchart writes Mermaid's names to the code)
   shape: { label: 'Shape', type: 'select', options: pickerShapes().map((d) => [d.id, d.title ?? d.name] as const) },
-  pshape: { key: 'shape', label: 'Shape', type: 'select', options: PARTICIPANT_SHAPES.map(([n]) => n) },
+  pshape: { key: 'shape', label: 'Shape', type: 'select', options: [...PARTICIPANT_SHAPES.map(([n]) => n), 'hcyl'] },
   dash: { label: 'Line', type: 'select', options: [['none', 'solid'], ['6 4', 'dashed'], ['1.5 4', 'dotted'], ['10 4 2 4', 'dash-dot'], ['8 5', 'long dash']] },
   color: { label: 'Colour', type: 'color' }, width: { label: 'Width', type: 'number', step: 0.1 },
   arrow: { label: 'Arrow head', type: 'select', options: ['open', 'filled', 'arrow', 'none'] },
