@@ -112,8 +112,10 @@ export interface ErGeometry {
    * `head`: height of the title section (from the top; the attributes are below it). `rows`: the attribute rows of a
    * table (y = top), plus the empty row for a new one (`add`) in table view.
    */
-  entities: Map<string, BoxGeom & { head?: number; rows?: { name: string; y: number; h: number; add?: boolean }[] }>;
+  entities: Map<string, BoxGeom & { head?: number; rows?: { name: string; y: number; h: number; add?: boolean }[]; auto?: boolean }>;
   rels: Map<string, EdgeGeom>;
+  /** Subgraph frames (11.17+, T11.6): `fixed` when placed by hand (metadata x / y / w / h). */
+  groups: Map<string, BoxGeom & { fixed?: boolean; hidden?: boolean }>;
 }
 
 export interface MindmapGeometry {

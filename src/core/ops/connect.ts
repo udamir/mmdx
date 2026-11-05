@@ -1,6 +1,6 @@
 // Rewrites Mermaid source when connections are re-attached or created on the canvas (prototype connect.js).
 // Pure functions: (code, model, …) → new code plus where the change landed. The caller re-parses afterwards.
-import type { Cardinality, EdgeHead, EdgeLine, ErModel, FlowNode, FlowchartModel, NodeShape } from '../model.js';
+import type { EdgeHead, EdgeLine, FlowNode, FlowchartModel, NodeShape } from '../model.js';
 import { encodeLabel, labelText } from '../parse/label.js';
 import { applySplices } from '../parse/node-data.js';
 import { resolveShape } from '../shapes/registry.js';
@@ -95,44 +95,7 @@ export function addFlowEdge(code: string, from: string, to: string): LineResult 
   return { code: `${t}\n  ${from} --> ${to}\n`, line: t.split('\n').length };
 }
 
-// ---- ER
-const LEFT: Record<Cardinality, string> = { 'zero-one': '|o', one: '||', 'zero-many': '}o', 'one-many': '}|' };
-const RIGHT: Record<Cardinality, string> = { 'zero-one': 'o|', one: '||', 'zero-many': 'o{', 'one-many': '|{' };
-// A single word stays bare; anything else is quoted (with Mermaid's label escapes).
-const erLabel = (l: string): string => (l ? (/^[\w-]+$/.test(l) ? l : `"${encodeLabel(l)}"`) : '""');
-
-export interface RelTextInput {
-  fromCard: Cardinality;
-  toCard: Cardinality;
-  identifying: boolean;
-  label: string;
-}
-
-export function relText(r: RelTextInput, from: string, to: string): string {
-  return `${from} ${LEFT[r.fromCard]}${r.identifying ? '--' : '..'}${RIGHT[r.toCard]} ${to} : ${erLabel(r.label)}`;
-}
-
-/** Re-attach one end of a relationship; an entity that only lived on that line stays as a bare declaration. */
-export function reconnectER(code: string, model: ErModel, relId: string, which: 'a' | 'b', newId: string): ConnectResult {
-  const lines = code.split('\n');
-  const rel = model.rels.find((r) => r.id === relId);
-  if (!rel) return { code };
-  const li = rel.src;
-  const indent = indentOf(lines[li]);
-  const from = which === 'a' ? newId : rel.from, to = which === 'b' ? newId : rel.to;
-  const out: string[] = [];
-  const old = which === 'a' ? rel.from : rel.to;
-  const e = model.entities.get(old);
-  if (e && e.defLine == null && [...e.lines].every((x) => x === li)) out.push(indent + old); // keep the entity
-  out.push(indent + relText(rel, from, to));
-  lines.splice(li, 1, ...out);
-  return { code: lines.join('\n'), from, to, line: li + out.length - 1 };
-}
-
-export function addERRel(code: string, from: string, to: string): LineResult {
-  const t = code.trimEnd();
-  return { code: `${t}\n  ${from} ||--o{ ${to} : ""\n`, line: t.split('\n').length };
-}
+// ---- ER: core/ops/er.ts (relText, reconnectER, addERRel)
 
 /** Sequence: a new message at the end. */
 export function addSeqMessage(code: string, from: string, to: string): LineResult {

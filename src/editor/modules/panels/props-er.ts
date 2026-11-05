@@ -7,7 +7,7 @@ import type { Cardinality, ErAttribute } from '../../../core/model.js';
 import { attrText, updateEntity, updateRel } from '../../../core/ops/er.js';
 import { cloneMeta, tidy } from '../../../core/ops/meta-util.js';
 import { parseAttrLine } from '../../../core/parse/er.js';
-import { ATTR_PRESETS, attrLook } from '../../../core/render/er.js';
+import { ATTR_PRESETS, attrLook } from '../../../core/render/er-presets.js';
 import { FONTS } from '../../../ui/fonts.js';
 import { h } from '../../../ui/h.js';
 import { applyMeta } from '../../ops/doc.js';

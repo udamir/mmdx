@@ -349,38 +349,115 @@ export type Cardinality = 'zero-one' | 'one' | 'zero-many' | 'one-many';
 export type AttrKey = 'PK' | 'FK' | 'UK';
 
 export interface ErAttribute {
+  /** As written, with Mermaid's optional mark (`string?`, 11.16+). */
   type: string;
   name: string;
   keys: AttrKey[];
   comment: string;
 }
 
+/** A statement that writes an entity on its own (`A`, `A["Alias"]:::c`, `A { … }`), with its code offsets. */
+export interface ErEntityStmt {
+  line: number;
+  endLine: number;
+  start: number;
+  end: number;
+  /** It has a `{ … }` block. */
+  block: boolean;
+  /** Offsets of the id as written (quotes included), of the alias with its brackets and of the block from `{` to after `}`. */
+  nameAt: [number, number];
+  aliasAt?: [number, number];
+  blockAt?: [number, number];
+}
+
 export interface Entity {
   id: string;
+  /** The alias, else the id. */
   label: string;
+  /** The alias as Mermaid keeps it (the first one written): a markdown text (`**bold**`, `*italic*`; T11). */
+  alias?: string;
   attrs: ErAttribute[];
   order: number;
   lines: Set<number>;
+  /** The last `{ … }` block: its first and its `}` line. */
   defLine?: number;
   endLine?: number;
+  /** Classes in order (`:::a,b`, `class A c`). */
+  classes: string[];
+  /** `style A …` lines. */
+  style: MermaidStyle;
+  /** The subgraph it is drawn in (Mermaid: the first subgraph to close that mentions it), null at the top level. */
+  parent: string | null;
+  /** Its own statements (not relationships), in code order. */
+  stmts: ErEntityStmt[];
 }
 
 export interface ErRel {
+  /** `from--to`, or `from--to#n` for the n-th relationship between the same ends. */
   id: string;
+  /** An entity's id, or a subgraph's (a relationship to a subgraph ends on its frame). */
   from: string;
   to: string;
   fromCard: Cardinality;
   toCard: Cardinality;
   identifying: boolean;
   label: string;
+  /** Source line. */
   src: number;
+  /** Offsets of the statement, of each end as written (quotes included), of the three relationship tokens and of the label. */
+  start: number;
+  end: number;
+  fromAt: [number, number];
+  toAt: [number, number];
+  fromCardAt: [number, number];
+  lineAt: [number, number];
+  toCardAt: [number, number];
+  /** The label token (absent: Mermaid's required `: label` is missing). */
+  labelAt?: [number, number];
+}
+
+/** A `subgraph` (Mermaid 11.17+). */
+export interface ErGroup {
+  id: string;
+  /** The title (`subgraph S [Title words]`), else the id. */
+  label: string;
+  parent: string | null;
+  /** Its entities and subgraphs, in Mermaid's member order. */
+  children: string[];
+  order: number;
+  /** `subgraph` line and `end` line (absent: never closed). */
+  line: number;
+  endLine?: number;
+  /** Offsets: `subgraph` … after `end` (the end of the code when never closed). */
+  start: number;
+  end: number;
+  /** Offsets of the id as written and of the header's end (after the id, or the `]` of the title). */
+  idAt: [number, number];
+  headEnd: number;
+  lines: Set<number>;
+  classes: string[];
+  style: MermaidStyle;
+  /** `direction LR` inside it (the last one written). */
+  dir?: Direction;
 }
 
 export interface ErModel extends BaseModel {
   type: 'er';
   direction: Direction;
+  /** Line of the last top-level `direction`, if any. */
+  dirLine?: number;
   entities: Map<string, Entity>;
   rels: ErRel[];
+  groups: Map<string, ErGroup>;
+  classDefs: Record<string, MermaidStyle>;
+  /** `:::c` / `class` uses whose class has no classDef (may still be a theme preset). */
+  undefinedClasses: { cls: string; line: number }[];
+  /** 0-based line of the `erDiagram` header (-1 when missing). */
+  headerLine: number;
+  /** The frontmatter's `title` (or a `title` statement), drawn above the diagram. */
+  title?: string;
+  accTitle?: string;
+  accDescr?: string;
 }
 
 // ---- mindmap ----------------------------------------------------------------------------------------------------

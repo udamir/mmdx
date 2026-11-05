@@ -12,7 +12,7 @@ import { addLocalColor, removeLocalColor } from '../../../core/ops/meta-ops.js';
 import { cloneMeta, ensure, tidy } from '../../../core/ops/meta-util.js';
 import { effectiveValue } from '../../../core/ops/style-env.js';
 import { parseAttrLine } from '../../../core/parse/er.js';
-import { ATTR_PRESETS, attrLook } from '../../../core/render/er.js';
+import { ATTR_PRESETS, attrLook } from '../../../core/render/er-presets.js';
 import { el } from '../../../core/scene/build.js';
 import type { SceneNode } from '../../../core/scene/types.js';
 import { relativeColor } from '../../../core/theme/colors.js';

@@ -875,7 +875,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   /** The outermost group around an item that a click selects (stops at lanes, locked groups and the entered group). */
   groupTarget(it: ItemRef, isLane: (gid: string) => boolean): string | null {
-    if (it.kind !== 'node' && it.kind !== 'group') return null;
+    if (it.kind !== 'node' && it.kind !== 'group' && it.kind !== 'entity') return null;
     const up = groupParents(this.model);
     let best: string | null = null;
     for (let g = this.parentOf(it), guard = 0; g && guard < 64; g = up.get(`group:${g}`) ?? null, guard++) {
@@ -892,7 +892,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     return false;
   }
 
-  groupDescendants(gid: string): { nodes: string[]; groups: string[] } {
+  groupDescendants(gid: string): { nodes: string[]; groups: string[]; leaf?: ItemKind } {
     return withOps(this.model, (k, m) => k.descendants?.(m, gid)) ?? { nodes: [], groups: [] };
   }
 

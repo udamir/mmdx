@@ -1,49 +1,68 @@
-// The ER edit kind.
-import type { ErModel } from '../../core/model.js';
-import { addERRel, reconnectER, relText } from '../../core/ops/connect.js';
-import { deleteER, updateEntity, updateRel } from '../../core/ops/er.js';
+// The ER edit kind: tables, relationships and subgraphs (11.17+, T11.6) — ⌘G wraps tables (and subgraphs) of one
+// subgraph or of the top level in a new `subgraph`, Ungroup and Delete remove the frame and keep what is in it, a
+// table dropped on a subgraph is written into it, Properties set a subgraph's direction.
+import type { Direction, ErModel } from '../../core/model.js';
+import {
+  addERRel, addEntity, canGroupER, deleteER, erFragment, groupER, reconnectER, relabelErGroup, setErGroupDirection, ungroupER, updateEntity, updateRel,
+} from '../../core/ops/er.js';
 import type { ErGeometry } from '../../core/render/types.js';
-import { addEntity } from '../../core/ops/er.js';
+import type { Point } from '../../core/types.js';
 import { cloneMeta, ensure as ensureIn } from '../../core/ops/meta-util.js';
+import type { EditorCore, Sel } from '../core.js';
 import { focusLabel } from '../modules/shapes/drop.js';
 import { tableIcon } from './palette.js';
-import type { EditKind } from './types.js';
+import type { EditKind, PropControl } from './types.js';
+
+const one = (s: string): string => s.replace(/\n/g, ' ');
+
+/** The innermost visible subgraph around a point (a dropped table joins it). */
+function groupAt(core: EditorCore, pt: Point): string | null {
+  const gm = core.geom;
+  if (gm.type !== 'er') return null;
+  let best: { id: string; a: number } | null = null;
+  gm.groups.forEach((b, id) => {
+    if (b.hidden || !Number.isFinite(b.x)) return;
+    if (Math.abs(pt.x - b.x) <= b.w / 2 && Math.abs(pt.y - b.y) <= b.h / 2 && (!best || b.w * b.h < best.a)) best = { id, a: b.w * b.h };
+  });
+  return (best as { id: string } | null)?.id ?? null;
+}
 
 export const EDIT: EditKind<ErModel, ErGeometry> = {
   type: 'er',
   describe(M, { kind, id }) {
     if (kind === 'entity') {
       const e = M.entities.get(id);
-      if (e) return { title: e.label, sub: `entity · ${e.attrs.length} attributes` };
+      if (e) return { title: one(e.label), sub: `entity · ${e.attrs.length} attributes${e.parent ? ` · in ${e.parent}` : ''}${e.classes.length ? ' · :::' + e.classes.join(',') : ''}` };
     } else if (kind === 'rel') {
       const r = M.rels.find((x) => x.id === id);
       if (r) return { title: r.label || id, sub: `relationship · ${r.from} (${r.fromCard}) → ${r.to} (${r.toCard})` };
+    } else if (kind === 'group') {
+      const g = M.groups.get(id);
+      if (g) return { title: one(g.label) || id, sub: `subgraph · id ${id} · ${g.children.length} items${g.parent ? ` · in ${g.parent}` : ''}` };
     }
     return null;
   },
   text(M, { kind, id }) {
     if (kind === 'rel') return { value: M.rels.find((r) => r.id === id)?.label ?? '', multi: false, title: 'props.label', write: (code, v) => updateRel(code, M, id, { label: v }) };
     if (kind === 'entity') return { value: M.entities.get(id)?.label ?? '', multi: false, title: 'props.name', write: (code, v) => updateEntity(code, M, id, { label: v }) };
+    if (kind === 'group') return { value: M.groups.get(id)?.label ?? '', multi: false, title: 'props.titleText', write: (code, v) => relabelErGroup(code, M, id, v) };
     return null;
   },
   remove: deleteER,
-  canGroup: () => ({ ok: false, reason: 'group.noEr' }),
-  fragment(model, code, refs) {
-    const L = code.split('\n');
-    const out = ['erDiagram'];
-    const ids = new Set<string>();
-    for (const r of refs) {
-      const e = r.kind === 'entity' ? model.entities.get(r.id) : undefined;
-      if (!e || ids.has(e.id)) continue;
-      ids.add(e.id);
-      if (e.defLine !== undefined && e.endLine !== undefined && e.endLine >= e.defLine) out.push(...L.slice(e.defLine, e.endLine + 1));
-      else out.push(`  ${e.id}`);
-    }
-    for (const r of model.rels) if (ids.has(r.from) && ids.has(r.to)) out.push(`  ${relText(r, r.from, r.to)}`);
-    return `${out.join('\n')}\n`;
+  canGroup: (M, sel) => {
+    const why = canGroupER(M, sel);
+    return why ? { ok: false, reason: why } : { ok: true, reason: '' };
   },
+  group: (code, M, sel, title) => groupER(code, M, sel, title),
+  ungroup(code, M, ref) {
+    if (ref.kind !== 'group' || !M.groups.has(ref.id)) return null;
+    const r = ungroupER(code, M, ref.id);
+    return { code: r.code, members: r.members.map((id): Sel => ({ kind: M.groups.has(id) ? 'group' : 'entity', id })) };
+  },
+  renameContainer: (code, M, ref, name) => (ref.kind === 'group' ? relabelErGroup(code, M, ref.id, name) : null),
+  fragment: (M, code, refs) => erFragment(M, code, refs),
   altCopy: true,
-  connectable: ['entity'],
+  connectable: ['entity', 'group'],
   connect: addERRel,
   added(M, from, to) {
     const rel = [...M.rels].reverse().find((x) => x.from === from && x.to === to);
@@ -58,7 +77,7 @@ export const EDIT: EditKind<ErModel, ErGeometry> = {
     presets: () => ({ kind: 'entity' }),
   },
   drop(core, M, item, pt) {
-    const res = addEntity(core.code, M);
+    const res = addEntity(core.code, M, groupAt(core, pt));
     const meta = cloneMeta(core.meta);
     Object.assign(ensureIn(meta, 'entity', res.select.id), { x: pt.x, y: pt.y }, item.preset ? { preset: item.preset } : {});
     const ok = core.applyCode({ code: res.code, meta }, 'Add table', { select: [res.select] });
@@ -66,6 +85,25 @@ export const EDIT: EditKind<ErModel, ErGeometry> = {
     return ok;
   },
   direction: (M) => M.direction,
+  properties(core, M, ref): PropControl[] {
+    const g = ref.kind === 'group' ? M.groups.get(ref.id) : undefined;
+    if (!g) return [];
+    const t = core.i18n.t;
+    return [{
+      type: 'select', label: t('state.direction'), value: g.dir ?? '',
+      options: [['', t('er.dirDefault')], ['TB', 'TB'], ['BT', 'BT'], ['LR', 'LR'], ['RL', 'RL']],
+      set: (v) => {
+        const code = setErGroupDirection(core.code, M, g.id, v ? (v as Direction) : null).code;
+        if (code !== core.code) core.applyCode({ code, meta: core.meta }, t('state.direction'), { select: [ref] });
+      },
+    }];
+  },
+  problems(core, M) {
+    const t = core.i18n.t;
+    const P = (core.result.theme.er.entityPresets ?? {}) as Record<string, unknown>;
+    const G = (core.result.theme.flowchart.groupPresets ?? {}) as Record<string, unknown>;
+    return M.undefinedClasses.filter(({ cls }) => !Object.hasOwn(P, cls) && !Object.hasOwn(G, cls)).map(({ cls, line }) => ({ line: line + 1, msg: t('problems.undefinedClass', { cls }) }));
+  },
   shapesLabel: 'tools.table',
 };
 

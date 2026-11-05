@@ -2,7 +2,7 @@
 // toolbar of table editing and the attribute style popup of the Properties panel.
 import type { AttrHighlight } from '../../../core/meta/types.js';
 import { cloneMeta, ensure, tidy } from '../../../core/ops/meta-util.js';
-import { ATTR_PRESETS } from '../../../core/render/er.js';
+import { ATTR_PRESETS } from '../../../core/render/er-presets.js';
 import type { EditorCore } from '../../core.js';
 import { applyMeta } from '../../ops/doc.js';
 

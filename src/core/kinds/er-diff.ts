@@ -17,9 +17,15 @@ export const DIFF: DiffKind<ErModel, ErGeometry> = {
       e?.lines.forEach(add);
       if (e?.defLine != null) for (let i = e.defLine; i <= (e.endLine ?? e.defLine); i++) add(i);
     } else if (kind === 'rel') add(m.rels.find((r) => r.id === id)?.src);
+    else if (kind === 'group') {
+      const g = m.groups.get(id);
+      g?.lines.forEach(add);
+      add(g?.line);
+      add(g?.endLine);
+    }
     return out;
   },
   diff: diffEr,
   merge: mergeEr,
-  shape: (g, { kind, id }) => (kind === 'entity' ? boxShape(g.entities.get(id)) : kind === 'rel' ? pathShape(g.rels.get(id)) : null),
+  shape: (g, { kind, id }) => (kind === 'entity' ? boxShape(g.entities.get(id)) : kind === 'group' ? boxShape(g.groups.get(id)) : kind === 'rel' ? pathShape(g.rels.get(id)) : null),
 };

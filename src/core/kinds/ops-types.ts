@@ -84,8 +84,8 @@ export interface OpsKind<M extends SupportedModel = SupportedModel, G extends Ge
   // ---- positions and structure ----
   /** Pins auto-placed items where they are drawn before a manual placement (mutates and returns `meta`). */
   pinAuto?(meta: DiagramMeta, model: M, geom: GeometryIndex | null | undefined): DiagramMeta;
-  /** Node and group ids inside a group, any depth. */
-  descendants?(model: M, groupId: string): { nodes: string[]; groups: string[] };
+  /** Node and group ids inside a group, any depth; `leaf`: the item kind of `nodes` (default `node`; ER: `entity`). */
+  descendants?(model: M, groupId: string): { nodes: string[]; groups: string[]; leaf?: ItemKind };
   /**
    * "Reset positions in this group" (T07): forgets the hand-placed positions inside a group (its descendants' `x` /
    * `y`, nested frames, bend points of the connectors inside), so the compound layout lays the group out again; the

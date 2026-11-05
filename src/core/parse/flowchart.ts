@@ -7,7 +7,9 @@ import type {
 import { EXTENDED_NAMES } from '../shapes/names.js';
 import { namedShapes, registerShapeNames, resolveShape } from '../shapes/registry.js';
 import { diag } from '../types.js';
-import { frontmatterValues } from './frontmatter.js';
+import { frontmatterValues, titleToFrontmatter } from './frontmatter.js';
+
+export { titleToFrontmatter } from './frontmatter.js';
 import { cleanLabel, encodeLabel, isMarkdownString, markdownText } from './label.js';
 import { ItemBudget, stripControl } from './limits.js';
 import { applySplices, openBlock, readNodeData, type NodeDataBlock, type Splice } from './node-data.js';
@@ -747,28 +749,6 @@ export function fixShapeNames(code: string): string {
         if (r && !r.ok && r.names.mermaid) splices.push({ from: e.valueAt, to: e.valueEnd, text: r.names.mermaid });
       }
   return applySplices(code, splices);
-}
-
-/**
- * The `flow.title-statement` fix: the `title` statement on line `li` becomes the frontmatter's `title:` (added to the
- * frontmatter there is, else a new one before the header).
- */
-export function titleToFrontmatter(code: string, li: number): string {
-  const L = code.split('\n');
-  const m = /^\s*title\s+(.+?)\s*$/.exec(L[li] ?? '');
-  if (!m) return code;
-  const v = m[1]!;
-  const yaml = /^[\w ,.()!?'-]+$/.test(v) && !/^['-]/.test(v) ? v : JSON.stringify(v);
-  L.splice(li, 1);
-  const first = L.findIndex((l) => l.trim() !== '');
-  if (first >= 0 && /^---\s*$/.test(L[first]!)) {
-    const close = L.findIndex((l, i) => i > first && /^---\s*$/.test(l));
-    const at = L.findIndex((l, i) => i > first && i < close && /^title\s*:/.test(l));
-    if (at >= 0) L[at] = `title: ${yaml}`;
-    else L.splice(first + 1, 0, `title: ${yaml}`);
-    return L.join('\n');
-  }
-  return ['---', `title: ${yaml}`, '---', ...L].join('\n');
 }
 
 function clashFreeId(model: FlowchartModel, id: string): string {

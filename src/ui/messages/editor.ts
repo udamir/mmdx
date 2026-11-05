@@ -68,11 +68,11 @@ export const EDITOR_MESSAGES: Messages = {
   'layers.createdRename': 'Layer {n} created — rename it in the Layers panel', 'layers.moved': 'Moved to "{name}"', 'layers.movedHidden': 'Moved to "{name}" (hidden layer)',
   'palette.removed': 'Colour removed from this diagram’s palette — items using it keep the colour',
   'order.selectOne': 'Select one item to move it', 'order.back': 'back', 'order.front': 'front', 'order.earlier': 'earlier', 'order.later': 'later', 'order.left': 'left', 'order.right': 'right',
-  'group.noEr': 'Mermaid ER diagrams have no groups', 'group.noMindmap': 'A mindmap has branches, not groups', 'group.selectBoxes': 'Select boxes or groups to group', 'group.selectParticipants': 'Select participants to group them into a box',
+  'group.noMindmap': 'A mindmap has branches, not groups', 'group.selectBoxes': 'Select boxes or groups to group', 'group.selectParticipants': 'Select participants to group them into a box',
   'group.alreadyBoxed': 'A participant is already in a box — ungroup it first',
   // state diagrams (T09): Properties of states, composites and notes, deleting a composite
   'state.kind': 'Kind', 'state.kind.state': 'State', 'state.kind.choice': 'Choice', 'state.kind.fork': 'Fork', 'state.kind.join': 'Join',
-  'state.rows': 'Description rows', 'state.rowsHint': 'One row per line (shown under the name)', 'state.direction': 'Direction', 'state.dirDefault': 'Top to bottom (Mermaid’s default)',
+  'state.rows': 'Description rows', 'state.rowsHint': 'One row per line (shown under the name)', 'state.direction': 'Direction', 'state.dirDefault': 'Top to bottom (Mermaid’s default)', 'er.dirDefault': 'As the diagram (Mermaid’s default)',
   'state.addRegion': 'Add region', 'state.addRegionTip': 'A concurrency region (--) at the end of the composite, with a new state in it',
   'state.noteSide': 'Side', 'state.left': 'left', 'state.right': 'right',
   // sequence editing (T11.3): message arrows, notes beside or over their participant, block branches

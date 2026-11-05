@@ -171,7 +171,8 @@ export function groupHasPositions(model: DiagramModel, meta: DiagramMeta, ref: I
   const inside = withOps(model, (k, m) => (k.resetScope ? k.descendants?.(m, ref.id) : undefined));
   if (!inside) return false;
   const has = (m: ItemMeta | undefined): boolean => !!m && (m.x != null || m.y != null);
-  return inside.nodes.some((id) => has(meta.nodes?.[id])) || inside.groups.some((id) => has(meta.groups?.[id]));
+  const leaf = inside.leaf ?? 'node';
+  return inside.nodes.some((id) => has(getM(meta, leaf, id))) || inside.groups.some((id) => has(meta.groups?.[id]));
 }
 
 /** Node and subgraph ids inside a subgraph (any depth). */
@@ -239,12 +240,13 @@ function moveInPlace(meta: DiagramMeta, model: DiagramModel, geom: GeometryIndex
     const inside = withOps(model, (k, m) => k.descendants?.(m, id));
     if (!self || !inside) return;
     const { nodes, groups } = inside;
+    const leaf = inside.leaf ?? 'node';
     const items: MoveTarget[] = [];
     const gm = getM(meta, 'group', id);
     if (gm.w) items.push({ kind: 'group', id, x: Number(gm.x), y: Number(gm.y) });
     for (const n of nodes) {
-      const b = boxOfItem(geom, { kind: 'node', id: n });
-      if (b) items.push({ kind: 'node', id: n, x: b.x, y: b.y });
+      const b = boxOfItem(geom, { kind: leaf, id: n });
+      if (b) items.push({ kind: leaf, id: n, x: b.x, y: b.y });
     }
     for (const sg of groups) {
       const m = getM(meta, 'group', sg);
@@ -278,7 +280,7 @@ export interface MoveOpts {
  */
 export function moveItem(model: DiagramModel, meta: DiagramMeta, geom: GeometryIndex | null | undefined, ref: ItemRef, dx: number, dy: number, { part, snap = 0 }: MoveOpts = {}): MetaResult {
   const out = cloneMeta(meta);
-  if ((ref.kind === 'node' || ref.kind === 'group') && part !== 'label') pinAutoInPlace(out, model, geom);
+  if ((ref.kind === 'node' || ref.kind === 'group' || ref.kind === 'entity') && part !== 'label') pinAutoInPlace(out, model, geom);
   moveInPlace(out, model, geom, ref, dx, dy, part, snap);
   return { meta: out };
 }
@@ -299,11 +301,12 @@ export function moveItems(model: DiagramModel, meta: DiagramMeta, geom: Geometry
       const inside = withOps(model, (k, m) => k.descendants?.(m, it.id));
       if (!inside) continue;
       const { nodes, groups } = inside;
+      const leaf = inside.leaf ?? 'node';
       const gm = getM(out, 'group', it.id);
       if (gm.w) add('group', it.id, gm.x, gm.y);
       for (const n of nodes) {
-        const b = boxOfItem(geom, { kind: 'node', id: n });
-        if (b) add('node', n, b.x, b.y);
+        const b = boxOfItem(geom, { kind: leaf, id: n });
+        if (b) add(leaf, n, b.x, b.y);
       }
       for (const sg of groups) {
         const m = getM(out, 'group', sg);
@@ -326,7 +329,7 @@ export type AlignOp = 'left' | 'right' | 'hcenter' | 'top' | 'bottom' | 'vcenter
 function insideGroup(model: DiagramModel, it: ItemRef, gid: string): boolean {
   if (it.kind === 'group' && it.id === gid) return true;
   const d = withOps(model, (k, m) => k.descendants?.(m, gid));
-  return !!d && (it.kind === 'node' ? d.nodes.includes(it.id) : it.kind === 'group' ? d.groups.includes(it.id) : false);
+  return !!d && (it.kind === (d.leaf ?? 'node') ? d.nodes.includes(it.id) : it.kind === 'group' ? d.groups.includes(it.id) : false);
 }
 
 /**

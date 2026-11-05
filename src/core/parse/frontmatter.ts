@@ -1,5 +1,6 @@
 // The frontmatter reader (`---` … `---` before the header): a small reader for the YAML Mermaid files use, shared by
-// the parsers that read settings from it (flowchart: title, curve, wrapping; mindmap: colorBy, maxNodeWidth).
+// the parsers that read settings from it (flowchart: title, curve, wrapping; mindmap: colorBy, maxNodeWidth; ER: title),
+// and the fix that moves a `title` statement into it.
 
 /**
  * The frontmatter's and `%%{init}%%`'s settings that change what the content means: `title`, and in `config`
@@ -23,3 +24,24 @@ export function frontmatterValues(lines: readonly string[]): Map<string, string>
   return out;
 }
 
+/**
+ * The fix of a `title` statement (`flow.title-statement`, `er.title-statement`): the statement on line `li` becomes
+ * the frontmatter's `title:` (added to the frontmatter there is, else a new one before the header).
+ */
+export function titleToFrontmatter(code: string, li: number): string {
+  const L = code.split('\n');
+  const m = /^\s*title\s+(.+?)\s*$/.exec(L[li] ?? '');
+  if (!m) return code;
+  const v = m[1]!;
+  const yaml = /^[\w ,.()!?'-]+$/.test(v) && !/^['-]/.test(v) ? v : JSON.stringify(v);
+  L.splice(li, 1);
+  const first = L.findIndex((l) => l.trim() !== '');
+  if (first >= 0 && /^---\s*$/.test(L[first]!)) {
+    const close = L.findIndex((l, i) => i > first && /^---\s*$/.test(l));
+    const at = L.findIndex((l, i) => i > first && i < close && /^title\s*:/.test(l));
+    if (at >= 0) L[at] = `title: ${yaml}`;
+    else L.splice(first + 1, 0, `title: ${yaml}`);
+    return L.join('\n');
+  }
+  return ['---', `title: ${yaml}`, '---', ...L].join('\n');
+}

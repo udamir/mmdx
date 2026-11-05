@@ -3,6 +3,7 @@
     {"id": "production-microservices", "title": "Flowchart: Production microservice app", "file": "production-microservices.mmdx", "tags": ["flowchart"], "history": "history/production-microservices.json"},
     {"id": "docker-deploy-sequence", "title": "Sequence: Deploying microservices to Docker", "file": "docker-deploy-sequence.mmdx", "tags": ["sequence"], "history": "history/docker-deploy-sequence.json"},
     {"id": "atom-schema-er", "title": "ERD: AtoM archive database", "file": "atom-schema-er.mmdx", "tags": ["er"], "history": "history/atom-schema-er.json"},
+    {"id": "shop-domains-er", "title": "ERD: Online shop by domain (subgraphs)", "file": "shop-domains-er.mmdx", "tags": ["er"]},
     {"id": "microservice-patterns", "title": "Flowchart: Microservice pattern language", "file": "microservice-patterns.mmdx", "tags": ["flowchart"], "history": "history/microservice-patterns.json"},
     {"id": "fusion-services", "title": "Flowchart: Fusion services", "file": "fusion-services.mmdx", "tags": ["flowchart"], "history": "history/fusion-services.json"},
     {"id": "simple-flow", "title": "Flowchart: auto layout", "file": "simple-flow.mmdx", "tags": ["flowchart"], "history": "history/simple-flow.json"},
