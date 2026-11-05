@@ -344,6 +344,23 @@ const LINE_GEOM = (): Record<string, JsonSchema> => ({
   points: { type: 'array', items: { type: 'array', prefixItems: [{ type: 'number' }, { type: 'number' }], minItems: 2, maxItems: 2 }, description: 'Bend points [[x,y],…]' },
 });
 
+/** Where a label's leading icon token is drawn, its size and colour (T10 §4.6: mindmap nodes, states, participants, entities). */
+const ICON_KEYS = (): Record<string, JsonSchema> => ({
+  iconPos: { enum: ['l', 't', 'b'], description: "Where the label's leading icon token is drawn: inline before the text (l, default), above it (t) or below it (b)" },
+  iconSize: { type: 'number', minimum: 1, maximum: 512, description: 'The icon size in px (default: the font size inline, 1.75 em above or below)' },
+  iconColor: { ...ref('color'), description: 'The icon colour (default: the text colour)' },
+});
+
+/** The icon keys plus a picture by URL and a catalogue shape, for items whose code has no syntax for them. */
+const MEDIA_KEYS = (): Record<string, JsonSchema> => ({
+  ...ICON_KEYS(),
+  img: { type: 'string', maxLength: 2048, description: 'A picture above the label (URL; mindmap nodes, states, participants: their code has no image syntax); "" = not chosen yet (a placeholder)' },
+  imgW: { type: 'number', minimum: 0, description: 'The picture width (alone: the height follows the aspect)' },
+  imgH: { type: 'number', minimum: 0, description: 'The picture height (alone: the width follows the aspect)' },
+  imgFit: { enum: ['contain', 'cover', 'stretch'], description: 'How the picture fills its box (default contain); flowchart image nodes too' },
+  shape: { type: 'string', maxLength: 64, description: 'A catalogue shape the code cannot write (mmdx only: not in the portable file)' },
+});
+
 /**
  * JSON Schema (draft 2020-12) of the `%%@` metadata (A.10), as one object: `canvas`, `styles` (local presets per
  * kind and the diagram palette), `layers` and one record per item collection, keyed by item id. Each `%%@` line is
@@ -365,13 +382,14 @@ export function metaJsonSchema(): JsonSchema {
       // mindmaps
       dx: num('Nudge x (mindmap)'), dy: num('Nudge y (mindmap)'), side: { enum: ['l', 'r'], description: 'A first-level mindmap branch: its side of the root' },
       section: { type: 'integer', minimum: 0, maximum: 11, description: 'A mindmap branch colour (a section of the theme) for the node and its subtree' },
-      collapsed: { type: 'boolean', description: 'A folded mindmap branch' }, img: { type: 'string', maxLength: 2048, description: 'A picture above a mindmap node or a state (URL)' },
+      collapsed: { type: 'boolean', description: 'A folded mindmap branch' },
+      ...MEDIA_KEYS(),
     }),
     // a group's x / y is its top-left: a frame with w / h, or (without them) the place "Reset positions in this group" keeps
     group: item({ x: num('Left'), y: num('Top'), w: num('Width'), h: num('Height'), titleSize: num(), titleColor: ref('color') }),
     edge: item({ ...LINE_GEOM(), startArrow: ref('arrow'), endArrow: ref('arrow') }),
     rel: item(LINE_GEOM()),
-    participant: item({ x: num(), w: num(), h: num() }),
+    participant: item({ x: num(), w: num(), h: num(), ...MEDIA_KEYS() }),
     message: item({ dy: num('Extra space above'), labelOnLine: { type: 'boolean' } }),
     note: item({ dy: num('Extra space above') }),
     block: item({ dy: num('Extra space above'), showTag: { type: 'boolean' } }),
@@ -379,6 +397,7 @@ export function metaJsonSchema(): JsonSchema {
     activation: item(),
     entity: item({
       ...box,
+      ...ICON_KEYS(),
       attrs: recordOf({ type: 'object', properties: { color: ref('color'), bold: { type: 'boolean' }, underline: { type: 'boolean' } }, additionalProperties: true }, 'Per-attribute highlights (`__title` = the table name)'),
     }),
   };

@@ -135,4 +135,15 @@ describe('metaJsonSchema', () => {
     const errs = validate(schema, { canvas: { mirror: 'yes' }, nodes: { A: { x: 'left', locked: 1 } }, edges: { e: { points: [[1, 'a']], fromSide: 'top' } } }, schema);
     expect(errs.length).toBe(5);
   });
+
+  it('nodes and participants take the icon, image and shape keys; entities the icon keys (T10 §4.6)', () => {
+    const ok = {
+      nodes: { s: { iconPos: 't', iconSize: 24, iconColor: '@red', img: 'https://example.com/a.png', imgW: 120, imgH: 80, imgFit: 'cover', shape: 'hex' } },
+      participants: { A: { iconPos: 'l', img: '' } },
+      entities: { E: { iconPos: 'b', iconColor: '#123' } },
+    };
+    expect(validate(schema, ok, schema)).toEqual([]);
+    const bad = { nodes: { s: { iconPos: 'r', iconSize: 0, imgFit: 'fill', imgW: -1 } }, participants: { A: { img: 3 } } };
+    expect(validate(schema, bad, schema).map((e) => e.replace(/:.*/, ''))).toEqual(['$.nodes.s.iconPos', '$.nodes.s.iconSize', '$.nodes.s.imgFit', '$.nodes.s.imgW', '$.participants.A.img']);
+  });
 });

@@ -83,3 +83,19 @@ describe('sanitizeMeta', () => {
     expect(r.diagnostics.map((d) => d.params?.['key'])).toEqual(['canvas.background', 'style.node.p.fill', 'nodes.A.x']);
   });
 });
+
+describe('icon and image keys (T10 §4.6)', () => {
+  it('keeps good values and drops the rest', () => {
+    const good = { iconPos: 't', iconSize: 24, iconColor: '@red', img: 'https://example.com/a.png', imgW: 120, imgH: 80, imgFit: 'stretch', shape: 'hex' };
+    expect(sanitizeStyleObject(good)).toEqual({ value: good, dropped: [] });
+    const r = sanitizeStyleObject({ iconPos: 'left', iconSize: 2000, iconColor: 'url(#x)', imgW: -3, imgH: '80', imgFit: 'fill', shape: 'a b' });
+    expect(r.value).toEqual({});
+    expect(r.dropped).toEqual(['iconPos', 'iconSize', 'iconColor', 'imgW', 'imgH', 'imgFit', 'shape']);
+  });
+
+  it('cleanStyleValue checks them one by one', () => {
+    expect(cleanStyleValue('iconPos', 'b')).toBe('b');
+    expect(cleanStyleValue('iconPos', 'x')).toBeUndefined();
+    expect(cleanStyleValue('iconColor', '#fff')).toBe('#fff');
+  });
+});

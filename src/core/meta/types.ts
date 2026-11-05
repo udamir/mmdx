@@ -75,8 +75,21 @@ export interface ItemMeta extends StyleProps {
   section?: number;
   /** The subtree is folded (a +N badge shows how many nodes it holds). */
   collapsed?: boolean;
-  /** A picture above the label (URL; mindmaps have no image syntax). */
+  // an icon and an image beside the label, in the kinds whose code has no syntax for them (T10 §4.6: mindmap nodes,
+  // states, participants, entities; render/decorate.ts)
+  /** Where the label's leading icon token is drawn: inline before the text (`l`, default), above it or below it. */
+  iconPos?: 'l' | 't' | 'b';
+  /** The icon's size in px (default: the font size inline, 1.75 em above or below). */
+  iconSize?: number;
+  /** The icon's colour (a colour or palette reference; default: the text colour). */
+  iconColor?: string;
+  /** A picture above the label (URL, checked by the image policy at render; `""`: not chosen yet, the placeholder). */
   img?: string;
+  /** The picture's box (one of them: the other follows the picture's aspect). */
+  imgW?: number;
+  imgH?: number;
+  /** How the picture fills its box: `contain` (default), `cover` or `stretch` (flowchart image nodes too). */
+  imgFit?: string;
   // entities
   attrs?: Record<string, AttrHighlight>;
   [extra: string]: unknown;

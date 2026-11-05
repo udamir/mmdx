@@ -44,7 +44,7 @@ const points: Cleaner = (v) =>
 
 /** Keys whose value is a colour (literal or palette reference). Theme resolution and the colour resolver use it too. */
 export const COLOR_KEYS: ReadonlySet<string> = new Set([
-  'fill', 'stroke', 'text', 'color', 'labelColor', 'titleColor', 'attrColor', 'background', 'border', 'grid',
+  'fill', 'stroke', 'text', 'color', 'labelColor', 'titleColor', 'attrColor', 'background', 'border', 'grid', 'iconColor',
 ]);
 
 const COORD = num(-1e6, 1e6);
@@ -92,6 +92,11 @@ const CLEANERS: Record<string, Cleaner> = {
   // names; `link` stays a string here — the renderer applies the link policy (safeUrl)
   preset: text(200), layer: text(200), theme: text(200), name: text(200), label: text(200),
   link: text(2048), img: text(2048),
+  // an item's icon and image beside its label (T10 §4.6; render/decorate.ts): where the label's leading icon token is
+  // drawn, its size and colour; the metadata image's box and fit (`img` above: its URL, checked by the image policy at
+  // render); `shape` above: a catalogue shape the item's code cannot write
+  iconPos: oneOf('l', 't', 'b'), iconSize: num(1, 512), iconColor: color,
+  imgW: SIZE, imgH: SIZE, imgFit: oneOf('contain', 'cover', 'stretch'),
 };
 
 const ATTR_CLEANERS: Record<string, Cleaner> = { color, bold: bool, underline: bool };
