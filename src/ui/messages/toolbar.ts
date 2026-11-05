@@ -26,6 +26,7 @@ export const TOOLBAR_MESSAGES: Messages = {
   'tb.saveLink': 'Save link (Enter)', 'tb.removeLink': 'Remove link', 'tb.linkLabel': 'Link (opens in View mode)',
   'tb.opacity': 'Opacity', 'tb.thickness': 'Thickness', 'tb.corners': 'Rounded corners', 'tb.arrowHead': 'Arrow head',
   'tb.start': 'Start', 'tb.end': 'End', 'tb.mermaidArrows': 'Use Mermaid arrows',
+  'tb.codeArrow': 'Mermaid arrow', 'tb.codeArrowSolid': 'Solid', 'tb.codeArrowDotted': 'Dotted (reply)',
   'tb.arrow.none': 'none', 'tb.arrow.open': 'open', 'tb.arrow.filled': 'filled', 'tb.arrow.arrow': 'arrow', 'tb.arrow.circle': 'circle',
   'tb.arrow.dot': 'dot', 'tb.arrow.cross': 'cross', 'tb.routing.curved': 'curved', 'tb.routing.orthogonal': 'right angles',
   'tb.routing.straight': 'straight', 'tb.curvature': 'Curvature', 'tb.resetCurve': 'Reset curve',

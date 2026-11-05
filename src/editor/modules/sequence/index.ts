@@ -1,12 +1,13 @@
 // Sequence gestures (A.5 rows 45–48, 50): lifeline circle → new message / self message / process, message end
-// circles → process to another message, process top / bottom handles, block edge handles (pull / push statements),
-// note edge handles (span), participant ◀ ▶ swap arrows, two messages → Show as process.
+// circles → process to another message (dragged up or down) or the end re-attached to another lifeline (dragged
+// sideways, T11.3), process top / bottom handles, block edge handles (pull / push statements), note edge handles
+// (span), participant ◀ ▶ swap arrows, two messages → Show as process.
 // Ported from prototype/app.js `participantArrows`, `lifelineDrag`, `actEndDrag`, `actEdgeDrag`, `hoverSeq`,
 // `seqDots`, `llBars`, `actPreviewSvg`, `seqLineAbove`, `seqAnchor`, `edgeAnchors`, `blockEdgeDrag`,
 // `activationInfo`, `applyActivation`, `noteEdgeDrag`.
 import type { SeqBlockStart, SeqMessage, SeqNote, SequenceModel } from '../../../core/model.js';
 import { remapSequenceMeta } from '../../../core/ops/remap.js';
-import { addActivation, addSeqMessageAt, moveActivationEdge, resizeBlockStep, setNoteSpan, toggleActivation } from '../../../core/ops/sequence.js';
+import { addActivation, addSeqMessageAt, moveActivationEdge, reattachMessage, resizeBlockStep, setNoteSpan, toggleActivation } from '../../../core/ops/sequence.js';
 import { reparse as parse } from '../../../core/kinds/registry.js';
 import type { SequenceGeometry } from '../../../core/render/types.js';
 import { el, g, text } from '../../../core/scene/build.js';
@@ -293,6 +294,22 @@ export const sequenceModule: EditorModule = {
     };
 
     /**
+     * The participant whose lifeline (or head) is under the pointer, else the one whose lifeline is within ~40 px of
+     * x on screen; `except` is never the answer.
+     */
+    const lifelineAt = (ev: PointerEvent, x: number, except: string): string | null => {
+      for (const n of elementsAt(core, ev)) {
+        const h = n.closest('[data-handle="lifeline"]') ?? n.closest('.el[data-kind="participant"]');
+        const id = h?.getAttribute('data-id');
+        if (id && id !== except) return id;
+      }
+      const gm = seqGeom(core);
+      let best: { pid: string; d: number } | null = null;
+      for (const [pid, q] of gm?.participants ?? []) if (pid !== except && !q.hidden && (!best || Math.abs(q.x - x) < best.d)) best = { pid, d: Math.abs(q.x - x) };
+      return best && best.d * core.viewport.state.k < 40 ? best.pid : null;
+    };
+
+    /**
      * Drag from a participant's lifeline (its hover circle): sideways to another participant → a new message at that
      * height; up or down → a process (activation bar) over the messages it spans.
      */
@@ -374,12 +391,19 @@ export const sequenceModule: EditorModule = {
       };
     };
 
-    /** Drag a message end up or down to another message: a process on that end's participant between the two. */
+    /**
+     * Drag a message end: up or down to another message → a process on that end's participant between the two;
+     * sideways to another lifeline → that end re-attached there (the first 8 px decide, as on a lifeline).
+     */
     const actEndDrag = (msgId: string, pid: string): Gesture | null => {
       const gm = seqGeom(core), M = seqModel(core);
       const pg = gm?.participants.get(pid), m0 = gm?.messages.get(msgId);
-      if (!gm || !M || !pg || !m0) return null;
+      const msg = M?.items.find((x): x is SeqMessage => x.kind === 'message' && x.id === msgId);
+      if (!gm || !M || !pg || !m0 || !msg) return null;
       const x = pg.x, y0 = m0.y;
+      const which: 'from' | 'to' = msg.from === pid ? 'from' : 'to';
+      const fixed = { x: which === 'from' ? m0.x1 : m0.x0, y: y0 };
+      let mode: 'act' | 'end' | null = null;
       // the message whose arrow is nearest to y (any message — the process may end on a message of another participant)
       const nearest = (y: number): { id: string; y: number } | null => {
         let best: { id: string; y: number } | null = null;
@@ -391,16 +415,37 @@ export const sequenceModule: EditorModule = {
         return best;
       };
       return {
-        move(_dx, dy) {
+        move(dx, dy, ev) {
+          if (!mode) {
+            if (Math.hypot(dx, dy) * core.viewport.state.k < 8) return;
+            mode = Math.abs(dy) >= Math.abs(dx) ? 'act' : 'end';
+          }
+          if (mode === 'end') {
+            const px = (which === 'from' ? m0.x0 : m0.x1) + dx;
+            const t = lifelineAt(ev, px, pid);
+            const tx = t ? gm.participants.get(t)?.x : undefined;
+            linking = { a: fixed, b: { x: tx ?? px, y: y0 }, target: t };
+            core.drawOverlay();
+            return;
+          }
           const t = nearest(y0 + dy);
           actPreview = { x, y0, y1: t ? t.y : y0 + dy, target: t?.id };
           core.drawOverlay();
         },
         end() {
-          const t = actPreview?.target;
+          const t = actPreview?.target, L = linking;
           actPreview = null;
+          linking = null;
           active = false;
           const Mn = seqModel(core);
+          if (mode === 'end') {
+            if (!L?.target || !Mn) return;
+            const r = reattachMessage(core.code, Mn, msgId, which, L.target);
+            if (r.reason) core.toast(r.reason);
+            else if (r.code !== core.code && core.applyCode(r, core.i18n.t('seq.reattach'), { select: [{ kind: 'message', id: msgId }] }))
+              core.toast(core.i18n.t('seq.reattached', { p: L.target }));
+            return;
+          }
           if (!t || !Mn) return;
           const r = toggleActivation(core.code, Mn, msgId, t, pid);
           if (r.reason) {
@@ -412,6 +457,7 @@ export const sequenceModule: EditorModule = {
         },
         cancel() {
           actPreview = null;
+          linking = null;
           active = false;
         },
       };

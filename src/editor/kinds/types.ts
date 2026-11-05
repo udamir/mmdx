@@ -43,6 +43,19 @@ export interface ItemMedia {
   constraint?: string;
 }
 
+/** A one-click action of the type's own in an item's selection toolbar (T11.3): it writes the code itself. */
+export interface ItemAction {
+  id: string;
+  /** Title (already translated). */
+  label: string;
+  /** An icon of the style toolbar's fixed set. */
+  icon: string;
+  /** The current choice of a set (a note's placement). */
+  active?: boolean;
+  disabled?: boolean;
+  run(): void;
+}
+
 /** A control of the type's own in an item's Properties (T09: a state's kind and description rows, a composite's direction and regions). */
 export type PropControl =
   | { type: 'select'; label: string; value: string; options: readonly (readonly [string, string])[]; set(v: string): void }
@@ -143,6 +156,10 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   fixOf?(core: EditorCore, model: M, d: Diagnostic): { label: string; run(): void } | null;
   /** Controls of the type's own in an item's Properties, after its text. */
   properties?(core: EditorCore, model: M, ref: ItemRef): PropControl[];
+  /** One-click actions of the type's own in a single item's selection toolbar (a message's direction, a note's placement, a block's branches). */
+  actions?(core: EditorCore, model: M, ref: ItemRef): ItemAction[];
+  /** A connector's arrow as written in the code, which the toolbar's arrow popover changes (sequence messages); null: none. */
+  codeArrow?(core: EditorCore, model: M, ref: ItemRef): { rows: readonly (readonly string[])[]; value: string; set(arrow: string): void } | null;
   /** More problems of the code (flowchart: classes that name no classDef or preset, shapes kept only in metadata), with a fix where there is one. */
   problems?(core: EditorCore, model: M): { line: number | null; msg: string; fix?: { label: string; run(): void } }[];
 

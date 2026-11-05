@@ -311,6 +311,15 @@ export const toolbarsModule: EditorModule = {
           const map = (x: string): string | undefined => (x === 'arrow' ? (typeof arrow === 'string' ? arrow : undefined) : x);
           return { start: map(e.start), end: map(e.end) };
         },
+        // the type's own controls (T11.3): a message's arrow in the code, one-click actions of one item
+        codeArrow: () => {
+          const s = primary();
+          return s && core.selection().length === 1 ? withEdit(core.model, (k, m) => k.codeArrow?.(core, m, s)) ?? null : null;
+        },
+        itemActions: () => {
+          const s = primary();
+          return s && core.selection().length === 1 ? withEdit(core.model, (k, m) => k.actions?.(core, m, s)) ?? [] : [];
+        },
         anchorRect: () => {
           const s = primary();
           return s ? anchorRect(core, s) : null;

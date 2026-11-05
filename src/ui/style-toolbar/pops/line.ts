@@ -3,7 +3,7 @@
 import { h } from '../../h.js';
 import { choiceRow, popLabel, slider } from '../../toolbar-kit.js';
 import { num, str } from '../controls.js';
-import { arrowPreview, dashPreview, routingPreview } from '../icons.js';
+import { arrowPreview, codeArrowPreview, dashPreview, routingPreview } from '../icons.js';
 import { ARROWS, DASHES, ROUTINGS } from '../kinds.js';
 import { colors, type Fill } from './common.js';
 
@@ -37,6 +37,15 @@ export function arrowsPop(f: Fill): void {
   const { t, api } = x;
   const name = (a: string): string => t(`tb.arrow.${a}`);
   if (kind === 'message') {
+    // the arrow written in the code (T11.3): Mermaid's ten, solid above dotted
+    const ca = api.codeArrow?.();
+    if (ca)
+      ca.rows.forEach((row, i) => {
+        pop.append(popLabel(t(i === 0 ? 'tb.codeArrowSolid' : 'tb.codeArrowDotted')), choiceRow(row, ca.value, (v) => {
+          ca.set(v);
+          done();
+        }, (a) => codeArrowPreview(a), (a) => `${t('tb.codeArrow')} ${a}`));
+      });
     pop.append(popLabel(t('tb.arrowHead')), choiceRow(['filled', 'open', 'arrow'], str(api.eff('arrow')), (v) => {
       api.set('arrow', v);
       done();

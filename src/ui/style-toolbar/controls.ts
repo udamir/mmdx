@@ -179,6 +179,21 @@ export function control(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLEleme
     }
     case 'arrows':
       return button('arrows', svgIcon('arrows'), t('tb.arrows'));
+    case 'actions': {
+      // the type's own one-click actions, one button each (a note's placement: the current one pressed)
+      const list = api.itemActions?.() ?? [];
+      if (!list.length) return h('span');
+      const wrap = h('span', { class: 'mtb-acts' });
+      for (const a of list) {
+        const b = action('actions', svgIcon(a.icon), a.label, () => {
+          a.run();
+          x.refresh();
+        }, { active: !!a.active, disabled: !!a.disabled, ...(a.active !== undefined ? { pressed: a.active } : {}) });
+        b.dataset['c'] = `act:${a.id}`;
+        wrap.append(b);
+      }
+      return wrap;
+    }
     case 'routing':
       return button('routing', svgIcon('routing'), t('tb.routing'));
     case 'lock': {

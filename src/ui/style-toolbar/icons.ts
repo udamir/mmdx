@@ -52,6 +52,13 @@ export const ICON: Readonly<Record<string, string>> = {
   italic: '<path d="M10 5h8M6 19h8M14.5 5l-5 14"/>',
   table: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10"/>',
   underline: '<path d="M7 4.5v6a5 5 0 0 0 10 0v-6M5.5 20h13"/>',
+  // sequence actions (T11.3)
+  reverse: '<path d="M4 8h15M15 4l4 4-4 4M20 16H5M9 12l-4 4 4 4"/>',
+  noteLeft: '<path d="M3 5h9v10l-3 3H3z"/><path d="M18 3v18" stroke-dasharray="2 2.4"/>',
+  noteRight: '<path d="M12 5h9v10l-3 3h-6z"/><path d="M6 3v18" stroke-dasharray="2 2.4"/>',
+  noteOver: '<path d="M5 6h14v9l-3 3H5z"/><path d="M12 2v4M12 18v4" stroke-dasharray="2 2.4"/>',
+  branchAdd: '<rect x="3.5" y="4" width="17" height="16" rx="1.5"/><path d="M3.5 12h11" stroke-dasharray="2.4 2"/><path d="M17.5 13.5v5M15 16h5"/>',
+  branchDel: '<rect x="3.5" y="4" width="17" height="16" rx="1.5"/><path d="M3.5 12h11" stroke-dasharray="2.4 2"/><path d="M15 16h5"/>',
   selection: '<path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><path d="M9 12.5l2 2 4-4.5"/>',
 };
 
@@ -82,6 +89,24 @@ export function arrowPreview(a: string, start = false): SVGSVGElement {
   const attrs: Record<string, string> = { viewBox: '0 0 42 24', width: '42', height: '24', stroke: 'currentColor', 'stroke-width': '1.8', 'stroke-linecap': 'round' };
   if (start) attrs['transform'] = 'scale(-1,1)';
   return svgMarkup(attrs, `<path d="M4 12h${a === 'none' ? 34 : 30}"/>${ARROW_HEAD[a] ?? ''}`);
+}
+
+/**
+ * A Mermaid message arrow (`->>`, `--x`, `<<-->>`…): its line, solid or dashed, and its heads. Built from the token's
+ * fixed parts (dash, `<<`, the last character), never from markup.
+ */
+export function codeArrowPreview(a: string): SVGSVGElement {
+  const el = s('svg', { viewBox: '0 0 42 24', width: '42', height: '24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }) as SVGSVGElement;
+  const both = a.startsWith('<<'), dotted = a.replace(/^<</, '').startsWith('--');
+  const end = a.endsWith('>>') ? 'filled' : /x$/i.test(a) ? 'cross' : a.endsWith(')') ? 'async' : 'none';
+  const line = s('path', { d: `M${both ? 10 : 4} 12H${end === 'filled' ? 30 : 36}` });
+  if (dotted) line.setAttribute('stroke-dasharray', '3.2 3');
+  el.append(line);
+  if (end === 'filled') el.append(s('path', { d: 'M30 7l8 5-8 5z', fill: 'currentColor' }));
+  else if (end === 'cross') el.append(s('path', { d: 'M32 7l6 10M38 7l-6 10' }));
+  else if (end === 'async') el.append(s('path', { d: 'M33 7l5 5-5 5' }));
+  if (both) el.append(s('path', { d: 'M12 7L4 12l8 5z', fill: 'currentColor' }));
+  return el;
 }
 
 export function routingPreview(r: string): SVGSVGElement {

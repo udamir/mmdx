@@ -1,16 +1,36 @@
-// The sequence edit kind.
+// The sequence edit kind. T11.3: a message's arrow (the toolbar's arrow popover, Mermaid's ten) and its Reverse
+// action, re-attaching an end (`reconnect`; the sequence module drags the end circles), a note's placement (left of,
+// right of, over), a block's branches (Add / Delete branch in the toolbar, their conditions and Delete in Properties),
+// par, critical and break in the palette; a rect has no text (its argument is its colour).
 import { activationsOf } from '../../core/ids.js';
 import type { SequenceModel } from '../../core/model.js';
 import { addSeqMessage } from '../../core/ops/connect.js';
-import { boxParticipants, deleteSeq, relabelBox, relabelSeq, removeActivation, unboxParticipants } from '../../core/ops/sequence.js';
+import {
+  addBranch, boxParticipants, BRANCH_WORD, branchLabels, deleteSeq, MESSAGE_ARROWS, reattachMessage, relabelBox, relabelBranch, relabelSeq,
+  removeActivation, removeBranch, reverseMessage, setMessageArrow, setNotePlacement, unboxParticipants,
+} from '../../core/ops/sequence.js';
+import type { RefusableResult } from '../../core/ops/types.js';
+import type { ItemRef } from '../../core/types.js';
 import type { SequenceGeometry } from '../../core/render/types.js';
-import type { Sel } from '../core.js';
+import type { EditorCore, Sel } from '../core.js';
 import { reparse } from '../../core/kinds/registry.js';
 import type { BlockKind, SeqBlockStart, SeqMessage, SeqNote } from '../../core/model.js';
 import { addNote, addParticipant, seqInsertAfter, wrapBlock } from '../../core/ops/sequence.js';
 import { applyThenStyle, focusLabel, setPreset } from '../modules/shapes/drop.js';
 import { blockIcon, noteIcon, shapeIcon } from './palette.js';
-import type { EditKind } from './types.js';
+import type { EditKind, ItemAction, PropControl } from './types.js';
+
+const reparseSeq = (code: string): SequenceModel | null => {
+  const N = reparse(code);
+  return N.type === 'sequence' ? N : null;
+};
+const findBlock = (M: SequenceModel, id: string): SeqBlockStart | undefined => M.items.find((x): x is SeqBlockStart => x.kind === 'blockStart' && x.id === id);
+
+/** Applies a rewrite of the type's own (a toast says why it was refused), keeping `select` selected. */
+function apply(core: EditorCore, r: RefusableResult, label: string, select: ItemRef[] | null): void {
+  if (r.reason) core.toast(r.reason);
+  else if (r.code !== core.code) core.applyCode({ code: r.code }, label, { select });
+}
 
 export const EDIT: EditKind<SequenceModel, SequenceGeometry> = {
   type: 'sequence',
@@ -41,7 +61,8 @@ export const EDIT: EditKind<SequenceModel, SequenceGeometry> = {
     if (kind === 'participant') return { value: M.participants.find((p) => p.id === id)?.label ?? '', multi: false, title: 'props.name', write: (code, v) => relabelSeq(code, M, { kind, id }, v) };
     if ((kind === 'message' || kind === 'note') && it && (it.kind === 'message' || it.kind === 'note'))
       return { value: it.text, multi: false, title: 'props.text', write: (code, v) => relabelSeq(code, M, { kind, id }, v) };
-    if (kind === 'block' && it?.kind === 'blockStart') return { value: it.label, multi: false, title: 'props.condition', write: (code, v) => relabelSeq(code, M, { kind, id }, v) };
+    // a rect's argument is its colour, not a text
+    if (kind === 'block' && it?.kind === 'blockStart' && it.block !== 'rect') return { value: it.label, multi: false, title: 'props.condition', write: (code, v) => relabelSeq(code, M, { kind, id }, v) };
     if (kind === 'box') return { value: M.boxes.find((b) => b.id === id)?.label ?? '', multi: false, title: 'props.titleText', write: (code, v) => relabelBox(code, M, id, v) };
     return null;
   },
@@ -69,6 +90,8 @@ export const EDIT: EditKind<SequenceModel, SequenceGeometry> = {
   noCopy: 'Copy works for flowchart shapes / groups and ER tables',
   connectable: ['participant'],
   connect: addSeqMessage,
+  // the end circles of a message dragged to another lifeline (the sequence module): the end moves there
+  reconnect: (code, M, ref, which, target) => (ref.kind === 'message' ? reattachMessage(code, M, ref.id, which === 'a' ? 'from' : 'to', target) : null),
   added(M) {
     const msg = [...M.items].reverse().find((x) => x.kind === 'message');
     return msg && msg.kind === 'message' ? { ref: { kind: 'message', id: msg.id }, ports: false } : null;
@@ -86,6 +109,9 @@ export const EDIT: EditKind<SequenceModel, SequenceGeometry> = {
       { key: 'loop', label: 'Loop — drop on a message (or select messages first)', icon: blockIcon('loop') },
       { key: 'alt', label: 'Alternative — drop on a message', icon: blockIcon('alt') },
       { key: 'opt', label: 'Optional — drop on a message', icon: blockIcon('opt') },
+      { key: 'par', label: 'Parallel — drop on a message', icon: blockIcon('par') },
+      { key: 'critical', label: 'Critical region — drop on a message', icon: blockIcon('crit') },
+      { key: 'break', label: 'Break — drop on a message', icon: blockIcon('break') },
       { key: 'rect', label: 'Highlight — drop on a message', icon: blockIcon('hl') },
     ],
   },
@@ -138,7 +164,7 @@ export const EDIT: EditKind<SequenceModel, SequenceGeometry> = {
       core.toast('Add a message first (drag between two participants)');
       return false;
     }
-    const labels: Record<string, string> = { loop: 'every minute', alt: 'success', opt: 'if needed' };
+    const labels: Record<string, string> = { loop: 'every minute', alt: 'success', opt: 'if needed', par: 'at once', critical: 'must succeed', break: 'on error' };
     const res = wrapBlock(core.code, M, { block: item.key as BlockKind, label: labels[item.key] ?? '', fromLine: from, toLine: to });
     const N = reparse(res.code);
     const blk = N.type === 'sequence' ? N.items.find((x): x is SeqBlockStart => x.kind === 'blockStart' && x.src === from) : undefined;
@@ -146,6 +172,68 @@ export const EDIT: EditKind<SequenceModel, SequenceGeometry> = {
     const ok = applyThenStyle(core, res.code, 'Add block', sel, blk ? () => setPreset(core, 'block', blk.id, item.preset) : undefined);
     if (ok) focusLabel(core, sel);
     return ok;
+  },
+  codeArrow(core, M, ref) {
+    if (ref.kind !== 'message') return null;
+    const m = M.items.find((x): x is SeqMessage => x.kind === 'message' && x.id === ref.id);
+    if (!m) return null;
+    const t = core.i18n.t;
+    return { rows: MESSAGE_ARROWS, value: m.arrow, set: (a) => apply(core, setMessageArrow(core.code, M, m.id, a), t('seq.arrow'), [ref]) };
+  },
+  actions(core, M, ref) {
+    const t = core.i18n.t;
+    const out: ItemAction[] = [];
+    if (ref.kind === 'message') {
+      const m = M.items.find((x): x is SeqMessage => x.kind === 'message' && x.id === ref.id);
+      if (m) out.push({ id: 'reverse', label: t('seq.reverse'), icon: 'reverse', disabled: m.from === m.to, run: () => apply(core, reverseMessage(core.code, M, m.id), t('seq.reverse'), [ref]) });
+    } else if (ref.kind === 'note') {
+      const n = M.items.find((x): x is SeqNote => x.kind === 'note' && x.id === ref.id);
+      if (n)
+        for (const [pos, id, icon, key] of [['left of', 'left', 'noteLeft', 'seq.noteLeft'], ['right of', 'right', 'noteRight', 'seq.noteRight'], ['over', 'over', 'noteOver', 'seq.noteOver']] as const)
+          out.push({ id, label: t(key), icon, active: n.pos === pos, run: () => apply(core, setNotePlacement(core.code, M, n.id, pos), t('seq.placement'), [ref]) });
+    } else if (ref.kind === 'block') {
+      const b = findBlock(M, ref.id);
+      const word = b && BRANCH_WORD[b.block];
+      if (b && word) {
+        out.push({ id: 'addBranch', label: t('seq.addBranch', { word }), icon: 'branchAdd', run: () => apply(core, addBranch(core.code, M, b.id), t('seq.addBranch', { word }), [ref]) });
+        const n = branchLabels(M, b.id).length;
+        if (n) out.push({ id: 'deleteBranch', label: t('seq.deleteLastBranch'), icon: 'branchDel', run: () => apply(core, removeBranch(core.code, M, b.id, n), t('seq.deleteLastBranch'), [ref]) });
+      }
+    }
+    return out;
+  },
+  properties(core, M, ref) {
+    const t = core.i18n.t;
+    const out: PropControl[] = [];
+    if (ref.kind === 'note') {
+      const n = M.items.find((x): x is SeqNote => x.kind === 'note' && x.id === ref.id);
+      if (n)
+        out.push({
+          type: 'select', label: t('seq.placement'), value: n.pos, options: (['left of', 'right of', 'over'] as const).map((p) => [p, t(`seq.place.${p}`)] as const),
+          set: (v) => apply(core, setNotePlacement(core.code, M, n.id, v as SeqNote['pos']), t('seq.placement'), [ref]),
+        });
+      return out;
+    }
+    const b = ref.kind === 'block' ? findBlock(M, ref.id) : undefined;
+    const word = b && BRANCH_WORD[b.block];
+    if (!b || !word) return out;
+    // the conditions of the branches after the first, one per line (the first is the block's own text)
+    const labels = branchLabels(M, b.id);
+    if (labels.length)
+      out.push({
+        type: 'rows', label: t('seq.branches', { word }), value: labels, hint: t('seq.branchesHint'),
+        set: (rows) => {
+          let code = core.code;
+          rows.slice(0, labels.length).forEach((v, i) => {
+            if (v !== labels[i]) code = relabelBranch(code, reparseSeq(code) ?? M, b.id, i + 1, v).code;
+          });
+          apply(core, { code }, t('seq.branches', { word }), [ref]);
+        },
+      });
+    out.push({ type: 'button', label: t('seq.addBranch', { word }), title: t('seq.addBranchTip', { word }), run: () => apply(core, addBranch(core.code, M, b.id), t('seq.addBranch', { word }), [ref]) });
+    labels.forEach((label, i) =>
+      out.push({ type: 'button', label: t('seq.deleteBranch', { label: label || word }), title: t('seq.deleteBranchTip'), run: () => apply(core, removeBranch(core.code, M, b.id, i + 1), t('seq.deleteBranch', { label: label || word }), [ref]) }));
+    return out;
   },
   numbered: (M) => M.autonumber,
   straight: true,

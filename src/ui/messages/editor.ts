@@ -75,6 +75,13 @@ export const EDITOR_MESSAGES: Messages = {
   'state.rows': 'Description rows', 'state.rowsHint': 'One row per line (shown under the name)', 'state.direction': 'Direction', 'state.dirDefault': 'Top to bottom (Mermaid’s default)',
   'state.addRegion': 'Add region', 'state.addRegionTip': 'A concurrency region (--) at the end of the composite, with a new state in it',
   'state.noteSide': 'Side', 'state.left': 'left', 'state.right': 'right',
+  // sequence editing (T11.3): message arrows, notes beside or over their participant, block branches
+  'seq.arrow': 'Message arrow', 'seq.reverse': 'Reverse the message', 'seq.reattached': 'Message re-attached to {p}', 'seq.reattach': 'Re-attach message',
+  'seq.noteLeft': 'Note left of the participant', 'seq.noteRight': 'Note right of the participant', 'seq.noteOver': 'Note over the participant',
+  'seq.placement': 'Note placement', 'seq.place.left of': 'left of', 'seq.place.right of': 'right of', 'seq.place.over': 'over',
+  'seq.addBranch': 'Add branch ({word})', 'seq.addBranchTip': 'A new “{word}” branch at the end of the block',
+  'seq.deleteBranch': 'Delete branch “{label}”', 'seq.deleteBranchTip': 'Removes the branch with its messages',
+  'seq.deleteLastBranch': 'Delete the last branch', 'seq.branches': 'Branch conditions ({word})', 'seq.branchesHint': 'One condition per line, in order (the block’s own condition is its text)',
   'state.deleteTitle': 'Delete “{name}”', 'state.deleteMsg': 'The composite holds states. Delete them too, or keep them where the composite was?',
   'state.cancel': 'Cancel', 'state.keepContents': 'Keep contents', 'state.deleteContents': 'Delete with contents', 'state.deletedKept': 'Composite removed — its states stay. ⌘/Ctrl+Z to undo',
   'state.deletedAll': 'Composite and its states deleted — ⌘/Ctrl+Z to undo',

@@ -9,7 +9,28 @@ export type ToolbarControl =
   | 'shape' | 'font' | 'size' | 'bold' | 'align' | 'link' | 'textColor' | 'border' | 'fill' | 'line' | 'arrows'
   | 'routing' | 'lock' | 'paint' | 'group' | 'arrange' | 'activate' | 'editGroup' | 'ungroup' | 'delete' | 'order'
   | 'layer' | 'presets' | 'reset' | 'more' | 'selection' | 'italic' | 'underline' | 'tableStyle' | 'wrap'
-  | 'icon' | 'media' | 'mediaSize';
+  | 'icon' | 'media' | 'mediaSize' | 'actions';
+
+/** A one-click action of the selected item's diagram type (T11.3: reverse a message, place a note, add a branch). */
+export interface ToolbarAction {
+  /** Stable name (`data-c="act:<id>"`). */
+  id: string;
+  /** Title and accessible name. */
+  label: string;
+  /** An icon of the toolbar's fixed set (`ICON`). */
+  icon: string;
+  /** A choice that is the current one (a note's placement). */
+  active?: boolean;
+  disabled?: boolean;
+  run(): void;
+}
+
+/** The connector's arrow as written in the code (sequence messages): the choices in rows, the current one, a writer. */
+export interface ToolbarCodeArrow {
+  rows: readonly (readonly string[])[];
+  value: string;
+  set(arrow: string): void;
+}
 
 /** The selected item's icon and image (T05): what the Icon, Icon & image and size controls show. */
 export interface ToolbarMedia {
@@ -117,6 +138,10 @@ export interface ToolbarApi {
   themeFontName(): string;
   /** The Mermaid arrow ends of the selected edge ("Use Mermaid arrows"). */
   edgeEnds?(): { start?: string | undefined; end?: string | undefined };
+  /** The selected connector's arrow in the code, which the arrow popover changes (sequence messages); null: none. */
+  codeArrow?(): ToolbarCodeArrow | null;
+  /** One-click actions of the selected item's type (the `actions` control): none, the control stays off. */
+  itemActions?(): readonly ToolbarAction[];
   /** Selection box in host coordinates; null hides the bar (scrolled away). */
   anchorRect(): Rect | null;
   /** Free horizontal strip of the host [left, right] (not over side panels). */

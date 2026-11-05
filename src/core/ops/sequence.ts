@@ -1,10 +1,17 @@
 // Sequence editing ops as Mermaid source rewrites (prototype edit.js, sequence part): participants, boxes, notes,
 // blocks (loop / alt / …), block resizing, processes (activations) and participant order.
+//
+// T11.3: a rename splices only the alias (`as …`, or `@{ "alias" }` when that is the form in use) and keeps `create`,
+// `@{…}` and the id as written; a block's branches (`else`, `and`, `option`) are added, relabelled and deleted; a
+// message's arrow is changed in place (`()` and `+` / `-` kept), the message reversed or one end re-attached; a note
+// is put left of, right of or over its participant. Every rewrite reads its line through the parser's own scans
+// (`lexMessage`, `lexDecl`).
 import { maxOf, minOf } from '../geom.js';
 import { activationsOf } from '../ids.js';
-import type { BlockKind, Participant, SeqBlockStart, SeqItem, SeqMessage, SequenceModel } from '../model.js';
+import type { BlockKind, Participant, SeqBlockStart, SeqItem, SeqMessage, SeqNote, SequenceModel } from '../model.js';
 import { encodeLabel } from '../parse/label.js';
-import { lexMessage } from '../parse/sequence.js';
+import { applySplices, editBlock } from '../parse/node-data.js';
+import { arrowKind, lexDecl, lexMessage } from '../parse/sequence.js';
 import type { ItemRef } from '../types.js';
 import { activationsBalanced } from './activations.js';
 import { blocksOf } from './reorder.js';
@@ -107,16 +114,42 @@ export function relabelSeq(code: string, model: SequenceModel, sel: ItemRef, tex
   if (sel.kind === 'participant') {
     const p = model.participants.find((x) => x.id === sel.id);
     if (!p) return { code };
-    const decl = `${declWord(p)} ${p.id}${text && text !== p.id ? ` as ${seqText(text)}` : ''}`;
-    if (p.defLine != null) return { code: splice(code, p.defLine, 1, [indentOf(L[p.defLine]) + decl]) };
-    return { code: splice(code, lastDeclLine(model, code) + 1, 0, ['  ' + decl]) };
+    const want = text && text !== p.id ? seqText(text) : '';
+    if (p.defLine != null) {
+      const line = renameDecl(L[p.defLine] ?? '', want);
+      if (line !== null) return { code: splice(code, p.defLine, 1, [line]) };
+      return { code: splice(code, p.defLine, 1, [`${indentOf(L[p.defLine])}${declWord(p)} ${p.id}${want ? ` as ${want}` : ''}`]) };
+    }
+    return { code: splice(code, lastDeclLine(model, code) + 1, 0, [`  ${declWord(p)} ${p.id}${want ? ` as ${want}` : ''}`]) };
   }
   const it = model.items.find((x) => (x.kind === 'message' || x.kind === 'note' || x.kind === 'blockStart') && x.id === sel.id);
   if (!it) return { code };
   const line = L[it.src] ?? '';
   const t = seqText(text);
+  // `rect <colour>` has no label: its argument is the colour
+  if (it.kind === 'blockStart' && it.block === 'rect') return { code };
   if (it.kind === 'blockStart') return { code: splice(code, it.src, 1, [line.replace(/^(\s*\w+)\b.*$/, (_m, head: string) => `${head} ${t}`)]) };
   return { code: splice(code, it.src, 1, [line.replace(/:(.*)$/, () => `: ${t}`)]) };
+}
+
+/**
+ * A declaration line with a new alias (`want`, '' for none), spliced so that only the alias changes: the `as` alias
+ * when one is written, else `@{ "alias" }` when that is the form in use, else a new ` as …` after the id (or its
+ * `@{…}`). `create`, the id and the rest of `@{…}` stay as written. Null when the line is not a declaration.
+ */
+function renameDecl(line: string, want: string): string | null {
+  const d = lexDecl(line);
+  if (!d) return null;
+  if (d.alias !== undefined && d.asAt !== undefined && d.aliasAt !== undefined) {
+    const end = d.aliasAt + d.alias.length;
+    return want ? line.slice(0, d.aliasAt) + want + line.slice(end) : line.slice(0, d.asAt) + line.slice(end);
+  }
+  const block = d.data;
+  // `@{ alias }`: Mermaid's lexer ends the block at the first `}`, so a name with one goes to an `as` alias instead
+  if (block?.entries.some((e) => e.key === 'alias') && !want.includes('}')) return applySplices(line, editBlock(line, block, { alias: want || undefined }));
+  if (!want) return line;
+  const at = d.dataEnd ?? d.idEnd;
+  return `${line.slice(0, at)} as ${want}${line.slice(at)}`;
 }
 
 /** `Note over <over>: note` after line `afterLine` (else at the end). */
@@ -440,17 +473,135 @@ export function moveActivationEdge(code: string, model: SequenceModel, id: strin
   return { code: out, participant: pid };
 }
 
-/** `Note over A,B: text` spans every participant from A to B; a single id gives `Note over A: text`. */
+/**
+ * `Note over A,B: text` spans every participant from A to B; a single id gives `Note over A: text`, or keeps `left of`
+ * / `right of` when the note had that form and still covers one participant (T11, S11).
+ */
 export function setNoteSpan(code: string, model: SequenceModel, noteId: string, fromId: string, toId: string): CodeResult {
-  const it = model.items.find((x) => x.kind === 'note' && x.id === noteId);
+  const it = model.items.find((x): x is SeqNote => x.kind === 'note' && x.id === noteId);
   if (!it) return { code };
+  const pos = fromId === toId && it.pos !== 'over' ? it.pos : 'over';
+  return writeNote(code, it, pos, fromId === toId ? fromId : `${fromId},${toId}`);
+}
+
+/** A note left of, right of or over its participant (one target: the first of an `over A,B` note). */
+export function setNotePlacement(code: string, model: SequenceModel, noteId: string, pos: SeqNote['pos']): CodeResult {
+  const it = model.items.find((x): x is SeqNote => x.kind === 'note' && x.id === noteId);
+  if (!it || it.pos === pos) return { code };
+  return writeNote(code, it, pos, pos === 'over' ? it.targets.join(',') : it.targets[0] ?? '');
+}
+
+/** Rewrites a note's placement and targets; its keyword (`Note` / `note`) and text stay as written. */
+function writeNote(code: string, it: SeqNote, pos: SeqNote['pos'], targets: string): CodeResult {
   const L = code.split('\n');
-  const span = fromId === toId ? fromId : `${fromId},${toId}`;
   const cur = L[it.src] ?? '';
-  const line = cur.replace(/^(\s*)([Nn]ote)\s+(?:left of|right of|over)\s+[^:]+:/, (_m, sp: string, kw: string) => `${sp}${kw} over ${span}:`);
+  const line = cur.replace(/^(\s*)(note)\s+(?:left of|right of|over)\s+[^:]+:/i, (_m, sp: string, kw: string) => `${sp}${kw} ${pos} ${targets}:`);
   if (line === cur) return { code };
   L[it.src] = line;
   return { code: L.join('\n') };
+}
+
+// ---- block branches (`else` for alt, `and` for par, `option` for critical) -------------------------------------------
+
+/** The divider word of a block's branches (undefined: the block has none). */
+export const BRANCH_WORD: Readonly<Partial<Record<BlockKind, string>>> = { alt: 'else', par: 'and', critical: 'option' };
+const BRANCH_LABEL: Readonly<Record<string, string>> = { else: 'otherwise', and: 'in parallel', option: 'on failure' };
+
+const blockOf = (model: SequenceModel, id: string): SeqBlockStart | undefined => model.items.find((x): x is SeqBlockStart => x.kind === 'blockStart' && x.id === id);
+
+/** The labels of a block's branches after its first (the `else` / `and` / `option` conditions), in order. */
+export function branchLabels(model: SequenceModel, blockId: string): string[] {
+  return model.items.filter((x) => x.kind === 'blockElse' && x.id === blockId).map((x) => (x.kind === 'blockElse' ? x.label : ''));
+}
+
+/** Adds a branch at the end of a block (`else` / `and` / `option` before its `end`); Mermaid reads an empty branch. */
+export function addBranch(code: string, model: SequenceModel, blockId: string, label?: string): RefusableResult & { line?: number } {
+  const b = blockOf(model, blockId);
+  const word = b && BRANCH_WORD[b.block];
+  if (!b || !word) return { code, reason: 'Only alt, par and critical blocks have branches' };
+  const L = code.split('\n');
+  const end = blockEnd(b);
+  const ind = indentOf(L[b.src]);
+  const t = seqText(label ?? BRANCH_LABEL[word] ?? 'condition');
+  L.splice(end, 0, `${ind}${word} ${t}`);
+  return { code: L.join('\n'), line: end };
+}
+
+/** New condition of branch `index` (0: the block's own label, 1…: its `else` / `and` / `option` lines). */
+export function relabelBranch(code: string, model: SequenceModel, blockId: string, index: number, text: string): CodeResult {
+  const b = blockOf(model, blockId);
+  if (!b || b.block === 'rect') return { code };
+  if (index === 0) return relabelSeq(code, model, { kind: 'block', id: blockId }, text);
+  const li = b.lines[index];
+  if (li === undefined || index >= b.lines.length - 1) return { code };
+  const L = code.split('\n');
+  return { code: splice(code, li, 1, [(L[li] ?? '').replace(/^(\s*\w+)\b.*$/, (_m, head: string) => `${head} ${seqText(text)}`)]) };
+}
+
+/** Deletes branch `index` (1…) of a block with its statements. Refused when that would unbalance the processes. */
+export function removeBranch(code: string, model: SequenceModel, blockId: string, index: number): RefusableResult {
+  const b = blockOf(model, blockId);
+  if (!b || index < 1 || index >= b.lines.length - 1) return { code };
+  const from = b.lines[index]!, to = b.lines[index + 1]!;
+  const L = code.split('\n');
+  L.splice(from, to - from);
+  const out = L.join('\n');
+  if (!activationsBalanced(out)) return { code, reason: 'That would leave a deactivation without its activation' };
+  return { code: out };
+}
+
+// ---- message arrows, direction and ends ------------------------------------------------------------------------------
+
+/** The arrows the editor offers, in two rows: solid, dotted (Mermaid's classic ten; half arrows are kept, not offered). */
+export const MESSAGE_ARROWS: readonly (readonly string[])[] = [
+  ['->>', '->', '-x', '-)', '<<->>'],
+  ['-->>', '-->', '--x', '--)', '<<-->>'],
+];
+
+/** A message with another arrow: only the arrow token changes (`()`, `+` / `-` and the text stay). */
+export function setMessageArrow(code: string, model: SequenceModel, msgId: string, arrow: string): CodeResult {
+  const m = findMessage(model, msgId);
+  if (!m || !arrowKind(arrow)) return { code };
+  const L = code.split('\n');
+  const line = L[m.src] ?? '';
+  const x = lexMessage(line);
+  if (!x || x.arrow === arrow) return { code };
+  L[m.src] = line.slice(0, x.arrowAt) + arrow + line.slice(x.arrowAt + x.arrow.length);
+  return { code: L.join('\n') };
+}
+
+/**
+ * The message the other way round: its two ends trade places (a central connection's circle stays with its
+ * participant; `+` / `-` stay with the arrow). Refused when the processes would no longer balance.
+ */
+export function reverseMessage(code: string, model: SequenceModel, msgId: string): RefusableResult {
+  const m = findMessage(model, msgId);
+  if (!m) return { code };
+  if (m.from === m.to) return { code, reason: 'A message to itself has no direction to reverse' };
+  const L = code.split('\n');
+  const line = L[m.src] ?? '';
+  const x = lexMessage(line);
+  if (!x) return { code };
+  const head = `${x.to}${x.toCentral ? '()' : ''}${x.arrow}${x.act}${x.fromCentral ? '()' : ''}${x.from}`;
+  L[m.src] = line.slice(0, x.fromAt) + head + line.slice(x.toEnd);
+  const out = L.join('\n');
+  if (!activationsBalanced(out)) return { code, reason: UNBALANCED };
+  return { code: out };
+}
+
+/** End `which` of a message re-attached to participant `target` (the same as the other end: a self message). */
+export function reattachMessage(code: string, model: SequenceModel, msgId: string, which: 'from' | 'to', target: string): RefusableResult {
+  const m = findMessage(model, msgId);
+  if (!m || (which === 'from' ? m.from : m.to) === target) return { code };
+  const L = code.split('\n');
+  const line = L[m.src] ?? '';
+  const x = lexMessage(line);
+  if (!x) return { code };
+  const [a, b] = which === 'from' ? [x.fromAt, x.fromEnd] : [x.toAt, x.toEnd];
+  L[m.src] = line.slice(0, a) + target + line.slice(b);
+  const out = L.join('\n');
+  if (!activationsBalanced(out)) return { code, reason: UNBALANCED };
+  return { code: out };
 }
 
 /**

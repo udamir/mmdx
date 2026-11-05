@@ -17,7 +17,7 @@ export const ROUTINGS = ['curved', 'orthogonal', 'straight'] as const;
 type MutableSpec = { groups: ToolbarControl[][] } & Omit<KindSpec, 'groups'>;
 
 /** Controls that only make sense for one item: left out when the same kind's bar edits several items at once. */
-const SINGLE_ONLY: ReadonlySet<ToolbarControl> = new Set(['order', 'editGroup', 'ungroup', 'media', 'mediaSize']);
+const SINGLE_ONLY: ReadonlySet<ToolbarControl> = new Set(['order', 'editGroup', 'ungroup', 'media', 'mediaSize', 'actions']);
 
 /** Connector kinds: no box to align or group (two messages can still become a process). */
 const LINE_KINDS: ReadonlySet<string> = new Set(['edge', 'rel', 'message']);
@@ -40,9 +40,9 @@ function buildKinds(): Readonly<Record<string, KindSpec>> {
     edge: { groups: [['line', 'arrows', 'routing'], ['font', 'size', 'bold', 'textColor'], ['paint', 'delete', 'more']], size: 'labelSize', bold: 'fontWeight', text: 'labelColor' },
     rel: { groups: [['line', 'routing'], ['font', 'size', 'bold', 'textColor'], ['paint', 'delete', 'more']], size: 'labelSize', bold: 'fontWeight', text: 'labelColor' },
     participant: { groups: [['shape', 'font', 'size', 'bold', 'wrap'], ['textColor'], ['border', 'fill'], ['paint', 'lock', 'delete', 'more']], size: 'fontSize', bold: 'fontWeight', text: 'text', shapes: PARTICIPANT_SHAPES, shapeKey: 'shape' },
-    message: { groups: [['line', 'arrows'], ['font', 'size', 'bold', 'textColor'], ['paint', 'delete', 'more']], size: 'labelSize', bold: 'fontWeight', text: 'labelColor' },
-    note: { groups: [['font', 'size', 'bold'], ['textColor'], ['border', 'fill'], ['paint', 'delete', 'more']], size: 'fontSize', bold: 'fontWeight', text: 'text' },
-    block: { groups: [['font', 'size', 'bold'], ['textColor'], ['border', 'fill'], ['paint', 'delete', 'more']], size: 'labelSize', bold: 'fontWeight', text: 'labelColor' },
+    message: { groups: [['line', 'arrows', 'actions'], ['font', 'size', 'bold', 'textColor'], ['paint', 'delete', 'more']], size: 'labelSize', bold: 'fontWeight', text: 'labelColor' },
+    note: { groups: [['actions'], ['font', 'size', 'bold'], ['textColor'], ['border', 'fill'], ['paint', 'delete', 'more']], size: 'fontSize', bold: 'fontWeight', text: 'text' },
+    block: { groups: [['actions'], ['font', 'size', 'bold'], ['textColor'], ['border', 'fill'], ['paint', 'delete', 'more']], size: 'labelSize', bold: 'fontWeight', text: 'labelColor' },
     box: { groups: [['textColor'], ['border', 'fill'], ['ungroup', 'delete']], text: 'text' },
     multi: { groups: [['font', 'size', 'bold'], ['textColor'], ['border', 'fill'], ['arrange', 'group', 'activate'], ['delete']], size: 'fontSize', bold: 'fontWeight', text: 'text' },
     entity: { groups: [['shape', 'tableStyle', 'font', 'size', 'bold', 'link'], ['textColor'], ['border', 'fill'], ['paint', 'lock', 'delete', 'more']], size: 'attrSize', bold: 'titleWeight', text: 'text' },
