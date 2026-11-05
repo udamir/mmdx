@@ -125,7 +125,19 @@ export interface MindmapGeometry {
   root: string | null;
 }
 
-export type GeometryIndex = FlowGeometry | SequenceGeometry | ErGeometry | MindmapGeometry | { type: null };
+export interface StateGeometry {
+  type: 'state';
+  /** States and pseudo-states; `auto`: placed by the layout (not by hand). */
+  nodes: Map<string, BoxGeom & { auto?: boolean }>;
+  /** Composites; `fixed`: a frame placed by hand. */
+  groups: Map<string, BoxGeom & { fixed: boolean }>;
+  /** Transitions. */
+  edges: Map<string, EdgeGeom>;
+  /** Notes, beside their state. */
+  notes: Map<string, BoxGeom>;
+}
+
+export type GeometryIndex = FlowGeometry | SequenceGeometry | ErGeometry | MindmapGeometry | StateGeometry | { type: null };
 
 export interface PageStyle {
   /** `transparent` when not set. */

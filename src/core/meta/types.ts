@@ -18,6 +18,8 @@ export interface PageSettings {
   margin?: number;
   /** Mindmap layout: both sides of the root (default), to the right, or top down. */
   mindLayout?: 'both' | 'right' | 'down';
+  /** State diagrams: composites in the theme's one composite style (default), or each in a colour of its own (`state.compositeColors`). */
+  composites?: 'single' | 'palette';
 }
 
 export interface CanvasMeta extends PageSettings {

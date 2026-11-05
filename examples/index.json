@@ -9,6 +9,8 @@
     {"id": "architecture-icons", "title": "Flowchart: Architecture with icons", "file": "architecture-icons.mmdx", "tags": ["flowchart", "icons"]},
     {"id": "media", "title": "Flowchart: Icons, images and rich labels", "file": "media.mmdx", "tags": ["flowchart", "icons", "images"]},
     {"id": "product-mindmap", "title": "Mindmap: Product launch", "file": "product-mindmap.mmdx", "tags": ["mindmap"], "history": "history/product-mindmap.json"},
-    {"id": "study-notes", "title": "Mindmap: Study notes", "file": "study-notes.mmdx", "tags": ["mindmap"], "history": "history/study-notes.json"}
+    {"id": "study-notes", "title": "Mindmap: Study notes", "file": "study-notes.mmdx", "tags": ["mindmap"], "history": "history/study-notes.json"},
+    {"id": "order-lifecycle", "title": "State diagram: Order lifecycle", "file": "order-lifecycle.mmdx", "tags": ["state"], "history": "history/order-lifecycle.json"},
+    {"id": "traffic-light", "title": "State diagram: Traffic light", "file": "traffic-light.mmdx", "tags": ["state"], "history": "history/traffic-light.json"}
   ]
 }

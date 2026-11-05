@@ -63,6 +63,23 @@ export const DEFAULT_SAMPLES: Readonly<Record<DiagramType, string>> = {
     Risks{{Risks}}
       Scope
       Budget`,
+  state: `stateDiagram-v2
+  state "Shopping cart" as Cart
+  Cart : items and totals
+  state check <<choice>>
+  [*] --> Cart
+  Cart --> check : checkout
+  check --> Paid : approved
+  check --> Failed : declined
+  state Paid {
+    [*] --> Packing
+    Packing --> Shipped
+    --
+    [*] --> Invoicing
+  }
+  Paid --> [*]
+  Failed --> Cart : retry
+  note right of Failed : the card was declined`,
 };
 export const TYPES: readonly DiagramType[] = DIAGRAM_TYPES;
 
@@ -81,9 +98,9 @@ export const SHAPE_TABS: Readonly<Record<string, ShapeTabs>> = {
   node: { key: 'nodeShapes', shapes: NODE_SHAPES, def: 'rect', of: (p) => presetShape(p as never) },
   participant: { key: 'participantShapes', shapes: PART_SHAPES, def: 'box', of: (p) => participantPresetShape(p as never) },
 };
-export const LINE_KINDS = new Set(['edge', 'message', 'rel', 'lifeline']);
+export const LINE_KINDS = new Set(['edge', 'message', 'rel', 'lifeline', 'transition']);
 /** The text colour key of box-like kinds (contrast check on their fill). */
-export const TEXT_ON_FILL: Readonly<Record<string, string>> = { node: 'text', participant: 'text', note: 'text', entity: 'text', box: 'text', group: 'titleColor', block: 'labelColor' };
+export const TEXT_ON_FILL: Readonly<Record<string, string>> = { node: 'text', participant: 'text', note: 'text', entity: 'text', box: 'text', group: 'titleColor', block: 'labelColor', composite: 'titleColor' };
 export const RATIOS = ['16:9', '4:3', '3:2', '1:1', '2:3', '3:4', '9:16'];
 export const ROUTINGS = ['curved', 'orthogonal', 'straight'];
 export const TOOLBAR_EXCLUDE: readonly ToolbarControl[] = ['link', 'lock', 'paint', 'delete', 'order', 'layer', 'editGroup', 'ungroup', 'group', 'activate', 'arrange', 'more', 'presets'];

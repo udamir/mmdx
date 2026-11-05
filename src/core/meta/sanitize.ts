@@ -82,6 +82,8 @@ const CLEANERS: Record<string, Cleaner> = {
   layout: oneOf('legacy', 'compound'),
   // mindmaps: the layout, a first-level branch's side, its colour (a section of the theme), a folded subtree
   mindLayout: oneOf('both', 'right', 'down'), side: oneOf('l', 'r'), section: int(0, 11),
+  // state diagrams: composites in one style or each in a colour of its own
+  composites: oneOf('single', 'palette'),
   stack,
   locked: bool, hidden: bool, mirror: bool, labelOnLine: bool, showTag: bool, showTypes: bool, showComments: bool,
   pkUnderline: bool, wrap: bool, collapsed: bool,

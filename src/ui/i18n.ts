@@ -42,6 +42,7 @@ const EN: Messages = {
   'label.sequence': 'Sequence diagram: {participants} participants, {messages} messages',
   'label.er': 'ER diagram: {entities} tables, {rels} relationships',
   'label.mindmap': 'Mindmap: {nodes} nodes',
+  'label.state': 'State diagram: {states} states, {transitions} transitions',
   'label.empty': 'Empty diagram',
   'label.unsupported': 'Diagram',
   'help.title': 'Shortcuts',

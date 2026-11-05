@@ -17,4 +17,5 @@ export const KIND_NAMES: Readonly<Record<DiagramType, KindNames>> = {
   sequence: { name: 'Sequence', title: 'Sequence diagram', blurb: 'Participants and the messages between them' },
   er: { name: 'ER diagram', title: 'Entity–relationship (ER) diagram', blurb: 'Tables, columns and relationships' },
   mindmap: { name: 'Mindmap', title: 'Mindmap', blurb: 'A central topic and branches of ideas' },
+  state: { name: 'State diagram', title: 'State diagram', blurb: 'States, transitions and composite states' },
 };

@@ -24,6 +24,10 @@ const SECTION_DEFAULTS: { readonly [T in DiagramType]: () => ResolvedTheme[T] } 
   }),
   er: () => ({ entity: {}, entityPresets: {}, rel: {}, relPresets: {}, pagePresets: {} }),
   mindmap: () => ({ root: {}, node: {}, nodePresets: {}, branch: {}, sections: {}, pagePresets: {} }),
+  state: () => ({
+    node: {}, nodePresets: {}, start: {}, end: {}, choice: {}, fork: {}, composite: {}, compositePresets: {}, compositeColors: {}, note: {},
+    notePresets: {}, transition: {}, transitionPresets: {}, pagePresets: {},
+  }),
 };
 
 export const BASELINE = BASE_THEME_ID;
@@ -175,6 +179,7 @@ export class ThemeRegistry {
       sequence: { ...SECTION_DEFAULTS.sequence(), ...t.sequence },
       er: { ...SECTION_DEFAULTS.er(), ...t.er },
       mindmap: { ...SECTION_DEFAULTS.mindmap(), ...t.mindmap },
+      state: { ...SECTION_DEFAULTS.state(), ...t.state },
     };
   }
 }

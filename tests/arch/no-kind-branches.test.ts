@@ -13,7 +13,7 @@ const SRC = join(ROOT, 'src');
 const OWN = [
   /^src\/core\/kinds\//,
   /^src\/editor\/kinds\//,
-  /\/(flowchart|sequence|er|mindmap)\.ts$/,
+  /\/(flowchart|sequence|er|mindmap|state)\.ts$/,
   /^src\/editor\/modules\/(sequence|er-table|mindmap)\//,
   /^src\/editor\/modules\/panels\/props-er\.ts$/,
 ];

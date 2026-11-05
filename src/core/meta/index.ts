@@ -34,8 +34,9 @@ export interface DiagramDocument {
   readonly meta: DiagramMeta;
 }
 
-// Ids with whitespace or `%` are URI-encoded so the line stays `kind id {json}`.
-export const encodeId = (id: string): string => (/[\s%]/.test(id) ? encodeURIComponent(id) : id);
+// Ids with whitespace, `%` or brackets are URI-encoded so the line stays `kind id {json}` (a state diagram's
+// pseudo-states are `[*]start`, `X/[*]end`: `%5B*%5Dstart`, `X%2F%5B*%5Dend`).
+export const encodeId = (id: string): string => (/[\s%[\]]/.test(id) ? encodeURIComponent(id) : id);
 /** URI-decodes an id; null when the encoding is malformed (the prototype threw here). */
 export function decodeId(raw: string): string | null {
   try {

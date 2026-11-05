@@ -62,6 +62,12 @@ export function createConnection(core: EditorCore, src: ItemRef, fromSide: Side,
   const kind = editKind(core.model.type);
   const r = kind?.connect?.(core.code, src.id, tgt.id);
   if (!kind || !r) return false;
+  // a connection the type refuses (a state diagram's start has no incoming transitions…)
+  const why = (r as { reason?: string }).reason;
+  if (why) {
+    core.toast(why);
+    return false;
+  }
   const M = reparse(r.code);
   const meta = cloneMeta(core.meta);
   let sel: Sel | null = null;

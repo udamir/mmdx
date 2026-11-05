@@ -12,6 +12,7 @@ import { groupResetState, resetSelectedGroup } from '../../../ops/group.js';
 import { describe, labelSpec } from '../../../ops/label.js';
 import { field } from '../fields.js';
 import { attrEditor, relEditor } from '../props-er.js';
+import { withEdit } from '../../../kinds/registry.js';
 import { mediaSection } from './media.js';
 import { itemTarget, layerRow, lineDefaults, lineFields, pickerSection, roundedBox, row, sect, type PanelCtx } from './shared.js';
 
@@ -74,6 +75,49 @@ function textSection(p: PanelCtx, host: HTMLElement, kind: ItemKind, id: string)
   if (kind === 'rel') relEditor(p, host, id);
 }
 
+/** The type's own controls (a state's kind and description rows, a composite's direction and regions). */
+function kindSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void {
+  const { core } = p;
+  const controls = withEdit(core.model, (k, m) => k.properties?.(core, m, ref)) ?? [];
+  for (const c of controls) {
+    if (c.type === 'select') {
+      const sel = h('select', { 'aria-label': c.label });
+      for (const [v, label] of c.options) {
+        const o = h('option', { value: v }, label);
+        if (v === c.value) o.selected = true;
+        sel.append(o);
+      }
+      sel.addEventListener('change', () => c.set(sel.value));
+      host.append(row(c.label, sel));
+    } else if (c.type === 'rows') {
+      sect(host, c.label);
+      const ta = h('textarea', { 'aria-label': c.label, class: 'prop-rows' });
+      ta.value = c.value.join('\n');
+      if (c.hint) ta.placeholder = c.hint;
+      let done = false;
+      const go = (): void => {
+        const rows = ta.value.split('\n').map((x) => x.trim()).filter(Boolean);
+        if (done || rows.join('\n') === c.value.join('\n')) return;
+        done = true;
+        c.set(rows);
+      };
+      ta.addEventListener('blur', go);
+      ta.addEventListener('keydown', (ev) => {
+        const kev = ev as KeyboardEvent;
+        if (kev.key === 'Enter' && (kev.metaKey || kev.ctrlKey)) {
+          kev.preventDefault();
+          go();
+        }
+      });
+      host.append(h('div', { class: 'prop-label' }, ta));
+    } else {
+      const b = h('button', { type: 'button', ...(c.title ? { title: c.title } : {}) }, c.label);
+      b.addEventListener('click', () => c.run());
+      host.append(h('div', { class: 'btnrow' }, b));
+    }
+  }
+}
+
 function activationInspector(p: PanelCtx, host: HTMLElement, id: string): void {
   const { core } = p;
   const t = core.i18n.t;
@@ -101,6 +145,7 @@ export function itemInspector(p: PanelCtx, host: HTMLElement, kind: ItemKind, id
   const info = describe(M, kind, id);
   host.append(h('div', { class: 'insp-title' }, info.title), h('div', { class: 'insp-sub' }, info.sub));
   textSection(p, host, kind, id);
+  kindSection(p, host, ref);
   mediaSection(p, host, ref);
   layerRow(p, host, [ref]);
   if (presetsFor(env, kind)) pickerSection(p, host, ref);

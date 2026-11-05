@@ -125,8 +125,9 @@ button.small { padding: 2px 8px; font-size: 12px; }
 /* preview: sample diagram */
 .te-preview { border-left: 1px solid var(--line); padding: 12px; overflow: auto; background: var(--surface-2); display: flex; flex-direction: column; gap: 10px; }
 .te-phead { display: flex; align-items: center; gap: 6px; }
-.te-ptabs { gap: 4px; }
-.te-ptabs [role=tab] { border: 0; background: none; padding: 5px 10px; border-radius: 7px; font-size: 12.5px; }
+/* five diagram types: the tabs wrap rather than run under the Code button */
+.te-ptabs { gap: 2px; flex-wrap: wrap; min-width: 0; flex: 1; }
+.te-ptabs [role=tab] { border: 0; background: none; padding: 5px 8px; border-radius: 7px; font-size: 12.5px; }
 .te-ptabs [role=tab][aria-selected=true] { background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.1); font-weight: 600; color: inherit; }
 .te-codebtn { margin-left: auto; border: 1px solid var(--line); background: var(--surface); border-radius: 7px; padding: 4px 9px; font-size: 12px; font-family: var(--mmdx-mono); }
 .te-codebtn.on { background: var(--accent-2); border-color: var(--accent); color: var(--accent); }

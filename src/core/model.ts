@@ -408,6 +408,153 @@ export interface MindmapModel extends BaseModel {
   indentUnit: string;
 }
 
+// ---- state diagram ----------------------------------------------------------------------------------------------
+
+/** What a state is: Mermaid's default state, the pseudo-states `[*]` (start, end), or `<<choice>>` / `<<fork>>` / `<<join>>`. */
+export type StateKind = 'state' | 'start' | 'end' | 'choice' | 'fork' | 'join';
+
+/** One text a statement gives a state (its title or a description row), where it is written. */
+export interface StateText {
+  text: string;
+  /** `state "Text" as id` (`as`), or `id : text` (`colon`). */
+  form: 'as' | 'colon';
+  line: number;
+  /** Offsets of the text as written (inside the quotes; after the colon, trimmed). */
+  start: number;
+  end: number;
+}
+
+export interface StateNode {
+  /**
+   * The id as written; the pseudo-states `[*]` are `[*]start` / `[*]end` at the top level and `<composite>/[*]start`
+   * inside a composite (`<composite>/<n>/[*]start` in its n-th concurrency region, n ≥ 2): an id the code gives cannot
+   * hold `[*]`, so they never collide with states.
+   */
+  id: string;
+  kind: StateKind;
+  /** The title: the first text the code gives (`state "Text" as id`, `id : text`), else the id; empty for pseudo-states. */
+  label: string;
+  /** The description rows after the title (Mermaid's "rect with title"). */
+  descriptions: string[];
+  /** Every text the code gives the state, in code order (the title first). */
+  texts: StateText[];
+  /** The composite the state is drawn in (Mermaid: the last composite that mentions it), null at the top level. */
+  parent: string | null;
+  /** Its concurrency region in the parent (0-based). */
+  region: number;
+  /** Classes in order (`:::c`, `class a c`). */
+  classes: string[];
+  /** `style id …` lines. */
+  style: MermaidStyle;
+  /** Every line that mentions the state. */
+  lines: Set<number>;
+  /** Its own statement (`state x <<choice>>`, `state "T" as x`, the first `x : t`), else null (only mentioned in transitions). */
+  defLine: number | null;
+  /** Its place in code order (first mention). */
+  order: number;
+  /** `click id "url"` / `click id href "url"`, unvalidated (the renderer applies the link policy). */
+  link?: string;
+  tooltip?: string;
+}
+
+/** A `state X { … }` block of a composite (a composite can be written in several). */
+export interface StateBlock {
+  line: number;
+  /** The `}` line (absent: never closed). */
+  endLine?: number;
+  /** Offsets: the `state` keyword … after the `}`. */
+  start: number;
+  end: number;
+  /** `--` lines in it. */
+  dividers: number[];
+}
+
+export interface StateGroup {
+  id: string;
+  /** The title (`state "Title" as X {`, or one `X : title` line), else the id. */
+  label: string;
+  texts: StateText[];
+  parent: string | null;
+  region: number;
+  /** Direct children (states and composites), in code order. */
+  children: string[];
+  order: number;
+  /** The first block's `state` line and `}` line. */
+  line: number;
+  endLine?: number;
+  blocks: StateBlock[];
+  /** `direction LR` written in it (the last one); absent: Mermaid lays it out top to bottom. */
+  dir?: Direction;
+  /** Concurrency regions (`--` separates them; 1 without). */
+  regions: number;
+  lines: Set<number>;
+  classes: string[];
+  style: MermaidStyle;
+  link?: string;
+  tooltip?: string;
+}
+
+export interface StateEdge {
+  /** `from->to`, or `from->to#n` for the n-th transition between the same ends (as flowchart edges). */
+  id: string;
+  from: string;
+  to: string;
+  label: string;
+  /** Source line. */
+  src: number;
+  /** Position among the transitions. */
+  index: number;
+  /** The composite and region it is written in (null: the top level). */
+  scope: string | null;
+  region: number;
+  /** Offsets of the statement, of each end as written and of the label (`: text`, colon included). */
+  start: number;
+  end: number;
+  fromAt: [number, number];
+  toAt: [number, number];
+  labelAt?: [number, number];
+}
+
+export interface StateNote {
+  /** `n1`, `n2`… in code order. */
+  id: string;
+  target: string;
+  side: 'left' | 'right';
+  text: string;
+  /** `note … : text` on one line, or the `note …` line to `end note`. */
+  line: number;
+  endLine: number;
+  multi: boolean;
+  /** The composite and region it is written in. */
+  scope: string | null;
+  region: number;
+}
+
+export interface StateModel extends BaseModel {
+  type: 'state';
+  /** The header as written (kept when the editor writes). */
+  header: 'stateDiagram' | 'stateDiagram-v2';
+  /** 0-based line of the header. */
+  headerLine: number;
+  /** The top-level direction (the last top-level `direction`; TB without). */
+  direction: Direction;
+  /** Line of the last top-level `direction`, if any. */
+  dirLine?: number;
+  nodes: Map<string, StateNode>;
+  groups: Map<string, StateGroup>;
+  edges: StateEdge[];
+  notes: StateNote[];
+  classDefs: Record<string, MermaidStyle>;
+  /** `classDef` lines by class. */
+  classDefLines: Record<string, number>;
+  /** `:::c` / `class` uses whose class has no classDef (may still be a theme preset). */
+  undefinedClasses: { cls: string; line: number }[];
+  /** Frontmatter `title`, drawn above the diagram. */
+  title?: string;
+  accTitle?: string;
+  accDescr?: string;
+}
+
 // ---- unsupported ------------------------------------------------------------------------------------------------
 
 export interface UnsupportedModel extends BaseModel {
@@ -416,8 +563,8 @@ export interface UnsupportedModel extends BaseModel {
   keyword?: string;
 }
 
-export type DiagramModel = FlowchartModel | SequenceModel | ErModel | MindmapModel | UnsupportedModel;
-export type SupportedModel = FlowchartModel | SequenceModel | ErModel | MindmapModel;
+export type DiagramModel = FlowchartModel | SequenceModel | ErModel | MindmapModel | StateModel | UnsupportedModel;
+export type SupportedModel = FlowchartModel | SequenceModel | ErModel | MindmapModel | StateModel;
 
 export const isSupported = (m: DiagramModel): m is SupportedModel => m.type !== null;
 export type { DiagramType };

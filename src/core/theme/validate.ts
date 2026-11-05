@@ -53,8 +53,9 @@ function cleanRecord(v: unknown, path: string, out: Diagnostic[]): Record<string
   return res;
 }
 
-// flowchart / sequence / er / mindmap: item blocks are style objects; `…Presets`, `…Shapes`, `pagePresets` and the
-// mindmap's `sections` are records of them; `sequence.layout` holds numbers checked by the same table.
+// flowchart / sequence / er / mindmap / state: item blocks are style objects; `…Presets`, `…Shapes`, `pagePresets`, the
+// mindmap's `sections` and the state's `compositeColors` are records of them; `sequence.layout` holds numbers checked
+// by the same table.
 function cleanSection(v: unknown, path: string, out: Diagnostic[]): Record<string, unknown> | undefined {
   if (!isObj(v)) {
     out.push(bad(path));
@@ -62,7 +63,7 @@ function cleanSection(v: unknown, path: string, out: Diagnostic[]): Record<strin
   }
   const res: Record<string, unknown> = {};
   for (const [k, x] of Object.entries(v)) {
-    const c = /(?:Presets|Shapes)$|^sections$/.test(k) ? cleanRecord(x, `${path}.${k}`, out) : cleanStyle(x, `${path}.${k}`, out);
+    const c = /(?:Presets|Shapes)$|^(?:sections|compositeColors)$/.test(k) ? cleanRecord(x, `${path}.${k}`, out) : cleanStyle(x, `${path}.${k}`, out);
     if (c) res[k] = c;
   }
   return res;

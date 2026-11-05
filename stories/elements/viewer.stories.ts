@@ -106,6 +106,12 @@ export const EntityRelationship: Story = { name: 'ER diagram', args: { source: S
 export const Mindmap: Story = { args: { source: example('product-mindmap') } };
 
 /** Colour by depth (`config.mindmap.colorBy`), the right-hand layout, an `::icon()`, a quoted label and a folded branch (+N). */
+/** A state diagram (T09): composites, concurrency regions, notes, choice, fork and join, description rows, the frontmatter title. */
+export const StateDiagram: Story = { name: 'State diagram', args: { source: example('order-lifecycle') } };
+
+/** A left-to-right state diagram with presets from metadata and a cycle. */
+export const StateTrafficLight: Story = { name: 'State diagram: traffic light', args: { source: example('traffic-light') } };
+
 export const MindmapByDepth: Story = { name: 'Mindmap: colour by depth, folded branch', args: { source: example('study-notes') } };
 
 export const AllControls: Story = {

@@ -157,5 +157,32 @@
         "stroke": "@border"
       }
     }
+  },
+  "state": {
+    "pagePresets": {
+      "whiteboard": {
+        "background": "#eff1f5"
+      },
+      "grid": {
+        "background": "#eff1f5"
+      },
+      "technical": {
+        "background": "#eff1f5"
+      },
+      "colored": {
+        "background": "#eff1f5"
+      }
+    },
+    "node": {
+      "stroke": "@border"
+    },
+    "choice": {
+      "stroke": "@border"
+    },
+    "compositePresets": {
+      "plain": {
+        "stroke": "@border"
+      }
+    }
   }
 }

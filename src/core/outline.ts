@@ -2,6 +2,7 @@
 import { outlineEr } from './kinds/er-outline.js';
 import { outlineFlowchart } from './kinds/flowchart-outline.js';
 import { outlineMindmap } from './kinds/mindmap-outline.js';
+import { outlineState } from './kinds/state-outline.js';
 import { outlineSequence } from './kinds/sequence-outline.js';
 import type { DiagramModel, SupportedModel } from './model.js';
 import type { DiagramType } from './types.js';
@@ -24,4 +25,5 @@ const OUTLINES: { readonly [T in DiagramType]: (model: Extract<SupportedModel, {
   sequence: outlineSequence,
   er: outlineEr,
   mindmap: outlineMindmap,
+  state: outlineState,
 };

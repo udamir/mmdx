@@ -20,6 +20,8 @@ export const KIND_INFO: Readonly<Record<DiagramType, KindInfo>> = {
   sequence: { type: 'sequence', header: /^sequenceDiagram\b/, starter: 'sequenceDiagram\n', label: 'type.sequence' },
   er: { type: 'er', header: /^erDiagram\b/, starter: 'erDiagram\n', label: 'type.er' },
   mindmap: { type: 'mindmap', header: /^mindmap\b/i, starter: 'mindmap\n  root((Topic))\n', label: 'type.mindmap' },
+  // both headers read the same (Mermaid 11.17 and 12.2 draw them alike); new diagrams take the v2 header (T09 Q1)
+  state: { type: 'state', header: /^stateDiagram(?:-v2)?\b/, starter: 'stateDiagram-v2\n', label: 'type.state' },
 };
 
 /** The diagram types, in UI order. */

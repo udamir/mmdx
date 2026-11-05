@@ -19,6 +19,11 @@ export function cleanLabel(s: string | null | undefined): string {
   let t = String(s).trim();
   if (t.length >= 2 && ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'")))) t = t.slice(1, -1);
   if (t.length >= 2 && t.startsWith('`') && t.endsWith('`')) t = t.slice(1, -1);
+  return decodeLabel(t);
+}
+
+/** Mermaid's entity codes and line breaks in text as written (`#9829;`, `#quot;`, `&lt;`, `<br>`), without unquoting. */
+export function decodeLabel(t: string): string {
   return t.replace(DECODE, (m: string, num?: string, ent?: string) => {
     if (num !== undefined) {
       const cp = Number(num);

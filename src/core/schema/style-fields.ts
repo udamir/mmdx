@@ -86,6 +86,9 @@ export const STYLE_FIELDS: Readonly<Record<ItemKind, readonly string[]>> = {
   box: ['fill', 'stroke', 'strokeWidth', 'dash', 'text', 'labelSize'],
 };
 
+/** State diagram states: no stack or wrap toggle (labels wrap at 200, as Mermaid's). */
+const STATE_NODE_FIELDS: readonly string[] = ['fill', 'stroke', 'text', 'strokeWidth', 'fontSize', 'fontWeight', 'radius', 'shape', 'dash'];
+
 /** Mindmap nodes: no stack, wrap or alignment (labels wrap at Mermaid's maxNodeWidth). */
 const MIND_NODE_FIELDS: readonly string[] = ['fill', 'stroke', 'text', 'strokeWidth', 'fontSize', 'fontWeight', 'radius', 'shape'];
 
@@ -133,6 +136,18 @@ const SECTION_UI: Readonly<Record<DiagramType, ThemeSection>> = {
     { key: 'branch', label: 'Branch', fields: ['width'], preview: 'mm-branch' },
     // the section colours as presets of an empty base: one tile per section
     { key: 'section', label: 'Sections (branch colours)', fields: ['fill', 'text', 'color'], presets: 'sections', preview: 'mm-section' },
+  ] },
+  state: { title: 'State diagram', routing: true, items: [
+    { key: 'node', label: 'State', fields: STATE_NODE_FIELDS, presets: 'nodePresets', preview: 'st-state' },
+    { key: 'start', label: 'Start', fields: ['fill', 'w'], preview: 'st-start' },
+    { key: 'end', label: 'End', fields: ['fill', 'stroke', 'strokeWidth', 'w'], preview: 'st-end' },
+    { key: 'choice', label: 'Choice', fields: ['fill', 'stroke', 'strokeWidth', 'w'], preview: 'st-choice' },
+    { key: 'fork', label: 'Fork / join', fields: ['fill', 'w', 'h'], preview: 'st-fork' },
+    { key: 'composite', label: 'Composite state', fields: STYLE_FIELDS.group, presets: 'compositePresets', preview: 'st-composite' },
+    // the "Coloured composites" page preset's colours as presets of an empty base: one tile per colour
+    { key: 'compositeColor', label: 'Composite colours', fields: ['fill', 'stroke'], presets: 'compositeColors', preview: 'st-composite-color' },
+    { key: 'note', label: 'Note', fields: [...STYLE_FIELDS.note, 'color'], presets: 'notePresets', preview: 'st-note' },
+    { key: 'transition', label: 'Transition', fields: STYLE_FIELDS.edge, presets: 'transitionPresets', preview: 'st-transition' },
   ] },
 };
 
@@ -245,6 +260,7 @@ const COMMON_DEFS = (): Record<string, JsonSchema> => ({
       blockSpan: fieldSchema('blockSpan', FIELD_DEFS['blockSpan']!),
       margin: { type: 'number', minimum: 0, title: 'Sequence margin' },
       mindLayout: { enum: ['both', 'right', 'down'], title: 'Mindmap layout' },
+      composites: { enum: ['single', 'palette'], title: 'State diagram composites: one style, or a colour each' },
     },
     additionalProperties: true,
   },
@@ -304,6 +320,16 @@ export function themeJsonSchema(): JsonSchema {
         },
         additionalProperties: true,
       },
+      state: {
+        type: 'object',
+        properties: {
+          node: style, nodeShapes: shapes, nodePresets: presets, start: style, end: style, choice: style, fork: style,
+          composite: style, compositePresets: presets,
+          compositeColors: recordOf(style, 'Composite colours "0", "1"… taken in turn under the page setting composites: "palette"'),
+          note: style, notePresets: presets, transition: style, transitionPresets: presets, pagePresets: ref('pagePresets'),
+        },
+        additionalProperties: true,
+      },
     },
     additionalProperties: true,
     $defs: COMMON_DEFS(),
@@ -339,7 +365,7 @@ export function metaJsonSchema(): JsonSchema {
       // mindmaps
       dx: num('Nudge x (mindmap)'), dy: num('Nudge y (mindmap)'), side: { enum: ['l', 'r'], description: 'A first-level mindmap branch: its side of the root' },
       section: { type: 'integer', minimum: 0, maximum: 11, description: 'A mindmap branch colour (a section of the theme) for the node and its subtree' },
-      collapsed: { type: 'boolean', description: 'A folded mindmap branch' }, img: { type: 'string', maxLength: 2048, description: 'A picture above a mindmap node (URL)' },
+      collapsed: { type: 'boolean', description: 'A folded mindmap branch' }, img: { type: 'string', maxLength: 2048, description: 'A picture above a mindmap node or a state (URL)' },
     }),
     // a group's x / y is its top-left: a frame with w / h, or (without them) the place "Reset positions in this group" keeps
     group: item({ x: num('Left'), y: num('Top'), w: num('Width'), h: num('Height'), titleSize: num(), titleColor: ref('color') }),
@@ -379,12 +405,12 @@ export function metaJsonSchema(): JsonSchema {
         additionalProperties: recordOf(ref('preset'), 'Local presets of one item kind (`_base` = the diagram-wide base style)'),
       },
       layers: recordOf({ type: 'object', properties: { name: { type: 'string' }, hidden: { type: 'boolean' } }, additionalProperties: true }),
-      groups: coll('group', 'Flowchart subgraphs'),
-      nodes: coll('node', 'Flowchart nodes; mindmap nodes (their written id, else mm1, mm2… in code order)'),
-      edges: coll('edge', 'Flowchart edges, keyed `from->to` or `from->to#n`'),
+      groups: coll('group', 'Flowchart subgraphs; state diagram composites'),
+      nodes: coll('node', 'Flowchart nodes; mindmap nodes (their written id, else mm1, mm2… in code order); states (pseudo-states: [*]start, X/[*]end, URI-encoded)'),
+      edges: coll('edge', 'Flowchart edges and state transitions, keyed `from->to` or `from->to#n`'),
       participants: coll('participant', 'Sequence participants'),
       messages: coll('message', 'Messages (positional ids m1, m2…)'),
-      notes: coll('note', 'Notes (n1, n2…)'),
+      notes: coll('note', 'Sequence and state diagram notes (n1, n2…)'),
       blocks: coll('block', 'Blocks (b1, b2…)'),
       boxes: coll('box', 'Boxes (box1, box2…)'),
       activations: coll('activation', 'Processes (`<participant>:<n>`)'),

@@ -41,7 +41,7 @@ export const THEME_EDITOR_MESSAGES: Messages = {
   'te.pageCard': 'Page', 'te.pageHint': 'Page presets for this diagram type, chosen per diagram (Page → preset). Empty values use the theme page.',
   'te.ppLabel': 'Label', 'te.ppBackground': 'Background', 'te.ppGrid': 'Grid colour', 'te.ppBorder': 'Border', 'te.ppRouting': 'Lines', 'te.ppRatio': 'Proportions',
   'te.ppPad': 'Padding', 'te.ppGap': 'Participant gap', 'te.ppRowH': 'Row height', 'te.ppMirror': 'Participants at the bottom', 'te.ppFree': 'free',
-  'te.flowchart': 'Flowchart', 'te.sequence': 'Sequence', 'te.er': 'ER', 'te.mindmap': 'Mindmap', 'te.code': '</> Code', 'te.codeTitle': 'Edit the sample diagram in Mermaid',
+  'te.flowchart': 'Flowchart', 'te.sequence': 'Sequence', 'te.er': 'ER', 'te.mindmap': 'Mindmap', 'te.state': 'State', 'te.code': '</> Code', 'te.codeTitle': 'Edit the sample diagram in Mermaid',
   'te.resetSample': 'Reset sample', 'te.previewHint': 'Sample diagram rendered with this theme. Saved themes also apply to open diagrams that use them.',
   'te.previewErr': 'Preview: {msg}', 'te.notDiagram': 'not a flowchart, sequence or ER diagram', 'te.sampleCode': 'Sample diagram (Mermaid)',
   'te.samplePreview': 'Sample diagram', 'te.section.flowchart': 'Flowchart', 'te.section.sequence': 'Sequence', 'te.section.er': 'ER diagram',
@@ -49,6 +49,9 @@ export const THEME_EDITOR_MESSAGES: Messages = {
   'te.item.note': 'Note', 'te.item.block': 'Block (loop / alt / opt)', 'te.item.box': 'Box (participant group)', 'te.item.lifeline': 'Lifeline',
   'te.item.activation': 'Activation (process)', 'te.item.entity': 'Table', 'te.item.rel': 'Relationship',
   'te.item.root': 'Root', 'te.item.branch': 'Branch', 'te.item.section': 'Sections (branch colours)',
+  // state diagrams (T09): an item key the flowchart also has is named per type (`te.item.state.node`)
+  'te.section.state': 'State diagram', 'te.item.state.node': 'State', 'te.item.start': 'Start', 'te.item.end': 'End', 'te.item.choice': 'Choice', 'te.item.fork': 'Fork / join',
+  'te.item.composite': 'Composite state', 'te.item.compositeColor': 'Composite colours', 'te.item.transition': 'Transition',
   'te.counterpart': 'Linked theme',
   'te.counterpartNone': 'None — the house theme is used',
   'te.counterpartHint': 'Shown instead of this theme when the UI switches to {other}. Saving links it back.',

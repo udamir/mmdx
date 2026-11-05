@@ -14,6 +14,7 @@ const importers: Record<DiagramType, () => Promise<{ VIEW: ViewKind }>> = {
   sequence: () => import('../core/kinds/sequence.js'),
   er: () => import('../core/kinds/er.js'),
   mindmap: () => import('../core/kinds/mindmap.js'),
+  state: () => import('../core/kinds/state.js'),
 };
 
 /** The kinds loaded so far (shared by every viewer on the page; static code, no instance state). */

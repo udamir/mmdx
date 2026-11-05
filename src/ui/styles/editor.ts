@@ -9,7 +9,7 @@ export const EDITOR_CSS = /* css */ `
   position: absolute; inset: 0; overflow: hidden;
   background: var(--mmdx-bg) radial-gradient(var(--mmdx-dots) 1px, transparent 1px) 0 0 / 22px 22px;
 }
-svg.canvas { width: 100%; height: 100%; display: block; cursor: default; user-select: none; touch-action: none; outline: none; }
+svg.canvas { width: 100%; height: 100%; display: block; cursor: default; user-select: none; -webkit-user-select: none; touch-action: none; outline: none; }
 svg.canvas.panning { cursor: grabbing; }
 .ed.tool-hand svg.canvas, .ed.space-pan svg.canvas, .mode-view svg.canvas { cursor: grab; }
 .ed.tool-hand svg.canvas.panning, .mode-view svg.canvas.panning { cursor: grabbing; }

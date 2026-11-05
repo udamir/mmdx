@@ -76,6 +76,37 @@ export interface MindmapTheme {
   pagePresets?: PagePresets;
 }
 
+export interface StateTheme {
+  /** A state: a rounded box, its title centred (with description rows: title, divider, rows). */
+  node?: StyleProps;
+  /** Per-shape defaults of states given an mmdx-only shape (metadata `shape`). */
+  nodeShapes?: Record<string, StyleProps>;
+  nodePresets?: Presets;
+  /** The start pseudo-state: a filled dot (`fill`, `w`). */
+  start?: StyleProps;
+  /** The end pseudo-state: a dot in a ring (`fill` the dot, `stroke` the ring, `w`). */
+  end?: StyleProps;
+  /** `<<choice>>`: a diamond (`w`). */
+  choice?: StyleProps;
+  /** `<<fork>>` / `<<join>>`: a filled bar across the flow (`fill`, `w` its length, `h` its thickness). */
+  fork?: StyleProps;
+  /** A composite state: its frame and title band (`pad`, `padTop`, `titleSize`…). */
+  composite?: StyleProps;
+  compositePresets?: Presets;
+  /**
+   * The colours of composites under the page setting `composites: "palette"` (the "Coloured composites" page preset,
+   * Mermaid 12's redux-color look): `"0"`, `"1"`… in turn, by the composite's place in the code.
+   */
+  compositeColors?: Record<string, StyleProps>;
+  /** A note: a folded-corner box beside its state, joined by a dashed line (`color` of the line). */
+  note?: StyleProps;
+  notePresets?: Presets;
+  /** A transition: an arrow with a label (`color`, `width`, `arrow`, `labelSize`…). */
+  transition?: StyleProps;
+  transitionPresets?: Presets;
+  pagePresets?: PagePresets;
+}
+
 export interface ThemeFile {
   id: string;
   name?: string;
@@ -91,6 +122,7 @@ export interface ThemeFile {
   sequence?: SequenceTheme;
   er?: ErTheme;
   mindmap?: MindmapTheme;
+  state?: StateTheme;
 }
 
 export interface ThemeInfo {
@@ -117,4 +149,5 @@ export interface ResolvedTheme {
   sequence: Required<Omit<SequenceTheme, 'participantShapes'>> & Pick<SequenceTheme, 'participantShapes'>;
   er: Required<ErTheme>;
   mindmap: Required<Omit<MindmapTheme, 'nodeShapes'>> & Pick<MindmapTheme, 'nodeShapes'>;
+  state: Required<Omit<StateTheme, 'nodeShapes'>> & Pick<StateTheme, 'nodeShapes'>;
 }

@@ -1,0 +1,25 @@
+{
+ "versions": [
+  {
+   "id": "5c1e7a0",
+   "message": "Invoice while packing; customers can cancel during validation",
+   "author": "Ana",
+   "date": "2026-11-02T14:05:00.000Z",
+   "source": "---\ntitle: Order lifecycle\n---\nstateDiagram-v2\n  accTitle: Order lifecycle\n  accDescr: An order from the cart to delivery, with payment and courier booking in parallel and packing while it is invoiced\n  state \"Shopping cart\" as Cart\n  Cart : items and totals\n  Cart : editable by the customer\n  state split <<fork>>\n  state merge <<join>>\n  [*] --> Cart\n  Cart --> Validation : checkout\n  state Validation {\n    state stock <<choice>>\n    [*] --> Checking\n    Checking --> stock\n    stock --> Reserved : in stock\n    stock --> Backordered : out of stock\n    Backordered --> Reserved : restocked\n    Reserved --> [*]\n  }\n  Validation --> split\n  split --> Payment\n  split --> Courier\n  Payment --> merge\n  Courier --> merge\n  merge --> Fulfilment\n  state Fulfilment {\n    [*] --> Picking\n    Picking --> Packed\n    Packed --> [*]\n    --\n    [*] --> Invoicing\n    Invoicing --> Invoiced\n    Invoiced --> [*]\n  }\n  Fulfilment --> Shipped : handed over\n  Shipped --> Delivered\n  Delivered --> [*]\n  Validation --> Cancelled : customer cancels\n  Cancelled --> [*]\n  note right of Cart : prices are locked at checkout\n  note left of Shipped\n    tracking number\n    sent by e-mail\n  end note\n  classDef problem fill:#fde8ec,stroke:#d0312d\n  class Backordered, Cancelled problem\n\n%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----\n%%@ canvas {\"v\":1}\n%%@ node Delivered {\"preset\":\"done\"}\n%%@ node Payment {\"preset\":\"active\"}\n%%@ node Courier {\"preset\":\"active\"}\n%%@ edge Validation->Cancelled {\"preset\":\"error\"}\n"
+  },
+  {
+   "id": "9b2f4d1",
+   "message": "Validation with a stock check, payment and courier in parallel",
+   "author": "Ana",
+   "date": "2026-10-30T09:40:00.000Z",
+   "source": "---\ntitle: Order lifecycle\n---\nstateDiagram-v2\n  accTitle: Order lifecycle\n  accDescr: An order from the cart to delivery, with payment and courier booking in parallel and packing while it is invoiced\n  state \"Shopping cart\" as Cart\n  Cart : items and totals\n  Cart : editable by the customer\n  state split <<fork>>\n  state merge <<join>>\n  [*] --> Cart\n  Cart --> Validation : checkout\n  state Validation {\n    state stock <<choice>>\n    [*] --> Checking\n    Checking --> stock\n    stock --> Reserved : in stock\n    stock --> Backordered : out of stock\n    Backordered --> Reserved : restocked\n    Reserved --> [*]\n  }\n  Validation --> split\n  split --> Payment\n  split --> Courier\n  Payment --> merge\n  Courier --> merge\n  merge --> Fulfilment\n  state Fulfilment {\n    [*] --> Picking\n    Picking --> Packed\n    Packed --> [*]\n  }\n  Fulfilment --> Shipped : handed over\n  Shipped --> Delivered\n  Delivered --> [*]\n  note right of Cart : prices are locked at checkout\n  note left of Shipped\n    tracking number\n    sent by e-mail\n  end note\n  classDef problem fill:#fde8ec,stroke:#d0312d\n  class Backordered problem\n\n%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----\n%%@ canvas {\"v\":1}\n%%@ node Delivered {\"preset\":\"done\"}\n%%@ node Payment {\"preset\":\"active\"}\n%%@ node Courier {\"preset\":\"active\"}\n"
+  },
+  {
+   "id": "0f3a8c2",
+   "message": "First draft",
+   "author": "Ana",
+   "date": "2026-10-28T16:15:00.000Z",
+   "source": "stateDiagram-v2\n  [*] --> Cart\n  Cart --> Paid : checkout\n  Paid --> Shipped\n  Shipped --> Delivered\n  Delivered --> [*]\n"
+  }
+ ]
+}

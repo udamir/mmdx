@@ -160,6 +160,11 @@ function shell(s, palette, grid) {
       pagePresets: { both: page, right: page, down: page },
       nodePresets: { plain: { stroke: '@border' } },
     },
+    state: {
+      pagePresets: { whiteboard: page, grid, technical: grid, colored: page },
+      node: { stroke: '@border' }, choice: { stroke: '@border' },
+      compositePresets: { plain: { stroke: '@border' } },
+    },
   };
 }
 

@@ -6,6 +6,7 @@ import type { DiagramModel } from '../../../src/core/model.js';
 import { parse } from '../../../src/core/parse/index.js';
 import * as OPS from '../../../src/core/ops/index.js';
 import * as MM from '../../../src/core/ops/mindmap.js';
+import * as ST from '../../../src/core/ops/state.js';
 import type { ItemRef } from '../../../src/core/types.js';
 import { EXAMPLES } from './helpers.js';
 
@@ -186,10 +187,59 @@ function mindCases(code: string, m: DiagramModel): Case[] {
   return cs;
 }
 
+/** Every state diagram op on every item (stock Mermaid parsing their outputs is in state.test.ts). */
+function stateCases(code: string, m: DiagramModel): Case[] {
+  if (m.type !== 'state') return [];
+  const cs: Case[] = [];
+  const add = (name: string, run: Case['run']): void => void cs.push({ name, run });
+  const nodes = [...m.nodes.keys()], groups = [...m.groups.keys()];
+  const scopes: ST.StateScope[] = [{ g: null, r: 0 }, ...groups.flatMap((g) => Array.from({ length: m.groups.get(g)!.regions }, (_, r) => ({ g, r })))];
+  for (const s of scopes) {
+    for (const k of ['state', 'choice', 'fork', 'join'] as const) add(`add ${k} in ${s.g}/${s.r}`, (x) => ST.addState(code, x as never, { kind: k, scope: s }));
+    add(`start in ${s.g}/${s.r}`, (x) => ST.addStart(code, x as never, s, null));
+  }
+  for (const id of [...nodes, ...groups]) {
+    const sel: ItemRef = { kind: m.groups.has(id) ? 'group' : 'node', id };
+    add(`relabel ${id}`, (x) => ST.relabelState(code, x as never, id, LABEL));
+    add(`rows ${id}`, (x) => ST.setDescriptions(code, x as never, id, ['one: two', 'x; y']));
+    add(`no rows ${id}`, (x) => ST.setDescriptions(code, x as never, id, []));
+    for (const k of ['state', 'choice', 'fork', 'join'] as const) add(`kind ${id} ${k}`, (x) => ST.setStateKind(code, x as never, id, k));
+    add(`delete ${id}`, (x) => ST.deleteState(code, x as never, [sel]));
+    add(`delete keep ${id}`, (x) => ST.deleteState(code, x as never, [sel], true));
+    add(`note ${id}`, (x) => ST.addNote(code, x as never, id, 'left', 'a: b; c'));
+    add(`end after ${id}`, (x) => ST.addEnd(code, x as never, id));
+    add(`clone ${id}`, (x) => ST.cloneState(code, x as never, [sel]));
+    add(`group ${id}`, (x) => ST.makeComposite(code, x as never, [sel], 'New group'));
+    add(`link ${id}`, (x) => ST.setStateLink(code, x as never, id, 'https://example.com/a'));
+    for (const to of [...nodes, ...groups].slice(0, 12)) add(`connect ${id} ${to}`, (x) => ST.connectState(code, x as never, id, to, 'go: now'));
+  }
+  for (const g of groups) {
+    add(`ungroup ${g}`, (x) => ST.ungroupState(code, x as never, g));
+    add(`ungroup no rewire ${g}`, (x) => ST.ungroupState(code, x as never, g, false));
+    add(`region ${g}`, (x) => ST.addRegion(code, x as never, g));
+    add(`dir ${g}`, (x) => ST.setCompositeDirection(code, x as never, g, 'LR'));
+    add(`no dir ${g}`, (x) => ST.setCompositeDirection(code, x as never, g, null));
+  }
+  for (const e of m.edges) {
+    add(`label ${e.id}`, (x) => ST.relabelTransition(code, x as never, e.id, LABEL));
+    add(`no label ${e.id}`, (x) => ST.relabelTransition(code, x as never, e.id, ''));
+    add(`delete ${e.id}`, (x) => ST.deleteState(code, x as never, [{ kind: 'edge', id: e.id }]));
+    for (const to of nodes.slice(0, 8)) for (const w of ['a', 'b'] as const) add(`reconnect ${e.id} ${w} ${to}`, (x) => ST.reconnectState(code, x as never, e.id, w, to));
+  }
+  for (const n of m.notes) {
+    add(`note text ${n.id}`, (x) => ST.relabelNote(code, x as never, n.id, 'one\ntwo: three'));
+    add(`note side ${n.id}`, (x) => ST.setNoteSide(code, x as never, n.id, n.side === 'left' ? 'right' : 'left'));
+    add(`delete ${n.id}`, (x) => ST.deleteState(code, x as never, [{ kind: 'note', id: n.id }]));
+  }
+  add('direction', (x) => ST.setStateDirection(code, x as never, 'LR'));
+  add('fragment', (x) => ({ code: ST.stateFragment(x as never, [...nodes, ...groups].map((id) => ({ kind: m.groups.has(id) ? 'group' as const : 'node' as const, id }))) }));
+  return cs;
+}
+
 describe('ops on the examples', () => {
   for (const ex of EXAMPLES) {
     const m = parse(ex.code);
-    const cases = [...flowCases(ex.code, m), ...erCases(ex.code, m), ...seqCases(ex.code, m), ...mindCases(ex.code, m)];
+    const cases = [...flowCases(ex.code, m), ...erCases(ex.code, m), ...seqCases(ex.code, m), ...mindCases(ex.code, m), ...stateCases(ex.code, m)];
     it(`${ex.name}: ${cases.length} cases`, () => {
       expect(cases.length).toBeGreaterThan(5);
       // every rewrite still parses, as the same type, without new errors

@@ -21,6 +21,7 @@ const importers: Record<DiagramType, () => Promise<KindChunk>> = {
   sequence: () => import('./sequence.js') as Promise<KindChunk>,
   er: () => import('./er.js') as Promise<KindChunk>,
   mindmap: () => import('./mindmap.js') as Promise<KindChunk>,
+  state: () => import('./state.js') as Promise<KindChunk>,
 };
 
 const version = signal(0);

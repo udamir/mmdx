@@ -1,0 +1,56 @@
+---
+title: Order lifecycle
+---
+stateDiagram-v2
+  accTitle: Order lifecycle
+  accDescr: An order from the cart to delivery, with payment and courier booking in parallel and packing while it is invoiced
+  state "Shopping cart" as Cart
+  Cart : items and totals
+  Cart : editable by the customer
+  state split <<fork>>
+  state merge <<join>>
+  [*] --> Cart
+  Cart --> Validation : checkout
+  state Validation {
+    state stock <<choice>>
+    [*] --> Checking
+    Checking --> stock
+    stock --> Reserved : in stock
+    stock --> Backordered : out of stock
+    Backordered --> Reserved : restocked
+    Reserved --> [*]
+  }
+  Validation --> split
+  split --> Payment
+  split --> Courier
+  Payment --> merge
+  Courier --> merge
+  merge --> Fulfilment
+  state Fulfilment {
+    [*] --> Picking
+    Picking --> Packed
+    Packed --> [*]
+    --
+    [*] --> Invoicing
+    Invoicing --> Invoiced
+    Invoiced --> [*]
+  }
+  Fulfilment --> Shipped : handed over
+  Shipped --> Delivered
+  Delivered --> [*]
+  Validation --> Cancelled : customer cancels
+  Cancelled --> [*]
+  note right of Cart : prices are locked at checkout
+  note left of Shipped
+    tracking number
+    sent by e-mail
+  end note
+  classDef problem fill:#fde8ec,stroke:#d0312d
+  class Backordered, Cancelled problem
+
+%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----
+%%@ canvas {"v":1}
+%%@ node Delivered {"preset":"done"}
+%%@ node Payment {"preset":"active"}
+%%@ node Courier {"preset":"active"}
+%%@ edge Validation->Cancelled {"preset":"error"}

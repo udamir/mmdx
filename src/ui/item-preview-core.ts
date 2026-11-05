@@ -25,10 +25,15 @@ const NS = 'http://www.w3.org/2000/svg';
 export type PreviewKind =
   | 'node' | 'group' | 'edge' | 'participant' | 'message' | 'note' | 'block' | 'box' | 'lifeline' | 'activation' | 'entity' | 'rel'
   // mindmap: the root, a node, a branch, a section's colours (a section preset is its number)
-  | 'mm-root' | 'mm-node' | 'mm-branch' | 'mm-section';
+  | 'mm-root' | 'mm-node' | 'mm-branch' | 'mm-section'
+  // state diagram: a state, the pseudo-states and bars, a composite, a composite colour (its number), a note, a transition
+  | 'st-state' | 'st-start' | 'st-end' | 'st-choice' | 'st-fork' | 'st-composite' | 'st-composite-color' | 'st-note' | 'st-transition';
 
 /** The preview of an item kind in a diagram type whose items look unlike the flowchart's of the same kind. */
-const TYPE_PREVIEWS: Partial<Record<DiagramType, Partial<Record<ItemKind, PreviewKind>>>> = { mindmap: { node: 'mm-node' } };
+const TYPE_PREVIEWS: Partial<Record<DiagramType, Partial<Record<ItemKind, PreviewKind>>>> = {
+  mindmap: { node: 'mm-node' },
+  state: { node: 'st-state', group: 'st-composite', edge: 'st-transition', note: 'st-note' },
+};
 
 /** The sample an item kind of a diagram type is previewed with. */
 export const previewKind = (type: DiagramType | null | undefined, kind: ItemKind): PreviewKind =>
@@ -55,6 +60,17 @@ export const ITEM_SAMPLES: Readonly<Record<PreviewKind, Sample>> = {
   'mm-node': (p, shape) => ['mindmap\n  r((Topic))\n    n[Idea]', { nodes: { n: def({ preset: p, shape }) } }],
   'mm-branch': () => ['mindmap\n  r((Topic))\n    a\n      b\n        c', {}],
   'mm-section': (p) => ['mindmap\n  r((Topic))\n    n[Idea]\n      m\n    o', { nodes: { n: { section: Number(p ?? 0) || 0 } } }],
+  'st-state': (p, shape) => ['stateDiagram-v2\n  state "State" as s', { nodes: { s: def({ preset: p, shape }) } }],
+  'st-start': () => ['stateDiagram-v2\n  [*] --> s', {}],
+  'st-end': () => ['stateDiagram-v2\n  s --> [*]', {}],
+  'st-choice': () => ['stateDiagram-v2\n  state c <<choice>>', {}],
+  'st-fork': () => ['stateDiagram-v2\n  state f <<fork>>', {}],
+  'st-composite': (p) => ['stateDiagram-v2\n  state "Composite" as g {\n    a\n  }', { groups: { g: def({ preset: p }) } }],
+  // a composite colour is previewed on the "Coloured composites" page: the colour's number picks the composite
+  // the composites before it take the colours before it (the preview is centred on the last one, `g`)
+  'st-composite-color': (p) => ['stateDiagram-v2\n' + [...Array.from({ length: Number(p ?? 0) || 0 }, (_, i) => `  state c${i} {\n    a${i}\n  }`), '  state "Composite" as g {\n    a\n  }'].join('\n'), { canvas: { composites: 'palette' } }],
+  'st-note': (p) => ['stateDiagram-v2\n  s\n  note right of s : a note', { notes: { n1: def({ preset: p }) } }],
+  'st-transition': (p) => ['stateDiagram-v2\n  a --> b : label', { edges: { 'a->b': def({ preset: p }) } }],
 };
 
 /** Drops undefined values (exactOptionalPropertyTypes; metadata never stores undefined). */
@@ -71,6 +87,15 @@ const FOCUS: Readonly<Partial<Record<PreviewKind, string>>> = {
   'mm-root': '[data-kind="node"][data-id="r"]',
   'mm-node': '[data-kind="node"][data-id="n"]',
   'mm-section': '[data-kind="node"][data-id="n"]',
+  'st-state': '[data-kind="node"][data-id="s"]',
+  'st-start': '[data-kind="node"][data-id="[*]start"]',
+  'st-end': '[data-kind="node"][data-id="[*]end"]',
+  'st-choice': '[data-kind="node"][data-id="c"]',
+  'st-fork': '[data-kind="node"][data-id="f"]',
+  'st-composite': '[data-kind="group"][data-id="g"]',
+  'st-composite-color': '[data-kind="group"][data-id="g"]',
+  'st-note': '[data-kind="note"]',
+  'st-transition': '[data-kind="edge"]',
 };
 const LEFT_ALIGNED = new Set<PreviewKind>(['block', 'box']); // their title sits at the top left
 

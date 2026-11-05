@@ -62,7 +62,7 @@ const meta: Meta<DiffArgs> = {
   render: (a) => diff(a),
   argTypes: {
     source: { control: 'inline-radio', options: ['history', 'two versions'] },
-    example: { control: 'select', options: ['production-microservices', 'docker-deploy-sequence', 'atom-schema-er', 'microservice-patterns', 'fusion-services', 'simple-flow', 'product-mindmap', 'study-notes'], if: { arg: 'source', eq: 'history' } },
+    example: { control: 'select', options: ['production-microservices', 'docker-deploy-sequence', 'atom-schema-er', 'microservice-patterns', 'fusion-services', 'simple-flow', 'product-mindmap', 'study-notes', 'order-lifecycle', 'traffic-light'], if: { arg: 'source', eq: 'history' } },
     pair: { control: 'select', options: ['architecture', 'restyle', 'flow-many', 'small', 'sequence', 'seq-many', 'schema', 'er-many'], if: { arg: 'source', eq: 'two versions' } },
     view: { control: 'inline-radio', options: ['before', 'merged', 'after', 'side'] },
     filters: { control: 'check', options: ['added', 'removed', 'content', 'layout', 'style'] },
@@ -83,6 +83,9 @@ export const ErHistory: Story = { name: 'ER diagram history', args: { example: '
 
 /** Mindmap history (T08): nodes matched across versions, a moved node as a layout change, removed nodes in their old place. */
 export const MindmapHistory: Story = { name: 'Mindmap history', args: { example: 'product-mindmap' } };
+
+/** State diagram history (T09): states and composites matched by id, a new concurrency region, a removed transition in its old place. */
+export const StateHistory: Story = { name: 'State diagram history', args: { example: 'order-lifecycle' } };
 
 export const MergeRequest: Story = { name: 'Two versions (merge request)', args: { source: 'two versions', pair: 'architecture', panels: 'code changes' } };
 

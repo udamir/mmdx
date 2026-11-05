@@ -112,13 +112,16 @@ export const canvasStructureModule: EditorModule = {
       if (p && (p.kind === 'group' || p.kind === 'box')) await nameGroup(p);
     };
 
-    const ungroupSelection = (): void => {
+    const ungroupSelection = async (): Promise<void> => {
       const it = core.selection()[0];
       const M = core.model;
       if (!it || (it.kind !== 'group' && it.kind !== 'box')) {
         core.toast('Select a group to ungroup');
         return;
       }
+      const ask = withEdit(M, (k, m) => k.ungroupConfirm?.(m, it));
+      if (ask && !(await core.dialogs.confirm(ask.title, ask.message, { ok: ask.ok }))) return;
+      if (core.model !== M) return;
       const meta = cloneMeta(core.meta);
       const res = withEdit(M, (k, m) => k.ungroup?.(core.code, m, it));
       if (!res) return;
@@ -263,7 +266,7 @@ export const canvasStructureModule: EditorModule = {
       },
       { id: 'duplicate', keys: ['mod+d'], label: 'Duplicate', group: 'Edit', editOnly: true, run: () => (core.selection().length ? duplicateSelection() : false) },
       { id: 'group', keys: ['mod+g'], label: 'Group', group: 'Edit', editOnly: true, run: () => void groupSelection() },
-      { id: 'ungroup', keys: ['mod+shift+g'], label: 'Ungroup', group: 'Edit', editOnly: true, run: () => ungroupSelection() },
+      { id: 'ungroup', keys: ['mod+shift+g'], label: 'Ungroup', group: 'Edit', editOnly: true, run: () => void ungroupSelection() },
       { id: 'delete', keys: ['delete'], label: 'Delete', group: 'Edit', editOnly: true, run: () => (core.selection().length ? deleteSelection() : false) },
       { id: 'order-back', keys: ['mod+['], label: 'Move back in the code order', group: 'Edit', editOnly: true, run: () => (core.selection().length ? void core.run('moveSelection', -1) : false) },
       { id: 'order-forward', keys: ['mod+]'], label: 'Move forward in the code order', group: 'Edit', editOnly: true, run: () => (core.selection().length ? void core.run('moveSelection', 1) : false) },

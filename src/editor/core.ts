@@ -141,7 +141,7 @@ export interface EditorActions {
   selectAll(): void;
   deleteSelection(): void;
   groupSelection(): void | Promise<void>;
-  ungroupSelection(): void;
+  ungroupSelection(): void | Promise<void>;
   /** "Reset positions in this group" (T07): forgets the hand-placed positions inside the selected group. */
   resetGroupPositions(): void;
   copySelection(): void;

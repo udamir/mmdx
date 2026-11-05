@@ -7,7 +7,7 @@ export const VIEWER_CSS = /* css */ `
 :host([fit="width"]) .root, :host(:not([fit])) .root { height: auto; }
 .stage { position: relative; width: 100%; height: 100%; }
 :host([fit="width"]) .stage, :host(:not([fit])) .stage { aspect-ratio: var(--mmdx-aspect, 16 / 9); height: auto; }
-svg.scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; user-select: none; }
+svg.scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
 :host([interactive="false"]) svg.scene { touch-action: auto; }
 .root.can-pan svg.scene { cursor: grab; }
 .root.can-pan svg.scene.panning { cursor: grabbing; }

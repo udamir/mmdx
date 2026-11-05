@@ -160,5 +160,34 @@
         "stroke": "@border"
       }
     }
+  },
+  "state": {
+    "pagePresets": {
+      "whiteboard": {
+        "background": "#1e1e2e"
+      },
+      "grid": {
+        "background": "#1e1e2e",
+        "grid": "rgba(255,255,255,0.06)"
+      },
+      "technical": {
+        "background": "#1e1e2e",
+        "grid": "rgba(255,255,255,0.06)"
+      },
+      "colored": {
+        "background": "#1e1e2e"
+      }
+    },
+    "node": {
+      "stroke": "@border"
+    },
+    "choice": {
+      "stroke": "@border"
+    },
+    "compositePresets": {
+      "plain": {
+        "stroke": "@border"
+      }
+    }
   }
 }

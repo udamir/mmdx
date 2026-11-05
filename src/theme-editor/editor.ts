@@ -449,7 +449,7 @@ export class ThemeEditor {
       for (const it of sec.items) {
         const tabs = SHAPE_TABS[it.preview ?? it.key];
         const dirty = [`${sec.type}.${it.key}`, it.presets ? `${sec.type}.${it.presets}` : '', tabs ? `${sec.type}.${tabs.key}` : ''].filter(Boolean);
-        this.main.append(card(env, { key: `${sec.type}.${it.key}`, title: env.tf(`te.item.${it.key}`, it.label), fill: (box) => itemGallery(env, box, sec.type, it), onOpen, dirty }));
+        this.main.append(card(env, { key: `${sec.type}.${it.key}`, title: env.tf(`te.item.${sec.type}.${it.key}`, env.tf(`te.item.${it.key}`, it.label)), fill: (box) => itemGallery(env, box, sec.type, it), onOpen, dirty }));
       }
       this.main.append(card(env, { key: `${sec.type}.pagePresets`, title: t('te.pageCard'), fill: (box) => pagePresetGallery(env, box, sec.type), hint: t('te.pageHint'), onOpen, dirty: [`${sec.type}.pagePresets`] }));
     }

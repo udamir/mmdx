@@ -214,6 +214,41 @@ describe('canvas selection', () => {
     expect(core.getM('node', 'A').x).toBeUndefined();
   });
 
+  it('a quick release ends the move where the pointer was let go, not at its last move', () => {
+    const { core } = mount(FLOW);
+    const c = center(core, 'A');
+    pid++;
+    pointer(itemEl(core, 'node', 'A'), 'pointerdown', c.x, c.y);
+    pointer(core.dom.svg, 'pointermove', c.x + 10, c.y);
+    pointer(core.dom.svg, 'pointerup', c.x + 60, c.y);
+    const g = core.geom;
+    if (g.type !== 'flowchart') throw new Error();
+    expect(core.toScreen(g.nodes.get('A')!).x).toBeCloseTo(c.x + 60, 0);
+  });
+
+  it('a double-click that dragged neither edits the text nor enters a group; a plain one does', () => {
+    const { core } = mount(FLOW);
+    const dbl = (at: { x: number; y: number }): void => {
+      itemEl(core, 'node', 'A').dispatchEvent(new MouseEvent('dblclick', { bubbles: true, composed: true, cancelable: true, clientX: at.x, clientY: at.y, detail: 2 }));
+    };
+    const editing = (): boolean => !!core.dom.wrap.querySelector('textarea.inline-edit');
+    let c = center(core, 'A');
+    drag(core, itemEl(core, 'node', 'A'), c);
+    drag(core, itemEl(core, 'node', 'A'), c, 40, 0); // a press, then a quick drag
+    c = center(core, 'A');
+    dbl(c);
+    expect(editing()).toBe(false);
+    drag(core, itemEl(core, 'node', 'A'), c, 0, 30); // the drag before a press
+    c = center(core, 'A');
+    drag(core, itemEl(core, 'node', 'A'), c);
+    dbl(c);
+    expect(editing()).toBe(false);
+    drag(core, itemEl(core, 'node', 'A'), c);
+    drag(core, itemEl(core, 'node', 'A'), c);
+    dbl(c);
+    expect(editing()).toBe(true);
+  });
+
   it('arrow keys nudge by 1 / Shift by 10 and undo', () => {
     const { ed, core } = mount(FLOW);
     core.select([{ kind: 'node', id: 'A' }]);

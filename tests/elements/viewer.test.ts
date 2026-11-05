@@ -84,6 +84,20 @@ describe('kinds on demand', () => {
       sr.host.remove();
     });
 
+    it('a state diagram (T09) loads its kind with its five shapes, and not the shapes beyond them', async () => {
+      forgetKinds();
+      forgetShapes();
+      forgetMediaKit();
+      const sr = await show(example('traffic-light.mmdx'));
+      expect(hasKind('state')).toBe(true);
+      expect(shapeById('sm-circ')).toBeDefined();
+      expect(shapeById('bolt')).toBeUndefined();
+      expect(sr.querySelectorAll('.el.st-state').length).toBe(4);
+      expect(sr.querySelector('.el[data-id="[*]start"] path')).not.toBeNull();
+      expect(sr.querySelector('[aria-label="State diagram: 4 states, 8 transitions"]')).not.toBeNull();
+      sr.host.remove();
+    });
+
     it('do not load for a flowchart of the 17', async () => {
       forgetShapes();
       const sr = await show('flowchart LR\n  a[(DB)] --> b{Q} --> c([End])\n  d@{ shape: cyl }');

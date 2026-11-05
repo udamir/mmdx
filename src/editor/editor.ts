@@ -86,7 +86,7 @@ export class DiagramEditor {
   private unsubscribe: (() => void) | null = null;
   /** The latest remote update that arrived during a gesture or a transaction; applied when it ends. */
   private pendingRemote: { src: string; version: string } | null = null;
-  private gesture: { g: Gesture; x: number; y: number; p0: { x: number; y: number }; moved: boolean; id: number } | null = null;
+  private gesture: { g: Gesture; x: number; y: number; p0: { x: number; y: number }; moved: boolean; id: number; last: { x: number; y: number } } | null = null;
   private destroyed = false;
   /** The adapter's latest load (resolved without an adapter). */
   private loading: Promise<void> = Promise.resolve();
@@ -566,7 +566,7 @@ export class DiagramEditor {
       } catch {
         // capture is best-effort
       }
-      this.gesture = { g, x: ev.clientX, y: ev.clientY, p0: hit.p, moved: false, id: ev.pointerId };
+      this.gesture = { g, x: ev.clientX, y: ev.clientY, p0: hit.p, moved: false, id: ev.pointerId, last: { x: ev.clientX, y: ev.clientY } };
     }, sig);
     svg.addEventListener('pointermove', (ev) => {
       core.pointer = { clientX: ev.clientX, clientY: ev.clientY };
@@ -578,18 +578,29 @@ export class DiagramEditor {
         core.dragging = true;
         core.dom.root.classList.add('dragging');
       }
+      d.last = { x: ev.clientX, y: ev.clientY };
       const p = core.toDiagram(ev);
       d.g.move(p.x - d.p0.x, p.y - d.p0.y, ev);
     }, sig);
+    // Whether each of the last two presses dragged: the browser counts a drag towards a double-click too (a quick press
+    // and a drag, or two quick drags), and that double-click must not edit the text or enter the group of what moved.
+    let dragged: [boolean, boolean] = [false, false];
     const finish = (ev: PointerEvent, cancelled: boolean): void => {
       const d = this.gesture;
       if (!d || d.id !== ev.pointerId) return;
       this.gesture = null;
       core.dragging = false;
       core.dom.root.classList.remove('dragging');
+      dragged = [dragged[1], d.moved];
       if (cancelled) d.g.cancel?.();
-      else if (d.moved) d.g.end?.(ev);
-      else {
+      else if (d.moved) {
+        // a quick release can come before the pointer's last move was delivered: the item ends where it was let go
+        if (ev.clientX !== d.last.x || ev.clientY !== d.last.y) {
+          const p = core.toDiagram(ev);
+          d.g.move(p.x - d.p0.x, p.y - d.p0.y, ev);
+        }
+        d.g.end?.(ev);
+      } else {
         d.g.cancel?.();
         d.g.click?.(ev);
       }
@@ -614,6 +625,11 @@ export class DiagramEditor {
     svg.addEventListener('lostpointercapture', (ev) => {
       if (this.gesture?.id === ev.pointerId && this.gesture.moved) finish(ev, true);
     }, sig);
+    svg.addEventListener('dblclick', (ev) => {
+      if (!dragged[0] && !dragged[1]) return;
+      ev.stopImmediatePropagation();
+      ev.preventDefault();
+    }, { capture: true, signal: this.ac.signal });
     // Esc during a gesture cancels it (one level of the Esc chain, A.11)
     core.dom.root.addEventListener('keydown', (ev) => {
       if (ev.key !== 'Escape' || !cancel()) return;

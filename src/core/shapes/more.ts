@@ -7,6 +7,7 @@ import { el, text } from '../scene/build.js';
 import type { SceneNode, SvgAttrs } from '../scene/types.js';
 import { box, detail, ink, P, paint, penShape, rectOutline } from './draw.js';
 import { Pen } from './pen.js';
+import { CHOICE, FORK, FR_CIRC, NOTE, SM_CIRC } from './state.js';
 import type { ShapeBody } from './types.js';
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
@@ -92,20 +93,8 @@ export const MORE: readonly ShapeBody[] = [
     },
     fit: () => ({ w: 35, h: 70 }),
   }),
-  penShape({
-    id: 'sm-circ', name: 'Start', title: 'Small circle', category: 'basic',
-    size: { w: 18, h: 18 }, below: true,
-    body: (p, w, h) => p.M(0, -h / 2).A(w / 2, h / 2, 0, 1, 0, h / 2).A(w / 2, h / 2, 0, 1, 0, -h / 2).Z(),
-    marks: (p, w, h) => p.M(0, -h / 2).A(w / 2, h / 2, 0, 1, 0, h / 2).A(w / 2, h / 2, 0, 1, 0, -h / 2).Z(),
-    fit: () => ({ w: 18, h: 18 }),
-  }),
-  {
-    id: 'fr-circ', name: 'Stop', title: 'Framed circle', category: 'basic',
-    size: { w: 18, h: 18 }, below: true,
-    draw: (b, st, extra) => [ellipse(b.x, b.y, b.w / 2, b.h / 2, { ...paint(st, extra) }), ellipse(b.x, b.y, (b.w * 5) / 14, (b.h * 5) / 14, { ...ink(st) })],
-    outline: () => 'ellipse',
-    fit: () => ({ w: 18, h: 18 }),
-  },
+  SM_CIRC,
+  FR_CIRC,
   {
     id: 'f-circ', name: 'Junction', title: 'Filled circle', category: 'basic', size: { w: 14, h: 14 }, below: true,
     draw: (b, st, extra) => [ellipse(b.x, b.y, b.w / 2, b.h / 2, { ...paint(st, extra), fill: st.stroke ?? '#222' })],
@@ -261,12 +250,7 @@ export const MORE: readonly ShapeBody[] = [
     outline: () => 'ellipse',
     fit: () => ({ w: 60, h: 60 }),
   },
-  {
-    id: 'fork', name: 'Fork / join', title: 'Filled rectangle', category: 'process', size: { w: 70, h: 10 }, below: true,
-    draw: (b, st, extra) => [el('rect', { x: b.x - b.w / 2, y: b.y - b.h / 2, width: b.w, height: b.h, rx: 1, ...paint(st, extra), fill: st.stroke ?? '#222' })],
-    outline: rectOutline,
-    fit: () => ({ w: 70, h: 10 }),
-  },
+  FORK,
   penShape({
     id: 'hourglass', name: 'Collate', title: 'Hourglass', category: 'process', size: { w: 30, h: 30 }, below: true,
     body: (p, w, h) => p.M(-w / 2, -h / 2).L(w / 2, -h / 2).L(-w / 2, h / 2).L(w / 2, h / 2).Z(),
@@ -393,23 +377,6 @@ export const MORE: readonly ShapeBody[] = [
     textBox: (w, h) => box(-w * 0.33, -h * 0.26, w * 0.33, h * 0.26),
   }),
   // ---- annotations (also the state diagram's choice and notes)
-  penShape({
-    id: 'choice', name: 'Choice', title: 'Small diamond', category: 'annotation', size: { w: 28, h: 28 }, below: true,
-    body: (p, w, h) => p.M(0, -h / 2).L(w / 2, 0).L(0, h / 2).L(-w / 2, 0).Z(),
-    fit: () => ({ w: 28, h: 28 }),
-  }),
-  ((): ShapeBody => {
-    const fold = (w: number, h: number): number => Math.min(12, w / 4, h / 3);
-    return penShape({
-      id: 'note', name: 'Note', title: 'Folded corner', category: 'annotation', size: { w: 120, h: 56 },
-      body: (p, w, h) => {
-        const f = fold(w, h);
-        p.M(-w / 2, -h / 2).L(w / 2 - f, -h / 2).L(w / 2, -h / 2 + f).L(w / 2, h / 2).L(-w / 2, h / 2).Z();
-      },
-      lines: (p, w, h) => {
-        const f = fold(w, h);
-        p.M(w / 2 - f, -h / 2).L(w / 2 - f, -h / 2 + f).L(w / 2, -h / 2 + f);
-      },
-    });
-  })(),
+  CHOICE,
+  NOTE,
 ];

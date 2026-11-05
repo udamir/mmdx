@@ -43,6 +43,13 @@ export interface ItemMedia {
   constraint?: string;
 }
 
+/** A control of the type's own in an item's Properties (T09: a state's kind and description rows, a composite's direction and regions). */
+export type PropControl =
+  | { type: 'select'; label: string; value: string; options: readonly (readonly [string, string])[]; set(v: string): void }
+  /** One entry per line (a state's description rows). */
+  | { type: 'rows'; label: string; value: readonly string[]; hint?: string; set(rows: string[]): void }
+  | { type: 'button'; label: string; title?: string; run(): void };
+
 export interface EditKind<M extends SupportedModel = SupportedModel, G extends GeometryIndex = GeometryIndex> {
   readonly type: M['type'];
 
@@ -59,6 +66,8 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   /** Can the selection be grouped? `reason` is an i18n key ('' when nothing to say). */
   canGroup(model: M, sel: readonly Sel[]): { ok: boolean; reason: string };
   group?(code: string, model: M, sel: readonly Sel[], title: string): SelectResult;
+  /** A question to ask before ungrouping (the state diagram's inner starts and ends are rewired); null: none. */
+  ungroupConfirm?(model: M, ref: Sel): { title: string; message: string; ok: string } | null;
   /** Removes a container, keeping what is in it (null: the item is not one of the type's containers). */
   ungroup?(code: string, model: M, ref: Sel): { code: string; members: Sel[] } | null;
   renameContainer?(code: string, model: M, ref: Sel, name: string): CodeResult | null;
@@ -127,6 +136,8 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   orderTitle?: string;
   /** A fix of a diagnostic the type handles itself (flowchart: an id used by a node and a subgraph). */
   fixOf?(core: EditorCore, model: M, d: Diagnostic): { label: string; run(): void } | null;
+  /** Controls of the type's own in an item's Properties, after its text. */
+  properties?(core: EditorCore, model: M, ref: ItemRef): PropControl[];
   /** More problems of the code (flowchart: classes that name no classDef or preset, shapes kept only in metadata), with a fix where there is one. */
   problems?(core: EditorCore, model: M): { line: number | null; msg: string; fix?: { label: string; run(): void } }[];
 

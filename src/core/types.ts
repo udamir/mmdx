@@ -22,11 +22,11 @@ export interface Rect {
   h: number;
 }
 
-export type DiagramType = 'flowchart' | 'sequence' | 'er' | 'mindmap';
+export type DiagramType = 'flowchart' | 'sequence' | 'er' | 'mindmap' | 'state';
 
 export type ItemKind =
-  | 'node' | 'group' | 'edge' // flowchart
-  | 'participant' | 'message' | 'note' | 'block' | 'box' | 'activation' // sequence
+  | 'node' | 'group' | 'edge' // flowchart (and state diagrams: states, composites, transitions)
+  | 'participant' | 'message' | 'note' | 'block' | 'box' | 'activation' // sequence (notes: also state diagrams)
   | 'entity' | 'rel'; // ER
 
 export const ITEM_KINDS: readonly ItemKind[] = [
