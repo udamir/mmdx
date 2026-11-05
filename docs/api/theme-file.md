@@ -207,14 +207,14 @@ Sizing keys are set in themes; most items take their size from the layout or fro
 | `curve` | `number` | −100–100 | Curvature of a curved line (`1` is the default; `0` is straight) |
 | `routing` | `string` | `curved`, `orthogonal`, `straight` | How a relationship line is routed |
 | `labelAt` | `number` | 0–1 | Label position along a relationship line |
-| `replyDash` | `string` | As `dash` | Dash pattern of reply messages (`-->>`) |
+| `replyDash` | `string` | As `dash` | Dash pattern of dotted messages (`-->>`, `-->`, `--x`, `--)` and the dotted half arrows); `"4 3"` in the built-in themes. A preset's or the message's own `dash` wins |
 | `labelOnLine` | `boolean` | | Message label sits on the line instead of above it |
 
 ### Sequence and ER
 
 | Key | Type | Allowed values | Meaning |
 |---|---|---|---|
-| `showTag` | `boolean` | | Show the block kind (`loop`, `alt`, …) in a tag at the block's corner |
+| `showTag` | `boolean` | | Show the block kind (`loop`, `alt`, …) in a tag at the block's corner, as Mermaid does (`true` in the built-in themes; the page setting `blockTags: false` hides the tags, a block's own `showTag` wins) |
 | `attrSize` | `number` | 0–1000 | Font size of ER attributes |
 | `attrColor` | colour | Colour value | Colour of ER attributes |
 | `mode` | `string` | `compact`, `table` | ER table layout: attributes as text, or as columns |
@@ -328,14 +328,14 @@ Spacing of the sequence layout, in px unless noted. A diagram's page settings (`
   "participant": { "fill": "@paper", "stroke": "@ink", "strokeWidth": 2.2, "radius": 16, "text": "@ink", "fontSize": 30, "fontWeight": 400, "minW": 300, "h": 86, "padX": 24, "shape": "box" },
   "lifeline": { "color": "@ink", "width": 2.2, "dash": "0.1 6" },
   "activation": { "fill": "@paper", "stroke": "@ink", "strokeWidth": 2.4, "w": 14 },
-  "message": { "color": "@ink", "width": 2.6, "arrow": "filled", "labelSize": 16, "labelColor": "@ink", "dash": "", "replyDash": "", "labelOnLine": true },
+  "message": { "color": "@ink", "width": 2.6, "arrow": "filled", "labelSize": 16, "labelColor": "@ink", "dash": "", "replyDash": "4 3", "labelOnLine": true },
   "note": { "fill": "@cream", "stroke": "@ink", "strokeWidth": 1.4, "fontSize": 15, "text": "@ink", "radius": 4 },
-  "block": { "fill": "@pale-lime", "stroke": "@ink", "strokeWidth": 2.6, "labelSize": 20, "labelColor": "@ink", "showTag": false, "radius": 0 },
+  "block": { "fill": "@pale-lime", "stroke": "@ink", "strokeWidth": 2.6, "labelSize": 20, "labelColor": "@ink", "showTag": true, "radius": 0 },
   "box": { "fill": "@smoke", "stroke": "@frame", "strokeWidth": 1.2, "labelSize": 16 }
 }
 ```
 
-Participant presets: `blue`, `green`, `yellow`, `pink`. Activation presets: `accent`, `info`, `error`, `async`. Message presets: `big`, `async`, `error`. Note presets: `info`, `warning`, `error`, `plain`. Block presets: `blue`, `rose`, `none`. Box presets: `blue`, `green`, `rose`, `outline`. Page presets: `document`, `compact`, `spacious`, `mirrored`.
+Participant presets: `blue`, `green`, `yellow`, `pink`. Activation presets: `accent`, `info`, `error`, `async`. Message presets: `big`, `async`, `error`. Note presets: `info`, `warning`, `error`, `plain`. Block presets: `blue`, `rose`, `none`. Box presets: `blue`, `green`, `rose`, `outline`. Page presets: `document`, `compact`, `spacious`, `mirrored`, `plain-blocks` (Blocks without kind tags: `blockTags: false`).
 :::
 
 ## `er`
@@ -353,7 +353,9 @@ Participant presets: `blue`, `green`, `yellow`, `pink`. Activation presets: `acc
 | `entity` | `fill`, `stroke`, `text`, `strokeWidth`, `radius`, `stack`, `titleSize`, `attrSize`, `attrColor`, `mode`, `showTypes`, `showComments`, `pkUnderline`, `maxW` | `padX`, `padY`, `minW`, `titleWeight`, `fontFamily`, `fillOpacity`, `strokeOpacity` |
 | `rel` | `color`, `width`, `dash`, `labelSize`, `labelColor`, `curve`, `routing`, `labelAt` | `fontWeight`, `fontFamily`, `strokeOpacity` |
 
-An identifying relationship (`--`) is always solid; `dash` applies to non-identifying ones (`..`). A diagram's page `routing` overrides the theme's `rel.routing` unless the relationship sets its own.
+An identifying relationship (`--`, `to`) is always solid; `dash` applies to non-identifying ones (`..`, `.-`, `-.`, `optionally to`). A diagram's page `routing` overrides the theme's `rel.routing` unless the relationship sets its own.
+
+ER subgraphs (Mermaid 11.17+) have no section of their own: their frames take the flowchart's `group` style and `groupPresets` (a subgraph without a preset takes `box` when the theme defines it), and a Mermaid class that names a group preset gives the frame that preset. Mermaid `classDef` / `style` values on tables and subgraphs apply over the theme; their `color` colours a table's title and attributes, or a subgraph's title.
 
 ::: details Default Light values
 ```json
@@ -507,6 +509,7 @@ Page presets are per diagram type (`flowchart.pagePresets`, `sequence.pagePreset
 | `mirror` | `boolean` | | Sequence: participant heads at the bottom too |
 | `blockSpan` | `string` | `full`, `touched` | Sequence: block width |
 | `margin` | `number` | 0–100000 | Sequence: space left of the first participant |
+| `blockTags` | `boolean` | | Sequence: `false` hides the blocks' kind tags (a block's own `showTag` wins) |
 | `mindLayout` | `string` | `both`, `right`, `down` | Mindmap: both sides of the root, to the right, or top down |
 | `composites` | `string` | `single`, `palette` | State diagram: every composite in the `composite` style, or each in a colour of `compositeColors` |
 

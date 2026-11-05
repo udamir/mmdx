@@ -236,13 +236,13 @@ Click a shape to add it in the middle of the canvas, or drag it where it goes (i
 
 The picker opens from the floating toolbar's **Icon** button (the first one; a dot marks an item with an icon) or the Properties panel, and sets the selected items' icon: an icon node's `icon` key, and on any other node a `pack:name` token at the start of its label (`fa:fa-car Car`, `azure:computer-vision Vision`), replacing the one it has. **Remove icon** takes it away. An icon node is written in Mermaid Chart's style — the label in its bracket, the node data in a statement of its own (`n4["User"]` and `n4@{ icon: "tabler:user", form: "rounded", pos: "b", h: 60 }`); **Convert to icon node** makes one from a node whose label starts with an icon.
 
-For an icon node, the toolbar's **Icon & image** popover and the Properties panel set the label's position (above or below), the frame (none, square, circle, rounded), the width, and the toolbar's **H** field its height — all written to its node data. Dragging the resize handle of an icon or image node sizes its icon or picture (an icon stays square, an image with **Keep aspect ratio** keeps its aspect) and writes `h` and `w` into its node data when you let go, so stock Mermaid draws it the same size. A node whose label starts with an icon token has **Convert to icon node** in the popover and in Properties: the icon becomes the node's and the rest of the label its caption. Properties notes when a label's icon is drawn by mmdx only (stock Mermaid draws Font Awesome tokens and shows other packs' as text). In a mindmap, the icon is a label token at the start of the node's text, which replaces an `::icon()` line the node has (see [Mindmaps](/guide/mindmap#icons)); in a state diagram, it is a token at the start of the state's title (`state "fa:fa-car Car" as Car`). Sequence, ER and the other types get their icon items in later releases; their items show no Icon button until then. What mmdx draws for icon and image nodes is described in [Flowchart content](/guide/flowchart).
+For an icon node, the toolbar's **Icon & image** popover and the Properties panel set the label's position (above or below), the frame (none, square, circle, rounded), the width, and the toolbar's **H** field its height — all written to its node data. Dragging the resize handle of an icon or image node sizes its icon or picture (an icon stays square, an image with **Keep aspect ratio** keeps its aspect) and writes `h` and `w` into its node data when you let go, so stock Mermaid draws it the same size. A node whose label starts with an icon token has **Convert to icon node** in the popover and in Properties: the icon becomes the node's and the rest of the label its caption. Properties notes when a label's icon is drawn by mmdx only (stock Mermaid draws Font Awesome tokens and shows other packs' as text). In a mindmap, the icon is a label token at the start of the node's text, which replaces an `::icon()` line the node has (see [Mindmaps](/guide/mindmap#icons)); in a state diagram, it is a token at the start of the state's title (`state "fa:fa-car Car" as Car`). For mindmap nodes and states, Properties also sets where the icon is drawn — **Position**: before the text (the default for a label token), above the text (the default for a mindmap `::icon()`) or below it — and its **Icon size** (inline, the font's size; above or below, 1.75 em), written to the metadata (`iconPos`, `iconSize`) with the code unchanged. Sequence, ER and the other types get their icon items in later releases; their items show no Icon button until then. What mmdx draws for icon and image nodes is described in [Flowchart content](/guide/flowchart).
 
 ### Images
 
 Images are always referenced by URL; the editor never embeds a file into the diagram.
 
-Drag the dock's **Image** button onto the canvas — or click it, or press `G`, for the middle of the canvas — and an image item with the placeholder (a dashed frame with a mountain glyph) is added and selected: in a flowchart `n5["Image"]` and `n5@{ img: "", h: 200, w: 200, pos: "b" }`, which stock Mermaid reads too; in a mindmap a child node with an empty metadata `img`; in a state diagram a state titled "Image" with an empty metadata `img`. An empty URL draws the placeholder without a warning. Choose the picture afterwards with the floating toolbar's image control or the Properties panel's **Image URL**.
+Drag the dock's **Image** button onto the canvas — or click it, or press `G`, for the middle of the canvas — and an image item with the placeholder (a dashed frame with a mountain glyph) is added and selected: in a flowchart `n5["Image"]` and `n5@{ img: "", h: 200, w: 200, pos: "b" }`, which stock Mermaid reads too; in a mindmap a child node with an empty metadata `img`; in a state diagram a state titled "Image" with an empty metadata `img`. An empty URL draws the placeholder without a warning. Choose the picture afterwards with the floating toolbar's image control or the Properties panel's **Image URL**. A mindmap node's or a state's picture is drawn above its text; Properties sets its **Width** and **Height** (one of them alone keeps the picture's aspect; neither: its own size up to 160 px) and its **Fit** (contain, cover, stretch), in the metadata (`imgW`, `imgH`, `imgFit`).
 
 - The image tool's **URL** field is checked while you type against the [image policy](/guide/security#image-policy) (`https:` from any host by default), with the reason when it is refused ("Only https images are allowed here").
 - With an `uploadImage` hook, the tool also takes a dropped file, a pasted picture (⌘V, in the tool or on the canvas) and a file input (PNG, JPEG, GIF, WebP, SVG, AVIF); the hook uploads it and the image references the URL it returns. A picture over 1600 px on its longer side is offered **Reduce to 1600 px** first (re-encoded in the browser). Without the hook, the drop zone is hidden and a pasted or dropped picture is refused with a toast.
@@ -257,6 +257,8 @@ editor.uploadImage = async (file) => {
 
 From the dock, an image adds a flowchart **image node** whose caption is the file name: `n5["team photo"]` and `n5@{ img: "https://…", h: 200, w: 200, pos: "b" }`. With a node selected (the toolbar's Icon & image popover, or Properties), the tool sets or replaces its image — a node without one becomes an image node — and **Remove image** takes it away. The popover and Properties set the caption's position, width and height, **Keep aspect ratio** (`constraint: "on"`) and the fit (contain, cover, stretch; kept in the layout metadata, as Mermaid has no such key).
 
+Pictures kept in metadata (a mindmap node's or a state's `img`) and catalogue shapes kept in metadata (`shape`) have no Mermaid syntax, so **Export → Portable Mermaid (.mmd)** leaves them out; the editor says so in a toast after the export and in a line of the **Plain Mermaid** dialog, for example "1 image and 2 shapes are mmdx-only and are not in the portable file". Icon tokens are code and stay in the portable file.
+
 ### Markdown labels
 
 A flowchart label written as a Mermaid markdown string (`` A["`**Bold** text`"] ``) is drawn with its emphasis and edited with its `**` and `*` as typed: above the text box on the canvas, **B** and **I** (`⌘B`, `⌘I`) wrap the selected words in `**` or `*`, or take them off again. A plain label has **Make rich text** there instead: the label is then written as a markdown string, and B and I appear. The floating toolbar's Bold styles a whole plain label, in the layout metadata, as before. See [Flowchart content → Markdown labels](/guide/flowchart#markdown-labels).
@@ -264,6 +266,47 @@ A flowchart label written as a Mermaid markdown string (`` A["`**Bold** text`"] 
 ### Emoji
 
 While you edit a label on the canvas, the ☺ button at the end of the text box (or `⌘;` / `Ctrl+;`) opens the emoji picker: the emoji by group, recently used ones, search by name and keyword, and a skin tone. A chosen emoji goes in at the caret as plain text, so it shows wherever the diagram does; the picker stays open for more. The label fields of the Properties panel have the same button. The emoji data (English) loads the first time the picker opens.
+
+## Sequence diagrams
+
+Participants, messages, notes, blocks, boxes and processes are selected, styled and layered like other items; what they are and where they stand in the order is written to the Mermaid code ([Sequence diagrams → Editing](/guide/sequence#editing)).
+
+| Gesture | Code |
+|---|---|
+| Shapes menu (`S`): Participant, Actor, Database | `participant P1` / `actor Actor1` before the participant right of the drop point (Database: a participant drawn as the cylinder, metadata `shape`) |
+| Shapes menu: Note, dropped next to a participant | `Note over P1: note` after the message above the drop |
+| Shapes menu: Loop, Alternative, Optional, Parallel, Critical region, Break, Highlight, dropped on a message | `loop`, `alt`, `opt`, `par`, `critical`, `break` or `rect` … `end` around it, or around the selected messages |
+| Drag from a lifeline's circle | Sideways: `A->>B: …` (back to the same lifeline: a message to itself); up or down: a process (`+` / `-`, or `activate` / `deactivate`) |
+| Drag a message's end circle | Up or down to another message: a process between the two; sideways to another lifeline: that end re-attached there |
+| Floating toolbar: arrow popover | One of Mermaid's ten arrows, solid (`->>`, `->`, `-x`, `-)`, `<<->>`) or dotted (`-->>`, `-->`, `--x`, `--)`, `<<-->>`); only the token changes |
+| Floating toolbar: Reverse | The message's ends swapped; refused for a message to itself or where processes would no longer balance |
+| Floating toolbar of a note: left of, right of, over (also Properties: Note placement) | `note left of A`, `note right of A`, `note over A` |
+| Floating toolbar of an `alt`, `par` or `critical` block: Add branch, Delete the last branch | `else`, `and` or `option` at the end of the block; the last branch removed with its statements |
+| Properties of such a block: Branch conditions, Add branch, Delete branch | Each branch's condition in place; a new branch; one branch with its statements |
+| Double-click, `Enter` or Properties text | A participant's alias (`as …`, or `@{ "alias" }` when that is in use), a message's or note's text, a block's condition (not a `rect`'s: its argument is its colour), a box's title |
+| ◀ ▶ over a selected participant | The participant moved left or right in the code |
+| `⌘G`, Ungroup | `box` … `end` around the selected participants, or removed |
+
+## ER diagrams
+
+Tables, relationships and subgraphs are edited like flowchart nodes, edges and subgraphs — moved, resized, routed, styled and layered with positions and looks in the metadata — while their content is written to the Mermaid code, splicing only what changes ([ER diagrams → Editing](/guide/er#editing)).
+
+| Gesture | Code |
+|---|---|
+| Shapes menu (`S`): Table, with a table preset | `ENTITY_1 { string id PK }` at the end of the code, or before the `end` of the subgraph under the drop point |
+| Double-click a table's attributes | The attributes as rows on the canvas: double-click or `Enter` edits a row (`type name PK (comment)`), typing into the empty last row adds one, clearing a row deletes it, dragging rows or `⌥↑` / `⌥↓` reorders them |
+| Properties of a table: Attributes | The same lines, one per attribute, each with a style popup for its look (metadata highlights) |
+| Connection handles of a table or subgraph | `A \|\|--o{ B : ""` at the end of the code |
+| Dragging a relationship's end to another table | Only that id rewritten |
+| Properties of a relationship: cardinalities, Identifying, label | The token that changes, in the form written there (words stay words, symbols stay symbols) |
+| Double-click, `Enter` or Properties text | A table's alias where Mermaid reads it (classes and block kept), a relationship's label, a subgraph's title; ids and texts quoted where Mermaid needs it |
+| `⌘G` | `subgraph group1 ["Group"]` … `end` around the selected tables and subgraphs of one scope, at the first selected item |
+| Ungroup (`⇧⌘G`), `Del` on a subgraph | The frame removed, its contents kept (relationships to the subgraph itself removed) |
+| Properties of a subgraph: Direction | `direction LR` in its block (none: as the diagram, Mermaid's default) |
+| `Del` / `⌫` on a table | Its statements and relationships; a table that lived only in a removed relationship stays declared there |
+| `⌘C` / `⌘V`, `⌘D`, Alt-drag | Copies of tables with new ids and the relationships between them, in the same subgraph |
+
+The page's Direction writes the top-level `direction` line. A `:::class` with no `classDef` and no table or group preset of that name is listed in Problems.
 
 ## Mindmaps
 

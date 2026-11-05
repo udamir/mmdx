@@ -13,7 +13,7 @@ Current Chrome, Edge and Firefox, and Safari 16.4 or newer. The components need 
 | Node (`@mmdx/studio/core`, `@mmdx/studio/markdown`) | 18 or newer |
 | Workers | `@mmdx/studio/core` runs in workers |
 
-The package is ESM only and has no runtime dependencies; `mermaid` (≥ 10) is an optional peer dependency, loaded lazily for diagram types mmdx does not draw.
+The package is ESM only and has no runtime dependencies; `mermaid` (≥ 10) is an optional peer dependency, loaded lazily for diagram types mmdx does not draw. mmdx is tested against Mermaid 11.17 and 12.2: the parsers and every editing op are checked against both.
 
 ## Graceful degradation
 
@@ -37,7 +37,7 @@ The package is ESM only and has no runtime dependencies; `mermaid` (≥ 10) is a
 
 ## Known limitations
 
-- The Mermaid parsers cover the commonly used subset of flowchart, sequence and ER syntax and the whole mindmap and state diagram syntax; other diagram types fall back to stock Mermaid.
+- The Mermaid parsers cover the commonly used subset of flowchart syntax, read sequence statements as Mermaid's lexer reads them, and cover the whole ER, mindmap and state diagram syntax; other diagram types fall back to stock Mermaid.
 - Connectors are routed between ports (curved, orthogonal or straight) through optional bend points; there is no obstacle avoidance.
 - A sequence diagram's layout follows its message order; metadata can shift participants and add vertical space.
 - PNG export uses fonts installed locally unless they are registered with `configure({ fonts })`.

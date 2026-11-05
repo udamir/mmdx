@@ -80,6 +80,8 @@ There are two ways to give a node an icon:
 - **A label token** at the start of the text — `fa:fa-book Reading`, `tabler:bulb Ideas` — drawn in the label, one em wide. Stock Mermaid draws the Font Awesome tokens too, and shows other packs' tokens as text.
 - **`::icon(…)`** on the line after the node, in a CSS class form: `::icon(fa fa-book)`, `::icon(fa-solid fa-car)`, `::icon(mdi mdi-skull-outline)`. mmdx draws it above the label, resolved through the [icon packs](/guide/icons) (`fa fa-book` is `fa:book`). Stock Mermaid 11.17 and 12.2 read `::icon()` but do not draw it, although Mermaid's documentation shows it; mmdx reports it as `mm.icon-not-drawn` (info).
 
+Either icon is placed by metadata `iconPos`: a label token is drawn inline before the text by default (`l`), an `::icon()` above the label (`t`); `t` puts either above the text and `b` below it, at 1.75 em. `iconSize` sizes it (a token with a size of its own is drawn left of the text block) and `iconColor` colours it (a colour or palette reference; the text colour otherwise). Properties sets **Position** and **Icon size**.
+
 The editor writes icons as label tokens, so they show in stock Mermaid as well: the Icons tool adds a node that starts with the icon, and on a selected node it sets the icon, replacing an `::icon()` line the node has.
 
 ## Classes and presets
@@ -128,7 +130,7 @@ A folded branch (metadata `collapsed: true`) hides its subtree and shows a +N ba
 
 ## Images
 
-Mermaid's mindmap has no image syntax, so a node's picture is metadata: `%%@ node mm4 {"img":"https://example.com/team.png"}` draws the picture above the label (at its own size, at most 160 px on its longer side; 96 × 72 until the browser knows the size). The URL goes through the [image policy](/guide/security#image-policy); a refused one is a placeholder with an `image.blocked` warning. The editor's Image tool writes it.
+Mermaid's mindmap has no image syntax, so a node's picture is metadata: `%%@ node mm4 {"img":"https://example.com/team.png"}` draws the picture above the label and the icon — at `imgW` × `imgH` when the metadata gives them (one of them alone keeps the picture's aspect), else at its own size, at most 160 px on its longer side, and 96 × 72 until the browser knows the size; `imgFit` (`contain`, `cover`, `stretch`) is how it fills that box, and Properties sets **Width**, **Height** and **Fit**. An empty `img` (`""`) is a picture not chosen yet: the placeholder. The URL goes through the [image policy](/guide/security#image-policy); a refused one is a placeholder with an `image.blocked` warning. The editor's Image tool writes it.
 
 ## Editing
 

@@ -65,10 +65,10 @@ Each metadata line is:
 
 | Line | Holds |
 |---|---|
-| `%%@ canvas {…}` | Format version, page size and proportions, page background, routing default, page preset, `layout`, `mindLayout`, `composites` |
+| `%%@ canvas {…}` | Format version, page size and proportions, page background, routing default, page preset, `layout`, `mindLayout`, `composites`, `blockTags` |
 | `%%@ node <id>`, `group <id>`, `edge <from>-><to>` (or `edge <edge id>`) | Flowchart item position, size, preset and style overrides |
 | `%%@ participant <id>`, `message m1`, `note n1`, `block b1`, `box box1`, `activation B:1` | Sequence diagram items |
-| `%%@ entity <name>`, `rel <A>--<B>` | ER tables and relationships |
+| `%%@ entity <name>`, `rel <A>--<B>`, `group <id>` | ER tables, relationships and subgraphs |
 | `%%@ node <id>` | Mindmap nodes (the item kind is shared with flowcharts) |
 | `%%@ node <id>`, `group <id>`, `edge <from>-><to>`, `note n1` | State diagram states (start and end pseudo-states included), composites, transitions and notes |
 | `%%@ style.<kind> <name> {…}` | A style preset defined in this diagram (`style.node`, `style.edge`, `style.entity`, …) |
@@ -89,9 +89,13 @@ The keys an item line may carry:
 | `side` | A first-level mindmap branch's side of the root: `l` or `r` (the layout's split otherwise) |
 | `collapsed` | `true`: the mindmap node's subtree is folded, with a +N badge counting the hidden nodes |
 | `section` | A mindmap branch colour, 0–11 (one of the theme's `mindmap.sections`), for the node and its subtree |
-| `img` | A picture above a mindmap node's label or a state's title (a URL, checked by the [image policy](/guide/security#image-policy)); mindmaps and state diagrams have no image syntax |
+| `img` | A picture above a mindmap node's label or a state's title (a URL, checked by the [image policy](/guide/security#image-policy); `""`: a picture not chosen yet, drawn as the placeholder); mindmaps and state diagrams have no image syntax |
+| `imgW`, `imgH` | The size of that picture; one of them alone keeps the picture's aspect, neither: its own size up to 160 px (96 × 72 until the browser knows it) |
+| `iconPos` | Where a mindmap node's or a state's icon is drawn: `l` inline before the text (the default for a label token), `t` above it (the default for a mindmap `::icon()`), `b` below it |
+| `iconSize` | That icon's size in px, 1–512 (default: the font size inline, 1.75 em above or below); a label token with a size of its own is drawn left of the text |
+| `iconColor` | That icon's colour, a colour or palette reference (default: the text colour) |
 | `attrs` | ER attribute highlights |
-| `imgFit` | How a flowchart image node's picture fills its box: `contain` (default), `cover` or `stretch` — Mermaid has only the aspect lock, `constraint` in the node data |
+| `imgFit` | How a picture fills its box: `contain` (default), `cover` or `stretch` — a flowchart image node's (Mermaid has only the aspect lock, `constraint` in the node data), a mindmap node's or a state's |
 | Style keys | `fill`, `stroke`, `strokeWidth`, `radius`, `shape`, `fontSize`, `color`, `arrow`, `routing`, … (style overrides) |
 
 Unknown keys are kept on round-trip.
@@ -99,6 +103,8 @@ Unknown keys are kept on round-trip.
 `canvas` also takes `mindLayout` for mindmaps: `both` (default) puts branches on both sides of the root, `right` all of them to its right, `down` lays the tree out top down (the page presets of the same names set it). See [Mindmaps](/guide/mindmap#layout).
 
 `canvas` also takes `composites` for state diagrams: `single` (default) draws every composite in the theme's composite style, `palette` gives each composite a colour of its own from the theme's `state.compositeColors`, in turn by its place in the code (the **Coloured composites** page preset sets it). See [State diagrams](/guide/state#composites-and-concurrency).
+
+`canvas` also takes `blockTags` for sequence diagrams: `false` hides the kind tags (`loop`, `alt`…) in the corners of the blocks, which are shown by default as Mermaid shows them (the **Blocks without kind tags** page preset, `plain-blocks`, sets it); a block's own `showTag` still wins. See [Sequence diagrams](/guide/sequence#blocks-and-boxes).
 
 `canvas` also takes `layout`. Flowcharts with subgraphs are laid out with each subgraph as a container of its own (see [the editor's auto layout](/components/editor#auto-layout)); `"layout":"legacy"` keeps the automatic layout of earlier versions, where subgraph frames could overlap and subgraph `direction` was ignored, for one more minor release — it will then be removed. Diagrams whose nodes all have stored positions look the same either way. Any other value is dropped with a diagnostic.
 
@@ -152,7 +158,7 @@ Most ids come from the Mermaid code: node, group, participant and entity ids as 
 |---|---|---|
 | Flowchart edge | its id when the code gives it one (`api e1@--> auth`), else `<from>-><to>` | `edge e1`, `edge api->auth` |
 | Repeated edge between the same nodes | `#2`, `#3`, … appended | `edge api->auth#2` |
-| ER relationship | `<A>--<B>`, repeated ones with `#2`, … | `rel object--relation#2` |
+| ER relationship | `<A>--<B>`, repeated ones with `#2`, … (an end may be a subgraph's id) | `rel object--relation#2` |
 | Sequence message, note, block, box | numbered in source order | `message m1`, `note n2`, `block b1`, `box box1` |
 | Sequence activation | participant and the activation's number on it, in the order they open | `activation B:1` |
 | State diagram start and end | `[*]start` / `[*]end` at the top level, `<composite>/[*]start` inside a composite, `<composite>/<n>/[*]start` in its n-th concurrency region (n ≥ 2); URI-encoded in the line | `node %5B*%5Dstart`, `node Busy%2F%5B*%5Dend` |
@@ -203,7 +209,7 @@ Plain Mermaid files open too: they simply have no `%%@` lines, and every item is
 
 ## Portable export
 
-**Export → Portable Mermaid (.mmd)** writes a `.mmd` file with generated `classDef` / `linkStyle` lines instead of `%%@` lines, so stock renderers (GitHub, GitLab, Notion…) show the colours. Positions are lost there: stock Mermaid always lays the diagram out itself.
+**Export → Portable Mermaid (.mmd)** writes a `.mmd` file with generated `classDef` / `linkStyle` lines instead of `%%@` lines, so stock renderers (GitHub, GitLab, Notion…) show the colours. Positions are lost there: stock Mermaid always lays the diagram out itself. Icon tokens in labels and `::icon()` are code and stay; pictures and catalogue shapes kept in metadata (`img`, `shape`) have no Mermaid syntax and are left out, and the editor says how many after the export and in its Plain Mermaid dialog ("1 image and 2 shapes are mmdx-only and are not in the portable file"; an image not chosen yet does not count).
 
 ## Working with the format in code
 

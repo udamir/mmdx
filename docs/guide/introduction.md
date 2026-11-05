@@ -29,7 +29,7 @@ The [`.mmdx` format](/guide/mmdx-format) page describes the lines in full.
 
 ## Features
 
-- **Five diagram types, edited visually:** flowchart, sequence diagram, ER diagram, [mindmap](/guide/mindmap) and [state diagram](/guide/state). Other Mermaid types are shown with stock Mermaid.
+- **Five diagram types, edited visually:** flowchart, [sequence diagram](/guide/sequence), [ER diagram](/guide/er), [mindmap](/guide/mindmap) and [state diagram](/guide/state). Other Mermaid types are shown with stock Mermaid.
 - **Two-way editing:** everything you do on the canvas is written back to the Mermaid code, and code edits update the canvas live.
 - **Canvas tools:** drag, resize, snap, align and distribute, groups (`subgraph` / `box`), connectors with magnet points and bend points, copy / paste / duplicate, copy style, z-order, layers, undo / redo, presenting pen.
 - **Styling:** a floating toolbar and a Properties panel for fill, border, text, font, shape, stacking, arrows, line shape and more; named style presets from the theme or saved per diagram.

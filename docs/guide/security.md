@@ -37,7 +37,7 @@ The components build and update their SVG and UI with DOM calls, and text goes i
 
 ## Link policy
 
-Diagram items can carry links — the `link` metadata key, or Mermaid's `click <id> "<url>"`. Every link goes through `safeUrl(url, policy)` before it reaches the SVG:
+Diagram items can carry links — the `link` metadata key, Mermaid's `click <id> "<url>"`, or a sequence participant's `link` and `links`. Every link goes through `safeUrl(url, policy)` before it reaches the SVG (a participant's menu of links, the `data-links` attribute, holds only the URLs that passed):
 
 - it must be a string of at most 2048 characters, with no control characters, whitespace or backslashes (which browsers strip before the scheme: `java\tscript:`);
 - a relative URL (a path, query or fragment) passes, except a protocol-relative one (`//evil.com`);

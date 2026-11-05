@@ -43,7 +43,7 @@ Call it before creating elements. Most values are copied into a component when i
 | `i18n` | When a component is created |
 | `themeSource` | Each time a component needs a theme that is not registered |
 | `iconPacks`, `builtinIcons` | On each render: packs registered later reach every component (one shared icon registry) |
-| `mermaid` | On the first render with stock Mermaid; later changes have no effect |
+| `mermaid` | On the first render with stock Mermaid; a later call replaces it from the next such render (the icon packs are registered with it again) |
 | `fonts` | On each PNG export |
 | `debug` | Not read in this version |
 
@@ -128,7 +128,7 @@ Whether the built-in Tabler subset is registered under `tabler` (default `true`)
 
 #### `mermaid`
 
-The stock Mermaid used for diagram types mmdx does not draw itself (the viewer's `fallback="mermaid"`, the default) and for the editor's Plain Mermaid preview. Before a render it receives the component's icon packs through `registerIconPacks` (the built-in set as `tabler` included), each time the set of packs changed. Pass a `MermaidLike` instance or a loader that resolves to one; without it, the first such render runs `import('mermaid')`, which needs the optional `mermaid` package installed. The instance is resolved once per page, on first use. Renders go through one queue shared by all components (Mermaid keeps global configuration), in a detached container, with `securityLevel: 'strict'` and Mermaid's `dark` or `default` theme following the component's scheme.
+The stock Mermaid used for diagram types mmdx does not draw itself (the viewer's `fallback="mermaid"`, the default) and for the editor's Plain Mermaid preview. Before a render it receives the component's icon packs through `registerIconPacks` (the built-in set as `tabler` included), each time the set of packs changed. Pass a `MermaidLike` instance or a loader that resolves to one; without it, the first such render runs `import('mermaid')`, which needs the optional `mermaid` package installed. The instance is resolved on first use and kept until `configure({ mermaid })` sets another. Renders go through one queue shared by all components (Mermaid keeps global configuration), in a detached container, with `securityLevel: 'strict'`, Mermaid's `dark` or `default` theme following the component's scheme, the `classic` look and the `dagre` layout — given explicitly, since Mermaid 12 changed their defaults (`redux-color`, `neo`, ELK), so the fallback looks the same with Mermaid 10, 11 or 12. `configure({ mermaid })` after a fallback render replaces the instance: the next render uses the new one.
 
 #### `fonts`
 
@@ -335,7 +335,7 @@ Bundled with every component (`src/ui/i18n.ts`): zoom, full screen, view setting
 
 :::
 
-::: details View kernel (20 keys)
+::: details View kernel (21 keys)
 
 Registered by every component with a canvas (`src/ui/messages/view.ts`): the tool dock, shortcuts help and view settings.
 
@@ -361,6 +361,7 @@ Registered by every component with a canvas (`src/ui/messages/view.ts`): the too
 | `viewParams.title` | View |
 | `export.failed` | `{kind} export failed: {msg}` |
 | `panel.close` | Close |
+| `view.links` | Links |
 
 :::
 
@@ -464,7 +465,7 @@ The in-component confirmation and name dialogs (`src/ui/dialog.ts`).
 
 :::
 
-::: details Editor (303 keys)
+::: details Editor (328 keys)
 
 Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problems, properties, attributes, page settings, presets and document commands.
 
@@ -688,7 +689,6 @@ Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problem
 | `order.later` | later |
 | `order.left` | left |
 | `order.right` | right |
-| `group.noEr` | Mermaid ER diagrams have no groups |
 | `group.noMindmap` | A mindmap has branches, not groups |
 | `group.selectBoxes` | Select boxes or groups to group |
 | `group.selectParticipants` | Select participants to group them into a box |
@@ -702,6 +702,7 @@ Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problem
 | `state.rowsHint` | One row per line (shown under the name) |
 | `state.direction` | Direction |
 | `state.dirDefault` | Top to bottom (Mermaid’s default) |
+| `er.dirDefault` | As the diagram (Mermaid’s default) |
 | `state.addRegion` | Add region |
 | `state.addRegionTip` | A concurrency region (--) at the end of the composite, with a new state in it |
 | `state.noteSide` | Side |
@@ -714,6 +715,24 @@ Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problem
 | `state.deleteContents` | Delete with contents |
 | `state.deletedKept` | Composite removed — its states stay. ⌘/Ctrl+Z to undo |
 | `state.deletedAll` | Composite and its states deleted — ⌘/Ctrl+Z to undo |
+| `seq.arrow` | Message arrow |
+| `seq.reverse` | Reverse the message |
+| `seq.reattached` | `Message re-attached to {p}` |
+| `seq.reattach` | Re-attach message |
+| `seq.noteLeft` | Note left of the participant |
+| `seq.noteRight` | Note right of the participant |
+| `seq.noteOver` | Note over the participant |
+| `seq.placement` | Note placement |
+| `seq.place.left of` | left of |
+| `seq.place.right of` | right of |
+| `seq.place.over` | over |
+| `seq.addBranch` | `Add branch ({word})` |
+| `seq.addBranchTip` | `A new “{word}” branch at the end of the block` |
+| `seq.deleteBranch` | `Delete branch “{label}”` |
+| `seq.deleteBranchTip` | Removes the branch with its messages |
+| `seq.deleteLastBranch` | Delete the last branch |
+| `seq.branches` | `Branch conditions ({word})` |
+| `seq.branchesHint` | One condition per line, in order (the block’s own condition is its text) |
 | `tools.pointer` | `Select & edit` |
 | `tools.shapes` | Shapes — drag onto the canvas or click to add |
 | `tools.table` | Table — drag onto the canvas or click to add |
@@ -735,6 +754,13 @@ Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problem
 | `export.mmdxTip` | Mermaid with the layout and styles as %%@ lines — opens in this editor with everything kept |
 | `export.mmdTip` | Plain Mermaid with classDef / linkStyle colours — renders in YouTrack, GitHub, … |
 | `export.pngTip` | At 2× resolution |
+| `export.only.image1` | 1 image |
+| `export.only.imageN` | `{n} images` |
+| `export.only.shape1` | 1 shape |
+| `export.only.shapeN` | `{n} shapes` |
+| `export.only.and` | `{a} and {b}` |
+| `export.only1` | `{what} is mmdx-only and is not in the portable file` |
+| `export.onlyN` | `{what} are mmdx-only and are not in the portable file` |
 | `more.title` | More |
 | `more.open` | Open… |
 | `more.openTip` | Open .mmdx / .mmd / .md / .txt (+ .layout.json) |
@@ -806,7 +832,7 @@ Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problem
 
 :::
 
-::: details Style toolbar and page toolbar (173 keys)
+::: details Style toolbar and page toolbar (176 keys)
 
 Registered by the editor and the theme editor (`src/ui/messages/toolbar.ts`): keys `tb.*` (style toolbar) and `ptb.*` (page toolbar).
 
@@ -843,6 +869,9 @@ Registered by the editor and the theme editor (`src/ui/messages/toolbar.ts`): ke
 | `tb.delete` | `Delete ({keys}) — removes it from the Mermaid code` |
 | `tb.orderSeq` | `Order in the Mermaid code — earlier / later ({keys})` |
 | `tb.orderMind` | `Order among its siblings — earlier / later ({keys})` |
+| `tb.codeArrow` | Mermaid arrow |
+| `tb.codeArrowSolid` | Solid |
+| `tb.codeArrowDotted` | Dotted (reply) |
 | `tb.order` | `Order in the Mermaid code — send backward / bring forward ({keys})` |
 | `tb.layer` | Layer — move to another layer |
 | `tb.presets` | Style presets |

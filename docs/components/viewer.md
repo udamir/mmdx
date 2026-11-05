@@ -139,7 +139,7 @@ All events bubble and are composed. Types: `ViewerEventMap`.
 |---|---|---|---|
 | `mmdx-render` | `{ bounds: Rect, type: string \| null, durationMs: number }` | no | After each render; `type` is `null` for a stock Mermaid fallback |
 | `mmdx-error` | `{ diagnostics: Diagnostic[] }` | no | Parse warnings and errors of a render, a failed `src` fetch, a missing theme, fonts not embedded into a PNG |
-| `mmdx-link` | `{ href: string, id: string \| null }` | yes | A link in the diagram is clicked (not after a drag, not with the pen). Cancel it to route the link yourself; otherwise it opens per the link policy |
+| `mmdx-link` | `{ href: string, id: string \| null }` | yes | A link in the diagram is clicked (not after a drag, not with the pen), or chosen from a sequence participant's link menu. Cancel it to route the link yourself; otherwise it opens per the link policy |
 | `mmdx-fullscreen-request` | `{ enter: boolean }` | yes | Before the full-screen button enters or leaves full screen. Cancel it to handle full screen yourself |
 | `mmdx-fullscreen` | `{ active: boolean }` | no | Full screen started or ended |
 | `mmdx-ui` | `{ ui: 'light' \| 'dark' }` | no | The user switched the light / dark toggle |
@@ -197,13 +197,21 @@ With `controls` including `history` and a `history` property, the tool dock gets
 
 The viewer draws [mindmaps](/guide/mindmap) with mmdx's own tree layout; their code loads the first time a page shows one. A branch saved folded (metadata `collapsed`) stays folded, with a +N badge counting its hidden nodes: the viewer does not fold or unfold branches itself. The accessible name is "Mindmap: N nodes", and the text outline ([`outline()`](/api/core#outline)) is the tree of labels.
 
+## Sequence diagrams
+
+The viewer draws [sequence diagrams](/guide/sequence) in the order of their code: dotted messages dashed, block kinds in a tag at the corner, created participants at their creating message's row and destroyed lifelines ending in a cross. A participant with two or more Mermaid links (`link`, `links`) opens a menu of them at the pointer when it is clicked, listing each by its label; the chosen link fires `mmdx-link` and opens per the link policy, as a single link does. The accessible name is the diagram's `accTitle` when it has one, else "Sequence diagram: N participants, M messages", and the text outline ([`outline()`](/api/core#outline)) lists the messages, notes and blocks in order, with Mermaid's numbers.
+
+## ER diagrams
+
+The viewer draws [ER diagrams](/guide/er) with their tables, crow's-foot relationships and, from Mermaid 11.17's syntax, subgraphs as frames laid out with the compound layout; the frontmatter title is drawn above the diagram. The accessible name is the diagram's `accTitle` when it has one, else "ER diagram: N tables, M relationships", and the text outline ([`outline()`](/api/core#outline)) lists the tables with their columns and relationships.
+
 ## State diagrams
 
 The viewer draws [state diagrams](/guide/state) (`stateDiagram`, `stateDiagram-v2`) with the compound layout, each composite and concurrency region in its own direction; their code, with the shapes only state diagrams use, loads the first time a page shows one. `click` links go through the link policy and their tooltips show on hover, as in flowcharts. The accessible name is "State diagram: N states, M transitions" (states and composites, without the start and end pseudo-states), and the text outline ([`outline()`](/api/core#outline)) lists each state with its outgoing transitions, composites with their contents, and notes.
 
 ## Fallback and errors
 
-Flowcharts, sequence diagrams, ER diagrams, mindmaps and state diagrams are drawn by mmdx. Other Mermaid types follow `fallback`: `mermaid` renders them with stock Mermaid (an optional peer dependency, loaded lazily; configure it with `configure({ mermaid })`), `source` shows the text, `error` shows the error card. A source that cannot be parsed shows a compact error card with the diagnostics, the source with the bad lines marked, and a Copy button; it never throws into the page.
+Flowcharts, sequence diagrams, ER diagrams, mindmaps and state diagrams are drawn by mmdx. Other Mermaid types follow `fallback`: `mermaid` renders them with stock Mermaid (an optional peer dependency, loaded lazily; configure it with `configure({ mermaid })`; version 10 to 12, with its `classic` look and `dagre` layout set explicitly, since Mermaid 12 changed their defaults), `source` shows the text, `error` shows the error card. A source that cannot be parsed shows a compact error card with the diagnostics, the source with the bad lines marked, and a Copy button; it never throws into the page.
 
 ## Keyboard shortcuts
 

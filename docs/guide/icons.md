@@ -18,6 +18,8 @@ flowchart LR
 
 Labels in every diagram type use tokens. Stock Mermaid draws `fa*` tokens (in all types but sequence diagrams) and icon nodes; tokens of other packs show as text there. The diagram types draw icons as they gain icon support: flowcharts draw icon nodes and tokens in node, edge and subgraph labels (see [Flowchart content](/guide/flowchart)), mindmaps tokens in node labels and `::icon()` (see [Mindmaps](/guide/mindmap#icons)), state diagrams tokens in state titles, description rows, transition labels and notes (see [State diagrams](/guide/state#icons-and-images)); sequence and ER labels follow.
 
+In mindmaps and state diagrams, where the code has no icon node, the item's metadata places its icon: `iconPos` draws a leading label token inline before the text (`l`, the default), above it (`t`) or below it (`b`), `iconSize` sizes it and `iconColor` colours it; a mindmap's `::icon()` is drawn above the label unless `iconPos` says otherwise. The editor's Properties sets the position and the size. See [The .mmdx format → Line kinds](/guide/mmdx-format#line-kinds).
+
 The editor writes a mindmap node's icon as a label token at the start of its text (`fa:fa-book Book`), which stock Mermaid draws for Font Awesome; an `::icon()` line the node has is replaced by the token when you change its icon. A state's icon is likewise a token at the start of its title (`state "fa:fa-car Car" as Car`).
 
 ## The built-in set

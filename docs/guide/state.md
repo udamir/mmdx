@@ -154,7 +154,8 @@ stateDiagram-v2
 ## Icons and images
 
 - **Icons** are label tokens: `fa:fa-car Car`, `tabler:truck Shipping`, in a title, a description row, a transition label or a note, drawn by mmdx through the [icon packs](/guide/icons). Stock Mermaid draws the Font Awesome tokens and shows other packs' as text. The editor's icon picker writes the token at the start of the state's title (`state "fa:fa-car A" as A`).
-- **Images**: Mermaid's state diagram has no image syntax, so a state's picture is metadata, `%%@ node Packing {"img":"https://example.com/box.png"}`, drawn above the title (at its own size, at most 160 px on its longer side; 96 × 72 until the browser knows the size). The URL goes through the [image policy](/guide/security#image-policy).
+- **Icon position**: the token is drawn where metadata `iconPos` puts it — inline before the text (`l`, the default), above the title (`t`) or below the text (`b`), at 1.75 em above or below — at metadata `iconSize` (a token with a size of its own is drawn left of the text) and in `iconColor` (a colour or palette reference). The title block grows above the description rows to hold it.
+- **Images**: Mermaid's state diagram has no image syntax, so a state's picture is metadata, `%%@ node Packing {"img":"https://example.com/box.png"}`, drawn above the title and the icon: at `imgW` × `imgH` when the metadata gives them (one of them alone keeps the picture's aspect), else at its own size, at most 160 px on its longer side, and 96 × 72 until the browser knows the size; `imgFit` (`contain`, `cover`, `stretch`) is how it fills that box. The URL goes through the [image policy](/guide/security#image-policy); an empty `img` (`""`, a picture not chosen yet) draws the placeholder.
 - **Other shapes**: a state's box can be any shape of the [catalogue](/guide/shapes) through metadata `shape` (the toolbar's shape picker writes it); mmdx draws it, stock Mermaid draws the rounded box.
 
 ## Layout
@@ -174,7 +175,7 @@ A new state diagram starts from `stateDiagram-v2` (the State diagram card of the
 - **Grouping**: ⌘G on states of one scope wraps them in `state Group1 { … }`, with their texts, declarations, notes and the transitions with both ends among them. **Ungroup** unwraps a composite; when it has a start or an end inside, it asks first ("Ungroup the composite?"), then connects the transitions into the composite to the states its start led to, and the transitions out of it from the states that led to its end.
 - **Deleting** a state removes its texts, transitions, notes, link and style lines; the other end of a deleted transition stays. Deleting a composite that holds states asks: **Delete with contents**, **Keep contents** (the composite is unwrapped, its inner starts and ends removed) or **Cancel**.
 - **Copies**: ⌘C / ⌘V, ⌘D and Alt-drag copy states and composites, with new ids, their texts, kinds and description rows, what the composites hold, and the transitions between the copies.
-- **Icons and images**: the icon picker writes a label token at the start of the title; the Image button adds a state with a picture, and the image control sets the selected state's — in metadata `img`.
+- **Icons and images**: the icon picker writes a label token at the start of the title; the Image button adds a state with a picture, and the image control sets the selected state's — in metadata `img`. Properties sets the icon's **Position** and **Icon size** and the picture's **Width**, **Height** and **Fit**, in the metadata (`iconPos`, `iconSize`, `imgW`, `imgH`, `imgFit`), the code unchanged.
 
 Every change is one undo step, and every output is code stock Mermaid 11.17 and 12.2 parse (the test suite checks each op against both).
 

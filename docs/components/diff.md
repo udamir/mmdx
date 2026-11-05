@@ -1,6 +1,6 @@
 # `<mmdx-diff>`
 
-How a diagram changed between two versions, item by item (not line by line). Nodes, edges, tables, participants, messages, mindmap nodes, states and transitions are matched across the versions — renamed nodes, shifted sequence messages and moved mindmap branches included — and every change is **added**, **removed** or **changed**, with each change of a kept item classified as **content** (labels, shapes, connections, attributes, message text), **layout** (positions, sizes, bend points) or **style** (colours, presets, classes, theme). Give it two versions for a merge request review, or a diagram's whole history and let the reviewer pick any two.
+How a diagram changed between two versions, item by item (not line by line). Nodes, edges, tables, subgraphs, participants, messages, mindmap nodes, states and transitions are matched across the versions — renamed nodes, shifted sequence messages and moved mindmap branches included — and every change is **added**, **removed** or **changed**, with each change of a kept item classified as **content** (labels, shapes, connections, attributes, message text), **layout** (positions, sizes, bend points) or **style** (colours, presets, classes, theme). Give it two versions for a merge request review, or a diagram's whole history and let the reviewer pick any two.
 
 ```ts
 import '@mmdx/studio/diff'; // <mmdx-diff>, DiagramDiff, history adapters
@@ -162,6 +162,14 @@ Options and attributes set the view, mode and filters without an event; the even
 - **Side by side**: two canvases, panned and zoomed together.
 
 Switching between Before, Merged and After animates: moved items glide, colours blend and changed text flips; switching to another pair or version animates the same way, and the view glides to the new fit. Colour is never the only signal: removed items are dashed, badges carry `+ − C L S`, and text changes are struck out or bold. The diff draws flowchart, sequence, ER, mindmap and state diagrams; for other types (and a change of diagram type) it opens the code diff.
+
+### Sequence diagrams
+
+Participants are matched by id; messages are aligned in code order by their ends, text and arrow, so messages inserted above others shift them without changing them; notes by their participants, blocks by their kind and condition. A message's arrow is compared as written — `->>` and `-->>`, a half arrow, a central connection's `()` — so a changed arrow is a content change, as are a message's text and process markers, a participant's name, kind, type, box and order, a note's text and placement and a block's condition. See [Sequence diagrams](/guide/sequence#history-and-diff).
+
+### ER diagrams
+
+Tables and subgraphs are matched by id, relationships by their ends (then in order among parallel ones). A table or a subgraph moved into another subgraph is a layout change, as are a subgraph's `direction` and the diagram's; names, attributes, cardinalities, lines, relationship labels and subgraph titles are content; Mermaid classes, `style`, `classDef` and metadata looks are style. The merged picture keeps a removed table and a removed subgraph in their old subgraph. See [ER diagrams](/guide/er#history-and-diff).
 
 ### Mindmaps
 

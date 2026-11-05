@@ -181,6 +181,7 @@ interface PageSettings {
   mirror?: boolean;
   blockSpan?: 'full' | 'touched';
   margin?: number;
+  blockTags?: boolean;         // sequence: false hides the blocks' kind tags
   mindLayout?: 'both' | 'right' | 'down'; // mindmaps: both sides of the root (default), to the right, top down
   composites?: 'single' | 'palette';      // state diagrams: composites in the theme's one style (default), or a colour each
 }
@@ -218,7 +219,13 @@ interface ItemMeta extends StyleProps {
   side?: 'l' | 'r';            // a first-level branch's side of the root
   section?: number;            // 0–11: a branch colour of the theme for the node and its subtree
   collapsed?: boolean;         // folded, with a +N badge
-  img?: string;                // a picture above the label (URL); also a state's, above its title
+  img?: string;                // a picture above the label (URL; '' = not chosen yet); also a state's, above its title
+  imgW?: number;               // its box (one of them alone keeps the picture's aspect)
+  imgH?: number;
+  imgFit?: string;             // 'contain' | 'cover' | 'stretch'
+  iconPos?: 'l' | 't' | 'b';   // where the label's icon is drawn: inline before the text, above, below
+  iconSize?: number;
+  iconColor?: string;
   // entities: per-attribute highlights (color, bold, italic, underline, fontFamily, fontSize, preset)
   attrs?: Record<string, AttrHighlight>;
   [extra: string]: unknown;
@@ -344,7 +351,7 @@ interface RenderResult {
 }
 ```
 
-`GeometryIndex` is `FlowGeometry | SequenceGeometry | ErGeometry | MindmapGeometry | StateGeometry | { type: null }`: maps from item id to boxes (centre and size), edge geometry (ports, bend points, path data), for sequence diagrams message, activation and lifeline positions, for mindmaps each node's side, depth and section and the branch paths, and for state diagrams the boxes of states, composites and notes and the transitions' geometry. It is advanced; see `src/core/render/types.ts`.
+`GeometryIndex` is `FlowGeometry | SequenceGeometry | ErGeometry | MindmapGeometry | StateGeometry | { type: null }`: maps from item id to boxes (centre and size), edge geometry (ports, bend points, path data), for sequence diagrams message, activation and lifeline positions, for mindmaps each node's side, depth and section and the branch paths, for state diagrams the boxes of states, composites and notes and the transitions' geometry, and for ER diagrams the tables, the relationships and the subgraph frames (`groups`). It is advanced; see `src/core/render/types.ts`.
 
 ### `createContext()`
 
@@ -1131,7 +1138,7 @@ type DiagramType = 'flowchart' | 'sequence' | 'er' | 'mindmap' | 'state';
 type ItemKind =
   | 'node' | 'group' | 'edge'                                               // flowchart (mindmaps: node; state diagrams: states, composites, transitions)
   | 'participant' | 'message' | 'note' | 'block' | 'box' | 'activation'     // sequence (note: also state diagrams)
-  | 'entity' | 'rel';                                                       // ER
+  | 'entity' | 'rel';                                                       // ER (subgraphs are 'group')
 interface ItemRef { kind: ItemKind; id: string }
 type ItemKey = `${ItemKind}:${string}`;                                     // 'node:a', 'edge:a->b'
 ```
@@ -1164,19 +1171,29 @@ interface FlowchartModel {
 
 interface SequenceModel {
   type: 'sequence';
-  participants: Participant[];      // { id, label, kind: 'participant' | 'actor', box, shape?, created?, … }
+  participants: Participant[];      // { id, label, kind: 'participant' | 'actor', box, shape?, created?, createdBy?, destroyedBy?, links?: { label, url }[], properties?, … }
   items: SeqItem[];                 // messages, notes, block starts / else / ends, activate / deactivate, in order
   boxes: SeqBox[];
-  autonumber: boolean;
+  autonumber: boolean;              // numbered somewhere (an `autonumber` that is not `off`)
+  numbering: SeqNumbering[];        // every `autonumber` statement: { line, on, start?, step? }
   title: string;
+  accTitle?: string;
+  accDescr?: string;
   diagnostics: Diagnostic[];
 }
 
 interface ErModel {
   type: 'er';
   direction: 'TB' | 'BT' | 'LR' | 'RL';
-  entities: Map<string, Entity>;    // { id, label, attrs: { type, name, keys: ('PK'|'FK'|'UK')[], comment }[], … }
-  rels: ErRel[];                    // { id, from, to, fromCard, toCard, identifying, label, src }
+  entities: Map<string, Entity>;    // { id, label, alias?, attrs: { type, name, keys: ('PK'|'FK'|'UK')[], comment }[], classes, style, parent, stmts, … }
+  rels: ErRel[];                    // { id, from, to, fromCard, toCard, identifying, label, src, offsets of the statement and its tokens }
+  groups: Map<string, ErGroup>;     // subgraphs: { id, label, parent, children, order, line, endLine?, dir?, classes, style, … }
+  classDefs: Record<string, MermaidStyle>;
+  undefinedClasses: { cls: string; line: number }[];
+  headerLine: number;               // the `erDiagram` line (-1 when missing)
+  title?: string;                   // frontmatter title (or a `title` statement)
+  accTitle?: string;
+  accDescr?: string;
   diagnostics: Diagnostic[];
 }
 
@@ -1212,4 +1229,4 @@ interface UnsupportedModel {
 }
 ```
 
-`NodeShape` is one of `rect`, `rounded`, `stadium`, `subroutine`, `cylinder`, `circle`, `doublecircle`, `diamond`, `hexagon`, `parallelogram`, `parallelogram-alt`, `trapezoid`, `trapezoid-alt`, `asymmetric`, `hcyl`, `document`, `card`, `queue`. `MermaidStyle` is a validated Mermaid `style` / `classDef` / `linkStyle`: `{ fill?, stroke?, text?, strokeWidth?, dash?, fontSize? }`. Sequence messages, notes and blocks get ids in source order (`m1`, `n1`, `b1`). A mindmap node's id is its written id when that is unique, else `mm<k>` (its place among all nodes in code order); `MindShape` is `mm-default` (no delimiters), `rect`, `rounded`, `circle`, `bang`, `cloud` or `hexagon`. A state's `kind` (`StateKind`) is `state`, `start`, `end`, `choice`, `fork` or `join`; the start and end pseudo-states are `[*]start` / `[*]end` at the top level, `X/[*]start` inside composite X and `X/2/[*]start` in its second concurrency region; `region` is 0-based. The full definitions are in `src/core/model.ts`.
+`NodeShape` is one of `rect`, `rounded`, `stadium`, `subroutine`, `cylinder`, `circle`, `doublecircle`, `diamond`, `hexagon`, `parallelogram`, `parallelogram-alt`, `trapezoid`, `trapezoid-alt`, `asymmetric`, `hcyl`, `document`, `card`, `queue`. `MermaidStyle` is a validated Mermaid `style` / `classDef` / `linkStyle`: `{ fill?, stroke?, text?, strokeWidth?, dash?, fontSize? }`. Sequence messages, notes and blocks get ids in source order (`m1`, `n1`, `b1`); a message keeps its `arrow` as written (one of Mermaid's 26 tokens), with `line`, `head` and `both`, and `half`, `stick`, `reverse` for half arrows and `central` (`'from' | 'to' | 'both'`) for central connections. An ER relationship's `from` or `to` may be a subgraph's id; an entity's `parent` is the subgraph it is drawn in (Mermaid's rule: the first subgraph to close that names it). A mindmap node's id is its written id when that is unique, else `mm<k>` (its place among all nodes in code order); `MindShape` is `mm-default` (no delimiters), `rect`, `rounded`, `circle`, `bang`, `cloud` or `hexagon`. A state's `kind` (`StateKind`) is `state`, `start`, `end`, `choice`, `fork` or `join`; the start and end pseudo-states are `[*]start` / `[*]end` at the top level, `X/[*]start` inside composite X and `X/2/[*]start` in its second concurrency region; `region` is 0-based. The full definitions are in `src/core/model.ts`.
