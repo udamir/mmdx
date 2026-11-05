@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Mindmap ops (T08.6): exact outputs of each rewrite (§3.7), the metadata of positional ids carried over by
-// remapMeta, and stock Mermaid 11.17 parsing every op output over every node of the examples.
+// remapMeta, and stock Mermaid 12.2 and 11.17 parsing every op output over every node of the examples.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -11,6 +11,7 @@ import * as OPS from '../../../src/core/ops/mindmap.js';
 import { remapMeta } from '../../../src/core/ops/meta-ops.js';
 import { parseMindmap } from '../../../src/core/parse/mindmap.js';
 import type { ItemRef } from '../../../src/core/types.js';
+import { stockParse } from '../../helpers/mermaid.js';
 
 const P = parseMindmap;
 const SRC = `mindmap
@@ -27,9 +28,7 @@ const id = (m: MindmapModel, label: string): string => [...m.nodes.values()].fin
 
 let mermaidParse: (code: string) => Promise<unknown>;
 beforeAll(async () => {
-  const { default: mermaid } = await import('mermaid');
-  mermaid.initialize({ startOnLoad: false });
-  mermaidParse = (code) => mermaid.parse(code);
+  mermaidParse = stockParse;
 });
 
 describe('mindmap ops', () => {
@@ -154,7 +153,7 @@ describe('mindmap ops', () => {
   });
 });
 
-describe('mindmap ops: stock Mermaid 11.17 parses every output over the examples', () => {
+describe('mindmap ops: stock Mermaid 12.2 and 11.17 parses every output over the examples', () => {
   for (const file of ['product-mindmap.mmdx', 'study-notes.mmdx']) {
     it(file, async () => {
       const code = splitSource(readFileSync(join(__dirname, '../../../examples', file), 'utf8')).doc.code;

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Agreement with stock Mermaid (T02): random op sequences on random flowcharts written in Mermaid's own syntax — node
-// data with shapes and unknown keys, chains, `&` groups, edge lengths, classes — never turn code stock Mermaid 11.17
+// data with shapes and unknown keys, chains, `&` groups, edge lengths, classes — never turn code stock Mermaid 12.2 and 11.17
 // reads into code it rejects. Seeded, so a failure names its seed and its ops.
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { FlowchartModel } from '../../../src/core/model.js';
@@ -9,6 +9,7 @@ import { addFlowNode, cloneFlow, deleteFlow, groupFlow, relabelFlowEdge, relabel
 import { parseFlowchart } from '../../../src/core/parse/flowchart.js';
 import { pickerShapes } from '../../../src/core/shapes/catalog.js';
 import type { ItemRef } from '../../../src/core/types.js';
+import { stockOk } from '../../helpers/mermaid.js';
 
 function rng(seed: number): () => number {
   let a = seed >>> 0;
@@ -100,16 +101,7 @@ const OP_NAMES = Object.keys(OPS);
 describe('op outputs stay valid for stock Mermaid', () => {
   let parse: (code: string) => Promise<boolean>;
   beforeAll(async () => {
-    const { default: mermaid } = await import('mermaid');
-    mermaid.initialize({ startOnLoad: false });
-    parse = async (code) => {
-      try {
-        await mermaid.parse(code);
-        return true;
-      } catch {
-        return false;
-      }
-    };
+    parse = stockOk;
   });
 
   it('random sequences', async () => {

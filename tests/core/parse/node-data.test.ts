@@ -5,6 +5,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { parseFlowchart } from '../../../src/core/parse/flowchart.js';
 import { applySplices, editBlock, formatValue, readNodeData, type NodeDataBlock } from '../../../src/core/parse/node-data.js';
+import { stockParse } from '../../helpers/mermaid.js';
 
 const read = (body: string): NodeDataBlock => {
   const s = `A@{${body}}`;
@@ -123,9 +124,7 @@ describe('the flowchart reads node data', () => {
 describe('Mermaid agreement', () => {
   let parse: (code: string) => Promise<unknown>;
   beforeAll(async () => {
-    const { default: mermaid } = await import('mermaid');
-    mermaid.initialize({ startOnLoad: false });
-    parse = (code) => mermaid.parse(code);
+    parse = stockParse;
   });
 
   it('what the reader reads, Mermaid reads; what the writer writes, Mermaid reads', async () => {

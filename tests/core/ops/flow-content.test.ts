@@ -2,7 +2,7 @@
 // Flowchart content ops (T06): markdown labels written back as markdown strings and "Make rich text", "Convert to icon
 // node", an icon or image node's size in its node data (what a resize writes), invisible links in copies, edge-id
 // metadata following the code, the `title` fix, and the Mermaid Chart sample: every output parsed by stock Mermaid
-// 11.17, the sample unchanged by a no-op edit.
+// 12.2 and 11.17, the sample unchanged by a no-op edit.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -12,13 +12,12 @@ import { edgeText, nodeDef } from '../../../src/core/ops/connect.js';
 import { setFlowMedia, toFlowIconNode } from '../../../src/core/ops/flow-media.js';
 import { relabelFlowEdge, relabelFlowNode, relabelGroup } from '../../../src/core/ops/flowchart.js';
 import { parseFlowchart } from '../../../src/core/parse/flowchart.js';
+import { stockParse } from '../../helpers/mermaid.js';
 
 const P = parseFlowchart;
 let mermaidParse: (code: string) => Promise<unknown>;
 beforeAll(async () => {
-  const { default: mermaid } = await import('mermaid');
-  mermaid.initialize({ startOnLoad: false });
-  mermaidParse = (code) => mermaid.parse(code);
+  mermaidParse = stockParse;
 });
 async function valid(code: string): Promise<void> {
   await expect(mermaidParse(code), code).resolves.toBeTruthy();

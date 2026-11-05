@@ -1,19 +1,18 @@
 // @vitest-environment jsdom
 // Flowchart ops by splicing (T02.5) and shapes written to the code (T02.6): a relabel, reconnect or delete changes only
 // its own tokens — `@{…}` data, edge lengths and styles, chains, `&` groups, `:::` and edge ids stay as written — and a
-// shape change writes a bracket or `@{ shape }` in Mermaid Chart's style. Every output is parsed by stock Mermaid 11.17.
+// shape change writes a bracket or `@{ shape }` in Mermaid Chart's style. Every output is parsed by stock Mermaid 12.2 and 11.17.
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { FlowchartModel } from '../../../src/core/model.js';
 import { addFlowNode, cloneFlow, deleteFlow, relabelFlowEdge, relabelFlowNode, setFlowShape } from '../../../src/core/ops/flowchart.js';
 import { reconnectFlow } from '../../../src/core/ops/connect.js';
 import { parseFlowchart } from '../../../src/core/parse/flowchart.js';
+import { stockParse } from '../../helpers/mermaid.js';
 
 const P = (code: string): FlowchartModel => parseFlowchart(code);
 let mermaidParse: (code: string) => Promise<unknown>;
 beforeAll(async () => {
-  const { default: mermaid } = await import('mermaid');
-  mermaid.initialize({ startOnLoad: false });
-  mermaidParse = (code) => mermaid.parse(code);
+  mermaidParse = stockParse;
 });
 /** Stock Mermaid reads it, and so does mmdx without warnings. */
 async function valid(code: string): Promise<void> {

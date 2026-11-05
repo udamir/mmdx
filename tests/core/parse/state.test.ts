@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The state diagram parser (T09.1): every row of the usage table (analysis.md §4.4), the headers, Mermaid's statement
 // rules and the diagnostics with their fixes; Mermaid's own docs samples (tests/fixtures/mermaid-docs/state-*.mmd), the
-// examples and edge cases parse as stock Mermaid 11.17 parses them — a source mmdx reads without errors is one Mermaid
+// examples and edge cases parse as stock Mermaid 12.2 and 11.17 parses them — a source mmdx reads without errors is one Mermaid
 // accepts, one Mermaid rejects gets an mmdx error (`classDef default` the one deliberate difference) — and, where
 // Mermaid accepts, the states, composites, regions, transitions, notes, classes and directions are the ones Mermaid's
 // own StateDB builds (its jison parser and data fetcher, loaded from Mermaid's bundle).
@@ -13,6 +13,7 @@ import type { StateGroup, StateModel, StateNode } from '../../../src/core/model.
 import { detectType } from '../../../src/core/parse/dispatch.js';
 import { parse } from '../../../src/core/parse/index.js';
 import { isPseudo, parseState, pseudoId } from '../../../src/core/parse/state.js';
+import { stockParse } from '../../helpers/mermaid.js';
 
 const P = parseState;
 const H = 'stateDiagram-v2\n';
@@ -23,9 +24,7 @@ const fixture = (name: string): string => FIXTURES.find((f) => f.name === name)!
 
 let mermaidParse: (code: string) => Promise<unknown>;
 beforeAll(async () => {
-  const { default: mermaid } = await import('mermaid');
-  mermaid.initialize({ startOnLoad: false });
-  mermaidParse = (code) => mermaid.parse(code);
+  mermaidParse = stockParse;
 });
 const mermaidOk = async (code: string): Promise<boolean> => {
   try {
@@ -400,7 +399,7 @@ describe("state: Mermaid's statement rules", () => {
   });
 });
 
-// ---- agreement with stock Mermaid 11.17 ---------------------------------------------------------------------------
+// ---- agreement with stock Mermaid 12.2 and 11.17 ---------------------------------------------------------------------------
 
 const EDGE_CASES: { name: string; src: string }[] = [
   { name: 'semicolon in a label', src: `${H}  a --> b : x; y` },
@@ -457,7 +456,7 @@ const EDGE_CASES: { name: string; src: string }[] = [
   { name: 'empty label', src: `${H}  a --> b :` },
 ];
 
-describe('state: agreement with stock Mermaid 11.17 (mermaid.parse)', () => {
+describe('state: agreement with stock Mermaid 12.2 and 11.17 (mermaid.parse)', () => {
   for (const c of [...FIXTURES, ...EXAMPLES, ...EDGE_CASES])
     it(c.name, async () => {
       const ok = await mermaidOk(c.src);
@@ -505,17 +504,21 @@ interface MermaidEdge {
   label?: string;
   classes?: string;
 }
+type MermaidStateDB = { getData(): { nodes: MermaidNode[]; edges: MermaidEdge[]; direction: string } };
+type MermaidStateParser = { yy: unknown; parse(text: string): unknown };
+/** The state chunk's exports: 11.17 exports the parser and StateDB, 12.2 only the diagram (parser, and db as a getter). */
 interface MermaidStateModule {
-  StateDB: new (version: number) => { getData(): { nodes: MermaidNode[]; edges: MermaidEdge[]; direction: string } };
-  stateDiagram_default: { yy: unknown; parse(text: string): unknown };
+  StateDB?: new (version: number) => MermaidStateDB;
+  stateDiagram_default?: MermaidStateParser;
+  diagram?: { parser: MermaidStateParser; readonly db: MermaidStateDB };
 }
 
-/** The chunk of Mermaid's bundle holding the state parser and StateDB (its file name changes between versions). */
-function stateChunk(): string | null {
-  const dir = join(ROOT, 'node_modules/mermaid/dist/chunks/mermaid.core');
+/** The chunk of a Mermaid package's bundle holding the state parser and StateDB (its file name changes between versions). */
+function stateChunk(pkg: string): string | null {
+  const dir = join(ROOT, `node_modules/${pkg}/dist/chunks/mermaid.core`);
   for (const f of readdirSync(dir).filter((x) => x.endsWith('.mjs'))) {
     const t = readFileSync(join(dir, f), 'utf8');
-    if (t.includes('var StateDB = class') && /export \{[^}]*\bstateDiagram_default\b/.test(t)) return join(dir, f);
+    if (t.includes('var StateDB = class') && /export \{[^}]*\b(?:stateDiagram_default|diagram)\b/.test(t)) return join(dir, f);
   }
   return null;
 }
@@ -614,16 +617,18 @@ function ourView(m: StateModel): View {
   };
 }
 
-describe("state: the model is the one Mermaid's StateDB builds", () => {
-  const chunk = stateChunk();
+for (const [version, pkg] of [['12.2', 'mermaid'], ['11.17', 'mermaid-11']] as const)
+describe(`state: the model is the one Mermaid ${version}'s StateDB builds`, () => {
+  const chunk = stateChunk(pkg);
   let mod: MermaidStateModule | null = null;
   beforeAll(async () => {
     if (chunk) mod = (await import(chunk)) as MermaidStateModule;
   });
   const mermaidModel = (code: string): View => {
-    const db = new mod!.StateDB(2);
-    mod!.stateDiagram_default.yy = db;
-    mod!.stateDiagram_default.parse(prep(code));
+    const parser = mod!.diagram?.parser ?? mod!.stateDiagram_default!;
+    const db = mod!.diagram ? mod!.diagram.db : new mod!.StateDB!(2);
+    parser.yy = db;
+    parser.parse(prep(code));
     const d = db.getData();
     return mermaidView(d.nodes, d.edges, d.direction);
   };

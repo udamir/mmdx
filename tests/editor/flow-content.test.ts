@@ -2,12 +2,13 @@
 // Flowchart content in the editor (T06): resizing an icon or image node writes `h` / `w` into its node data (an icon
 // stays square, a locked image keeps its aspect), the inline editor's Bold and Italic on markdown labels and "Make rich
 // text", "Convert to icon node" from Properties, invisible links not selectable, the "Animate edges" view setting.
-// Every code written is parsed by stock Mermaid 11.17.
+// Every code written is parsed by stock Mermaid 12.2 and 11.17.
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { loadBuiltinIcons } from '../../src/core/icons/registry.js';
 import type { EditorCore } from '../../src/editor/core.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
+import { stockParse } from '../helpers/mermaid.js';
 
 vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
@@ -25,9 +26,7 @@ if (typeof globalThis.PointerEvent === 'undefined') {
 
 let mermaidParse: (code: string) => Promise<unknown>;
 beforeAll(async () => {
-  const { default: mermaid } = await import('mermaid');
-  mermaid.initialize({ startOnLoad: false });
-  mermaidParse = (code) => mermaid.parse(code);
+  mermaidParse = stockParse;
   await loadBuiltinIcons();
 });
 const valid = async (code: string): Promise<void> => {

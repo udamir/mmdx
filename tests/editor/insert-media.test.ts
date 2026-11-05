@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 // The insert dock and its pickers (T05): the Image button per kind (no Text, Icons, Container or Connector tools: those
 // are made inline), icons set and images inserted and set through the flowchart's edit kind (every output parsed by
-// stock Mermaid 11.17), the image policy and the host's `uploadImage`, emoji at the caret, the Shapes palette
+// stock Mermaid 12.2 and 11.17), the image policy and the host's `uploadImage`, emoji at the caret, the Shapes palette
 // (Alt-click replace), the selection toolbar's media controls and the Properties sections.
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
 import { loadBuiltinIcons } from '../../src/core/icons/registry.js';
 import { press, pev } from './connect.helpers.js';
+import { stockParse } from '../helpers/mermaid.js';
 
 vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
@@ -16,9 +17,7 @@ let ed: DiagramEditor | null = null;
 let mermaidParse: (code: string) => Promise<unknown>;
 
 beforeAll(async () => {
-  const { default: mermaid } = await import('mermaid');
-  mermaid.initialize({ startOnLoad: false });
-  mermaidParse = (code) => mermaid.parse(code);
+  mermaidParse = stockParse;
   await loadBuiltinIcons();
 });
 beforeEach(() => {

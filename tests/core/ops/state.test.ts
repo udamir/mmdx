@@ -6,13 +6,12 @@ import { splitSource } from '../../../src/core/meta/index.js';
 import * as ST from '../../../src/core/ops/state.js';
 import { parseState } from '../../../src/core/parse/state.js';
 import type { ItemRef } from '../../../src/core/types.js';
+import { stockParse } from '../../helpers/mermaid.js';
 
 const P = parseState;
 let mermaidParse: (code: string) => Promise<unknown>;
 beforeAll(async () => {
-  const { default: mermaid } = await import('mermaid');
-  mermaid.initialize({ startOnLoad: false });
-  mermaidParse = (code) => mermaid.parse(code);
+  mermaidParse = stockParse;
 });
 const LABEL = 'Renamed "x"\nline two';
 for (const file of ['order-lifecycle.mmdx', 'traffic-light.mmdx']) {

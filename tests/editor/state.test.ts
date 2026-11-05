@@ -4,7 +4,7 @@
 // them), connect and reconnect through the connect module, texts edited inline and in Properties keeping the form in
 // use, the type's Properties controls (kind, description rows, direction, Add region, note side), ⌘G / Ungroup (asking
 // before inner starts and ends are rewired), Delete of a composite asking about its contents, copy / paste / duplicate,
-// icons as label tokens and images in metadata — each one undo step, and every result parsed by stock Mermaid 11.17.
+// icons as label tokens and images in metadata — each one undo step, and every result parsed by stock Mermaid 12.2 and 11.17.
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { ALL_DIFF_KINDS } from '../../src/core/kinds/all-diff.js';
@@ -19,6 +19,7 @@ import { ALL_EDIT_KINDS } from '../../src/editor/kinds/all.js';
 import { editKind, forgetEditKinds, registerEditKinds } from '../../src/editor/kinds/registry.js';
 import { createConnection, reconnect } from '../../src/editor/modules/connect/index.js';
 import { setIconOf, setImageOf } from '../../src/editor/ops/media.js';
+import { stockParse } from '../helpers/mermaid.js';
 
 vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
@@ -28,9 +29,7 @@ beforeAll(() => {
 
 let mermaidParse: (code: string) => Promise<unknown>;
 beforeAll(async () => {
-  const { default: mermaid } = await import('mermaid');
-  mermaid.initialize({ startOnLoad: false });
-  mermaidParse = (code) => mermaid.parse(code);
+  mermaidParse = stockParse;
 });
 
 const SRC = `stateDiagram-v2

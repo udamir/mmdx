@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Mindmap gestures (T08.6): the outline keys, the + and fold handles, drag to re-parent / reorder / switch sides,
 // ⌥-drag copies, Shift+Delete, duplicate and paste of branches and of indented text, the Page property that writes
-// colorBy, images in metadata — each one undo step, and every result parsed by stock Mermaid 11.17.
+// colorBy, images in metadata — each one undo step, and every result parsed by stock Mermaid 12.2 and 11.17.
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import type { EditorCore } from '../../src/editor/core.js';
@@ -11,6 +11,7 @@ import { editKind } from '../../src/editor/kinds/registry.js';
 import { setImageOf } from '../../src/editor/ops/media.js';
 import { mindmapKeys } from '../../src/editor/modules/mindmap/index.js';
 import { click, drag, handle, press, pev } from './connect.helpers.js';
+import { stockParse } from '../helpers/mermaid.js';
 
 vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
@@ -31,9 +32,7 @@ afterEach(() => {
 
 let mermaidParse: (code: string) => Promise<unknown>;
 beforeAll(async () => {
-  const { default: mermaid } = await import('mermaid');
-  mermaid.initialize({ startOnLoad: false });
-  mermaidParse = (code) => mermaid.parse(code);
+  mermaidParse = stockParse;
 });
 
 /** An editor with every module; the mindmap gestures (the module's lazy part) loaded. */

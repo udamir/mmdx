@@ -13,6 +13,7 @@ import { portPoint } from '../../../src/core/render/common.js';
 import type { Side } from '../../../src/core/style.js';
 import type { CenterBox, Point } from '../../../src/core/types.js';
 import { renderProd } from '../render/helpers.js';
+import { stockParse, stockRejects } from '../../helpers/mermaid.js';
 
 // Mermaid 11.17's `shapesDefs` (rendering-util/rendering-elements/shapes.ts): shortName and aliases of every documented shape
 const MERMAID: Readonly<Record<string, readonly string[]>> = {
@@ -94,18 +95,16 @@ describe('names', () => {
   });
 });
 
-describe('Mermaid agreement (mermaid.parse 11.17)', () => {
+describe('Mermaid agreement (mermaid.parse 12.2 and 11.17)', () => {
   let parse: (code: string) => Promise<unknown>;
   beforeAll(async () => {
-    const { default: mermaid } = await import('mermaid');
-    mermaid.initialize({ startOnLoad: false });
-    parse = (code) => mermaid.parse(code);
+    parse = stockParse;
   });
 
   it('accepts every name the catalogue calls Mermaid\'s, and rejects the ones it reads as legacy', async () => {
     for (const s of SHAPES) {
       for (const n of [s.mermaid, ...s.aliases].filter((x): x is string => !!x)) await expect(parse(`flowchart TD\n  A@{ shape: ${n} }`), n).resolves.toBeTruthy();
-      for (const n of s.legacy ?? []) await expect(parse(`flowchart TD\n  A@{ shape: ${n} }`), n).rejects.toThrow();
+      for (const n of s.legacy ?? []) expect(await stockRejects(`flowchart TD\n  A@{ shape: ${n} }`), n).toBe(true);
     }
   });
 

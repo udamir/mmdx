@@ -95,7 +95,12 @@ export function configure(c: Config): void {
   if (c.iconPacks) s.icons.add(c.iconPacks);
   if (c.builtinIcons !== undefined) s.icons.setBuiltin(c.builtinIcons);
   if (c.themeSource) s.themeSource = c.themeSource;
-  if (c.mermaid) s.mermaid = c.mermaid;
+  if (c.mermaid) {
+    s.mermaid = c.mermaid;
+    // the next fallback render uses it, also after an earlier render loaded another Mermaid
+    mermaidInstance = null;
+    mermaidIcons = '';
+  }
   if (c.fonts) s.fonts = { ...s.fonts, ...c.fonts };
   if (c.debug !== undefined) s.debug = c.debug;
 }
@@ -177,7 +182,9 @@ export function renderWithMermaid(code: string, dark: boolean, icons: IconRegist
       if (packs.length) mermaid.registerIconPacks(packs);
       mermaidIcons = icons.key;
     }
-    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: dark ? 'dark' : 'default' });
+    // theme, look and layout given explicitly: Mermaid 12 changed their defaults (redux-color, neo, ELK), and the
+    // fallback should look like mmdx's light or dark scheme whichever Mermaid the host installed (10 to 12)
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: dark ? 'dark' : 'default', look: 'classic', layout: 'dagre' });
     const box = document.createElement('div');
     box.style.cssText = 'position:fixed;left:-10000px;top:0;visibility:hidden';
     document.body.append(box);

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The mindmap parser (T08.1): every row of the design's syntax table (§2), Mermaid's lexer quirks, the ids, the
 // diagnostics and the settings; Mermaid's own docs samples (tests/fixtures/mermaid-docs/mindmap-*.mmd) and the
-// examples parse as stock Mermaid 11.17 parses them — a source mmdx reads without errors is one Mermaid accepts, and
+// examples parse as stock Mermaid 12.2 and 11.17 parses them — a source mmdx reads without errors is one Mermaid accepts, and
 // one Mermaid rejects gets an mmdx error.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,6 +11,7 @@ import type { MindmapModel, MindNode } from '../../../src/core/model.js';
 import { parse } from '../../../src/core/parse/index.js';
 import { parseMindmap } from '../../../src/core/parse/mindmap.js';
 import { detectType } from '../../../src/core/parse/dispatch.js';
+import { stockParse } from '../../helpers/mermaid.js';
 
 const P = parseMindmap;
 const ROOT = join(__dirname, '../../..');
@@ -19,9 +20,7 @@ const EXAMPLES = ['product-mindmap.mmdx', 'study-notes.mmdx'].map((f) => ({ name
 
 let mermaidParse: (code: string) => Promise<unknown>;
 beforeAll(async () => {
-  const { default: mermaid } = await import('mermaid');
-  mermaid.initialize({ startOnLoad: false });
-  mermaidParse = (code) => mermaid.parse(code);
+  mermaidParse = stockParse;
 });
 const mermaidOk = async (code: string): Promise<boolean> => {
   try {
@@ -151,7 +150,7 @@ describe('mindmap: ids, sections, the indentation step', () => {
   });
 });
 
-describe('mindmap: agreement with stock Mermaid 11.17', () => {
+describe('mindmap: agreement with stock Mermaid 12.2 and 11.17', () => {
   const corpus: { name: string; src: string }[] = [
     ...FIXTURES,
     ...EXAMPLES,

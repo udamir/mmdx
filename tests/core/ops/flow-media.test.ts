@@ -5,13 +5,12 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { addFlowMediaNode, flowMedia, iconToken, leadingIcon, setFlowIcon, setFlowImage, setFlowMedia, withIconToken, writeNodeData } from '../../../src/core/ops/flow-media.js';
 import { parseFlowchart } from '../../../src/core/parse/flowchart.js';
+import { stockParse } from '../../helpers/mermaid.js';
 
 const P = parseFlowchart;
 let mermaidParse: (code: string) => Promise<unknown>;
 beforeAll(async () => {
-  const { default: mermaid } = await import('mermaid');
-  mermaid.initialize({ startOnLoad: false });
-  mermaidParse = (code) => mermaid.parse(code);
+  mermaidParse = stockParse;
 });
 async function valid(code: string): Promise<void> {
   await expect(mermaidParse(code), code).resolves.toBeTruthy();
