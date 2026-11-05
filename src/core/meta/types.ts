@@ -16,6 +16,8 @@ export interface PageSettings {
   mirror?: boolean;
   blockSpan?: 'full' | 'touched';
   margin?: number;
+  /** Sequence blocks show their kind (`loop`, `alt`…) in the frame's corner, as Mermaid does (default); false hides the tags (T11.2). */
+  blockTags?: boolean;
   /** Mindmap layout: both sides of the root (default), to the right, or top down. */
   mindLayout?: 'both' | 'right' | 'down';
   /** State diagrams: composites in the theme's one composite style (default), or each in a colour of its own (`state.compositeColors`). */

@@ -32,6 +32,8 @@ export const ALLOWED_ATTRS: ReadonlySet<string> = new Set([
 export const DATA_ATTRS: ReadonlySet<string> = new Set([
   'data-kind', 'data-id', 'data-part', 'data-from', 'data-to', 'data-link', 'data-index', 'data-layer',
   'data-mmdx-ssr', 'data-mmdx-measure', 'data-attr', 'data-participant', 'data-mirror', 'data-end', 'data-foot', 'data-handle',
+  // a sequence participant's Mermaid links (the viewer's link menu): JSON [label, url] pairs, the urls through the link policy
+  'data-links',
   // editor overlay handles (connections, bend points, sequence handles)
   'data-side', 'data-dir', 'data-msg', 'data-pid', 'data-edge', 'data-i', 'data-j',
   // diff overlays: the change a highlight belongs to, and the key that pairs an item across the diff views

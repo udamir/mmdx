@@ -100,6 +100,9 @@
       },
       "mirrored": {
         "background": "#faf4ed"
+      },
+      "plain-blocks": {
+        "background": "#faf4ed"
       }
     },
     "participant": {

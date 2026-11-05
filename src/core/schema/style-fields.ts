@@ -258,6 +258,7 @@ const COMMON_DEFS = (): Record<string, JsonSchema> => ({
       rowH: fieldSchema('rowH', FIELD_DEFS['rowH']!),
       mirror: fieldSchema('mirror', FIELD_DEFS['mirror']!),
       blockSpan: fieldSchema('blockSpan', FIELD_DEFS['blockSpan']!),
+      blockTags: { type: 'boolean', title: 'Sequence blocks show their kind (loop, alt…) in the corner' },
       margin: { type: 'number', minimum: 0, title: 'Sequence margin' },
       mindLayout: { enum: ['both', 'right', 'down'], title: 'Mindmap layout' },
       composites: { enum: ['single', 'palette'], title: 'State diagram composites: one style, or a colour each' },

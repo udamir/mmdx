@@ -85,7 +85,7 @@ const CLEANERS: Record<string, Cleaner> = {
   // state diagrams: composites in one style or each in a colour of its own
   composites: oneOf('single', 'palette'),
   stack,
-  locked: bool, hidden: bool, mirror: bool, labelOnLine: bool, showTag: bool, showTypes: bool, showComments: bool,
+  locked: bool, hidden: bool, mirror: bool, blockTags: bool, labelOnLine: bool, showTag: bool, showTypes: bool, showComments: bool,
   pkUnderline: bool, wrap: bool, collapsed: bool,
   arrow: ident, startArrow: ident, endArrow: ident, shape: ident, for: ident,
   ratio,

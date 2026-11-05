@@ -488,4 +488,24 @@ describe('canvas selection', () => {
     target!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     expect(got).toEqual({ href: 'https://example.com/docs', id: 'A' });
   });
+
+  it('View mode: a sequence participant with several Mermaid links opens a menu of them (T11, S13)', () => {
+    const { ed, core } = mount('sequenceDiagram\n  link A: Docs @ https://docs.example.com\n  link A: Status @ https://status.example.com\n  A->>B: hi\n');
+    ed.setMode('view');
+    const head = core.dom.body.querySelector('[data-kind="participant"][data-id="A"] a');
+    expect(head).toBeTruthy();
+    const got: unknown[] = [];
+    (core.dom.shadow.host as HTMLElement).addEventListener('mmdx-link', (ev) => {
+      got.push((ev as CustomEvent).detail);
+      ev.preventDefault();
+    });
+    head!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    // no link followed yet: the menu lists both
+    expect(got).toEqual([]);
+    const items = [...core.dom.shadow.querySelectorAll<HTMLButtonElement>('.link-menu [role=menuitem]')];
+    expect(items.map((b) => [b.textContent, b.title])).toEqual([['Docs', 'https://docs.example.com'], ['Status', 'https://status.example.com']]);
+    items[1]!.click();
+    expect(got).toEqual([{ href: 'https://status.example.com', id: 'A' }]);
+    expect(core.dom.shadow.querySelector('.link-menu')).toBeNull();
+  });
 });

@@ -148,7 +148,7 @@ function shell(s, palette, grid) {
       groupPresets: { wrapper: { stroke: '@border' }, proxy: { stroke: '@border' }, frame: { stroke: '@border' } },
     },
     sequence: {
-      pagePresets: { document: page, spacious: page, mirrored: page },
+      pagePresets: { document: page, spacious: page, mirrored: page, 'plain-blocks': page },
       participant: { stroke: '@border' }, activation: { stroke: '@border' }, note: { stroke: '@border' }, block: { stroke: '@border' },
       lifeline: { color: '@muted' }, message: { color: '@line' },
     },

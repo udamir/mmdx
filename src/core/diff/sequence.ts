@@ -35,12 +35,12 @@ export function diffSequence(a: SequenceModel, b: SequenceModel, ma: DiagramMeta
 
   const msgs = (m: SequenceModel) => m.items.filter((x): x is SeqMessage => x.kind === 'message');
   const msgName = (x: SeqMessage) => `${x.from} → ${x.to}: ${x.text}`;
-  const m = align(msgs(a), msgs(b), (x) => `${x.from}|${x.to}|${x.text}|${x.line}|${x.head}`, (x, y) => x.from === y.from && x.to === y.to);
+  const m = align(msgs(a), msgs(b), (x) => `${x.from}|${x.to}|${x.text}|${x.arrow}|${x.central ?? ''}`, (x, y) => x.from === y.from && x.to === y.to);
   for (const [x, y] of m.pairs) {
     const f: FieldChange[] = [];
     field(f, 'content', 'text', x.text, y.text);
     field(f, 'content', 'line', x.line, y.line);
-    field(f, 'content', 'arrow', x.head, y.head);
+    field(f, 'content', 'arrow', x.arrow + (x.central ? ` ${x.central}` : ''), y.arrow + (y.central ? ` ${y.central}` : ''));
     field(f, 'content', 'activation', `${x.activate ? '+' : ''}${x.deactivate ? '-' : ''}`, `${y.activate ? '+' : ''}${y.deactivate ? '-' : ''}`);
     metaFields(f, ma.messages?.[x.id], mb.messages?.[y.id], none);
     items.push(finish('message', y.id, msgName(y), f, x.id));

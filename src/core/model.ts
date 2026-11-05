@@ -227,6 +227,19 @@ export interface Participant {
   shape?: ParticipantShape;
   /** Declared with `create`. */
   created?: boolean;
+  /** The message that creates it (`create participant X` and the next message, to X): its head is drawn at that row. */
+  createdBy?: string;
+  /** The message that destroys it (`destroy X` and the next message, from or to X): its lifeline ends there with a cross. */
+  destroyedBy?: string;
+  /** `link X: Label @ url` and `links X: {"Label": "url"}`, in order (a label given again keeps its place): the participant's menu. */
+  links?: SeqLink[];
+  /** `properties X: {…}` as Mermaid's JSON (kept for the participant's icon, T10.2). */
+  properties?: Record<string, unknown>;
+}
+
+export interface SeqLink {
+  label: string;
+  url: string;
 }
 
 export interface SeqBox {
@@ -247,9 +260,19 @@ export interface SeqMessage {
   from: string;
   to: string;
   text: string;
+  /** The arrow as written (`->>`, `--x`, `-|\`…; one of Mermaid's 26 arrow tokens). */
+  arrow: string;
   line: 'solid' | 'dotted';
   head: MessageHead;
   both: boolean;
+  /** A half arrow head (11.17+: `-|\`, `-//`…): above (`top`) or below the line, as the line runs from `from` to `to`. */
+  half?: 'top' | 'bottom';
+  /** The half head is a single stroke (`-\\`, `-//`), not a filled triangle. */
+  stick?: true;
+  /** The head is at the `from` end, pointing back at it (`/|-`, `\|-`, `//-`, `\\-` and their dotted forms). */
+  reverse?: true;
+  /** Central connections (`A->>()B`, `A()->>B`, `A()->>()B`): a small circle on the lifeline's centre at that end. */
+  central?: 'to' | 'from' | 'both';
   activate: boolean;
   deactivate: boolean;
   src: number;
@@ -302,8 +325,22 @@ export interface SequenceModel extends BaseModel {
   participants: Participant[];
   items: SeqItem[];
   boxes: SeqBox[];
+  /** Messages are numbered somewhere (an `autonumber` statement that is not `autonumber off`). */
   autonumber: boolean;
+  /** Every `autonumber` statement in code order: Mermaid numbers from the first one on, and each one can stop, restart or re-step it. */
+  numbering: SeqNumbering[];
   title: string;
+  /** `accTitle: …` and `accDescr: …` / `accDescr { … }`: the SVG's `<title>` and `<desc>`. */
+  accTitle?: string;
+  accDescr?: string;
+}
+
+/** One `autonumber` statement: `autonumber`, `autonumber 10`, `autonumber 10 5` or `autonumber off`. */
+export interface SeqNumbering {
+  line: number;
+  on: boolean;
+  start?: number;
+  step?: number;
 }
 
 // ---- ER ---------------------------------------------------------------------------------------------------------

@@ -6,6 +6,7 @@ import { activationsBalanced } from '../../../src/core/ops/activations.js';
 import { toggleActivation } from '../../../src/core/ops/index.js';
 import { parseAttrLine, splitAttrComment } from '../../../src/core/parse/er.js';
 import { parse } from '../../../src/core/parse/index.js';
+import { lexDecl, lexMessage } from '../../../src/core/parse/sequence.js';
 import { stripMermaidStyles } from '../../../src/core/strip-styles.js';
 
 const SPACES = ' '.repeat(50_000);
@@ -40,6 +41,33 @@ describe('linear on long runs of spaces', () => {
   });
 
   it('trailing spaces of the code', () => fast(() => stripMermaidStyles(`flowchart LR\n  A${SPACES}B${SPACES}`)));
+
+  // T11 (S16): the sequence lexer's new tokens — half arrows, central connections, hyphenated ids, `@{…}`, `as`
+  it.each(['-', '--', '/', '\\', '|', '()', '-|', '/|', '\\|-', '@{', ' as ', 'x', '-x', ' '])('runs of %j in a message and a declaration', (unit) => {
+    const run = unit.repeat(Math.ceil(30_000 / unit.length));
+    for (const line of [`A${run}->>B: x`, `A->>${run}B: x`, `A${run}`, `A-${run}`, `${run}->>B: x`, `A()${run}()B: x`]) {
+      fast(() => lexMessage(line));
+      fast(() => parse(`sequenceDiagram\n  ${line}`));
+    }
+    for (const line of [`participant A${run}`, `participant A${run}@{ "type": "queue" }`, `participant A@{${run}} as B`, `participant ${run} as B`, `create actor A${run}`]) {
+      fast(() => lexDecl(line));
+      fast(() => parse(`sequenceDiagram\n  ${line}`));
+    }
+  });
+
+  it('random lines of the sequence tokens\' characters', () => {
+    // a seeded generator: the same lines every run
+    let seed = 7;
+    const rnd = (): number => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+    const ALPHABET = ['-', '>', '<', '/', '\\', '|', '(', ')', 'x', ')', ' ', 'A', ':', '+', '@', '{', '}', '"', 'as', ','];
+    for (let k = 0; k < 40; k++) {
+      let line = '';
+      while (line.length < 4000) line += ALPHABET[Math.floor(rnd() * ALPHABET.length)];
+      fast(() => lexMessage(line));
+      fast(() => lexDecl(`participant ${line}`));
+      fast(() => parse(`sequenceDiagram\n  ${line}\n  participant ${line}\n  link ${line}`));
+    }
+  });
 });
 
 describe('what the old regexes read stays the same', () => {

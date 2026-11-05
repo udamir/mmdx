@@ -1,8 +1,16 @@
 // Sequence diagram renderer (prototype render/sequence.js). Layout is computed from message order; metadata can
 // move participants horizontally (x), add vertical space (dy) and restyle anything.
+//
+// As Mermaid draws them (T11.1): message numbers follow every `autonumber` statement (start, step, off; self messages
+// numbered too); half arrows draw a half head above or below the line, at the receiver or, reversed, at the sender;
+// a central connection (`()`) ends the arrow at a small circle on the lifeline's centre; a created participant's head
+// sits at its creating message's row and its lifeline starts there; a destroyed one's lifeline ends at its destroying
+// message with a cross. A participant's Mermaid links (`link`, `links`) are its item link (the first one) and the
+// viewer's menu (`data-links`, all of them).
 import { ActivationTracker } from '../ids.js';
 import type { DiagramMeta, ItemMeta } from '../meta/types.js';
 import type { Participant, SeqBlockStart, SeqMessage, SeqNote, SequenceModel } from '../model.js';
+import { messageNumbers } from '../parse/sequence.js';
 import { el, g } from '../scene/build.js';
 import type { SceneNode } from '../scene/types.js';
 import type { StyleProps } from '../style.js';
@@ -51,6 +59,8 @@ interface Layout {
   mirror: boolean;
   margin: number;
   blockSpan: string | undefined;
+  /** The page shows the blocks' kind tags (false: a page preset hides them; a block's own `showTag` still wins). */
+  blockTags: boolean;
 }
 
 interface Part {
@@ -62,6 +72,10 @@ interface Part {
   w: number;
   h: number;
   hidden: boolean;
+  /** Created by a message: the centre height of its head (at that message's row). */
+  createdY?: number;
+  /** Destroyed by a message: where its lifeline ends (that message's row). */
+  destroyedY?: number;
 }
 
 interface Act {
@@ -119,6 +133,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     mirror: typeof c.mirror === 'boolean' ? c.mirror : !!SL.mirror,
     margin: metaNum(c.margin) ?? SL.margin ?? 26,
     blockSpan: str(c.blockSpan),
+    blockTags: c.blockTags !== false,
   };
   const family = T.font;
   const defs = new Defs(ctx.idPrefix);
@@ -192,7 +207,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
   // ---- vertical pass
   const top = L.top;
   let headH = 40;
-  for (const x of parts) headH = Math.max(headH, x.h);
+  for (const x of parts) if (!x.p.createdBy) headH = Math.max(headH, x.h);
   let y = top + headH + 40;
   const msgs: MsgOut[] = [];
   const notes: { it: SeqNote; st: StyleProps; m: ItemMeta; x0: number; x1: number; y0: number; h: number; lines: string[]; hidden: boolean }[] = [];
@@ -206,7 +221,13 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     cx.forEach((v, i) => (m = Math.max(m, v + parts[i]!.w / 2)));
     return m + L.margin / 2;
   };
-  let num = 0;
+  const numbers = messageNumbers(model);
+  // participants created / destroyed by a message (their heads and lifelines start / end at its row)
+  const createdBy = new Map<string, Part>(), destroyedBy = new Map<string, Part>();
+  for (const x of parts) {
+    if (x.p.createdBy) createdBy.set(x.p.createdBy, x);
+    if (x.p.destroyedBy) destroyedBy.set(x.p.destroyedBy, x);
+  }
 
   // a process is identified by its participant and its order on it: B:1, B:2… (core/ids);
   // its look: the theme's activation + its own overrides (meta.activations)
@@ -259,21 +280,37 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
       const lh = (st.labelSize ?? 14) * L.lineH;
       const labelH = lines.length * lh;
       const self = it.from === it.to;
+      const num = numbers.get(it.id) ?? 0;
       if (self) {
         const ly = y + 14;
         const x0 = actEdge(it.from, 1);
-        msgs.push({ it, st, m, preset, hidden: isHidden, self: true, y: ly, x0, x1: x0 + 60, lines, lh, num: 0, bg: currentFill() });
+        msgs.push({ it, st, m, preset, hidden: isHidden, self: true, y: ly, x0, x1: x0 + 60, lines, lh, num, bg: currentFill() });
         y = ly + 34 + Math.max(0, labelH - 30);
       } else {
+        const made = createdBy.get(it.id);
+        // a created participant's head is centred on its creating message: room for its upper half first
+        if (made && made.p.id === it.to) y += made.h / 2;
         const ly = y + (st.labelOnLine ? Math.max(L.rowH, labelH + 18) / 2 : labelH + 8);
         const dir = cxOf(it.to) > cxOf(it.from) ? 1 : -1;
         if (it.activate) activate(it.to, ly - 12, it.id);
-        const x0 = actEdge(it.from, dir);
-        const x1 = actEdge(it.to, -dir);
-        if (model.autonumber) num++;
+        let x0 = actEdge(it.from, dir);
+        let x1 = actEdge(it.to, -dir);
+        // central connections end at the circle on the lifeline's centre
+        if (it.central === 'from' || it.central === 'both') x0 = cxOf(it.from) + dir * CENTRAL_R;
+        if (it.central === 'to' || it.central === 'both') x1 = cxOf(it.to) - dir * CENTRAL_R;
+        if (made && made.p.id === it.to) {
+          made.createdY = ly;
+          x1 = cxOf(it.to) - dir * (made.w / 2 + 3);
+        }
         msgs.push({ it, st, m, preset, hidden: isHidden, self: false, y: ly, x0, x1, lines, lh, num, bg: currentFill() });
         if (it.deactivate) deactivate(it.from, ly + 12, it.id);
         y = ly + (st.labelOnLine ? Math.max(L.rowH, labelH + 18) / 2 : 12);
+        if (made && made.p.id === it.to) y += made.h / 2;
+      }
+      const gone = destroyedBy.get(it.id);
+      if (gone) {
+        gone.destroyedY = msgs[msgs.length - 1]!.y;
+        y += 12;
       }
       touched([it.from, it.to]);
     } else if (it.kind === 'activate') {
@@ -319,7 +356,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     } else if (it.kind === 'blockStart') {
       const m = mt('blocks', it.id);
       const fill = it.color ? it.color : undefined;
-      const st = mergeStyle(ctx, S.block, baseStyle(meta, 'block'), fill ? { fill } : null, presetOf(P.block, str(m.preset)), pickStyle(m, ['showTag']));
+      const st = mergeStyle(ctx, S.block, L.blockTags ? null : { showTag: false }, baseStyle(meta, 'block'), fill ? { fill } : null, presetOf(P.block, str(m.preset)), pickStyle(m, ['showTag']));
       y += metaNum(m.dy) || 0;
       const b: BlockOut = { it, m, st, y0: y, y1: y, parts: new Set(), elses: [], depth: blockStack.length, hidden: hidden.block.has(it.id) || inHiddenBlock() };
       blockStack.push(b);
@@ -441,8 +478,17 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
   parts.forEach((x, i) => {
     if (x.hidden) return;
     const lx = cx[i]!;
-    const y0 = top + x.h, y1 = L.mirror ? bottom : bottom + 20;
+    const y0 = x.createdY !== undefined ? x.createdY + x.h / 2 : top + x.h;
+    const y1 = x.destroyedY ?? (L.mirror ? bottom : bottom + 20);
     const dash = LL.dash || undefined;
+    // destroyed: a cross where the lifeline ends
+    if (x.destroyedY !== undefined) {
+      const c = 9;
+      body.push(el('path', {
+        d: `M${fmt(lx - c)},${fmt(y1 - c)} L${fmt(lx + c)},${fmt(y1 + c)} M${fmt(lx + c)},${fmt(y1 - c)} L${fmt(lx - c)},${fmt(y1 + c)}`,
+        stroke: LL.color, 'stroke-width': Math.max(2, (LL.width ?? 1) * 1.6), 'stroke-linecap': 'round', fill: 'none',
+      }, `destroy:${x.p.id}`));
+    }
     body.push(
       el('line', {
         x1: lx, y1: y0, x2: lx, y2: y1, stroke: LL.color, 'stroke-width': LL.width, 'stroke-dasharray': dash,
@@ -503,10 +549,13 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     const { it, st } = gm;
     const width = st.width ?? 1.5, labelSize = st.labelSize ?? 14;
     const reply = it.line === 'dotted';
-    const dash = (reply ? st.replyDash || st.dash : st.dash) || undefined;
+    // a reply (dotted arrow) is dashed with the theme's replyDash unless a preset or the message itself sets a dash
+    const dash = (reply ? st.dash || st.replyDash : st.dash) || undefined;
     const dashOf = (w: number): ReturnType<typeof dashAttrs> => dashAttrs(dash, w);
     const head = it.head === 'arrow' ? st.arrow : it.head === 'open' ? 'none' : it.head === 'cross' ? 'cross' : 'open';
-    const mk = defs.marker(head, st.color, 10 + width * 3);
+    const size = 10 + width * 3;
+    // a half head is drawn as a path of its own (no marker); a reversed one sits at the sender's end
+    const mk = it.half || it.reverse ? null : defs.marker(head, st.color, size);
     const mkS = it.both ? mk : null;
     const href = itemLink(ctx, gm.m.link);
     const labelColor = href ? LINK_COLOR : st.labelColor ?? undefined;
@@ -518,12 +567,15 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
         el('path', { class: 'hit', d, fill: 'none', stroke: 'transparent', 'stroke-width': 14 }),
         el('path', { d, fill: 'none', stroke: st.color, 'stroke-width': width * 0.75, ...dashOf(width * 0.75), 'marker-end': urlRef(mk) }),
         el('circle', { cx: x + 54, cy: yy + 12, r: 2.5, fill: st.color }),
+        // the loop comes back leftwards; a reversed head sits where it leaves the lifeline
+        ...halfHead(it, it.reverse ? x : x + 2, it.reverse ? yy : yy + 24, -1, -1, size, width * 0.75, st.color),
         ...withLink(href, [
           textBlock(gm.lines, x + 66, yy + 12, {
             size: labelSize, color: labelColor, family: st.fontFamily || family, weight: st.fontWeight || 400, anchor: 'start', lh: L.lineH, underline: !!href,
           }),
         ]),
       );
+      if (gm.num) inner.push(...numberBadge(gm.num, x + 12, yy, st.color, family));
       msgGeom.set(it.id, { x0: x, x1: x + 60, y: yy, self: true });
     } else {
       const { x0, x1, y: yy } = gm;
@@ -534,6 +586,11 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
           ...dashOf(width), 'marker-end': urlRef(mk), 'marker-start': urlRef(mkS),
         }),
       );
+      const dir = x1 >= x0 ? 1 : -1;
+      if (it.reverse) inner.push(...halfHead(it, x0, yy, -dir, dir, size, width, st.color));
+      else if (it.half) inner.push(...halfHead(it, x1, yy, dir, dir, size, width, st.color));
+      if (it.central === 'to' || it.central === 'both') inner.push(el('circle', { cx: x1 + dir * CENTRAL_R, cy: yy, r: CENTRAL_R, fill: st.color }));
+      if (it.central === 'from' || it.central === 'both') inner.push(el('circle', { cx: x0 - dir * CENTRAL_R, cy: yy, r: CENTRAL_R, fill: st.color }));
       if (it.text && !opts.hideLabels) {
         const cxm = (x0 + x1) / 2;
         const tw = textBlockWidth(gm.lines, font(labelSize, st.fontWeight || 400, st.fontFamily || family), ctx.measure);
@@ -548,10 +605,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
           ]),
         );
       }
-      if (gm.num) {
-        const nx = x0 + (x1 > x0 ? 12 : -12);
-        inner.push(el('circle', { cx: nx, cy: yy, r: 9, fill: st.color }), textBlock([String(gm.num)], nx, yy, { size: 10, weight: 700, color: '#fff', family }));
-      }
+      if (gm.num) inner.push(...numberBadge(gm.num, x0 + (x1 > x0 ? 12 : -12), yy, st.color, family));
       msgGeom.set(it.id, { x0, x1, y: yy });
     }
     body.push(itemGroup('message', it.id, 'message', inner, { 'data-from': it.from, 'data-to': it.to, ...linkAttr(href) }));
@@ -561,16 +615,21 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
   parts.forEach((x, i) => {
     if (x.hidden) return;
     const px = cx[i]!;
-    const href = itemLink(ctx, x.m.link);
-    body.push(itemGroup('participant', x.p.id, 'participant', participantNodes(x, px, top + x.h / 2, family, href), linkAttr(href)));
+    // its own link first, else the first of its Mermaid links; all of them make the viewer's menu
+    const href = x.m.link ? itemLink(ctx, x.m.link) : firstLink(ctx, x.p);
+    const attrs = { ...linkAttr(href), ...menuAttr(ctx, x.p) };
+    const hy = x.createdY ?? top + x.h / 2;
+    body.push(itemGroup('participant', x.p.id, 'participant', participantNodes(x, px, hy, family, href), attrs));
     if (L.mirror) {
-      // the copy at the bottom: selectable / resizable like the head (data-foot tells the editor which one was picked)
+      // the copy at the bottom: selectable / resizable like the head (data-foot tells the editor which one was picked);
+      // a destroyed participant's copy sits under its cross
+      const fy = x.destroyedY !== undefined ? x.destroyedY + 14 + x.h / 2 : bottom + x.h / 2;
       body.push(
-        itemGroup('participant', x.p.id, 'participant', participantNodes(x, px, bottom + x.h / 2, family, href), { 'data-foot': '1', ...linkAttr(href) }, 'foot'),
+        itemGroup('participant', x.p.id, 'participant', participantNodes(x, px, fy, family, href), { 'data-foot': '1', ...attrs }, 'foot'),
       );
-      footGeom.set(x.p.id, { x: px, y: bottom + x.h / 2, w: x.w, h: x.h });
+      footGeom.set(x.p.id, { x: px, y: fy, w: x.w, h: x.h });
     }
-    partGeom.set(x.p.id, { x: px, y: top + x.h / 2, w: x.w, h: x.h });
+    partGeom.set(x.p.id, { x: px, y: hy, w: x.w, h: x.h });
   });
 
   const pad = env.pad;
@@ -609,13 +668,51 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     autoX: new Map(parts.map((x, i) => [x.p.id, auto[i]!])),
     lifelines,
   };
-  return {
-    defs: defs.nodes(),
-    body,
-    bounds,
-    geom,
-    presetsUsed: { message: countBy(msgs.map((x) => x.preset || '(none)')) },
-  };
+  const out: SubResult = { defs: defs.nodes(), body, bounds, geom, presetsUsed: { message: countBy(msgs.map((x) => x.preset || '(none)')) } };
+  // `accTitle` / `accDescr`: the SVG's <title> and <desc>
+  if (model.accTitle || model.accDescr) out.a11y = { ...(model.accTitle ? { title: model.accTitle } : {}), ...(model.accDescr ? { desc: model.accDescr } : {}) };
+  return out;
+}
+
+/** Radius of a central connection's circle. */
+const CENTRAL_R = 5;
+
+/** A message number in its disc. */
+function numberBadge(n: number, x: number, y: number, color: string | undefined, family: string): SceneNode[] {
+  return [el('circle', { cx: x, cy: y, r: 9, fill: color }), textBlock([String(n)], x, y, { size: n >= 100 ? 8 : 10, weight: 700, color: '#fff', family })];
+}
+
+/**
+ * A half arrow head at (x, y), pointing `dir` (±1 along x). `run` is the way the line runs from sender to receiver:
+ * Mermaid's `top` head is above the line when it runs to the right, below when it runs to the left (its marker turns
+ * with the line). Filled: a right triangle with its tip on the line; stick: one stroke back from the tip.
+ */
+function halfHead(it: SeqMessage, x: number, y: number, dir: number, run: number, size: number, width: number, color: string | undefined): SceneNode[] {
+  if (!it.half) return [];
+  const len = size * 0.8, h = size * 0.5;
+  const up = (it.half === 'top') === run > 0 ? -1 : 1;
+  const bx = x - dir * len, by = y + up * h;
+  if (it.stick) return [el('path', { d: `M${fmt(x)},${fmt(y)} L${fmt(bx)},${fmt(by)}`, fill: 'none', stroke: color, 'stroke-width': Math.max(1.5, width), 'stroke-linecap': 'round' })];
+  return [el('path', { d: `M${fmt(x)},${fmt(y)} L${fmt(bx)},${fmt(y)} L${fmt(bx)},${fmt(by)} Z`, fill: color, stroke: color, 'stroke-width': 1, 'stroke-linejoin': 'round' })];
+}
+
+/** The first of a participant's Mermaid links that passes the link policy. */
+function firstLink(ctx: RenderEnv['ctx'], p: Participant): ReturnType<typeof itemLink> {
+  for (const l of p.links ?? []) {
+    const href = itemLink(ctx, l.url);
+    if (href) return href;
+  }
+  return null;
+}
+
+/** `data-links`: a participant's Mermaid links that pass the link policy, for the viewer's menu (only with two or more). */
+function menuAttr(ctx: RenderEnv['ctx'], p: Participant): Record<string, string> {
+  const list: [string, string][] = [];
+  for (const l of p.links ?? []) {
+    const href = itemLink(ctx, l.url);
+    if (href) list.push([l.label || l.url, href]);
+  }
+  return list.length > 1 ? { 'data-links': JSON.stringify(list) } : {};
 }
 
 function participantNodes(x: Part, cx: number, cy: number, family0: string, href: ReturnType<typeof itemLink>): SceneNode[] {

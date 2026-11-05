@@ -15,6 +15,7 @@ import { clearHighlight, hoverHighlight } from '../../../dom/highlight.js';
 import { h } from '../../../ui/h.js';
 import type { EditorCore, Gesture, Hit, Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
+import { menuLinks, openLinkMenu } from '../../../view/link-menu.js';
 import { connectionCount, elementAt, inArea, itemLabel, LINE_KINDS, markSelection, samePrimary, selectable, selKey, sizeBadge } from './shared.js';
 
 const NOOP: Gesture = { move: () => undefined };
@@ -489,10 +490,16 @@ export const canvasSelectModule: EditorModule = {
       const href = linked?.getAttribute('data-link') ?? a?.getAttribute('href');
       if (!href) return;
       const item = (linked ?? a)?.closest('[data-id]');
-      if (!core.emit('mmdx-link', { href, id: item?.getAttribute('data-id') ?? null }, true)) return;
-      const target = core.ctx.linkPolicy.target ?? '_blank';
-      if (target === '_blank') window.open(href, '_blank', 'noopener,noreferrer');
-      else window.location.assign(href);
+      const follow = (url: string): void => {
+        if (!core.emit('mmdx-link', { href: url, id: item?.getAttribute('data-id') ?? null }, true)) return;
+        const target = core.ctx.linkPolicy.target ?? '_blank';
+        if (target === '_blank') window.open(url, '_blank', 'noopener,noreferrer');
+        else window.location.assign(url);
+      };
+      // several links (a sequence participant's `links`): a menu of them at the pointer
+      const links = menuLinks(linked ?? a ?? null);
+      if (links) openLinkMenu({ popovers: core.popovers, within: core.area, at: ev, label: core.i18n.t('view.links'), links, follow });
+      else follow(href);
     });
 
     let hoverKey = '';

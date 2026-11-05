@@ -4,7 +4,7 @@ import { maxOf, minOf } from '../geom.js';
 import { activationsOf } from '../ids.js';
 import type { BlockKind, Participant, SeqBlockStart, SeqItem, SeqMessage, SequenceModel } from '../model.js';
 import { encodeLabel } from '../parse/label.js';
-import { findArrow } from '../parse/sequence.js';
+import { lexMessage } from '../parse/sequence.js';
 import type { ItemRef } from '../types.js';
 import { activationsBalanced } from './activations.js';
 import { blocksOf } from './reorder.js';
@@ -308,20 +308,15 @@ export function resizeBlockStep(code: string, model: SequenceModel, blockId: str
 // Applying it to an already-activated pair removes the activation instead.
 
 /**
- * A message line as its head (through the arrow, found by the parser's scan), its `+` / `-` marker and the rest; the
- * spaces around the marker are dropped. A regex for this backtracked on long runs of spaces.
+ * A message line as its head (through the arrow, read by the parser's scan), its `+` / `-` marker and the rest; the
+ * spaces around the marker are dropped. A regex for this backtracked on long runs of spaces. A central connection
+ * (`()`) takes no marker in Mermaid's grammar: null.
  */
 function markerParts(line: string): { head: string; mark: string; rest: string } | null {
-  const a = findArrow(line);
-  if (!a) return null;
-  const head = line.slice(0, a.index + a.arrow.length);
-  let rest = line.slice(head.length).trimStart();
-  let mark = '';
-  if (rest[0] === '+' || rest[0] === '-') {
-    mark = rest[0];
-    rest = rest.slice(1).trimStart();
-  }
-  return rest ? { head, mark, rest } : null;
+  const x = lexMessage(line);
+  if (!x || x.fromCentral || x.toCentral) return null;
+  const head = line.slice(0, x.arrowAt + x.arrow.length);
+  return { head, mark: x.act, rest: line.slice(x.toAt) };
 }
 const setMarker = (line: string | undefined, mark: '' | '+' | '-'): string => {
   const p = markerParts(line ?? '');
@@ -354,7 +349,7 @@ export function toggleActivation(code: string, model: SequenceModel, idA: string
     L.splice(m2.src + 1, 1);
     L.splice(m1.src - 1, 1);
     removed = true;
-  } else if (m1.to === P && m2.from === P && !m1.activate && !m1.deactivate && !m2.activate && !m2.deactivate) {
+  } else if (m1.to === P && m2.from === P && !m1.activate && !m1.deactivate && !m2.activate && !m2.deactivate && !m1.central && !m2.central) {
     L[m1.src] = setMarker(L[m1.src], '+');
     L[m2.src] = setMarker(L[m2.src], '-');
   } else {
@@ -432,7 +427,7 @@ export function moveActivationEdge(code: string, model: SequenceModel, id: strin
     if (old.type === 'line') ops.push({ at: old.src, del: true });
     else L[old.src] = setMarker(L[old.src], '');
   }
-  const free = m.from !== m.to && !markerOf(L[m.src]);
+  const free = m.from !== m.to && !m.central && !markerOf(L[m.src]);
   const pid = a.participant;
   if (edge === 'top') {
     if (free && m.to === pid) L[m.src] = setMarker(L[m.src], '+');

@@ -358,6 +358,11 @@
         "label": "Participants top & bottom",
         "background": "@paper",
         "mirror": true
+      },
+      "plain-blocks": {
+        "label": "Blocks without kind tags",
+        "background": "@paper",
+        "blockTags": false
       }
     },
     "participant": {
@@ -421,7 +426,7 @@
       "labelSize": 16,
       "labelColor": "@ink",
       "dash": "",
-      "replyDash": "",
+      "replyDash": "4 3",
       "labelOnLine": true
     },
     "messagePresets": {
@@ -468,7 +473,7 @@
       "strokeWidth": 2.6,
       "labelSize": 20,
       "labelColor": "@ink",
-      "showTag": false,
+      "showTag": true,
       "radius": 0
     },
     "blockPresets": {
