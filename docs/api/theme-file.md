@@ -33,6 +33,7 @@ Register a file with [`registerThemes`](/api/configuration#registerthemes), serv
 | `sequence` | `SequenceTheme` | `participant`, `message`, `note`, `block`, `box`, `lifeline`, `activation`, their `…Presets`, `participantShapes`, `layout` and `pagePresets` |
 | `er` | `ErTheme` | `entity`, `rel`, their `…Presets` and `pagePresets` |
 | `mindmap` | `MindmapTheme` | `root`, `node`, `nodeShapes`, `nodePresets`, `branch`, `sections` and `pagePresets` |
+| `state` | `StateTheme` | `node`, `nodeShapes`, `nodePresets`, `start`, `end`, `choice`, `fork`, `composite`, `compositePresets`, `compositeColors`, `note`, `notePresets`, `transition`, `transitionPresets` and `pagePresets` |
 
 Any other top-level key (the built-in files carry `source`, for example) is kept as it is and never read by a renderer.
 
@@ -411,11 +412,71 @@ Each child of the root starts a section and its subtree keeps it (Mermaid's rule
 The sections are palette references, so every theme that extends Default Light recolours them with its own palette. Node presets: `idea`, `urgent`, `done`, `question` (a cloud), `muted`, `plain`. Page presets: `both` (Both sides), `right` (To the right), `down` (Top down).
 :::
 
+## `state`
+
+| Key | Type | Holds |
+|---|---|---|
+| `node` | `StyleProps` | A state: a rounded box with its title centred (with description rows: the title, a divider and the rows under it) |
+| `nodeShapes` | `Record<string, StyleProps>` | Default style per shape, for states given a catalogue shape in metadata (`shape`) |
+| `nodePresets` | `Record<string, StyleProps>` | Named state presets, also picked by a state's `:::class` or `class` of that name |
+| `start` | `StyleProps` | The start pseudo-state: a filled dot (`fill`, `w` its diameter) |
+| `end` | `StyleProps` | The end pseudo-state: a dot in a ring (`fill`, `stroke`, `strokeWidth`, `w`) |
+| `choice` | `StyleProps` | `<<choice>>`: a diamond (`w` its size) |
+| `fork` | `StyleProps` | `<<fork>>` and `<<join>>`: a filled bar across the flow (`fill`, `w` its length, `h` its thickness) |
+| `composite` | `StyleProps` | A composite state: its frame and title band (`pad`, `padTop`, `titleSize`, …) |
+| `compositePresets` | `Record<string, StyleProps>` | Named composite presets, also picked by a composite's class of that name |
+| `compositeColors` | `Record<string, StyleProps>` | The colours of composites under the page setting `composites: "palette"`: `"0"`, `"1"`, … taken in turn by the composite's place in the code |
+| `note` | `StyleProps` | A note: a folded-corner box beside its state; `color` is its dashed line's colour |
+| `notePresets` | `Record<string, StyleProps>` | Named note presets |
+| `transition` | `StyleProps` | A transition: an arrow with a label (`color`, `width`, `dash`, `arrow`, `labelSize`, `labelColor`, `curve`) |
+| `transitionPresets` | `Record<string, StyleProps>` | Named transition presets |
+| `pagePresets` | `Record<string, PageSettings>` | Page presets of state diagrams |
+
+| Item | Editable keys | Also read |
+|---|---|---|
+| `node` | `fill`, `stroke`, `text`, `strokeWidth`, `fontSize`, `fontWeight`, `radius`, `shape`, `dash` | `padX`, `padY`, `minW`, `minH`, `fontFamily` |
+| `start` | `fill`, `w` | |
+| `end`, `choice` | `fill`, `stroke`, `strokeWidth`, `w` | |
+| `fork` | `fill`, `w`, `h` | |
+| `composite` | `fill`, `stroke`, `strokeWidth`, `radius`, `stack`, `titleSize`, `titleColor`, `titleWeight`, `titleAlign`, `pad`, `padTop` | `fontFamily` |
+| `compositeColors` | `fill`, `stroke` | |
+| `note` | `fill`, `stroke`, `strokeWidth`, `dash`, `text`, `fontSize`, `color` | `padX`, `padY`, `minW`, `minH`, `fontFamily` |
+| `transition` | `color`, `width`, `dash`, `arrow`, `labelColor`, `labelSize`, `curve` | `fontFamily` |
+
+A state is drawn with, in order: `node`, its shape's default from `nodeShapes`, the diagram's base style, its preset, `classDef default`, its other classes' `classDef`s, its `style` line and its metadata. A composite under `composites: "palette"` takes its colour from `compositeColors` over `composite`, with its preset and own style over that. The page presets of Default Light are `whiteboard`, `grid`, `technical` (orthogonal transitions) and `colored` (Coloured composites, `composites: "palette"`); see [State diagrams](/guide/state).
+
+::: details Default Light values
+```json
+{
+  "node": { "fill": "@paper", "stroke": "@ink", "strokeWidth": 1.4, "text": "@ink", "fontSize": 15, "fontWeight": 400, "radius": 10, "stack": false, "shape": "rect", "minW": 64, "minH": 38, "padX": 14, "padY": 9 },
+  "start": { "fill": "@ink", "w": 14 },
+  "end": { "fill": "@paper", "stroke": "@ink", "strokeWidth": 1.6, "w": 18 },
+  "choice": { "fill": "@paper", "stroke": "@ink", "strokeWidth": 1.4, "w": 28 },
+  "fork": { "fill": "@ink", "w": 70, "h": 7 },
+  "composite": { "fill": "@mist", "stroke": "@silver", "strokeWidth": 1.2, "radius": 12, "stack": false, "titleSize": 14, "titleColor": "@title", "titleWeight": 600, "titleAlign": "center", "pad": 16, "padTop": 34 },
+  "compositeColors": {
+    "0": { "fill": "@pale-blue", "stroke": "@azure" },
+    "1": { "fill": "@peach", "stroke": "@rust" },
+    "2": { "fill": "@sage", "stroke": "@jade" },
+    "3": { "fill": "@lavender", "stroke": "@iris" },
+    "4": { "fill": "@pale-rose", "stroke": "@coral" },
+    "5": { "fill": "@butter", "stroke": "@bronze" },
+    "6": { "fill": "@ice", "stroke": "@teal" },
+    "7": { "fill": "@pale-lime", "stroke": "@forest" }
+  },
+  "note": { "fill": "@cream", "stroke": "@ochre", "text": "@ink", "strokeWidth": 1, "fontSize": 13, "color": "@ochre" },
+  "transition": { "color": "@line", "width": 1.3, "dash": "", "arrow": "filled", "labelSize": 12, "labelColor": null, "curve": 1 }
+}
+```
+
+The composite colours are palette references, so every theme that extends Default Light recolours them with its own palette. State presets: `active`, `done`, `waiting`, `error`, `idle`, `highlight`. Composite presets: `plain`, `tinted`, `lane` (a dashed frame without fill). Note presets: `info`, `warning`. Transition presets: `success`, `error`, `async` (dashed), `strong`. Page presets: `whiteboard` (Whiteboard), `grid` (Grid paper), `technical` (Technical — right angles), `colored` (Coloured composites).
+:::
+
 ## Presets
 
 ### Item presets
 
-Each `…Presets` key is a record of named style objects (`StyleProps`). An item uses a preset when its metadata names it (`%%@ node api {"preset": "core"}`) or, in flowcharts and mindmaps, when it has a Mermaid class of that name (`api:::core`). A diagram may define presets of its own (`%%@ style.node <name> {…}`); one with the same name as a theme preset replaces it in that diagram. A preset that sets `shape` changes the item's shape; `for` only records which shape the preset belongs to.
+Each `…Presets` key is a record of named style objects (`StyleProps`). An item uses a preset when its metadata names it (`%%@ node api {"preset": "core"}`) or, in flowcharts, mindmaps and state diagrams, when it has a Mermaid class of that name (`api:::core`; in a state diagram also `class api core`, for states and composites). A diagram may define presets of its own (`%%@ style.node <name> {…}`); one with the same name as a theme preset replaces it in that diagram. A preset that sets `shape` changes the item's shape; `for` only records which shape the preset belongs to.
 
 ```json
 {
@@ -430,7 +491,7 @@ Each `…Presets` key is a record of named style objects (`StyleProps`). An item
 
 ### `pagePresets`
 
-Page presets are per diagram type (`flowchart.pagePresets`, `sequence.pagePresets`, `er.pagePresets`, `mindmap.pagePresets`) and chosen by `%%@ canvas {"preset": "<name>"}`. Each holds page settings plus a display `label`:
+Page presets are per diagram type (`flowchart.pagePresets`, `sequence.pagePresets`, `er.pagePresets`, `mindmap.pagePresets`, `state.pagePresets`) and chosen by `%%@ canvas {"preset": "<name>"}`. Each holds page settings plus a display `label`:
 
 | Key | Type | Allowed values | Meaning |
 |---|---|---|---|
@@ -447,6 +508,7 @@ Page presets are per diagram type (`flowchart.pagePresets`, `sequence.pagePreset
 | `blockSpan` | `string` | `full`, `touched` | Sequence: block width |
 | `margin` | `number` | 0–100000 | Sequence: space left of the first participant |
 | `mindLayout` | `string` | `both`, `right`, `down` | Mindmap: both sides of the root, to the right, or top down |
+| `composites` | `string` | `single`, `palette` | State diagram: every composite in the `composite` style, or each in a colour of `compositeColors` |
 
 ```json
 {

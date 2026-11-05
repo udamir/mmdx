@@ -91,7 +91,7 @@ Each attribute sets the `ViewerOptions` option of the same name in camelCase (`t
 | — | `layers` | `readonly string[]` | from metadata | Ids of the visible layers |
 | `labels` | — | `boolean` | `true` | Show connector labels |
 | `hover-highlight` | — | `boolean` | `true` | Highlight the connected items of the item under the pointer |
-| `label` | — | `string` | generated | Accessible name: the diagram's `accTitle` when it has one, else generated, e.g. "Flowchart: 12 nodes, 14 connections" or "Mindmap: 9 nodes" (an `accDescr` becomes the accessible description) |
+| `label` | — | `string` | generated | Accessible name: the diagram's `accTitle` when it has one, else generated, e.g. "Flowchart: 12 nodes, 14 connections", "Mindmap: 9 nodes" or "State diagram: 8 states, 11 transitions" (an `accDescr` becomes the accessible description) |
 | `ui` | — | `'light' \| 'dark' \| 'auto'` | `auto` | Chrome colour scheme |
 | `scheme-toggle` | — | `boolean` | `true` | With the `theme` control: the light / dark toggle next to the theme menu. `false` keeps the menu and hides the toggle, for hosts that set `ui` themselves |
 | `compact` | — | `boolean \| 'auto'` | `auto` | The compact chrome (smaller, icon-only); automatic on small hosts |
@@ -197,9 +197,13 @@ With `controls` including `history` and a `history` property, the tool dock gets
 
 The viewer draws [mindmaps](/guide/mindmap) with mmdx's own tree layout; their code loads the first time a page shows one. A branch saved folded (metadata `collapsed`) stays folded, with a +N badge counting its hidden nodes: the viewer does not fold or unfold branches itself. The accessible name is "Mindmap: N nodes", and the text outline ([`outline()`](/api/core#outline)) is the tree of labels.
 
+## State diagrams
+
+The viewer draws [state diagrams](/guide/state) (`stateDiagram`, `stateDiagram-v2`) with the compound layout, each composite and concurrency region in its own direction; their code, with the shapes only state diagrams use, loads the first time a page shows one. `click` links go through the link policy and their tooltips show on hover, as in flowcharts. The accessible name is "State diagram: N states, M transitions" (states and composites, without the start and end pseudo-states), and the text outline ([`outline()`](/api/core#outline)) lists each state with its outgoing transitions, composites with their contents, and notes.
+
 ## Fallback and errors
 
-Flowcharts, sequence diagrams, ER diagrams and mindmaps are drawn by mmdx. Other Mermaid types follow `fallback`: `mermaid` renders them with stock Mermaid (an optional peer dependency, loaded lazily; configure it with `configure({ mermaid })`), `source` shows the text, `error` shows the error card. A source that cannot be parsed shows a compact error card with the diagnostics, the source with the bad lines marked, and a Copy button; it never throws into the page.
+Flowcharts, sequence diagrams, ER diagrams, mindmaps and state diagrams are drawn by mmdx. Other Mermaid types follow `fallback`: `mermaid` renders them with stock Mermaid (an optional peer dependency, loaded lazily; configure it with `configure({ mermaid })`), `source` shows the text, `error` shows the error card. A source that cannot be parsed shows a compact error card with the diagnostics, the source with the bad lines marked, and a Copy button; it never throws into the page.
 
 ## Keyboard shortcuts
 

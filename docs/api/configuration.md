@@ -326,6 +326,7 @@ Bundled with every component (`src/ui/i18n.ts`): zoom, full screen, view setting
 | `label.sequence` | `Sequence diagram: {participants} participants, {messages} messages` |
 | `label.er` | `ER diagram: {entities} tables, {rels} relationships` |
 | `label.mindmap` | `Mindmap: {nodes} nodes` |
+| `label.state` | `State diagram: {states} states, {transitions} transitions` |
 | `label.empty` | Empty diagram |
 | `label.unsupported` | Diagram |
 | `help.title` | Shortcuts |
@@ -596,6 +597,7 @@ Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problem
 | `type.sequence` | Sequence diagram |
 | `type.er` | ER diagram |
 | `type.mindmap` | Mindmap |
+| `type.state` | State diagram |
 | `type.empty` | Empty |
 | `type.unsupported` | `Unsupported: {kw}` |
 | `type.switchTitle` | `Start a new {type}?` |
@@ -691,10 +693,32 @@ Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problem
 | `group.selectBoxes` | Select boxes or groups to group |
 | `group.selectParticipants` | Select participants to group them into a box |
 | `group.alreadyBoxed` | A participant is already in a box — ungroup it first |
+| `state.kind` | Kind |
+| `state.kind.state` | State |
+| `state.kind.choice` | Choice |
+| `state.kind.fork` | Fork |
+| `state.kind.join` | Join |
+| `state.rows` | Description rows |
+| `state.rowsHint` | One row per line (shown under the name) |
+| `state.direction` | Direction |
+| `state.dirDefault` | Top to bottom (Mermaid’s default) |
+| `state.addRegion` | Add region |
+| `state.addRegionTip` | A concurrency region (--) at the end of the composite, with a new state in it |
+| `state.noteSide` | Side |
+| `state.left` | left |
+| `state.right` | right |
+| `state.deleteTitle` | `Delete “{name}”` |
+| `state.deleteMsg` | The composite holds states. Delete them too, or keep them where the composite was? |
+| `state.cancel` | Cancel |
+| `state.keepContents` | Keep contents |
+| `state.deleteContents` | Delete with contents |
+| `state.deletedKept` | Composite removed — its states stay. ⌘/Ctrl+Z to undo |
+| `state.deletedAll` | Composite and its states deleted — ⌘/Ctrl+Z to undo |
 | `tools.pointer` | `Select & edit` |
 | `tools.shapes` | Shapes — drag onto the canvas or click to add |
 | `tools.table` | Table — drag onto the canvas or click to add |
 | `tools.mindShapes` | Shapes — add a node to the selected one |
+| `tools.stateShapes` | States — drag onto the canvas or click to add |
 | `tools.code` | Mermaid code — show or hide the left panel |
 | `tools.props` | Properties — show or hide the Properties panel |
 | `tools.layers` | Layers — show or hide the Layers panel |
@@ -1097,6 +1121,7 @@ Registered by `<mmdx-theme-editor>` (`src/ui/messages/theme-editor.ts`): keys `t
 | `te.sequence` | Sequence |
 | `te.er` | ER |
 | `te.mindmap` | Mindmap |
+| `te.state` | State |
 | `te.code` | `</> Code` |
 | `te.codeTitle` | Edit the sample diagram in Mermaid |
 | `te.resetSample` | Reset sample |
@@ -1108,6 +1133,7 @@ Registered by `<mmdx-theme-editor>` (`src/ui/messages/theme-editor.ts`): keys `t
 | `te.section.flowchart` | Flowchart |
 | `te.section.sequence` | Sequence |
 | `te.section.er` | ER diagram |
+| `te.section.state` | State diagram |
 | `te.item.node` | Node |
 | `te.item.group` | Group (subgraph) |
 | `te.item.edge` | Connector |
@@ -1123,6 +1149,14 @@ Registered by `<mmdx-theme-editor>` (`src/ui/messages/theme-editor.ts`): keys `t
 | `te.item.root` | Root |
 | `te.item.branch` | Branch |
 | `te.item.section` | Sections (branch colours) |
+| `te.item.state.node` | State |
+| `te.item.start` | Start |
+| `te.item.end` | End |
+| `te.item.choice` | Choice |
+| `te.item.fork` | Fork / join |
+| `te.item.composite` | Composite state |
+| `te.item.compositeColor` | Composite colours |
+| `te.item.transition` | Transition |
 | `te.counterpart` | Linked theme |
 | `te.counterpartNone` | None — the house theme is used |
 | `te.counterpartHint` | `Shown instead of this theme when the UI switches to {other}. Saving links it back.` |

@@ -1,6 +1,6 @@
 # `<mmdx-editor>`
 
-The visual editor for flowcharts, sequence diagrams, ER diagrams and mindmaps. Everything done on the canvas is written back to the Mermaid code, and code edits update the canvas live; layout and looks are stored as `%%@` comment lines in the same text. It loads and saves through a document adapter (with conflict detection and live updates), or works on a value you set, and shows the document's History when you give it the versions.
+The visual editor for flowcharts, sequence diagrams, ER diagrams, mindmaps and state diagrams. Everything done on the canvas is written back to the Mermaid code, and code edits update the canvas live; layout and looks are stored as `%%@` comment lines in the same text. It loads and saves through a document adapter (with conflict detection and live updates), or works on a value you set, and shows the document's History when you give it the versions.
 
 ```ts
 import '@mmdx/studio/editor'; // <mmdx-editor>, DiagramEditor
@@ -217,10 +217,10 @@ Files laid out before the compound layout can keep the earlier layout for one mo
 
 The tools below Pointer add things to the diagram. Each diagram type offers what it can hold; a button it does not offer is hidden.
 
-| Button | Key | Does | Flowchart | Sequence | ER | Mindmap |
-|---|---|---|---|---|---|---|
-| Shapes | `S` | The [shape palette](#shapes) | Every Mermaid shape, by section | Participants, notes, blocks | Table presets | The 7 mindmap shapes, as a child of the selected node |
-| Image | `G` | Drag it onto the canvas (or click it: the middle) for an [image](#images) with the placeholder | An image node | — | — | A node with a picture (metadata `img`) |
+| Button | Key | Does | Flowchart | Sequence | ER | Mindmap | State diagram |
+|---|---|---|---|---|---|---|---|
+| Shapes | `S` | The [shape palette](#shapes) | Every Mermaid shape, by section | Participants, notes, blocks | Table presets | The 7 mindmap shapes, as a child of the selected node | State, start, end, choice, fork, join, composite state, note |
+| Image | `G` | Drag it onto the canvas (or click it: the middle) for an [image](#images) with the placeholder | An image node | — | — | A node with a picture (metadata `img`) | A state with a picture (metadata `img`) |
 
 Everything else is made where you work, without a dock tool: a text block is a shape of the Shapes menu (the "T"), an icon is set on the selected items from the floating toolbar or Properties ([icons](#icons)), a container wraps the selection with ⌘G, and a connector is drawn from a node's connection handles. The tooltips and the `?` popup show the keys. The pickers load the first time one opens.
 
@@ -236,13 +236,13 @@ Click a shape to add it in the middle of the canvas, or drag it where it goes (i
 
 The picker opens from the floating toolbar's **Icon** button (the first one; a dot marks an item with an icon) or the Properties panel, and sets the selected items' icon: an icon node's `icon` key, and on any other node a `pack:name` token at the start of its label (`fa:fa-car Car`, `azure:computer-vision Vision`), replacing the one it has. **Remove icon** takes it away. An icon node is written in Mermaid Chart's style — the label in its bracket, the node data in a statement of its own (`n4["User"]` and `n4@{ icon: "tabler:user", form: "rounded", pos: "b", h: 60 }`); **Convert to icon node** makes one from a node whose label starts with an icon.
 
-For an icon node, the toolbar's **Icon & image** popover and the Properties panel set the label's position (above or below), the frame (none, square, circle, rounded), the width, and the toolbar's **H** field its height — all written to its node data. Dragging the resize handle of an icon or image node sizes its icon or picture (an icon stays square, an image with **Keep aspect ratio** keeps its aspect) and writes `h` and `w` into its node data when you let go, so stock Mermaid draws it the same size. A node whose label starts with an icon token has **Convert to icon node** in the popover and in Properties: the icon becomes the node's and the rest of the label its caption. Properties notes when a label's icon is drawn by mmdx only (stock Mermaid draws Font Awesome tokens and shows other packs' as text). In a mindmap, the icon is a label token at the start of the node's text, which replaces an `::icon()` line the node has (see [Mindmaps](/guide/mindmap#icons)). Sequence, ER and the other types get their icon items in later releases; their items show no Icon button until then. What mmdx draws for icon and image nodes is described in [Flowchart content](/guide/flowchart).
+For an icon node, the toolbar's **Icon & image** popover and the Properties panel set the label's position (above or below), the frame (none, square, circle, rounded), the width, and the toolbar's **H** field its height — all written to its node data. Dragging the resize handle of an icon or image node sizes its icon or picture (an icon stays square, an image with **Keep aspect ratio** keeps its aspect) and writes `h` and `w` into its node data when you let go, so stock Mermaid draws it the same size. A node whose label starts with an icon token has **Convert to icon node** in the popover and in Properties: the icon becomes the node's and the rest of the label its caption. Properties notes when a label's icon is drawn by mmdx only (stock Mermaid draws Font Awesome tokens and shows other packs' as text). In a mindmap, the icon is a label token at the start of the node's text, which replaces an `::icon()` line the node has (see [Mindmaps](/guide/mindmap#icons)); in a state diagram, it is a token at the start of the state's title (`state "fa:fa-car Car" as Car`). Sequence, ER and the other types get their icon items in later releases; their items show no Icon button until then. What mmdx draws for icon and image nodes is described in [Flowchart content](/guide/flowchart).
 
 ### Images
 
 Images are always referenced by URL; the editor never embeds a file into the diagram.
 
-Drag the dock's **Image** button onto the canvas — or click it, or press `G`, for the middle of the canvas — and an image item with the placeholder (a dashed frame with a mountain glyph) is added and selected: in a flowchart `n5["Image"]` and `n5@{ img: "", h: 200, w: 200, pos: "b" }`, which stock Mermaid reads too; in a mindmap a child node with an empty metadata `img`. An empty URL draws the placeholder without a warning. Choose the picture afterwards with the floating toolbar's image control or the Properties panel's **Image URL**.
+Drag the dock's **Image** button onto the canvas — or click it, or press `G`, for the middle of the canvas — and an image item with the placeholder (a dashed frame with a mountain glyph) is added and selected: in a flowchart `n5["Image"]` and `n5@{ img: "", h: 200, w: 200, pos: "b" }`, which stock Mermaid reads too; in a mindmap a child node with an empty metadata `img`; in a state diagram a state titled "Image" with an empty metadata `img`. An empty URL draws the placeholder without a warning. Choose the picture afterwards with the floating toolbar's image control or the Properties panel's **Image URL**.
 
 - The image tool's **URL** field is checked while you type against the [image policy](/guide/security#image-policy) (`https:` from any host by default), with the reason when it is refused ("Only https images are allowed here").
 - With an `uploadImage` hook, the tool also takes a dropped file, a pasted picture (⌘V, in the tool or on the canvas) and a file input (PNG, JPEG, GIF, WebP, SVG, AVIF); the hook uploads it and the image references the URL it returns. A picture over 1600 px on its longer side is offered **Reduce to 1600 px** first (re-encoded in the browser). Without the hook, the drop zone is hidden and a pasted or dropped picture is refused with a toast.
@@ -293,6 +293,31 @@ A mindmap is edited like an outline: the structure is the indentation of the Mer
 - **Page**: in the page's Properties, **Colours** colours by branch (Mermaid's default) or by depth, written as `config.mindmap.colorBy: depth` into the frontmatter and removed again for by branch; **Mindmap → Layout** puts the branches on both sides of the root, to the right of it, or top down (`mindLayout`, also set by the page presets).
 
 The order slider of the floating toolbar moves a node among its siblings ("first", "last"). Grouping is refused ("A mindmap has branches, not groups").
+
+## State diagrams
+
+States, composites, transitions and notes are edited like flowchart nodes, subgraphs, edges and notes — selected, moved, resized, routed, styled and layered the same way, with positions and looks in the metadata — while everything structural is written to the Mermaid code in the scope Mermaid's rules need ([State diagrams → Editing](/guide/state#editing)).
+
+| Gesture | Code |
+|---|---|
+| Shapes menu (`S`): State, Choice, Fork, Join, dropped or clicked | `s1`, `state choice1 <<choice>>`, `state fork1 <<fork>>`, `state join1 <<join>>` at the end of the composite and region under the drop point (else the top level) |
+| Shapes menu: Start, dropped next to a state | `[*] --> s` in that state's scope; refused where the scope has a start ("This scope has a start already", which is selected) |
+| Shapes menu: End, dropped next to a state | `s --> [*]`; refused without a state near the drop ("An end needs a state before it") |
+| Shapes menu: Note, dropped next to a state or composite | `note left of s : Note` or `note right of s : Note`, the side from the drop position |
+| Shapes menu: Composite state | `state Group1 {` around a new state `}` |
+| Connection handles of a state or composite | `a --> b`, in the composite (and region) both ends share, else at the top level; into a start, out of an end, or a composite's start or end to a state outside it is refused with the reason |
+| Dragging a transition's end to another state | The end rewritten in place (label and `:::class` kept), or the line moved to the scope the new ends share |
+| Double-click, `Enter` or Properties text | A title in the form in use (`state "Text" as id`, `id : text`; a new one as `state "Text" as id`), `a --> b : label`, a note's text on one line or up to `end note` |
+| Properties: Kind | State, Choice, Fork, Join: the `state id <<…>>` line before the state's first mention, or removed |
+| Properties: Description rows | One `id : row` line per row, after the title (a state without a title gets `state "id" as id` first) |
+| Properties of a composite: Direction, Add region | `direction LR` as the block's first line (none: Mermaid's top to bottom); `--` and a new state at the end of the block |
+| Properties of a note: Side | `note left of` / `note right of` |
+| `⌘G` | `state Group1 {` … `}` around the selected states of one scope, with their transitions among them |
+| Ungroup (`⇧⌘G`) | The block lines removed; with an inner start or end it asks first ("Ungroup the composite?"), then rewires the transitions into and out of the composite to the states inside |
+| `Del` / `⌫` | A state with its texts, transitions, notes, link and style lines (the other ends stay); a composite with states asks: Cancel, Keep contents, Delete with contents |
+| `⌘C` / `⌘V`, `⌘D`, Alt-drag | Copies of states and composites with new ids, what they hold and the transitions between the copies |
+
+The icon picker writes a label token at the start of a state's title; the Image button adds a state titled "Image", and the image control sets the selected state's picture, both in metadata `img`; the toolbar's shape picker keeps a catalogue shape in metadata `shape` (mmdx only). The page's Direction writes the top-level `direction` line, and the page presets include **Coloured composites** (`composites: "palette"`). A `:::class` with no `classDef` and no preset of that name is listed in Problems.
 
 ## Saving
 
@@ -356,7 +381,7 @@ Shortcuts work while the focus is inside the editor; `?` lists those that apply 
 | Alt-drag | Drag a copy; Alt while dragging: no snapping |
 | `Esc` | Back one level: cancel a drag, stop a tool, clear the selection, leave a group or History |
 
-In a mindmap, `Tab`, `Enter`, the arrows, `F2`, `Space`, `⇧Del`, `⌘V` and `⌘D` act on the tree instead, and `⌥` + arrows move nodes: see [Mindmaps](#mindmaps). While an ER table is edited in place: `↑` / `↓` (with `⇧` to extend) select attributes, `⌥↑` / `⌥↓` move them, `Enter` edits one (the empty row adds one), `⌘A` selects all, `Del` deletes, `Esc` clears the selection, then leaves the table. While History compares: `1`–`4` views, `J` / `K` next and previous change, `X` swaps Before and After.
+In a mindmap, `Tab`, `Enter`, the arrows, `F2`, `Space`, `⇧Del`, `⌘V` and `⌘D` act on the tree instead, and `⌥` + arrows move nodes: see [Mindmaps](#mindmaps). In a state diagram the general keys apply; `S` opens the menu of states, `⌘G` / `⇧⌘G` make and unwrap composites, and `Del` on a composite with states asks first: see [State diagrams](#state-diagrams). While an ER table is edited in place: `↑` / `↓` (with `⇧` to extend) select attributes, `⌥↑` / `⌥↓` move them, `Enter` edits one (the empty row adds one), `⌘A` selects all, `Del` deletes, `Esc` clears the selection, then leaves the table. While History compares: `1`–`4` views, `J` / `K` next and previous change, `X` swaps Before and After.
 
 ## See also
 

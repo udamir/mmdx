@@ -58,7 +58,7 @@ The studio dispatches no events of its own; the inner editor's [events](/compone
 
 | Control | What it does |
 |---|---|
-| **＋ New** | A new flowchart, sequence diagram, ER diagram or mindmap from the starter (`starterSource(type)` from `@mmdx/studio/core`) |
+| **＋ New** | A new flowchart, sequence diagram, ER diagram, mindmap or state diagram from the starter (`starterSource(type)` from `@mmdx/studio/core`) |
 | **Examples** | A gallery of the examples, two to a row, each with its thumbnail or a preview of its newest version in the current theme |
 | **Open** | Opens `.mmdx`, `.mmd`, `.md`, `.txt` and `.json` files; files dropped anywhere on the studio open the same way |
 | File name | The open document's name, with a dot while it has unsaved changes |

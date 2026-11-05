@@ -33,7 +33,7 @@ editor.storage = storage;
 editor.features = { schemeToggle: false };
 await editor.whenLoaded();
 if (draft) editor.setSource(draft, { history: 'push', markSaved: false });
-const blank = starterSource('sequence'); // 'flowchart' | 'sequence' | 'er'
+const blank = starterSource('sequence'); // 'flowchart' | 'sequence' | 'er' | 'mindmap' | 'state'
 ```
 
 `host` stands for whatever API the embedding product gives the frame.
@@ -167,13 +167,13 @@ See [Saving documents](/guide/documents#drafts).
 
 ## Starters
 
-`starterSource('flowchart' | 'sequence' | 'er')` from `@mmdx/studio/core` is the source a new diagram starts from, as in the studio's New menu:
+`starterSource('flowchart' | 'sequence' | 'er' | 'mindmap' | 'state')` from `@mmdx/studio/core` is the source a new diagram starts from, as in the studio's New menu:
 
 ```ts
 import { starterSource, type StarterType } from '@mmdx/studio/core';
 
 function newDiagram(type: StarterType) {
-  editor.setSource(starterSource(type)); // 'flowchart TB\n', 'sequenceDiagram\n' or 'erDiagram\n'
+  editor.setSource(starterSource(type)); // 'flowchart TB\n', 'sequenceDiagram\n', 'erDiagram\n', 'mindmap\n  root((Topic))\n' or 'stateDiagram-v2\n'
 }
 ```
 

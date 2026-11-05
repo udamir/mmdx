@@ -247,20 +247,3 @@ describe('state layout properties', () => {
     expect(fails).toEqual([]);
   });
 });
-
-import { renderProd } from './helpers.js';
-it('PROBE', () => {
-  for (const routing of ['curved']) {
-    const fails: string[] = [];
-    for (let seed = 1; seed <= 400; seed++)
-      for (const dir of ['TB', 'LR'] as const) {
-        const src = randomDiagram(seed * 104729 + 13, dir) + `\n%%@ canvas {"v":1,"routing":"${routing}"}`;
-        const { model, geom } = renderState(src);
-        const o = overlaps(model, geom);
-        if (o.length) fails.push(`seed ${seed * 104729 + 13} ${dir}: ${[...o].join('; ')}`);
-      }
-    console.log(routing, fails.length, fails.join('\n'));
-  }
-  const r = renderProd(`stateDiagram-v2\n  direction LR\n  state A {\n    a1\n    --\n    a2\n  }\n  state B {\n    direction LR\n    b1\n    --\n    b2\n  }\n  state C {\n    c1\n  }\n%%@ canvas {"v":1,"composites":"palette"}`);
-  console.log(r.svg.match(/class="region" d="[^"]*"/g), r.svg.match(/data-kind="group" data-id="\w+"><rect[^>]*/g), r.meta.canvas, r.ctx.color('@sage'));
-});
