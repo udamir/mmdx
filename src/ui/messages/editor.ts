@@ -87,6 +87,8 @@ export const EDITOR_MESSAGES: Messages = {
   'help.layers': 'Layers panel (View settings in View mode)',
   'export.mmdxTip': 'Mermaid with the layout and styles as %%@ lines — opens in this editor with everything kept',
   'export.mmdTip': 'Plain Mermaid with classDef / linkStyle colours — renders in YouTrack, GitHub, …', 'export.pngTip': 'At 2× resolution',
+  'export.only.image1': '1 image', 'export.only.imageN': '{n} images', 'export.only.shape1': '1 shape', 'export.only.shapeN': '{n} shapes', 'export.only.and': '{a} and {b}',
+  'export.only1': '{what} is mmdx-only and is not in the portable file', 'export.onlyN': '{what} are mmdx-only and are not in the portable file',
   'more.title': 'More', 'more.open': 'Open…', 'more.openTip': 'Open .mmdx / .mmd / .md / .txt (+ .layout.json)', 'more.autoLayout': 'Auto layout',
   'more.autoLayoutTip': 'Forget manual positions of the whole diagram', 'more.plain': 'Plain Mermaid', 'more.plainTip': 'Render with stock Mermaid (what YouTrack / GitHub show)',
   'plain.title': 'Plain Mermaid render', 'plain.close': 'Close', 'plain.rendering': 'Rendering with stock Mermaid…', 'plain.badSvg': 'Mermaid returned no SVG',

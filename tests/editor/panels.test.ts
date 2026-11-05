@@ -4,7 +4,7 @@ import { memoryStorage } from '../../src/adapters/storage.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
 import { DEFAULT_MODULES } from '../../src/editor/modules/index.js';
 import { panesModule } from '../../src/editor/modules/chrome/panes.js';
-import { documentModule, exportMmdx, buildExport } from '../../src/editor/modules/chrome/document.js';
+import { documentModule, exportMmdx, buildExport, mmdxOnlyNote } from '../../src/editor/modules/chrome/document.js';
 import { codePanelModule } from '../../src/editor/modules/panels/code-panel.js';
 import { rightPanelsModule } from '../../src/editor/modules/panels/right-panels.js';
 import { buildSegments, mergeFilteredView, viewOf } from '../../src/editor/ops/code-filter.js';
@@ -352,6 +352,34 @@ describe('export', () => {
     });
     await e.exportAs('mmdx');
     expect(seen).toEqual(['diagram.mmdx']);
+  });
+
+  test('the portable export says which mmdx-only content it leaves out (T10.6)', async () => {
+    const e = mount('stateDiagram-v2\n  state "fa:fa-cog Running" as run\n  [*] --> run\n  run --> idle\n%%@ node run {"img":"https://example.com/a.png","shape":"hex"}\n%%@ node idle {"shape":"stadium"}\n');
+    expect(mmdxOnlyNote(e.core)).toBe('1 image and 2 shapes are mmdx-only and are not in the portable file');
+    expect(mmdxOnlyNote(e.core, { images: [], shapes: [{ kind: 'node', id: 'run' }] })).toBe('1 shape is mmdx-only and is not in the portable file');
+    expect(mmdxOnlyNote(e.core, { images: [{ kind: 'node', id: 'a' }, { kind: 'node', id: 'b' }], shapes: [] })).toBe('2 images are mmdx-only and are not in the portable file');
+    const file = await buildExport(e.core, 'mmd');
+    expect(String(file.data)).toContain('state "fa:fa-cog Running" as run');
+    expect(String(file.data)).not.toContain('example.com');
+    // on export: a toast (the download itself is stubbed)
+    const U = URL as unknown as { createObjectURL?: unknown; revokeObjectURL?: unknown };
+    const saved = { create: U.createObjectURL, revoke: U.revokeObjectURL };
+    U.createObjectURL = () => 'blob:x';
+    U.revokeObjectURL = () => undefined;
+    const toast = vi.spyOn(e.core, 'toast');
+    try {
+      await e.exportAs('mmd');
+      expect(toast).toHaveBeenCalledWith('1 image and 2 shapes are mmdx-only and are not in the portable file');
+      toast.mockClear();
+      await e.exportAs('mmdx');
+      expect(toast).not.toHaveBeenCalled();
+    } finally {
+      U.createObjectURL = saved.create;
+      U.revokeObjectURL = saved.revoke;
+    }
+    // nothing mmdx-only: no note
+    expect(mmdxOnlyNote(e.core, { images: [], shapes: [] })).toBeNull();
   });
 });
 

@@ -1,10 +1,11 @@
 // Document-level commands (A.1 row 12, A.8 rows 79, 82, 83; prototype app `doExport`, `plainPreview`, `readFiles`,
 // `#autoBtn`): export as styled .mmdx (pruned metadata), portable .mmd, SVG and PNG 2× (visible layers and the label
-// setting honoured; PNG failures raise `mmdx-error` and a toast), the Plain Mermaid compare modal, Auto layout and
+// setting honoured; PNG failures raise `mmdx-error` and a toast; the portable file says what mmdx-only content it
+// leaves out: metadata images and shapes, T10 §4.6), the Plain Mermaid compare modal, Auto layout and
 // opening files (`features.open`: picker and drag-and-drop; `.mmdx`, `.mmd`, `.md` first mermaid block, `.txt`, `.json`
 // legacy sidecar). Every export first dispatches a cancelable `mmdx-export` event ({ kind, name, data }).
 import { getShared, renderWithMermaid } from '../../../config.js';
-import { toPortableMermaid } from '../../../core/export/portable.js';
+import { mmdxOnlyContent, toPortableMermaid, type MmdxOnly } from '../../../core/export/portable.js';
 import { joinSource, mergeLegacySidecar, pruneMeta } from '../../../core/meta/index.js';
 import { usedIds } from '../../../core/ops/ids.js';
 import { resetLayout } from '../../../core/ops/meta-ops.js';
@@ -34,6 +35,16 @@ const exportPortable = (core: EditorCore): string => {
   return toPortableMermaid(core.code, core.meta, core.model, r.theme, r.rctx.color);
 };
 
+/** "1 image and 2 shapes are mmdx-only and are not in the portable file"; null when the portable file has everything. */
+export function mmdxOnlyNote(core: EditorCore, only: MmdxOnly = mmdxOnlyContent(core.meta, core.model)): string | null {
+  const t = core.i18n.t;
+  const count = (n: number, key: string): string | null => (n ? t(`export.only.${key}${n === 1 ? '1' : 'N'}`, { n }) : null);
+  const parts = [count(only.images.length, 'image'), count(only.shapes.length, 'shape')].filter((x): x is string => !!x);
+  if (!parts.length) return null;
+  const what = parts.length === 2 ? t('export.only.and', { a: parts[0]!, b: parts[1]! }) : parts[0]!;
+  return t(only.images.length + only.shapes.length === 1 ? 'export.only1' : 'export.onlyN', { what });
+}
+
 /** Standalone SVG of what the canvas shows (visible layers, the View-mode label setting). */
 export const exportSvg = (core: EditorCore): string => standaloneSvg(core.render(), core.ctx);
 
@@ -61,6 +72,8 @@ export async function exportAs(core: EditorCore, kind: ExportKind): Promise<void
     const file = await buildExport(core, kind);
     if (!core.emit('mmdx-export', { kind, ...file }, true)) return;
     download(file.name, file.data, file.type);
+    const note = kind === 'mmd' ? mmdxOnlyNote(core) : null;
+    if (note) core.toast(note);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     core.toast(t('export.failed', { kind: kind.toUpperCase(), msg }), { error: true });
@@ -96,7 +109,13 @@ export async function plainMermaid(core: EditorCore): Promise<void> {
     const out = await renderWithMermaid(exportPortable(core), core.scheme.peek() === 'dark', core.ctx.icons);
     const svg = parseMermaidSvg(out);
     if (!svg) throw new Error(t('plain.badSvg'));
-    body.replaceChildren(h('div', { class: 'hint', style: 'margin-bottom:10px' }, t('plain.note')), document.importNode(svg, true));
+    // what the portable source leaves out (metadata images and shapes), under the note
+    const note = mmdxOnlyNote(core);
+    body.replaceChildren(
+      h('div', { class: 'hint', style: 'margin-bottom:10px' }, t('plain.note')),
+      ...(note ? [h('div', { class: 'hint mm-only', style: 'margin-bottom:10px' }, note)] : []),
+      document.importNode(svg, true),
+    );
   } catch (e) {
     body.replaceChildren(h('div', { class: 'mm-err', role: 'alert' }, t('plain.failed', { msg: e instanceof Error ? e.message : String(e) })));
   }

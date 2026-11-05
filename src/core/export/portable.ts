@@ -2,14 +2,21 @@
 // linkStyle lines generated from the resolved studio styles, so stock renderers (YouTrack, GitHub) show the same
 // colours. Sequence and ER diagrams pass through with the `%%@` lines removed.
 //
+// What mmdx draws beyond Mermaid (T10 §4.6): icons are label tokens (`fa:fa-cog Running`), which are code and stay as
+// they are (stock Mermaid draws `fa*` tokens and shows other packs' as text); metadata images (`img` on mindmap nodes,
+// states, participants) and catalogue shapes in metadata (`shape`) have no Mermaid syntax, so the portable file drops
+// them with the rest of the metadata — `mmdxOnlyContent` lists them, and the editor says so on export.
+//
 // Unlike the prototype, the colour resolver is a parameter (never a module global) and every value goes through
 // the render style validation: an unresolvable `@ref`, or anything that is not a colour / number / dash pattern,
 // is dropped instead of being written into the output.
 import { NO_ICONS } from '../icons/names.js';
+import { withKind } from '../kinds/registry.js';
 import { META_HEADER } from '../meta/index.js';
-import type { DiagramMeta } from '../meta/types.js';
+import { KIND_TO_COLL } from '../meta/types.js';
+import type { DiagramMeta, ItemMeta } from '../meta/types.js';
 import type { DiagramModel, FlowchartModel, SupportedModel } from '../model.js';
-import type { DiagramType } from '../types.js';
+import type { DiagramType, ItemRef } from '../types.js';
 import { mergeStyle, pickStyle } from '../render/common.js';
 import { edgeMeta, edgePreset, flowPresets, groupPreset, nodePreset } from '../render/flow-presets.js';
 import type { RenderContext } from '../render/types.js';
@@ -38,6 +45,28 @@ function css(st: StyleProps): string {
 /** The Mermaid code without `%%@` metadata lines (and their header), ending with one newline. */
 export function stripMetaLines(code: string): string {
   return code.split('\n').filter((l) => !/^\s*%%@/.test(l) && l.trim() !== META_HEADER).join('\n').trimEnd() + '\n';
+}
+
+/** The items whose metadata image or catalogue shape the portable file leaves out (mmdx only). */
+export interface MmdxOnly {
+  images: ItemRef[];
+  shapes: ItemRef[];
+}
+
+/**
+ * What a portable export of `model` leaves out (in model order): items with a metadata image (`img`; an image not
+ * chosen yet, `""`, is no content) or a metadata `shape`. Metadata of items the code no longer has does not count.
+ */
+export function mmdxOnlyContent(meta: DiagramMeta, model: DiagramModel): MmdxOnly {
+  const out: MmdxOnly = { images: [], shapes: [] };
+  for (const ref of withKind(model, (k, m) => k.items(m)) ?? []) {
+    const coll = Object.hasOwn(KIND_TO_COLL, ref.kind) ? KIND_TO_COLL[ref.kind as keyof typeof KIND_TO_COLL] : undefined;
+    const m = coll ? (meta[coll]?.[ref.id] as ItemMeta | undefined) : undefined;
+    if (!m) continue;
+    if (typeof m.img === 'string' && m.img) out.images.push(ref);
+    if (typeof m.shape === 'string' && m.shape) out.shapes.push(ref);
+  }
+  return out;
 }
 
 /**

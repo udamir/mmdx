@@ -58,4 +58,21 @@ describe('Plain Mermaid: the dialog', () => {
     expect(host.shadowRoot!.querySelector('.mmdx-dialog')).toBeNull();
     ed.destroy();
   });
+
+  test('says which mmdx-only content stock Mermaid does not get (T10.6)', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const src = 'mindmap\n  root\n    a[fa:fa-car Car]\n    b[Photo]\n%%@ node b {"img":"https://example.com/p.png"}\n';
+    const ed = new DiagramEditor(host, { value: src, modules: [documentModule], storage: memoryStorage() });
+    await ed.core.run('plainMermaid');
+    const card = host.shadowRoot!.querySelector<HTMLElement>('.mmdx-dialog.mm-card')!;
+    expect(card.querySelector('.mm-only')!.textContent).toBe('1 image is mmdx-only and is not in the portable file');
+    ed.destroy();
+    const plain = document.createElement('div');
+    document.body.append(plain);
+    const ed2 = new DiagramEditor(plain, { value: 'mindmap\n  root\n    a[fa:fa-car Car]\n', modules: [documentModule], storage: memoryStorage() });
+    await ed2.core.run('plainMermaid');
+    expect(plain.shadowRoot!.querySelector('.mm-only')).toBeNull();
+    ed2.destroy();
+  });
 });
