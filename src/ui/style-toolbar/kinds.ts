@@ -45,7 +45,7 @@ function buildKinds(): Readonly<Record<string, KindSpec>> {
     block: { groups: [['actions'], ['font', 'size', 'bold'], ['textColor'], ['border', 'fill'], ['paint', 'delete', 'more']], size: 'labelSize', bold: 'fontWeight', text: 'labelColor' },
     box: { groups: [['textColor'], ['border', 'fill'], ['ungroup', 'delete']], text: 'text' },
     multi: { groups: [['font', 'size', 'bold'], ['textColor'], ['border', 'fill'], ['arrange', 'group', 'activate'], ['delete']], size: 'fontSize', bold: 'fontWeight', text: 'text' },
-    entity: { groups: [['shape', 'tableStyle', 'font', 'size', 'bold', 'link'], ['textColor'], ['border', 'fill'], ['paint', 'lock', 'delete', 'more']], size: 'attrSize', bold: 'titleWeight', text: 'text' },
+    entity: { groups: [['icon', 'shape', 'tableStyle', 'font', 'size', 'bold', 'link'], ['textColor'], ['border', 'fill'], ['paint', 'lock', 'delete', 'more']], size: 'attrSize', bold: 'titleWeight', text: 'text' },
     // only styled in the theme editor
     lifeline: { groups: [['line']] },
     activation: { groups: [['border', 'fill']] },

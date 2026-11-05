@@ -2,15 +2,16 @@
 // goldens of a state and of a mindmap node with a leading icon token in each position (inline, left at its own size,
 // above, below), with a metadata image (natural size, imgW / imgH, cover), with both, with a refused image and with a
 // picture not chosen yet; a catalogue shape from metadata; the boxes growing with what they hold, and both kinds
-// placing the same icon and image the same way.
+// placing the same icon and image the same way. ER tables (T10.3): the alias's leading token as the title icon in
+// both card modes (inline, at its own size, above), emoji aliases, tokens in relationship labels, no images.
 import { describe, expect, it } from 'vitest';
-import type { MindmapGeometry, StateGeometry } from '../../../src/core/render/types.js';
+import type { ErGeometry, MindmapGeometry, StateGeometry } from '../../../src/core/render/types.js';
 import { renderProd } from './helpers.js';
 
 const IMG = 'https://example.com/photo.png';
-/** The scene of one node, serialized (not a mindmap node's branch, a group of its own). */
-const nodeSvg = (svg: string, id: string): string => {
-  const at = [...svg.matchAll(new RegExp(`data-kind="node" data-id="${id}"(?! data-part)`, 'g'))][0]!.index;
+/** The scene of one item, serialized (not a mindmap node's branch, a group of its own). */
+const nodeSvg = (svg: string, id: string, kind = 'node'): string => {
+  const at = [...svg.matchAll(new RegExp(`data-kind="${kind}" data-id="${id}"(?! data-part)`, 'g'))][0]!.index;
   const start = svg.lastIndexOf('<g ', at);
   let depth = 0, i = start;
   for (; i < svg.length; i++) {
@@ -89,5 +90,61 @@ describe('state and mindmap content', () => {
   it('a catalogue shape from metadata (mmdx only)', () => {
     expect((renderProd(state('Running', '{"shape":"hex"}')).result.geom as StateGeometry).nodes.get('s')!.shape).toBe('hexagon');
     expect((renderProd(mind('Running', '{"shape":"hex"}')).result.geom as MindmapGeometry).nodes.get('s')!.shape).toBe('hexagon');
+  });
+});
+
+const er = (alias: string, meta: string, rel = 'places'): string =>
+  `erDiagram\n  C${alias} {\n    string id PK\n    string name\n  }\n  C ||--o{ ORDER : ${rel}\n%%@ entity C ${meta}`;
+const ER_CASES: Record<string, [string, string]> = {
+  'token inline (default)': ['["fa:fa-user Customer"]', '{}'],
+  'token left at its own size': ['["fa:fa-user Customer"]', '{"iconSize":24}'],
+  'token above': ['["fa:fa-user Customer"]', '{"iconPos":"t"}'],
+  'table: token inline': ['["fa:fa-user Customer"]', '{"mode":"table"}'],
+  'table: token above': ['["fa:fa-user Customer"]', '{"mode":"table","iconPos":"t"}'],
+  'emoji alias': ['["🛒 Customer"]', '{}'],
+  'emoji alias, table': ['["🛒 Customer"]', '{"mode":"table"}'],
+  'markdown alias with a token': ['["tabler:user **Customer**"]', '{}'],
+};
+
+describe('ER table icons (goldens)', () => {
+  for (const [name, [alias, meta]] of Object.entries(ER_CASES))
+    it(name, () => {
+      expect(nodeSvg(renderProd(er(alias, meta)).svg, 'C', 'entity')).toMatchSnapshot();
+    });
+  it('a relationship label with a token', () => {
+    const r = renderProd(er('', '{}', '"fa:fa-truck ships"'));
+    expect(r.result.diagnostics?.filter((d) => d.code === 'icon.unknown') ?? []).toEqual([]);
+    const svg = r.svg;
+    const at = svg.indexOf('data-part="label"');
+    expect(svg.slice(svg.lastIndexOf('<g ', at), svg.indexOf('</g>', at) + 4)).toMatchSnapshot();
+  });
+});
+
+describe('ER table icons', () => {
+  const geom = (alias: string, meta: string): ErGeometry => renderProd(er(alias, meta)).result.geom as ErGeometry;
+  const card = (alias: string, meta: string): { w: number; h: number; head?: number } => geom(alias, meta).entities.get('C')!;
+
+  it('the token is drawn as an icon inline, or apart above the title (the card grows)', () => {
+    const inline = nodeSvg(renderProd(er('["fa:fa-user Customer"]', '{}')).svg, 'C', 'entity');
+    const top = nodeSvg(renderProd(er('["fa:fa-user Customer"]', '{"iconPos":"t"}')).svg, 'C', 'entity');
+    expect(inline.match(/<image /g)?.length).toBe(1);
+    expect(inline).not.toMatch(/class="mmdx-icon"/);
+    expect(inline).not.toContain('fa:fa-user');
+    expect(top).toMatch(/class="mmdx-icon"/);
+    for (const mode of ['', '"mode":"table",']) {
+      const a = card('["fa:fa-user Customer"]', `{${mode}}`), b = card('["fa:fa-user Customer"]', `{${mode}"iconPos":"t"}`);
+      expect(b.h).toBeGreaterThan(a.h);
+      expect(b.head!).toBeGreaterThan(a.head!);
+    }
+    // the inline icon makes the title wider than the text alone
+    expect(card('["fa:fa-user Customer"]', '{"mode":"table","minW":0}').w).toBeGreaterThan(card('["Customer"]', '{"mode":"table","minW":0}').w);
+  });
+
+  it('only an alias holds an icon; tables take no images', () => {
+    const plain = nodeSvg(renderProd('erDiagram\n  "fa:fa-user" {\n    int id\n  }').svg, 'fa:fa-user', 'entity');
+    expect(plain).not.toMatch(/<image /);
+    const svg = nodeSvg(renderProd(er('["Customer"]', `{"img":"${IMG}"}`)).svg, 'C', 'entity');
+    expect(svg).not.toMatch(/<image /);
+    expect(card('["Customer"]', `{"img":"${IMG}"}`)).toEqual(card('["Customer"]', '{}'));
   });
 });
