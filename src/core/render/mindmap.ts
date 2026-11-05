@@ -3,7 +3,8 @@
 // shapes filled with the section colour; branches as curves from the parent's outer edge to the child's inner edge,
 // tapering with depth (11 / 8 / 5 / 3 px, Mermaid's classic look). Labels are markdown, as Mermaid reads every mindmap
 // label (bold, italic, icon tokens; wrapped at `maxNodeWidth`), `::icon(…)` and a metadata image stand above the
-// label, and a folded subtree shows a +N badge. Rich text, icons and images draw through the media kit (a lazy chunk):
+// label (render/decorate.ts, as in every kind: `iconPos` moves the icon or a leading token below or beside the text),
+// and a folded subtree shows a +N badge. Rich text, icons and images draw through the media kit (a lazy chunk):
 // without it the render draws plain text and empty boxes and counts a miss, and the viewer renders again once it loaded.
 import { layoutTree, type TreeMode, type TreeNode } from '../layout/tree.js';
 import type { ItemMeta } from '../meta/types.js';
@@ -13,7 +14,7 @@ import { el, text } from '../scene/build.js';
 import type { SceneNode, TextRun } from '../scene/types.js';
 import type { StyleProps } from '../style.js';
 import { textBlockWidth, wrap } from '../text/wrap.js';
-import { mediaKit, type MediaKit } from '../media/kit.js';
+import type { MediaKit } from '../media/kit.js';
 import { ICON_TOKEN } from '../icons/names.js';
 import { fmt } from '../scene/serialize.js';
 import { onOutline } from '../shapes/outline.js';
@@ -23,6 +24,7 @@ import {
   baseStyle, countBy, font, hiddenOf, itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle, metaNum, pickStyle, presetOf, stackedShapeNodes,
   textBlock, withLink, type RenderEnv, type SubResult,
 } from './common.js';
+import { decorate, decoratedSize, decoration, lazyKit, type Decoration } from './decorate.js';
 import { mindPreset, mindPresets } from './mind-presets.js';
 import type { MindmapGeometry } from './types.js';
 
@@ -30,7 +32,6 @@ export { mindPreset, mindPresets, type MindPresets } from './mind-presets.js';
 
 /** Branch widths by the child's depth (1, 2, 3, deeper) for a first-level width of 11. */
 const TAPER = [11, 8, 5, 3];
-const IMAGE = { w: 96, h: 72, max: 160 };
 const NO_META: ItemMeta = {};
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
 
@@ -47,8 +48,8 @@ interface Item {
   rich?: TextRun[][];
   textW: number;
   textH: number;
-  icon: { w: number; h: number } | null;
-  image: { url: string; w: number; h: number } | null;
+  /** The icon and the image beside the label. */
+  deco: Decoration;
   w: number;
   h: number;
   x: number;
@@ -89,14 +90,7 @@ export function renderMindmap(model: MindmapModel, env: RenderEnv): SubResult {
   const hiddenSet = hiddenOf(opts, 'node');
   const wrapW = model.maxNodeWidth;
 
-  let kitAsked = false, K: MediaKit | null = null;
-  const kit = (): MediaKit | null => {
-    if (!kitAsked) {
-      kitAsked = true;
-      K = mediaKit();
-    }
-    return K;
-  };
+  const kit = lazyKit();
   // Mermaid reads every mindmap label as markdown: emphasis and icon tokens need runs, plain text does not
   const needsRuns = (label: string): boolean =>
     /[*_]/.test(label) || (label.includes(':') && [...label.matchAll(ICON_TOKEN)].some((t) => ctx.icons.resolve(t[2]!, 'token') !== null));
@@ -130,8 +124,10 @@ export function renderMindmap(model: MindmapModel, env: RenderEnv): SubResult {
     const fs = st.fontSize ?? 16;
     const fnt = font(fs, st.fontWeight, st.fontFamily || family);
     const line = n.line;
-    const k = needsRuns(n.label) ? kit() : null;
-    const runs = k ? k.labelRuns(n.label, { markdown: true, icons: k.iconResolver(ctx, st.text, fs, { diagnostics: env.diagnostics, line }), iconSize: fs }) : null;
+    // `::icon(…)` above the label; a leading token where `iconPos` puts it
+    const deco = decoration(ctx, kit, { label: n.label, meta: nm, fontSize: fs, color: st.text, icon: n.icon ? { written: n.icon, form: 'class' } : null });
+    const k = needsRuns(deco.label) ? kit() : null;
+    const runs = k ? k.labelRuns(deco.label, { markdown: true, icons: k.iconResolver(ctx, deco.inlineColor ?? st.text, fs, { diagnostics: env.diagnostics, line }), iconSize: fs }) : null;
     let lines: string[], textW: number, rich: TextRun[][] | undefined;
     if (k && runs) {
       const r = k.wrapRuns(runs, wrapW, fnt, ctx.measure);
@@ -139,32 +135,18 @@ export function renderMindmap(model: MindmapModel, env: RenderEnv): SubResult {
       textW = k.runsBlockWidth(r, fnt, ctx.measure);
       if (k.richLines(r)) rich = r;
     } else {
-      lines = wrap(n.label, wrapW, fnt, ctx.measure);
+      lines = wrap(deco.label, wrapW, fnt, ctx.measure);
       textW = textBlockWidth(lines, fnt, ctx.measure);
     }
     const textH = lines.length * fs * 1.3;
-    const iconSize = Math.round(fs * 1.75);
-    const icon = n.icon ? { w: iconSize, h: iconSize } : null;
-    // an empty `img` is a picture not chosen yet: the placeholder at the default size
-    const url = typeof nm.img === 'string' ? nm.img : '';
-    let image: Item['image'] = null;
-    if (typeof nm.img === 'string') {
-      const kk = kit();
-      const ok = kk ? kk.checkImageUrl(url, ctx.imagePolicy, ctx.resolveUrl) : null;
-      const nat = ok && 'url' in ok ? ctx.imageSizes?.get(ok.url) : null;
-      const r = nat ? Math.min(1, IMAGE.max / Math.max(nat.w, nat.h)) : 1;
-      image = { url, w: nat ? nat.w * r : IMAGE.w, h: nat ? nat.h * r : IMAGE.h };
-    }
-    const gap = 6;
-    const cw = Math.max(textW, icon?.w ?? 0, image?.w ?? 0);
-    const ch = textH + (icon ? icon.h + gap : 0) + (image ? image.h + gap : 0);
-    let w = cw + (st.padX ?? 10) * 2, h = ch + (st.padY ?? 6) * 2;
+    const block = decoratedSize(deco, { w: textW, h: textH });
+    let w = block.w + (st.padX ?? 10) * 2, h = block.h + (st.padY ?? 6) * 2;
     const def = shapeDef(shape);
     if (!plain && def.fit) ({ w, h } = def.fit(w, h));
     w = Math.max(st.minW ?? 0, metaNum(nm.w) ?? w);
     h = Math.max(st.minH ?? 0, metaNum(nm.h) ?? h);
     const it: Item = {
-      n, m: nm, st, preset, shape, section, color: st.color, lines, textW, textH, icon, image, w, h, x: 0, y: 0,
+      n, m: nm, st, preset, shape, section, color: st.color, lines, textW, textH, deco, w, h, x: 0, y: 0,
       hidden: hiddenNodes.has(n.id), folded: folded.has(n.id) ? descendantsOf(model, n.id).length : 0,
     };
     if (rich) it.rich = rich;
@@ -241,24 +223,14 @@ export function renderMindmap(model: MindmapModel, env: RenderEnv): SubResult {
       const y = box.y + box.h / 2;
       parts.push(el('path', { d: `M${fmt(box.x - box.w / 2)},${fmt(y)} L${fmt(box.x + box.w / 2)},${fmt(y)}`, stroke: it.color, 'stroke-width': 3, 'stroke-linecap': 'round', fill: 'none' }));
     } else parts.push(...stackedShapeNodes(it.shape, box, st));
-    // the content: image, icon, then the label, centred as one block
-    const gap = 6;
-    const blockH = it.textH + (it.icon ? it.icon.h + gap : 0) + (it.image ? it.image.h + gap : 0);
-    let top = box.y - blockH / 2;
-    const k = it.image || it.icon ? kit() : null;
-    if (it.image) {
-      const ib = { x: box.x - it.image.w / 2, y: top, w: it.image.w, h: it.image.h };
-      if (k) parts.push(...k.drawImage(env, it.image.url, { box: ib, fit: 'contain', key: id, line: it.n.line, source: 'meta', family, ...(st.text ? { color: st.text } : {}) }));
-      top += it.image.h + gap;
-    }
-    if (it.icon) {
-      const ib = { x: box.x - it.icon.w / 2, y: top, w: it.icon.w, h: it.icon.h };
-      if (k && it.n.icon) parts.push(...k.drawIcon(env, it.n.icon, { box: ib, form: 'class', line: it.n.line, ...(st.text ? { color: st.text } : {}) }));
-      top += it.icon.h + gap;
-    }
-    const ty = top + it.textH / 2;
+    // the content: the image, the icon and the label, centred as one block
+    const tb = { w: it.textW, h: it.textH };
+    const D = decorate(env, kit, it.deco, box.x, box.y - decoratedSize(it.deco, tb).h / 2, tb, { key: id, line: it.n.line, family, ...(st.text ? { color: st.text } : {}) });
+    parts.push(...D.nodes);
+    const { x: tx, y: ty } = D.contentBox;
     const to = { size: fs, weight: st.fontWeight, color: href ? LINK_COLOR : st.text, family: st.fontFamily || family, underline: !!href };
-    const label = it.rich && K ? (K as MediaKit).richText(it.rich, box.x, ty, { ...to, measure: ctx.measure }) : [textBlock(it.lines, box.x, ty, to)];
+    const K = it.rich ? kit() : null;
+    const label = it.rich && K ? (K as MediaKit).richText(it.rich, tx, ty, { ...to, measure: ctx.measure }) : [textBlock(it.lines, tx, ty, to)];
     if (it.lines.some((l) => l)) parts.push(...withLink(href, label));
     // a folded subtree: +N on the node's outer side
     if (it.folded) {

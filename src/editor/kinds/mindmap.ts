@@ -110,6 +110,7 @@ export const EDIT: EditKind<MindmapModel, MindmapGeometry> = {
   // images are metadata (`img`): the editor writes them (imageInMeta), so this write is never asked for
   setImage: () => null,
   imageInMeta: true,
+  decorated: true,
   // no connectors to route; colour by branch or by depth (frontmatter) and the layout (page) in Page properties
   straight: true,
   layout: { title: 'page.mindLayout', fields: ['mindLayout'] },

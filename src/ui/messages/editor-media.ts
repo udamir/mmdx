@@ -10,7 +10,7 @@ export const EDITOR_MEDIA_MESSAGES: Messages = {
   'props.icon': 'Icon', 'props.image': 'Image', 'props.iconNone': 'No icon', 'props.imageNone': 'No image', 'props.choose': 'Choose…', 'props.removeIcon': 'Remove icon',
   'props.iconTokenMmdx': 'Shown by mmdx only: stock Mermaid draws Font Awesome icons in labels and shows this one as text', 'props.toIconNode': 'Convert to icon node',
   'props.addImage': 'Add image…', 'props.removeImage': 'Remove image', 'props.labelPos': 'Label', 'props.iconForm': 'Frame', 'props.mediaW': 'Width', 'props.mediaH': 'Height',
-  'props.fit': 'Fit', 'props.aspect': 'Keep aspect ratio', 'props.imageUrl': 'Image URL',
-  'media.pos.t': 'above', 'media.pos.b': 'below', 'media.form.none': 'none', 'media.form.square': 'square', 'media.form.circle': 'circle', 'media.form.rounded': 'rounded',
+  'props.iconPos': 'Position', 'props.iconSize': 'Icon size', 'props.fit': 'Fit', 'props.aspect': 'Keep aspect ratio', 'props.imageUrl': 'Image URL',
+  'media.pos.t': 'above', 'media.pos.b': 'below', 'media.iconPos.l': 'before the text', 'media.iconPos.t': 'above the text', 'media.iconPos.b': 'below the text', 'media.form.none': 'none', 'media.form.square': 'square', 'media.form.circle': 'circle', 'media.form.rounded': 'rounded',
   'media.fit.contain': 'contain', 'media.fit.cover': 'cover', 'media.fit.stretch': 'stretch',
 };

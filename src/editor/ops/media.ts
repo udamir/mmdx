@@ -61,6 +61,21 @@ export function setImageOf(core: EditorCore, refs: readonly ItemRef[], url: stri
 export const setMediaOf = (core: EditorCore, refs: readonly ItemRef[], patch: MediaPatch): boolean =>
   each(core, core.i18n.t('history.media'), refs, (k, code, m, ref) => k.setMedia?.(code, m, ref, patch, core) ?? null);
 
+/**
+ * Metadata keys of the icon and the image beside a label (T10 §4.6: `iconPos`, `iconSize`, `imgW`, `imgH`; null or the
+ * default removes the key), in one history step.
+ */
+export function setDecoration(core: EditorCore, refs: readonly ItemRef[], key: 'iconPos' | 'iconSize' | 'imgW' | 'imgH', value: string | number | null): void {
+  core.change(core.i18n.t('history.media'), () => {
+    for (const r of refs) {
+      const m = core.ensure(r.kind, r.id);
+      if (value === null || value === '' || (key === 'iconPos' && value === 'l')) delete m[key];
+      else (m as Record<string, unknown>)[key] = value;
+      core.tidy(r.kind, r.id);
+    }
+  });
+}
+
 /** The image fit (contain, cover, stretch): item metadata `imgFit` (mmdx only; Mermaid has the aspect lock alone). */
 export function setImageFit(core: EditorCore, refs: readonly ItemRef[], fit: string | null): void {
   core.change(core.i18n.t('history.media'), () => {

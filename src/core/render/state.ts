@@ -4,8 +4,9 @@
 // flowchart's pattern, T07.3). A state is a rounded box with its title (and, with description rows, a divider and the
 // rows under it); start a filled dot, end a dot in a ring, choice a diamond, fork and join a bar across the flow; a
 // composite a rounded frame with a title band and dashed lines between its regions; a note a folded-corner box with a
-// dashed line to its state; a transition an arrow with its label on a halo. Labels with markdown or icon tokens and
-// metadata images draw through the media kit (a lazy chunk), as in the flowchart.
+// dashed line to its state; a transition an arrow with its label on a halo. A state's icon (the leading label token,
+// where `iconPos` puts it) and its metadata image draw as in every kind (render/decorate.ts), the image above the
+// title. Labels with markdown or icon tokens and images draw through the media kit (a lazy chunk), as in the flowchart.
 import { ancestorsOf, layoutCompound, type CompoundContainer, type CompoundEdge, type CompoundNode, type CompoundResult } from '../layout/compound.js';
 import { polylineCrosses, routeAround } from '../layout/route.js';
 import type { ItemMeta } from '../meta/types.js';
@@ -14,7 +15,6 @@ import { el, g, title as tooltip } from '../scene/build.js';
 import type { SceneNode, TextRun } from '../scene/types.js';
 import type { StyleProps } from '../style.js';
 import { textBlockWidth, wrap } from '../text/wrap.js';
-import { mediaKit, type MediaKit } from '../media/kit.js';
 import { ICON_TOKEN } from '../icons/names.js';
 import type { FontSpec } from '../text/measure.js';
 import type { CenterBox, Point, Rect } from '../types.js';
@@ -24,6 +24,7 @@ import {
   assignPorts, baseStyle, countBy, Defs, edgePath, font, haloLabel, hiddenOf, isSide, itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle,
   metaNum, metaPoints, pickStyle, presetOf, sideToward, stackedShapeNodes, textBlock, urlRef, withLink, type PortLink, type RenderEnv, type SubResult,
 } from './common.js';
+import { DECO_GAP, decorate, decoratedSize, decoration, lazyKit, type Decoration } from './decorate.js';
 import { stateEdgePreset, stateGroupPreset, stateNodePreset, stateNotePreset, statePresets } from './state-presets.js';
 import type { BoxGeom, EdgeGeom, Port, StateGeometry } from './types.js';
 import { fmt } from '../scene/serialize.js';
@@ -42,7 +43,6 @@ const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v 
 const WRAP = 200;
 /** The layout's key of a note (a note id may equal a state id). */
 const noteKey = (id: string): string => `\u0001note:${id}`;
-const IMAGE = { w: 96, h: 72, max: 160 };
 
 interface Label {
   lines: string[];
@@ -60,7 +60,8 @@ interface NodeItem extends CenterBox {
   shape: string;
   title: Label | null;
   rows: Label | null;
-  image: { url: string; w: number; h: number } | null;
+  /** The icon and the image beside the title (null: pseudo-states and bars). */
+  deco: Decoration | null;
   auto?: boolean;
 }
 
@@ -92,14 +93,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
   const m = (coll: 'nodes' | 'groups' | 'edges' | 'notes', id: string): ItemMeta => meta[coll]?.[id] ?? NO_META;
 
   // rich labels, icons and images draw through the media kit (a lazy chunk), asked for only when a label needs it
-  let kitAsked = false, K: MediaKit | null = null;
-  const kit = (): MediaKit | null => {
-    if (!kitAsked) {
-      kitAsked = true;
-      K = mediaKit();
-    }
-    return K;
-  };
+  const kit = lazyKit();
   const needsRuns = (label: string): boolean =>
     /[*_]/.test(label) || (label.includes(':') && [...label.matchAll(ICON_TOKEN)].some((t) => ctx.icons.resolve(t[2]!, 'token') !== null));
   /** A text's lines: plain, or runs (markdown, icon tokens) when it needs them; wrapped at `maxW`. */
@@ -216,7 +210,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
         shape = 'fr-circ';
         look = st;
       }
-      nodes.set(n.id, { n, m: nm, st: look, preset, shape, title: null, rows: null, image: null, w, h, ...xy });
+      nodes.set(n.id, { n, m: nm, st: look, preset, shape, title: null, rows: null, deco: null, w, h, ...xy });
       continue;
     }
     const def = shapeDef(str(nm.shape) || pst?.shape || S.node.shape || 'rect');
@@ -225,25 +219,19 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
     st.shape = shape;
     const fs = st.fontSize ?? 14, padX = st.padX ?? 12, padY = st.padY ?? 8;
     const maxW = Math.max(40, (metaNum(nm.w) ?? st.maxW ?? WRAP) - 2 * padX);
-    const title = labelOf(n.label, font(fs, n.descriptions.length ? 600 : st.fontWeight, st.fontFamily || family), st.text, line, maxW);
+    // the title's icon and the image: the title block (the description rows go under it)
+    const deco = decoration(ctx, kit, { label: n.label, meta: nm, fontSize: fs, color: st.text });
+    const beside = deco.icon && deco.pos === 'l' ? deco.icon.size + DECO_GAP : 0;
+    const title = labelOf(deco.label, font(fs, n.descriptions.length ? 600 : st.fontWeight, st.fontFamily || family), deco.inlineColor ?? st.text, line, Math.max(40, maxW - beside));
     const rows = n.descriptions.length ? labelOf(n.descriptions.join('\n'), font(Math.max(8, fs - 1), st.fontWeight, st.fontFamily || family), st.text, line, maxW) : null;
-    const url = str(nm.img);
-    let image: NodeItem['image'] = null;
-    if (url) {
-      const kk = kit();
-      const ok = kk ? kk.checkImageUrl(url, ctx.imagePolicy, ctx.resolveUrl) : null;
-      const nat = ok && 'url' in ok ? ctx.imageSizes?.get(ok.url) : null;
-      const r = nat ? Math.min(1, IMAGE.max / Math.max(nat.w, nat.h)) : 1;
-      image = { url, w: nat ? nat.w * r : IMAGE.w, h: nat ? nat.h * r : IMAGE.h };
-    }
-    const gap = 6;
-    const cw = Math.max(title.w, rows?.w ?? 0, image?.w ?? 0);
-    const ch = title.h + (image ? image.h + gap : 0) + (rows ? rows.h + padY + 1 : 0);
+    const block = decoratedSize(deco, title);
+    const cw = Math.max(block.w, rows?.w ?? 0);
+    const ch = block.h + (rows ? rows.h + padY + 1 : 0);
     let w = cw + 2 * padX, h = ch + 2 * padY;
     if (def.fit && !rows) ({ w, h } = def.fit(w, h));
     w = Math.max(st.minW ?? 0, metaNum(nm.w) ?? w);
     h = Math.max(st.minH ?? 0, metaNum(nm.h) ?? h);
-    nodes.set(n.id, { n, m: nm, st, preset, shape, title, rows, image, w, h, ...xy });
+    nodes.set(n.id, { n, m: nm, st, preset, shape, title, rows, deco, w, h, ...xy });
   }
 
   // ---- notes: styles and sizes (beside their state)
@@ -354,7 +342,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
       const left = st.titleAlign === 'left';
       const to = { size: st.titleSize ?? 14, weight: st.titleWeight, color: href ? LINK_COLOR : st.titleColor, family: st.fontFamily || family, anchor: left ? ('start' as const) : ('middle' as const), lh: 1.25, underline: !!href };
       const tx = left ? x0 + pad : box.x;
-      parts.push(...withLink(href, G.title.rich && K ? (K as MediaKit).richText(G.title.rich, tx, ty, { ...to, measure: ctx.measure }) : [textBlock(G.title.lines, tx, ty, to)]));
+      parts.push(...withLink(href, G.title.rich && kit() ? kit()!.richText(G.title.rich, tx, ty, { ...to, measure: ctx.measure }) : [textBlock(G.title.lines, tx, ty, to)]));
       // the title band's lower edge
       parts.push(el('path', { class: 'band', d: `M${fmt(x0)},${fmt(y0 + band)} L${fmt(x0 + box.w)},${fmt(y0 + band)}`, fill: 'none', stroke: st.stroke, 'stroke-width': Math.max(0.5, (st.strokeWidth ?? 1) * 0.75), 'stroke-opacity': 0.6 }));
     }
@@ -423,8 +411,8 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
       }
       const lx = lp.x + (metaNum(em.labelDx) || 0), ly = lp.y + (metaNum(em.labelDy) || 0);
       const lo = { size, color, family: st.fontFamily || family, halo: env.paper, weight: st.fontWeight || 400, underline: !!href };
-      const label: SceneNode[] = L.rich && K
-        ? (K as MediaKit).richText(L.rich, lx, ly, { ...lo, lh: 1.25, measure: ctx.measure, extra: { stroke: env.paper, 'stroke-width': 4, 'stroke-linejoin': 'round', 'paint-order': 'stroke' } })
+      const label: SceneNode[] = L.rich && kit()
+        ? kit()!.richText(L.rich, lx, ly, { ...lo, lh: 1.25, measure: ctx.measure, extra: { stroke: env.paper, 'stroke-width': 4, 'stroke-linejoin': 'round', 'paint-order': 'stroke' } })
         : [haloLabel(L.lines, lx, ly, lo)];
       labelNodes.push(itemGroup('edge', e.id, 'elabel', withLink(href, label), { 'data-part': 'label', 'data-from': e.from, 'data-to': e.to, ...linkAttr(href) }, 'label'));
       labelBox = { x: lx, y: ly, w: L.w, h: lh };
@@ -454,28 +442,24 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
     const parts: SceneNode[] = [...stackedShapeNodes(N.shape, N, st)];
     const color = href ? LINK_COLOR : st.text;
     const to = (size: number, weight: number | string | undefined, anchor: 'middle' | 'start'): Parameters<typeof textBlock>[3] => ({ size, weight, color, family: st.fontFamily || family, lh: 1.3, anchor, underline: !!href });
-    const gap = 6;
-    const textH = N.title!.h + (N.image ? N.image.h + gap : 0);
-    let top = N.rows ? N.y - N.h / 2 + padY : N.y - textH / 2;
-    const k = N.image ? kit() : null;
-    if (N.image) {
-      const ib = { x: N.x - N.image.w / 2, y: top, w: N.image.w, h: N.image.h };
-      if (k) parts.push(...k.drawImage(env, N.image.url, { box: ib, fit: 'contain', key: id, ...(N.n.defLine !== null ? { line: N.n.defLine } : {}), source: 'meta', family, ...(st.text ? { color: st.text } : {}) }));
-      top += N.image.h + gap;
-    }
-    const ty = top + N.title!.h / 2;
+    // the title block: the image, the icon and the title (centred, or at the top above the description rows)
+    const blockH = decoratedSize(N.deco!, N.title).h;
+    const top = N.rows ? N.y - N.h / 2 + padY : N.y - blockH / 2;
+    const D = decorate(env, kit, N.deco!, N.x, top, N.title, { key: id, ...(N.n.defLine !== null ? { line: N.n.defLine } : {}), family, ...(st.text ? { color: st.text } : {}) });
+    parts.push(...D.nodes);
+    const { x: tx, y: ty } = D.contentBox;
     const titleTo = to(fs, N.rows ? 600 : st.fontWeight, 'middle');
-    const label = N.title!.rich && K ? (K as MediaKit).richText(N.title!.rich, N.x, ty, { ...titleTo, measure: ctx.measure }) : [textBlock(N.title!.lines, N.x, ty, titleTo)];
+    const label = N.title.rich && kit() ? kit()!.richText(N.title.rich, tx, ty, { ...titleTo, measure: ctx.measure }) : [textBlock(N.title.lines, tx, ty, titleTo)];
     parts.push(...withLink(href, label));
     if (N.rows) {
       // the divider under the title, then the description rows (left-aligned)
-      const dy = top + N.title!.h + padY / 2;
+      const dy = top + blockH + padY / 2;
       parts.push(el('path', { class: 'divider', d: `M${fmt(N.x - N.w / 2)},${fmt(dy)} L${fmt(N.x + N.w / 2)},${fmt(dy)}`, fill: 'none', stroke: st.stroke, 'stroke-width': Math.max(0.5, (st.strokeWidth ?? 1) * 0.75) }));
       const rs = Math.max(8, fs - 1);
       const ry = dy + padY / 2 + N.rows.h / 2;
       const rowTo = to(rs, st.fontWeight, 'start');
       const rx = N.x - N.w / 2 + padX;
-      parts.push(...(N.rows.rich && K ? (K as MediaKit).richText(N.rows.rich, rx, ry, { ...rowTo, measure: ctx.measure }) : [textBlock(N.rows.lines, rx, ry, rowTo)]));
+      parts.push(...(N.rows.rich && kit() ? kit()!.richText(N.rows.rich, rx, ry, { ...rowTo, measure: ctx.measure }) : [textBlock(N.rows.lines, rx, ry, rowTo)]));
     }
     nodeNodes.push(itemGroup('node', id, `node ${kindCls}`, [...parts, ...tip], linkAttr(href)));
   }
@@ -495,7 +479,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
     const fs = st.fontSize ?? 13;
     const to = { size: fs, weight: st.fontWeight, color: st.text, family: st.fontFamily || family, lh: 1.3, anchor: 'start' as const };
     const tx = it.x - it.w / 2 + (st.padX ?? 10);
-    const label = it.label.rich && K ? (K as MediaKit).richText(it.label.rich, tx, it.y, { ...to, measure: ctx.measure }) : [textBlock(it.label.lines, tx, it.y, to)];
+    const label = it.label.rich && kit() ? kit()!.richText(it.label.rich, tx, it.y, { ...to, measure: ctx.measure }) : [textBlock(it.label.lines, tx, it.y, to)];
     noteNodes.push(itemGroup('note', it.note.id, 'note st-note', [...shapeDef('note').draw(it, st, {}), ...label]));
   }
 

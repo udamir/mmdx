@@ -1,14 +1,16 @@
 // The Properties panel's Icon and Image sections (T05 §4.6) for an item whose type gives it media (the edit kind's
 // `media`): the icon (choose, replace, remove), the label position, the icon's frame and size; the image's URL
 // (checked against the image policy when the image tool opens), its size, fit and aspect lock. Writes go to the
-// Mermaid code through `setIcon`, `setImage` and `setMedia` (a flowchart's node data); the fit is metadata.
+// Mermaid code through `setIcon`, `setImage` and `setMedia` (a flowchart's node data); the fit is metadata. In the types
+// that draw icons and images beside the label (`decorated`: mindmap nodes, states), the icon's place and size and the
+// image's size are metadata too (T10 §4.6).
 import type { ItemRef } from '../../../../core/types.js';
 import { h } from '../../../../ui/h.js';
 import { registerMessages } from '../../../../ui/i18n.js';
 import { EDITOR_MEDIA_MESSAGES } from '../../../../ui/messages/editor-media.js';
 import { editKind } from '../../../kinds/registry.js';
 import type { ItemMedia, MediaPatch } from '../../../kinds/types.js';
-import { mediaOf, setIconOf, setImageFit, setImageOf, setMediaOf } from '../../../ops/media.js';
+import { mediaOf, setDecoration, setIconOf, setImageFit, setImageOf, setMediaOf } from '../../../ops/media.js';
 import { row, sect, type PanelCtx } from './shared.js';
 import { isFaPack, splitIconName } from '../../../../core/icons/names.js';
 
@@ -73,6 +75,13 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
         host.append(row('', conv));
       }
     }
+    if (k.decorated && !m.node && m.icon) {
+      // where the icon is drawn (inline before the text, above, below) and its size (inline: the font's)
+      const meta = core.getM(ref.kind, ref.id);
+      const pos = typeof meta['iconPos'] === 'string' ? meta['iconPos'] : 'l';
+      host.append(row(t('props.iconPos'), choice(t('props.iconPos'), ['l', 't', 'b'], pos, (v) => t(`media.iconPos.${v}`), (v) => setDecoration(core, [ref], 'iconPos', v))));
+      host.append(row(t('props.iconSize'), size(t('props.iconSize'), typeof meta['iconSize'] === 'number' ? meta['iconSize'] : undefined, (v) => setDecoration(core, [ref], 'iconSize', v))));
+    }
     if (m.node === 'icon') {
       host.append(row(t('props.iconForm'), choice(t('props.iconForm'), ['', 'square', 'circle', 'rounded'], m.form ?? '', (v) => t(`media.form.${v || 'none'}`), (v) => void setMediaOf(core, [ref], { form: v || null }))));
       layoutRows(p, host, ref, m);
@@ -90,6 +99,15 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
       ctl.push(rm);
     }
     host.append(row(t('props.imageUrl'), ...ctl));
+    if (k.decorated && m.image !== null) {
+      // the picture's box (one of the two: the other follows its aspect) and fit
+      const meta = core.getM(ref.kind, ref.id);
+      const num = (key: string): number | undefined => (typeof meta[key] === 'number' ? (meta[key] as number) : undefined);
+      host.append(row(t('props.mediaW'), size(t('props.mediaW'), num('imgW'), (v) => setDecoration(core, [ref], 'imgW', v))));
+      host.append(row(t('props.mediaH'), size(t('props.mediaH'), num('imgH'), (v) => setDecoration(core, [ref], 'imgH', v))));
+      const fit = meta['imgFit'];
+      host.append(row(t('props.fit'), choice(t('props.fit'), ['contain', 'cover', 'stretch'], typeof fit === 'string' ? fit : 'contain', (v) => t(`media.fit.${v}`), (v) => setImageFit(core, [ref], v))));
+    }
     if (m.node === 'image') {
       layoutRows(p, host, ref, m);
       const lock = h('input', { type: 'checkbox', 'aria-label': t('props.aspect') });

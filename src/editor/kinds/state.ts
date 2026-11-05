@@ -263,6 +263,7 @@ export const EDIT: EditKind<StateModel, StateGeometry> = {
   // images are metadata (`img`): the editor writes them (imageInMeta)
   setImage: () => null,
   imageInMeta: true,
+  decorated: true,
   direction: (M) => M.direction,
   properties(core, M, ref) {
     const t = core.i18n.t;

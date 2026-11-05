@@ -353,4 +353,39 @@ describe('selection toolbar and Properties', () => {
     expect($('.prop-emoji')).not.toBeNull();
     await valid(e.core.code);
   });
+
+  test('Properties of a state (T10): the icon position and size and the image size and fit are metadata; the code stays', async () => {
+    const e = mount('stateDiagram-v2\n  state "fa:fa-cog Running" as run\n  [*] --> run\n%%@ node run {"img":"https://example.com/a.png"}\n');
+    await settle();
+    const code = e.core.code;
+    e.core.select([{ kind: 'node', id: 'run' }]);
+    e.core.run('setPanel', 'properties', true);
+    e.core.fire('panels');
+    await settle();
+    const pos = $<HTMLSelectElement>('select[aria-label="Position"]')!;
+    expect(pos.value).toBe('l');
+    pos.value = 't';
+    pos.dispatchEvent(new Event('change'));
+    expect(e.core.meta.nodes?.['run']).toMatchObject({ iconPos: 't' });
+    await settle();
+    const size = $<HTMLInputElement>('input[aria-label="Icon size"]')!;
+    size.value = '32';
+    size.dispatchEvent(new Event('change'));
+    await settle();
+    const w = $<HTMLInputElement>('input[aria-label="Width"]')!;
+    w.value = '120';
+    w.dispatchEvent(new Event('change'));
+    await settle();
+    const fit = $<HTMLSelectElement>('select[aria-label="Fit"]')!;
+    fit.value = 'cover';
+    fit.dispatchEvent(new Event('change'));
+    expect(e.core.meta.nodes?.['run']).toEqual({ img: 'https://example.com/a.png', iconPos: 't', iconSize: 32, imgW: 120, imgFit: 'cover' });
+    await settle();
+    // back to the defaults: the keys go
+    const pos2 = $<HTMLSelectElement>('select[aria-label="Position"]')!;
+    pos2.value = 'l';
+    pos2.dispatchEvent(new Event('change'));
+    expect(e.core.meta.nodes?.['run']?.['iconPos']).toBeUndefined();
+    expect(e.core.code).toBe(code);
+  });
 });

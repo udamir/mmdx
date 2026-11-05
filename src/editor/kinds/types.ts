@@ -116,6 +116,11 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   setImage?(code: string, model: M, ref: ItemRef, url: string | null, core: EditorCore): CodeResult | null;
   /** The type has no image syntax: an image is the item's metadata `img` (the editor writes it; `setImage` is not called). */
   imageInMeta?: boolean;
+  /**
+   * The type draws its icons and images beside the label through core/render/decorate.ts (T10): their place, size and
+   * fit are item metadata (`iconPos`, `iconSize`, `imgW`, `imgH`, `imgFit`), which Properties edits.
+   */
+  decorated?: boolean;
   /** Changes an icon or image item's position, frame, size or aspect lock. */
   setMedia?(code: string, model: M, ref: ItemRef, patch: MediaPatch, core: EditorCore): CodeResult | null;
 
