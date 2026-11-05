@@ -31,7 +31,7 @@ mmdx reads each statement the way Mermaid's lexer reads it (`sequenceDiagram.jis
 |---|---|
 | `participant A`, `actor A` | A participant, or an actor (a stick figure); a participant is also created by its first mention in a message or note |
 | `participant A as Alice` | A participant with a display name other than its id |
-| `participant A@{ "type": "database" }`, `@{ type: database }` | Mermaid's participant type (`actor` and `database` are drawn as their figures) |
+| `participant A@{ "type": "database" }`, `@{ type: database }` | Mermaid's participant type, drawn as Mermaid draws it (see [Participant types](#participant-types)); the type in `@{}` wins over the `actor` keyword, as in Mermaid |
 | `participant A@{ "alias": "Alice" }` | The display name in the participant's data (Mermaid 11.13+); an `as` alias on the same line wins, as in Mermaid |
 | `create participant B`, `create actor B` | A participant created by the next message, which must be to it (see [Create and destroy](#create-and-destroy)) |
 | `destroy B` | The next message, from or to B, destroys it |
@@ -48,7 +48,7 @@ mmdx reads each statement the way Mermaid's lexer reads it (`sequenceDiagram.jis
 | `title Text`, `title: Text` | The diagram's title, drawn above the participants |
 | `accTitle: …`, `accDescr: …`, `accDescr { … }` | The accessible name and description: the SVG's `<title>` and `<desc>` and the viewer's accessible name |
 | `link A: Dashboard @ https://…`, `links A: {"Dashboard": "https://…"}` | A participant's links (see [Links](#links)) |
-| `properties A: {"icon": "https://…"}`, `details A: element-id` | Read and kept; `properties` must be a JSON object |
+| `properties A: {"icon": "https://…"}`, `details A: element-id` | Read and kept; `properties` must be a JSON object, and its `icon` URL is drawn as the participant's image (see [Icons and images](#icons-and-images)) |
 | `%% comment` | A comment line |
 | `<br/>`, `#9829;`, emoji | A line break, an entity code, emoji as text |
 
@@ -69,7 +69,29 @@ Mermaid 12.1 reads three forms that Mermaid 11 rejects: whitespace before `@{` (
 | `seq.create-message` | warning | The message after `create X` is not to X, which Mermaid rejects |
 | `seq.destroy-message` | warning | The message after `destroy X` is neither from nor to X, which Mermaid rejects |
 | `seq.bad-json` | warning | The value of `links` or `properties` is not a JSON object; Mermaid ignores it |
+| `seq.bad-type` | warning | A participant `type` Mermaid does not draw; the participant is drawn as a box |
 | `seq.v12-syntax` | info | Syntax that Mermaid 12.1 and later read and Mermaid 11 rejects |
+
+## Participant types
+
+| Type | Drawn as |
+|---|---|
+| `participant` (the default) | A box with the name in it |
+| `actor` (the keyword, or `"type": "actor"`) | A stick figure, the name under it |
+| `boundary`, `control`, `entity` | Their UML figures, 40 px tall, the name under them |
+| `database` | A cylinder with the name in it |
+| `collections` | Stacked boxes with the name in the front one |
+| `queue` | A horizontal cylinder with the name in it |
+
+The editor's shape picker on a participant lists the eight types and two looks of mmdx's own, Rounded and Stadium. A type is written to the code: `actor` and `participant` as the keyword (a `type` entry in `@{}` is removed, and an emptied `@{}` with it), the others as `@{ "type": "queue" }`, keeping the rest of `@{}`, the alias and `create`. A participant whose id holds a hyphen or `=` keeps its type in metadata, since Mermaid 11 rejects `@{}` after such an id. Rounded and Stadium are metadata `shape`, drawn by mmdx only. An older file's metadata `shape: "hcyl"` or `"database"` is still drawn; choosing the shape again writes the type to the code.
+
+## Icons and images
+
+A participant's icon is a label token at the start of its display name: `participant A as fa:fa-user Alice`. The editor's Icons tool writes it into the alias, adding one when the participant has none (`participant A as fa:fa-user A`), and removes an alias that is only the id again when the icon goes. mmdx draws the icon above the name (metadata `iconPos` `t`, the default for participants; `l` inline before it, `b` below; `iconSize` and `iconColor` as for [state diagrams](/guide/state)); Properties notes that stock Mermaid shows the token as text in sequence diagrams.
+
+A participant's picture is metadata `img`, drawn above the name, with `imgW`, `imgH` and `imgFit`; the head grows to hold it. Mermaid's `properties A: {"icon": "https://…"}` is drawn the same way when the participant has no metadata image, and kept as written; the editor never writes it. URLs go through the [image policy](/guide/security#image-policy). The Image tool adds a participant with the picture, or sets the selected participant's.
+
+Icon tokens in messages and notes are drawn too (without markdown); emoji are text everywhere.
 
 ## Messages
 
@@ -107,7 +129,7 @@ The layout follows the code: participants from left to right in the order they a
 
 A new sequence diagram starts from `sequenceDiagram` (the Sequence card of the editor's "Start a diagram" chooser, the studio's New menu, `starterSource('sequence')`). The editor writes every change to the Mermaid code and keeps the rest of each line as written:
 
-- **Shapes menu** (`S`): Participant, Actor and Database add `participant P1` or `actor Actor1` before the participant right of the drop point (Database: drawn as the cylinder through metadata `shape`); Note, dropped next to a participant, adds `Note over P1: note` after the message above the drop; Loop, Alternative, Optional, Parallel, Critical region, Break and Highlight (`rect`), dropped on a message, wrap it in a block (or wrap the selected messages).
+- **Shapes menu** (`S`): Participant, Actor and Database add `participant P1`, `actor Actor1` or `participant P1@{ "type": "database" }` before the participant right of the drop point; Note, dropped next to a participant, adds `Note over P1: note` after the message above the drop; Loop, Alternative, Optional, Parallel, Critical region, Break and Highlight (`rect`), dropped on a message, wrap it in a block (or wrap the selected messages).
 - **Messages**: drag from a lifeline's circle sideways to another lifeline for a new message (back to the same one for a message to itself), up or down for a process. A message's end circle dragged up or down to another message makes a process between the two; dragged sideways to another lifeline, it re-attaches that end there ("Message re-attached to B"). Two selected messages become one process with **Show as process**.
 - **Arrow**: the floating toolbar's arrow popover writes Mermaid's ten arrows in two rows, solid (`->>`, `->`, `-x`, `-)`, `<<->>`) and dotted (`-->>`, `-->`, `--x`, `--)`, `<<-->>`), with previews; only the token changes, `()` and `+` / `-` stay. Half arrows are read and kept but not offered. **Reverse** swaps the message's ends (a central connection's circle stays with its participant); it is refused for a message to its sender and where the processes would no longer balance.
 - **Notes**: the toolbar's left of, right of and over buttons, and Properties' **Note placement**, rewrite the note's placement (a note over two participants goes beside the first). Dragging a note's edges spans it over more participants or fewer; while it covers one participant, it keeps `left of` / `right of`.
