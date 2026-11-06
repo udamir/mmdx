@@ -9,10 +9,10 @@
 //   5. History: stepping through the versions to see the evolution
 //   6. Diff: merged / before / after / side by side, filters, change list, code diff
 //
-// Usage (with `npm run dev` running): node tools/tour.mjs [--url http://localhost:8790/] [--headless] [--speed 1]
-//   [--video out-dir] [--shots out-dir] [--iterations 5]
+// Usage (with `pnpm dev` running; once: `pnpm exec playwright install chromium`):
+//   pnpm tour [--url http://localhost:8790/] [--headless] [--speed 1] [--video out-dir] [--shots out-dir] [--iterations 5]
 // --speed scales the pauses (0.5 is twice as fast), --shots saves a screenshot at the end of every captioned step.
-// Playwright is not a dependency of the package: run it where `playwright` resolves (e.g. `pnpm add -D playwright`).
+// See "Feature tour" in docs/guide/contributing.md.
 import { chromium } from 'playwright';
 
 const arg = (name, def) => {
