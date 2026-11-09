@@ -3,14 +3,11 @@
 // one cardinality, its line or its label and keeps the form it is written in (`only one to zero or more` stays words,
 // `||--o{` symbols); an alias is rewritten where Mermaid reads it (the first one written); ids are quoted where
 // Mermaid would not read them as one word (`erId`, E2). Subgraphs (11.17+): ⌘G writes `subgraph id ["Title"]` …
-// `end` around the selected tables and subgraphs, Ungroup and Delete remove the frame and keep what is in it. A
-// table's icon (T10.3) is a leading label token in its alias: a bare `CUSTOMER` that gets one becomes
-// `CUSTOMER["fa:fa-user CUSTOMER"]`, and the alias stays when the icon goes (`CUSTOMER["CUSTOMER"]`).
+// `end` around the selected tables and subgraphs, Ungroup and Delete remove the frame and keep what is in it.
 import type { Cardinality, Direction, Entity, ErAttribute, ErGroup, ErModel, ErRel } from '../model.js';
 import { erId, erLabel, erQuoted } from '../parse/er-id.js';
 import { applySplices, type Splice } from '../parse/node-data.js';
 import type { ItemRef } from '../types.js';
-import { withIconToken, type IsIconToken } from './icon-token.js';
 import { copyIds, uniqueId } from './ids.js';
 import { append, contentEnd, indentOf } from './lines.js';
 import type { CloneInto, CloneResult, CodeResult, ConnectResult, LineResult, RefusableResult, SelectResult } from './types.js';
@@ -138,8 +135,6 @@ export const attrText = (a: ErAttribute): string =>
 export interface EntityPatch {
   /** Display label (the alias); the id itself or '' removes the alias. */
   label?: string;
-  /** Write the alias even when it is the id (the icon's alias form stays once written). */
-  keepAlias?: boolean;
   attrs?: readonly ErAttribute[];
 }
 
@@ -148,14 +143,14 @@ export interface EntityPatch {
  * first one written), else added to the table's first statement; the attributes go into its last block (other blocks
  * are emptied: Mermaid joins the attributes of all of them), else into a new block at the end of the code.
  */
-export function updateEntity(code: string, model: ErModel, id: string, { label, keepAlias, attrs }: EntityPatch): CodeResult {
+export function updateEntity(code: string, model: ErModel, id: string, { label, attrs }: EntityPatch): CodeResult {
   const e = model.entities.get(id);
   if (!e) return { code };
   const sp: Splice[] = [];
   const L = code.split('\n');
   const newLabel = label ?? e.label;
-  const aliasText = newLabel && (newLabel !== id || keepAlias) ? `[${erQuoted(newLabel)}]` : '';
-  let aliasDone = newLabel === e.label && (e.alias !== undefined || !aliasText);
+  const aliasText = newLabel && newLabel !== id ? `[${erQuoted(newLabel)}]` : '';
+  let aliasDone = newLabel === e.label;
   if (!aliasDone) {
     const at = e.stmts.find((s) => s.aliasAt);
     const first = e.stmts[0];
@@ -188,19 +183,6 @@ export function updateEntity(code: string, model: ErModel, id: string, { label, 
   if (!aliasDone) tail = [`  ${erId(id)}${aliasText}`];
   const out = applySplices(code, sp);
   return { code: tail.length ? append(out, tail) : out };
-}
-
-/**
- * Sets a table's icon, or removes it (null): the leading label token of its alias (T10.3; `isIcon` tells a token from
- * a word, the editor's registry). A table without an alias gets one (`CUSTOMER["fa:fa-user CUSTOMER"]`); without the
- * icon the alias keeps its text, or the id when the icon was all of it.
- */
-export function setEntityIcon(code: string, model: ErModel, id: string, icon: string | null, isIcon?: IsIconToken): CodeResult {
-  const e = model.entities.get(id);
-  if (!e) return { code };
-  const now = e.alias ?? e.label;
-  const label = withIconToken(now, icon, isIcon) || id;
-  return label === now ? { code } : updateEntity(code, model, id, { label, keepAlias: true });
 }
 
 // ---- relationships ------------------------------------------------------------------------------------------------

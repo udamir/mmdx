@@ -1,15 +1,10 @@
 // The ER edit kind: tables, relationships and subgraphs (11.17+, T11.6) — ⌘G wraps tables (and subgraphs) of one
 // subgraph or of the top level in a new `subgraph`, Ungroup and Delete remove the frame and keep what is in it, a
-// table dropped on a subgraph is written into it, Properties set a subgraph's direction. A table's icon (T10.3) is a
-// leading label token in its alias, written from the icon picker (an alias is added when the table has none), placed
-// by metadata `iconPos` / `iconSize` (Properties); tables take no images (T10 §6 Q2: no image hooks, so the dock's
-// Image tool and the Image section stay hidden).
+// table dropped on a subgraph is written into it, Properties set a subgraph's direction.
 import type { Direction, ErModel } from '../../core/model.js';
 import {
-  addERRel, addEntity, canGroupER, deleteER, erFragment, groupER, reconnectER, relabelErGroup, setEntityIcon, setErGroupDirection, ungroupER, updateEntity,
-  updateRel,
+  addERRel, addEntity, canGroupER, deleteER, erFragment, groupER, reconnectER, relabelErGroup, setErGroupDirection, ungroupER, updateEntity, updateRel,
 } from '../../core/ops/er.js';
-import { leadingIcon, type IsIconToken } from '../../core/ops/icon-token.js';
 import type { ErGeometry } from '../../core/render/types.js';
 import type { Point } from '../../core/types.js';
 import { cloneMeta, ensure as ensureIn } from '../../core/ops/meta-util.js';
@@ -19,7 +14,6 @@ import { tableIcon } from './palette.js';
 import type { EditKind, PropControl } from './types.js';
 
 const one = (s: string): string => s.replace(/\n/g, ' ');
-const isIconOf = (core: EditorCore): IsIconToken => (t) => core.ctx.icons.resolve(t, 'token') !== null;
 
 /** The innermost visible subgraph around a point (a dropped table joins it). */
 function groupAt(core: EditorCore, pt: Point): string | null {
@@ -90,14 +84,6 @@ export const EDIT: EditKind<ErModel, ErGeometry> = {
     if (ok) focusLabel(core, res.select);
     return ok;
   },
-  // a table's icon: the leading token of its alias
-  media(M, ref, core) {
-    const e = ref.kind === 'entity' ? M.entities.get(ref.id) : undefined;
-    if (!e) return null;
-    return { icon: e.alias !== undefined ? leadingIcon(e.alias, isIconOf(core))?.name ?? null : null, image: null, node: null, canImage: false };
-  },
-  setIcon: (code, M, ref, icon, core) => (ref.kind === 'entity' && M.entities.has(ref.id) ? setEntityIcon(code, M, ref.id, icon, isIconOf(core)) : null),
-  decorated: true,
   direction: (M) => M.direction,
   properties(core, M, ref): PropControl[] {
     const g = ref.kind === 'group' ? M.groups.get(ref.id) : undefined;

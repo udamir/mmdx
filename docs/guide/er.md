@@ -94,7 +94,7 @@ A relationship from a table to itself is a loop beside the table — on its righ
 
 `CUSTOMER["**Customer**"]` draws the alias instead of the id. Mermaid draws ER aliases as markdown, and so does mmdx: `**bold**` and `*italic*` runs are drawn as such, and a markdown string's backticks (`` "`**x**`" ``) are not part of the text. The id stays the table's id in relationships, metadata and the editor.
 
-A table's icon is a label token at the start of its alias: `CUSTOMER["fa:fa-user Customer"]`. mmdx draws it before the title (metadata `iconPos` `l`, the default), or above or below it (`t`, `b`), at the text's size or `iconSize`, in `iconColor`. Only an alias holds an icon: a bare `CUSTOMER` is its id as text. The editor's Icons tool (and the Icon button of a table's toolbar) writes the token into the alias, giving a bare table one (`CUSTOMER["fa:fa-user CUSTOMER"]`) and declaring a table that only appears in relationships; the alias stays when the icon is removed. Stock Mermaid draws `fa:` tokens in aliases, and shows other packs' tokens as text. Emoji go in the alias as well. Tables have no images (metadata `img` is ignored and the Image tool is hidden). mmdx also draws icon tokens in relationship labels and subgraph titles.
+ER diagrams have no icons or images: an icon token in an alias (`CUSTOMER["fa:fa-user Customer"]`) or a relationship label is drawn as text, and metadata `img` is ignored. Emoji go in the alias as text.
 
 ## Classes, styles and presets
 

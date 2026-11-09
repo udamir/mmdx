@@ -2,8 +2,7 @@
 // The insert dock and its pickers (T05): the Image button per kind (no Text, Icons, Container or Connector tools: those
 // are made inline), icons set and images inserted and set through the flowchart's edit kind (every output parsed by
 // stock Mermaid 12.2 and 11.17), the image policy and the host's `uploadImage`, emoji at the caret, the Shapes palette
-// (Alt-click replace), the selection toolbar's media controls and the Properties sections; ER tables (T10.3): the
-// icon as a token in the alias, no images.
+// (Alt-click replace), the selection toolbar's media controls and the Properties sections.
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
@@ -405,71 +404,5 @@ describe('selection toolbar and Properties', () => {
     pos2.dispatchEvent(new Event('change'));
     expect(e.core.meta.nodes?.['run']?.['iconPos']).toBeUndefined();
     expect(e.core.code).toBe(code);
-  });
-});
-
-describe('ER tables (T10.3)', () => {
-  const SRC = 'erDiagram\n  CUSTOMER {\n    string id PK\n  }\n  CUSTOMER ||--o{ ORDER : places';
-  const pick = async (e: DiagramEditor, q: string, name: string): Promise<void> => {
-    e.core.run('openIconPicker', null);
-    await settle();
-    input($<HTMLInputElement>('.ip-search')!, q);
-    $<HTMLButtonElement>(`.ip-tile[aria-label="${name}"]`)!.click();
-  };
-
-  test('the icon picker on a selected table: a token in its alias (added), replaced, removed; one undo step each', async () => {
-    const e = mount(SRC);
-    await settle();
-    e.core.select([{ kind: 'entity', id: 'CUSTOMER' }]);
-    await pick(e, 'user', 'tabler:user');
-    expect(e.core.code).toBe(SRC.replace('CUSTOMER {', 'CUSTOMER["tabler:user CUSTOMER"] {'));
-    await valid(e.core.code);
-    await pick(e, 'truck', 'tabler:truck');
-    expect(e.core.code).toBe(SRC.replace('CUSTOMER {', 'CUSTOMER["tabler:truck CUSTOMER"] {'));
-    e.core.run('openIconPicker', null);
-    await settle();
-    $<HTMLButtonElement>('.ip-foot button')!.click();
-    // the alias form stays once written
-    expect(e.core.code).toBe(SRC.replace('CUSTOMER {', 'CUSTOMER["CUSTOMER"] {'));
-    await valid(e.core.code);
-    e.undo();
-    expect(e.core.code).toBe(SRC.replace('CUSTOMER {', 'CUSTOMER["tabler:truck CUSTOMER"] {'));
-    // a table that lives only in a relationship gets a declaration with its alias
-    e.core.select([{ kind: 'entity', id: 'ORDER' }]);
-    await pick(e, 'truck', 'tabler:truck');
-    expect(e.core.code.trimEnd().split('\n').pop()).toBe('  ORDER["tabler:truck ORDER"]');
-    await valid(e.core.code);
-  });
-
-  test('no images: the dock hides Image, the toolbar offers Icon on tables only, Properties has the icon position', async () => {
-    const e = mount(SRC.replace('CUSTOMER {', 'CUSTOMER["fa:fa-user Customer"] {'));
-    await settle();
-    e.core.fire('model');
-    expect($('.vt-image')!.hidden).toBe(true);
-    const code = e.core.code;
-    e.core.select([{ kind: 'entity', id: 'CUSTOMER' }]);
-    e.core.fire('selection');
-    await settle();
-    e.core.run('refreshToolbar');
-    const bar = $('.mtb')!;
-    expect(bar.querySelector('[data-c="icon"] .mtb-has')).not.toBeNull();
-    expect(bar.querySelector('[data-c="media"]')).toBeNull();
-    e.core.select([{ kind: 'rel', id: 'CUSTOMER--ORDER' }]);
-    e.core.run('refreshToolbar');
-    expect(bar.querySelector('[data-c="icon"]')).toBeNull();
-    e.core.select([{ kind: 'entity', id: 'CUSTOMER' }]);
-    e.core.run('setPanel', 'properties', true);
-    e.core.fire('panels');
-    await settle();
-    expect($('input[aria-label="Image URL"]')).toBeNull();
-    const pos = $<HTMLSelectElement>('select[aria-label="Position"]')!;
-    expect(pos.value).toBe('l');
-    pos.value = 't';
-    pos.dispatchEvent(new Event('change'));
-    expect(e.core.meta.entities?.['CUSTOMER']).toMatchObject({ iconPos: 't' });
-    expect(e.core.code).toBe(code);
-    // drawn above the title
-    await settle();
-    expect(host.shadowRoot!.querySelector('[data-kind="entity"][data-id="CUSTOMER"] .mmdx-icon')).not.toBeNull();
   });
 });

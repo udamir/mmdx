@@ -6,14 +6,9 @@
 // `<title>` / `<desc>`. Subgraphs (11.17+, T11.6) are laid out with the compound layout (T07: each subgraph in its own
 // direction, Mermaid's rule for it) and drawn as the flowchart draws its subgraphs; relationships between auto-placed
 // ends go around the subgraphs that hold neither end. A diagram without subgraphs keeps the earlier layered layout.
-// Since T10.3 an alias's leading icon token (`CUSTOMER["fa:fa-user Customer"]`, which stock Mermaid draws too) is the
-// table's title icon, placed as in every kind (render/decorate.ts): inline before the title by default, above or below
-// it with metadata `iconPos`, apart at its own `iconSize`; tables take no images (T10 §6 Q2). Icon tokens elsewhere in
-// an alias, in a subgraph title or in a relationship label are drawn inline through the media kit's runs.
 import { ancestorsOf, layoutCompound, type CompoundContainer, type CompoundEdge, type CompoundNode, type CompoundResult } from '../layout/compound.js';
 import { layered, type LayoutEdge, type LayoutNode } from '../layout/layered.js';
 import { polylineCrosses, routeAround } from '../layout/route.js';
-import { ICON_TOKEN } from '../icons/names.js';
 import { mediaKit, type MediaKit } from '../media/kit.js';
 import type { AttrHighlight, ItemMeta } from '../meta/types.js';
 import type { Direction, Entity, ErGroup, ErModel, ErRel, MermaidStyle } from '../model.js';
@@ -30,7 +25,6 @@ import {
 } from './common.js';
 import type { BoxGeom, EdgeGeom, ErGeometry, Port, RenderContext } from './types.js';
 import { dashAttrs } from './dash.js';
-import { decorate, decorated, decoratedSize, decoration, type Decoration } from './decorate.js';
 import { attrLook, entityPreset, erGroupPreset, erPresets, highlight, relPreset } from './er-presets.js';
 
 export { ATTR_PRESETS, attrLook, entityPreset, erGroupPreset, erPresets, relPreset, type ErPresets } from './er-presets.js';
@@ -52,20 +46,8 @@ const groupCode = (s: MermaidStyle | undefined): StyleProps | undefined => {
 
 interface Title {
   lines: string[];
-  /** Runs of a markdown alias (bold, italic, icon tokens), when the media kit is there. */
+  /** Runs of a markdown alias (bold, italic), when the media kit is there. */
   rich?: TextRun[][];
-  /** The title icon drawn apart from the text (`iconPos` t / b, or an `iconSize`): its block and its drawing. */
-  deco?: {
-    d: Decoration;
-    draw(x: number, top: number, text: { w: number; h: number }): { nodes: SceneNode[]; contentBox: CenterBox };
-  };
-}
-
-/** A relationship label: its lines, the runs when it holds icon tokens, its width. */
-interface RelLabel {
-  lines: string[];
-  rich?: TextRun[][];
-  w: number;
 }
 
 interface Card {
@@ -120,42 +102,18 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
     }
     return K;
   };
-  /** Does a text hold an icon token the registry draws? */
-  const hasIcons = (text: string): boolean => text.includes(':') && [...text.matchAll(ICON_TOKEN)].some((t) => ctx.icons.resolve(t[2]!, 'token') !== null);
-  /**
-   * A title's lines: an alias with markdown emphasis or icon tokens as runs (Mermaid draws ER aliases as markdown),
-   * else plain; `color` is the inline icons' colour, `line` where their diagnostics point.
-   */
-  const titleOf = (text: string, markdown: boolean, size: number, weight: number | string | undefined, fam: string, color?: string, line?: number): Title => {
+  /** A title's lines: an alias with markdown emphasis as runs (Mermaid draws ER aliases as markdown), else plain. */
+  const titleOf = (text: string, markdown: boolean, size: number, weight: number | string | undefined, fam: string): Title => {
     const lines = text.split('\n');
-    const icons = markdown && hasIcons(text);
-    if (!markdown || (!/[*_]/.test(text) && !icons)) return { lines };
+    if (!markdown || !/[*_]/.test(text)) return { lines };
     const k = kit();
-    const at = line !== undefined && Number.isFinite(line) ? { diagnostics: env.diagnostics, line } : { diagnostics: env.diagnostics };
-    const runs = k?.labelRuns(text, icons ? { markdown: true, icons: k.iconResolver(ctx, color, size, at), iconSize: size } : { markdown: true });
+    const runs = k?.labelRuns(text, { markdown: true });
     if (!k || !runs) return { lines };
     const r = k.wrapRuns(runs, 0, font(size, weight, fam), ctx.measure);
     return k.richLines(r) ? { lines: r.map(k.runsText), rich: r } : { lines };
   };
   const titleWidth = (t: Title, size: number, weight: number | string | undefined, fam: string): number =>
     t.rich && K ? (K as MediaKit).runsBlockWidth(t.rich, font(size, weight, fam), ctx.measure) : textBlockWidth(t.lines, font(size, weight, fam), ctx.measure);
-  /**
-   * A relationship label, with its icon tokens as runs (mmdx draws them; stock Mermaid's ER labels are plain text);
-   * `report`: their diagnostics (once per label: a loop's label is also measured for its room).
-   */
-  const relLabelOf = (r: ErRel, st: StyleProps, color: string | undefined, report = true): RelLabel => {
-    const size = st.labelSize ?? 13, fnt = font(size, 400, st.fontFamily || family);
-    const k = hasIcons(r.label) ? kit() : null;
-    const runs = k?.labelRuns(r.label, { icons: k.iconResolver(ctx, color, size, report ? { diagnostics: env.diagnostics, line: r.src } : undefined), iconSize: size });
-    if (k && runs) {
-      const rl = k.wrapRuns(runs, 0, fnt, ctx.measure);
-      const out: RelLabel = { lines: rl.map(k.runsText), w: k.runsBlockWidth(rl, fnt, ctx.measure) };
-      if (k.richLines(rl)) out.rich = rl;
-      return out;
-    }
-    const lines = r.label.split('\n');
-    return { lines, w: lines.reduce((w, l) => Math.max(w, ctx.measure.width(l, fnt)), 0) };
-  };
 
   // ---- hidden by layers: a hidden subgraph hides what is in it
   const groupHidden = new Set<string>();
@@ -181,15 +139,7 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
     const href = itemLink(ctx, m.link);
     const fam = st.fontFamily || family;
     const editing = tableView.has(e.id);
-    const size = st.titleSize ?? 16, line = firstLine(e.defLine, e.lines);
-    // the alias's leading icon token: inline in the title's runs, or drawn apart where `iconPos` puts it (no images)
-    const color = titleLook(ctx, st, highlightsOf(m), href).color;
-    const deco = e.alias !== undefined ? decoration(ctx, kit, { label: e.label, meta: noImage(m), fontSize: size, color }) : null;
-    const title = titleOf(deco?.label ?? e.label, e.alias !== undefined, size, st.titleWeight, fam, deco?.inlineColor ?? color, line);
-    if (deco && decorated(deco)) {
-      const o = { key: e.id, family: fam, ...(Number.isFinite(line) ? { line } : {}), ...(color ? { color } : {}) };
-      title.deco = { d: deco, draw: (cx, top, text) => decorate(env, kit, deco, cx, top, text, o) };
-    }
+    const title = titleOf(e.label, e.alias !== undefined, st.titleSize ?? 16, st.titleWeight, fam);
     const card = st.mode === 'table' || editing ? tableLayout(ctx, e, st, m, fam, href, title, K, editing) : compactLayout(ctx, e, st, m, fam, href, title, K);
     const x = metaNum(m.x), y = metaNum(m.y);
     const isHidden = hidden.entity.has(e.id) || (!!e.parent && groupHidden.has(e.parent));
@@ -219,8 +169,8 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
   for (const r of model.rels) {
     if (r.from !== r.to || hidden.rel.has(r.id) || !ents.has(r.from)) continue;
     const st = mergeStyle(ctx, E.rel, baseStyle(meta, 'rel'), presetOf(P.rel, relPreset(r, meta)), pickStyle(meta.rels?.[r.id] ?? NO_META));
-    const size = st.labelSize ?? 13, L = r.label && !opts.hideLabels ? relLabelOf(r, st, st.labelColor ?? undefined, false) : null;
-    const lines = L?.lines ?? [], lw = L?.w ?? 0;
+    const size = st.labelSize ?? 13, lines = r.label && !opts.hideLabels ? r.label.split('\n') : [];
+    const lw = lines.reduce((w, l) => Math.max(w, ctx.measure.width(l, font(size, 400, st.fontFamily || family))), 0);
     loopRoom.set(r.from, Math.max(loopRoom.get(r.from) ?? 0, 62 + (across(model.direction) ? (lines.length ? lines.length * size * 1.25 + 4 : 0) : lw + 4)));
   }
   const layoutSize = (x: Ent): { w: number; h: number } => {
@@ -352,11 +302,11 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
     let labelBox: BoxGeom | null = null;
     if (r.label && !opts.hideLabels) {
       const lp = path.at(metaNum(m.labelAt) ?? (r.from === r.to ? 0.5 : 1 - (st.labelAt ?? 0.18)));
+      const lines = r.label.split('\n');
       const size = st.labelSize ?? 13;
       const href = itemLink(ctx, m.link);
-      const color = href ? LINK_COLOR : st.labelColor ?? undefined;
-      const L = relLabelOf(r, st, color);
-      const { lines, w: lw } = L;
+      let lw = 0;
+      for (const l of lines) lw = Math.max(lw, ctx.measure.width(l, font(size, 400, st.fontFamily || family)));
       // a loop's label sits outside it, past its far side
       const loop = r.from === r.to && metaNum(m.labelAt) === undefined;
       const below = loop && across(model.direction);
@@ -367,12 +317,12 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
           'rel',
           r.id,
           'elabel',
-          withLink(href, L.rich && K
-            ? (K as MediaKit).richText(L.rich, cx, ly, {
-              size, color, family: st.fontFamily || family, weight: st.fontWeight || 400, lh: 1.25, underline: !!href, measure: ctx.measure,
-              extra: { stroke: env.paper, 'stroke-width': 4, 'stroke-linejoin': 'round', 'paint-order': 'stroke' },
-            })
-            : [haloLabel(lines, cx, ly, { size, color, family: st.fontFamily || family, weight: st.fontWeight || 400, halo: env.paper, underline: !!href })]),
+          withLink(href, [
+            haloLabel(lines, cx, ly, {
+              size, color: href ? LINK_COLOR : st.labelColor ?? undefined, family: st.fontFamily || family, weight: st.fontWeight || 400,
+              halo: env.paper, underline: !!href,
+            }),
+          ]),
           { 'data-part': 'label', ...linkAttr(href) },
           'label',
         ),
@@ -597,15 +547,6 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
   }
 }
 
-/** An entity's attribute highlights (metadata `attrs`, `__title` for its title). */
-const highlightsOf = (m: ItemMeta): Record<string, AttrHighlight> => (m.attrs && typeof m.attrs === 'object' ? m.attrs : {}) as Record<string, AttrHighlight>;
-/** A table's metadata without an image: tables take icons only (T10 §6 Q2). */
-const noImage = (m: ItemMeta): ItemMeta => {
-  if (m.img === undefined) return m;
-  const { img: _i, ...rest } = m;
-  return rest;
-};
-
 /** Title of a card: link > `__title` highlight (colour, bold, underline; Q7) > style. */
 function titleLook(ctx: RenderContext, st: StyleProps, hl: Record<string, AttrHighlight>, href: SafeUrl | null): { color: string | undefined; weight: number | string | undefined; underline: boolean } {
   const t = highlight(hl, '__title');
@@ -628,7 +569,7 @@ interface Word {
 
 // "title + comma separated attributes" card, like hand-made Miro ERDs.
 function compactLayout(ctx: RenderContext, e: Entity, st: StyleProps, m: ItemMeta, family: string, href: SafeUrl | null, title: Title, K: MediaKit | null): Card {
-  const hl = highlightsOf(m);
+  const hl = (m.attrs && typeof m.attrs === 'object' ? m.attrs : {}) as Record<string, AttrHighlight>;
   const words: Word[] = [];
   e.attrs.forEach((a, i) => {
     let t = st.showTypes ? `${a.type} ${a.name}` : a.name;
@@ -666,31 +607,27 @@ function compactLayout(ctx: RenderContext, e: Entity, st: StyleProps, m: ItemMet
   let tw = 0;
   if (rich) tw = K!.runsBlockWidth(rich, font(titleSize, st.titleWeight, family), ctx.measure);
   else for (const t of titleLines) tw = Math.max(tw, ctx.measure.width(t, font(titleSize, st.titleWeight, family)));
-  const lh = size * 1.32, tlh = titleSize * 1.3;
-  // the title block: the title, with its icon when it is drawn apart
-  const text = { w: tw, h: titleLines.length * tlh };
-  const block = title.deco ? decoratedSize(title.deco.d, text) : text;
-  let inner = Math.max(block.w, 0);
+  let inner = Math.max(tw, 0);
   for (const l of lines) inner = Math.max(inner, l.w);
   const w = metaNum(m.w) || Math.max(st.minW ?? 0, inner + padX * 2);
+  const lh = size * 1.32, tlh = titleSize * 1.3;
   // a line with a larger attribute font is taller
   const lineH = lines.map((l) => Math.max(size, ...l.words.map((wd) => wd.size ?? size)) * 1.32);
   const even = lineH.every((x) => x === lh);
   const linesH = even ? lines.length * lh : lineH.reduce((a, b) => a + b, 0);
-  const h = metaNum(m.h) || padY * 2 + block.h + linesH;
+  const h = metaNum(m.h) || padY * 2 + titleLines.length * tlh + linesH;
   return {
     w,
     h,
-    head: padY + block.h,
+    head: padY + titleLines.length * tlh,
     draw(cx, cy) {
       const top = cy - h / 2 + padY;
       const to = { size: titleSize, weight: look.weight, color: look.color, family, underline: look.underline };
-      const D = title.deco?.draw(cx, top, text);
-      const tx = D ? D.contentBox.x : cx, ty = D ? D.contentBox.y : top + text.h / 2;
-      const out: SceneNode[] = [...(D?.nodes ?? []), ...withLink(href, rich ? K!.richText(rich, tx, ty, { ...to, measure: ctx.measure }) : [textBlock(titleLines, tx, ty, to)])];
+      const ty = top + (titleLines.length * tlh) / 2;
+      const out: SceneNode[] = withLink(href, rich ? K!.richText(rich, cx, ty, { ...to, measure: ctx.measure }) : [textBlock(titleLines, cx, ty, to)]);
       let acc = 0;
       lines.forEach((l, i) => {
-        const y = top + block.h + (even ? lh * (i + 0.5) : acc + lineH[i]! / 2);
+        const y = top + titleLines.length * tlh + (even ? lh * (i + 0.5) : acc + lineH[i]! / 2);
         acc += lineH[i]!;
         out.push(...attrLine(l.words, cx, y, l.w, size, family, st.attrColor, space, ww));
       });
@@ -756,15 +693,9 @@ function attrLine(
 // (the editor's attribute editing): every column shown whatever the style hides, row separators and an empty last row
 // where a new attribute is typed.
 function tableLayout(ctx: RenderContext, e: Entity, st: StyleProps, m: ItemMeta, family: string, href: SafeUrl | null, title: Title, K: MediaKit | null, editing = false): Card {
-  const hl = highlightsOf(m);
+  const hl = (m.attrs && typeof m.attrs === 'object' ? m.attrs : {}) as Record<string, AttrHighlight>;
   const size = st.attrSize ?? 14, titleSize = st.titleSize ?? 16;
-  const rowH = size * 1.9;
-  // the title bar: the title, with its icon when it is drawn apart (the bar grows to hold an icon above or below)
-  const rich = title.rich && K ? title.rich : null;
-  const tfont = font(titleSize, st.titleWeight, family);
-  const text = { w: rich ? K!.runsBlockWidth(rich, tfont, ctx.measure) : title.deco ? textBlockWidth(title.lines, tfont, ctx.measure) : ctx.measure.width(e.label, tfont), h: title.lines.length * titleSize * 1.3 };
-  const block = title.deco ? decoratedSize(title.deco.d, text) : text;
-  const headH = title.deco ? Math.max(titleSize * 2.2, block.h + titleSize * 0.9) : titleSize * 2.2;
+  const rowH = size * 1.9, headH = titleSize * 2.2;
   const showTypes = editing || !!st.showTypes, showComments = editing || !!st.showComments;
   // columns: type, keys, name (its comment after it)
   const KEYS = 1, NAME = 2;
@@ -800,7 +731,8 @@ function tableLayout(ctx: RenderContext, e: Entity, st: StyleProps, m: ItemMeta,
     acc += rowHs[i]!;
   }
   const bodyH = !cols.length ? rowH : even ? cols.length * rowH : acc - headH;
-  const tw = block.w + 32;
+  const rich = title.rich && K ? title.rich : null;
+  const tw = (rich ? K!.runsBlockWidth(rich, font(titleSize, st.titleWeight, family), ctx.measure) : ctx.measure.width(e.label, font(titleSize, st.titleWeight, family))) + 32;
   const addW = editing ? ctx.measure.width('+ attribute', font(size, 400, family)) + 32 : 0;
   const w = metaNum(m.w) || Math.max(st.minW ?? 0, tw, addW, cw.reduce((a, b) => a + b, 0) + 16);
   const need = headH + (editing ? (cols.length ? bodyH : 0) + rowH : bodyH) + 6;
@@ -817,9 +749,7 @@ function tableLayout(ctx: RenderContext, e: Entity, st: StyleProps, m: ItemMeta,
     draw(cx, cy) {
       const x0 = cx - w / 2, y0 = cy - h / 2;
       const to = { size: titleSize, weight: look.weight, color: look.color, family, underline: look.underline };
-      const D = title.deco?.draw(cx, y0 + (headH - block.h) / 2, text);
-      const tx = D ? D.contentBox.x : cx, ty = D ? D.contentBox.y : y0 + headH / 2;
-      const out: SceneNode[] = [...(D?.nodes ?? []), ...withLink(href, rich ? K!.richText(rich, tx, ty, { ...to, measure: ctx.measure }) : [textBlock(D ? title.lines : [e.label], tx, ty, to)])];
+      const out: SceneNode[] = withLink(href, rich ? K!.richText(rich, cx, y0 + headH / 2, { ...to, measure: ctx.measure }) : [textBlock([e.label], cx, y0 + headH / 2, to)]);
       out.push(el('line', { x1: x0, y1: y0 + headH, x2: x0 + w, y2: y0 + headH, stroke: st.stroke, 'stroke-width': (st.strokeWidth ?? 1.5) * 0.7 }));
       cols.forEach((r, i) => {
         const L = looks[i]!;
