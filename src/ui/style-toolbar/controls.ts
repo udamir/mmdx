@@ -47,8 +47,24 @@ export function setSize(x: StyleCtx, sp: KindSpec, v: number): void {
   else x.api.set(sp.size ?? 'fontSize', v);
 }
 
+/** Controls that style a whole label only: off while part of its text is selected. */
+const WHOLE_LABEL: ReadonlySet<ToolbarControl> = new Set(['font', 'size', 'align', 'link', 'textColor']);
+
 /** The bar button of control `c` (an empty span when the host does not offer it). */
 export function control(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLElement {
+  const el = build(c, sp, x);
+  if (WHOLE_LABEL.has(c) && x.api.textPartial?.()) {
+    const tip = x.t('tb.wholeOnly');
+    for (const b of [el, ...el.querySelectorAll<HTMLElement>('button, input')]) {
+      if (b instanceof HTMLButtonElement || b instanceof HTMLInputElement) b.disabled = true;
+    }
+    el.title = tip;
+    el.classList.add('off');
+  }
+  return el;
+}
+
+function build(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLElement {
   const { t, api } = x;
   const e = (k: string): unknown => api.eff(k);
 
@@ -77,6 +93,8 @@ export function control(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLEleme
 
   switch (c) {
     case 'shape':
+      // an icon or image node has no shape of its own (Mermaid draws the icon or the picture)
+      if (api.media?.()?.node) return h('span');
       return button('shape', sp.shapes ? svgIcon('shape') : stackPreview(Math.max(1, stackLevel(e('stack'))), 24), sp.shapes ? t('tb.shapeStack') : t('tb.stack'));
     case 'font': {
       const fam = str(e('fontFamily'));
@@ -113,6 +131,13 @@ export function control(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLEleme
       return wrap;
     }
     case 'bold': {
+      // a label that can be rich: the text format menu (bold, italic, underline, strike)
+      const f = api.textFormats?.();
+      if (f) {
+        const b = button('bold', svgIcon('bold'), t('tb.format'), true);
+        if (f.b || f.i || f.u || f.s) b.classList.add('active');
+        return b;
+      }
       const key = sp.bold ?? 'fontWeight';
       const on = (num(e(key)) ?? (e(key) === 'bold' ? 700 : 400)) >= 600;
       return toggleKey('bold', key, 'bold', t('tb.bold'), on, 400, 700);
@@ -265,8 +290,9 @@ export function control(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLEleme
       // word wrap as a switch (participants: their text has no alignment to pick)
       return toggleKey('wrap', 'wrap', 'wrap', t('tb.wrapTip'), e('wrap') === true, undefined, true);
     case 'icon': {
+      // an icon on any item (a mindmap node's `::icon`); an image or icon node picks its icon as its source instead
       const m = api.media?.();
-      if (!m?.canIcon || !api.pickIcon) return h('span');
+      if (!m?.canIcon || m.node || !api.pickIcon) return h('span');
       const title = m.icon ? t('tb.iconOf', { name: m.icon }) : t('tb.icon');
       const b = h('button', { type: 'button', class: 'mtb-btn' + (m.icon ? ' has-icon' : ''), title, 'aria-label': title, 'aria-haspopup': 'dialog', dataset: { c: 'icon' } }, svgIcon('icon'));
       // a dot marks an item that has an icon
@@ -278,28 +304,18 @@ export function control(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLEleme
       });
       return b;
     }
-    case 'media': {
+    case 'source': {
+      // what an image node shows: a picture (its URL) or an icon
       const m = api.media?.();
-      // an icon or image node, or an icon in the label (which can become an icon node)
-      if (!(m?.node || m?.icon) || !api.setMedia) return h('span');
-      return button('media', svgIcon('media'), t('tb.media'));
+      if (!m?.node || !api.pickImage || !api.pickIcon) return h('span');
+      return button('source', svgIcon(m.node === 'icon' ? 'icon' : 'media'), m.node === 'icon' ? t('tb.sourceIcon', { name: m.icon ?? '' }) : t('tb.sourceImage'));
     }
-    case 'mediaSize': {
+    case 'media': {
+      // an image node's settings, per its source: the icon's frame or the picture's fit and aspect lock, and the label's
+      // position (sizes are in Properties)
       const m = api.media?.();
       if (!m?.node || !api.setMedia) return h('span');
-      const wrap = h('label', { class: 'mtb-msize', dataset: { c: 'mediaSize' }, title: t('tb.mediaH') }, h('span', { 'aria-hidden': 'true' }, 'H'));
-      const input = h('input', { class: 'mtb-num', type: 'text', inputMode: 'numeric', 'aria-label': t('tb.mediaH'), placeholder: 'auto' });
-      input.value = m.h !== undefined ? String(m.h) : '';
-      input.addEventListener('change', () => {
-        const v = input.value.trim() === '' ? null : Math.max(8, Math.min(2000, Number(input.value) || 0));
-        if (v === null || v >= 8) api.setMedia?.({ h: v });
-      });
-      input.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter') input.blur();
-        if (ev.key !== 'Escape') ev.stopPropagation();
-      });
-      wrap.append(input);
-      return wrap;
+      return button('media', svgIcon('mediaSettings'), m.node === 'icon' ? t('tb.mediaIcon') : t('tb.mediaImage'));
     }
     case 'selection': {
       const n = api.multiCount();

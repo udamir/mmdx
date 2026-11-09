@@ -88,28 +88,26 @@ describe('icons', () => {
     expect(host.shadowRoot!.textContent).toContain('Select an item to give it an icon');
   });
 
-  test('selection mode: a label token on a node, replaced, then removed; one undo step each', async () => {
-    const e = mount('flowchart LR\n  A["Car"] --> B');
+  test('an icon is an image node\'s source: a plain node takes none; a picture gives way to the chosen icon', async () => {
+    const e = mount('flowchart LR\n  A["Car"] --> B\n  n5["Photo"]\n  n5@{ img: "https://example.com/a.png", h: 200, w: 200, pos: "b", constraint: "on" }\n');
     await settle();
+    const before = e.core.code;
     e.core.select([{ kind: 'node', id: 'A' }]);
+    e.core.run('openIconPicker', null);
+    await settle();
+    expect($('.ip')).toBeNull();
+    expect(e.core.code).toBe(before);
+    e.core.select([{ kind: 'node', id: 'n5' }]);
     e.core.run('openIconPicker', null);
     await settle();
     input($<HTMLInputElement>('.ip-search')!, 'car');
     $<HTMLButtonElement>('.ip-tile[aria-label="tabler:car"]')!.click();
-    expect(e.core.code).toBe('flowchart LR\n  A["tabler:car Car"] --> B');
-    e.core.run('openIconPicker', null);
-    await settle();
-    expect($<HTMLButtonElement>('.ip-foot button')!.textContent).toBe('Remove icon');
-    input($<HTMLInputElement>('.ip-search')!, 'truck');
-    $<HTMLButtonElement>('.ip-tile[aria-label="tabler:truck"]')!.click();
-    expect(e.core.code).toBe('flowchart LR\n  A["tabler:truck Car"] --> B');
-    e.core.run('openIconPicker', null);
-    await settle();
-    $<HTMLButtonElement>('.ip-foot button')!.click();
-    expect(e.core.code).toBe('flowchart LR\n  A["Car"] --> B');
+    expect(e.core.code).toContain('n5@{ h: 60, pos: "b", icon: "tabler:car", form: "square" }');
+    expect(e.core.code).not.toContain('img:');
     e.undo();
-    expect(e.core.code).toBe('flowchart LR\n  A["tabler:truck Car"] --> B');
-    await valid('flowchart LR\n  A["tabler:truck Car"] --> B\n');
+    expect(e.core.code).toBe(before);
+    e.redo();
+    await valid(e.core.code);
   });
 
   test('selection mode on an icon node: its icon key', async () => {
@@ -127,7 +125,7 @@ describe('icons', () => {
 
   test('pack chips: a registered pack that is not loaded loads when its chip is chosen', async () => {
     const loader = vi.fn(async () => ({ prefix: 'demo', icons: { gear: { body: '<path d="M1 1h10v10z"/>' } }, info: { name: 'Demo', license: { title: 'CC0' } } }));
-    ed = new DiagramEditor(host, { value: 'flowchart LR\n  A\n', storage: memoryStorage(), iconPacks: [{ name: 'demo', loader }] });
+    ed = new DiagramEditor(host, { value: 'flowchart LR\n  A["A"]\n  A@{ icon: "tabler:user" }\n', storage: memoryStorage(), iconPacks: [{ name: 'demo', loader }] });
     await settle();
     ed.core.select([{ kind: 'node', id: 'A' }]);
     ed.core.run('openIconPicker', null);
@@ -160,7 +158,7 @@ describe('images', () => {
     expect(add.disabled).toBe(false);
     add.click();
     const id = e.core.primary()!.id;
-    expect(e.core.code).toContain(`  ${id}["team photo"]\n  ${id}@{ img: "https://example.com/team-photo.png", h: 200, w: 200, pos: "b" }`);
+    expect(e.core.code).toContain(`  ${id}["team photo"]\n  ${id}@{ img: "https://example.com/team-photo.png", h: 200, w: 200, pos: "b", constraint: "on" }`);
     await valid(e.core.code);
   });
 
@@ -173,7 +171,7 @@ describe('images', () => {
     btn.dispatchEvent(pev('pointerup', { x: 0, y: 0 }));
     await settle();
     const id = e.core.primary()!.id;
-    expect(e.core.code).toContain(`  ${id}["Image"]\n  ${id}@{ img: "", h: 200, w: 200, pos: "b" }`);
+    expect(e.core.code).toContain(`  ${id}["Image"]\n  ${id}@{ img: "", h: 200, w: 200, pos: "b", constraint: "on" }`);
     // no popover, no label editing: the node is selected
     expect($('.ins-pop')).toBeNull();
     expect(e.core.model.type === 'flowchart' && e.core.model.nodes.get(id)?.shape).toBe('image');
@@ -188,7 +186,7 @@ describe('images', () => {
     expect($<HTMLInputElement>('.imp-url')!.value).toBe('');
     input($<HTMLInputElement>('.imp-url')!, 'https://example.com/a.png');
     key('Enter', $('.imp-url')!);
-    expect(e.core.code).toContain(`  ${id}@{ img: "https://example.com/a.png", h: 200, w: 200, pos: "b" }`);
+    expect(e.core.code).toContain(`  ${id}@{ img: "https://example.com/a.png", h: 200, w: 200, pos: "b", constraint: "on" }`);
     // the G key adds another one in the middle
     key('g');
     await settle();
@@ -204,7 +202,7 @@ describe('images', () => {
     await settle();
     input($<HTMLInputElement>('.imp-url')!, 'https://example.com/a.png');
     key('Enter', $('.imp-url')!);
-    expect(e.core.code).toBe('flowchart LR\n  A["Photo"]\n  A@{ img: "https://example.com/a.png", h: 200, w: 200, pos: "b" }\n');
+    expect(e.core.code).toBe('flowchart LR\n  A["Photo"]\n  A@{ img: "https://example.com/a.png", h: 200, w: 200, pos: "b", constraint: "on" }\n');
     e.core.run('openImageTool', null, {});
     await settle();
     expect($<HTMLInputElement>('.imp-url')!.value).toBe('https://example.com/a.png');
@@ -242,14 +240,15 @@ describe('images', () => {
 });
 
 describe('emoji', () => {
-  test('the inline editor: the button inserts at the caret (multi-line node and single-line edge label)', async () => {
+  test('the inline editor: ⌘/Ctrl+; opens the picker, which inserts at the caret (multi-line node and single-line edge label); no button over the text', async () => {
     const e = mount('flowchart LR\n  A["Hello world"] -->|"go"| B\n');
     await settle();
     e.core.select([{ kind: 'node', id: 'A' }]);
     expect(e.core.run('inlineEdit', { kind: 'node', id: 'A' })).toBe(true);
     const ta = $<HTMLTextAreaElement>('.inline-edit')!;
     ta.setSelectionRange(5, 5);
-    $<HTMLButtonElement>('.inline-emoji')!.click();
+    expect($('.inline-emoji')).toBeNull();
+    ta.dispatchEvent(new KeyboardEvent('keydown', { key: ';', metaKey: true, bubbles: true }));
     await settle();
     input($<HTMLInputElement>('.ep-search')!, 'rocket');
     $<HTMLButtonElement>('.ep-e[aria-label="rocket"]')!.click();
@@ -259,7 +258,7 @@ describe('emoji', () => {
     e.core.popovers.close();
     key('Enter', ta);
     expect(e.core.code).toContain('A["Hello🚀 world"]');
-    // an edge label (one line), opened with ⌘/Ctrl+;
+    // an edge label (one line)
     const edge = e.core.model.type === 'flowchart' ? e.core.model.edges[0]!.id : '';
     expect(e.core.run('inlineEdit', { kind: 'edge', id: edge })).toBe(true);
     const ta2 = $<HTMLTextAreaElement>('.inline-edit')!;
@@ -303,7 +302,7 @@ describe('shapes palette', () => {
 });
 
 describe('selection toolbar and Properties', () => {
-  test('an icon node: Icon (with a dot), Icon & image and the size field; the size goes to its node data', async () => {
+  test('an image node: Source (a picture or an icon) and its settings (frame, label position); no shape picker, no sizes', async () => {
     const e = mount('flowchart LR\n  n4["User"]\n  n4@{ icon: "tabler:user", form: "rounded", pos: "b", h: 60 }\n  A --> n4\n');
     await settle();
     e.core.select([{ kind: 'node', id: 'n4' }]);
@@ -311,29 +310,46 @@ describe('selection toolbar and Properties', () => {
     await settle();
     e.core.run('refreshToolbar');
     const bar = $('.mtb')!;
-    expect(bar.querySelector('[data-c="icon"] .mtb-has')).not.toBeNull();
-    expect(bar.querySelector('[data-c="media"]')).not.toBeNull();
-    const h = bar.querySelector<HTMLInputElement>('[data-c="mediaSize"] input')!;
-    expect(h.value).toBe('60');
-    h.value = '80';
-    h.dispatchEvent(new Event('change'));
-    expect(e.core.code).toContain('n4@{ icon: "tabler:user", form: "rounded", pos: "b", h: 80 }');
-    // the popover: frame and label position
+    const controls = (): string[] => [...bar.querySelectorAll<HTMLElement>('.mtb-seg [data-c]')].map((b) => b.dataset['c']!);
+    expect(controls().slice(0, 2)).toEqual(['source', 'media']);
+    expect(controls()).not.toContain('shape');
+    expect(controls()).not.toContain('icon');
+    expect(bar.querySelector('[data-c="mediaSize"]')).toBeNull();
+    const titles = (): string[] => [...$$('.mtb-pop .mtb-choice')].map((b) => b.getAttribute('title') ?? b.textContent ?? '');
+    bar.querySelector<HTMLButtonElement>('[data-c="source"]')!.click();
+    expect(titles()).toEqual(['Use a picture instead…', 'Replace icon…']);
     bar.querySelector<HTMLButtonElement>('[data-c="media"]')!.click();
-    const frame = [...$$('.mtb-pop .mtb-words .mtb-choice')].find((b) => b.textContent === 'circle')!;
-    frame.click();
-    expect(e.core.code).toContain('form: "circle"');
+    expect(titles()).toEqual(['No frame', 'Square', 'Circle', 'Rounded', 'Above', 'Below']);
+    [...$$('.mtb-pop .mtb-choice')].find((b) => b.getAttribute('title') === 'Circle')!.click();
+    expect(e.core.code).toContain('n4@{ icon: "tabler:user", form: "circle", pos: "b", h: 60 }');
+    [...$$('.mtb-pop .mtb-choice')].find((b) => b.getAttribute('title') === 'Above')!.click();
+    expect(e.core.code).toContain('pos: "t"');
     await valid(e.core.code);
-    // a regular node: Icon only; a connector: none
+    // a plain node: the shape picker, no icon and no image item; a connector: none
     e.core.select([{ kind: 'node', id: 'A' }]);
     e.core.run('refreshToolbar');
-    expect(bar.querySelector('[data-c="icon"]')).not.toBeNull();
-    expect(bar.querySelector('[data-c="icon"] .mtb-has')).toBeNull();
-    expect(bar.querySelector('[data-c="media"]')).toBeNull();
+    expect(controls()).toContain('shape');
+    expect(controls()).not.toContain('icon');
+    expect(controls()).not.toContain('media');
+    expect(controls()).not.toContain('source');
     const edge = e.core.model.type === 'flowchart' ? e.core.model.edges[0]!.id : '';
     e.core.select([{ kind: 'edge', id: edge }]);
     e.core.run('refreshToolbar');
-    expect(bar.querySelector('[data-c="icon"]')).toBeNull();
+    expect(controls()).not.toContain('media');
+  });
+
+  test('a picture\'s source and settings: its fit and the label position; the aspect lock is in Properties only', async () => {
+    const e = mount('flowchart LR\n  A["Photo"]\n  A@{ img: "https://example.com/a.png", h: 200, w: 200, pos: "b" }\n');
+    await settle();
+    e.core.select([{ kind: 'node', id: 'A' }]);
+    e.core.fire('selection');
+    await settle();
+    e.core.run('refreshToolbar');
+    $<HTMLButtonElement>('.mtb [data-c="source"]')!.click();
+    expect([...$$('.mtb-pop .mtb-choice')].map((b) => b.getAttribute('title') ?? b.textContent)).toEqual(['Replace image…', 'Use an icon instead…']);
+    $<HTMLButtonElement>('.mtb [data-c="media"]')!.click();
+    expect([...$$('.mtb-pop .mtb-choice')].map((b) => b.getAttribute('title') ?? b.textContent)).toEqual(['Contain', 'Cover', 'Stretch', 'Above', 'Below']);
+    expect($('.mtb-pop input[type="checkbox"]')).toBeNull();
   });
 
   test('Properties: the Image section of an image node writes its size and aspect lock', async () => {

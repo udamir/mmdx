@@ -24,7 +24,8 @@ svg.canvas.panning { cursor: grabbing; }
 .ed.group-edit .canvas .el { transition: opacity .15s; }
 .ed.group-edit .canvas .el:not(.in-edit) { opacity: .15; }
 .canvas .el.text-editing.selected .hit { stroke: transparent; }
-.page-layer.page-shadow { filter: drop-shadow(0 2px 10px rgba(20,30,60,.13)); }
+/* an edge, not a blurred shadow: a blur filter over the page redraws the whole screen on every repaint once zoomed in */
+.page-layer.page-shadow .page { stroke: var(--line); stroke-width: 1px; vector-effect: non-scaling-stroke; }
 .overlay { pointer-events: none; }
 .overlay [data-handle], .overlay .hit-on { pointer-events: all; }
 .ed.dragging .mtb { opacity: 0; pointer-events: none; }

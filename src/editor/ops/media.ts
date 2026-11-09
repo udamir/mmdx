@@ -20,7 +20,7 @@ export function mediaTargets(core: EditorCore, what: 'icon' | 'image'): Sel[] {
   if (!k || (what === 'icon' ? !k.setIcon : !k.setImage)) return [];
   return core.selection().filter((r) => {
     const m = mediaOf(core, r);
-    return !!m && (what === 'icon' || m.canImage);
+    return !!m && (what === 'icon' ? m.canIcon !== false : m.canImage);
   });
 }
 

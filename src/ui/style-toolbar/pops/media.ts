@@ -1,8 +1,9 @@
-// The Icon & image popover (T05 §4.6) of an icon or image item: the label's position, the icon's frame, the width,
-// and for an image its fit, the aspect lock and "Replace image…". Values come from `api.media()`, writes go through
+// The popovers of an image node (T05 §4.6), whose source is a picture or an icon: the source, and the settings — an
+// icon's frame or a picture's fit, and the label's position; the aspect lock and sizes are in Properties. Values come from `api.media()`, writes go through
 // `api.setMedia` (the editor: the item's node data in the Mermaid code).
 import { h } from '../../h.js';
-import { popLabel } from '../../toolbar-kit.js';
+import { choiceRow, popLabel } from '../../toolbar-kit.js';
+import { framePreview, svgIcon } from '../icons.js';
 import type { ToolbarMediaPatch } from '../types.js';
 import type { Fill } from './common.js';
 
@@ -16,51 +17,35 @@ function texts(values: readonly string[], cur: string, name: (v: string) => stri
   return row;
 }
 
+/** An image node's source: a picture by its URL (the image tool) or an icon (the icon picker): the other one switches, the current one replaces it. */
+export function sourcePop(f: Fill): void {
+  const { pop, x } = f;
+  const { t, api } = x;
+  const m = api.media?.();
+  if (!m?.node) return;
+  const anchor = x.bar.querySelector<HTMLElement>('[data-c="source"]') ?? x.bar;
+  pop.classList.add('narrow');
+  pop.append(popLabel(t('tb.source')), choiceRow(['image', 'icon'], m.node, (v) => {
+    x.close();
+    if (v === 'icon') api.pickIcon?.(anchor);
+    else api.pickImage?.(anchor);
+  }, (v) => svgIcon(v === 'icon' ? 'icon' : 'media'), (v) => (v === 'icon' ? (m.node === 'icon' ? t('tb.replaceIcon') : t('tb.useIcon')) : m.node === 'image' ? t('tb.replaceImage') : t('tb.useImage'))));
+}
+
+/** An image node's settings, per its source: an icon's frame or a picture's fit, and the label's position (the aspect lock and sizes are in Properties). */
 export function mediaPop(f: Fill): void {
   const { pop, x, again } = f;
   const { t, api } = x;
   const m = api.media?.();
+  if (!m?.node) return;
   const set = (p: ToolbarMediaPatch): void => {
     api.setMedia?.(p);
     again();
   };
-  // an icon in the label: it can become the node (an icon node with the label as its caption)
-  if (m && !m.node && m.icon) {
-    const conv = h('button', { type: 'button', class: 'link', title: t('tb.toIconNodeTip') }, t('tb.toIconNode'));
-    conv.addEventListener('click', () => set({ node: 'icon' }));
-    pop.append(conv);
-    return;
-  }
-  if (!m?.node) return;
-  pop.append(popLabel(t('tb.labelPos')));
-  pop.append(texts(['t', 'b'], m.pos ?? 'b', (v) => t(`tb.pos.${v === 't' ? 'top' : 'bottom'}`), (v) => set({ pos: v })));
   if (m.node === 'icon') {
-    pop.append(popLabel(t('tb.iconForm')));
-    pop.append(texts(['', 'square', 'circle', 'rounded'], m.form ?? '', (v) => t(`tb.form.${v || 'none'}`), (v) => set({ form: v || null })));
+    pop.append(popLabel(t('tb.iconForm')), choiceRow(['', 'square', 'circle', 'rounded'], m.form ?? '', (v) => set({ form: v || null }), (v) => framePreview(v, 28), (v) => t(`tb.form.${v || 'none'}`)));
+  } else {
+    pop.append(popLabel(t('tb.fit')), texts(['contain', 'cover', 'stretch'], m.fit ?? 'contain', (v) => t(`tb.fit.${v}`), (v) => set({ fit: v })));
   }
-  const w = h('input', { class: 'mtb-num', type: 'text', inputMode: 'numeric', 'aria-label': t('tb.mediaW'), placeholder: 'auto' });
-  w.value = m.w !== undefined ? String(m.w) : '';
-  w.addEventListener('change', () => {
-    const v = w.value.trim() === '' ? null : Number(w.value);
-    if (v === null || (Number.isFinite(v) && v >= 8)) set({ w: v });
-  });
-  w.addEventListener('keydown', (ev) => {
-    if (ev.key !== 'Escape') ev.stopPropagation();
-  });
-  pop.append(popLabel(t('tb.mediaW')), w);
-  if (m.node !== 'image') return;
-  pop.append(popLabel(t('tb.fit')));
-  pop.append(texts(['contain', 'cover', 'stretch'], m.fit ?? 'contain', (v) => t(`tb.fit.${v}`), (v) => set({ fit: v })));
-  const lock = h('input', { type: 'checkbox' });
-  lock.checked = m.constraint === 'on';
-  lock.addEventListener('change', () => set({ constraint: lock.checked ? 'on' : null }));
-  pop.append(h('label', { class: 'mtb-check' }, lock, ' ', t('tb.aspect')));
-  if (api.pickImage) {
-    const rep = h('button', { type: 'button', class: 'link' }, t('tb.replaceImage'));
-    rep.addEventListener('click', () => {
-      x.close();
-      api.pickImage?.(rep.closest<HTMLElement>('.mtb-pop') ?? rep);
-    });
-    pop.append(rep);
-  }
+  pop.append(popLabel(t('tb.labelPos')), choiceRow(['t', 'b'], m.pos ?? 'b', (v) => set({ pos: v }), (v) => svgIcon(v === 't' ? 'labelTop' : 'labelBottom'), (v) => t(v === 't' ? 'tb.labelAbove' : 'tb.labelBelow')));
 }

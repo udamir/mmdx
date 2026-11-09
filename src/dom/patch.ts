@@ -53,13 +53,20 @@ function create(n: SceneNode): Element {
   return el;
 }
 
+const gone = (v: unknown): boolean => v === undefined || v === null || v === false;
+
 function setAttrs(el: Element, prev: SvgAttrs | null, next: SvgAttrs): void {
+  // a drag re-renders every item and most values are the same as last time: compare the raw values first, format only
+  // what changed
   if (prev)
-    for (const k of Object.keys(prev))
-      if (!(k in next) || attrValue(k, next[k]) === null) {
-        if (isAllowedAttr(k)) el.removeAttribute(k);
-      }
-  for (const [k, v] of Object.entries(next)) {
+    for (const k in prev) {
+      const v = next[k];
+      if (v === prev[k] || gone(prev[k])) continue;
+      if ((gone(v) || attrValue(k, v) === null) && isAllowedAttr(k)) el.removeAttribute(k);
+    }
+  for (const k in next) {
+    const v = next[k];
+    if (prev && v === prev[k]) continue;
     if (!isAllowedAttr(k)) continue;
     const s = attrValue(k, v);
     if (s === null) {
@@ -102,7 +109,26 @@ function setLines(el: Element, lines: readonly TextLine[]): void {
   for (let i = lines.length; i < spans.length; i++) spans[i]!.remove();
 }
 
+/**
+ * The same picture as last time: scene nodes are plain data (objects, arrays, strings, numbers), so a value compare
+ * covers every field the patcher writes, whatever the node type. No DOM reads: a drag re-renders every item, but only
+ * the dragged ones and their connectors change.
+ */
+function same(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || !a || !b || Array.isArray(a) !== Array.isArray(b)) return false;
+  const x = a as Record<string, unknown>, y = b as Record<string, unknown>;
+  let n = 0;
+  for (const k in x) {
+    if (!same(x[k], y[k])) return false;
+    n++;
+  }
+  for (const _ in y) n--;
+  return n === 0;
+}
+
 function update(el: Element, prev: SceneNode | null, n: SceneNode): void {
+  if (prev && same(prev, n)) return;
   if (n.t === 'a') {
     // href was checked by safeUrl() when the scene was built; set both forms for older engines
     if (el.getAttribute('href') !== n.href) {

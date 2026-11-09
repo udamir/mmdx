@@ -9,7 +9,10 @@ export type ToolbarControl =
   | 'shape' | 'font' | 'size' | 'bold' | 'align' | 'link' | 'textColor' | 'border' | 'fill' | 'line' | 'arrows'
   | 'routing' | 'lock' | 'paint' | 'group' | 'arrange' | 'activate' | 'editGroup' | 'ungroup' | 'delete' | 'order'
   | 'layer' | 'presets' | 'reset' | 'more' | 'selection' | 'italic' | 'underline' | 'tableStyle' | 'wrap'
-  | 'icon' | 'media' | 'mediaSize' | 'actions';
+  | 'icon' | 'source' | 'media' | 'actions';
+
+/** A text format of rich labels: bold, italic, underline, strike. */
+export type TextFormat = 'b' | 'i' | 'u' | 's';
 
 /** A one-click action of the selected item's diagram type (T11.3: reverse a message, place a note, add a branch). */
 export interface ToolbarAction {
@@ -142,6 +145,9 @@ export interface ToolbarApi {
   codeArrow?(): ToolbarCodeArrow | null;
   /** One-click actions of the selected item's type (the `actions` control): none, the control stays off. */
   itemActions?(): readonly ToolbarAction[];
+  /** A connector's animation (dashes flowing along it); absent or null: its type has none to set. */
+  animation?(): 'off' | 'fast' | 'slow' | null;
+  setAnimation?(a: 'off' | 'fast' | 'slow'): void;
   /** Selection box in host coordinates; null hides the bar (scrolled away). */
   anchorRect(): Rect | null;
   /** Free horizontal strip of the host [left, right] (not over side panels). */
@@ -163,6 +169,17 @@ export interface ToolbarApi {
   groupEditing?(): string | null | undefined;
   editGroup?(): void;
   del?(): void;
+  /**
+   * The text formats of a label that can be rich (a markdown string): of the selected words while its text is edited,
+   * else of the whole label. Absent or null: Bold is a switch of the item's style.
+   */
+  textFormats?(): Readonly<Record<TextFormat, boolean>> | null;
+  /** Toggles a format on the selected words while the text is edited, else on the whole label. */
+  textFormat?(f: TextFormat): void;
+  /** Part of the label's text is selected: the controls that only style a whole label (font, size, alignment, link, text colour) are off. */
+  textPartial?(): boolean;
+  /** The label's text is being edited: the text format controls keep its focus and selection. */
+  textEditing?(): boolean;
   order?(): { index: number; count: number; labels: readonly [string, string] | readonly string[] } | null;
   orderPreview?(index: number): void;
   orderCommit?(): void;

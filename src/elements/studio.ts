@@ -9,6 +9,7 @@ import { ensureBuiltinThemes, getShared } from '../config.js';
 import { defineEditor, type DiagramEditor, type MmdxEditorElement } from '../editor/editor.js';
 import { readDocumentFiles } from '../editor/modules/chrome/document.js';
 import { download } from '../dom/export.js';
+import type { WheelMode } from '../dom/viewport.js';
 import { renderSource, standaloneSvg } from '../core/pipeline.js';
 import { DIAGRAM_TYPES } from '../core/kinds/info.js';
 import { KIND_NAMES } from '../core/kinds/names.js';
@@ -48,6 +49,8 @@ export interface StudioOptions {
   /** Example id to open when nothing is stored. */
   initial?: string;
   storage?: StorageAdapter;
+  /** What the mouse wheel does on the canvas: see the editor's `wheel`. */
+  wheel?: WheelMode;
 }
 
 const STORE_KEY = 'studio.doc';
@@ -125,6 +128,7 @@ export class DiagramStudio {
     this.editorEl = document.createElement('mmdx-editor');
     this.editorEl.features = { open: true };
     this.editorEl.setAttribute('ui', this.ui);
+    if (opts.wheel) this.editorEl.setAttribute('wheel', opts.wheel);
     this.nameEl = h('span', { class: 'name', title: 'File name' });
     const newBtn = h('button', { type: 'button', class: 'primary', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: () => this.openNewMenu(newBtn) }, '＋ New');
     const exBtn = h('button', { type: 'button', onclick: () => void this.openGallery() }, 'Examples');
@@ -572,6 +576,7 @@ export class DiagramStudio {
 const ATTRS: Readonly<Record<string, AttrSpec<StudioOptions>>> = {
   examples: ['examples', (v) => v || undefined], themes: ['themes', (v) => v || undefined], initial: ['initial', (v) => v || undefined],
   persist: ['persist', (v) => (v === null ? undefined : words(v).filter((p) => p === 'local'))],
+  wheel: ['wheel', (v) => (v === 'ctrl' || v === 'always' || v === 'zoom' || v === 'never' ? v : undefined)],
 };
 
 export class MmdxStudioElement extends MmdxElement<StudioOptions, DiagramStudio> {

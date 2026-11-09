@@ -86,7 +86,7 @@ Each attribute sets the `ViewerOptions` option of the same name in camelCase (`t
 | `controls` | — | `ViewerControl[]` | `zoom fullscreen` | Any of `zoom layers pen code history export theme fullscreen`, space-separated, or `none`. Change it with the attribute or `setControls(list)`; the chrome is re-evaluated in place |
 | `interactive` | — | `boolean` | `true` | `false` turns off pan, zoom, the zoom bar's zoom buttons, help and the pen (thumbnails, print) |
 | `lazy` | — | `boolean` | `true` | Render when the viewer comes within 300 px of the viewport; the box keeps the diagram's aspect ratio meanwhile |
-| `wheel` | — | `'ctrl' \| 'always' \| 'never'` | `ctrl` | `ctrl`: only ⌘ / Ctrl + wheel (or a trackpad pinch) zooms, so page scroll is never trapped; `always`: the wheel pans and ⌘ / Ctrl + wheel zooms; `never`: the wheel is ignored |
+| `wheel` | — | `'ctrl' \| 'always' \| 'zoom' \| 'never'` | `ctrl` | `ctrl`: only ⌘ / Ctrl + wheel (or a trackpad pinch) zooms, so page scroll is never trapped; `always`: the wheel pans and ⌘ / Ctrl + wheel zooms; `zoom`: the wheel zooms at the pointer, Shift + wheel and a sideways scroll pan; `never`: the wheel is ignored |
 | `fallback` | — | `'mermaid' \| 'source' \| 'error'` | `mermaid` | For diagram types mmdx does not draw: stock Mermaid (needs `mermaid`), the source text, or an error card |
 | — | `layers` | `readonly string[]` | from metadata | Ids of the visible layers |
 | `labels` | — | `boolean` | `true` | Show connector labels |

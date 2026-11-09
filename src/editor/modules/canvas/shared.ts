@@ -4,7 +4,7 @@ import { opsKind, withKind } from '../../../core/kinds/registry.js';
 import type { BoxGeom } from '../../../core/render/types.js';
 import { el, text } from '../../../core/scene/build.js';
 import type { SceneNode } from '../../../core/scene/types.js';
-import type { ItemKind, ItemRef } from '../../../core/types.js';
+import { itemKey, type ItemKind, type ItemRef } from '../../../core/types.js';
 import type { EditorCore, Sel } from '../../core.js';
 import { withEdit } from '../../kinds/registry.js';
 
@@ -167,7 +167,11 @@ export function markSelection(core: EditorCore): void {
   const body = core.dom.body;
   for (const n of Array.from(body.querySelectorAll('.el.selected'))) n.classList.remove('selected');
   const sel = core.selection();
-  if (sel.length > 1) for (const r of sel) for (const n of itemEls(core, r)) n.classList.add('selected');
+  if (sel.length < 2) return;
+  // one pass over the scene, however many items are selected
+  const keys = new Set<string>(sel.map(itemKey));
+  for (const n of Array.from(body.querySelectorAll('.el[data-id]')))
+    if (keys.has(`${n.getAttribute('data-kind')}:${n.getAttribute('data-id')}`)) n.classList.add('selected');
 }
 
 /** The first line of an item's text (for announcements and the group-edit bar). */

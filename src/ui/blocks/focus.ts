@@ -2,6 +2,7 @@
 // controls with `data-f`; after the rebuild, the control with the same key gets the focus back, so keyboard users
 // are never dropped out of the component. `rovingKeys` is the one arrow-key handler of every composite widget
 // (toolbars, tab lists, lists, menus, radio groups), with the roving tab stop of the ARIA patterns.
+import { cancelIdle, idle } from '../../dom/idle.js';
 
 /** The element focused inside `box` (through shadow roots), or null. */
 export function focusedIn(box: Element): HTMLElement | null {
@@ -94,9 +95,20 @@ export function rovingKeys(el: HTMLElement, o: RovingOptions): RovingHandle {
     }, { signal });
     // hidden / disabled items change from outside (signals): keep a valid tab stop
     if (typeof MutationObserver !== 'undefined') {
-      const mo = new MutationObserver(() => queueMicrotask(sync));
+      // checkVisibility forces a layout: one sync when the page is idle (the layout is clean and cheap to read after a
+      // paint), however many mutations come meanwhile (a drag updates the panels on every move)
+      let queued = 0;
+      const mo = new MutationObserver(() => {
+        queued ||= idle(() => {
+          queued = 0;
+          if (!signal.aborted) sync();
+        }, 300);
+      });
       mo.observe(el, { subtree: true, childList: true, attributes: true, attributeFilter: ['hidden', 'disabled', 'class'] });
-      signal.addEventListener('abort', () => mo.disconnect());
+      signal.addEventListener('abort', () => {
+        mo.disconnect();
+        if (queued) cancelIdle(queued);
+      });
     }
   }
 

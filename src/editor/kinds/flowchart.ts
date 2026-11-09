@@ -18,6 +18,7 @@ import { shapeById, type ShapeDef } from '../../core/shapes/catalog.js';
 import { SHAPE_MENU } from '../../core/shapes/menu.js';
 import { addFlowMediaNode, flowMedia, IMAGE_NODE_SIZE, setFlowIcon, setFlowImage, setFlowMedia, type IsIconToken } from '../../core/ops/flow-media.js';
 import type { SelectResult } from '../../core/ops/types.js';
+import { flowEdgeAnimation, setFlowEdgeAnimation } from '../../core/ops/flow-edge.js';
 import type { ItemRef } from '../../core/types.js';
 import type { EditKind } from './types.js';
 
@@ -91,7 +92,7 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
     }
     return null;
   },
-  // markdown labels (T06): the text with its `**` / `*` as typed; "Make rich text" rewrites a plain label as one
+  // markdown labels (T06): the text with its `**` / `*` as typed; a plain label is rewritten as one once it is formatted
   text(M, { kind, id }) {
     if (kind === 'node') {
       const n = M.nodes.get(id);
@@ -170,15 +171,20 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
   // image nodes in Mermaid Chart's style: `n4["Photo"]` and `n4@{ img: "https://…", h: 100, w: 100, pos: "b" }`
   // an empty URL is the placeholder (`img: ""`): the node is selected, its picture chosen from the toolbar or Properties
   addImage: (core, M, url, pt) =>
-    placeNew(core, addFlowMediaNode(core.code, M, { label: imageLabel(url), data: { img: url, h: IMAGE_NODE_SIZE, w: IMAGE_NODE_SIZE, pos: 'b' }, group: groupAt(core, pt) }), pt, 'Add image', undefined, !!url),
+    placeNew(core, addFlowMediaNode(core.code, M, { label: imageLabel(url), data: { img: url, h: IMAGE_NODE_SIZE, w: IMAGE_NODE_SIZE, pos: 'b', constraint: 'on' }, group: groupAt(core, pt) }), pt, 'Add image', undefined, !!url),
   media(M, ref, core) {
     if (ref.kind !== 'node') return null;
     const m = flowMedia(M, ref.id, isIconOf(core));
-    return m ? { ...m, canImage: true } : null;
+    // an icon is the source of an image node instead of its picture: only image and icon nodes take one (a label's icon
+    // token stays as written)
+    return m ? { ...m, canImage: true, canIcon: m.node !== null } : null;
   },
   setIcon: (code, M, ref, icon, core) => (ref.kind === 'node' ? setFlowIcon(code, M, ref.id, icon, isIconOf(core)) : null),
   setImage: (code, M, ref, url) => (ref.kind === 'node' ? setFlowImage(code, M, ref.id, url) : null),
   setMedia: (code, M, ref, patch, core) => (ref.kind === 'node' ? setFlowMedia(code, M, ref.id, patch, isIconOf(core)) : null),
+  // Mermaid 11.10's edge animation: `e1@{ animate: true }`, `e1@{ animation: slow }` (the edge gets an id if it has none)
+  animation: (M, ref) => (ref.kind === 'edge' ? flowEdgeAnimation(M, ref.id) : null),
+  setAnimation: (code, M, ref, a) => (ref.kind === 'edge' ? setFlowEdgeAnimation(code, M, ref.id, a) : null),
   direction: (M) => M.direction,
   fixOf(core, M, d) {
     if (d.code !== 'flow.id-clash') return null;

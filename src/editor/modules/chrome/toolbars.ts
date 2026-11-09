@@ -18,7 +18,7 @@ import type { PageToolbarApi, PageToolbarHandle, SequenceLayoutState } from '../
 import type { ArrangeOp, ToolbarApi, StyleToolbarHandle, StyleToolbarOptions } from '../../../ui/style-toolbar.js';
 import { TOOLBAR_CSS } from '../../../ui/styles/toolbar.js';
 import { h } from '../../../ui/h.js';
-import type { EditorCore, Sel } from '../../core.js';
+import type { EditorCore, Sel, TextEditSession } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { saveItemAsPreset, presetPicker } from '../panels/presets.js';
 import { styleWithShapes } from '../../ops/shape.js';
@@ -28,6 +28,9 @@ import { canGroup, groupResetState, resetSelectedGroup } from '../../ops/group.j
 import { LiveEdit } from '../../ops/live.js';
 import { choosePagePreset, pageEff, RATIOS, setPageRatio, setPageSizeMode, setPageValue } from '../../ops/page.js';
 import { LINE_KINDS } from '../canvas/shared.js';
+import { formatsAt, hasMarkup, toggleFormat } from '../../ops/format.js';
+import { labelSpec } from '../../ops/label.js';
+import { animationOf, setAnimation } from '../../ops/animation.js';
 
 export const TOOLBARS_CSS = /* css */ `
 ${TOOLBAR_CSS}
@@ -118,7 +121,8 @@ export const toolbarsModule: EditorModule = {
     const live = new LiveEdit(core);
     const wrap = core.dom.wrap;
 
-    const primary = (): Sel | null => (core.mode.peek() === 'edit' && !core.inlineEditing ? core.selection()[0] ?? null : null);
+    // the item whose text is being edited keeps its toolbar: the text format menu acts on the selected words
+    const primary = (): Sel | null => (core.mode.peek() !== 'edit' ? null : core.inlineEditing ? { ...core.inlineEditing } : core.selection()[0] ?? null);
     const multi = (): boolean => core.selection().length > 1;
     const env = () => styleEnv(core);
 
@@ -204,6 +208,39 @@ export const toolbarsModule: EditorModule = {
     cleanups.push(core.provide('moveSelection', moveSelection));
 
     // ---- the style toolbar
+    /**
+     * What the text format menu formats: the open text editor (its selected words, else its whole text), else the
+     * selected item's whole label; null when the label cannot be rich (a markdown string), where Bold is a style switch.
+     */
+    const textTarget = (): Pick<TextEditSession, 'formats' | 'format'> | null => {
+      if (core.inlineEditing) return core.textEdit?.rich ? core.textEdit : null;
+      const s = primary();
+      if (!s || multi()) return null;
+      const spec = labelSpec(core, s.kind, s.id);
+      if (!spec || !(spec.markdown || spec.canMarkdown)) return null;
+      // a label made bold by its style (the layout metadata or the theme) reads as bold too
+      const key = WEIGHT_KEY[s.kind] ?? 'fontWeight';
+      const weight = (): number => {
+        const w = effectiveValue(env(), s, key);
+        return typeof w === 'number' ? w : w === 'bold' ? 700 : Number(w) || 400;
+      };
+      return {
+        formats: () => {
+          const f = formatsAt(spec.value, 0, 0);
+          return { ...f, b: f.b || weight() >= 600 };
+        },
+        format: (f) => {
+          live.flush();
+          const marked = formatsAt(spec.value, 0, 0).b;
+          if (f === 'b' && !marked && weight() >= 600) {
+            setOverride(key, 400);
+            return;
+          }
+          const r = toggleFormat(spec.value, 0, 0, f);
+          core.applyCode(spec.apply(r.text, spec.markdown || hasMarkup(r.text)), 'Format text', { select: [s] });
+        },
+      };
+    };
     const effRaw = (k: string): unknown => {
       const s = primary();
       if (!s) return undefined;
@@ -303,6 +340,16 @@ export const toolbarsModule: EditorModule = {
         customColor: (hex) => relativeColor(hex, core.result.theme.palette),
         themeFont: () => core.result.theme.font,
         themeFontName: () => (core.result.theme.font.split(',')[0] ?? '').replace(/['"]/g, '').trim(),
+        animation: () => {
+          const s = primary();
+          return s && !multi() ? animationOf(core, s) : null;
+        },
+        setAnimation: (a) => {
+          const s = primary();
+          if (!s) return;
+          live.flush();
+          setAnimation(core, s, a);
+        },
         edgeEnds: () => {
           const s = primary();
           const e = s ? withOps(core.model, (k, m) => k.codeEnds?.(m, s)) : null;
@@ -357,6 +404,10 @@ export const toolbarsModule: EditorModule = {
           else core.run('enterGroup', s.id);
         },
         del: () => core.run('deleteSelection'),
+        textFormats: () => textTarget()?.formats() ?? null,
+        textFormat: (f) => textTarget()?.format(f),
+        textPartial: () => !!core.textEdit?.partial(),
+        textEditing: () => !!core.inlineEditing,
         order: () => {
           const o = orderInfo();
           return o && o.states.length > 1 ? { index: o.shown ?? o.index, count: o.states.length, labels: o.labels.map((l) => t(`order.${l}`)) } : null;
@@ -424,7 +475,7 @@ export const toolbarsModule: EditorModule = {
           const m = s ? mediaOf(core, s) : null;
           if (!s || !m) return null;
           const fit = core.getM(s.kind, s.id)['imgFit'];
-          return { ...m, canIcon: !!editKind(core.model.type)?.setIcon && m.node !== 'image', ...(typeof fit === 'string' ? { fit } : {}) };
+          return { ...m, canIcon: (m.canIcon ?? true) && !!editKind(core.model.type)?.setIcon && m.node !== 'image', ...(typeof fit === 'string' ? { fit } : {}) };
         },
         pickIcon: (anchor) => core.run('openIconPicker', anchor),
         pickImage: (anchor) => core.run('openImageTool', anchor, { insert: false }),
@@ -456,14 +507,11 @@ export const toolbarsModule: EditorModule = {
     }
 
     // ---- the page's own action bar and its badge
+    // the page is the render's bounds (render/page.ts): placed from the view, never measured (reading the page's box
+    // forced a layout of the whole picture on every pan and zoom step)
     const pageRect = (): Rect | null => {
-      const r = core.dom.page.querySelector('rect.page')?.getBoundingClientRect();
-      if (!r || (!r.width && !r.height)) {
-        const b = core.result.result.bounds;
-        return b.w ? core.rectOnScreen(b) : null;
-      }
-      const wr = wrap.getBoundingClientRect();
-      return { x: r.left - wr.left, y: r.top - wr.top, w: r.width, h: r.height };
+      const b = core.result.result.bounds;
+      return b.w ? core.rectOnScreen(b) : null;
     };
     const canvasVal = (k: string): unknown => (pageEff(core) as Record<string, unknown>)[k] ?? (core.result.theme.canvas as unknown as Record<string, unknown>)[k];
     const seqDefaults = (): Record<string, unknown> => {
@@ -583,6 +631,7 @@ export const toolbarsModule: EditorModule = {
       void ensurePageBar();
     }, sig);
     badge.addEventListener('pointerdown', (ev) => ev.stopPropagation(), sig);
+    let badgeH = 0;
     const placeBadge = (): void => {
       const type = core.model.type;
       const r = pageRect();
@@ -593,14 +642,23 @@ export const toolbarsModule: EditorModule = {
       badge.title = t('page.badgeTip', { type: label });
       const on = core.pageSelected.peek() && !core.selection().length;
       badge.setAttribute('aria-pressed', String(on));
-      badge.style.transform = `translate(${Math.round(r.x)}px, ${Math.round(r.y - (badge.offsetHeight || 22) - 6)}px)`;
+      badgeH ||= badge.offsetHeight; // measured once: its height does not change
+      badge.style.transform = `translate(${Math.round(r.x)}px, ${Math.round(r.y - (badgeH || 22) - 6)}px)`;
     };
 
     // ---- keep both bars in step: rebuilt when what they show changes, else only re-placed
     let tbKey = '';
     let pageKey = '';
+    /** A sync skipped while an item was dragged: done when the gesture ends (its overlay is drawn then). */
+    let afterDrag = false;
     const sync = (force = false): void => {
       placeBadge();
+      // the bars are hidden while an item is dragged (`.ed.dragging`): placing them on every move only forces layouts
+      if (core.dragging && !force) {
+        afterDrag = true;
+        return;
+      }
+      afterDrag = false;
       if (page) {
         const { gap: _g, rowH: _r, ...shown } = core.meta.canvas; // slider values change while dragging: leave them out
         const key = `${core.pageSelected.peek()}|${core.mode.peek()}|${core.selection().length}|${core.model.type}|${withEdit(core.model, (k, m) => k.direction?.(m)) ?? ''}|${withEdit(core.model, (k, m) => k.numbered?.(m)) ?? ''}|${JSON.stringify(shown)}`;
@@ -613,7 +671,9 @@ export const toolbarsModule: EditorModule = {
         if (styleArgs && core.selection().length) void ensureStyleBar();
         return;
       }
-      const key = core.mode.peek() === 'edit' && !core.inlineEditing ? selKey(core.selection()) + `|${core.tool.peek()}` : '';
+      const te = core.textEdit;
+      const text = core.inlineEditing ? `|text:${te ? `${te.partial()}${JSON.stringify(te.formats())}` : ''}` : '';
+      const key = core.mode.peek() === 'edit' ? selKey(core.inlineEditing ? [core.inlineEditing] : core.selection()) + `|${core.tool.peek()}${text}` : '';
       if (ordering) {
         style.place();
         return;
@@ -655,6 +715,9 @@ export const toolbarsModule: EditorModule = {
       core.on('mode', () => sync(true)),
       core.on('tool', () => sync()),
       core.on('panels', afterCommit),
+      core.on('overlay', () => {
+        if (afterDrag && !core.dragging) sync();
+      }),
       core.on('view', () => {
         placeBadge();
         style?.place();

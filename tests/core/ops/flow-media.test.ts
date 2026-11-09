@@ -106,9 +106,9 @@ describe('image nodes', () => {
   it('a node becomes an image node; an icon node gives up its icon', async () => {
     const code = 'flowchart LR\n  A["Photo"]\n  B["User"]\n  B@{ icon: "fa:user", form: "square", h: 40 }';
     const a = setFlowImage(code, P(code), 'A', 'https://example.com/a.png')!.code;
-    expect(a).toBe(code + '\n  A@{ img: "https://example.com/a.png", h: 200, w: 200, pos: "b" }\n');
+    expect(a).toBe(code + '\n  A@{ img: "https://example.com/a.png", h: 200, w: 200, pos: "b", constraint: "on" }\n');
     const b = setFlowImage(code, P(code), 'B', 'https://example.com/b.png')!.code;
-    expect(b).toBe('flowchart LR\n  A["Photo"]\n  B["User"]\n  B@{ h: 40, img: "https://example.com/b.png", w: 200, pos: "b" }');
+    expect(b).toBe('flowchart LR\n  A["Photo"]\n  B["User"]\n  B@{ h: 40, img: "https://example.com/b.png", w: 200, pos: "b", constraint: "on" }');
     for (const c of [a, b]) await valid(c);
     expect(setFlowMedia(code, P(code), 'A', { h: 10 })).toBeNull();
   });

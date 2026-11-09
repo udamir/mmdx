@@ -8,7 +8,7 @@ export const EDITOR_MEDIA_MESSAGES: Messages = {
   'shapes.dragTip': 'drag onto the canvas or click to add (Alt-click: give the selected nodes this shape)',
   'media.selectIcon': 'Select an item to give it an icon', 'media.blocked': 'This image URL is not allowed here',
   'props.icon': 'Icon', 'props.image': 'Image', 'props.iconNone': 'No icon', 'props.imageNone': 'No image', 'props.choose': 'Choose…', 'props.removeIcon': 'Remove icon',
-  'props.iconTokenMmdx': 'Shown by mmdx only: stock Mermaid draws Font Awesome icons in labels and shows this one as text', 'props.toIconNode': 'Convert to icon node',
+  'props.iconTokenMmdx': 'Shown by mmdx only: stock Mermaid draws Font Awesome icons in labels and shows this one as text', 'props.toIconNode': 'Convert to icon node', 'props.useIcon': 'Use an icon instead…', 'props.useImage': 'Use a picture instead…',
   'props.iconTokenText': 'Shown by mmdx only: stock Mermaid shows icons in this diagram type as text',
   'props.addImage': 'Add image…', 'props.removeImage': 'Remove image', 'props.labelPos': 'Label', 'props.iconForm': 'Frame', 'props.mediaW': 'Width', 'props.mediaH': 'Height',
   'props.iconPos': 'Position', 'props.iconSize': 'Icon size', 'props.fit': 'Fit', 'props.aspect': 'Keep aspect ratio', 'props.imageUrl': 'Image URL',

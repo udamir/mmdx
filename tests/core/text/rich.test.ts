@@ -42,6 +42,20 @@ describe('parseInline', () => {
     expect(show(md('*a**b*'))).toEqual(['*a**b*']);
   });
 
+  it('underline and strike: the inline HTML Mermaid passes through (<u>, <s>, <del>, <strike>), with emphasis inside or around', () => {
+    expect(md('a <u>b</u> c')).toEqual([{ text: 'a ', mark: null }, { text: 'b', mark: null, underline: true }, { text: ' c', mark: null }]);
+    expect(md('**<u>a</u>** <S>b</S> <del>c</del> <strike>d</strike>')).toEqual([
+      { text: 'a', mark: null, bold: true, underline: true }, { text: ' ', mark: null }, { text: 'b', mark: null, strike: true },
+      { text: ' ', mark: null }, { text: 'c', mark: null, strike: true }, { text: ' ', mark: null }, { text: 'd', mark: null, strike: true },
+    ]);
+    // an unclosed tag lasts to the end, as in HTML; a stray end tag does nothing; other angle brackets are text
+    expect(md('a <u>b')).toEqual([{ text: 'a ', mark: null }, { text: 'b', mark: null, underline: true }]);
+    expect(md('a</u> b')).toEqual([{ text: 'a b', mark: null }]);
+    expect(md('x < y > z <b>w</b>')).toEqual([{ text: 'x < y > z <b>w</b>', mark: null }]);
+    // tags are markdown only: a plain label shows them as written
+    expect(parseInline('a <u>b</u>')).toEqual([{ text: 'a <u>b</u>', mark: null }]);
+  });
+
   it('icon tokens through the resolver; unknown tokens, URLs and times stay text', () => {
     expect(show(parseInline('fa:fa-car Car', { icons }))).toEqual(['[car]', ' Car']);
     expect(show(parseInline('to fa:fa-car, tabler:car!', { icons }))).toEqual(['to ', '[car]', ', ', '[car]', '!']);
@@ -99,6 +113,13 @@ describe('drawn runs (goldens)', () => {
     expect(svg).toContain('<tspan font-weight="700">');
     expect(svg).toContain('<tspan font-style="italic">after</tspan>');
     expect(svg).not.toContain('<image');
+  });
+
+  it('underlined and struck words are drawn with their text-decoration', () => {
+    const svg = serializeNodes(richText([md('<u>a</u> <s>b</s> <u><s>c</s></u>')], 0, 0, opts));
+    expect(svg).toContain('<tspan text-decoration="underline">a</tspan>');
+    expect(svg).toContain('<tspan text-decoration="line-through">b</tspan>');
+    expect(svg).toContain('<tspan text-decoration="underline line-through">c</tspan>');
   });
 
   it('a plain label draws as textBlock draws it', () => {

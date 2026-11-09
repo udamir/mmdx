@@ -14,6 +14,7 @@ export const TOOLBAR_CSS = /* css */ `
 .mtb-btn.wide { width: auto; padding: 0 12px; }
 .mtb-btn.danger:hover { color: var(--danger); background: var(--danger-bg); }
 .mtb-btn:disabled { opacity: .35; cursor: not-allowed; }
+.mtb-size.off { opacity: .35; }
 .mtb-btn svg { display: block; }
 .mtb-font { font-size: 15px; white-space: nowrap; max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
 .mtb-size { display: flex; align-items: center; gap: 2px; padding: 0 4px; }
@@ -62,7 +63,6 @@ export const TOOLBAR_CSS = /* css */ `
 .mtb-btn.has-icon { position: relative; }
 .mtb-has { position: absolute; right: 5px; top: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); pointer-events: none; }
 .mtb-msize { display: flex; align-items: center; gap: 2px; color: var(--muted); font-size: 12px; padding-left: 6px; }
-.mtb-check { display: flex; align-items: center; gap: 6px; font-size: 12px; margin: 4px 0 8px; }
 .mtb-list { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow: auto; }
 .mtb-item { border: 0; background: none; text-align: left; padding: 6px 8px; border-radius: 8px; font-size: 13px; }
 .mtb-item:hover:not(:disabled), .mtb-item:focus-visible { background: var(--float-2); }

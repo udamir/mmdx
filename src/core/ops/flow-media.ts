@@ -142,6 +142,12 @@ export function setFlowIcon(code: string, model: FlowchartModel, id: string, nam
     if (name) return writeNodeData(code, model, id, { icon: name });
     return writeNodeData(code, model, id, Object.fromEntries(ICON_NODE_KEYS.map((k) => [k, null])));
   }
+  // an image node takes an icon as its source instead of the picture (Mermaid draws `img` first: it goes)
+  if (n.data?.img != null) {
+    if (!name) return { code };
+    const d = n.data;
+    return writeNodeData(code, model, id, { img: null, w: null, constraint: null, icon: name, form: d.form ?? 'square', h: ICON_NODE_H, pos: d.pos ?? 'b' });
+  }
   const label = withIconToken(n.label, name, isIcon);
   return label === n.label ? { code } : relabelFlowNode(code, model, id, label);
 }
@@ -161,6 +167,8 @@ export function setFlowImage(code: string, model: FlowchartModel, id: string, ur
   if (d.h === undefined) patch['h'] = IMAGE_NODE_SIZE;
   if (d.w === undefined) patch['w'] = IMAGE_NODE_SIZE;
   if (d.pos === undefined) patch['pos'] = 'b';
+  // a picture keeps its aspect ratio unless Properties turns the lock off (Mermaid's default is off: it is written)
+  if (d.constraint === undefined) patch['constraint'] = 'on';
   return writeNodeData(code, model, id, patch);
 }
 

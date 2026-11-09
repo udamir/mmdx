@@ -27,6 +27,13 @@ export function createStyleToolbar(host: HTMLElement, api: ToolbarApi, opts: Sty
   bar.hidden = true;
   host.append(bar);
   const pops = createPopHost({ host, bar, hBounds: () => api.hBounds?.() });
+  // while a label's text is edited, the text format controls (and the off ones) keep its focus and selection: they act
+  // on the selected words. Any other control takes the focus, which applies the text first.
+  bar.addEventListener('pointerdown', (ev) => {
+    if (!api.textEditing?.()) return;
+    const el = ev.target instanceof Element ? ev.target : null;
+    if (el?.closest('[data-c="bold"], .off, :disabled') || (pops.open === 'bold' && el?.closest('.mtb-pop'))) ev.preventDefault();
+  }, true);
   const keys = barKeys(bar, '.mtb-seg button, .mtb-seg input');
   let sel: ToolbarSelection | null = null;
   let spec: KindSpec | null = null;

@@ -114,7 +114,7 @@ export const EDITOR_MESSAGES: Messages = {
   'history.renameLayer': 'Rename layer', 'history.deleteLayer': 'Delete layer', 'history.hideLayer': 'Hide layer', 'history.showLayer': 'Show layer',
   'history.preset': 'Preset', 'history.savePreset': 'Save preset', 'history.updatePreset': 'Update preset', 'history.deletePreset': 'Delete preset',
   'history.resetStyle': 'Reset style', 'history.resetAll': 'Reset overrides', 'history.resetLabel': 'Reset label offset', 'history.resetCurve': 'Reset curve',
-  'history.frame': 'Fixed frame', 'history.pagePreset': 'Page preset', 'history.pageSize': 'Page size', 'history.pageRatio': 'Proportions',
+  'history.frame': 'Fixed frame', 'history.animation': 'Animation', 'props.anim.off': 'Off', 'props.anim.fast': 'Fast', 'props.anim.slow': 'Slow', 'history.pagePreset': 'Page preset', 'history.pageSize': 'Page size', 'history.pageRatio': 'Proportions',
   'history.direction': 'Direction', 'history.autonumber': 'Message numbers', 'history.newDiagram': 'New diagram', 'history.theme': 'Theme',
   'history.order': 'Move in order', 'history.paletteAdd': 'Add colour', 'history.paletteRemove': 'Remove colour', 'history.autoLayout': 'Auto layout',
   'history.lock': 'Lock', 'history.unlock': 'Unlock',
@@ -124,10 +124,8 @@ export const EDITOR_MESSAGES: Messages = {
   'props.resetGroup': 'Reset positions in this group', 'props.resetGroupTip': 'Forget the hand-placed positions inside the group; auto layout arranges its contents again',
   'props.resetGroupNone': 'Nothing to reset — the group has no hand-placed positions',
   // ---- insert dock (T05); the strings of its lazy parts are in editor-media.ts
-  'tools.image': 'Image — add a picture by its URL', 'help.image': 'Image', 'help.emoji': 'Emoji while editing text', 'props.emoji': 'Insert emoji (⌘/Ctrl+;)',
+  'tools.image': 'Image — a picture by its URL, or an icon', 'help.image': 'Image', 'help.emoji': 'Emoji while editing text', 'props.emoji': 'Insert emoji (⌘/Ctrl+;)',
   'media.noUpload': 'Images can be added by URL; uploading is not configured here', 'media.noImages': 'Images cannot be added to this diagram type',
   'history.icon': 'Icon', 'history.image': 'Image', 'history.media': 'Icon & image',
   // ---- markdown labels (T06)
-  'props.mdBold': 'Bold (⌘/Ctrl+B)', 'props.mdItalic': 'Italic (⌘/Ctrl+I)', 'props.makeRich': 'Make rich text',
-  'props.makeRichTip': 'Write the label as a Mermaid markdown string, where Bold and Italic style the selected words',
 };

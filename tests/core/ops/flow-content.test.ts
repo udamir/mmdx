@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Flowchart content ops (T06): markdown labels written back as markdown strings and "Make rich text", "Convert to icon
+// Flowchart content ops (T06): markdown labels written back as markdown strings, a plain label written as one, "Convert to icon
 // node", an icon or image node's size in its node data (what a resize writes), invisible links in copies, edge-id
 // metadata following the code, the `title` fix, and the Mermaid Chart sample: every output parsed by stock Mermaid
 // 12.2 and 11.17, the sample unchanged by a no-op edit.
@@ -9,7 +9,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { OPS } from '../../../src/core/kinds/flowchart-ops.js';
 import type { DiagramMeta } from '../../../src/core/meta/types.js';
 import { edgeText, nodeDef } from '../../../src/core/ops/connect.js';
-import { setFlowMedia, toFlowIconNode } from '../../../src/core/ops/flow-media.js';
+import { setFlowIcon, setFlowImage, setFlowMedia, toFlowIconNode } from '../../../src/core/ops/flow-media.js';
 import { relabelFlowEdge, relabelFlowNode, relabelGroup } from '../../../src/core/ops/flowchart.js';
 import { parseFlowchart } from '../../../src/core/parse/flowchart.js';
 import { stockParse } from '../../helpers/mermaid.js';
@@ -24,6 +24,21 @@ async function valid(code: string): Promise<void> {
   expect(P(code).diagnostics.filter((d) => d.severity !== 'info').map((d) => d.message), code).toEqual([]);
 }
 const reg = (t: string): boolean => /^(fa|tabler|azure):/.test(t);
+
+describe('an icon as an image node\'s source', () => {
+  it('an image node (also the empty placeholder) given an icon becomes an icon node; an icon node given a picture an image node', async () => {
+    const code = 'flowchart LR\n  n5["Photo"]\n  n5@{ img: "https://example.com/a.png", h: 200, w: 200, pos: "t", constraint: "on" }\n';
+    const r = setFlowIcon(code, P(code), 'n5', 'tabler:car')!.code;
+    expect(r).toBe('flowchart LR\n  n5["Photo"]\n  n5@{ h: 60, pos: "t", icon: "tabler:car", form: "square" }\n');
+    await valid(r);
+    const empty = 'flowchart LR\n  n6["Image"]\n  n6@{ img: "", h: 200, w: 200, pos: "b" }\n';
+    expect(setFlowIcon(empty, P(empty), 'n6', 'tabler:car')!.code).toBe('flowchart LR\n  n6["Image"]\n  n6@{ h: 60, pos: "b", icon: "tabler:car", form: "square" }\n');
+    const back = setFlowImage(r, P(r), 'n5', 'https://example.com/b.png')!.code;
+    expect(P(back).nodes.get('n5')).toMatchObject({ shape: 'image', data: { img: 'https://example.com/b.png' } });
+    expect(back).not.toContain('icon:');
+    await valid(back);
+  });
+});
 
 describe('markdown labels (§3.4)', () => {
   it('a relabel keeps a markdown string one: node (bracket and node data), edge, subgraph', async () => {
@@ -41,7 +56,7 @@ describe('markdown labels (§3.4)', () => {
     for (const x of [a, e, g, c]) await valid(x);
   });
 
-  it('"Make rich text": a plain label written as a markdown string; the copy of a markdown node stays one', async () => {
+  it('a plain label written as a markdown string (once formatted); the copy of a markdown node stays one', async () => {
     const code = 'flowchart LR\n  A["plain"] -->|"no"| B\n  subgraph S ["Plain"]\n    B\n  end';
     const m = P(code);
     const a = relabelFlowNode(code, m, 'A', '**rich**', true).code;

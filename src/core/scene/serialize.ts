@@ -55,8 +55,8 @@ export function attrValue(name: string, v: AttrValue): string | null {
   if (v === true) return name.startsWith('aria-') ? 'true' : '';
   const s = typeof v === 'number' ? fmt(v) : v;
   // `url(...)` only as a local fragment (markers, patterns, clip paths); never `url(javascript:…)` or a remote
-  // resource: images are `<image>` nodes whose href passed the image policy
-  if (/url\s*\(/i.test(s) && !(URL_ATTRS.has(name) && LOCAL_URL.test(s.trim()))) return null;
+  // resource: images are `<image>` nodes whose href passed the image policy (no `(`: no regex run, most values)
+  if (s.includes('(') && /url\s*\(/i.test(s) && !(URL_ATTRS.has(name) && LOCAL_URL.test(s.trim()))) return null;
   return s;
 }
 
@@ -92,12 +92,13 @@ export function serializeNode(n: SceneNode): string {
   }
 }
 
-/** A run's own attributes: the change mark's class token, bold, italic and its place (fixed names and values). */
+/** A run's own attributes: the change mark's class token, bold, italic, underline, strike and its place (fixed names and values). */
 export function runAttrs(r: TextRun): [string, string][] {
   const out: [string, string][] = [];
   if (r.mark) out.push(['class', r.mark === 'ins' ? 'dx-ins' : 'dx-del']);
   if (r.bold) out.push(['font-weight', '700']);
   if (r.italic) out.push(['font-style', 'italic']);
+  if (r.underline || r.strike) out.push(['text-decoration', r.underline && r.strike ? 'underline line-through' : r.underline ? 'underline' : 'line-through']);
   if (r.x !== undefined) out.push(['x', fmt(r.x)]);
   return out;
 }

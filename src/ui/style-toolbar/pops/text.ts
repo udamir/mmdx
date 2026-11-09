@@ -1,10 +1,34 @@
-// Text popovers: the text position (alignment, vertical alignment, word wrap), the font, the link and the text colour.
+// Text popovers: the text format (bold, italic, underline, strike), the text position (alignment, vertical alignment,
+// word wrap), the font, the link and the text colour.
 import { FONTS } from '../../fonts.js';
 import { h } from '../../h.js';
+import { formatKeys } from '../../shortcuts.js';
 import { popLabel } from '../../toolbar-kit.js';
 import { str } from '../controls.js';
 import { svgIcon } from '../icons.js';
 import { colors, type Fill } from './common.js';
+
+const FORMATS = [['b', 'boldGlyph', 'tb.bold', 'mod+b'], ['i', 'italic', 'tb.italic', 'mod+i'], ['u', 'underline', 'tb.underline', 'mod+u'], ['s', 'strike', 'tb.strike', 'mod+shift+x']] as const;
+
+/** Bold, italic, underline and strike: of the selected words while the text is edited, else of the whole label. */
+export function formatPop(f: Fill): void {
+  const { pop, x } = f;
+  const { t, api } = x;
+  const cur = api.textFormats?.();
+  const row = h('div', { class: 'mtb-align', role: 'group', 'aria-label': t('tb.format') });
+  for (const [k, icon, label, keys] of FORMATS) {
+    const on = !!cur?.[k];
+    const title = `${t(label)} (${formatKeys(keys)})`;
+    const b = h('button', { type: 'button', class: 'mtb-choice' + (on ? ' on' : ''), title, 'aria-label': title, 'aria-pressed': String(on), dataset: { f: k } }, svgIcon(icon));
+    b.addEventListener('click', () => {
+      api.textFormat?.(k);
+      f.again();
+    });
+    row.append(b);
+  }
+  pop.classList.add('narrow');
+  pop.append(row);
+}
 
 export function alignPop(f: Fill): void {
   const { pop, x, done } = f;

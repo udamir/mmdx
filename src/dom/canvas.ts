@@ -15,6 +15,10 @@ import { Viewport, type ViewState, type WheelMode } from './viewport.js';
 import { signal, type Signal } from '../ui/signal.js';
 
 const NS = 'http://www.w3.org/2000/svg';
+/** A view shown by CSS during a gesture is written for real once the gesture rests this long (a wheel burst is one zoom). */
+const ZOOM_SETTLE_MS = 300, PAN_SETTLE_MS = 150;
+/** A pan shown by CSS is written on the way once it has moved this part of the canvas size. */
+const PAN_COMMIT = 0.25;
 
 /** Styles of the canvas layers every product adopts (ink strokes, the pen cursor). */
 export const CANVAS_CSS = /* css */ `
@@ -99,6 +103,15 @@ export class DiagramCanvas {
   private destroyed = false;
   private penActive = false;
   private insetsOverride: (() => Insets) | null = null;
+  /** The view the `vp` transform holds; during a gesture the rest of the way is a CSS transform of the svg. */
+  private written: ViewState = { k: 1, tx: 0, ty: 0 };
+  /** The svg's box without the CSS transform, while one is shown: what every reader of the box gets meanwhile. */
+  private unscaled: DOMRect | null = null;
+  private settle: ReturnType<typeof setTimeout> | null = null;
+  /** Set while a linked canvas passes its gesture on: this one shows it the same cheap way. */
+  private following = false;
+  /** `--dx-inv` is on the svg (see syncInv). */
+  private inv = false;
 
   constructor(container: HTMLElement | null, opts: CanvasOptions) {
     this.o = { ...opts };
@@ -123,6 +136,10 @@ export class DiagramCanvas {
     this.svg.append(this.defs, this.vp);
     this.el = container ?? document.createElement('div');
     this.el.append(this.svg);
+    // while a gesture is shown by a CSS transform, the svg's box reads as without it: pointer and placement math (here,
+    // in the viewport and in the modules) stays in the coordinates of the view state
+    const box = this.svg.getBoundingClientRect.bind(this.svg);
+    this.svg.getBoundingClientRect = () => this.unscaled ?? box();
     this.setInteraction(opts.interaction);
   }
 
@@ -186,17 +203,33 @@ export class DiagramCanvas {
     patchChildren(this.body, p.body);
     patchChildren(this.runs, p.runs ?? []);
     if (p.overlay) patchChildren(this.overlay, p.overlay);
+    this.syncInv();
   }
 
   /** Painters' output (editor handles, diff highlights). */
   setOverlay(nodes: readonly SceneNode[]): void {
     patchChildren(this.overlay, nodes);
+    this.syncInv();
   }
 
   /** Drops the picture and the patch state (a new scene owner repaints in full). */
   clear(): void {
     this.endMorph();
     for (const g of [this.defs, this.page, this.body, this.runs, this.overlay]) g.replaceChildren();
+    this.syncInv();
+  }
+
+  /**
+   * Diff badges keep their size at any zoom through `--dx-inv`. An inherited property on the root restyles every
+   * element when it changes, so it is set only while the picture may have badges (a morph's states, or badges drawn
+   * here): zooming a plain picture restyles nothing.
+   */
+  private syncInv(): void {
+    const on = !!this.morphing || !!this.svg.querySelector('.dx-badge');
+    if (on === this.inv) return;
+    this.inv = on;
+    if (on) this.svg.style.setProperty('--dx-inv', String(1 / (this.view.peek().k || 1)));
+    else this.svg.style.removeProperty('--dx-inv');
   }
 
   /**
@@ -206,6 +239,7 @@ export class DiagramCanvas {
   setMorph(m: { dispose(): void } | null): void {
     if (this.morphing && this.morphing !== m) this.endMorph();
     this.morphing = m;
+    this.syncInv();
   }
 
   private endMorph(): void {
@@ -354,21 +388,76 @@ export class DiagramCanvas {
     for (const off of [...this.unlinks]) off();
     this.vpt?.destroy();
     this.vpt = null;
+    this.dropCss();
     this.svg.remove();
     for (const f of this.destroyHooks.splice(0)) f();
   }
 
-  private onChange(v: ViewState): void {
+  /** A wheel or pinch burst, or a pan drag, is running (here or on the linked canvas that passes it on). */
+  private get gesture(): boolean {
+    return this.following || !!this.vpt?.wheeling || !!this.vpt?.panning;
+  }
+
+  /**
+   * A new scale makes the engine lay out every text of the scene again (SVG text is sized for the screen scale), and a
+   * new translate repaints every item: on a large diagram either takes most of a frame. So a gesture shows the view as
+   * a CSS transform of the svg (its own composited layer: no layout, no repaint) and writes the real transform once
+   * it rests. A pan that goes far is written on the way, so the strip that was off screen does not stay blank for
+   * long. A single change (a button, a fit, a key) is written at once.
+   */
+  private showView(v: ViewState): void {
+    if (!this.gesture) {
+      this.writeView(v);
+      return;
+    }
+    const w = this.written, sc = v.k / w.k;
+    const dx = v.tx - sc * w.tx, dy = v.ty - sc * w.ty;
+    const box = this.unscaled ?? this.svg.getBoundingClientRect();
+    if (sc === 1 && (Math.abs(dx) > box.width * PAN_COMMIT || Math.abs(dy) > box.height * PAN_COMMIT)) {
+      this.writeView(v);
+      return;
+    }
+    if (!this.unscaled) {
+      this.unscaled = box;
+      this.svg.style.willChange = 'transform';
+      this.svg.style.transformOrigin = '0 0';
+    }
+    this.svg.style.transform = `translate(${dx}px, ${dy}px) scale(${sc})`;
+    if (this.settle) clearTimeout(this.settle);
+    this.settle = setTimeout(() => {
+      this.settle = null;
+      if (this.vpt) this.writeView(this.view.peek());
+    }, sc === 1 ? PAN_SETTLE_MS : ZOOM_SETTLE_MS);
+  }
+
+  private writeView(v: ViewState): void {
+    this.dropCss();
+    this.written = { k: v.k, tx: v.tx, ty: v.ty };
     this.vp.setAttribute('transform', `translate(${v.tx},${v.ty}) scale(${v.k})`);
-    this.svg.style.setProperty('--dx-inv', String(1 / v.k));
+  }
+
+  /** Ends a view shown by CSS (without writing it). */
+  private dropCss(): void {
+    if (this.settle) clearTimeout(this.settle);
+    this.settle = null;
+    if (!this.unscaled) return;
+    this.unscaled = null;
+    for (const p of ['transform', 'transform-origin', 'will-change']) this.svg.style.removeProperty(p);
+  }
+
+  private onChange(v: ViewState): void {
+    this.showView(v);
+    if (this.inv) this.svg.style.setProperty('--dx-inv', String(1 / v.k));
     this.view.set({ k: v.k, tx: v.tx, ty: v.ty });
     this.o.onView?.(v);
     if (this.linking) return;
     this.linking = true;
+    const gesture = this.gesture;
     try {
       for (const o of this.links) {
         if (!o.vpt || !this.vpt) continue;
         o.linking = true;
+        o.following = gesture;
         try {
           o.vpt.auto = this.vpt.auto;
           // the same view, from where each canvas's free area starts (panes of different widths, side by side)
@@ -376,6 +465,7 @@ export class DiagramCanvas {
           o.vpt.set({ k: v.k, tx: v.tx - a.left + b.left, ty: v.ty - a.top + b.top });
         } finally {
           o.linking = false;
+          o.following = false;
         }
       }
     } finally {
@@ -386,6 +476,8 @@ export class DiagramCanvas {
   /** Non-interactive canvases: the whole page fills the element through the viewBox. */
   private applyStatic(): void {
     if (this.o.interaction !== 'static') return;
+    this.dropCss();
+    this.written = { k: 1, tx: 0, ty: 0 };
     this.vp.removeAttribute('transform');
     this.view.set({ k: 1, tx: 0, ty: 0 });
     const b = this.bounds;

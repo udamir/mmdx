@@ -62,7 +62,7 @@ export interface DiffOptions {
   ui?: 'light' | 'dark' | 'auto';
   /** The `compact` preset (component architecture §7.6): smaller, icon-only chrome; automatic below a host size. */
   compact?: boolean | 'auto';
-  /** `always` (default): wheel pans, ⌘ / Ctrl + wheel and pinch zoom; `ctrl`: only ⌘ / Ctrl + wheel zooms; `never`. */
+  /** `always` (default): wheel pans, ⌘ / Ctrl + wheel and pinch zoom; `zoom`: wheel zooms, Shift + wheel pans; `ctrl`: only ⌘ / Ctrl + wheel zooms; `never`. */
   wheel?: WheelMode;
   /** File name stem of exports. */
   name?: string;

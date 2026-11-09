@@ -17,7 +17,7 @@ export const ROUTINGS = ['curved', 'orthogonal', 'straight'] as const;
 type MutableSpec = { groups: ToolbarControl[][] } & Omit<KindSpec, 'groups'>;
 
 /** Controls that only make sense for one item: left out when the same kind's bar edits several items at once. */
-const SINGLE_ONLY: ReadonlySet<ToolbarControl> = new Set(['order', 'editGroup', 'ungroup', 'media', 'mediaSize', 'actions']);
+const SINGLE_ONLY: ReadonlySet<ToolbarControl> = new Set(['order', 'editGroup', 'ungroup', 'source', 'media', 'actions']);
 
 /** Connector kinds: no box to align or group (two messages can still become a process). */
 const LINE_KINDS: ReadonlySet<string> = new Set(['edge', 'rel', 'message']);
@@ -35,7 +35,9 @@ export function bulkSpec(kind: string, sp: KindSpec): KindSpec {
 /** Button sets per kind (prototype KIND plus the order / layer / presets rearrangement done at load). */
 function buildKinds(): Readonly<Record<string, KindSpec>> {
   const K: Record<string, MutableSpec> = {
-    node: { groups: [['icon', 'shape', 'font', 'size', 'bold', 'align', 'link'], ['media', 'mediaSize'], ['textColor'], ['border', 'fill'], ['paint', 'lock', 'delete', 'more']], size: 'fontSize', bold: 'fontWeight', text: 'text', shapes: NODE_SHAPES },
+    // an image node has its source (a picture or an icon) and its settings instead of the shape picker; sizes are in
+    // Properties
+    node: { groups: [['icon', 'source', 'media', 'shape', 'font', 'size', 'bold', 'align', 'link'], ['textColor'], ['border', 'fill'], ['paint', 'lock', 'delete', 'more']], size: 'fontSize', bold: 'fontWeight', text: 'text', shapes: NODE_SHAPES },
     group: { groups: [['shape', 'font', 'size', 'bold'], ['textColor'], ['border', 'fill'], ['editGroup', 'ungroup', 'paint', 'lock', 'delete', 'more']], size: 'titleSize', bold: 'titleWeight', text: 'titleColor' },
     edge: { groups: [['line', 'arrows', 'routing'], ['font', 'size', 'bold', 'textColor'], ['paint', 'delete', 'more']], size: 'labelSize', bold: 'fontWeight', text: 'labelColor' },
     rel: { groups: [['line', 'routing'], ['font', 'size', 'bold', 'textColor'], ['paint', 'delete', 'more']], size: 'labelSize', bold: 'fontWeight', text: 'labelColor' },

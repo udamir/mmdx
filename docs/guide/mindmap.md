@@ -71,7 +71,7 @@ A node's id is what it is written with (`research[User research]` is `research`)
 
 ## Labels and markdown
 
-Mermaid reads every mindmap label as markdown, and so does mmdx: `**bold**`, `__bold__`, `*italic*` and `_italic_` are drawn as such in plain and quoted labels too, and a markdown string (`` "`…`" ``) also breaks lines where it does. Labels wrap at `maxNodeWidth` (200 px unless the frontmatter sets it). In the editor, Bold and Italic above the text box (`⌘B`, `⌘I`) and **Make rich text** work as for [flowchart labels](/guide/flowchart#markdown-labels).
+Mermaid reads every mindmap label as markdown, and so does mmdx: `**bold**`, `__bold__`, `*italic*` and `_italic_` are drawn as such in plain and quoted labels too, and a markdown string (`` "`…`" ``) also breaks lines where it does. Labels wrap at `maxNodeWidth` (200 px unless the frontmatter sets it). `<u>…</u>` and `<s>…</s>` underline and strike, as in flowchart labels. In the editor, the toolbar's text format menu (`⌘B`, `⌘I`, `⌘U`, `⇧⌘X`) works as for [flowchart labels](/guide/flowchart#markdown-labels).
 
 ## Icons
 
