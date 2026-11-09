@@ -156,7 +156,8 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.live = shell.live;
     this.compact = shell.compact;
     this.stackInsets = shell.stackInsets;
-    const canvasOptions = (): CanvasOptions => ({ ...o.canvas, insets: o.canvas.insets ?? (() => this.insets()) });
+    // fit() uses the whole canvas: the panels float over it, so the diagram is as large as the window allows
+    const canvasOptions = (): CanvasOptions => ({ ...o.canvas });
     this.canvas = new DiagramCanvas(this.area, canvasOptions());
     shell.placeAreaSlots();
     this.scenes = new SceneStack(this.area, this.canvas, canvasOptions, () => this.modules.bus.fire('draw', undefined));
@@ -348,7 +349,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.shell.setCompact(c);
   }
 
-  /** Insets of the canvas area that fit() keeps clear: the open panel stacks and the tool dock. */
+  /** Insets of the canvas area covered by the open panel stacks and the tool dock (the diff's panes keep clear of them). */
   insets(): Insets {
     return this.shell.insets();
   }
