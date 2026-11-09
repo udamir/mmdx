@@ -10,6 +10,11 @@ import { editKind, withEdit } from '../kinds/registry.js';
 import type { EditKind, ItemMedia, MediaPatch } from '../kinds/types.js';
 import { patchStateMedia, setStateIcon, setStateImage } from '../../core/ops/state-media.js';
 
+/** Where a picture can come from: the host's image store (its library), an upload (the store, else `uploadImage`), a URL. */
+export function imageSources(core: EditorCore): ('library' | 'upload' | 'url')[] {
+  return [...(core.images ? ['library' as const] : []), ...(core.upload ? ['upload' as const] : []), 'url'];
+}
+
 /** An item's icon and image (null: it takes neither, or its type has no media). */
 export function mediaOf(core: EditorCore, ref: ItemRef): ItemMedia | null {
   return withEdit(core.model, (k, m) => k.media?.(m, ref, core)) ?? null;

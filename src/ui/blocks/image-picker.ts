@@ -1,15 +1,21 @@
-// ImagePicker (T05 §4.4): the image tool. Images are always referenced by URL (no embedding): a URL field checked live
-// against the host's rule (the editor: the image policy, with the reason in words), and — only when the host can
-// upload (`upload`) — a drop zone, a file input and paste, with an offer to reduce a picture over `maxSide` pixels
-// before it is uploaded. Without `upload` the URL field is the only way in, and a dropped or pasted file is refused
-// with `onRefused` (the host's toast).
+// ImagePicker (T05 §4.4): the image tool, in three tabs — the host's image library (`library`: a grid of its pictures,
+// searched and paged), an upload (`upload`: a drop zone, a file input and paste, with an offer to reduce a picture over
+// `maxSide` pixels first) and a URL field checked live against the host's rule (the editor: the image policy, with the
+// reason in words). Images are always referenced by URL (no embedding): a library picture's or an uploaded file's
+// record gives it. The Library and Upload tabs show only when the host has them; a dropped or pasted file without an
+// upload is refused with `onRefused` (the host's toast).
+import type { ImageInfo, ImagePage } from '../../adapters/images.js';
 import { h } from '../h.js';
 import { registerMessages } from '../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
+import { createTabs, TABS_CSS } from './tabs.js';
 
 /** The picture types the file input offers. */
 export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml', 'image/avif'] as const;
+
+/** Where a picture comes from: the host's library, an upload, or a URL. */
+export type ImageTab = 'library' | 'upload' | 'url';
 
 export interface ImagePickerProps {
   t: Translate;
@@ -21,8 +27,14 @@ export interface ImagePickerProps {
   submitLabel?: string;
   /** Why a URL cannot be used (null: it can); called while typing. */
   check(url: string): string | null;
-  /** Uploads a file and gives its URL; absent: no drop zone, file input or paste. */
+  /** The host's pictures (newest first, paged, filtered by a name); absent: no Library tab. */
+  library?: ((o: { cursor?: string; query?: string }) => Promise<ImagePage>) | null;
+  /** The URL a library picture's tile shows (its `thumb`, else its `url` resolved; null: a blank tile). */
+  thumbUrl?: (image: ImageInfo) => string | null;
+  /** Uploads a file and gives its URL; absent: no Upload tab, drop or paste. */
   upload?: ((file: File) => Promise<string>) | null;
+  /** The tab shown first (default: the library when there is one, else the URL). */
+  tab?: ImageTab;
   /** A file's pixel size (null: unknown), to offer reducing it. */
   measure?: (file: File) => Promise<{ w: number; h: number } | null>;
   /** Re-encodes a file to at most `side` px on its longer side. */
@@ -40,11 +52,26 @@ export interface ImagePickerHandle extends BlockHandle<ImagePickerProps> {
   focus(): void;
   /** Takes a file as if dropped (canvas paste). */
   takeFile(file: File): Promise<void>;
+  /** Reads the library's first page again (the store changed). */
+  refresh(): Promise<void>;
   readonly url: string;
+  readonly tab: ImageTab;
 }
 
-export const IMAGE_PICKER_CSS = /* css */ `
+export const IMAGE_PICKER_CSS = /* css */ `${TABS_CSS}
 .imp { width: 340px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 8px; }
+.imp-tabs [role=tab] { border: 0; background: none; padding: 4px 8px; font-size: 12px; border-radius: 6px 6px 0 0; color: var(--mmdx-muted); }
+.imp-tabs [role=tab][aria-selected=true] { color: inherit; box-shadow: inset 0 -2px 0 var(--mmdx-accent); }
+.imp-tabs { border-bottom: 1px solid var(--mmdx-border); }
+.imp-panel { display: flex; flex-direction: column; gap: 8px; }
+.imp-panel[hidden] { display: none; }
+.imp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; max-height: 236px; overflow-y: auto; align-content: start; }
+.imp-tile { aspect-ratio: 1; padding: 0; border: 1px solid var(--mmdx-border); border-radius: var(--mmdx-radius); background: var(--mmdx-surface-2, transparent); overflow: hidden; }
+.imp-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.imp-tile[aria-current=true] { outline: 2px solid var(--mmdx-accent); outline-offset: 1px; }
+.imp-tile[aria-disabled=true] { opacity: .45; }
+.imp-empty { font-size: 12px; color: var(--mmdx-muted); padding: 10px 0; text-align: center; }
+.imp-more { align-self: center; }
 .imp-title { font-weight: 600; font-size: 13px; }
 .imp-row { display: flex; gap: 6px; }
 .imp-url { flex: 1; min-width: 0; }
@@ -66,6 +93,11 @@ export function createImagePicker(props: ImagePickerProps): ImagePickerHandle {
   const scope = new Scope();
   const el = h('div', { class: 'imp', role: 'dialog' });
   const title = h('div', { class: 'imp-title' });
+  // the library: a search, the grid, "Load more"
+  const search = h('input', { type: 'search', class: 'imp-search', autocomplete: 'off', spellcheck: false });
+  const grid = h('div', { class: 'imp-grid', role: 'list' });
+  const empty = h('div', { class: 'imp-empty', role: 'status' });
+  const more = h('button', { type: 'button', class: 'imp-more' });
   const input = h('input', { type: 'url', class: 'imp-url', autocomplete: 'off', spellcheck: false });
   const submit = h('button', { type: 'button', class: 'primary' });
   const error = h('div', { class: 'imp-error', role: 'alert' });
@@ -75,8 +107,69 @@ export function createImagePicker(props: ImagePickerProps): ImagePickerHandle {
   const status = h('div', { class: 'imp-status', role: 'status' });
   const offer = h('div', { class: 'imp-offer' });
   const foot = h('div', { class: 'imp-foot' });
-  el.append(title, h('div', { class: 'imp-row' }, input, submit), error, drop, fileInput, status, offer, foot);
+  const panels: Record<ImageTab, HTMLElement> = {
+    library: h('div', { class: 'imp-panel', role: 'tabpanel', dataset: { panel: 'library' } }, search, grid, empty, more),
+    upload: h('div', { class: 'imp-panel', role: 'tabpanel', dataset: { panel: 'upload' } }, drop, fileInput, status, offer),
+    url: h('div', { class: 'imp-panel', role: 'tabpanel', dataset: { panel: 'url' } }, h('div', { class: 'imp-row' }, input, submit), error),
+  };
+  const tabsOf = (): ImageTab[] => [...(p.library ? ['library' as const] : []), ...(p.upload ? ['upload' as const] : []), 'url'];
+  let tab: ImageTab = p.tab && tabsOf().includes(p.tab) ? p.tab : tabsOf()[0]!;
+  const tabs = createTabs<ImageTab>({ label: '', class: 'imp-tabs', tabs: [], value: tab, onChange: (v) => show(v) });
+  scope.add(() => tabs.destroy());
+  el.append(title, tabs.el, panels.library, panels.upload, panels.url, foot);
   let busy = false;
+
+  // ---- library: pages of the host's pictures; a click takes one
+  let page: { next?: string; query: string; seq: number } = { query: '', seq: 0 };
+  const tile = (img: ImageInfo): HTMLElement => {
+    const t = p.t;
+    const why = p.check(img.url);
+    const name = img.name ?? img.id;
+    const src = p.thumbUrl ? p.thumbUrl(img) : img.thumb ?? img.url;
+    const b = h('button', { type: 'button', class: 'imp-tile', role: 'listitem', title: why ? `${name} — ${why}` : name, 'aria-label': name, dataset: { id: img.id } },
+      src ? h('img', { src, alt: '', loading: 'lazy', decoding: 'async', draggable: false }) : null);
+    if (img.url === (p.value ?? '')) b.setAttribute('aria-current', 'true');
+    if (why) b.setAttribute('aria-disabled', 'true');
+    b.addEventListener('click', () => {
+      if (why) {
+        status.textContent = '';
+        empty.textContent = t('image.libraryBlocked', { name, why });
+        return;
+      }
+      p.onSubmit(img.url);
+    });
+    return b;
+  };
+  const load = async (append: boolean): Promise<void> => {
+    const t = p.t;
+    if (!p.library) return;
+    const seq = ++page.seq;
+    const query = search.value.trim();
+    more.hidden = true;
+    empty.textContent = t('image.libraryLoading');
+    try {
+      const r = await p.library({ ...(append && page.next ? { cursor: page.next } : {}), ...(query ? { query } : {}) });
+      if (seq !== page.seq) return;
+      page = { ...(r.next ? { next: r.next } : {}), query, seq };
+      if (!append) grid.replaceChildren();
+      grid.append(...r.images.map(tile));
+      empty.textContent = grid.childElementCount ? '' : query ? t('image.libraryNone', { query }) : t('image.libraryEmpty');
+      more.hidden = !r.next;
+    } catch (e) {
+      if (seq !== page.seq) return;
+      empty.textContent = t('image.libraryFailed', { msg: e instanceof Error ? e.message : String(e) });
+    }
+  };
+  let loaded = false;
+  const show = (v: ImageTab): void => {
+    tab = v;
+    tabs.update({ value: v });
+    for (const [k, panel] of Object.entries(panels)) panel.hidden = k !== v;
+    if (v === 'library' && !loaded) {
+      loaded = true;
+      void load(false);
+    }
+  };
 
   const validate = (show: boolean): string | null => {
     const url = input.value.trim();
@@ -110,6 +203,7 @@ export function createImagePicker(props: ImagePickerProps): ImagePickerHandle {
     const t = p.t;
     offer.replaceChildren();
     if (!p.upload) return void p.onRefused?.(t('image.noUpload'));
+    if (tab !== 'upload') show('upload');
     if (!isImage(file)) return void p.onRefused?.(t('image.notImage', { name: file.name }));
     const max = p.maxSide ?? 1600;
     const size = p.measure && p.reduce && file.type !== 'image/svg+xml' ? await p.measure(file).catch(() => null) : null;
@@ -142,6 +236,16 @@ export function createImagePicker(props: ImagePickerProps): ImagePickerHandle {
     choose.textContent = t('image.choose');
     drop.replaceChildren(h('div', null, t('image.drop'), ' ', choose), h('div', null, t('image.types')));
     drop.hidden = !p.upload;
+    search.placeholder = t('image.librarySearch');
+    search.setAttribute('aria-label', t('image.librarySearch'));
+    grid.setAttribute('aria-label', t('image.library'));
+    more.textContent = t('image.libraryMore');
+    const names: Record<ImageTab, string> = { library: t('image.tabLibrary'), upload: t('image.tabUpload'), url: t('image.tabUrl') };
+    const list = tabsOf();
+    if (!list.includes(tab)) tab = list[0]!;
+    tabs.update({ label: t('image.source'), tabs: list.map((v) => ({ value: v, label: names[v] })), value: tab });
+    tabs.el.hidden = list.length < 2;
+    show(tab);
     foot.replaceChildren();
     if (p.onRemove) {
       const rm = h('button', { type: 'button', class: 'danger' }, t('image.remove'));
@@ -165,6 +269,19 @@ export function createImagePicker(props: ImagePickerProps): ImagePickerHandle {
     if (url) p.onSubmit(url);
   });
   scope.on(choose, 'click', () => fileInput.click());
+  let typing = 0;
+  scope.on(search, 'input', () => {
+    clearTimeout(typing);
+    typing = window.setTimeout(() => void load(false), 250);
+  });
+  scope.add(() => clearTimeout(typing));
+  scope.on(search, 'keydown', (ev: KeyboardEvent) => {
+    if (ev.key !== 'Enter') return;
+    ev.preventDefault();
+    clearTimeout(typing);
+    void load(false);
+  });
+  scope.on(more, 'click', () => void load(true));
   scope.on(fileInput, 'change', () => {
     const f = fileInput.files?.[0];
     if (f) void takeFile(f);
@@ -195,8 +312,12 @@ export function createImagePicker(props: ImagePickerProps): ImagePickerHandle {
     get url() {
       return input.value.trim();
     },
-    focus: () => input.focus(),
+    get tab() {
+      return tab;
+    },
+    focus: () => (tab === 'library' ? search : tab === 'upload' ? choose : input).focus(),
     takeFile,
+    refresh: () => (loaded ? load(false) : Promise.resolve()),
     update(next) {
       p = { ...p, ...next };
       if (next?.value !== undefined) input.value = next.value;

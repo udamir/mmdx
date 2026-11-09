@@ -98,6 +98,7 @@ Each attribute sets the `EditorOptions` option of the same name in camelCase (`r
 | — | — | `toolbar: 'floating' \| 'none'` | `floating` | `DiagramEditor` option, read when the editor is created; `none` turns off the floating style toolbar |
 | — | — | `ctx: Partial<CoreContext>` | the shared context | `DiagramEditor` option, read when the editor is created |
 | — | — | `iconPacks: IconPack[]` | — | `DiagramEditor` option: icon packs of this editor over the shared ones (see [Icons](/guide/icons#registering-packs)); read when the editor is created |
+| — | `images` | [`ImageStore`](/api/adapters#images) or `null` | `null` | The host's image store: the image tool's **Library** tab lists its pictures, and uploads (the **Upload** tab, a picture pasted or dropped on the canvas) are put into it, before `uploadImage` |
 | — | `uploadImage` | `(file: File) => Promise<{ url: string }>` or `null` | `null` | Uploads a picture dropped, pasted or chosen in the image tool and returns the URL the image references (throw to refuse: the message shows as a toast). Without it images are added by URL only. See [Images](#images) |
 
 Read-only properties of the element: `instance` (the `DiagramEditor`, `null` while not connected), `dirty` (unsaved changes) and `historySession` (while History is open).
@@ -243,10 +244,23 @@ Next to Source, the toolbar's **settings** of an image node depend on its source
 
 Images are always referenced by URL; the editor never embeds a file into the diagram.
 
-Drag the dock's **Image** button onto the canvas — or click it, or press `G`, for the middle of the canvas — and an image item with the placeholder (a dashed frame with a mountain glyph) is added and selected: in a flowchart `n5["Image"]` and `n5@{ img: "", h: 200, w: 200, pos: "b", constraint: "on" }`, which stock Mermaid reads too; in a mindmap a child node with an empty metadata `img`; in a state diagram an image state titled "Image", with the flowchart's keys in its metadata (`{"img":"","w":200,"h":200,"pos":"b","constraint":"on"}`). An empty URL draws the placeholder without a warning. In a flowchart and a state diagram, choose its source afterwards with the floating toolbar's **Source** — a picture (**Replace image…**, or the Properties panel's **Image URL**) or an icon (**Use an icon instead…**); in a mindmap, choose the picture with the floating toolbar's image control or the Properties panel's **Image URL**. A mindmap node's picture is drawn above its text; Properties sets its **Width** and **Height** (one of them alone keeps the picture's aspect; neither: its own size up to 160 px) and its **Fit** (contain, cover, stretch), in the metadata (`imgW`, `imgH`, `imgFit`).
+Drag the dock's **Image** button onto the canvas — or click it, or press `G`, for the middle of the canvas — and an image item with the placeholder (a dashed frame with a mountain glyph) is added and selected: in a flowchart `n5["Image"]` and `n5@{ img: "", h: 200, w: 200, pos: "b", constraint: "on" }`, which stock Mermaid reads too; in a mindmap a child node with an empty metadata `img`; in a state diagram an image state titled "Image", with the flowchart's keys in its metadata (`{"img":"","w":200,"h":200,"pos":"b","constraint":"on"}`). An empty URL draws the placeholder without a warning. In a flowchart and a state diagram, choose its source afterwards with the floating toolbar's **Source** — a picture **From the library…**, by an **Upload…** or **By URL…** (Properties has the same three: **Library…**, **Upload…**, **URL…**), or an icon (**Use an icon instead…**); in a mindmap, choose the picture with the floating toolbar's image control or Properties' three buttons. A mindmap node's picture is drawn above its text; Properties sets its **Width** and **Height** (one of them alone keeps the picture's aspect; neither: its own size up to 160 px) and its **Fit** (contain, cover, stretch), in the metadata (`imgW`, `imgH`, `imgFit`).
 
-- The image tool's **URL** field is checked while you type against the [image policy](/guide/security#image-policy) (`https:` from any host by default), with the reason when it is refused ("Only https images are allowed here").
-- With an `uploadImage` hook, the tool also takes a dropped file, a pasted picture (⌘V, in the tool or on the canvas) and a file input (PNG, JPEG, GIF, WebP, SVG, AVIF); the hook uploads it and the image references the URL it returns. A picture over 1600 px on its longer side is offered **Reduce to 1600 px** first (re-encoded in the browser). Without the hook, the drop zone is hidden and a pasted or dropped picture is refused with a toast.
+The image tool has three tabs, each where the host provides it — Source and Properties open it on the one chosen:
+
+- **Library**: the pictures of the host's image store (the `images` property, an [`ImageStore`](/api/adapters#images)), newest first, as a grid of thumbnails with a search by name and **Load more** for the next page. A click uses the picture: the image references its record's `url`. A picture the image policy refuses is dimmed and says why. The library follows the store's `subscribe`.
+- **Upload**: a dropped file, a pasted picture (⌘V, in the tool or on the canvas) or a chosen file (PNG, JPEG, GIF, WebP, SVG, AVIF) is put into the image store (`put`), and the image references the stored picture's `url`; without a store, the `uploadImage` hook uploads it and the image references the URL it returns. A picture over 1600 px on its longer side is offered **Reduce to 1600 px** first (re-encoded in the browser). Without either, there is no Upload tab and a pasted or dropped picture is refused with a toast.
+- **URL**: always there. It is checked while you type against the [image policy](/guide/security#image-policy) (`https:` from any host by default), with the reason when it is refused ("Only https images are allowed here").
+
+The store decides what a picture is referenced by: a plain URL, or a reference of its own (`asset:42`) that the host's [`resolveUrl`](/guide/configuration) maps to a URL when the diagram is drawn, so the diagram keeps the reference and the store can move its files.
+
+```ts
+import { httpImageStore } from '@mmdx/studio/adapters';
+
+editor.images = httpImageStore('/api/images'); // GET (list), GET /<id>, POST (multipart), DELETE /<id>
+```
+
+Without a library, the `uploadImage` hook alone gives the Upload tab:
 
 ```ts
 editor.uploadImage = async (file) => {

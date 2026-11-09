@@ -40,6 +40,7 @@ The attributes are read when the studio is created; changing them later has no e
 | `initial` | — | `string` | the first example | Example id to open when nothing is stored and the URL holds no diagram |
 | `wheel` | — | `'always' \| 'zoom' \| 'ctrl' \| 'never'` | `always` | The mouse wheel on the canvas (the editor's `wheel`) |
 | — | `storage` | `StorageAdapter` | `localStorage` (`mmdx.` keys), else in memory | Where the document, the versions, edited themes and preferences are kept |
+| — | `images` | [`ImageStore`](/api/adapters#images) or `null` | `null` | The host's image store, handed to the editor: its image library and where uploads go (see the editor's [`images`](/components/editor#images)). It can be set at any time |
 
 Read-only properties of the element: `instance` (the `DiagramStudio`, `null` while not connected) and `editor` (the inner `DiagramEditor`).
 

@@ -3,6 +3,7 @@
 // open document's versions (an example's bundled history and the versions saved here), shown by the editor's History.
 import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../ui/blocks/overlay-scroll.js';
 import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
+import type { ImageStore } from '../adapters/images.js';
 import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
 import { fetchThemeSource, localStorageThemeStore, type ThemeSource } from '../adapters/themes.js';
 import { ensureBuiltinThemes, getShared } from '../config.js';
@@ -49,6 +50,8 @@ export interface StudioOptions {
   /** Example id to open when nothing is stored. */
   initial?: string;
   storage?: StorageAdapter;
+  /** The host's image store: the editor's image library, and where its uploads go (see the editor's `images`). */
+  images?: ImageStore | null;
   /** What the mouse wheel does on the canvas: see the editor's `wheel`. */
   wheel?: WheelMode;
 }
@@ -117,6 +120,11 @@ export class DiagramStudio {
   private openSeq = 0;
   private destroyed = false;
 
+  /** The host's image store: the editor's image library and where its uploads go. */
+  setImages(store: ImageStore | null): void {
+    this.editorEl.images = store;
+  }
+
   constructor(private readonly host: HTMLElement, opts: StudioOptions = {}) {
     this.o = { ...opts };
     this.storage = opts.storage ?? (typeof localStorage !== 'undefined' ? localStorageAdapter() : memoryStorage());
@@ -129,6 +137,7 @@ export class DiagramStudio {
     this.editorEl.features = { open: true };
     this.editorEl.setAttribute('ui', this.ui);
     if (opts.wheel) this.editorEl.setAttribute('wheel', opts.wheel);
+    if (opts.images) this.editorEl.images = opts.images;
     this.nameEl = h('span', { class: 'name', title: 'File name' });
     const newBtn = h('button', { type: 'button', class: 'primary', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: () => this.openNewMenu(newBtn) }, '＋ New');
     const exBtn = h('button', { type: 'button', onclick: () => void this.openGallery() }, 'Examples');
@@ -588,8 +597,12 @@ export class MmdxStudioElement extends MmdxElement<StudioOptions, DiagramStudio>
     return new DiagramStudio(this, o);
   }
 
-  protected apply(_s: DiagramStudio, patch: Patch<StudioOptions>): void {
-    for (const k of Object.keys(patch)) warnOnce(`studio: \`${k}\` is read when the studio is created`);
+  protected apply(s: DiagramStudio, patch: Patch<StudioOptions>): void {
+    for (const k of Object.keys(patch)) {
+      // the image store goes to the editor at any time; the rest is read when the studio is created
+      if (k === 'images') s.setImages(patch.images ?? null);
+      else warnOnce(`studio: \`${k}\` is read when the studio is created`);
+    }
   }
 
   get storage(): StorageAdapter | undefined {
@@ -597,6 +610,14 @@ export class MmdxStudioElement extends MmdxElement<StudioOptions, DiagramStudio>
   }
   set storage(v: StorageAdapter | undefined) {
     this.setOpt({ storage: v });
+  }
+
+  /** The host's image store, handed to the editor (at any time). */
+  get images(): ImageStore | null {
+    return this.props.images ?? null;
+  }
+  set images(v: ImageStore | null) {
+    this.setOpt({ images: v });
   }
 
   get editor(): DiagramEditor | undefined {

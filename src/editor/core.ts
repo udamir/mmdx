@@ -6,6 +6,7 @@
 // Component architecture §4.1: EditorCore extends the view kernel (ViewCore) — services, theme, chrome scheme,
 // shell, module host and canvas come from it — and adds the document store, the selection, gestures and overlay
 // painters. What the canvas shows is the StoreScene (src/editor/scene.ts); `draw()` invalidates it.
+import type { ImageStore } from '../adapters/images.js';
 import type { StorageAdapter } from '../adapters/storage.js';
 import type { ThemeSource } from '../adapters/themes.js';
 import type { CoreContext } from '../core/context.js';
@@ -197,7 +198,8 @@ export interface EditorActions {
   /** Opens the icon picker beside `anchor`: it sets the selected items' icon. */
   openIconPicker(anchor?: HTMLElement | null): void;
   /** Opens the image tool beside `anchor`: `insert` adds an image item, else it sets the selected item's image; `file` is uploaded at once. */
-  openImageTool(anchor?: HTMLElement | null, opts?: { insert?: boolean; file?: File; at?: { x: number; y: number } }): void;
+  /** The image tool, on its Library, Upload or URL tab (`tab`; default: the library when the host has one). */
+  openImageTool(anchor?: HTMLElement | null, opts?: { insert?: boolean; file?: File; at?: { x: number; y: number }; tab?: 'library' | 'upload' | 'url' }): void;
   /** Opens the emoji picker beside `anchor`; `onPick` inserts the chosen emoji (it stays open), `onClose` when it closes. */
   pickEmoji(anchor: HTMLElement, onPick: (emoji: string) => void, onClose?: () => void): void;
 }
@@ -269,6 +271,16 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
    * references (the editor never embeds files). Null: images are added by URL only.
    */
   uploadImage: ((file: File) => Promise<{ url: string }>) | null = null;
+  /**
+   * The host's image store (`EditorOptions.images`): the image tool's Library tab lists it, and uploads go to it
+   * (before `uploadImage`). Null: no library.
+   */
+  images: ImageStore | null = null;
+  /** Where an upload goes: the image store, else the host's `uploadImage` (null: images by URL only). */
+  get upload(): ((file: File) => Promise<{ url: string }>) | null {
+    const store = this.images;
+    return store ? (file) => store.put(file, { name: file.name }) : this.uploadImage;
+  }
   /** Base name for exports (no extension); files opened through `openFiles` set it. */
   fileName = 'diagram';
   /** Session snap grid in diagram px (0 = off). Alt while dragging = free. */

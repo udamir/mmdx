@@ -3,6 +3,7 @@
 import { EDITOR_MESSAGES } from '../ui/messages/editor.js';
 import { registerMessages } from '../ui/i18n.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
+import type { ImageStore } from '../adapters/images.js';
 import type { WheelMode } from '../dom/viewport.js';
 import { TOOLBAR_MESSAGES } from '../ui/messages/toolbar.js';
 import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from '../elements/base.js';
@@ -58,6 +59,11 @@ export interface EditorOptions {
    * (throw to refuse: the message shows as a toast). Without it images are added by URL only (no embedding).
    */
   uploadImage?: ((file: File) => Promise<{ url: string }>) | null;
+  /**
+   * The host's image store: the image tool's Library tab lists its pictures, and uploads (the Upload tab, a picture
+   * pasted or dropped on the canvas) are put into it, before `uploadImage`. Without it there is no library.
+   */
+  images?: ImageStore | null;
 }
 
 export type SaveOutcome = 'saved' | 'cancelled' | 'conflict' | 'failed' | 'no-adapter';
@@ -121,6 +127,7 @@ export class DiagramEditor {
       ...(options.wheel ? { wheel: options.wheel } : {}),
     });
     this.core.uploadImage = options.uploadImage ?? null;
+    this.core.images = options.images ?? null;
     this.shadow = this.core.shadow;
     const core = this.core;
     const root = core.root;
@@ -286,6 +293,14 @@ export class DiagramEditor {
   }
   set uploadImage(f: ((file: File) => Promise<{ url: string }>) | null) {
     this.core.uploadImage = typeof f === 'function' ? f : null;
+  }
+
+  /** The host's image store (`EditorOptions.images`; null: no library). */
+  get images(): ImageStore | null {
+    return this.core.images;
+  }
+  set images(s: ImageStore | null) {
+    this.core.images = s && typeof s.list === 'function' && typeof s.put === 'function' ? s : null;
   }
 
   /** The base name of exports (no extension). */
@@ -753,6 +768,9 @@ export class MmdxEditorElement extends MmdxElement<EditorOptions, DiagramEditor>
         case 'uploadImage':
           e.uploadImage = p.uploadImage ?? null;
           break;
+        case 'images':
+          e.images = p.images ?? null;
+          break;
         case 'ui':
           e.setUi(p.ui ?? 'auto');
           break;
@@ -833,6 +851,13 @@ export class MmdxEditorElement extends MmdxElement<EditorOptions, DiagramEditor>
   }
   set uploadImage(f: ((file: File) => Promise<{ url: string }>) | null) {
     this.setOpt({ uploadImage: f });
+  }
+  /** The host's image store (no attribute): the image tool's Library, and where uploads go; null: no library. */
+  get images(): ImageStore | null {
+    return this.live?.images ?? this.props.images ?? null;
+  }
+  set images(s: ImageStore | null) {
+    this.setOpt({ images: s });
   }
   get panels(): EditorOptions['panels'] {
     return this.props.panels;

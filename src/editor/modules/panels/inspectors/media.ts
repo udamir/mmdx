@@ -11,7 +11,7 @@ import { registerMessages } from '../../../../ui/i18n.js';
 import { EDITOR_MEDIA_MESSAGES } from '../../../../ui/messages/editor-media.js';
 import { editKind } from '../../../kinds/registry.js';
 import type { ItemMedia, MediaPatch } from '../../../kinds/types.js';
-import { mediaOf, setDecoration, setIconOf, setImageFit, setImageOf, setMediaOf } from '../../../ops/media.js';
+import { imageSources, mediaOf, setDecoration, setIconOf, setImageFit, setImageOf, setMediaOf } from '../../../ops/media.js';
 import { row, sect, type PanelCtx } from './shared.js';
 import { isFaPack, splitIconName } from '../../../../core/icons/names.js';
 
@@ -106,15 +106,20 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
   if (k.setImage && m.canImage && m.node !== 'icon') {
     sect(host, t('props.image'));
     const url = h('input', { type: 'text', readOnly: true, 'aria-label': t('props.imageUrl'), value: m.image ?? '' });
-    const pick = h('button', { type: 'button' }, m.image ? t('props.choose') : t('props.addImage'));
-    pick.addEventListener('click', () => core.run('openImageTool', pick, { insert: false }));
-    const ctl: (Node | null)[] = [m.image ? url : h('span', { class: 'hint' }, t('props.imageNone')), pick];
+    const ctl: (Node | null)[] = [m.image ? url : h('span', { class: 'hint' }, t('props.imageNone'))];
     if (m.image) {
       const rm = h('button', { type: 'button', class: 'danger' }, t('props.removeImage'));
       rm.addEventListener('click', () => void setImageOf(core, [ref], null));
       ctl.push(rm);
     }
     host.append(row(t('props.imageUrl'), ...ctl));
+    // a new or replacing picture: from the host's library, uploaded, or by its URL (the image tool on that tab)
+    const names = { library: t('props.imageLibrary'), upload: t('props.imageUpload'), url: t('props.imageByUrl') };
+    host.append(row('', ...imageSources(core).map((tab) => {
+      const b = h('button', { type: 'button', dataset: { source: tab } }, names[tab]);
+      b.addEventListener('click', () => core.run('openImageTool', b, { insert: false, tab }));
+      return b;
+    })));
     if (k.decorated && !m.node && m.image !== null) {
       // the picture's box (one of the two: the other follows its aspect) and fit
       const meta = core.getM(ref.kind, ref.id);

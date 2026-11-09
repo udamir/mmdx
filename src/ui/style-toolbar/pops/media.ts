@@ -17,7 +17,10 @@ function texts(values: readonly string[], cur: string, name: (v: string) => stri
   return row;
 }
 
-/** An image node's source: a picture by its URL (the image tool) or an icon (the icon picker): the other one switches, the current one replaces it. */
+/**
+ * An image node's source: a picture — from the host's library, uploaded, or by its URL (the image tool on that tab;
+ * only the ones the host has) — or an icon (the icon picker). Either replaces the current one.
+ */
 export function sourcePop(f: Fill): void {
   const { pop, x } = f;
   const { t, api } = x;
@@ -25,11 +28,16 @@ export function sourcePop(f: Fill): void {
   if (!m?.node) return;
   const anchor = x.bar.querySelector<HTMLElement>('[data-c="source"]') ?? x.bar;
   pop.classList.add('narrow');
-  pop.append(popLabel(t('tb.source')), choiceRow(['image', 'icon'], m.node, (v) => {
+  const sources = api.imageSources?.() ?? ['url'];
+  const names = { library: t('tb.imageLibrary'), upload: t('tb.imageUpload'), url: t('tb.imageUrlPick') };
+  pop.append(popLabel(t('tb.picture')), choiceRow(sources, '', (v) => {
     x.close();
-    if (v === 'icon') api.pickIcon?.(anchor);
-    else api.pickImage?.(anchor);
-  }, (v) => svgIcon(v === 'icon' ? 'icon' : 'media'), (v) => (v === 'icon' ? (m.node === 'icon' ? t('tb.replaceIcon') : t('tb.useIcon')) : m.node === 'image' ? t('tb.replaceImage') : t('tb.useImage'))));
+    api.pickImage?.(anchor, v as 'library' | 'upload' | 'url');
+  }, (v) => svgIcon(v === 'url' ? 'link' : v), (v) => names[v as keyof typeof names]));
+  pop.append(popLabel(t('tb.iconSource')), choiceRow(['icon'], m.node, () => {
+    x.close();
+    api.pickIcon?.(anchor);
+  }, () => svgIcon('icon'), () => (m.node === 'icon' ? t('tb.replaceIcon') : t('tb.useIcon'))));
 }
 
 /** An image node's settings, per its source: an icon's frame or a picture's fit, and the label's position (the aspect lock and sizes are in Properties). */

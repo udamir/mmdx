@@ -90,11 +90,11 @@ export const insertModule: EditorModule = {
       { id: 'insert-emoji', keys: ['mod+;'], label: t('help.emoji'), group: t('help.tools'), editOnly: true, hintOnly: true },
     );
 
-    // ---- a picture pasted or dropped on the canvas: uploaded through the host's `uploadImage` -----------------------
+    // ---- a picture pasted or dropped on the canvas: put into the host's image store, else its `uploadImage` ---------
     const takeFile = (file: File, at: Point | null): void => {
       const k = kind();
       if (!k?.addImage) return core.toast(t('media.noImages'));
-      if (!core.uploadImage) return core.toast(t('media.noUpload'));
+      if (!core.upload) return core.toast(t('media.noUpload'));
       core.run('openImageTool', null, { insert: true, file, ...(at ? { at } : {}) });
     };
     const imageFile = (list: FileList | null | undefined): File | null => [...(list ?? [])].find((f) => /^image\//.test(f.type)) ?? null;

@@ -116,6 +116,7 @@ The English strings of a component are registered when the component is first us
 | `theme`, `theme-dark`, `ui` (attributes) | viewer, editor, diff | The theme and the chrome scheme |
 | `ctx` | diff (property); the `ctx` option of `DiagramViewer`, `DiagramEditor` and `DiagramDiff` | A partial `CoreContext`: `themes` (a registry of its own), `measure`, `linkPolicy`, `imagePolicy`, `resolveUrl`, `icons` (an icon registry of its own), `locale` |
 | `iconPacks` | the `iconPacks` option of `DiagramViewer`, `DiagramEditor` and `DiagramDiff` | Icon packs of this component, over the shared ones of `configure({ iconPacks })` |
+| `images` | editor (property, no attribute), the `images` option of `DiagramEditor` | The host's image store ([`ImageStore`](/api/adapters#images)): the image tool's Library, and where uploads go |
 | `uploadImage` | editor (property, no attribute), the `uploadImage` option of `DiagramEditor` | Uploads a picture dropped, pasted or chosen in the image tool: `async (file) => ({ url })`; without it images are added by URL only (see [Images](/components/editor#images)) |
 
 ```ts

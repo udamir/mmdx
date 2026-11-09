@@ -1,6 +1,6 @@
 // The editor's pickers (T05 §4.3–4.5), a lazy chunk of the insert module: the icon picker over the icon registry
-// (`searchIcons`, previews by `iconImage`), the image tool (the image policy's check, the host's `uploadImage`, an
-// offer to reduce big pictures) and the emoji picker (the emoji data, a chunk of its own per locale). Each opens as a
+// (`searchIcons`, previews by `iconImage`), the image tool (the host's image library and upload —
+// its image store, else `uploadImage` —, the image policy's check, an offer to reduce big pictures) and the emoji picker (the emoji data, a chunk of its own per locale). Each opens as a
 // dialog popover beside its button, with Tab kept inside. A chosen icon goes on the selected items (`setIcon`); the image
 // tool in insert mode adds an image item through the edit kind (`addImage`), else it sets the selected item's image.
 import { checkImageUrl } from '../../../core/media/policy.js';
@@ -14,7 +14,8 @@ import { BLOCK_MESSAGES_MEDIA } from '../../../ui/messages/blocks-media.js';
 import { EDITOR_MEDIA_MESSAGES } from '../../../ui/messages/editor-media.js';
 import { createEmojiPicker, EMOJI_PICKER_CSS } from '../../../ui/blocks/emoji-picker.js';
 import { createIconPicker, ICON_PICKER_CSS } from '../../../ui/blocks/icon-picker.js';
-import { createImagePicker, IMAGE_PICKER_CSS } from '../../../ui/blocks/image-picker.js';
+import { createImagePicker, IMAGE_PICKER_CSS, type ImageTab } from '../../../ui/blocks/image-picker.js';
+import type { ImageInfo } from '../../../adapters/images.js';
 import { reduceImage, imageSize } from '../../../dom/downscale.js';
 import type { EditorCore } from '../../core.js';
 import { editKind, withEdit } from '../../kinds/registry.js';
@@ -127,7 +128,7 @@ export function openIconPicker(core: EditorCore, anchor: HTMLElement | null): vo
 
 // ---- image tool ------------------------------------------------------------------------------------------------------
 
-export function openImageTool(core: EditorCore, anchor: HTMLElement | null, o: { insert?: boolean; file?: File; at?: Point }): void {
+export function openImageTool(core: EditorCore, anchor: HTMLElement | null, o: { insert?: boolean; file?: File; at?: Point; tab?: ImageTab }): void {
   if (anchor && core.popovers.isOpenFor(anchor)) return core.popovers.close();
   core.addCss([IMAGE_PICKER_CSS, MEDIA_CSS]);
   const t = core.i18n.t;
@@ -137,10 +138,14 @@ export function openImageTool(core: EditorCore, anchor: HTMLElement | null, o: {
   if (insert && !kind?.addImage) return core.toast(t('media.noImages'));
   const current = targets.length === 1 ? mediaOf(core, targets[0]!)?.image ?? '' : '';
   const close = (): void => core.popovers.close(true);
-  const upload = core.uploadImage;
+  const upload = core.upload;
+  const store = core.images;
   const picker = createImagePicker({
     t,
     value: current,
+    ...(o.tab ? { tab: o.tab } : {}),
+    library: store ? (q) => store.list(q) : null,
+    thumbUrl: (img) => thumbUrl(core, img),
     submitLabel: insert ? t('image.add') : t('image.replace'),
     check: (url) => {
       const r = checkImageUrl(url, core.ctx.imagePolicy, core.ctx.resolveUrl);
@@ -162,8 +167,28 @@ export function openImageTool(core: EditorCore, anchor: HTMLElement | null, o: {
     } : null,
     onRefused: (msg) => core.toast(msg),
   });
-  openPop(core, picker.el, anchor, () => picker.destroy());
+  // the library follows the store (a picture added or removed elsewhere)
+  const off = store?.subscribe?.(() => void picker.refresh());
+  openPop(core, picker.el, anchor, () => {
+    off?.();
+    picker.destroy();
+  });
   if (o.file) void picker.takeFile(o.file);
+}
+
+/**
+ * A library tile's picture: the record's `thumb`, else its `url` through the host's `resolveUrl` — loaded by the
+ * browser in the editor's own UI, so only web and inline picture URLs (null: a blank tile).
+ */
+function thumbUrl(core: EditorCore, img: ImageInfo): string | null {
+  const raw = img.thumb ?? img.url;
+  let url: unknown = raw;
+  try {
+    url = img.thumb ? raw : core.ctx.resolveUrl?.(raw, 'image') ?? raw;
+  } catch {
+    url = raw;
+  }
+  return typeof url === 'string' && /^(https?:|blob:|data:image\/)/i.test(url.trim()) ? url.trim() : null;
 }
 
 // ---- emoji picker ----------------------------------------------------------------------------------------------------

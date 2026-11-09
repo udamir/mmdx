@@ -118,7 +118,8 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
 // core 124.2, theme editor 171.2 and editor 207.1 kB with icons and images in sequence and ER (T10.2, T10.3: 123.8, 170.8 and 206.7 kB measured; core and the theme editor +1.4 kB, the editor +1.2 kB: the participant shape picker's types, the Icon button on participants and tables, the icon position default and the token hint in Properties)
 // core 122.8, theme editor 169.8 and editor 205.9 kB with media in every kind and the sequence and ER fixes (122.4, 169.4 and 205.5 kB measured; core and the theme editor carry every kind statically: T10.1–T10.6 +0.9 and +0.8 kB, T11's sequence +2.6 and +3.3 kB, T11's ER +8.1 and +7.8 kB; the editor +0.5 kB with the Properties controls of icon positions and image boxes and the portable export's note, +3.8 kB with the sequence's toolbar actions, arrow picker, note placement, branches and link menu, +1.4 kB with ER subgraphs). The diff is unchanged (91.5 kB)
 // core 124.6, theme editor 173.2, editor 209.8 and diff 92.6 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (124.2, 172.8, 209.4 and 92.2 kB measured)
-for (const [entry, budget] of [['core', 124.6], ['theme-editor', 173.2], ['editor', 209.8], ['diff', 92.6]]) {
+// editor 210.6 kB (210.2 measured) with the image library (ImageStore: the image tool's Library, Upload and URL tabs; Source and Properties open each)
+for (const [entry, budget] of [['core', 124.6], ['theme-editor', 173.2], ['editor', 210.6], ['diff', 92.6]]) {
   const b = await bundle(entry);
   report(entry, b.size(b.base), budget * KB);
   if (entry === 'editor') {
@@ -134,7 +135,8 @@ for (const [entry, budget] of [['core', 124.6], ['theme-editor', 173.2], ['edito
     // 237 kB with media in every kind and the sequence and ER fixes (T10, T11: 236.6, 216.7 and 222.4 kB measured: the editor's +5.7 kB; the ER's chunk +14.6 kB, its parser, renderer and subgraph editing)
     // 241.4 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (241, 233.7 and 228.3 kB measured)
     // 242.4 kB (242 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
-    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 242.4 * KB);
+    // 243 kB (242.6 kB measured) with the image library (ImageStore: the image tool's Library, Upload and URL tabs; Source and Properties open each)
+    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 243 * KB);
     {
       // a mindmap: its kinds and the mindmap module's gestures, both loaded with the first mindmap (T08: 228.3 kB measured; the view, ops and edit kinds with the geometry of bang and cloud and the media kit, which its edit kind registers as the flowchart's does, and the drag, handles and keys of the outline)
       const kind = lazy(b, 'src/editor/kinds/mindmap.ts', b.base);
@@ -143,13 +145,15 @@ for (const [entry, budget] of [['core', 124.6], ['theme-editor', 173.2], ['edito
       // 237 kB with media in every kind and the sequence and ER fixes (T10, T11: 236.6 kB measured)
       // 240.6 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (240.2 kB measured)
       // 241.1 kB (240.7 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
-      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 241.1 * KB);
+      // 241.7 kB (241.3 kB measured) with the image library (ImageStore: the image tool's Library, Upload and URL tabs; Source and Properties open each)
+      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 241.7 * KB);
     }
     // a state diagram: its view, ops and edit kinds in one chunk loaded with the first state diagram (T09: 240.5 kB measured; the parser, compound layout, renderer, state shapes, ops, palette and Properties controls)
     // 249.4 kB with media in every kind and the sequence and ER fixes (T10, T11: 249 kB measured)
     // 253 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (252.6 kB measured)
     // 255.3 kB (254.9 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
-    report('editor (first state)', b.size(b.base) + b.size(lazy(b, 'src/editor/kinds/state.ts', b.base)), 255.3 * KB);
+    // 255.9 kB (255.5 kB measured) with the image library (ImageStore: the image tool's Library, Upload and URL tabs; Source and Properties open each)
+    report('editor (first state)', b.size(b.base) + b.size(lazy(b, 'src/editor/kinds/state.ts', b.base)), 255.9 * KB);
     // the insert dock's lazy chunks (T05): the pickers (icon picker, image tool, emoji picker and their glue), the shape palette block, the Connector and Container tools, the English emoji data (§4.5: at most 30 kB)
     const loaded = new Set([...b.base, ...lazy(b, 'src/editor/kinds/flowchart.ts', b.base)]);
     report('editor pickers (lazy chunk)', b.size(new Set(lazy(b, 'src/editor/modules/insert/media.ts', loaded))), 12.6 * KB);
@@ -163,7 +167,8 @@ for (const [entry, budget] of [['core', 124.6], ['theme-editor', 173.2], ['edito
     // 243.3 kB with state diagrams (T09, 242.9 kB measured: the editor's +1.8 kB)
     // 249.1 kB with media in every kind and the sequence and ER fixes (T10, T11: 248.7 kB measured)
     // 252.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (252.5 kB measured)
-    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 252.9 * KB);
+    // 253.7 kB (253.3 kB measured) with the image library (ImageStore: the image tool's Library, Upload and URL tabs; Source and Properties open each)
+    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 253.7 * KB);
   }
 }
 
@@ -329,7 +334,8 @@ for (const [name, keys, budget] of rows) report(name, (await loads(keys)).n, bud
   const have = (await loads(['src/editor.ts', 'src/editor/kinds/flowchart.ts'])).all;
   let n = 0;
   for (const k of libClosure('src/editor/modules/insert/media.ts')) if (!have.has(k)) n += await chunkSize(k);
-  report('editor pickers (lazy chunk)', n, 13 * KB);
+  // 14.5 kB (14.1 kB measured) with the image library (ImageStore: the image tool's Library, Upload and URL tabs; Source and Properties open each)
+  report('editor pickers (lazy chunk)', n, 14.5 * KB);
 }
 // the built-in icon set is never part of an entry's static closure (it loads on first use, T04 §4.7)
 {

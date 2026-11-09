@@ -5,6 +5,7 @@
 // (Alt-click replace), the selection toolbar's media controls and the Properties sections.
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
+import { memoryImageStore, type ImageStore } from '../../src/adapters/images.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
 import { loadBuiltinIcons } from '../../src/core/icons/registry.js';
 import { press, pev } from './connect.helpers.js';
@@ -31,7 +32,7 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-const mount = (value: string, o: { uploadImage?: (f: File) => Promise<{ url: string }> } = {}): DiagramEditor => {
+const mount = (value: string, o: { uploadImage?: (f: File) => Promise<{ url: string }>; images?: ImageStore } = {}): DiagramEditor => {
   ed = new DiagramEditor(host, { value, storage: memoryStorage(), ...o });
   ed.core.viewport.set({ k: 1, tx: 0, ty: 0 });
   return ed;
@@ -320,7 +321,7 @@ describe('selection toolbar and Properties', () => {
     expect(image).not.toContain('shape');
     const titles = (): string[] => [...$$('.mtb-pop .mtb-choice')].map((b) => b.getAttribute('title') ?? b.textContent ?? '');
     $<HTMLButtonElement>('.mtb [data-c="source"]')!.click();
-    expect(titles()).toEqual(['Replace image…', 'Use an icon instead…']);
+    expect(titles()).toEqual(['By URL…', 'Use an icon instead…']);
   });
 
   test('an image node: Source (a picture or an icon) and its settings (frame, label position); no shape picker, no sizes', async () => {
@@ -338,7 +339,7 @@ describe('selection toolbar and Properties', () => {
     expect(bar.querySelector('[data-c="mediaSize"]')).toBeNull();
     const titles = (): string[] => [...$$('.mtb-pop .mtb-choice')].map((b) => b.getAttribute('title') ?? b.textContent ?? '');
     bar.querySelector<HTMLButtonElement>('[data-c="source"]')!.click();
-    expect(titles()).toEqual(['Use a picture instead…', 'Replace icon…']);
+    expect(titles()).toEqual(['By URL…', 'Replace icon…']);
     bar.querySelector<HTMLButtonElement>('[data-c="media"]')!.click();
     expect(titles()).toEqual(['No frame', 'Square', 'Circle', 'Rounded', 'Above', 'Below']);
     [...$$('.mtb-pop .mtb-choice')].find((b) => b.getAttribute('title') === 'Circle')!.click();
@@ -367,10 +368,87 @@ describe('selection toolbar and Properties', () => {
     await settle();
     e.core.run('refreshToolbar');
     $<HTMLButtonElement>('.mtb [data-c="source"]')!.click();
-    expect([...$$('.mtb-pop .mtb-choice')].map((b) => b.getAttribute('title') ?? b.textContent)).toEqual(['Replace image…', 'Use an icon instead…']);
+    expect([...$$('.mtb-pop .mtb-choice')].map((b) => b.getAttribute('title') ?? b.textContent)).toEqual(['By URL…', 'Use an icon instead…']);
     $<HTMLButtonElement>('.mtb [data-c="media"]')!.click();
     expect([...$$('.mtb-pop .mtb-choice')].map((b) => b.getAttribute('title') ?? b.textContent)).toEqual(['Contain', 'Cover', 'Stretch', 'Above', 'Below']);
     expect($('.mtb-pop input[type="checkbox"]')).toBeNull();
+  });
+
+  test('with an image store: Source and Properties replace a picture from the library, by an upload or by URL', async () => {
+    const store = memoryImageStore([
+      { id: 'p1', url: 'https://example.com/team.png', name: 'team.png' },
+      { id: 'p2', url: 'http://example.com/old.png', name: 'old.png' },
+    ], { url: (_f, id) => `https://cdn.example.com/${id}.png` });
+    const e = mount('flowchart LR\n  A["Photo"]\n  A@{ img: "https://example.com/a.png", h: 200, w: 200, pos: "b" }\n', { images: store });
+    await settle();
+    e.core.select([{ kind: 'node', id: 'A' }]);
+    e.core.fire('selection');
+    await settle();
+    e.core.run('refreshToolbar');
+    $<HTMLButtonElement>('.mtb [data-c="source"]')!.click();
+    const choices = (): HTMLElement[] => $$('.mtb-pop .mtb-choice');
+    expect(choices().map((b) => b.getAttribute('title'))).toEqual(['From the library…', 'Upload…', 'By URL…', 'Use an icon instead…']);
+    // the library: the store's pictures; one the image policy refuses is marked and not taken
+    choices()[0]!.click();
+    await settle();
+    expect($('.imp [role=tab][aria-selected=true]')!.textContent).toBe('Library');
+    const tiles = $$('.imp-tile');
+    expect(tiles.map((b) => b.dataset['id'])).toEqual(['p1', 'p2']);
+    expect(tiles[1]!.getAttribute('aria-disabled')).toBe('true');
+    tiles[1]!.click();
+    expect(e.core.code).toContain('img: "https://example.com/a.png"');
+    tiles[0]!.click();
+    expect(e.core.code).toContain('A@{ img: "https://example.com/team.png", h: 200, w: 200, pos: "b" }');
+    await settle();
+    // Properties: the same three; an upload goes into the store and the picture references it
+    e.core.run('setPanel', 'properties', true);
+    e.core.fire('panels');
+    await settle();
+    expect($$('[data-source]').map((b) => b.textContent)).toEqual(['Library…', 'Upload…', 'URL…']);
+    $<HTMLButtonElement>('[data-source="upload"]')!.click();
+    await settle();
+    expect($('.imp [role=tab][aria-selected=true]')!.textContent).toBe('Upload');
+    expect($('.imp-drop')!.hidden).toBe(false);
+    const fileInput = $<HTMLInputElement>('.imp input[type=file]')!;
+    Object.defineProperty(fileInput, 'files', { value: [new File(['x'], 'logo.png', { type: 'image/png' })], configurable: true });
+    fileInput.dispatchEvent(new Event('change'));
+    await settle();
+    await settle();
+    expect(e.core.code).toContain('img: "https://cdn.example.com/img-3.png"');
+    expect((await store.list()).images.map((i) => i.name)).toEqual(['logo.png', 'team.png', 'old.png']);
+    await settle();
+    $<HTMLButtonElement>('[data-source="url"]')!.click();
+    await settle();
+    expect($('.imp [role=tab][aria-selected=true]')!.textContent).toBe('URL');
+    expect($<HTMLInputElement>('.imp-url')!.value).toBe('https://cdn.example.com/img-3.png');
+    await valid(e.core.code);
+  });
+
+  test('the library is searched and paged; a failing store says why', async () => {
+    const many = Array.from({ length: 5 }, (_, i) => ({ id: `p${i}`, url: `https://example.com/${i}.png`, name: i % 2 ? `cat-${i}.png` : `dog-${i}.png` }));
+    const e = mount('flowchart LR\n  A --> B\n', { images: memoryImageStore(many, { pageSize: 2 }) });
+    await settle();
+    e.core.run('openImageTool', null, { insert: true });
+    await settle();
+    expect($$('.imp-tile').length).toBe(2);
+    $<HTMLButtonElement>('.imp-more')!.click();
+    await settle();
+    expect($$('.imp-tile').length).toBe(4);
+    const search = $<HTMLInputElement>('.imp-search')!;
+    search.value = 'cat';
+    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    await settle();
+    expect($$('.imp-tile').map((b) => b.dataset['id'])).toEqual(['p1', 'p3']);
+    search.value = 'bird';
+    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    await settle();
+    expect($('.imp-empty')!.textContent).toBe('No images match “bird”');
+    e.core.popovers.close();
+    const broken: ImageStore = { list: () => Promise.reject(new Error('offline')), get: () => Promise.reject(new Error('offline')), put: () => Promise.reject(new Error('offline')) };
+    e.images = broken;
+    e.core.run('openImageTool', null, { insert: true });
+    await settle();
+    expect($('.imp-empty')!.textContent).toBe('The library could not be loaded: offline');
   });
 
   test('Properties: the Image section of an image node writes its size and aspect lock', async () => {

@@ -1,14 +1,14 @@
 # Adapters
 
-`@mmdx/studio/adapters` holds the host adapters: where the components keep UI preferences (`StorageAdapter`), where they read and save themes (`ThemeSource`, `ThemeStore`), how the editor loads and saves its document (`DocumentAdapter`), where the History reads the versions of a diagram (`HistoryAdapter`), and what the image and link URLs in a diagram point at (`UrlResolver`). The library never talks to a backend by itself: every adapter is an object of a few async functions, and the built-in ones cover memory, `localStorage`, plain HTTP and static files. The entry defines no element and loads no diagram code.
+`@mmdx/studio/adapters` holds the host adapters: where the components keep UI preferences (`StorageAdapter`), where they read and save themes (`ThemeSource`, `ThemeStore`), how the editor loads and saves its document (`DocumentAdapter`), where the History reads the versions of a diagram (`HistoryAdapter`), where the editor's image tool finds and uploads pictures (`ImageStore`), and what the image and link URLs in a diagram point at (`UrlResolver`). The library never talks to a backend by itself: every adapter is an object of a few async functions, and the built-in ones cover memory, `localStorage`, plain HTTP and static files. The entry defines no element and loads no diagram code.
 
 ```ts
 import {
   memoryStorage, localStorageAdapter, preloadedStorage,
   memoryThemeStore, fetchThemeSource, localStorageThemeStore, isLocalEdit,
   memoryDocumentAdapter, httpDocumentAdapter,
-  staticHistory, httpHistoryAdapter, contentId, relativeUrlResolver,
-  type StorageAdapter, type ThemeSource, type ThemeStore, type DocumentAdapter, type HistoryAdapter, type UrlResolver,
+  staticHistory, httpHistoryAdapter, contentId, memoryImageStore, httpImageStore, relativeUrlResolver,
+  type StorageAdapter, type ThemeSource, type ThemeStore, type DocumentAdapter, type HistoryAdapter, type ImageStore, type UrlResolver,
 } from '@mmdx/studio/adapters';
 ```
 
@@ -604,6 +604,81 @@ const history: HistoryAdapter = {
 };
 diff.history = history;
 ```
+
+## Images
+
+An `ImageStore` is the host's image library: `<mmdx-editor>` takes it as its `images` property (the `images` option of `DiagramEditor`). The image tool's **Library** tab lists its pictures, and the **Upload** tab and a picture pasted or dropped on the canvas put files into it; the toolbar's **Source** and the Properties panel open the tool on either, or on **URL**. A diagram never embeds a file: an image references the picture's `url`, which the [image policy](/guide/security#image-policy) checks like any image URL. See [Images](/components/editor#images).
+
+### `ImageStore`
+
+```ts
+interface ImageStore {
+  list(o?: { cursor?: string; query?: string }): Promise<{ images: ImageInfo[]; next?: string }>;
+  get(id: string): Promise<ImageInfo>;
+  put(file: Blob, o?: { name?: string }): Promise<ImageInfo>;
+  delete?(id: string): Promise<void>;
+  subscribe?(cb: () => void): () => void;
+}
+```
+
+| Member | Description |
+|---|---|
+| `list(o?)` | Pictures, newest first. May page: return `next`, and the library passes it back as `cursor` for **Load more**. `query` is what the library's search holds (a name); a store may ignore it |
+| `get(id)` | One picture's record |
+| `put(file, o?)` | Stores a file (`o.name`: its file name) and resolves to its record; the image then references its `url`. Throw to refuse the file: the message is shown in the tool |
+| `delete(id)` | Optional. Removes a picture from the store; diagrams that reference it keep the reference |
+| `subscribe(cb)` | Optional. Call `cb` when the store changed elsewhere; an open library reads its first page again. Returns an unsubscribe function |
+
+### `ImageInfo`
+
+```ts
+interface ImageInfo {
+  id: string;
+  url: string;
+  thumb?: string;
+  name?: string;
+  w?: number;
+  h?: number;
+  type?: string;
+  size?: number;
+  date?: string;
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | The picture's id in the store |
+| `url` | `string` | What a diagram references: a URL, or a reference of the store's own (`asset:42`) that a [`UrlResolver`](#urlresolver) maps to a URL when the diagram is drawn |
+| `thumb` | `string` | Optional. A small version for the library's grid, loaded as is (default: `url`, through the resolver) |
+| `name` | `string` | Optional. The file name or a title, shown and searched in the library |
+| `w`, `h` | `number` | Optional. The pixel size |
+| `type`, `size` | `string`, `number` | Optional. The MIME type and the size in bytes |
+| `date` | `string` | Optional. ISO date of the upload |
+
+### `memoryImageStore()`
+
+```ts
+function memoryImageStore(initial?: readonly ImageInfo[], o?: { url?: (file: Blob, id: string) => string | Promise<string>; pageSize?: number }): ImageStore
+```
+
+A store held in memory, for demos and tests: `initial` pictures, newest first; files put are added in front with the ids `img-1`, `img-2`…; `list` pages by `pageSize` (default 50) and filters by name. A put file is referenced by a `data:` URL of it unless `o.url` gives another reference — allow `data:` in the image policy for the default.
+
+### `httpImageStore()`
+
+```ts
+function httpImageStore(url: string, init?: RequestInit): ImageStore
+```
+
+A store behind HTTP:
+
+| Call | Request | Response |
+|---|---|---|
+| `list` | `GET url`, with `?cursor=…` for the next page and `?query=…` to filter | `{ images: ImageInfo[], next? }`, or a plain array |
+| `get` | `GET url/<id>` | An `ImageInfo` |
+| `put` | `POST url` with a multipart form: `file`, `name` | The stored picture's `ImageInfo` |
+| `delete` | `DELETE url/<id>` | Any 2xx |
+
+`init` is merged into every request (headers, credentials; `same-origin` credentials by default). Records are untrusted: only the known fields of the right type are kept, and a record without a string `id` and `url` is dropped.
 
 ## URLs
 
