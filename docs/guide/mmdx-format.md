@@ -89,8 +89,9 @@ The keys an item line may carry:
 | `side` | A first-level mindmap branch's side of the root: `l` or `r` (the layout's split otherwise) |
 | `collapsed` | `true`: the mindmap node's subtree is folded, with a +N badge counting the hidden nodes |
 | `section` | A mindmap branch colour, 0–11 (one of the theme's `mindmap.sections`), for the node and its subtree |
-| `img` | A picture above a mindmap node's label or a state's title (a URL, checked by the [image policy](/guide/security#image-policy); `""`: a picture not chosen yet, drawn as the placeholder); mindmaps and state diagrams have no image syntax |
+| `img` | A picture above a mindmap node's label, or an image state's picture (a URL, checked by the [image policy](/guide/security#image-policy); `""`: a picture not chosen yet, drawn as the placeholder); mindmaps and state diagrams have no image syntax |
 | `imgW`, `imgH` | The size of that picture; one of them alone keeps the picture's aspect, neither: its own size up to 160 px (96 × 72 until the browser knows it) |
+| `icon`, `form`, `pos`, `constraint` | An image or icon state, drawn as a flowchart image node: `icon` the icon it shows instead of a picture, `form` the icon's frame (`square`, `circle`, `rounded`), `pos` the caption's side (`t`, `b`), `constraint: "on"` the picture's aspect kept; `w` / `h` its size |
 | `iconPos` | Where a mindmap node's or a state's icon is drawn: `l` inline before the text (the default for a label token), `t` above it (the default for a mindmap `::icon()`), `b` below it |
 | `iconSize` | That icon's size in px, 1–512 (default: the font size inline, 1.75 em above or below); a label token with a size of its own is drawn left of the text |
 | `iconColor` | That icon's colour, a colour or palette reference (default: the text colour) |

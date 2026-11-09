@@ -18,7 +18,7 @@ import { DEFAULT_MODULES } from '../../src/editor/modules/index.js';
 import { ALL_EDIT_KINDS } from '../../src/editor/kinds/all.js';
 import { editKind, forgetEditKinds, registerEditKinds } from '../../src/editor/kinds/registry.js';
 import { createConnection, reconnect } from '../../src/editor/modules/connect/index.js';
-import { setIconOf, setImageOf } from '../../src/editor/ops/media.js';
+import { mediaTargets, setIconOf, setImageOf, setMediaOf } from '../../src/editor/ops/media.js';
 import { stockParse } from '../helpers/mermaid.js';
 
 vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -568,18 +568,36 @@ describe('state diagram: copy, paste, duplicate', () => {
 });
 
 describe('state diagram: icons and images', () => {
-  it('an icon is a label token; an image is metadata img', async () => {
+  it('an image state is the flowchart image node in metadata: a picture or an icon as its source, the same keys', async () => {
     const { ed, core } = await mount('stateDiagram-v2\n  A --> B\n');
     const before = core.code;
-    expect(setIconOf(core, [node('A')], 'fa:car')).toBe(true);
-    expect(lines(core)).toContain('  state "fa:fa-car A" as A');
-    await valid(core);
-    undoes(ed, before);
+    // a plain state takes no icon (an icon is an image state's source), but a picture
+    expect(kind().media!(core.model as never, node('A'), core)).toMatchObject({ node: null, canIcon: false, canImage: true });
+    core.select([node('A')]);
+    expect(mediaTargets(core, 'icon')).toEqual([]);
+    expect(mediaTargets(core, 'image')).toEqual([node('A')]);
+    // a picture: Mermaid Chart's default size, caption below, the aspect kept; the code stays
     expect(setImageOf(core, [node('B')], 'https://example.com/x.png')).toBe(true);
-    expect(core.meta.nodes?.['B']?.img).toBe('https://example.com/x.png');
+    expect(core.meta.nodes?.['B']).toEqual({ img: 'https://example.com/x.png', w: 200, h: 200, pos: 'b', constraint: 'on' });
     expect(core.code).toBe(before);
-    expect(kind().media!(core.model as never, node('B'), core)).toMatchObject({ image: 'https://example.com/x.png', canImage: true });
-    ed.undo();
-    expect(core.meta.nodes?.['B']?.img).toBeUndefined();
+    expect(kind().media!(core.model as never, node('B'), core)).toMatchObject({ node: 'image', image: 'https://example.com/x.png', canIcon: true, pos: 'b', w: 200, h: 200, constraint: 'on' });
+    expect((core.result.result.geom as { nodes: Map<string, { asset?: unknown }> }).nodes.get('B')!.asset).toBeDefined();
+    // the caption above, the lock off
+    expect(setMediaOf(core, [node('B')], { pos: 't', constraint: null })).toBe(true);
+    expect(core.meta.nodes?.['B']).toMatchObject({ pos: 't' });
+    expect(core.meta.nodes?.['B']?.['constraint']).toBeUndefined();
+    // an icon instead of the picture, in a frame
+    expect(setIconOf(core, [node('B')], 'tabler:user')).toBe(true);
+    expect(core.meta.nodes?.['B']).toEqual({ icon: 'tabler:user', h: 60, pos: 't', form: 'square' });
+    expect(setMediaOf(core, [node('B')], { form: 'circle' })).toBe(true);
+    expect(kind().media!(core.model as never, node('B'), core)).toMatchObject({ node: 'icon', icon: 'tabler:user', form: 'circle' });
+    // and a picture again; removing it leaves a plain state
+    expect(setImageOf(core, [node('B')], 'https://example.com/y.png')).toBe(true);
+    expect(core.meta.nodes?.['B']).toEqual({ img: 'https://example.com/y.png', h: 60, w: 200, pos: 't', constraint: 'on' });
+    expect(setImageOf(core, [node('B')], null)).toBe(true);
+    expect(core.meta.nodes?.['B']).toBeUndefined();
+    expect(core.code).toBe(before);
+    for (let i = 0; i < 6; i++) ed.undo();
+    expect(core.meta.nodes?.['B']).toBeUndefined();
   });
 });

@@ -54,8 +54,8 @@ export interface MmdxOnly {
 }
 
 /**
- * What a portable export of `model` leaves out (in model order): items with a metadata image (`img`; an image not
- * chosen yet, `""`, is no content) or a metadata `shape`. Metadata of items the code no longer has does not count.
+ * What a portable export of `model` leaves out (in model order): items with a metadata image (`img`, or an icon state's
+ * `icon`; an image not chosen yet, `""`, is no content) or a metadata `shape`. Metadata of items the code no longer has does not count.
  */
 export function mmdxOnlyContent(meta: DiagramMeta, model: DiagramModel): MmdxOnly {
   const out: MmdxOnly = { images: [], shapes: [] };
@@ -63,7 +63,7 @@ export function mmdxOnlyContent(meta: DiagramMeta, model: DiagramModel): MmdxOnl
     const coll = Object.hasOwn(KIND_TO_COLL, ref.kind) ? KIND_TO_COLL[ref.kind as keyof typeof KIND_TO_COLL] : undefined;
     const m = coll ? (meta[coll]?.[ref.id] as ItemMeta | undefined) : undefined;
     if (!m) continue;
-    if (typeof m.img === 'string' && m.img) out.images.push(ref);
+    if ((typeof m.img === 'string' && m.img) || (typeof m.icon === 'string' && m.icon)) out.images.push(ref);
     if (typeof m.shape === 'string' && m.shape) out.shapes.push(ref);
   }
   return out;

@@ -301,6 +301,28 @@ describe('shapes palette', () => {
 });
 
 describe('selection toolbar and Properties', () => {
+  test('a state: no Icon button on a plain one; an image state has Source and its settings, as a flowchart image node', async () => {
+    const e = mount('stateDiagram-v2\n  [*] --> idle\n  idle --> run\n%%@ node run {"img":"https://example.com/a.png","w":200,"h":200,"pos":"b","constraint":"on"}\n');
+    await settle();
+    const controls = async (id: string): Promise<string[]> => {
+      e.core.select([{ kind: 'node', id }]);
+      e.core.fire('selection');
+      await settle();
+      e.core.run('refreshToolbar');
+      return [...$('.mtb')!.querySelectorAll<HTMLElement>('.mtb-seg [data-c]')].map((b) => b.dataset['c']!);
+    };
+    const plain = await controls('idle');
+    expect(plain).not.toContain('icon');
+    expect(plain).not.toContain('source');
+    const image = await controls('run');
+    expect(image.slice(0, 2)).toEqual(['source', 'media']);
+    expect(image).not.toContain('icon');
+    expect(image).not.toContain('shape');
+    const titles = (): string[] => [...$$('.mtb-pop .mtb-choice')].map((b) => b.getAttribute('title') ?? b.textContent ?? '');
+    $<HTMLButtonElement>('.mtb [data-c="source"]')!.click();
+    expect(titles()).toEqual(['Replace image…', 'Use an icon instead…']);
+  });
+
   test('an image node: Source (a picture or an icon) and its settings (frame, label position); no shape picker, no sizes', async () => {
     const e = mount('flowchart LR\n  n4["User"]\n  n4@{ icon: "tabler:user", form: "rounded", pos: "b", h: 60 }\n  A --> n4\n');
     await settle();
@@ -371,38 +393,44 @@ describe('selection toolbar and Properties', () => {
     await valid(e.core.code);
   });
 
-  test('Properties of a state (T10): the icon position and size and the image size and fit are metadata; the code stays', async () => {
-    const e = mount('stateDiagram-v2\n  state "fa:fa-cog Running" as run\n  [*] --> run\n%%@ node run {"img":"https://example.com/a.png"}\n');
+  test("Properties of an image state: the flowchart image node's rows (label, height, width, aspect lock, fit), in metadata; the code stays", async () => {
+    const e = mount('stateDiagram-v2\n  state "Running" as run\n  [*] --> run\n  [*] --> idle\n%%@ node run {"img":"https://example.com/a.png","w":200,"h":200,"pos":"b","constraint":"on"}\n');
     await settle();
     const code = e.core.code;
-    e.core.select([{ kind: 'node', id: 'run' }]);
+    // a plain state: no icon section, an image can be added
+    e.core.select([{ kind: 'node', id: 'idle' }]);
     e.core.run('setPanel', 'properties', true);
     e.core.fire('panels');
     await settle();
-    const pos = $<HTMLSelectElement>('select[aria-label="Position"]')!;
-    expect(pos.value).toBe('l');
+    expect($('select[aria-label="Position"]')).toBeNull();
+    expect($('select[aria-label="Label"]')).toBeNull();
+    e.core.select([{ kind: 'node', id: 'run' }]);
+    e.core.fire('panels');
+    await settle();
+    const pos = $<HTMLSelectElement>('select[aria-label="Label"]')!;
+    expect(pos.value).toBe('b');
     pos.value = 't';
     pos.dispatchEvent(new Event('change'));
-    expect(e.core.meta.nodes?.['run']).toMatchObject({ iconPos: 't' });
+    expect(e.core.meta.nodes?.['run']).toMatchObject({ pos: 't' });
     await settle();
-    const size = $<HTMLInputElement>('input[aria-label="Icon size"]')!;
-    size.value = '32';
-    size.dispatchEvent(new Event('change'));
+    const hh = $<HTMLInputElement>('input[aria-label="Height"]')!;
+    hh.value = '80';
+    hh.dispatchEvent(new Event('change'));
     await settle();
     const w = $<HTMLInputElement>('input[aria-label="Width"]')!;
     w.value = '120';
     w.dispatchEvent(new Event('change'));
     await settle();
+    const lock = $<HTMLInputElement>('input[aria-label="Keep aspect ratio"]')!;
+    expect(lock.checked).toBe(true);
+    lock.checked = false;
+    lock.dispatchEvent(new Event('change'));
+    await settle();
     const fit = $<HTMLSelectElement>('select[aria-label="Fit"]')!;
     fit.value = 'cover';
     fit.dispatchEvent(new Event('change'));
-    expect(e.core.meta.nodes?.['run']).toEqual({ img: 'https://example.com/a.png', iconPos: 't', iconSize: 32, imgW: 120, imgFit: 'cover' });
-    await settle();
-    // back to the defaults: the keys go
-    const pos2 = $<HTMLSelectElement>('select[aria-label="Position"]')!;
-    pos2.value = 'l';
-    pos2.dispatchEvent(new Event('change'));
-    expect(e.core.meta.nodes?.['run']?.['iconPos']).toBeUndefined();
+    expect(e.core.meta.nodes?.['run']).toEqual({ img: 'https://example.com/a.png', w: 120, h: 80, pos: 't', imgFit: 'cover' });
+    expect($('select[aria-label="Position"]')).toBeNull();
     expect(e.core.code).toBe(code);
   });
 });

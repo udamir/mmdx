@@ -10,8 +10,8 @@ import {
   addEnd, addNote, addRegion, addStart, addState, canMakeComposite, connectState, deleteState, innerPseudo, makeComposite, reconnectState, relabelNote,
   relabelState, relabelTransition, scopeOf, setCompositeDirection, setDescriptions, setNoteSide, setStateKind, stateFragment, ungroupState, type StateScope,
 } from '../../core/ops/state.js';
-import { leadingIcon, withIconToken, type IsIconToken } from '../../core/ops/icon-token.js';
 import { cloneMeta, ensure as ensureIn } from '../../core/ops/meta-util.js';
+import { stateMediaSource } from '../../core/ops/state-media.js';
 import type { StateGeometry } from '../../core/render/types.js';
 import { registerExtendedShapes } from '../../core/shapes/extended.js';
 import type { ItemRef, Point } from '../../core/types.js';
@@ -27,7 +27,6 @@ import type { EditKind, PropControl } from './types.js';
 registerExtendedShapes();
 
 const one = (s: string): string => s.replace(/\n/g, ' ');
-const isIconOf = (core: EditorCore): IsIconToken => (t) => core.ctx.icons.resolve(t, 'token') !== null;
 
 const KIND_NAMES: Readonly<Record<StateKind, string>> = { state: 'state', start: 'start', end: 'end', choice: 'choice', fork: 'fork', join: 'join' };
 
@@ -248,21 +247,27 @@ export const EDIT: EditKind<StateModel, StateGeometry> = {
   },
   drop: (core, M, item, pt) => dropItem(core, M, item.key, pt, item.preset ? { preset: item.preset } : undefined),
   // the Text tool: a note beside the nearest state
-  addImage: (core, M, url, pt) => dropItem(core, M, 'state', pt, { label: 'Image', meta: { img: url } }),
+  // an image state, as the flowchart's image node (core/ops/state-media.ts): the picture at Mermaid Chart's default
+  // size, caption below, the aspect kept
+  addImage: (core, M, url, pt) => dropItem(core, M, 'state', pt, { label: 'Image', meta: { img: url, h: 200, w: 200, pos: 'b', constraint: 'on' } }),
   media(M, ref, core) {
     const n = ref.kind === 'node' ? M.nodes.get(ref.id) : undefined;
     if (!n || n.kind !== 'state') return null;
-    const img = core.meta.nodes?.[n.id]?.img;
-    return { icon: leadingIcon(n.label, isIconOf(core))?.name ?? null, image: typeof img === 'string' ? img : null, node: null, canImage: true };
+    const src = stateMediaSource(core.meta.nodes?.[n.id] ?? {});
+    // an icon is an image state's source instead of its picture: a plain state takes no icon (a title's icon token
+    // stays as written), and a picture makes it an image state
+    if (!src) return { icon: null, image: null, node: null, canImage: true, canIcon: false };
+    return {
+      icon: src.icon ?? null, image: src.img ?? null, node: src.img != null ? 'image' : 'icon', canImage: true, canIcon: true,
+      ...(src.pos ? { pos: src.pos } : {}), ...(src.form ? { form: src.form } : {}), ...(src.w ? { w: src.w } : {}), ...(src.h ? { h: src.h } : {}),
+      ...(src.constraint ? { constraint: src.constraint } : {}),
+    };
   },
-  setIcon(code, M, ref, icon, core) {
-    const n = ref.kind === 'node' ? M.nodes.get(ref.id) : undefined;
-    if (!n || n.kind !== 'state') return null;
-    return relabelState(code, M, n.id, withIconToken(n.label === n.id && !n.texts.length ? n.id : n.label, icon, isIconOf(core)));
-  },
-  // images are metadata (`img`): the editor writes them (imageInMeta)
+  // pictures, icons and their layout keys are metadata (mediaNodesInMeta): the editor writes them
+  setIcon: () => null,
   setImage: () => null,
-  imageInMeta: true,
+  setMedia: () => null,
+  mediaNodesInMeta: true,
   decorated: true,
   direction: (M) => M.direction,
   properties(core, M, ref) {

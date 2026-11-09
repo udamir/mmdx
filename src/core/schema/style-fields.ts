@@ -385,6 +385,11 @@ export function metaJsonSchema(): JsonSchema {
       section: { type: 'integer', minimum: 0, maximum: 11, description: 'A mindmap branch colour (a section of the theme) for the node and its subtree' },
       collapsed: { type: 'boolean', description: 'A folded mindmap branch' },
       ...MEDIA_KEYS(),
+      // image and icon states: the flowchart image node's keys (w / h above: the picture's or the icon's size)
+      icon: { type: 'string', maxLength: 200, description: 'An icon state: the icon (pack:name) the state shows instead of a picture' },
+      form: { enum: ['square', 'circle', 'rounded'], description: "An icon state's frame (none without it)" },
+      pos: { enum: ['t', 'b'], description: "An image or icon state's caption: above (t) or below (b, default)" },
+      constraint: { enum: ['on', 'off'], description: "An image state's picture keeps its aspect ratio (on)" },
     }),
     // a group's x / y is its top-left: a frame with w / h, or (without them) the place "Reset positions in this group" keeps
     group: item({ x: num('Left'), y: num('Top'), w: num('Width'), h: num('Height'), titleSize: num(), titleColor: ref('color') }),

@@ -92,6 +92,15 @@ export interface ItemMeta extends StyleProps {
   imgH?: number;
   /** How the picture fills its box: `contain` (default), `cover` or `stretch` (flowchart image nodes too). */
   imgFit?: string;
+  // an image or icon state: the flowchart image node's keys (`w` / `h`: the picture's or the icon's size)
+  /** The icon an icon state shows instead of a picture (`pack:name`). */
+  icon?: string;
+  /** The icon's frame. */
+  form?: 'square' | 'circle' | 'rounded';
+  /** The caption's side: above (`t`) or below (`b`, default). */
+  pos?: 't' | 'b';
+  /** The picture keeps its aspect ratio (`on`). */
+  constraint?: 'on' | 'off';
   // entities
   attrs?: Record<string, AttrHighlight>;
   [extra: string]: unknown;

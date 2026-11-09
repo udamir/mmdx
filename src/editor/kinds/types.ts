@@ -133,6 +133,11 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   /** The type has no image syntax: an image is the item's metadata `img` (the editor writes it; `setImage` is not called). */
   imageInMeta?: boolean;
   /**
+   * The type's image and icon items are metadata (state diagrams: `img` or `icon` with the flowchart image node's keys,
+   * core/ops/state-media.ts): the editor writes them, and `setIcon`, `setImage` and `setMedia` are not called.
+   */
+  mediaNodesInMeta?: boolean;
+  /**
    * The type draws its icons and images beside the label through core/render/decorate.ts (T10): their place, size and
    * fit are item metadata (`iconPos`, `iconSize`, `imgW`, `imgH`, `imgFit`), which Properties edits.
    */

@@ -67,13 +67,15 @@ for (const k of ['flowchart', 'sequence', 'er', 'mindmap', 'state']) {
   // 72.6 kB with the shape catalogue (T02: Mermaid's 53 flowchart shapes plus the figures, each with its outline, text box and sizing, the node data reader and the outline clipping of connector ends; 72.2 kB measured, the catalogue alone about 8 kB). Sequence and ER only load the 17 shapes every renderer draws (61.6 and 61.2 kB measured).
   // 62.4 kB with the kind descriptor (T01: the kinds registry and the type's view kind, +0.6 kB); 61.6 kB with the 0.3 host hooks (+0.4 kB: the host's full screen in the zoom bar, setControls, registerThemes); 61 kB with the 0.3 fixes (+0.2 kB: own-key reads and writes in the metadata parser, the patcher drawing the diff's styled runs itself instead of through a hook the diff installed). 60.8 kB with the view kernel (component architecture §10.1: 60.3 kB once the kernel was split into modules, the blocks gained roving focus and the elements a shared lifecycle; 53.4 kB with every chrome module but the zoom bar on demand; 46 kB before). Provisional (decision 19 is open).
   // flowchart 87.8, sequence 77, ER 85.5, mindmap 74 and state 88 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (87.4, 76.6, 85.1, 73.6 and 87.6 kB measured)
-  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), ({ flowchart: 87.8, sequence: 77, er: 85.5, mindmap: 74, state: 88 })[k] * KB);
+  // flowchart 88.3 kB (87.9 measured), state 89.9 kB (89.5 measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
+  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), ({ flowchart: 88.3, sequence: 77, er: 85.5, mindmap: 74, state: 89.9 })[k] * KB);
 }
 // a flowchart that draws one of the shapes beyond the 17 (T02.9): their geometry, 4.3 kB, loads before it renders (72.7 kB measured; 73.5 kB with media in the scene, T03; 76.3 kB with the icon registry, T04); since T06 the chunk also holds the media kit (rich labels, icons, images), which a flowchart with markdown, icon tokens, icon or image nodes loads the same way (86.8 kB measured: +5.5 kB the flowchart's own growth, +5 kB the kit); 92.7 kB with the compound layout (T07, 92.3 kB measured: the flowchart's +5.1 kB)
 // 97.1 kB with media in every kind and the sequence and ER fixes (T10, T11: 96.7 kB measured, the viewer's +2 kB)
 // 93.4 kB with mindmaps (T08, 93 kB measured: the viewer's +0.2 kB); 95.2 kB with state diagrams (T09, 94.8 kB measured: the viewer's +0.5 kB and the flowchart's chunk)
 // 98 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (97.6 kB measured)
-report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...flow, ...lazy(v, 'src/core/shapes/extended.ts', new Set([...v.base, ...flow]))])), 98 * KB);
+// 98.5 kB (98.1 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
+report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...flow, ...lazy(v, 'src/core/shapes/extended.ts', new Set([...v.base, ...flow]))])), 98.5 * KB);
 // the built-in icon set (T04 §4.7: about 250 Tabler icons with keywords and the Font Awesome look-alikes), a lazy chunk of its own that loads with the first built-in icon; the decoder (body validation and transforms) loads with the first icon of any pack (19.1 and 2.5 kB measured; 20.1 kB in the library build)
 {
   const icons = lazy(v, 'src/icons/builtin.ts', v.base);
@@ -96,7 +98,8 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
   // 146.8 kB with state diagrams (T09, 146.4 kB measured: the viewer's +0.5 kB and the diff's)
   // 147.3 kB with media in every kind and the sequence and ER fixes (T10, T11: 146.9 kB measured)
   // 148 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (147.6 kB measured)
-  report('viewer + History opened', v.size(loaded) + v.size(new Set(hist)), 148 * KB);
+  // 148.5 kB (148.1 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
+  report('viewer + History opened', v.size(loaded) + v.size(new Set(hist)), 148.5 * KB);
 }
 // core includes the diff engine (diffs, merged model, annotations, reports, renderDiffToSvg)
 // editor: 180 kB once the editor loads diagram types on demand (T01.9: 178.2 kB without the code of the types not shown; every type's editor code is a chunk of its own, measured in the "editor (first <type>)" rows); 188.2 kB with the view kernel (187.7 kB after the kernel split, the blocks merge and the element lifecycle; 173.2 kB measured in phase 3; 184.3 kB summed per chunk once History loads the clipboard ops on demand, which splits them into chunks of their own: 177.9 kB as one stream, as before; 165 kB before the kernel), provisional like the viewer's
@@ -130,7 +133,8 @@ for (const [entry, budget] of [['core', 124.6], ['theme-editor', 173.2], ['edito
     // 237.8 kB with icons and images in sequence and ER (T10.2, T10.3: 237.4 kB measured, the editor's +1.2 kB; every editor row below grows the same way)
     // 237 kB with media in every kind and the sequence and ER fixes (T10, T11: 236.6, 216.7 and 222.4 kB measured: the editor's +5.7 kB; the ER's chunk +14.6 kB, its parser, renderer and subgraph editing)
     // 241.4 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (241, 233.7 and 228.3 kB measured)
-    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 241.4 * KB);
+    // 242.4 kB (242 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
+    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 242.4 * KB);
     {
       // a mindmap: its kinds and the mindmap module's gestures, both loaded with the first mindmap (T08: 228.3 kB measured; the view, ops and edit kinds with the geometry of bang and cloud and the media kit, which its edit kind registers as the flowchart's does, and the drag, handles and keys of the outline)
       const kind = lazy(b, 'src/editor/kinds/mindmap.ts', b.base);
@@ -138,12 +142,14 @@ for (const [entry, budget] of [['core', 124.6], ['theme-editor', 173.2], ['edito
       // 230.3 kB with state diagrams (T09, 229.9 kB measured: the editor's +1.8 kB)
       // 237 kB with media in every kind and the sequence and ER fixes (T10, T11: 236.6 kB measured)
       // 240.6 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (240.2 kB measured)
-      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 240.6 * KB);
+      // 241.1 kB (240.7 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
+      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 241.1 * KB);
     }
     // a state diagram: its view, ops and edit kinds in one chunk loaded with the first state diagram (T09: 240.5 kB measured; the parser, compound layout, renderer, state shapes, ops, palette and Properties controls)
     // 249.4 kB with media in every kind and the sequence and ER fixes (T10, T11: 249 kB measured)
     // 253 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (252.6 kB measured)
-    report('editor (first state)', b.size(b.base) + b.size(lazy(b, 'src/editor/kinds/state.ts', b.base)), 253 * KB);
+    // 255.3 kB (254.9 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
+    report('editor (first state)', b.size(b.base) + b.size(lazy(b, 'src/editor/kinds/state.ts', b.base)), 255.3 * KB);
     // the insert dock's lazy chunks (T05): the pickers (icon picker, image tool, emoji picker and their glue), the shape palette block, the Connector and Container tools, the English emoji data (§4.5: at most 30 kB)
     const loaded = new Set([...b.base, ...lazy(b, 'src/editor/kinds/flowchart.ts', b.base)]);
     report('editor pickers (lazy chunk)', b.size(new Set(lazy(b, 'src/editor/modules/insert/media.ts', loaded))), 12.6 * KB);
@@ -215,7 +221,8 @@ const rows = [
   // 87.5 kB with state diagrams (T09, 87.1 kB measured: the viewer's +0.5 kB and the flowchart's chunk)
   // 89.2 kB with media in every kind and the sequence and ER fixes (T10, T11, 88.8 kB measured)
   // 90 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (89.6 kB measured)
-  ['viewer (first flowchart)', ['src/viewer.ts', FLOW], 90],
+  // 90.6 kB (90.2 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
+  ['viewer (first flowchart)', ['src/viewer.ts', FLOW], 90.6],
   // a flowchart that draws one of the shapes beyond the 17: their geometry loads before it renders (T02.9, 74.7 kB measured)
   // 75.8 kB with media in the scene (T03, 75.4 kB measured); 79 kB with the icon registry (T04, 78.6 kB measured)
   // 89.9 kB with flowchart content (T06, 89.5 kB measured: the chunk also holds the media kit)
@@ -224,7 +231,8 @@ const rows = [
   // 98 kB with state diagrams (T09, 97.6 kB measured)
   // 99.6 kB with media in every kind and the sequence and ER fixes (T10, T11, 99.2 kB measured)
   // 100.7 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (100.3 kB measured)
-  ['viewer (flowchart, more shapes)', ['src/viewer.ts', FLOW, SHAPES], 100.7],
+  // 101.2 kB (100.8 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
+  ['viewer (flowchart, more shapes)', ['src/viewer.ts', FLOW, SHAPES], 101.2],
   // the built-in icon set, a lazy chunk of its own (T04 §4.7: at most 25 kB)
   ['built-in icons (lazy chunk)', [BUILTIN_ICONS], 25],
   // the History button is in the tool dock, which loads with the `history` control (246.5 kB while History imported the editor's chunk); 143 kB with the shape catalogue (142.4 kB measured); 138.9 kB once the shapes beyond the 17 load on demand (T02.9, 138.5 kB measured)
@@ -234,7 +242,8 @@ const rows = [
   // 154.9 kB with mindmaps (T08, 154.5 kB measured)
   // 156.2 kB with state diagrams (T09, 155.8 kB measured)
   // 157.1 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (156.7 kB measured)
-  ['viewer + History opened', ['src/viewer.ts', FLOW, 'src/view/modules/tool-dock.ts', ...HISTORY, FLOW_DIFF], 157.1],
+  // 157.7 kB (157.3 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
+  ['viewer + History opened', ['src/viewer.ts', FLOW, 'src/view/modules/tool-dock.ts', ...HISTORY, FLOW_DIFF], 157.7],
   // the editor loads diagram types on demand (T01.9): 181 kB (178.8 kB measured; 194.6 kB before), the first document's type a chunk of its own; 191.6 kB with the shape catalogue (191.2 kB measured); 187.4 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 187 kB measured)
   // 188.4 kB with media in the scene (T03, 188 kB measured); 191.1 kB with the icon registry (T04, 190.7 kB measured)
   // 194.5 kB with the insert dock (T05, 194.1 kB measured: the dock's buttons, shortcuts and labels, the inline editor's emoji button, the media hooks of the toolbar and Properties; the pickers and the emoji data are lazy)
@@ -251,7 +260,8 @@ const rows = [
   // 225.6 kB with the compound layout (T07, 225.2 kB measured: the flowchart's renderer +5.1 kB, the editor's +0.9 kB)
   // 227.5 kB with mindmaps (T08, 227.1 kB measured: the editor's +1.5 kB)
   // 230.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (230.5 kB measured)
-  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart.ts'], 230.9],
+  // 231.9 kB (231.5 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
+  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart.ts'], 231.9],
   // the first mindmap (T08, 70.8 kB measured): the viewer and the mindmap's kind chunk (parser, tidy tree layout, renderer)
   // 72 kB with state diagrams (T09, 71.6 kB measured: the viewer's +0.5 kB)
   // 75.1 kB with media in every kind and the sequence and ER fixes (T10, T11, 74.7 kB measured)
@@ -261,15 +271,18 @@ const rows = [
   // 227.9 kB with state diagrams (T09, 227.5 kB measured)
   // 232.7 kB with media in every kind and the sequence and ER fixes (T10, T11, 232.3 kB measured)
   // 236.4 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (236 kB measured)
-  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap.ts', 'src/editor/modules/mindmap/gestures.ts'], 236.4],
+  // 236.9 kB (236.5 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
+  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap.ts', 'src/editor/modules/mindmap/gestures.ts'], 236.9],
   // the first state diagram (T09, 85.6 kB measured): the viewer and the state's kind chunk (parser, compound layout, renderer, shapes)
   // 89.1 kB with media in every kind and the sequence and ER fixes (T10, T11, 88.7 kB measured)
   // 89.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (89.5 kB measured)
-  ['viewer (first state)', ['src/viewer.ts', kindChunk('state')], 89.9],
+  // 92.2 kB (91.8 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
+  ['viewer (first state)', ['src/viewer.ts', kindChunk('state')], 92.2],
   // the first state diagram in the editor (T09, 238.2 kB measured): its view, ops and edit kinds
   // 245.2 kB with media in every kind and the sequence and ER fixes (T10, T11, 244.8 kB measured)
   // 248.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (248.5 kB measured)
-  ['editor (first state)', ['src/editor.ts', 'src/editor/kinds/state.ts'], 248.9],
+  // 251.1 kB (250.7 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
+  ['editor (first state)', ['src/editor.ts', 'src/editor/kinds/state.ts'], 251.1],
   // the English emoji data (T05 §4.5: at most 30 kB), a lazy chunk of its own
   ['emoji data, English (lazy chunk)', ['src/emoji/en.ts'], 30],
   // 240.2 kB with the shape catalogue (239.7 kB measured); 236.2 kB once the shapes beyond the 17 load on demand (T02.9, 235.8 kB measured)
@@ -295,7 +308,8 @@ const rows = [
   // 139.4 kB with mindmaps (T08, 139 kB measured)
   // 140.6 kB with state diagrams (T09, 140.2 kB measured)
   // 141.1 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (140.7 kB measured)
-  ['diff (first flowchart)', ['src/diff.ts', FLOW, FLOW_DIFF, 'src/diff/modules/panels.ts'], 141.1],
+  // 141.7 kB (141.3 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
+  ['diff (first flowchart)', ['src/diff.ts', FLOW, FLOW_DIFF, 'src/diff/modules/panels.ts'], 141.7],
   // 65.8 kB with the kind descriptor: the same code in more, smaller chunks (one per kind and layer), each compressed on its own (54.6 kB as one esbuild stream); 63 kB before; 76.8 kB with the shape catalogue (76.4 kB measured); 77 kB with the shapes beyond the 17 in chunks of their own (T02.9, 76.6 kB measured: the name table and the geometry apart)
   // 78.5 kB with media in the scene (T03, 78.1 kB measured: the image policy check, `safeImageUrl` / `checkImageUrl`, is exported)
   // 84.1 kB with the icon registry (T04, 83.7 kB measured: the registry, `createIconRegistry` with its decoder for synchronous lookups on the server, `iconNamesOf`)
@@ -306,7 +320,8 @@ const rows = [
   // 144.5 kB with icons and images in sequence and ER (T10.2, T10.3, 144.1 kB measured); the editor rows above +1.1 kB the same way
   // 142.8 kB with media in every kind and the sequence and ER fixes (T10, T11, 142.4 kB measured)
   // 144.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (144.5 kB measured)
-  ['core', ['src/core.ts'], 144.9],
+  // 145.7 kB (145.3 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
+  ['core', ['src/core.ts'], 145.7],
 ];
 for (const [name, keys, budget] of rows) report(name, (await loads(keys)).n, budget * KB);
 // the pickers' chunks (T05), beyond what the editor with a flowchart has loaded

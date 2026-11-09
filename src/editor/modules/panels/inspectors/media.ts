@@ -115,7 +115,7 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
       ctl.push(rm);
     }
     host.append(row(t('props.imageUrl'), ...ctl));
-    if (k.decorated && m.image !== null) {
+    if (k.decorated && !m.node && m.image !== null) {
       // the picture's box (one of the two: the other follows its aspect) and fit
       const meta = core.getM(ref.kind, ref.id);
       const num = (key: string): number | undefined => (typeof meta[key] === 'number' ? (meta[key] as number) : undefined);

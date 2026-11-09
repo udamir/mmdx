@@ -97,6 +97,9 @@ const CLEANERS: Record<string, Cleaner> = {
   // render); `shape` above: a catalogue shape the item's code cannot write
   iconPos: oneOf('l', 't', 'b'), iconSize: num(1, 512), iconColor: color,
   imgW: SIZE, imgH: SIZE, imgFit: oneOf('contain', 'cover', 'stretch'),
+  // an image or icon state (its code has no syntax for them): the icon as the state's source instead of a picture, and
+  // the flowchart image node's keys — the icon's frame, the caption's side, the aspect lock (`w` / `h` above: the size)
+  icon: text(200), form: oneOf('square', 'circle', 'rounded'), pos: oneOf('t', 'b'), constraint: oneOf('on', 'off'),
 };
 
 const ATTR_CLEANERS: Record<string, Cleaner> = { color, bold: bool, underline: bool };

@@ -10,12 +10,10 @@ import { el, g, title as tooltip } from '../scene/build.js';
 import type { SceneNode, TextRun } from '../scene/types.js';
 import type { StyleProps } from '../style.js';
 import { textBlockWidth, wrap } from '../text/wrap.js';
-import type { ImageFit } from '../media/image.js';
 import { mediaKit, type MediaKit } from '../media/kit.js';
 import { ICON_TOKEN } from '../icons/names.js';
 import type { IconResolver } from '../text/rich.js';
 import type { FontSpec } from '../text/measure.js';
-import { diag } from '../types.js';
 import type { CenterBox, Point } from '../types.js';
 import {
   assignPorts, baseStyle, cachedLayout, type PortLink, metaNum, metaPoints, type RenderEnv, type SubResult, byLine, countBy, Defs, edgePath, firstLine, font, haloLabel, hiddenOf, isSide, itemGroup,
@@ -34,6 +32,7 @@ import type { Rect } from '../types.js';
 export { edgeMeta, edgePreset, flowPresets, groupPreset, nodePreset, presetShape, type FlowPresets } from './flow-presets.js';
 import { edgeMeta, edgePreset, flowPresets, groupPreset, nodePreset, type FlowPresets } from './flow-presets.js';
 import { dashAttrs } from './dash.js';
+import { assetBox, captionY, mediaAssetNodes, mediaLayout, mediaPort, type MediaBox, type MediaSource } from './media-node.js';
 
 interface NodeItem extends CenterBox {
   n: FlowNode;
@@ -48,34 +47,8 @@ interface NodeItem extends CenterBox {
   media?: MediaBox;
 }
 
-/** An icon or image node: the asset (with its frame) and the caption beside it, relative to the node's centre. */
-interface MediaBox {
-  kind: 'icon' | 'image';
-  /** The frame's centre offset (y) and size: the icon plus its padding, or the picture. */
-  dy: number;
-  fw: number;
-  fh: number;
-  /** The icon or the picture inside the frame. */
-  aw: number;
-  ah: number;
-  /** An icon's frame (none: a bare icon). */
-  form?: 'square' | 'circle' | 'rounded';
-  /** The caption above the asset (`pos: t`), else below. */
-  top: boolean;
-  captionH: number;
-  fit: ImageFit;
-  /** The colour of a monochrome icon (the code's stroke, else the text colour). */
-  color: string | undefined;
-}
-
-/** Mermaid's icon size when `h` / `w` are not given, the padding of an icon's frame and the gap before a caption. */
-const ICON_SIZE = 48, FRAME_PAD = 8, CAPTION_GAP = 8;
-/** An image node's box while its size is not known. */
-const IMAGE_SIZE = 96;
 /** Where markdown labels and captions wrap (Mermaid's `flowchart.wrappingWidth`). */
 const WRAP_WIDTH = 200;
-const FORMS = new Set(['square', 'circle', 'rounded']);
-const FITS = new Set(['contain', 'cover', 'stretch']);
 
 /** Mermaid's curve names as the routings mmdx draws: `linear` straight, the steps orthogonal, the rest curved. */
 export function curveRouting(curve: string | undefined): string | undefined {
@@ -147,36 +120,12 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
   // ---- resolve node styles & sizes
   const nodes = new Map<string, NodeItem>();
   const shapeStyles = byShapeId(F.nodeShapes);
-  const clampSize = (v: number): number => Math.max(8, Math.min(4000, v));
 
   /** The last stroke the code gives (classes, then `style`): a monochrome icon's colour, as in Mermaid. */
   const codeColor = (layers: readonly (MermaidStyle | undefined)[]): string | undefined => {
     let c: string | undefined;
     for (const l of layers) if (l?.stroke) c = l.stroke;
     return c ? ctx.color(c) : undefined;
-  };
-
-  /**
-   * An image node's picture size (§3.2): `w` and `h` as written; with the aspect lock (`constraint: on`) the width
-   * follows `h` × the picture's aspect; what is not written comes from the picture's natural size, which the browser
-   * knows once it has loaded it (until then, and where it cannot know it, 96 × 96).
-   */
-  const imageSize = (url: string, w0: number | undefined, h0: number | undefined, lock: boolean, line: number | null): { w: number; h: number } => {
-    if (w0 && h0 && !lock) return { w: clampSize(w0), h: clampSize(h0) };
-    const k = kit();
-    const ok = k ? k.checkImageUrl(url, ctx.imagePolicy, ctx.resolveUrl) : null;
-    // undefined: the browser is loading it (the component renders again when it arrives); null: it cannot be known
-    const nat = !ok || !('url' in ok) ? undefined : ctx.imageSizes ? ctx.imageSizes.get(ok.url) : null;
-    if (nat) {
-      const k = nat.w / nat.h;
-      if (h0) return { w: clampSize(h0 * k), h: clampSize(h0) };
-      if (w0) return { w: clampSize(w0), h: clampSize(w0 / k) };
-      return { w: clampSize(nat.w), h: clampSize(nat.h) };
-    }
-    if (w0 || h0) return { w: clampSize(w0 ?? h0!), h: clampSize(h0 ?? w0!) };
-    if (nat === null)
-      env.diagnostics.push(diag('info', 'image.size-unknown', `The image's size is not known here — it is drawn ${IMAGE_SIZE} × ${IMAGE_SIZE} (give it "w" and "h")`, line ?? undefined, { params: { url: url.length > 80 ? `${url.slice(0, 77)}…` : url } }));
-    return { w: IMAGE_SIZE, h: IMAGE_SIZE };
   };
 
   /** An icon or image node (§3.1, §3.2): its asset, its frame and the caption above or below. */
@@ -188,32 +137,10 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     const fontSize = st.fontSize ?? 14;
     const fnt = font(fontSize, st.fontWeight, st.fontFamily || family);
     // a resize in progress gives the asset's size in metadata (written to `h` / `w` when it ends)
-    const mw = metaNum(nm.w), mh = metaNum(nm.h);
-    let aw: number, ah: number, fw: number, fh: number;
-    let form: MediaBox['form'];
-    if (kind === 'icon') {
-      // Mermaid draws the icon `max(h, w)` square, 48 by default
-      const size = clampSize(mw || mh ? Math.max(mw ?? 0, mh ?? 0) : Math.max(d.h ?? ICON_SIZE, d.w ?? ICON_SIZE));
-      aw = ah = size;
-      if (d.form && FORMS.has(d.form)) form = d.form as MediaBox['form'];
-      fw = fh = form ? size + 2 * FRAME_PAD : size;
-    } else {
-      ({ w: aw, h: ah } = imageSize(String(d.img), mw ?? d.w, mh ?? d.h, d.constraint === 'on', line));
-      fw = aw;
-      fh = ah;
-    }
+    const src: MediaSource = { img: d.img, icon: d.icon, form: d.form, pos: d.pos, w: d.w, h: d.h, constraint: d.constraint, fit: str(nm['imgFit']) };
     // the caption wraps at the asset's width or Mermaid's wrapping width, whichever is wider
-    const cw = Math.max(fw, wrapWidth);
-    const L = n.label ? labelLines(n.label, n.md, fnt, st.text, line, cw, cw) : { lines: [] as string[], w: 0 };
-    const captionH = L.lines.length * fontSize * 1.3;
-    const w = Math.max(fw, L.w), h = fh + (L.lines.length ? CAPTION_GAP : 0) + captionH;
-    const top = d.pos === 't';
-    const fit = str(nm['imgFit']);
-    const M: MediaBox = {
-      kind, dy: top ? h / 2 - fh / 2 : -h / 2 + fh / 2, fw, fh, aw, ah, top, captionH,
-      fit: fit && FITS.has(fit) ? (fit as ImageFit) : 'contain', color: codeColor([...classes, n.style]) ?? st.text,
-    };
-    if (form) M.form = form;
+    const { box: M, caption: L, w, h } = mediaLayout(env, kit(), src, { w: metaNum(nm.w), h: metaNum(nm.h) }, fontSize, wrapWidth, codeColor([...classes, n.style]) ?? st.text, line,
+      (cw) => (n.label ? labelLines(n.label, n.md, fnt, st.text, line, cw, cw) : { lines: [] as string[], w: 0 }));
     const N: NodeItem = { n, m: nm, st, preset, lines: L.lines, w, h, x: NaN, y: NaN, ...xy(nm), media: M };
     if ('rich' in L && L.rich) N.rich = L.rich;
     return N;
@@ -525,7 +452,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
   const edgeNodes: SceneNode[] = [], labelNodes: SceneNode[] = [];
   const onShape = (id: string, b: CenterBox, port: Port): Port => {
     const N = nodes.get(id);
-    if (N?.media) return mediaPort(N, N.media, port);
+    if (N?.media) return mediaPort(N, N.media, N.lines.length > 0, port);
     return N ? onOutline(shapeDef(N.st.shape), b, port) : port;
   };
   const routingOf = (x: EdgeItem): { routing: string; curve: number } => {
@@ -684,7 +611,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
       [...nodes].map(([id, N]) => {
         const b: BoxGeom & { auto?: boolean } = { x: N.x, y: N.y, w: N.w, h: N.h, stack: N.st.stack, hidden: hiddenNodes.has(id) };
         if (N.auto) b.auto = true;
-        if (N.media) b.asset = { x: N.x, y: N.y + N.media.dy, w: N.media.aw, h: N.media.ah };
+        if (N.media) b.asset = assetBox(N, N.media);
         else if (N.st.shape && N.st.shape !== 'rect') b.shape = N.st.shape;
         return [id, b];
       }),
@@ -863,37 +790,15 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     return R;
   }
 
-  /**
-   * Where a connector ends on an icon or image node (Mermaid's outline of these shapes): on the asset's frame, except on
-   * the caption's side, where it ends past the caption.
-   */
-  function mediaPort(N: NodeItem, M: MediaBox, port: Port): Port {
-    const f = { x: N.x, y: N.y + M.dy, w: M.fw, h: M.fh };
-    const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
-    const vertical = Math.abs(port.n.y) > Math.abs(port.n.x);
-    if (vertical && N.lines.length && (port.n.y < 0) === M.top) return port;
-    const p: Port = vertical
-      ? { x: clamp(port.x, f.x - f.w / 2, f.x + f.w / 2), y: f.y + (port.n.y < 0 ? -f.h / 2 : f.h / 2), n: port.n }
-      : { x: f.x + (port.n.x < 0 ? -f.w / 2 : f.w / 2), y: clamp(port.y, f.y - f.h / 2, f.y + f.h / 2), n: port.n };
-    return M.form === 'circle' ? onOutline(shapeDef('circle'), f, p) : p;
-  }
-
   /** An icon or image node's scene: the frame, the asset in it, the caption; a transparent box makes the caption pickable too. */
   function mediaNodes(id: string, N: NodeItem, M: MediaBox, href: ReturnType<typeof itemLink>): SceneNode[] {
     const { st } = N;
-    const fx = N.x, fy = N.y + M.dy;
-    const out: SceneNode[] = [el('rect', { x: N.x - N.w / 2, y: N.y - N.h / 2, width: N.w, height: N.h, fill: 'transparent', stroke: 'none' })];
-    if (M.form) out.push(...shapeNodes(M.form === 'circle' ? 'circle' : M.form === 'rounded' ? 'rounded' : 'rect', { x: fx, y: fy, w: M.fw, h: M.fh }, st));
-    const box = { x: fx - M.aw / 2, y: fy - M.ah / 2, w: M.aw, h: M.ah };
     const line = firstLine(N.n.defLine, N.n.lines);
-    const at = Number.isFinite(line) ? { line } : {};
-    // without the kit (it is loading), the asset's box stays empty until the render runs again
-    const k = kit();
-    if (k && M.kind === 'icon') out.push(...k.drawIcon(env, N.n.data?.icon ?? '', { box, ...(M.color ? { color: M.color } : {}), ...at }));
-    else if (k) out.push(...k.drawImage(env, N.n.data?.img, { box, fit: M.fit, key: `node-${id}`, family: st.fontFamily || family, ...at }));
+    const d = N.n.data ?? {};
+    const out = mediaAssetNodes(env, kit(), N, M, { img: d.img, icon: d.icon }, st, { key: `node-${id}`, family, ...(Number.isFinite(line) ? { line } : {}) });
     if (!N.lines.length) return out;
     const fontSize = st.fontSize ?? 14;
-    const cy = M.top ? N.y - N.h / 2 + M.captionH / 2 : N.y + N.h / 2 - M.captionH / 2;
+    const cy = captionY(N, M);
     const to = { size: fontSize, weight: st.fontWeight, color: href ? LINK_COLOR : st.text, family: st.fontFamily || family, lh: 1.3, underline: !!href };
     out.push(...withLink(href, N.rich ? K!.richText(N.rich, N.x, cy, { ...to, measure: ctx.measure }) : [textBlock(N.lines, N.x, cy, to)]));
     return out;

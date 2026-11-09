@@ -25,6 +25,8 @@ import {
   metaNum, metaPoints, pickStyle, presetOf, sideToward, stackedShapeNodes, textBlock, urlRef, withLink, type PortLink, type RenderEnv, type SubResult,
 } from './common.js';
 import { DECO_GAP, decorate, decoratedSize, decoration, lazyKit, type Decoration } from './decorate.js';
+import { assetBox, captionY, mediaAssetNodes, mediaLayout, mediaPort, type MediaBox } from './media-node.js';
+import { stateMediaSource } from '../ops/state-media.js';
 import { stateEdgePreset, stateGroupPreset, stateNodePreset, stateNotePreset, statePresets } from './state-presets.js';
 import type { BoxGeom, EdgeGeom, Port, StateGeometry } from './types.js';
 import { fmt } from '../scene/serialize.js';
@@ -39,6 +41,7 @@ const withStroke = (st: StyleProps, c: string | undefined): StyleProps => {
   return out;
 };
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
+
 /** Where labels wrap (Mermaid's default wrapping width). */
 const WRAP = 200;
 /** The layout's key of a note (a note id may equal a state id). */
@@ -60,8 +63,10 @@ interface NodeItem extends CenterBox {
   shape: string;
   title: Label | null;
   rows: Label | null;
-  /** The icon and the image beside the title (null: pseudo-states and bars). */
+  /** The icon and the image beside the title (null: pseudo-states, bars and image states). */
   deco: Decoration | null;
+  /** An image or icon state's asset and caption (the title, then the description rows). */
+  media?: MediaBox;
   auto?: boolean;
 }
 
@@ -213,6 +218,22 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
       nodes.set(n.id, { n, m: nm, st: look, preset, shape, title: null, rows: null, deco: null, w, h, ...xy });
       continue;
     }
+    // an image or icon state (metadata `img` or `icon`, Mermaid having no syntax for them): the picture or the icon is the
+    // state, captioned above or below, sized and fitted by the flowchart's image node keys (`w`, `h`, `constraint`,
+    // `form`, `pos`, `imgFit`)
+    const src = stateMediaSource(nm);
+    if (src) {
+      const kind = src.img != null ? 'image' : 'icon';
+      const st = mergeStyle(ctx, S.node, shapeStyles?.[kind], baseStyle(meta, 'node'), pst, defaultClass, ...classStyles(n.classes, P.node), n.style, pickStyle(nm));
+      st.shape = kind;
+      const fs = st.fontSize ?? 14;
+      const fnt = font(fs, st.fontWeight, st.fontFamily || family);
+      const text = [n.label, ...n.descriptions].join('\n');
+      const color = n.style?.stroke ? ctx.color(n.style.stroke) : st.text;
+      const { box, caption, w, h } = mediaLayout(env, kit(), src, {}, fs, WRAP, color, Number.isFinite(line) ? line : null, (cw) => labelOf(text, fnt, st.text, line, cw));
+      nodes.set(n.id, { n, m: nm, st, preset, shape: kind, title: caption, rows: null, deco: null, media: box, w, h, ...xy });
+      continue;
+    }
     const def = shapeDef(str(nm.shape) || pst?.shape || S.node.shape || 'rect');
     const shape = def.id;
     const st = mergeStyle(ctx, S.node, shapeStyles?.[shape], baseStyle(meta, 'node'), pst, defaultClass, ...classStyles(n.classes, P.node), n.style, pickStyle(nm));
@@ -322,6 +343,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
   let ports = placePorts();
   const onShape = (id: string, b: CenterBox, port: Port): Port => {
     const N = nodes.get(id);
+    if (N?.media) return mediaPort(b, N.media, !!N.title?.lines.length, port);
     return N ? onOutline(shapeDef(N.shape), b, port) : port;
   };
   const routingOf = (x: EdgeItem): { routing: string; curve: number } => ({ routing: str(x.m.routing) || routingDefault, curve: x.st.curve ?? 1 });
@@ -439,8 +461,19 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
       continue;
     }
     const fs = st.fontSize ?? 14, padY = st.padY ?? 8, padX = st.padX ?? 12;
-    const parts: SceneNode[] = [...stackedShapeNodes(N.shape, N, st)];
     const color = href ? LINK_COLOR : st.text;
+    if (N.media) {
+      // an image or icon state: the asset, then its caption
+      const parts = mediaAssetNodes(env, kit(), N, N.media, stateMediaSource(N.m)!, st, { key: `state-${id}`, family, source: 'meta', ...(N.n.defLine !== null ? { line: N.n.defLine } : {}) });
+      if (N.title.lines.length) {
+        const cy = captionY(N, N.media);
+        const to = { size: fs, weight: st.fontWeight, color, family: st.fontFamily || family, lh: 1.3, underline: !!href };
+        parts.push(...withLink(href, N.title.rich && kit() ? kit()!.richText(N.title.rich, N.x, cy, { ...to, measure: ctx.measure }) : [textBlock(N.title.lines, N.x, cy, to)]));
+      }
+      nodeNodes.push(itemGroup('node', id, `node ${kindCls} st-${N.media.kind}`, [...parts, ...tip], linkAttr(href)));
+      continue;
+    }
+    const parts: SceneNode[] = [...stackedShapeNodes(N.shape, N, st)];
     const to = (size: number, weight: number | string | undefined, anchor: 'middle' | 'start'): Parameters<typeof textBlock>[3] => ({ size, weight, color, family: st.fontFamily || family, lh: 1.3, anchor, underline: !!href });
     // the title block: the image, the icon and the title (centred, or at the top above the description rows)
     const blockH = decoratedSize(N.deco!, N.title).h;
@@ -531,7 +564,8 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
     nodes: new Map([...nodes].map(([id, N]) => {
       const b: BoxGeom & { auto?: boolean } = { x: N.x, y: N.y, w: N.w, h: N.h, stack: N.st.stack, hidden: hiddenNodes.has(id) };
       if (N.auto) b.auto = true;
-      if (N.shape !== 'rect') b.shape = N.shape;
+      if (N.media) b.asset = assetBox(N, N.media);
+      else if (N.shape !== 'rect') b.shape = N.shape;
       return [id, b];
     })),
     groups: new Map([...groups].map(([id, G]) => [id, { x: G.box.x, y: G.box.y, w: G.box.w, h: G.box.h, stack: G.st.stack, fixed: !!G.box.fixed, hidden: groupHidden.has(id) }])),
