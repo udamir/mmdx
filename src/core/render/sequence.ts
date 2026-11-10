@@ -37,6 +37,7 @@ import { assetBox, captionY, mediaAssetNodes, mediaLayout, type MediaBox, type M
 import { metaMediaSource } from '../ops/meta-media.js';
 import type { BoxGeom, SequenceGeometry } from './types.js';
 import { dashAttrs } from './dash.js';
+import { minOf } from '../geom.js';
 
 /** A participant preset belongs to one shape (like node presets): its own "shape", else "for", else the box. */
 export { participantPresetShape } from './common.js';
@@ -230,7 +231,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     const def = FIGURES.has(shape) && shape !== 'actor' ? shapeDef(shape) : null;
     const figure = shape === 'actor' ? { w: 28, h: ACTOR_H } : def ? { w: (def.size.w * FIGURE_H) / def.size.h, h: FIGURE_H } : null;
     const nameSize = figure ? fontSize * 0.6 : fontSize;
-    const line = p.defLine ?? Math.min(...p.lines);
+    const line = p.defLine ?? minOf(p.lines);
     // an image or icon participant: the picture or the icon is its head, the name the caption, as the flowchart's image
     // node (the figure and the box give way to it)
     const media = mediaOf(m, p);
@@ -723,7 +724,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
       // an image or icon participant: the asset, then the name under (or above) it; the foot's assets are the head's again
       const box = { x: px, y: cy, w: x.w, h: x.h };
       const out = mediaAssetNodes(foot ? { ...env, diagnostics: [] } : env, kit(), box, x.media.box, x.media.src, st, {
-        key: foot ? `${x.p.id}:foot` : x.p.id, family, line: x.p.defLine ?? Math.min(...x.p.lines), source: x.fromCode ? 'code' : 'meta',
+        key: foot ? `${x.p.id}:foot` : x.p.id, family, line: x.p.defLine ?? minOf(x.p.lines), source: x.fromCode ? 'code' : 'meta',
       });
       if (x.name.lines.length) out.push(...withLink(href, drawText(x.name, px, captionY(box, x.media.box), { ...to, lh: 1.3 })));
       return out;
@@ -733,7 +734,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     const at = (top: number): { nodes: SceneNode[]; y: number; x: number } => {
       if (!decorated(deco)) return { nodes: [], x: px, y: top + text.h / 2 };
       const D = decorate(foot ? { ctx, diagnostics: [] } : env, kit, deco, px, top, text, {
-        key: foot ? `${x.p.id}:foot` : x.p.id, line: x.p.defLine ?? Math.min(...x.p.lines), family, ...(st.text ? { color: st.text } : {}), source: x.fromCode ? 'code' : 'meta',
+        key: foot ? `${x.p.id}:foot` : x.p.id, line: x.p.defLine ?? minOf(x.p.lines), family, ...(st.text ? { color: st.text } : {}), source: x.fromCode ? 'code' : 'meta',
       });
       return { nodes: D.nodes, x: D.contentBox.x, y: D.contentBox.y };
     };

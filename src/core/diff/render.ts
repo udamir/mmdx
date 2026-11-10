@@ -14,6 +14,7 @@ import { diffDiagramsWith, ignoreFacets } from './index.js';
 import type { DiagramDiff, DiffIgnore, ItemChange } from './types.js';
 import { withLayoutOf, withoutStyle } from './transform.js';
 import { mergeDiagrams, type Merged } from './merge.js';
+import { maxOf } from '../geom.js';
 
 // The merged picture measures its labels without the change marks (annotate turns them into styled runs). One derived
 // context per context, so its layout cache lives as long as the caller's.
@@ -181,7 +182,7 @@ export function diffSvg(d: DiffRendered, o: DiffSvgOptions = {}): string {
       : [{ page: pageOf(d, view, o, colors) }];
   const gap = 32, titleH = view === 'side' ? 32 : 0, legendH = o.legend === false ? 0 : 36;
   const width = pages.reduce((w, p) => w + p.page.bounds.w, 0) + gap * (pages.length - 1);
-  const height = Math.max(...pages.map((p) => p.page.bounds.h)) + titleH + legendH;
+  const height = maxOf(pages.map((p) => p.page.bounds.h)) + titleH + legendH;
   const defs = new Map<string, SceneNode>();
   const body: SceneNode[] = [];
   let dx = 0;

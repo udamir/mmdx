@@ -30,6 +30,7 @@ import { metaMediaSource } from '../ops/meta-media.js';
 import { stateEdgePreset, stateGroupPreset, stateNodePreset, stateNotePreset, statePresets } from './state-presets.js';
 import type { BoxGeom, EdgeGeom, Port, StateGeometry } from './types.js';
 import { fmt } from '../scene/serialize.js';
+import { minOf } from '../geom.js';
 
 export { statePresets, stateNodePreset, stateGroupPreset, stateEdgePreset, stateNotePreset, type StatePresets } from './state-presets.js';
 
@@ -190,7 +191,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
     const nm = m('nodes', n.id);
     const preset = stateNodePreset(n, meta, P);
     const pst = presetOf(P.node, preset);
-    const line = n.defLine ?? Math.min(...n.lines);
+    const line = n.defLine ?? minOf(n.lines);
     const xy = { x: metaNum(nm.x) ?? NaN, y: metaNum(nm.y) ?? NaN };
     if (n.kind !== 'state') {
       // pseudo-states and bars: their own look, sizes from the theme, across the flow for bars
@@ -605,7 +606,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
     const cn: CompoundNode[] = [];
     for (const N of nodes.values()) {
       const n = N.n;
-      const c: CompoundNode = { id: n.id, w: N.w, h: N.h, parent: n.parent && groups.has(n.parent) ? n.parent : null, region: n.region, order: n.defLine ?? Math.min(...n.lines) };
+      const c: CompoundNode = { id: n.id, w: N.w, h: N.h, parent: n.parent && groups.has(n.parent) ? n.parent : null, region: n.region, order: n.defLine ?? minOf(n.lines) };
       if (Number.isFinite(N.x) && Number.isFinite(N.y)) c.fixed = { x: N.x, y: N.y };
       if (hiddenNodes.has(n.id)) c.hidden = true;
       cn.push(c);

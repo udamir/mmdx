@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { LexBudget, lexBudget, TooComplex } from '../../../src/core/parse/limits.js';
 import { parse } from '../../../src/core/parse/index.js';
+import { renderToSvg } from '../../../src/core.js';
 import { ADVERSARIAL, OVER_LIMIT } from '../../fixtures/adversarial.js';
 
 const N = 20_000;
@@ -33,6 +34,16 @@ describe('parsers on adversarial sources', () => {
     const m = parse(c.make(c.n));
     expect(performance.now() - t).toBeLessThan(5000);
     expect(m.diagnostics.map((d) => d.code)).toContain('doc.too-complex');
+  });
+});
+
+describe('large inputs never throw (B3)', () => {
+  // `Math.min(...lines)` over a note's or a state's lines overflowed the call stack
+  const note = `stateDiagram-v2\nnote left of A\n${'  x\n'.repeat(200_000)}end note\n`;
+  const refs = `stateDiagram-v2\n${'A\n'.repeat(200_000)}`;
+  it.each([['an 800 KB note', note], ['a state on 200 000 lines', refs]])('%s', async (_, code) => {
+    expect(() => parse(code)).not.toThrow();
+    await expect(renderToSvg(code)).resolves.toBeTypeOf('string');
   });
 });
 

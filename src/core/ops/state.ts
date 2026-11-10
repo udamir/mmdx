@@ -15,6 +15,7 @@ import type { ItemRef } from '../types.js';
 import { copyIds, uniqueId } from './ids.js';
 import { applyEdits, contentEnd, indentOf, type LineEdit } from './lines.js';
 import type { CloneInto, CloneResult, CodeResult, ConnectResult, RefusableResult, SelectResult } from './types.js';
+import { minOf } from '../geom.js';
 
 /** A scope: a composite (null: the top level) and a region of it. */
 export interface StateScope {
@@ -251,7 +252,7 @@ export function relabelState(code: string, model: StateModel, id: string, label:
     L[b.line] = line.replace(re, `$1"${quoted(v)}" as ${id}$2`);
     return { code: L.join('\n') };
   }
-  const first = Math.min(...n!.lines);
+  const first = minOf(n!.lines);
   return { code: applyEdits(code, [{ at: first, del: 0, ins: [`${indentOf(L[first])}state "${quoted(v)}" as ${id}`] }]) };
 }
 
@@ -278,7 +279,7 @@ export function setDescriptions(code: string, model: StateModel, id: string, row
     at = lastKept + 1;
     indent = indentOf(L[title.line]);
   } else {
-    const first = Math.min(...n.lines);
+    const first = minOf(n.lines);
     at = first;
     indent = indentOf(L[first]);
   }
@@ -337,7 +338,7 @@ export function setStateKind(code: string, model: StateModel, id: string, kind: 
   const edits: LineEdit[] = decls.map((li) => ({ at: li, del: 1, ins: [] }));
   const rest = [...n.lines].filter((li) => !decls.includes(li));
   if (kind !== 'state') {
-    const first = rest.length ? Math.min(...rest) : decls[0] ?? contentEnd(L);
+    const first = rest.length ? minOf(rest) : decls[0] ?? contentEnd(L);
     edits.push({ at: first, del: 0, ins: [`${indentOf(L[first] ?? L[decls[0] ?? 0])}state ${id} <<${kind}>>`] });
   } else if (!rest.length) {
     // a choice known only by its declaration stays as a plain state
@@ -422,7 +423,7 @@ function deleteLines(code: string, model: StateModel, lines: ReadonlySet<number>
   const keep = new Map<number, string[]>();
   for (const n of model.nodes.values()) {
     if (gone.has(n.id) || isPseudo(n.id) || ![...n.lines].length || ![...n.lines].every((li) => lines.has(li))) continue;
-    const li = Math.min(...n.lines);
+    const li = minOf(n.lines);
     (keep.get(li) ?? keep.set(li, []).get(li)!).push(indentOf(L[li]) + n.id);
   }
   return [...lines].map((li) => ({ at: li, del: 1, ins: keep.get(li) ?? [] }));
@@ -575,7 +576,7 @@ export function makeComposite(code: string, model: StateModel, items: readonly I
       if (!moved.has(li) && [...inside].some((id) => mentions(L[li] ?? '', id))) at = Math.max(at, li + 1);
   const id = uniqueId(model, 'Group');
   const indent = s.g ? scopeEnd(model, L, s).indent : rootIndent(model, L);
-  const minInd = Math.min(...sorted.map((li) => indentOf(L[li]).length));
+  const minInd = minOf(sorted.map((li) => indentOf(L[li]).length));
   const body = sorted.map((li) => `${indent}  ${(L[li] ?? '').slice(minInd)}`);
   const head = title && title !== id && title !== 'Group' ? `${indent}state "${quoted(title)}" as ${id} {` : `${indent}state ${id} {`;
   const block = [head, ...body, `${indent}}`];

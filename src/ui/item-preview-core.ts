@@ -19,6 +19,7 @@ import type { GeometryIndex, RenderResult } from '../core/render/types.js';
 import type { ResolvedTheme } from '../core/theme/types.js';
 import type { DiagramType, ItemKind, Rect } from '../core/types.js';
 import { patchChildren } from '../dom/patch.js';
+import { maxOf, minOf } from '../core/geom.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -243,7 +244,7 @@ function fromGeom(g: GeometryIndex, kind: PreviewKind): Box | null {
   }
   const lineBox = (e: { points: [number, number][]; a: { x: number; y: number }; b: { x: number; y: number }; label: { x: number; y: number; w: number; h: number } | null }): Box => {
     const xs = [e.a.x, e.b.x, ...e.points.map((p) => p[0])], ys = [e.a.y, e.b.y, ...e.points.map((p) => p[1])];
-    const b: Box = { x: Math.min(...xs), y: Math.min(...ys), x2: Math.max(...xs), y2: Math.max(...ys) };
+    const b: Box = { x: minOf(xs), y: minOf(ys), x2: maxOf(xs), y2: maxOf(ys) };
     return e.label ? union([b, centred(e.label)])! : b;
   };
   const boxes: Box[] = [];
@@ -256,7 +257,7 @@ function fromGeom(g: GeometryIndex, kind: PreviewKind): Box | null {
       else if (it.points?.length) {
         // a straight message: its line with room for the text above it
         const xs = it.points.map((p) => p[0]), ys = it.points.map((p) => p[1]);
-        boxes.push({ x: Math.min(...xs), y: Math.min(...ys) - 16, x2: Math.max(...xs), y2: Math.max(...ys) + 4 });
+        boxes.push({ x: minOf(xs), y: minOf(ys) - 16, x2: maxOf(xs), y2: maxOf(ys) + 4 });
       }
     }
   }

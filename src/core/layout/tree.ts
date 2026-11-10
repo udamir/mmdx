@@ -10,6 +10,7 @@
 // Nudges (`dx`, `dy`) move a node and its subtree from the computed spot. A subtree's frame is cached under its own
 // input (ids, sizes, order, collapsed), so an edit lays out its own branch and its ancestors only.
 import type { Point } from '../types.js';
+import { maxOf, minOf } from '../geom.js';
 
 export interface TreeNode {
   id: string;
@@ -162,7 +163,7 @@ export function layoutTree(root: string, nodes: ReadonlyMap<string, TreeNode>, o
   const subs = new Map(branches.map((b) => [b.id, frame(b)]));
   const height = (b: TreeNode): number => {
     const c = subs.get(b.id)!.contour;
-    return Math.max(...c.map((x) => x.y1)) - Math.min(...c.map((x) => x.y0));
+    return maxOf(c.map((x) => x.y1)) - minOf(c.map((x) => x.y0));
   };
   let right: TreeNode[] = branches, left: TreeNode[] = [];
   if (mode === 'both' && branches.length > 1) {

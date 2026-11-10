@@ -11,6 +11,7 @@ import type { ItemRef } from '../types.js';
 import { copyIds, uniqueId } from './ids.js';
 import { append, contentEnd, indentOf } from './lines.js';
 import type { CloneInto, CloneResult, CodeResult, ConnectResult, LineResult, RefusableResult, SelectResult } from './types.js';
+import { minOf } from '../geom.js';
 
 // ---- writing --------------------------------------------------------------------------------------------------------
 
@@ -390,9 +391,9 @@ export function groupER(code: string, model: ErModel, items: readonly ItemRef[],
   const firsts = ids.map((x) => {
     const g = model.groups.get(x);
     if (g) return g.line;
-    return Math.min(...[...(model.entities.get(x)?.lines ?? [])].filter((li) => scopeOf(li) === parent));
+    return minOf([...(model.entities.get(x)?.lines ?? [])].filter((li) => scopeOf(li) === parent));
   });
-  const first = Math.min(...firsts);
+  const first = minOf(firsts);
   const at = Number.isFinite(first) ? lineStart(code, first) : pg?.endLine !== undefined ? lineStart(code, pg.endLine) : null;
   if (at !== null) sp.push({ from: at, to: at, text: block.map((l) => `${l}\n`).join('') });
   let out = applySplices(code, sp);

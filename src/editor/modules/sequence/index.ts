@@ -18,6 +18,7 @@ import type { EditorModule } from '../../module.js';
 import { sizeBadge } from '../canvas/shared.js';
 import { elementsAt } from '../connect/geometry.js';
 import { SEQUENCE_CSS } from './css.js';
+import { maxOf, minOf } from '../../../core/geom.js';
 
 interface SeqLinking {
   a: Point;
@@ -215,7 +216,7 @@ export const sequenceModule: EditorModule = {
         if (bars.length) {
           const order = M.participants.map((p) => p.id), i = order.indexOf(L.id), gap = r * 2.2;
           const pad = 9; // the bars' hover area (act-hit in the renderer): the circles sit just outside it
-          const left = Math.min(...bars.map((a) => a.x - a.w / 2)) - pad, right = Math.max(...bars.map((a) => a.x + a.w / 2)) + pad;
+          const left = minOf(bars.map((a) => a.x - a.w / 2)) - pad, right = maxOf(bars.map((a) => a.x + a.w / 2)) + pad;
           if (i > 0) out.push(dot(left - gap, 'l'));
           if (i < order.length - 1) out.push(dot(right + gap, 'r'));
         } else out.push(dot(pg.x, null));
@@ -574,7 +575,7 @@ export const sequenceModule: EditorModule = {
           const idx = (pid: string): number => order.findIndex((o) => o.id === pid);
           const span = note.targets.map(idx).filter((i) => i >= 0);
           if (!span.length) return;
-          let lo = Math.min(...span), hi = Math.max(...span);
+          let lo = minOf(span), hi = maxOf(span);
           const x = p0.x + dx;
           const nearest = order.reduce((best, o, i) => (Math.abs(o.x - x) < Math.abs(order[best]!.x - x) ? i : best), 0);
           if (edge === 'left') lo = Math.min(nearest, hi);

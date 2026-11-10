@@ -28,6 +28,7 @@ import { metaMediaSource, NEW_IMAGE } from '../../core/ops/meta-media.js';
 import { metaItemMedia } from './meta-media.js';
 import { blockIcon, noteIcon, shapeIcon } from './palette.js';
 import type { EditKind, ItemAction, PropControl } from './types.js';
+import { maxOf, minOf } from '../../core/geom.js';
 
 // the participant figures (boundary, control, entity, collections) and icon tokens in the shape picker's previews and
 // the canvas: this chunk registers the extended geometry and the media kit statically, as the state chunk does
@@ -153,7 +154,7 @@ export const EDIT: EditKind<SequenceModel, SequenceGeometry> = {
       }
       const over = px.reduce((a, b) => (Math.abs(b.x - pt.x) < Math.abs(a.x - pt.x) ? b : a)).id;
       const above = msgs.filter((o) => o.y < pt.y);
-      const afterLine = above.length ? Math.max(...above.map((o) => o.it.src)) : seqInsertAfter(M, core.code);
+      const afterLine = above.length ? maxOf(above.map((o) => o.it.src)) : seqInsertAfter(M, core.code);
       const res = addNote(core.code, M, { over, afterLine });
       const N = reparse(res.code);
       const note = N.type === 'sequence' ? N.items.find((x): x is SeqNote => x.kind === 'note' && x.src === res.line) : undefined;
@@ -168,8 +169,8 @@ export const EDIT: EditKind<SequenceModel, SequenceGeometry> = {
       .filter((x): x is SeqMessage => !!x);
     let from: number, to: number;
     if (chosen.length) {
-      from = Math.min(...chosen.map((x) => x.src));
-      to = Math.max(...chosen.map((x) => x.src));
+      from = minOf(chosen.map((x) => x.src));
+      to = maxOf(chosen.map((x) => x.src));
     } else if (msgs.length) {
       const near = msgs.reduce((a, b) => (Math.abs(b.y - pt.y) < Math.abs(a.y - pt.y) ? b : a));
       from = to = near.it.src;

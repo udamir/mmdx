@@ -23,6 +23,7 @@ import { decodeLabel } from './label.js';
 import { guardParse, ItemBudget, LexBudget, stripControl } from './limits.js';
 import { LineScan } from './line-scan.js';
 import { parseStyleList } from './style.js';
+import { minOf } from '../geom.js';
 
 // ---- attributes as the editor types them ------------------------------------------------------------------------
 
@@ -800,7 +801,7 @@ function readER(code: string): ErModel {
   for (const id of model.groups.keys()) {
     const e = model.entities.get(id);
     if (!e) continue;
-    if (e.attrs.length || e.alias) D.push(diag('warning', 'er.id-clash', `"${id}" is a subgraph and an entity: Mermaid draws only the subgraph`, e.defLine ?? Math.min(...e.lines), { params: { id } }));
+    if (e.attrs.length || e.alias) D.push(diag('warning', 'er.id-clash', `"${id}" is a subgraph and an entity: Mermaid draws only the subgraph`, e.defLine ?? minOf(e.lines), { params: { id } }));
     model.entities.delete(id);
   }
   let order = 0;

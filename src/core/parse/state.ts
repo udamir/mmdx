@@ -18,6 +18,7 @@ import { decodeLabel } from './label.js';
 import { guardParse, ItemBudget, LexBudget, stripControl } from './limits.js';
 import { LineScan } from './line-scan.js';
 import { parseStyleList } from './style.js';
+import { minOf } from '../geom.js';
 
 export function emptyState(): StateModel {
   return {
@@ -939,7 +940,7 @@ function readState(code: string): StateModel {
 /** Common indentation removed from a multi-line note's lines (Mermaid's markdown drops it). */
 function dedent(t: string): string {
   const lines = t.replace(/^\s*\n/, '').split('\n');
-  const ind = Math.min(...lines.filter((l) => l.trim()).map((l) => l.length - l.trimStart().length));
+  const ind = minOf(lines.filter((l) => l.trim()).map((l) => l.length - l.trimStart().length));
   return lines.map((l) => l.slice(Number.isFinite(ind) ? ind : 0).trimEnd()).join('\n').trim();
 }
 

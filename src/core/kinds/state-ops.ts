@@ -9,6 +9,7 @@ import type { StateGeometry } from '../render/types.js';
 import type { ItemRef } from '../types.js';
 import type { OpsKind } from './ops-types.js';
 import type { Presets } from './types.js';
+import { minOf } from '../geom.js';
 
 export const OPS: OpsKind<StateModel, StateGeometry> = {
   type: 'state',
@@ -90,7 +91,7 @@ export const OPS: OpsKind<StateModel, StateGeometry> = {
       return e ? { start: e.src, end: e.src } : null;
     }
     const n = kind === 'node' ? M.nodes.get(id) : undefined;
-    const li = n ? n.defLine ?? Math.min(...n.lines) : undefined;
+    const li = n ? n.defLine ?? minOf(n.lines) : undefined;
     return li === undefined || !Number.isFinite(li) ? null : { start: li, end: li };
   },
   // a state's place in the code says nothing in the picture (and moving its first mention can change its kind or
