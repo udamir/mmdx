@@ -4,6 +4,7 @@
 // (render/media-node.ts draws the item as the flowchart draws an image node); the editor's image tool, toolbar and
 // Properties write them, as the flowchart writes its node data (core/ops/flow-media.ts): a picture and an icon replace
 // each other, and removing one makes the item plain again.
+import { MEDIA_KEYS } from '../meta/keys.js';
 import type { MediaSource } from '../render/media-node.js';
 import type { MediaPatch } from './flow-media.js';
 
@@ -12,8 +13,8 @@ type Meta = Record<string, unknown>;
 /** The flowchart's defaults (flow-media.ts: ICON_NODE_H, IMAGE_NODE_SIZE), not imported: that module carries the flowchart's ops. */
 const ICON_NODE_H = 60, IMAGE_NODE_SIZE = 200;
 
-/** Every key of an image or icon item (`imgW` / `imgH`: the first metadata images' size, read where `w` / `h` are not). */
-const MEDIA_KEYS = ['img', 'icon', 'form', 'pos', 'w', 'h', 'constraint', 'imgFit', 'imgW', 'imgH'] as const;
+// MEDIA_KEYS (meta/keys.ts): every key of an image or icon item (`imgW` / `imgH`: the first metadata images' size,
+// read where `w` / `h` are not)
 
 /** A new picture's keys: Mermaid Chart's default size, the caption below, the aspect kept (the flowchart's image node). */
 export const NEW_IMAGE = { h: IMAGE_NODE_SIZE, w: IMAGE_NODE_SIZE, pos: 'b', constraint: 'on' } as const;

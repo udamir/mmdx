@@ -128,7 +128,8 @@ describe('style', () => {
 
   it('resetItemStyle keeps layout; resetCurve drops points and curve', () => {
     const m = meta({ edges: { e: { x: 1, color: '#f00', points: [[1, 1]], curve: 0.5, fromSide: 't' } } });
-    expect(resetItemStyle(m, { kind: 'edge', id: 'e' }).meta.edges!['e']).toEqual({ x: 1, fromSide: 't' });
+    // waypoints are layout (B7): Reset style keeps them, Reset curve drops them
+    expect(resetItemStyle(m, { kind: 'edge', id: 'e' }).meta.edges!['e']).toEqual({ x: 1, points: [[1, 1]], fromSide: 't' });
     expect(resetCurve(m, { kind: 'edge', id: 'e' }).meta.edges!['e']).toEqual({ x: 1, color: '#f00', fromSide: 't' });
   });
 

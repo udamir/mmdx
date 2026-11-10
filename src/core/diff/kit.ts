@@ -1,5 +1,6 @@
 // Building blocks of the per-type diffs (core/diff/<type>.ts, used by each diagram type's view kind): field changes
 // with their facets, metadata and Mermaid-style comparison, alignment of positional items and rename detection.
+import { classOf, keyDef } from '../meta/keys.js';
 import type { DiagramMeta, ItemMeta } from '../meta/types.js';
 import type { MermaidStyle } from '../model.js';
 import type { ItemKind } from '../types.js';
@@ -9,13 +10,16 @@ export const FACETS: readonly ChangeFacet[] = ['content', 'layout', 'style'];
 
 // ---- facet of a metadata key ------------------------------------------------------------------------------------
 
-// mindmaps: `dx` / `dy` nudges, a branch's `side`, a folded subtree; a node's picture (`img`) is content
-export const LAYOUT_KEYS = new Set(['x', 'y', 'w', 'h', 'points', 'fromSide', 'toSide', 'fromAt', 'toAt', 'labelDx', 'labelDy', 'dy', 'layer', 'dx', 'side', 'collapsed']);
-export const CONTENT_KEYS = new Set(['link', 'img']);
-export const IGNORED_KEYS = new Set(['locked']);
-
-export const metaFacet = (k: string): ChangeFacet | null =>
-  IGNORED_KEYS.has(k) ? null : LAYOUT_KEYS.has(k) ? 'layout' : CONTENT_KEYS.has(k) ? 'content' : 'style';
+/**
+ * The facet a metadata key's change belongs to, from its class (meta/keys.ts): layout and state (a fold, a hidden
+ * item) are layout, content is content, look is style; locks and the format version are no change. A key the table
+ * does not know is reported as content, so filtering out style never hides it.
+ */
+export function metaFacet(k: string): ChangeFacet | null {
+  if (keyDef(k)?.diffIgnore) return null;
+  const c = classOf(k);
+  return c === 'look' ? 'style' : c === 'layout' || c === 'state' ? 'layout' : 'content';
+}
 
 // ---- helpers ----------------------------------------------------------------------------------------------------
 

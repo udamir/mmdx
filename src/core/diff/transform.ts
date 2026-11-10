@@ -1,12 +1,16 @@
 // Source transforms for diff views: draw both versions without the facets a reviewer chose to ignore, so the
 // pictures differ only where the remaining changes are.
 import { joinSource, splitSource } from '../meta/index.js';
+import { classOf, keysOf } from '../meta/keys.js';
 import { COLLECTIONS, type DiagramMeta, type ItemMeta } from '../meta/types.js';
 import { own, setOwn } from '../own.js';
 import { stripMermaidStyles } from '../strip-styles.js';
 
-const LAYOUT_KEYS = ['x', 'y', 'w', 'h', 'points', 'fromSide', 'toSide', 'fromAt', 'toAt', 'labelDx', 'labelDy', 'dy'] as const;
-const KEEP_WITHOUT_STYLE = new Set<string>([...LAYOUT_KEYS, 'layer', 'link', 'locked']);
+// from the one key table (meta/keys.ts): what a picture is laid out with, and what "without style" keeps (everything
+// but look — pictures, folds, links and keys the table does not know stay)
+const LAYOUT_KEYS = keysOf('layout');
+const PAGE_LAYOUT_KEYS = keysOf('layout', 'canvas');
+const keepWithoutStyle = (k: string): boolean => classOf(k) !== 'look';
 
 /**
  * The source without styling: no Mermaid classes or style statements, no presets, colours or fonts in the
@@ -22,7 +26,7 @@ export function withoutStyle(source: string): string {
     const src = doc.meta[coll] as Record<string, ItemMeta> | undefined;
     if (!src || coll === 'layers') continue;
     const out: Record<string, ItemMeta> = {};
-    for (const [id, m] of Object.entries(src)) setOwn(out, id, Object.fromEntries(Object.entries(m).filter(([k]) => KEEP_WITHOUT_STYLE.has(k))));
+    for (const [id, m] of Object.entries(src)) setOwn(out, id, Object.fromEntries(Object.entries(m).filter(([k]) => keepWithoutStyle(k))));
     (meta as unknown as Record<string, unknown>)[coll] = out;
   }
   return joinSource({ code, meta });
@@ -36,7 +40,7 @@ export function withLayoutOf(before: string, after: string): string {
   const a = splitSource(before).doc, b = splitSource(after).doc;
   const meta: DiagramMeta = { ...a.meta, canvas: { ...a.meta.canvas } };
   const canvas = meta.canvas as Record<string, unknown>;
-  for (const k of ['w', 'h', 'x', 'y', 'ratio', 'pad']) {
+  for (const k of PAGE_LAYOUT_KEYS) {
     if (b.meta.canvas[k] !== undefined) canvas[k] = b.meta.canvas[k];
     else delete canvas[k];
   }

@@ -7,7 +7,7 @@
 //                      theme the same shift is applied to that theme's "lime" ("=210" instead of a hue shift
 //                      when the palette colour is a grey: the hue is then kept as is).
 // Anything else ("none", "transparent", rgba(...)) passes through unchanged.
-import { COLOR_KEYS } from '../meta/sanitize.js';
+import { COLOR_KEYS } from '../meta/keys.js';
 import { isColorLiteral } from '../validate.js';
 import type { ResolvedTheme } from './types.js';
 

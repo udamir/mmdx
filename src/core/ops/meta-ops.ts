@@ -4,6 +4,7 @@
 import { KIND_INFO } from '../kinds/info.js';
 import { maxOf, minOf } from '../geom.js';
 import { activationsOf } from '../ids.js';
+import { classOf, COPY_KEYS as KEY_COPY, PLACE_KEYS } from '../meta/keys.js';
 import type { DiagramMeta, ItemMeta } from '../meta/types.js';
 import { COLLECTIONS, KIND_TO_COLL } from '../meta/types.js';
 import type { Direction, DiagramModel, FlowchartModel, SequenceModel } from '../model.js';
@@ -119,23 +120,17 @@ export function unlockAll(meta: DiagramMeta): MetaResult & { count: number } {
  */
 export function resetLayout(meta: DiagramMeta): MetaResult {
   const out = cloneMeta(meta);
-  for (const coll of ['nodes', 'entities', 'participants', 'groups'] as const)
-    for (const m of Object.values(out[coll] ?? {})) {
-      delete m.x;
-      delete m.y;
-      delete m.w;
-      delete m.h;
+  // every collection's manual places (meta/keys.ts PLACE_KEYS: positions, sizes, nudges, a mindmap branch's side, bend points)
+  for (const coll of COLLECTIONS) {
+    if (coll === 'layers') continue;
+    const c = out[coll] as Record<string, Record<string, unknown>> | undefined;
+    if (!c) continue;
+    for (const [id, m] of Object.entries(c)) {
+      for (const k of PLACE_KEYS) delete m[k];
+      if (!Object.keys(m).length) delete c[id];
     }
-  for (const coll of ['messages', 'notes', 'blocks'] as const) for (const m of Object.values(out[coll] ?? {})) delete m.dy;
-  for (const coll of ['edges', 'rels'] as const) for (const m of Object.values(out[coll] ?? {})) delete m.points;
-  delete out.canvas.w;
-  delete out.canvas.h;
-  delete out.canvas.x;
-  delete out.canvas.y;
-  for (const coll of ['nodes', 'entities', 'participants', 'groups', 'messages', 'notes', 'blocks'] as const) {
-    const c = out[coll];
-    if (c) for (const [id, m] of Object.entries(c)) if (!Object.keys(m).length) delete c[id];
   }
+  for (const k of ['w', 'h', 'x', 'y'] as const) delete out.canvas[k];
   return { meta: out };
 }
 
@@ -414,14 +409,11 @@ export function setStyle(meta: DiagramMeta, targets: readonly ItemRef[], patch: 
   return { meta: out };
 }
 
-/** Keys "Reset style" keeps: position, size, attachment and link (everything else is look). */
-export const LAYOUT_KEYS: readonly string[] = ['x', 'y', 'w', 'h', 'dy', 'locked', 'fromSide', 'toSide', 'fromAt', 'toAt', 'labelDx', 'labelDy', 'labelAt', 'link'];
-
-/** ⋮ → Reset style: drops every own style value of an item, keeping its layout. */
+/** ⋮ → Reset style: drops every own style value of an item (meta/keys.ts class `look`), keeping its layout, picture, state and unknown keys. */
 export function resetItemStyle(meta: DiagramMeta, { kind, id }: ItemRef): MetaResult {
   const out = cloneMeta(meta);
   const m = getM(out, kind, id);
-  const keep = Object.fromEntries(Object.entries(m).filter(([k]) => LAYOUT_KEYS.includes(k)));
+  const keep = Object.fromEntries(Object.entries(m).filter(([k]) => classOf(k) !== 'look'));
   setOwn((out[KIND_TO_COLL[kind]] ??= {}), id, keep);
   tidy(out, kind, id);
   return { meta: out };
@@ -441,12 +433,8 @@ export function resetCurve(meta: DiagramMeta, { kind, id }: ItemRef): MetaResult
 
 const SHAPE_KINDS: ReadonlySet<ItemKind> = new Set(['node', 'group', 'entity', 'participant', 'note', 'block']);
 const LINE_KINDS: ReadonlySet<ItemKind> = new Set(['edge', 'rel', 'message']);
-/** Everything that is "look", never position / size / links. */
-export const COPY_KEYS: readonly string[] = [
-  'preset', 'fill', 'stroke', 'strokeWidth', 'text', 'fontSize', 'fontWeight', 'radius', 'stack', 'dash', 'shape', 'color', 'width', 'arrow',
-  'labelColor', 'labelSize', 'curve', 'titleSize', 'titleColor', 'titleAlign', 'titleWeight', 'fillOpacity', 'strokeOpacity', 'fontFamily', 'align', 'valign', 'wrap',
-  'attrSize', 'attrColor', 'mode', 'showTypes', 'showComments', 'pkUnderline', 'labelOnLine', 'showTag', 'routing', 'startArrow', 'endArrow',
-];
+/** Everything Copy style copies (meta/keys.ts `copy`): look only, never position, size or links. */
+export const COPY_KEYS: readonly string[] = KEY_COPY;
 const SHAPE_COMMON = ['fill', 'stroke', 'strokeWidth', 'dash', 'radius', 'stack', 'fillOpacity', 'strokeOpacity', 'fontFamily'];
 const LINE_COMMON = ['color', 'width', 'dash', 'strokeOpacity', 'fontFamily', 'labelSize', 'labelColor', 'fontWeight'];
 /** Every style property that makes up an element's look (positions, links and attachment points excluded). */

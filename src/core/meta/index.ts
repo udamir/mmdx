@@ -20,7 +20,8 @@ import type { Collection, DiagramMeta, MetaKind } from './types.js';
 
 export * from './types.js';
 export { migrate } from './migrations.js';
-export { COLOR_KEYS, cleanStyleValue, sanitizeMeta, sanitizeStyleObject } from './sanitize.js';
+export { cleanStyleValue, sanitizeMeta, sanitizeStyleObject } from './sanitize.js';
+export { COLOR_KEYS } from './keys.js';
 
 export const META_HEADER = '%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----';
 const LINE = /^\s*%%@\s+([\w.]+)(?:\s+(\S+))?\s+(\{.*\})\s*$/;

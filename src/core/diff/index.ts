@@ -8,6 +8,7 @@
 //   style   — how things look: colours, fonts, presets, Mermaid classes and `style` / `classDef` / `linkStyle`
 // A node renamed with the same label and shape is reported as one changed item, and its edges follow it.
 import { splitSource } from '../meta/index.js';
+import { classOf } from '../meta/keys.js';
 import type { DiagramMeta } from '../meta/types.js';
 import type { DiagramModel } from '../model.js';
 import { withDiff } from '../kinds/registry.js';
@@ -41,7 +42,7 @@ export function diffModels(a: DiagramModel, b: DiagramModel, ma: DiagramMeta, mb
   const { theme: _ta, v: _va, ...ca } = ma.canvas;
   const { theme: _tb, v: _vb, ...cb } = mb.canvas;
   for (const k of new Set([...Object.keys(ca), ...Object.keys(cb)]))
-    field(doc, ['x', 'y', 'w', 'h', 'ratio', 'pad', 'gap', 'rowH', 'margin'].includes(k) ? 'layout' : 'style', `page ${k}`, ca[k], cb[k]);
+    field(doc, classOf(k, 'canvas') === 'layout' ? 'layout' : 'style', `page ${k}`, ca[k], cb[k]);
   for (const kind of new Set([...Object.keys(ma.styles), ...Object.keys(mb.styles)])) {
     const A = ma.styles[kind] ?? {}, B = mb.styles[kind] ?? {};
     for (const n of new Set([...Object.keys(A), ...Object.keys(B)])) field(doc, 'style', `${kind === 'palette' ? 'palette colour' : `${kind} preset`} ${n}`, A[n], B[n]);
