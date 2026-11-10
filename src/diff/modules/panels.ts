@@ -15,7 +15,7 @@ import { MENU_CSS } from '../../ui/blocks/menu.js';
 import { createVersionList, VERSION_LIST_CSS } from '../../ui/blocks/version-list.js';
 import { h } from '../../ui/h.js';
 import { I_code } from '../../ui/icons.js';
-import { computed, signal, untracked, type ReadSignal, type Signal } from '../../ui/signal.js';
+import { signal, untracked, type ReadSignal, type Signal } from '../../ui/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import type { ModuleScope, ViewModule } from '../../view/module.js';
 import { metaLines, relatedLines } from '../lines.js';
@@ -112,7 +112,7 @@ export function versionsModule(session: DiffSession, o: { dockButton?: boolean; 
       if (o.dockButton !== false) {
         const btn = dockButton({
           icon: I_HISTORY, label: t('diff.tool.history'), keys: 'v', class: 'vt-panel vt-history', f: 'panel-history',
-          pressed: computed(open), hidden: computed(() => !session.hasHistory()), onClick: toggle,
+          pressed: scope.computed(open), hidden: scope.computed(() => !session.hasHistory()), onClick: toggle,
         });
         scope.contribute(core.dockItems, { id: 'versions', section: 'panels', order: 10, el: btn.el });
         scope.onDispose(() => btn.destroy());
@@ -164,7 +164,7 @@ export function codeDiffModule(session: DiffSession): ViewModule<ViewCore> {
         closeLabel: t('diff.panel.hide'), closeKeys: 'c', onClose: () => void core.run('setPanel', 'code', false), body,
       });
       scope.contribute(core.panelItems, { id: 'code', side: 'left', order: 10, el: panel.el });
-      const btn = dockButton({ icon: I_code, label: t('diff.tool.code'), keys: 'c', class: 'vt-panel vt-code', f: 'panel-code', pressed: computed(open), onClick: toggle });
+      const btn = dockButton({ icon: I_code, label: t('diff.tool.code'), keys: 'c', class: 'vt-panel vt-code', f: 'panel-code', pressed: scope.computed(open), onClick: toggle });
       scope.contribute(core.dockItems, { id: 'code', section: 'panels', order: 20, el: btn.el });
       scope.shortcut({ id: 'code', keys: ['c'], label: t('diff.help.code'), group: t('diff.help.panels'), run: () => toggle() });
 

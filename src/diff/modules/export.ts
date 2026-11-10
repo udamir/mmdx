@@ -5,7 +5,7 @@
 // `openExport` and `renderActions` of elements/diff.ts.
 import { keepFocus } from '../../ui/blocks/focus.js';
 import { h } from '../../ui/h.js';
-import { computed, untracked, type ReadSignal } from '../../ui/signal.js';
+import { untracked, type ReadSignal } from '../../ui/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import type { ViewModule } from '../../view/module.js';
 import type { ExportFormat } from '../../view/types.js';
@@ -30,7 +30,7 @@ export function diffExportModule(session: DiffSession): ViewModule<ViewCore> {
       const core = scope.core;
       const t = core.i18n.t;
       const run = (kind: DiffExportKind, o?: DiffExportOptions) => (): Promise<void> => session.exportAs(kind, o);
-      const formats = computed((): ExportFormat[] => {
+      const formats = scope.computed((): ExportFormat[] => {
         const version = session.viewOnly();
         return [
           { id: 'png', label: t('diff.export.image'), section: 'image', run: run('png') },

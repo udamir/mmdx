@@ -135,6 +135,7 @@ export function layersCard(core: EditorCore): LayersCard {
       list.destroy();
       labels.dispose();
       hover.dispose();
+      animate.dispose();
     },
   };
 }

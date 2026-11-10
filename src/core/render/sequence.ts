@@ -35,7 +35,8 @@ import {
 import { decorate, decorated, decoratedSize, decoration, lazyKit, type Decoration } from './decorate.js';
 import { assetBox, captionY, mediaAssetNodes, mediaLayout, type MediaBox, type MediaSource } from './media-node.js';
 import { metaMediaSource } from '../ops/meta-media.js';
-import type { BoxGeom, SequenceGeometry } from './types.js';
+import type { BoxGeom, RenderContext, SequenceGeometry } from './types.js';
+import type { Rect } from '../types.js';
 import { dashAttrs } from './dash.js';
 import { minOf } from '../geom.js';
 
@@ -785,26 +786,8 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
   };
 
   // the diagram's `title` (parsed but never drawn by the prototype, A.13): a page title above the participants
-  const title = (model.title ?? '').trim();
-  if (title) {
-    const lines = title.split('\n');
-    const size = 22, lh = 1.3;
-    const blockH = lines.length * size * lh;
-    const titleH = blockH + 14;
-    bounds.y -= titleH;
-    bounds.h += titleH;
-    // a title wider than the participants widens the page around it, as the other types do (B24)
-    const tw = textBlockWidth(lines, font(size, 600, family), ctx.measure);
-    if (tw + 2 * pad > bounds.w) {
-      bounds.x -= (tw + 2 * pad - bounds.w) / 2;
-      bounds.w = tw + 2 * pad;
-    }
-    body.unshift(
-      g({ class: 'title', 'data-part': 'title' }, [
-        textBlock(lines, bounds.x + bounds.w / 2, bounds.y + pad + blockH / 2, { size, weight: 600, color: ctx.color('@title') ?? '#333', family }),
-      ], { key: 'title' }),
-    );
-  }
+  const titleNode = pageTitle((model.title ?? '').trim(), bounds, pad, family, ctx);
+  if (titleNode) body.unshift(titleNode);
 
   const geom: SequenceGeometry = {
     type: 'sequence',
@@ -866,3 +849,25 @@ function menuAttr(ctx: RenderEnv['ctx'], p: Participant): Record<string, string>
 }
 
 const toNum = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+
+/**
+ * The page title above the diagram: grows the bounds upwards by its height and, when it is wider than the diagram,
+ * sideways around it, as the other types do (B24).
+ */
+function pageTitle(title: string, bounds: Rect, pad: number, family: string, ctx: RenderContext): SceneNode | null {
+  if (!title) return null;
+  const lines = title.split('\n');
+  const size = 22, lh = 1.3;
+  const blockH = lines.length * size * lh;
+  const titleH = blockH + 14;
+  bounds.y -= titleH;
+  bounds.h += titleH;
+  const tw = textBlockWidth(lines, font(size, 600, family), ctx.measure);
+  if (tw + 2 * pad > bounds.w) {
+    bounds.x -= (tw + 2 * pad - bounds.w) / 2;
+    bounds.w = tw + 2 * pad;
+  }
+  return g({ class: 'title', 'data-part': 'title' }, [
+    textBlock(lines, bounds.x + bounds.w / 2, bounds.y + pad + blockH / 2, { size, weight: 600, color: ctx.color('@title') ?? '#333', family }),
+  ], { key: 'title' });
+}

@@ -1,9 +1,5 @@
 # Module rule violations — baseline of today's violations (2026-11-11, e726eb1); may only shrink. See tools/check-layers.mjs.
-diff/modules/bar.ts: bare computed ×2
-diff/modules/bar.ts: bare core.on ×2
 diff/modules/bar.ts: kernel DOM ×4
-diff/modules/export.ts: bare computed ×1
-diff/modules/panels.ts: bare computed ×3
 diff/modules/panels.ts: kernel DOM ×1
 diff/modules/stage.ts: kernel DOM ×4
 editor/modules/canvas/empty.ts: bare core.on ×3
