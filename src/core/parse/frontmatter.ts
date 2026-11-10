@@ -24,6 +24,15 @@ export function frontmatterValues(lines: readonly string[]): Map<string, string>
   return out;
 }
 
+/** The frontmatter's `---` lines (indexes), when the first non-blank line opens one and a later line closes it. */
+export function frontmatterAt(lines: readonly string[]): { start: number; end: number } | null {
+  let start = 0;
+  while (start < lines.length && !lines[start]!.trim()) start++;
+  if (start >= lines.length || !/^\s*---\s*$/.test(lines[start]!)) return null;
+  for (let end = start + 1; end < lines.length; end++) if (/^\s*---\s*$/.test(lines[end]!)) return { start, end };
+  return null;
+}
+
 /**
  * The fix of a `title` statement (`flow.title-statement`, `er.title-statement`): the statement on line `li` becomes
  * the frontmatter's `title:` (added to the frontmatter there is, else a new one before the header).

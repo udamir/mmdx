@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 import type { SeqMessage, SequenceModel } from '../../../src/core/model.js';
 import { ARROW_KINDS, lexDecl, lexMessage, messageNumbers, parseSequence, shapeType } from '../../../src/core/parse/sequence.js';
 import { stockResults } from '../../helpers/mermaid.js';
+import { parse } from '../../../src/core/parse/index.js';
 
 const P = (src: string) => parseSequence(`sequenceDiagram\n${src}`);
 const msgs = (m: SequenceModel): SeqMessage[] => m.items.filter((i): i is SeqMessage => i.kind === 'message');
@@ -351,4 +352,24 @@ describe('sequence: the model against Mermaid\'s SequenceDB (12.2 and 11.17)', (
       expect(m.participants.filter((p) => p.createdBy).map((p) => [p.id, p.createdBy])).toEqual([...db.getCreatedActors()].map(([id, i]) => [id, at(i)]));
       expect(m.participants.filter((p) => p.destroyedBy).map((p) => [p.id, p.destroyedBy])).toEqual([...db.getDestroyedActors()].map(([id, i]) => [id, at(i)]));
     });
+});
+
+describe('frontmatter (B13)', () => {
+  it('is skipped, with no warnings, and its title is the diagram title', () => {
+    const m = parse('---\ntitle: Checkout\nconfig:\n  sequence:\n    mirrorActors: false\n---\nsequenceDiagram\n  A->>B: hi\n');
+    if (m.type !== 'sequence') throw new Error('not a sequence diagram');
+    expect(m.diagnostics.filter((d) => d.code === 'seq.cannot-parse')).toEqual([]);
+    expect(m.title).toBe('Checkout');
+    expect(m.participants.map((p) => p.id)).toEqual(['A', 'B']);
+  });
+
+  it('a title statement wins over the frontmatter title', () => {
+    const m = parse('---\ntitle: Front\n---\nsequenceDiagram\n  title Statement\n  A->>B: hi\n');
+    expect(m.type === 'sequence' && m.title).toBe('Statement');
+  });
+
+  it('a `---` line that is not first is not frontmatter', () => {
+    const m = parse('sequenceDiagram\n---\nA->>B: hi\n---\n');
+    expect(m.type === 'sequence' && m.participants.map((p) => p.id)).toEqual(['A', 'B']);
+  });
 });

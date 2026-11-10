@@ -22,6 +22,7 @@ import { diag } from '../types.js';
 import { isColorLiteral } from '../validate.js';
 import { cleanLabel } from './label.js';
 import { readAccDescrBlock } from './acc-descr.js';
+import { frontmatterAt, frontmatterValues } from './frontmatter.js';
 import { guardParse, ItemBudget, stripControl } from './limits.js';
 import { readNodeData, type NodeDataBlock } from './node-data.js';
 
@@ -323,7 +324,11 @@ function readSequence(code: string): SequenceModel {
   const cannot = (t: string, li: number): void => { D.push(diag('warning', 'seq.cannot-parse', `cannot parse "${t}"`, li)); };
 
   const lines = code.split('\n');
-  for (let li = 0; li < lines.length && !budget.over; li++) {
+  // the frontmatter (`---` … `---` before anything else): its `title` is the diagram's unless a statement sets one;
+  // the rest (`config:` …) is Mermaid's and not read here (B13)
+  const front = frontmatterAt(lines);
+  const fmTitle = front ? frontmatterValues(lines.slice(front.start + 1, front.end)).get('title') : undefined;
+  for (let li = front ? front.end + 1 : 0; li < lines.length && !budget.over; li++) {
     curLine = li;
     const raw = lines[li] ?? '';
     const t = raw.trim();
@@ -495,6 +500,7 @@ function readSequence(code: string): SequenceModel {
     }
     cannot(t, li);
   }
+  if (fmTitle && !model.title) model.title = stripControl(fmTitle);
   return model;
 }
 
