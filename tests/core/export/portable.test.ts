@@ -77,6 +77,15 @@ describe('toPortableMermaid', () => {
     expect(out).toMatch(/^linkStyle 0 /m);
   });
 
+  it('uses the renderer\'s layers: the diagram\'s _base styles reach the output (B14)', () => {
+    const code = 'flowchart LR\n  A --> B\n';
+    const meta = { ...emptyMeta(), styles: { node: { _base: { fill: '#123456' } }, edge: { _base: { color: '#654321' } } } };
+    const theme = registry.get('default-light');
+    const out = toPortableMermaid(code, meta, parse(code), theme, createColorResolver(theme));
+    expect(out).toMatch(/^classDef studioDefault .*fill:#123456/m);
+    expect(out).toMatch(/^linkStyle 0 .*stroke:#654321/m);
+  });
+
   it('strips %%@ lines left in the code; sequence / ER pass through', () => {
     const src = 'sequenceDiagram\n  A->>B: x\n%%@ message m1 {"color":"@lime"}\n';
     expect(stripMetaLines(src)).toBe('sequenceDiagram\n  A->>B: x\n');

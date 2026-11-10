@@ -23,7 +23,7 @@ import {
 import type { BoxGeom, EdgeGeom, FlowGeometry, Port } from './types.js';
 import { onOutline } from '../shapes/outline.js';
 import type { ResolvedTheme } from '../theme/types.js';
-import { byShapeId, shapeDef } from '../shapes/registry.js';
+import { shapeDef } from '../shapes/registry.js';
 import type { ShapeDef } from '../shapes/types.js';
 import type { Rect } from '../types.js';
 
@@ -31,6 +31,7 @@ import type { Rect } from '../types.js';
 // base) does not load the renderer
 export { edgeMeta, edgePreset, flowPresets, groupPreset, nodePreset, presetShape, type FlowPresets } from './flow-presets.js';
 import { edgeMeta, edgePreset, flowPresets, groupPreset, nodePreset, type FlowPresets } from './flow-presets.js';
+import { edgeStyleLayers, flowNodeShape, groupStyleLayers, nodeStyleLayers } from './flow-style.js';
 import { dashAttrs } from './dash.js';
 import { assetBox, captionY, mediaAssetNodes, mediaLayout, mediaPort, type MediaBox, type MediaSource } from './media-node.js';
 
@@ -119,7 +120,6 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
 
   // ---- resolve node styles & sizes
   const nodes = new Map<string, NodeItem>();
-  const shapeStyles = byShapeId(F.nodeShapes);
 
   /** The last stroke the code gives (classes, then `style`): a monochrome icon's colour, as in Mermaid. */
   const codeColor = (layers: readonly (MermaidStyle | undefined)[]): string | undefined => {
@@ -132,7 +132,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
   const mediaNode = (n: FlowNode, nm: ItemMeta, preset: string, classes: readonly (MermaidStyle | undefined)[], line: number | null): NodeItem => {
     const d = n.data ?? {};
     const kind = d.img != null ? 'image' : 'icon';
-    const st = mergeStyle(ctx, F.node, shapeStyles?.[kind], baseStyle(meta, 'node'), presetOf(P.node, preset), ...classes, n.style, pickStyle(nm));
+    const st = mergeStyle(ctx, ...nodeStyleLayers(T, meta, P, kind, preset), ...classes, n.style, pickStyle(nm));
     st.shape = kind;
     const fontSize = st.fontSize ?? 14;
     const fnt = font(fontSize, st.fontWeight, st.fontFamily || family);
@@ -159,9 +159,9 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     }
     // the shape first: each shape has its own default style in the theme (flowchart.nodeShapes.<shape>); names resolve
     // through the catalogue (a Mermaid name in metadata or a preset is the same shape)
-    const def = shapeDef(str(nm.shape) || pst?.shape || (n.shape !== 'rect' ? n.shape : F.node.shape || 'rect'));
-    const shape = def.id;
-    const st = mergeStyle(ctx, F.node, shapeStyles?.[shape], baseStyle(meta, 'node'), pst, defaultClass, ...classDefs, n.style, pickStyle(nm));
+    const shape = flowNodeShape(n, nm, pst, F);
+    const def = shapeDef(shape);
+    const st = mergeStyle(ctx, ...nodeStyleLayers(T, meta, P, shape, preset), defaultClass, ...classDefs, n.style, pickStyle(nm));
     st.shape = shape;
     const fontSize = st.fontSize ?? 14, padX = st.padX ?? 0, padY = st.padY ?? 0;
     const fnt = font(fontSize, st.fontWeight, st.fontFamily || family);
@@ -235,7 +235,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     const preset = groupPreset(g, meta, P);
     // classes on a subgraph (`class s1 c`) style its frame, as in Mermaid
     const classDefs = (g.classes ?? []).filter((c) => !presetOf(P.group, c)).map((c) => model.classDefs[c]);
-    const st = mergeStyle(ctx, F.group, baseStyle(meta, 'group'), presetOf(P.group, preset), ...classDefs, g.style, pickStyle(gm));
+    const st = mergeStyle(ctx, ...groupStyleLayers(env.theme, meta, P, preset), ...classDefs, g.style, pickStyle(gm));
     const tfont = font(st.titleSize ?? 14, st.titleWeight, st.fontFamily || family);
     const T = (g.label || '').trim() ? labelLines(g.label, g.md, tfont, st.titleColor, g.line, 0, wrapWidth) : null;
     const fx = metaNum(gm.x), fy = metaNum(gm.y), fw = metaNum(gm.w), fh = metaNum(gm.h);
@@ -388,7 +388,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     const preset = edgePreset(e, meta, P);
     const ls = model.linkStyles[String(e.index)] ?? model.linkStyles['default'];
     const lsMapped = ls ? { color: ls.stroke, width: ls.strokeWidth, dash: ls.dash, labelColor: ls.text } : null;
-    const st = mergeStyle(ctx, F.edge, baseStyle(meta, 'edge'), presetOf(P.edge, preset), lsMapped, pickStyle(em));
+    const st = mergeStyle(ctx, ...edgeStyleLayers(T, meta, P, preset), lsMapped, pickStyle(em));
     const isHidden =
       hiddenNodes.has(e.from) || hiddenNodes.has(e.to) || groupHidden.has(e.from) || groupHidden.has(e.to) || hidden.edge.has(e.id);
     edgeItems.push({ e, m: em, st, preset, a, b, hidden: isHidden, points: metaPoints(em.points) });
