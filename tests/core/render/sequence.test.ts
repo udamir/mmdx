@@ -150,3 +150,14 @@ describe('golden SVG: sequence features (T11.1)', () => {
     expect(g.participantFeet.get('J')!.y).toBeLessThan(g.participantFeet.get('U')!.y);
   });
 });
+
+describe('the title (B24)', () => {
+  it('a title wider than the participants widens the page instead of being clipped', () => {
+    const title = 'A long title for a diagram of only two participants, much wider than they are '.repeat(3).trim();
+    const without = renderProd('sequenceDiagram\n  A->>B: hi\n').result.bounds;
+    const withTitle = renderProd(`sequenceDiagram\n  title ${title}\n  A->>B: hi\n`).result.bounds;
+    expect(withTitle.w).toBeGreaterThan(without.w + 100);
+    // centred: the page grows on both sides
+    expect(withTitle.x).toBeLessThan(without.x);
+  });
+});

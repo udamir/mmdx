@@ -793,6 +793,12 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     const titleH = blockH + 14;
     bounds.y -= titleH;
     bounds.h += titleH;
+    // a title wider than the participants widens the page around it, as the other types do (B24)
+    const tw = textBlockWidth(lines, font(size, 600, family), ctx.measure);
+    if (tw + 2 * pad > bounds.w) {
+      bounds.x -= (tw + 2 * pad - bounds.w) / 2;
+      bounds.w = tw + 2 * pad;
+    }
     body.unshift(
       g({ class: 'title', 'data-part': 'title' }, [
         textBlock(lines, bounds.x + bounds.w / 2, bounds.y + pad + blockH / 2, { size, weight: 600, color: ctx.color('@title') ?? '#333', family }),
