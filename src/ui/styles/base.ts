@@ -74,7 +74,7 @@ button.ghost { border-color: transparent; background: transparent; }
 button.ghost:hover:not(:disabled) { background: var(--mmdx-surface-2); border-color: transparent; }
 button.on { background: var(--mmdx-accent-2); color: var(--mmdx-accent); border-color: transparent; }
 button.danger { color: var(--mmdx-danger); }
-select, input[type=text], input[type=number], input[type=search], input:not([type]) {
+select, input[type=text], input[type=number], input[type=search], input[type=url], input:not([type]) {
   border: 1px solid var(--mmdx-border); border-radius: var(--mmdx-radius-sm); padding: 3px 6px; background: var(--mmdx-surface);
 }
 kbd {

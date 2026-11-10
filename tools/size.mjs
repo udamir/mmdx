@@ -306,7 +306,8 @@ const rows = [
   // 95.8 kB with flowchart content (T06, 95.4 kB measured)
   // 96.4 kB with mindmaps (T08, 96 kB measured)
   // 97 kB with state diagrams (T09, 96.6 kB measured)
-  ['diff', ['src/diff.ts'], 97],
+  // 97.4 kB with the URL field's base input style (97 kB measured)
+  ['diff', ['src/diff.ts'], 97.4],
   // a flowchart pair with the default panels (the change list) and the flowchart's diff kind; 128 kB with the shape catalogue (127.6 kB measured); 124 kB once the shapes beyond the 17 load on demand (T02.9, 123.6 kB measured)
   // 125 kB with media in the scene (T03, 124.6 kB measured); 127.7 kB with the icon registry (T04, 127.3 kB measured)
   // 133.1 kB with flowchart content (T06, 132.7 kB measured: the flowchart's parser and renderer)
