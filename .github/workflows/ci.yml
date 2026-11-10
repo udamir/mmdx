@@ -1,7 +1,8 @@
 name: CI
 on:
   push:
-    branches: [master]
+    # `next` and the refactoring branches run the guard rails (tests/arch) on every push, not only when a PR opens
+    branches: [master, next, 'refactor/**']
   pull_request:
 
 permissions:
