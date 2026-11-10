@@ -34,6 +34,13 @@ export const ADVERSARIAL: readonly AdversarialCase[] = [
   { name: 'ER: random tokens', make: (n) => `erDiagram\n${noise('ab {}|o-.:" \n', n)}\n` },
   { name: 'mindmap: one long line', make: (n) => `mindmap\n  root\n    ${rep('a ', n)}\n` },
   { name: 'mindmap: deep nesting', make: (n) => `mindmap\n${Array.from({ length: Math.min(2000, n / 40) }, (_, i) => `${' '.repeat(i % 200)}n${i}`).join('\n')}\n` },
+  // B2: a statement left open was re-scanned in full after every line appended to it
+  { name: 'flowchart: unclosed markdown string', make: (n) => `flowchart TD\n  A["\`x\n${rep('some words\n', n)}` },
+  { name: 'flowchart: unclosed node data', make: (n) => `flowchart TD\n  A@{ label: x\n${rep('some words\n', n)}` },
+  { name: 'flowchart: unclosed accDescr', make: (n) => `flowchart TD\n  accDescr {\n${rep('some words\n', n)}` },
+  { name: 'sequence: unclosed accDescr', make: (n) => `sequenceDiagram\n  accDescr {\n${rep('some words\n', n)}` },
+  { name: 'flowchart: one long line', make: (n) => `flowchart TD\n  ${rep('A-->B ', n)}\n` },
+  { name: 'sequence: one long message', make: (n) => `sequenceDiagram\n  A->>B: ${rep('x ', n)}\n` },
   // B3: a long multi-line note (a spread over its lines threw)
   { name: 'state: a long note', make: (n) => `stateDiagram-v2\nnote left of A\n${rep('  x\n', n)}end note\n` },
 ];
@@ -45,4 +52,7 @@ export const ADVERSARIAL: readonly AdversarialCase[] = [
 export const OVER_LIMIT: readonly (AdversarialCase & { n: number })[] = [
   // every unclosed multi-line note read on to the end of the source
   { name: 'state: many unclosed notes', n: 400_000, make: (n) => `stateDiagram-v2\n${rep('note left of a\n', n)}` },
+  // a statement joined over lines is capped at MAX_STATEMENT_LENGTH
+  { name: 'flowchart: a markdown string over 64 KiB of lines', n: 100_000, make: (n) => `flowchart TD\n  A["\`x\n${rep('some words\n', n)}` },
+  { name: 'sequence: an accDescr over 64 KiB of lines', n: 100_000, make: (n) => `sequenceDiagram\n  accDescr {\n${rep('some words\n', n)}` },
 ];

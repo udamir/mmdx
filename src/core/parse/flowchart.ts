@@ -11,7 +11,8 @@ import { frontmatterValues, titleToFrontmatter } from './frontmatter.js';
 
 export { titleToFrontmatter } from './frontmatter.js';
 import { cleanLabel, encodeLabel, isMarkdownString, markdownText } from './label.js';
-import { ItemBudget, stripControl } from './limits.js';
+import { readAccDescrBlock } from './acc-descr.js';
+import { checkStatement, guardParse, ItemBudget, stripControl } from './limits.js';
 import { applySplices, openBlock, readNodeData, type NodeDataBlock, type Splice } from './node-data.js';
 import { parseStyleList } from './style.js';
 
@@ -199,7 +200,62 @@ function openMarkdown(s: string): boolean {
   return open;
 }
 
+/**
+ * Whether a statement is still open — a node data block (`@{` outside double quotes, up to its `}` outside quotes) or
+ * a markdown string (`"\`` … `\`"`) — read line by line: each line is scanned once, with the state carried over, so
+ * a statement left open over many lines costs linear time (B2). Same answers as `openBlock` / `openMarkdown` over the
+ * lines joined with `\n`.
+ */
+class OpenScan {
+  private q = false;
+  private block = false;
+  private bq = false;
+  private md = false;
+
+  feed(line: string): this {
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (!this.block) {
+        if (c === '"') this.q = !this.q;
+        else if (!this.q && c === '@' && line[i + 1] === '{') {
+          this.block = true;
+          this.bq = false;
+          i++;
+        }
+      } else if (c === '"') this.bq = !this.bq;
+      else if (c === '}' && !this.bq) this.block = false;
+    }
+    for (let i = 0; i < line.length - 1; i++) {
+      if (!this.md && line[i] === '"' && line[i + 1] === '`') { this.md = true; i++; }
+      else if (this.md && line[i] === '`' && line[i + 1] === '"') { this.md = false; i++; }
+    }
+    return this;
+  }
+
+  get open(): boolean {
+    return this.block || this.md;
+  }
+}
+
+/** The statement opened on line `li`, joined with the lines up to where it closes (or the end), and its last line. */
+function joinOpen(first: string, lines: readonly string[], li: number): { raw: string; last: number } {
+  const scan = new OpenScan().feed(first), parts = [first];
+  let length = first.length;
+  while (li + 1 < lines.length && scan.open) {
+    const l = lines[++li] ?? '';
+    parts.push(l);
+    scan.feed(l);
+    checkStatement((length += l.length + 1));
+  }
+  return { raw: parts.join('\n'), last: li };
+}
+
+/** Never throws: a statement past `MAX_STATEMENT_LENGTH` gives an empty model with `doc.too-complex`. */
 export function parseFlowchart(code: string): FlowchartModel {
+  return guardParse(emptyFlowchart, () => readFlowchart(code));
+}
+
+function readFlowchart(code: string): FlowchartModel {
   const model = emptyFlowchart();
   const D = model.diagnostics;
   const budget = new ItemBudget(D);
@@ -613,15 +669,15 @@ export function parseFlowchart(code: string): FlowchartModel {
     // `accDescr { … }`: a description over several lines, up to the first `}` (F1: its lines are not statements)
     const ad = /^accDescr\s*\{(.*)$/.exec(t0);
     if (ad) {
-      let body = ad[1] ?? '';
-      while (!body.includes('}') && li + 1 < lines.length) body += '\n' + (lines[++li] ?? '');
-      model.accDescr = body.slice(0, body.includes('}') ? body.indexOf('}') : undefined).split('\n').map((l) => stripControl(l).trim()).filter(Boolean).join('\n');
+      const r = readAccDescrBlock(ad[1] ?? '', lines, li);
+      model.accDescr = r.text;
+      li = r.last;
       continue;
     }
     // a node data block or a markdown string written over several lines: its statement goes on until it closes
     const first = li;
     if (!t0.startsWith('%%') && (openBlock(t0) || openMarkdown(t0))) {
-      while (li + 1 < lines.length && (openBlock(raw.trim()) || openMarkdown(raw))) raw += '\n' + (lines[++li] ?? '');
+      ({ raw, last: li } = joinOpen(raw, lines, li));
       t0 = raw.trim();
     }
     const lineBase = (lineStart[first] ?? 0) + (raw.length - raw.trimStart().length);

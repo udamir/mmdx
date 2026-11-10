@@ -21,7 +21,8 @@ import type {
 import { diag } from '../types.js';
 import { isColorLiteral } from '../validate.js';
 import { cleanLabel } from './label.js';
-import { ItemBudget, stripControl } from './limits.js';
+import { readAccDescrBlock } from './acc-descr.js';
+import { guardParse, ItemBudget, stripControl } from './limits.js';
 import { readNodeData, type NodeDataBlock } from './node-data.js';
 
 // ---- arrows ---------------------------------------------------------------------------------------------------
@@ -277,7 +278,12 @@ function boxColor(rest: string): { color: string | null; label: string; bad?: st
 /** Mermaid's text of `link` / `links` (its sanitizer leaves these two entities for the URLs). */
 const linkText = (s: string): string => s.replace(/&equals;/g, '=').replace(/&amp;/g, '&');
 
+/** Never throws: a statement past `MAX_STATEMENT_LENGTH` gives an empty model with `doc.too-complex`. */
 export function parseSequence(code: string): SequenceModel {
+  return guardParse(emptySequence, () => readSequence(code));
+}
+
+function readSequence(code: string): SequenceModel {
   const model = emptySequence();
   const D = model.diagnostics;
   const budget = new ItemBudget(D);
@@ -337,9 +343,9 @@ export function parseSequence(code: string): SequenceModel {
     if ((m = /^accDescr\s*:\s*(.*)$/.exec(t))) { model.accDescr = stripControl(m[1] ?? '').trim(); continue; }
     if ((m = /^accDescr\s*\{(.*)$/.exec(t))) {
       // `accDescr { … }`: the description runs over the lines up to the first `}`
-      let body = m[1] ?? '';
-      while (!body.includes('}') && li + 1 < lines.length) body += '\n' + (lines[++li] ?? '');
-      model.accDescr = body.slice(0, body.includes('}') ? body.indexOf('}') : undefined).split('\n').map((l) => stripControl(l).trim()).filter(Boolean).join('\n');
+      const r = readAccDescrBlock(m[1] ?? '', lines, li);
+      model.accDescr = r.text;
+      li = r.last;
       continue;
     }
     const decl = lexDecl(raw);
