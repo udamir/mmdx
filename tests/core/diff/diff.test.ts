@@ -91,3 +91,27 @@ describe('diff transforms', () => {
     expect(splitSource(withLayoutOf(a, b)).doc.meta.nodes?.['desktop']).toEqual({ x: 665, y: 110, w: 150, h: 60 });
   });
 });
+
+describe('flowchart node data (B5)', () => {
+  const node = (d: ReturnType<typeof diffDiagrams>, id: string) => d.items.find((i) => i.kind === 'node' && i.id === id);
+
+  it('an image URL change is a content change', () => {
+    const d = diffDiagrams('flowchart LR\n  A@{ img: "a.png" }\n', 'flowchart LR\n  A@{ img: "b.png" }\n');
+    expect(node(d, 'A')?.fields).toEqual([{ facet: 'content', field: 'image', before: 'a.png', after: 'b.png' }]);
+  });
+
+  it('an icon change is a content change', () => {
+    const d = diffDiagrams('flowchart LR\n  A@{ icon: "fa:user" }\n', 'flowchart LR\n  A@{ icon: "fa:car" }\n');
+    expect(node(d, 'A')?.facets).toEqual(['content']);
+  });
+
+  it('the frame of an image node is layout', () => {
+    const d = diffDiagrams('flowchart LR\n  A@{ img: "a.png", pos: "t", h: 60 }\n', 'flowchart LR\n  A@{ img: "a.png", pos: "b", h: 90 }\n');
+    expect(node(d, 'A')?.fields.map((f) => [f.facet, f.field])).toEqual([['layout', 'image frame']]);
+  });
+
+  it('an edge animation change is a style change', () => {
+    const d = diffDiagrams('flowchart LR\n  A e1@--> B\n  e1@{ animate: true }\n', 'flowchart LR\n  A e1@--> B\n');
+    expect(d.items.find((i) => i.kind === 'edge')?.fields.map((f) => f.field)).toEqual(['animation']);
+  });
+});

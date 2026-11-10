@@ -1,8 +1,8 @@
 // The flowchart diff (the view kind's `diff`: items matched by identity, or by aligning positional ones, each change put into one
 // facet) and its merged picture (`merge`: the after version plus the removed items, changed text marked word by word).
 import type { DiagramMeta } from '../meta/types.js';
-import type { FlowEdge, FlowGroup, FlowNode, FlowchartModel } from '../model.js';
-import { isEmpty, field, metaFields, mermaidStyleOf, finish, added, removed, changedPresets, align, renames } from './kit.js';
+import type { FlowEdge, FlowEdgeData, FlowGroup, FlowNode, FlowNodeData, FlowchartModel } from '../model.js';
+import { isEmpty, field, metaFacet, metaFields, mermaidStyleOf, finish, added, removed, changedPresets, align, renames } from './kit.js';
 import type { FieldChange, ItemChange } from './types.js';
 import { carryMeta, changedField, REMOVED, type MergeEnv } from './merge.js';
 import { mergeText } from './text.js';
@@ -13,6 +13,22 @@ const edgeName = (e: FlowEdge, m: FlowchartModel): string => {
   const n = (id: string) => m.nodes.get(id)?.label || m.groups.get(id)?.label || id;
   return `${n(e.from)} → ${n(e.to)}${e.label ? ` (${e.label})` : ''}`;
 };
+
+/** The image frame of an icon or image node, as one change (the keys of a metadata image's frame, meta/keys.ts). */
+const FRAME_KEYS = ['pos', 'w', 'h', 'form', 'constraint'] as const;
+
+/**
+ * An icon or image node's data (B5): its picture and icon are content, its frame (caption side, size, icon form,
+ * aspect lock) layout — the facets the same keys have in metadata.
+ */
+function nodeDataFields(f: FieldChange[], a: FlowNodeData | undefined, b: FlowNodeData | undefined): void {
+  field(f, metaFacet('img')!, 'image', a?.img, b?.img);
+  field(f, metaFacet('icon')!, 'icon', a?.icon, b?.icon);
+  const frame = (d: FlowNodeData | undefined) => (d && FRAME_KEYS.some((k) => d[k] !== undefined) ? Object.fromEntries(FRAME_KEYS.map((k) => [k, d[k]])) : undefined);
+  field(f, 'layout', 'image frame', frame(a), frame(b));
+}
+
+const edgeAnimation = (d: FlowEdgeData | undefined): string | undefined => (d?.animate ? d.animation ?? 'on' : undefined);
 
 export function diffFlowchart(a: FlowchartModel, b: FlowchartModel, ma: DiagramMeta, mb: DiagramMeta, items: ItemChange[], doc: FieldChange[]): void {
   field(doc, 'layout', 'direction', a.direction, b.direction);
@@ -35,6 +51,7 @@ export function diffFlowchart(a: FlowchartModel, b: FlowchartModel, ma: DiagramM
     field(f, 'content', 'shape', na.shape, nb.shape);
     field(f, 'content', 'group', na.parent ? toAfter(na.parent) : null, nb.parent);
     field(f, 'content', 'link', na.link, nb.link);
+    nodeDataFields(f, na.data, nb.data);
     field(f, 'style', 'classes', na.classes, nb.classes);
     field(f, 'style', 'Mermaid style', mermaidStyleOf(na.classes, na.style, a.classDefs), mermaidStyleOf(nb.classes, nb.style, b.classDefs));
     metaFields(f, ma.nodes?.[na.id], mb.nodes?.[nb.id], nodePresets);
@@ -82,6 +99,8 @@ export function diffFlowchart(a: FlowchartModel, b: FlowchartModel, ma: DiagramM
     field(f, 'content', 'arrow heads', `${ea.start}/${ea.end}`, `${eb.start}/${eb.end}`);
     field(f, 'layout', 'min length', ea.minlen, eb.minlen);
     field(f, 'style', 'linkStyle', linkStyle(a, ea), linkStyle(b, eb));
+    field(f, 'style', 'animation', edgeAnimation(ea.data), edgeAnimation(eb.data));
+    field(f, 'style', 'curve', ea.data?.curve, eb.data?.curve);
     metaFields(f, ma.edges?.[ea.id], mb.edges?.[eb.id], edgePresets);
     items.push(finish('edge', eb.id, edgeName(eb, b), f, ea.id));
   }
