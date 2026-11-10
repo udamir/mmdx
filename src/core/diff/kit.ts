@@ -23,7 +23,24 @@ export function metaFacet(k: string): ChangeFacet | null {
 
 // ---- helpers ----------------------------------------------------------------------------------------------------
 
-export const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+/**
+ * Structural equality of two values read from documents (B12): objects compare as key sets (a reordered `style`,
+ * `classDef` or nested canvas key is no change), arrays in order; a key set to `undefined` is the same as no key, as it
+ * is once written.
+ */
+export function same(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return Number.isNaN(a) && Number.isNaN(b);
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (!same(a[i], b[i])) return false;
+    return true;
+  }
+  const A = a as Record<string, unknown>, B = b as Record<string, unknown>;
+  for (const k of Object.keys(A)) if (A[k] !== undefined && !same(A[k], B[k])) return false;
+  for (const k of Object.keys(B)) if (B[k] !== undefined && A[k] === undefined) return false;
+  return true;
+}
 
 export const isEmpty = (o: object | undefined): boolean => !o || Object.keys(o).length === 0;
 

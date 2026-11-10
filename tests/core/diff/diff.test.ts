@@ -115,3 +115,24 @@ describe('flowchart node data (B5)', () => {
     expect(d.items.find((i) => i.kind === 'edge')?.fields.map((f) => f.field)).toEqual(['animation']);
   });
 });
+
+describe('structural equality (B12)', () => {
+  it('reordered style keys, classDef keys and nested canvas keys are no change', () => {
+    const a = 'flowchart LR\n  A\n  classDef hot fill:#f00,stroke:#000\n  style A fill:#0f0,stroke:#00f\n';
+    const b = 'flowchart LR\n  A\n  classDef hot stroke:#000,fill:#f00\n  style A stroke:#00f,fill:#0f0\n';
+    const d = diffDiagrams(a, b);
+    expect(d.items.every((i) => i.status === 'unchanged')).toBe(true);
+    expect(d.doc).toEqual([]);
+    const m = (o: string) => `flowchart LR\n  A\n%%@ canvas ${o}\n`;
+    expect(diffDiagrams(m('{"future":{"a":1,"b":2}}'), m('{"future":{"b":2,"a":1}}')).doc).toEqual([]);
+  });
+
+  it('same() still tells arrays in order and real changes apart', async () => {
+    const { same } = await import('../../../src/core/diff/kit.js');
+    expect(same([1, 2], [2, 1])).toBe(false);
+    expect(same({ a: 1, b: undefined }, { a: 1 })).toBe(true);
+    expect(same({ a: { x: 1 } }, { a: { x: 2 } })).toBe(false);
+    expect(same(NaN, NaN)).toBe(true);
+    expect(same(null, undefined)).toBe(false);
+  });
+});
