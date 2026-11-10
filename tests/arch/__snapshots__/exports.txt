@@ -1,0 +1,403 @@
+## adapters
+ContentUrlKind (type)
+DocumentAdapter (type)
+DocumentSaveResult (type)
+HistoryAdapter (type)
+ImageInfo (type)
+ImagePage (type)
+ImageStore (type)
+LoadResult (type)
+MemoryImageStoreOptions (type)
+PreloadedStorageOptions (type)
+SaveResult (type)
+StaticVersion (type)
+StorageAdapter (type)
+ThemeSource (type)
+ThemeStore (type)
+UrlResolver (type)
+VersionInfo (type)
+contentId
+fetchThemeSource
+httpDocumentAdapter
+httpHistoryAdapter
+httpImageStore
+isLocalEdit
+localStorageAdapter
+localStorageThemeStore
+memoryDocumentAdapter
+memoryImageStore
+memoryStorage
+memoryThemeStore
+preloadedStorage
+relativeUrlResolver
+staticHistory
+
+## core
+ALL_KINDS
+ArrowType (type)
+AttrKey (type)
+BASELINE
+BUILTIN_THEMES
+BaseModel (type)
+BlockKind (type)
+BracketSpan (type)
+CanvasMeta (type)
+Cardinality (type)
+CenterBox (type)
+ChangeFacet (type)
+ChangeStatus (type)
+ContentUrlKind (type)
+CoreContext (type)
+DEFAULT_IMAGE_POLICY
+DEFAULT_LAYER
+DEFAULT_LINK_POLICY
+DIFF_COLORS
+DataEntry (type)
+DataValue (type)
+Diagnostic (type)
+DiagnosticFix (type)
+DiagramDiff (type)
+DiagramDocument (type)
+DiagramMeta (type)
+DiagramModel (type)
+DiagramType (type)
+DiffHide (type)
+DiffIgnore (type)
+DiffRenderOptions (type)
+DiffRendered (type)
+DiffSvgOptions (type)
+DiffView (type)
+Direction (type)
+EdgeHead (type)
+EdgeLine (type)
+Entity (type)
+ErAttribute (type)
+ErEntityStmt (type)
+ErGroup (type)
+ErModel (type)
+ErRel (type)
+FACETS
+FieldChange (type)
+FlowConfig (type)
+FlowEdge (type)
+FlowEdgeData (type)
+FlowGroup (type)
+FlowLink (type)
+FlowMention (type)
+FlowNode (type)
+FlowNodeData (type)
+FlowStatement (type)
+FlowchartModel (type)
+FontSpec (type)
+GeometryIndex (type)
+ITEM_KINDS
+IconData (type)
+IconForm (type)
+IconMissing (type)
+IconPack (type)
+IconPackInfo (type)
+IconRegistry
+IconRegistryOptions (type)
+IconResult (type)
+IconSnapshot (type)
+IconifyAlias (type)
+IconifyIcon (type)
+IconifyInfo (type)
+IconifyJSON (type)
+ImageBlockReason (type)
+ImageDataType (type)
+ImagePolicy (type)
+ItemChange (type)
+ItemKey (type)
+ItemKind (type)
+ItemMeta (type)
+ItemRef (type)
+Kinds (type)
+LayerMeta (type)
+LinkPolicy (type)
+META_HEADER
+Merged (type)
+MermaidStyle (type)
+MessageHead (type)
+MindNode (type)
+MindShape (type)
+MindmapConfig (type)
+MindmapModel (type)
+NodeDataBlock (type)
+NodeShape (type)
+PageSettings (type)
+Participant (type)
+ParticipantShape (type)
+PipelineOptions (type)
+Point (type)
+Rect (type)
+RenderResult (type)
+Rendered (type)
+ReportOptions (type)
+ResolvedTheme (type)
+Routing (type)
+SafeImageUrl (type)
+SafeUrl (type)
+SceneNode (type)
+SeqActivate (type)
+SeqBlockElse (type)
+SeqBlockEnd (type)
+SeqBlockStart (type)
+SeqBox (type)
+SeqItem (type)
+SeqLink (type)
+SeqMessage (type)
+SeqNote (type)
+SeqNumbering (type)
+SequenceModel (type)
+Severity (type)
+Side (type)
+SourceRange (type)
+StarterType (type)
+StateBlock (type)
+StateEdge (type)
+StateGroup (type)
+StateKind (type)
+StateModel (type)
+StateNode (type)
+StateNote (type)
+StateText (type)
+StyleProps (type)
+SupportedModel (type)
+TextMeasurer (type)
+ThemeFile (type)
+ThemeInfo (type)
+ThemeRegistry
+UnifiedDiffOptions (type)
+UnsupportedModel (type)
+UrlResolver (type)
+VersionInfo (type)
+annotate
+changeKey
+checkImageUrl
+checkMetaLine
+cleanLabel
+createColorResolver
+createContext
+createDefaultRegistry
+createIconRegistry
+createStaticMeasurer
+detectType
+diag
+diagnosticText
+diffDiagrams
+diffDiagramsWith
+diffLines
+diffModels
+diffReport
+diffSvg
+diffWords
+encodeLabel
+fmt
+hiddenByLayers
+iconNamesOf
+ignoreFacets
+isSupported
+itemKey
+joinSource
+layerDefs
+mergeDiagrams
+mergeLegacySidecar
+mergeText
+metaToLines
+migrateTheme
+normalizeMeta
+outline
+parse
+parseItemKey
+pruneMeta
+relativeColor
+renderDiff
+renderDiffToSvg
+renderDiffToSvgWith
+renderDiffWith
+renderDocument
+renderSource
+renderToSvg
+resolveColor
+resolveContentUrl
+safeImageUrl
+safeUrl
+serializeNode
+serializeNodes
+splitSource
+standaloneSvg
+starterSource
+summarize
+unifiedDiff
+validateTheme
+withLayoutOf
+withoutStyle
+
+## diff
+ChangeFacet (type)
+Config (type)
+DIFF_FILTERS
+DIFF_VIEWS
+DiagramCanvas
+DiagramDiff
+DiffAction (type)
+DiffEventMap (type)
+DiffExportKind (type)
+DiffExportOptions (type)
+DiffFeature (type)
+DiffFilter (type)
+DiffMode (type)
+DiffOptions (type)
+DiffPair (type)
+DiffPanel (type)
+DiffResult (type)
+DiffScene
+DiffSceneOptions (type)
+DiffSession
+DiffSessionOptions (type)
+DiffSource (type)
+DiffStatus (type)
+DiffViewName (type)
+FieldChange (type)
+HistoryAdapter (type)
+IconPack (type)
+IconifyJSON (type)
+ItemChange (type)
+MmdxDiffElement
+ModuleScope (type)
+SceneSource (type)
+Stage (type)
+StaticVersion (type)
+VersionInfo (type)
+ViewCore
+ViewModule (type)
+configure
+contentId
+defineDiff
+diffDiagrams
+diffModules
+diffReport
+httpHistoryAdapter
+ignoreFacets
+registerBuiltinThemes
+registerThemes
+renderDiffToSvg
+staticHistory
+unifiedDiff
+
+## editor
+Config (type)
+DEFAULT_FEATURES
+DEFAULT_MODULES
+DiagramCanvas
+DiagramEditor
+DocumentAdapter (type)
+DocumentSaveResult (type)
+EditorCore
+EditorFeatures (type)
+EditorModule (type)
+EditorOptions (type)
+Gesture (type)
+GestureSource (type)
+HistorySession (type)
+IconPack (type)
+IconifyJSON (type)
+LoadResult (type)
+MmdxEditorElement
+ModuleScope (type)
+OverlayPainter (type)
+SaveOutcome (type)
+SceneSource (type)
+SetSourceOptions (type)
+Stage (type)
+ViewCore
+ViewModule (type)
+configure
+defineEditor
+httpDocumentAdapter
+memoryDocumentAdapter
+registerBuiltinThemes
+registerThemes
+
+## markdown
+MmdxMarkdownOptions (type)
+diagramHtml
+markdownItMmdx
+preloadIcons
+rehypeMmdx
+scriptSafe
+
+## react
+MmdxReactComponents (type)
+createReactWrappers
+
+## studio
+Config (type)
+DiagramStudio
+ExampleInfo (type)
+IconPack (type)
+IconifyJSON (type)
+MmdxStudioElement
+StudioOptions (type)
+configure
+defineStudio
+registerBuiltinThemes
+registerThemes
+
+## theme-editor
+BUILTIN_THEMES
+Config (type)
+MmdxThemeEditorElement
+PreloadedStorageOptions (type)
+SaveResult (type)
+StorageAdapter (type)
+ThemeEditor
+ThemeEditorEventMap (type)
+ThemeEditorOptions (type)
+ThemeFile (type)
+ThemeInfo (type)
+ThemeSamples (type)
+ThemeSource (type)
+ThemeStore (type)
+configure
+contrastRatio
+defineThemeEditor
+fetchThemeSource
+isLocalEdit
+localStorageAdapter
+localStorageThemeStore
+memoryStorage
+memoryThemeStore
+preloadedStorage
+registerBuiltinThemes
+registerThemes
+
+## viewer
+Config (type)
+DiagramCanvas
+DiagramViewer
+HistorySession (type)
+HostFullscreen (type)
+IconPack (type)
+IconifyJSON (type)
+MmdxViewerElement
+ModuleScope (type)
+SceneSource (type)
+Stage (type)
+VIEWER_MODULES
+ViewCore
+ViewModule (type)
+ViewerControl (type)
+ViewerEventMap (type)
+ViewerOptions (type)
+configure
+defineViewer
+registerBuiltinThemes
+registerThemes
+setWorkerUrl
+upgradeMermaidBlocks
+
+## worker-inline
+useInlineWorker
+workerSource
