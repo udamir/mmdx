@@ -2,7 +2,8 @@
 // and the horizontal cylinder with the name inside; the actor, boundary, control and entity figures with the name
 // under them), a golden of all of them in every theme; a participant's icon token above the name (the default), inline,
 // left at its own size or below, its metadata image, its `properties` icon as the image, a refused image and the
-// placeholder, in a box and under a figure; icon tokens in messages and notes; the head growing with what it holds.
+// placeholder (an image participant: the picture or the icon is its head, as the flowchart's image node); icon tokens in
+// messages and notes; the head growing with what it holds.
 import { describe, expect, it } from 'vitest';
 import type { SequenceGeometry } from '../../../src/core/render/types.js';
 import { renderProd, THEME_IDS } from './helpers.js';
@@ -57,14 +58,15 @@ const CASES: Record<string, [string, string]> = {
   'token inline': ['participant A as fa:fa-user Alice', '{"iconPos":"l"}'],
   'token left at its own size': ['participant A as fa:fa-user Alice', '{"iconPos":"l","iconSize":28}'],
   'token below, coloured': ['participant A as tabler:user Alice', '{"iconPos":"b","iconColor":"@red"}'],
-  'image': ['participant A as Alice', `{"img":"${IMG}"}`],
-  'image imgW × imgH, cover, and the token': ['participant A as tabler:user Alice', `{"img":"${IMG}","imgW":120,"imgH":40,"imgFit":"cover"}`],
+  'image participant': ['participant A as Alice', `{"img":"${IMG}","w":120,"h":90,"pos":"b","constraint":"on"}`],
+  'image participant, name above, w × h, cover': ['participant A as Alice', `{"img":"${IMG}","w":120,"h":40,"pos":"t","imgFit":"cover"}`],
+  'icon participant in a circle': ['participant A as Alice', '{"icon":"tabler:user","form":"circle","pos":"b","h":48}'],
   'properties icon': ['participant A as Alice\n  properties A: {"icon": "https://example.com/icon.png"}', '{}'],
   'refused image': ['participant A as Alice', '{"img":"http://example.com/a.png"}'],
   'picture not chosen yet': ['participant A as Alice', '{"img":""}'],
   'database with the token': ['participant A@{ "type": "database" } as fa:fa-database Store', '{}'],
   'actor with the token': ['actor A as fa:fa-user Alice', '{}'],
-  'boundary with an image': ['participant A@{ "type": "boundary" } as Gateway', `{"img":"${IMG}","imgW":48,"imgH":48}`],
+  'an image in place of the boundary figure': ['participant A@{ "type": "boundary" } as Gateway', `{"img":"${IMG}","w":48,"h":48}`],
 };
 
 describe('participant icons and images (goldens)', () => {
@@ -93,8 +95,8 @@ describe('participant media', () => {
     expect(image.h).toBeGreaterThan(plain.h + 40);
     expect(head('participant A as Alice', `{"img":"${IMG}","imgW":400,"imgH":20}`).w).toBeGreaterThanOrEqual(400);
     expect(geomOf(box('participant A as Alice', `{"img":"${IMG}"}`)).participants.get('B')!.h).toBe(plain.h);
-    // under a figure too
-    expect(head('actor A as Alice', `{"img":"${IMG}"}`).h).toBeGreaterThan(head('actor A as Alice', '{}').h + 40);
+    // an image participant: the picture is its head (in place of a figure too)
+    expect(geomOf(box('actor A as Alice', `{"img":"${IMG}"}`)).participants.get('A')!.asset).toBeDefined();
   });
 
   it('above the name, the token is taken out of the text; inline it stays in the runs', () => {

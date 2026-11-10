@@ -11,7 +11,7 @@ Mindmaps, state diagrams, icons and images.
 - Mindmaps and state diagrams in every component.
 - All Mermaid flowchart shapes.
 - Icons: icon packs, a built-in Tabler set, Font Awesome look-alikes.
-- Images: image and icon nodes in flowcharts and state diagrams, pictures on mindmap nodes and participants.
+- Images: image and icon nodes in flowcharts, state diagrams, mindmaps and sequence diagrams, with the same keys and editing.
 - Image library from the host: the `images` property (`ImageStore`). The toolbar's Change image opens the image tool with Library, Upload, URL and Icon tabs.
 - Rich text labels, an emoji picker and animated connectors in the editor.
 - Mermaid's full sequence and ER syntax, including ER subgraphs.
@@ -22,7 +22,7 @@ Mindmaps, state diagrams, icons and images.
 - Fit fills the whole canvas.
 - Flowchart subgraphs no longer overlap (`layout: "legacy"` keeps the old layout).
 - Sequence and ER diagrams are read and drawn as Mermaid does.
-- An icon is an image's source; ER diagrams have no icons.
+- An icon is an image's source: no Icon buttons; ER diagrams have no icons.
 - Edits keep the Mermaid code as written.
 - Faster zoom and pan on large diagrams.
 

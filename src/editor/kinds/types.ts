@@ -130,22 +130,12 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   setIcon?(code: string, model: M, ref: ItemRef, icon: string | null, core: EditorCore): CodeResult | null;
   /** Sets an item's image (a URL that passed the image policy), or removes it (null). */
   setImage?(code: string, model: M, ref: ItemRef, url: string | null, core: EditorCore): CodeResult | null;
-  /** The type has no image syntax: an image is the item's metadata `img` (the editor writes it; `setImage` is not called). */
-  imageInMeta?: boolean;
   /**
-   * The type's image and icon items are metadata (state diagrams: `img` or `icon` with the flowchart image node's keys,
-   * core/ops/state-media.ts): the editor writes them, and `setIcon`, `setImage` and `setMedia` are not called.
+   * The type's image and icon items are metadata (state diagrams, mindmaps, sequence participants: `img` or `icon` with
+   * the flowchart image node's keys, core/ops/meta-media.ts): the editor writes them, and `setIcon`, `setImage` and
+   * `setMedia` are not called.
    */
   mediaNodesInMeta?: boolean;
-  /**
-   * The type draws its icons and images beside the label through core/render/decorate.ts (T10): their place, size and
-   * fit are item metadata (`iconPos`, `iconSize`, `imgW`, `imgH`, `imgFit`), which Properties edits.
-   */
-  decorated?: boolean;
-  /** Where a label's icon token is drawn without metadata `iconPos` (default `l`, inline; sequence participants: `t`). */
-  iconPos?: 'l' | 't' | 'b';
-  /** Stock Mermaid shows every icon token in the type's labels as text (sequence): Properties says so. */
-  iconsAsText?: boolean;
   /** Changes an icon or image item's position, frame, size or aspect lock. */
   setMedia?(code: string, model: M, ref: ItemRef, patch: MediaPatch, core: EditorCore): CodeResult | null;
   /** A connector's animation (dashes flowing along it); null: the item has none to set. */

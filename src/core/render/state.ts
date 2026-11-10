@@ -26,7 +26,7 @@ import {
 } from './common.js';
 import { DECO_GAP, decorate, decoratedSize, decoration, lazyKit, type Decoration } from './decorate.js';
 import { assetBox, captionY, mediaAssetNodes, mediaLayout, mediaPort, type MediaBox } from './media-node.js';
-import { stateMediaSource } from '../ops/state-media.js';
+import { metaMediaSource } from '../ops/meta-media.js';
 import { stateEdgePreset, stateGroupPreset, stateNodePreset, stateNotePreset, statePresets } from './state-presets.js';
 import type { BoxGeom, EdgeGeom, Port, StateGeometry } from './types.js';
 import { fmt } from '../scene/serialize.js';
@@ -221,7 +221,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
     // an image or icon state (metadata `img` or `icon`, Mermaid having no syntax for them): the picture or the icon is the
     // state, captioned above or below, sized and fitted by the flowchart's image node keys (`w`, `h`, `constraint`,
     // `form`, `pos`, `imgFit`)
-    const src = stateMediaSource(nm);
+    const src = metaMediaSource(nm);
     if (src) {
       const kind = src.img != null ? 'image' : 'icon';
       const st = mergeStyle(ctx, S.node, shapeStyles?.[kind], baseStyle(meta, 'node'), pst, defaultClass, ...classStyles(n.classes, P.node), n.style, pickStyle(nm));
@@ -464,7 +464,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
     const color = href ? LINK_COLOR : st.text;
     if (N.media) {
       // an image or icon state: the asset, then its caption
-      const parts = mediaAssetNodes(env, kit(), N, N.media, stateMediaSource(N.m)!, st, { key: `state-${id}`, family, source: 'meta', ...(N.n.defLine !== null ? { line: N.n.defLine } : {}) });
+      const parts = mediaAssetNodes(env, kit(), N, N.media, metaMediaSource(N.m)!, st, { key: `state-${id}`, family, source: 'meta', ...(N.n.defLine !== null ? { line: N.n.defLine } : {}) });
       if (N.title.lines.length) {
         const cy = captionY(N, N.media);
         const to = { size: fs, weight: st.fontWeight, color, family: st.fontFamily || family, lh: 1.3, underline: !!href };

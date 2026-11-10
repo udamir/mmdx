@@ -9,7 +9,7 @@ export type ToolbarControl =
   | 'shape' | 'font' | 'size' | 'bold' | 'align' | 'link' | 'textColor' | 'border' | 'fill' | 'line' | 'arrows'
   | 'routing' | 'lock' | 'paint' | 'group' | 'arrange' | 'activate' | 'editGroup' | 'ungroup' | 'delete' | 'order'
   | 'layer' | 'presets' | 'reset' | 'more' | 'selection' | 'italic' | 'underline' | 'tableStyle' | 'wrap'
-  | 'icon' | 'source' | 'media' | 'actions';
+  | 'source' | 'media' | 'actions';
 
 /** A text format of rich labels: bold, italic, underline, strike. */
 export type TextFormat = 'b' | 'i' | 'u' | 's';
@@ -213,8 +213,6 @@ export interface ToolbarApi {
   // icons and images (T05)
   /** The selected item's icon and image (null: it takes none, the controls stay off). */
   media?(): ToolbarMedia | null;
-  /** Opens the icon picker for the selection, beside the button. */
-  pickIcon?(anchor: HTMLElement): void;
   /** Opens the image tool for the selection (change the image): its tabs the library, an upload, a URL and an icon. */
   pickImage?(anchor: HTMLElement): void;
   setMedia?(patch: ToolbarMediaPatch): void;

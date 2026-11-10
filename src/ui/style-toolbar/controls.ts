@@ -289,21 +289,6 @@ function build(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLElement {
     case 'wrap':
       // word wrap as a switch (participants: their text has no alignment to pick)
       return toggleKey('wrap', 'wrap', 'wrap', t('tb.wrapTip'), e('wrap') === true, undefined, true);
-    case 'icon': {
-      // an icon on any item (a mindmap node's `::icon`); an image or icon node picks its icon as its source instead
-      const m = api.media?.();
-      if (!m?.canIcon || m.node || !api.pickIcon) return h('span');
-      const title = m.icon ? t('tb.iconOf', { name: m.icon }) : t('tb.icon');
-      const b = h('button', { type: 'button', class: 'mtb-btn' + (m.icon ? ' has-icon' : ''), title, 'aria-label': title, 'aria-haspopup': 'dialog', dataset: { c: 'icon' } }, svgIcon('icon'));
-      // a dot marks an item that has an icon
-      if (m.icon) b.append(h('span', { class: 'mtb-has', 'aria-hidden': 'true' }));
-      b.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        x.close();
-        api.pickIcon?.(b);
-      });
-      return b;
-    }
     case 'source': {
       // Change image: the image tool, its tabs the picture's sources (library, upload, URL) and an icon
       const m = api.media?.();

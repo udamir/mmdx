@@ -35,13 +35,13 @@ export function bulkSpec(kind: string, sp: KindSpec): KindSpec {
 /** Button sets per kind (prototype KIND plus the order / layer / presets rearrangement done at load). */
 function buildKinds(): Readonly<Record<string, KindSpec>> {
   const K: Record<string, MutableSpec> = {
-    // an image node has its source (a picture or an icon) and its settings instead of the shape picker; sizes are in
+    // an image node has Change image (a picture or an icon) and its settings instead of the shape picker; sizes are in
     // Properties
-    node: { groups: [['icon', 'source', 'media', 'shape', 'font', 'size', 'bold', 'align', 'link'], ['textColor'], ['border', 'fill'], ['paint', 'lock', 'delete', 'more']], size: 'fontSize', bold: 'fontWeight', text: 'text', shapes: NODE_SHAPES },
+    node: { groups: [['source', 'media', 'shape', 'font', 'size', 'bold', 'align', 'link'], ['textColor'], ['border', 'fill'], ['paint', 'lock', 'delete', 'more']], size: 'fontSize', bold: 'fontWeight', text: 'text', shapes: NODE_SHAPES },
     group: { groups: [['shape', 'font', 'size', 'bold'], ['textColor'], ['border', 'fill'], ['editGroup', 'ungroup', 'paint', 'lock', 'delete', 'more']], size: 'titleSize', bold: 'titleWeight', text: 'titleColor' },
     edge: { groups: [['line', 'arrows', 'routing'], ['font', 'size', 'bold', 'textColor'], ['paint', 'delete', 'more']], size: 'labelSize', bold: 'fontWeight', text: 'labelColor' },
     rel: { groups: [['line', 'routing'], ['font', 'size', 'bold', 'textColor'], ['paint', 'delete', 'more']], size: 'labelSize', bold: 'fontWeight', text: 'labelColor' },
-    participant: { groups: [['icon', 'shape', 'font', 'size', 'bold', 'wrap'], ['textColor'], ['border', 'fill'], ['paint', 'lock', 'delete', 'more']], size: 'fontSize', bold: 'fontWeight', text: 'text', shapes: PARTICIPANT_SHAPES, shapeKey: 'shape' },
+    participant: { groups: [['source', 'media', 'shape', 'font', 'size', 'bold', 'wrap'], ['textColor'], ['border', 'fill'], ['paint', 'lock', 'delete', 'more']], size: 'fontSize', bold: 'fontWeight', text: 'text', shapes: PARTICIPANT_SHAPES, shapeKey: 'shape' },
     message: { groups: [['line', 'arrows', 'actions'], ['font', 'size', 'bold', 'textColor'], ['paint', 'delete', 'more']], size: 'labelSize', bold: 'fontWeight', text: 'labelColor' },
     note: { groups: [['actions'], ['font', 'size', 'bold'], ['textColor'], ['border', 'fill'], ['paint', 'delete', 'more']], size: 'fontSize', bold: 'fontWeight', text: 'text' },
     block: { groups: [['actions'], ['font', 'size', 'bold'], ['textColor'], ['border', 'fill'], ['paint', 'delete', 'more']], size: 'labelSize', bold: 'fontWeight', text: 'labelColor' },

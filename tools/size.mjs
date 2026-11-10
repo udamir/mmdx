@@ -68,7 +68,8 @@ for (const k of ['flowchart', 'sequence', 'er', 'mindmap', 'state']) {
   // 62.4 kB with the kind descriptor (T01: the kinds registry and the type's view kind, +0.6 kB); 61.6 kB with the 0.3 host hooks (+0.4 kB: the host's full screen in the zoom bar, setControls, registerThemes); 61 kB with the 0.3 fixes (+0.2 kB: own-key reads and writes in the metadata parser, the patcher drawing the diff's styled runs itself instead of through a hook the diff installed). 60.8 kB with the view kernel (component architecture §10.1: 60.3 kB once the kernel was split into modules, the blocks gained roving focus and the elements a shared lifecycle; 53.4 kB with every chrome module but the zoom bar on demand; 46 kB before). Provisional (decision 19 is open).
   // flowchart 87.8, sequence 77, ER 85.5, mindmap 74 and state 88 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (87.4, 76.6, 85.1, 73.6 and 87.6 kB measured)
   // flowchart 88.3 kB (87.9 measured), state 89.9 kB (89.5 measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
-  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), ({ flowchart: 88.3, sequence: 77, er: 85.5, mindmap: 74, state: 89.9 })[k] * KB);
+  // sequence 79.5 kB (79.1 measured), mindmap 76 kB (75.6 measured) with images in mindmaps and sequence diagrams as the flowchart's image node (render/media-node.ts in their chunks)
+  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), ({ flowchart: 88.3, sequence: 79.5, er: 85.5, mindmap: 76, state: 89.9 })[k] * KB);
 }
 // a flowchart that draws one of the shapes beyond the 17 (T02.9): their geometry, 4.3 kB, loads before it renders (72.7 kB measured; 73.5 kB with media in the scene, T03; 76.3 kB with the icon registry, T04); since T06 the chunk also holds the media kit (rich labels, icons, images), which a flowchart with markdown, icon tokens, icon or image nodes loads the same way (86.8 kB measured: +5.5 kB the flowchart's own growth, +5 kB the kit); 92.7 kB with the compound layout (T07, 92.3 kB measured: the flowchart's +5.1 kB)
 // 97.1 kB with media in every kind and the sequence and ER fixes (T10, T11: 96.7 kB measured, the viewer's +2 kB)
@@ -119,7 +120,8 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
 // core 122.8, theme editor 169.8 and editor 205.9 kB with media in every kind and the sequence and ER fixes (122.4, 169.4 and 205.5 kB measured; core and the theme editor carry every kind statically: T10.1–T10.6 +0.9 and +0.8 kB, T11's sequence +2.6 and +3.3 kB, T11's ER +8.1 and +7.8 kB; the editor +0.5 kB with the Properties controls of icon positions and image boxes and the portable export's note, +3.8 kB with the sequence's toolbar actions, arrow picker, note placement, branches and link menu, +1.4 kB with ER subgraphs). The diff is unchanged (91.5 kB)
 // core 124.6, theme editor 173.2, editor 209.8 and diff 92.6 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (124.2, 172.8, 209.4 and 92.2 kB measured)
 // editor 210.6 kB (210.2 measured) with the image library (ImageStore: the image tool's Library, Upload and URL tabs; Source and Properties open each)
-for (const [entry, budget] of [['core', 124.6], ['theme-editor', 173.2], ['editor', 210.6], ['diff', 92.6]]) {
+// core 125.2 kB (124.8 measured), theme-editor 173.6 kB (173.2 measured) with images in mindmaps and sequence diagrams as the flowchart's image node (render/media-node.ts in their chunks)
+for (const [entry, budget] of [['core', 125.2], ['theme-editor', 173.6], ['editor', 210.6], ['diff', 92.6]]) {
   const b = await bundle(entry);
   report(entry, b.size(b.base), budget * KB);
   if (entry === 'editor') {
@@ -146,7 +148,8 @@ for (const [entry, budget] of [['core', 124.6], ['theme-editor', 173.2], ['edito
       // 240.6 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (240.2 kB measured)
       // 241.1 kB (240.7 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
       // 241.7 kB (241.3 kB measured) with the image library (ImageStore: the image tool's Library, Upload and URL tabs; Source and Properties open each)
-      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 241.7 * KB);
+      // 243.4 kB (243 kB measured) with images in mindmaps and sequence diagrams as the flowchart's image node (render/media-node.ts in their chunks)
+      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 243.4 * KB);
     }
     // a state diagram: its view, ops and edit kinds in one chunk loaded with the first state diagram (T09: 240.5 kB measured; the parser, compound layout, renderer, state shapes, ops, palette and Properties controls)
     // 249.4 kB with media in every kind and the sequence and ER fixes (T10, T11: 249 kB measured)
@@ -272,13 +275,15 @@ const rows = [
   // 72 kB with state diagrams (T09, 71.6 kB measured: the viewer's +0.5 kB)
   // 75.1 kB with media in every kind and the sequence and ER fixes (T10, T11, 74.7 kB measured)
   // 75.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (75.5 kB measured)
-  ['viewer (first mindmap)', ['src/viewer.ts', kindChunk('mindmap')], 75.9],
+  // 78.3 kB (77.9 kB measured) with images in mindmaps and sequence diagrams as the flowchart's image node (render/media-node.ts in their chunks)
+  ['viewer (first mindmap)', ['src/viewer.ts', kindChunk('mindmap')], 78.3],
   // the first mindmap in the editor (T08, 225.7 kB measured): its kinds and the mindmap module's gestures
   // 227.9 kB with state diagrams (T09, 227.5 kB measured)
   // 232.7 kB with media in every kind and the sequence and ER fixes (T10, T11, 232.3 kB measured)
   // 236.4 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (236 kB measured)
   // 236.9 kB (236.5 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
-  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap.ts', 'src/editor/modules/mindmap/gestures.ts'], 236.9],
+  // 238.8 kB (238.4 kB measured) with images in mindmaps and sequence diagrams as the flowchart's image node (render/media-node.ts in their chunks)
+  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap.ts', 'src/editor/modules/mindmap/gestures.ts'], 238.8],
   // the first state diagram (T09, 85.6 kB measured): the viewer and the state's kind chunk (parser, compound layout, renderer, shapes)
   // 89.1 kB with media in every kind and the sequence and ER fixes (T10, T11, 88.7 kB measured)
   // 89.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (89.5 kB measured)
@@ -328,7 +333,8 @@ const rows = [
   // 142.8 kB with media in every kind and the sequence and ER fixes (T10, T11, 142.4 kB measured)
   // 144.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (144.5 kB measured)
   // 145.7 kB (145.3 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
-  ['core', ['src/core.ts'], 145.7],
+  // 146.4 kB (146 kB measured) with images in mindmaps and sequence diagrams as the flowchart's image node (render/media-node.ts in their chunks)
+  ['core', ['src/core.ts'], 146.4],
 ];
 for (const [name, keys, budget] of rows) report(name, (await loads(keys)).n, budget * KB);
 // the pickers' chunks (T05), beyond what the editor with a flowchart has loaded

@@ -26,6 +26,7 @@ export const I_undo = 'M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11';
 export const I_redo = 'M15 14l5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13';
 export const I_help = 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01';
 export const I_more = 'M12 6h.01M12 12h.01M12 18h.01';
+export const I_image = 'M4 5h16v14H4zM4 15l4.5-4.5 4 4 3-3L20 16M15.5 9.5h.01';
 export const I_trash = 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3';
 export const I_copy = 'M9 9h11v11H9zM5 15H4V4h11v1';
 export const I_lock = 'M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3';

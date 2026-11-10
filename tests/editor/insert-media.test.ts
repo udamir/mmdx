@@ -419,9 +419,14 @@ describe('selection toolbar and Properties', () => {
     e.core.run('setPanel', 'properties', true);
     e.core.fire('panels');
     await settle();
-    expect($$('[data-source]').map((b) => b.textContent)).toEqual(['Library…', 'Upload…', 'URL…', 'Icon…']);
-    $<HTMLButtonElement>('[data-source="upload"]')!.click();
+    // one Change image button (an icon) beside Remove image: the image tool and its four tabs
+    const change = $<HTMLButtonElement>('[data-act="change"]')!;
+    expect(change.title).toBe('Change image');
+    expect($<HTMLButtonElement>('[data-act="remove"]')!.title).toBe('Remove image');
+    change.click();
     await settle();
+    expect([...$$('.imp [role=tab]')].map((b) => b.textContent)).toEqual(['Library', 'Upload', 'URL', 'Icon']);
+    $<HTMLButtonElement>('.imp [role=tab][data-tab="upload"]')!.click();
     expect($('.imp [role=tab][aria-selected=true]')!.textContent).toBe('Upload');
     expect($('.imp-drop')!.hidden).toBe(false);
     const fileInput = $<HTMLInputElement>('.imp input[type=file]')!;
@@ -432,21 +437,43 @@ describe('selection toolbar and Properties', () => {
     expect(e.core.code).toContain('img: "https://cdn.example.com/img-3.png"');
     expect((await store.list()).images.map((i) => i.name)).toEqual(['logo.png', 'team.png', 'old.png']);
     await settle();
-    $<HTMLButtonElement>('[data-source="url"]')!.click();
+    $<HTMLButtonElement>('[data-act="change"]')!.click();
     await settle();
+    $<HTMLButtonElement>('.imp [role=tab][data-tab="url"]')!.click();
     expect($('.imp [role=tab][aria-selected=true]')!.textContent).toBe('URL');
     expect($<HTMLInputElement>('.imp-url')!.value).toBe('https://cdn.example.com/img-3.png');
     e.core.popovers.close();
     await settle();
-    // Icon…: the same tool on its Icon tab; a picked icon replaces the picture
-    $<HTMLButtonElement>('[data-source="icon"]')!.click();
+    // the Icon tab: a picked icon replaces the picture
+    $<HTMLButtonElement>('[data-act="change"]')!.click();
     await settle();
+    $<HTMLButtonElement>('.imp [role=tab][data-tab="icon"]')!.click();
     expect($('.imp [role=tab][aria-selected=true]')!.textContent).toBe('Icon');
     input($<HTMLInputElement>('.imp .ip-search')!, 'car');
     $<HTMLButtonElement>('.imp .ip-tile[aria-label="tabler:car"]')!.click();
     expect(e.core.code).toContain('icon: "tabler:car"');
     expect(e.core.code).not.toContain('img:');
     expect($('.imp')).toBeNull();
+    await valid(e.core.code);
+  });
+
+  test('Properties of a plain node: Set image opens the image tool; an icon from its Icon tab makes the node an icon node', async () => {
+    const e = mount('flowchart LR\n  A["Car"] --> B\n');
+    await settle();
+    e.core.select([{ kind: 'node', id: 'A' }]);
+    e.core.run('setPanel', 'properties', true);
+    e.core.fire('panels');
+    await settle();
+    const set = $<HTMLButtonElement>('[data-act="set"]')!;
+    expect(set.title).toBe('Set image');
+    set.click();
+    await settle();
+    expect([...$$('.imp [role=tab]')].map((b) => b.textContent)).toEqual(['URL', 'Icon']);
+    $<HTMLButtonElement>('.imp [role=tab][data-tab="icon"]')!.click();
+    input($<HTMLInputElement>('.imp .ip-search')!, 'car');
+    $<HTMLButtonElement>('.imp .ip-tile[aria-label="tabler:car"]')!.click();
+    expect(e.core.code).toContain('A@{ icon: "tabler:car", form: "square", h: 60, pos: "b" }');
+    expect(e.core.code).toContain('A["Car"]');
     await valid(e.core.code);
   });
 

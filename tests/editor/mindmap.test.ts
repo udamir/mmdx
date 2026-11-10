@@ -8,7 +8,7 @@ import type { EditorCore } from '../../src/editor/core.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
 import { DEFAULT_MODULES } from '../../src/editor/modules/index.js';
 import { editKind } from '../../src/editor/kinds/registry.js';
-import { setImageOf } from '../../src/editor/ops/media.js';
+import { setIconOf, setImageOf } from '../../src/editor/ops/media.js';
 import { mindmapKeys } from '../../src/editor/modules/mindmap/index.js';
 import { click, drag, handle, press, pev } from './connect.helpers.js';
 import { stockParse } from '../helpers/mermaid.js';
@@ -203,15 +203,18 @@ describe('mindmap: handles and drag', () => {
 });
 
 describe('mindmap: the edit kind', () => {
-  it('icons are label tokens; images are metadata; colorBy is written to the frontmatter', async () => {
+  it('an image works as a flowchart image node\'s, in metadata (a picture or an icon); colorBy is written to the frontmatter', async () => {
     const { core } = await mount();
     const k = editKind('mindmap')!;
-    const M = core.model;
-    if (M.type !== 'mindmap') throw new Error();
-    expect(k.setIcon!(core.code, M, { kind: 'node', id: 'a' }, 'fa:book', core)!.code).toContain('a[fa:fa-book Alpha]');
-    expect(setImageOf(core, [{ kind: 'node', id: 'a' }], 'https://example.com/x.png')).toBe(true);
-    expect(core.meta.nodes?.['a']?.img).toBe('https://example.com/x.png');
-    expect(k.media!(core.model as never, { kind: 'node', id: 'a' }, core)).toMatchObject({ image: 'https://example.com/x.png', canImage: true });
+    const a = { kind: 'node' as const, id: 'a' };
+    const code = core.code;
+    expect(k.media!(core.model as never, a, core)).toMatchObject({ node: null, canIcon: false, canImage: true });
+    expect(setImageOf(core, [a], 'https://example.com/x.png')).toBe(true);
+    expect(core.meta.nodes?.['a']).toEqual({ img: 'https://example.com/x.png', h: 200, w: 200, pos: 'b', constraint: 'on' });
+    expect(k.media!(core.model as never, a, core)).toMatchObject({ node: 'image', image: 'https://example.com/x.png', canIcon: true });
+    expect(setIconOf(core, [a], 'tabler:book')).toBe(true);
+    expect(core.meta.nodes?.['a']).toEqual({ icon: 'tabler:book', h: 60, pos: 'b', form: 'square' });
+    expect(core.code).toBe(code);
     const opt = k.pageOptions!(core.model as never, core)[0]!;
     opt.set('depth');
     expect(core.code.startsWith('---\nconfig:\n  mindmap:\n    colorBy: depth\n---\n')).toBe(true);
@@ -225,8 +228,8 @@ describe('mindmap: the edit kind', () => {
     const run = vi.spyOn(core, 'run');
     expect(k.addImage!(core, core.model as never, '', { x: 0, y: 0 })).toBe(true);
     const id = core.primary()!.id;
-    expect(core.getM('node', id).img).toBe('');
-    expect(k.media!(core.model as never, { kind: 'node', id }, core)).toMatchObject({ image: '' });
+    expect(core.getM('node', id)).toMatchObject({ img: '', h: 200, w: 200, pos: 'b', constraint: 'on' });
+    expect(k.media!(core.model as never, { kind: 'node', id }, core)).toMatchObject({ node: 'image', image: '' });
     await vi.dynamicImportSettled();
     await new Promise((r) => setTimeout(r, 0));
     expect(core.result.diagnostics.some((d) => d.code === 'image.blocked')).toBe(false);

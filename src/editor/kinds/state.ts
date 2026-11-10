@@ -11,7 +11,8 @@ import {
   relabelState, relabelTransition, scopeOf, setCompositeDirection, setDescriptions, setNoteSide, setStateKind, stateFragment, ungroupState, type StateScope,
 } from '../../core/ops/state.js';
 import { cloneMeta, ensure as ensureIn } from '../../core/ops/meta-util.js';
-import { stateMediaSource } from '../../core/ops/state-media.js';
+import { metaMediaSource, NEW_IMAGE } from '../../core/ops/meta-media.js';
+import { metaItemMedia } from './meta-media.js';
 import type { StateGeometry } from '../../core/render/types.js';
 import { registerExtendedShapes } from '../../core/shapes/extended.js';
 import type { ItemRef, Point } from '../../core/types.js';
@@ -249,26 +250,16 @@ export const EDIT: EditKind<StateModel, StateGeometry> = {
   // the Text tool: a note beside the nearest state
   // an image state, as the flowchart's image node (core/ops/state-media.ts): the picture at Mermaid Chart's default
   // size, caption below, the aspect kept
-  addImage: (core, M, url, pt) => dropItem(core, M, 'state', pt, { label: 'Image', meta: { img: url, h: 200, w: 200, pos: 'b', constraint: 'on' } }),
+  addImage: (core, M, url, pt) => dropItem(core, M, 'state', pt, { label: 'Image', meta: { img: url, ...NEW_IMAGE } }),
   media(M, ref, core) {
     const n = ref.kind === 'node' ? M.nodes.get(ref.id) : undefined;
-    if (!n || n.kind !== 'state') return null;
-    const src = stateMediaSource(core.meta.nodes?.[n.id] ?? {});
-    // an icon is an image state's source instead of its picture: a plain state takes no icon (a title's icon token
-    // stays as written), and a picture makes it an image state
-    if (!src) return { icon: null, image: null, node: null, canImage: true, canIcon: false };
-    return {
-      icon: src.icon ?? null, image: src.img ?? null, node: src.img != null ? 'image' : 'icon', canImage: true, canIcon: true,
-      ...(src.pos ? { pos: src.pos } : {}), ...(src.form ? { form: src.form } : {}), ...(src.w ? { w: src.w } : {}), ...(src.h ? { h: src.h } : {}),
-      ...(src.constraint ? { constraint: src.constraint } : {}),
-    };
+    return n && n.kind === 'state' ? metaItemMedia(metaMediaSource(core.meta.nodes?.[n.id] ?? {})) : null;
   },
   // pictures, icons and their layout keys are metadata (mediaNodesInMeta): the editor writes them
   setIcon: () => null,
   setImage: () => null,
   setMedia: () => null,
   mediaNodesInMeta: true,
-  decorated: true,
   direction: (M) => M.direction,
   properties(core, M, ref) {
     const t = core.i18n.t;

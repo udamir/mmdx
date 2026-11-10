@@ -8,12 +8,7 @@ import type { SupportedModel } from '../../core/model.js';
 import type { EditorCore, Sel } from '../core.js';
 import { editKind, withEdit } from '../kinds/registry.js';
 import type { EditKind, ItemMedia, MediaPatch } from '../kinds/types.js';
-import { patchStateMedia, setStateIcon, setStateImage } from '../../core/ops/state-media.js';
-
-/** Where a picture can come from: the host's image store (its library), an upload (the store, else `uploadImage`), a URL. */
-export function imageSources(core: EditorCore): ('library' | 'upload' | 'url')[] {
-  return [...(core.images ? ['library' as const] : []), ...(core.upload ? ['upload' as const] : []), 'url'];
-}
+import { patchMetaMedia, setMetaIcon, setMetaImage } from '../../core/ops/meta-media.js';
 
 /** An item's icon and image (null: it takes neither, or its type has no media). */
 export function mediaOf(core: EditorCore, ref: ItemRef): ItemMedia | null {
@@ -57,46 +52,17 @@ const metaMedia = (core: EditorCore): boolean => !!editKind(core.model.type)?.me
 
 /** Sets (or with null removes) the icon of items. */
 export const setIconOf = (core: EditorCore, refs: readonly ItemRef[], icon: string | null): boolean =>
-  metaMedia(core) ? inMeta(core, core.i18n.t('history.icon'), refs, (m) => setStateIcon(m, icon)) : each(core, core.i18n.t('history.icon'), refs, (k, code, m, ref) => k.setIcon?.(code, m, ref, icon, core) ?? null);
+  metaMedia(core) ? inMeta(core, core.i18n.t('history.icon'), refs, (m) => setMetaIcon(m, icon)) : each(core, core.i18n.t('history.icon'), refs, (k, code, m, ref) => k.setIcon?.(code, m, ref, icon, core) ?? null);
 
 /** Sets (or with null removes) the image of items; `url` passed the image policy. */
 export function setImageOf(core: EditorCore, refs: readonly ItemRef[], url: string | null): boolean {
-  if (metaMedia(core)) return inMeta(core, core.i18n.t('history.image'), refs, (m) => setStateImage(m, url));
-  // a type without image syntax keeps the URL in the item's metadata (`img`: mindmap nodes; T10's participants…)
-  if (editKind(core.model.type)?.imageInMeta) {
-    if (!refs.length) return false;
-    core.change(core.i18n.t('history.image'), () => {
-      for (const r of refs) {
-        const m = core.ensure(r.kind, r.id);
-        if (url) m['img'] = url;
-        else delete m['img'];
-        core.tidy(r.kind, r.id);
-      }
-    });
-    return true;
-  }
+  if (metaMedia(core)) return inMeta(core, core.i18n.t('history.image'), refs, (m) => setMetaImage(m, url));
   return each(core, core.i18n.t('history.image'), refs, (k, code, m, ref) => k.setImage?.(code, m, ref, url, core) ?? null);
 }
 
 /** Changes the layout keys (position, frame, size, aspect lock) of icon and image items. */
 export const setMediaOf = (core: EditorCore, refs: readonly ItemRef[], patch: MediaPatch): boolean =>
-  metaMedia(core) ? inMeta(core, core.i18n.t('history.media'), refs, (m) => patchStateMedia(m, patch)) : each(core, core.i18n.t('history.media'), refs, (k, code, m, ref) => k.setMedia?.(code, m, ref, patch, core) ?? null);
-
-/**
- * Metadata keys of the icon and the image beside a label (T10 §4.6: `iconPos`, `iconSize`, `imgW`, `imgH`; null or the
- * default — the type's `iconPos`, else `l` — removes the key), in one history step.
- */
-export function setDecoration(core: EditorCore, refs: readonly ItemRef[], key: 'iconPos' | 'iconSize' | 'imgW' | 'imgH', value: string | number | null): void {
-  const pos = editKind(core.model.type)?.iconPos ?? 'l';
-  core.change(core.i18n.t('history.media'), () => {
-    for (const r of refs) {
-      const m = core.ensure(r.kind, r.id);
-      if (value === null || value === '' || (key === 'iconPos' && value === pos)) delete m[key];
-      else (m as Record<string, unknown>)[key] = value;
-      core.tidy(r.kind, r.id);
-    }
-  });
-}
+  metaMedia(core) ? inMeta(core, core.i18n.t('history.media'), refs, (m) => patchMetaMedia(m, patch)) : each(core, core.i18n.t('history.media'), refs, (k, code, m, ref) => k.setMedia?.(code, m, ref, patch, core) ?? null);
 
 /** The image fit (contain, cover, stretch): item metadata `imgFit` (mmdx only; Mermaid has the aspect lock alone). */
 export function setImageFit(core: EditorCore, refs: readonly ItemRef[], fit: string | null): void {

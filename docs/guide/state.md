@@ -176,7 +176,7 @@ A new state diagram starts from `stateDiagram-v2` (the State diagram card of the
 - **Grouping**: ⌘G on states of one scope wraps them in `state Group1 { … }`, with their texts, declarations, notes and the transitions with both ends among them. **Ungroup** unwraps a composite; when it has a start or an end inside, it asks first ("Ungroup the composite?"), then connects the transitions into the composite to the states its start led to, and the transitions out of it from the states that led to its end.
 - **Deleting** a state removes its texts, transitions, notes, link and style lines; the other end of a deleted transition stays. Deleting a composite that holds states asks: **Delete with contents**, **Keep contents** (the composite is unwrapped, its inner starts and ends removed) or **Cancel**.
 - **Copies**: ⌘C / ⌘V, ⌘D and Alt-drag copy states and composites, with new ids, their texts, kinds and description rows, what the composites hold, and the transitions between the copies.
-- **Icons and images**: the icon picker writes a label token at the start of the title; the Image button adds a state with a picture, and the image control sets the selected state's — in metadata `img`. Properties sets the icon's **Position** and **Icon size** and the picture's **Width**, **Height** and **Fit**, in the metadata (`iconPos`, `iconSize`, `imgW`, `imgH`, `imgFit`), the code unchanged.
+- **Images**: the Image button adds an image state, and **Change image** (the toolbar's first item, or Properties) gives it a picture or an icon, as a flowchart image node — in metadata, the code unchanged. A plain state has no Icon button.
 
 Every change is one undo step, and every output is code stock Mermaid 11.17 and 12.2 parse (the test suite checks each op against both).
 

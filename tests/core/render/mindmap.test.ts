@@ -50,14 +50,16 @@ describe('mindmap renderer', () => {
     expect(hidden.svg).not.toContain('data-id="mm3"');
   });
 
-  it('::icon above the label, an image from metadata, markdown emphasis, icon tokens', () => {
+  it('::icon above the label, an image node from metadata, markdown emphasis, icon tokens', () => {
     const r = renderProd('mindmap\n  root\n    a[Book]\n    ::icon(fa fa-book)\n    b["`**bold** *it*`"]\n    c[fa:fa-car Car]\n%%@ node b {"img":"https://example.com/p.png"}');
     expect(r.svg).toMatch(/<image[^>]*aria-label="book"/);
     expect(r.svg).toContain('href="https://example.com/p.png"');
     expect(r.svg).toMatch(/font-weight="700"[^>]*>bold</);
     // the book above its label, the car before its text, the picture
     expect(r.svg.match(/<image /g)?.length).toBe(3);
-    expect(r.result.diagnostics?.map((d) => d.code)).toEqual(['icon.fa-fallback', 'icon.fa-fallback']);
+    // the picture is an image node: its size is not known on the server
+    expect(r.result.diagnostics?.map((d) => d.code)).toEqual(['image.size-unknown', 'icon.fa-fallback', 'icon.fa-fallback']);
+    expect(r.result.geom.type === 'mindmap' && r.result.geom.nodes.get('b')!.asset).toBeTruthy();
   });
 
   it('layouts: both sides, to the right, top down', () => {

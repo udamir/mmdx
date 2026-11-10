@@ -1,21 +1,24 @@
-// The Properties panel's Icon and Image sections (T05 §4.6) for an item whose type gives it media (the edit kind's
-// `media`): the icon (choose, replace, remove), the label position, the icon's frame and size; the image's URL
-// (checked against the image policy when the image tool opens), its size, fit and aspect lock. Writes go to the
-// Mermaid code through `setIcon`, `setImage` and `setMedia` (a flowchart's node data); the fit is metadata. In the types
-// that draw icons and images beside the label (`decorated`: mindmap nodes, states), the icon's place and size and the
-// image's size are metadata too (T10 §4.6), the icon's place defaulting to the type's (`iconPos`: above a participant's
-// name); a type whose stock Mermaid shows every label token as text (`iconsAsText`: sequence) says so.
+// The Properties panel's Image section (T05 §4.6) for an item whose type gives it media (the edit kind's `media`): an
+// image node — a flowchart's image and icon nodes, and the image and icon items kept in metadata (states, mindmap nodes,
+// participants) — shows its source, changed through the image tool (library, upload, URL, icon), and that source's
+// settings; a plain item takes a picture, which makes it an image item. Writes go through `setIcon`, `setImage` and
+// `setMedia` (a flowchart's node data) or the item's metadata (`mediaNodesInMeta`); the fit is metadata.
 import type { ItemRef } from '../../../../core/types.js';
-import { h } from '../../../../ui/h.js';
+import { h, icon } from '../../../../ui/h.js';
+import { I_image, I_trash } from '../../../../ui/icons.js';
 import { registerMessages } from '../../../../ui/i18n.js';
 import { EDITOR_MEDIA_MESSAGES } from '../../../../ui/messages/editor-media.js';
 import { editKind } from '../../../kinds/registry.js';
 import type { ItemMedia, MediaPatch } from '../../../kinds/types.js';
-import { imageSources, mediaOf, setDecoration, setIconOf, setImageFit, setImageOf, setMediaOf } from '../../../ops/media.js';
+import { mediaOf, setIconOf, setImageFit, setImageOf, setMediaOf } from '../../../ops/media.js';
 import { row, sect, type PanelCtx } from './shared.js';
 import { isFaPack, splitIconName } from '../../../../core/icons/names.js';
 
 registerMessages(EDITOR_MEDIA_MESSAGES);
+
+/** A small icon button (the preset section's look): its name is its title. */
+const iconButton = (path: string, name: string, act: string): HTMLButtonElement =>
+  h('button', { type: 'button', class: 'pp-act', title: name, 'aria-label': name, dataset: { act } }, icon(path, 17));
 
 /** A select of fixed choices (`''` unset). */
 function choice(label: string, values: readonly string[], cur: string | undefined, text: (v: string) => string, on: (v: string) => void): HTMLSelectElement {
@@ -56,70 +59,20 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
   const m = mediaOf(core, ref);
   if (!k || !m) return;
   if (m.node) return nodeMedia(p, host, ref, m);
-  // a label's icon token on a node that takes no icon of its own (a flowchart's plain shapes): it can become an icon node
-  if (m.canIcon === false && !m.node && m.icon && k.setMedia) {
+  // a label's icon token on a flowchart's plain shape (which takes no icon of its own): it can become an icon node
+  if (m.canIcon === false && m.icon && k.setMedia) {
     sect(host, t('props.icon'));
     if (!isFaPack(splitIconName(m.icon)[0])) host.append(h('div', { class: 'hint' }, t('props.iconTokenMmdx')));
     const conv = h('button', { type: 'button' }, t('props.toIconNode'));
     conv.addEventListener('click', () => void setMediaOf(core, [ref], { node: 'icon' }));
     host.append(row(t('props.icon'), h('code', { class: 'hint' }, m.icon), conv));
   }
-  if (k.setIcon && m.canIcon !== false) {
-    sect(host, t('props.icon'));
-    const pick = h('button', { type: 'button' }, t('props.choose'));
-    pick.addEventListener('click', () => core.run('openIconPicker', pick));
-    const name = h('code', { class: 'hint' }, m.icon ?? t('props.iconNone'));
-    const ctl: (Node | null)[] = [name, pick];
-    if (m.icon) {
-      const rm = h('button', { type: 'button', class: 'danger' }, t('props.removeIcon'));
-      rm.addEventListener('click', () => void setIconOf(core, [ref], null));
-      ctl.push(rm);
-    }
-    host.append(row(t('props.icon'), ...ctl));
-    // an icon in the label (T06 §3.3, §3.6): stock Mermaid draws Font Awesome tokens only; the icon can become the node
-    if (m.icon) {
-      if (k.iconsAsText) host.append(h('div', { class: 'hint' }, t('props.iconTokenText')));
-      else if (!isFaPack(splitIconName(m.icon)[0])) host.append(h('div', { class: 'hint' }, t('props.iconTokenMmdx')));
-      if (k.setMedia) {
-        const conv = h('button', { type: 'button' }, t('props.toIconNode'));
-        conv.addEventListener('click', () => void setMediaOf(core, [ref], { node: 'icon' }));
-        host.append(row('', conv));
-      }
-    }
-    if (k.decorated && m.icon) {
-      // where the icon is drawn (inline before the text, above, below) and its size (inline: the font's)
-      const meta = core.getM(ref.kind, ref.id);
-      const pos = typeof meta['iconPos'] === 'string' ? meta['iconPos'] : k.iconPos ?? 'l';
-      host.append(row(t('props.iconPos'), choice(t('props.iconPos'), ['l', 't', 'b'], pos, (v) => t(`media.iconPos.${v}`), (v) => setDecoration(core, [ref], 'iconPos', v))));
-      host.append(row(t('props.iconSize'), size(t('props.iconSize'), typeof meta['iconSize'] === 'number' ? meta['iconSize'] : undefined, (v) => setDecoration(core, [ref], 'iconSize', v))));
-    }
-  }
+  // a plain item takes an image (it becomes an image or icon node): Set image… opens the image tool and its four tabs
   if (k.setImage && m.canImage) {
     sect(host, t('props.image'));
-    const url = h('input', { type: 'text', readOnly: true, 'aria-label': t('props.imageUrl'), value: m.image ?? '' });
-    const ctl: (Node | null)[] = [m.image ? url : h('span', { class: 'hint' }, t('props.imageNone'))];
-    if (m.image) {
-      const rm = h('button', { type: 'button', class: 'danger' }, t('props.removeImage'));
-      rm.addEventListener('click', () => void setImageOf(core, [ref], null));
-      ctl.push(rm);
-    }
-    host.append(row(t('props.imageUrl'), ...ctl));
-    // a new or replacing picture: from the host's library, uploaded, or by its URL (the image tool on that tab)
-    const names = { library: t('props.imageLibrary'), upload: t('props.imageUpload'), url: t('props.imageByUrl') };
-    host.append(row('', ...imageSources(core).map((tab) => {
-      const b = h('button', { type: 'button', dataset: { source: tab } }, names[tab]);
-      b.addEventListener('click', () => core.run('openImageTool', b, { insert: false, tab }));
-      return b;
-    })));
-    if (k.decorated && m.image !== null) {
-      // the picture's box (one of the two: the other follows its aspect) and fit
-      const meta = core.getM(ref.kind, ref.id);
-      const num = (key: string): number | undefined => (typeof meta[key] === 'number' ? (meta[key] as number) : undefined);
-      host.append(row(t('props.mediaW'), size(t('props.mediaW'), num('imgW'), (v) => setDecoration(core, [ref], 'imgW', v))));
-      host.append(row(t('props.mediaH'), size(t('props.mediaH'), num('imgH'), (v) => setDecoration(core, [ref], 'imgH', v))));
-      const fit = meta['imgFit'];
-      host.append(row(t('props.fit'), choice(t('props.fit'), ['contain', 'cover', 'stretch'], typeof fit === 'string' ? fit : 'contain', (v) => t(`media.fit.${v}`), (v) => setImageFit(core, [ref], v))));
-    }
+    const set = iconButton(I_image, t('props.setImage'), 'set');
+    set.addEventListener('click', () => core.run('openImageTool', set, { insert: false }));
+    host.append(row(t('props.image'), h('span', { class: 'hint' }, t('props.imageNone')), set));
   }
 }
 
@@ -132,27 +85,16 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
 function nodeMedia(p: PanelCtx, host: HTMLElement, ref: ItemRef, m: ItemMedia): void {
   const { core } = p;
   const t = core.i18n.t;
-  const k = editKind(core.model.type);
   sect(host, t('props.image'));
   const current = m.node === 'icon'
     ? h('code', { class: 'hint' }, m.icon ?? '')
     : m.image ? h('input', { type: 'text', readOnly: true, 'aria-label': t('props.imageUrl'), value: m.image }) : h('span', { class: 'hint' }, t('props.imageNone'));
-  const rm = h('button', { type: 'button', class: 'danger' }, t('props.removeImage'));
+  // Change image (the image tool, on the tab of its source: Library, Upload, URL or Icon) and Remove image, as icons
+  const change = iconButton(I_image, t('props.changeImage'), 'change');
+  change.addEventListener('click', () => core.run('openImageTool', change, { insert: false }));
+  const rm = iconButton(I_trash, t('props.removeImage'), 'remove');
   rm.addEventListener('click', () => void (m.node === 'icon' ? setIconOf(core, [ref], null) : setImageOf(core, [ref], null)));
-  host.append(row(m.node === 'icon' ? t('props.icon') : t('props.imageUrl'), current, rm));
-  // change it: a picture from the library, uploaded or by URL (the image tool on that tab), or an icon
-  const names = { library: t('props.imageLibrary'), upload: t('props.imageUpload'), url: t('props.imageByUrl') };
-  const buttons = (k?.setImage && m.canImage ? imageSources(core) : []).map((tab) => {
-    const b = h('button', { type: 'button', dataset: { source: tab } }, names[tab]);
-    b.addEventListener('click', () => core.run('openImageTool', b, { insert: false, tab }));
-    return b;
-  });
-  if (k?.setIcon && m.canIcon !== false) {
-    const ic = h('button', { type: 'button', dataset: { source: 'icon' } }, t('props.imageIcon'));
-    ic.addEventListener('click', () => core.run('openImageTool', ic, { insert: false, tab: 'icon' }));
-    buttons.push(ic);
-  }
-  host.append(row(t('props.changeImage'), ...buttons));
+  host.append(row(m.node === 'icon' ? t('props.icon') : t('props.imageUrl'), current, change, rm));
   if (m.node === 'icon') host.append(row(t('props.iconForm'), choice(t('props.iconForm'), ['', 'square', 'circle', 'rounded'], m.form ?? '', (v) => t(`media.form.${v || 'none'}`), (v) => void setMediaOf(core, [ref], { form: v || null }))));
   layoutRows(p, host, ref, m);
   if (m.node !== 'image') return;

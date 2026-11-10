@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // Sequence participants in the editor (T10.2): the toolbar's shape picker writes Mermaid's types to the code (the looks
-// only mmdx draws stay metadata), the icon picker writes a token at the start of the name (adding an alias), Properties
-// edits where it is drawn (above the name by default) and says stock Mermaid shows it as text, and the image tool sets
-// metadata `img` or drops a participant holding it. Every output is read by stock Mermaid 12.2 and 11.17.
+// only mmdx draws stay metadata); a participant's image works as a flowchart image node's, in metadata — the image tool
+// sets a picture or (its Icon tab) an icon, or drops a participant holding the placeholder. Every output is read by stock
+// Mermaid 12.2 and 11.17.
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
@@ -86,47 +86,28 @@ describe('the shape picker', () => {
 });
 
 describe('icons', () => {
-  test('the icon picker writes a token at the start of the name, adding an alias; removing it removes the alias', async () => {
+  test('an icon is an image\'s source: the image tool\'s Icon tab makes the participant an icon participant (metadata); no Icon button', async () => {
     const e = mount('sequenceDiagram\n  participant A\n  A->>B: hi\n');
-    await settle();
-    e.core.select(A);
-    e.core.run('openIconPicker', null);
-    await settle();
-    input($<HTMLInputElement>('.ip-search')!, 'user');
-    $<HTMLButtonElement>('.ip-tile[aria-label="tabler:user"]')!.click();
-    expect(e.core.code.trimEnd() + '\n').toBe('sequenceDiagram\n  participant A as tabler:user A\n  A->>B: hi\n');
-    await stockParse(e.core.code);
-    // drawn above the name, the token out of the text
-    const head = $('.el[data-kind="participant"][data-id="A"]')!;
-    expect(head.querySelector('.mmdx-icon')).not.toBeNull();
-    expect(head.textContent).not.toContain('tabler:user');
-    e.core.run('openIconPicker', null);
-    await settle();
-    $<HTMLButtonElement>('.ip-foot button')!.click();
-    expect(e.core.code.trimEnd() + '\n').toBe('sequenceDiagram\n  participant A\n  A->>B: hi\n');
-  });
-
-  test('Properties: the position defaults to above the name, and a note says stock Mermaid shows the token as text', async () => {
-    const e = mount('sequenceDiagram\n  participant A as fa:fa-user Alice\n  A->>B: hi\n');
     await settle();
     const code = e.core.code;
     e.core.select(A);
-    e.core.run('setPanel', 'properties', true);
-    e.core.fire('panels');
+    e.core.fire('selection');
     await settle();
-    expect(host.shadowRoot!.textContent).toContain('stock Mermaid shows icons in this diagram type as text');
-    const pos = $<HTMLSelectElement>('select[aria-label="Position"]')!;
-    expect(pos.value).toBe('t');
-    pos.value = 'l';
-    pos.dispatchEvent(new Event('change'));
-    expect(e.core.meta.participants?.['A']).toEqual({ iconPos: 'l' });
+    e.core.run('refreshToolbar');
+    const controls = [...host.shadowRoot!.querySelectorAll<HTMLElement>('.mtb .mtb-seg [data-c]')].map((b) => b.dataset['c']);
+    expect(controls).not.toContain('icon');
+    e.core.run('openImageTool', null, { insert: false, tab: 'icon' });
     await settle();
-    const pos2 = $<HTMLSelectElement>('select[aria-label="Position"]')!;
-    pos2.value = 't';
-    pos2.dispatchEvent(new Event('change'));
-    // the default: no key
-    expect(e.core.meta.participants?.['A']).toBeUndefined();
+    input($<HTMLInputElement>('.imp .ip-search')!, 'user');
+    $<HTMLButtonElement>('.imp .ip-tile[aria-label="tabler:user"]')!.click();
+    expect(e.core.meta.participants?.['A']).toEqual({ icon: 'tabler:user', form: 'square', pos: 'b' });
     expect(e.core.code).toBe(code);
+    // the head is the icon in its frame, the name under it
+    expect($('.el[data-kind="participant"][data-id="A"] .mmdx-icon')).not.toBeNull();
+    e.core.run('refreshToolbar');
+    const after = [...host.shadowRoot!.querySelectorAll<HTMLElement>('.mtb .mtb-seg [data-c]')].map((b) => b.dataset['c']);
+    expect(after.slice(0, 2)).toEqual(['source', 'media']);
+    expect(after).not.toContain('shape');
   });
 });
 
@@ -140,7 +121,7 @@ describe('images', () => {
     await settle();
     input($<HTMLInputElement>('.imp-url')!, 'https://example.com/alice.png');
     $<HTMLButtonElement>('.imp-row button')!.click();
-    expect(e.core.meta.participants?.['A']).toEqual({ img: 'https://example.com/alice.png' });
+    expect(e.core.meta.participants?.['A']).toEqual({ img: 'https://example.com/alice.png', h: 200, w: 200, pos: 'b', constraint: 'on' });
     expect(e.core.code).toBe(code);
     expect($('.el[data-kind="participant"][data-id="A"] image')).not.toBeNull();
   });
@@ -156,7 +137,7 @@ describe('images', () => {
     await settle();
     const id = e.core.primary()!.id;
     expect(e.core.model.type === 'sequence' && e.core.model.participants.some((p) => p.id === id)).toBe(true);
-    expect(e.core.meta.participants?.[id]).toEqual({ img: '' });
+    expect(e.core.meta.participants?.[id]).toEqual({ img: '', h: 200, w: 200, pos: 'b', constraint: 'on' });
     expect($(`.el[data-kind="participant"][data-id="${id}"] .mmdx-image-blocked`)).not.toBeNull();
     await stockParse(e.core.code);
   });

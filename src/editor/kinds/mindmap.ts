@@ -5,8 +5,9 @@
 // module's (editor/modules/mindmap).
 import type { MindmapModel, MindShape } from '../../core/model.js';
 import { reparse } from '../../core/kinds/registry.js';
-import { leadingIcon, type IsIconToken } from '../../core/ops/icon-token.js';
-import { addMindChild, addMindRoot, deleteMind, mindFragment, mindNodeAt, MIND_NEW, relabelMind, remapMindMeta, setMindColorBy, setMindIcon, setMindShape } from '../../core/ops/mindmap.js';
+import { addMindChild, addMindRoot, deleteMind, mindFragment, mindNodeAt, MIND_NEW, relabelMind, remapMindMeta, setMindColorBy, setMindShape } from '../../core/ops/mindmap.js';
+import { metaMediaSource, NEW_IMAGE } from '../../core/ops/meta-media.js';
+import { metaItemMedia } from './meta-media.js';
 import { cloneMeta, ensure as ensureIn } from '../../core/ops/meta-util.js';
 import { MIND_SHAPES } from '../../core/parse/mindmap.js';
 import { registerExtendedShapes } from '../../core/shapes/extended.js';
@@ -32,7 +33,6 @@ const SHAPE_CODE: Readonly<Record<MindShape, string>> = {
 };
 const ITEMS: PaletteItem[] = MIND_SHAPES.map((s) => ({ key: s, label: SHAPE_NAMES[s], icon: shapeIcon(s), terms: [s, SHAPE_NAMES[s], SHAPE_CODE[s]], tip: `${SHAPE_NAMES[s]} · ${SHAPE_CODE[s]}` }));
 
-const isIconOf = (core: EditorCore): IsIconToken => (t) => core.ctx.icons.resolve(t, 'token') !== null;
 
 /** Where new nodes go: the selected node, else the node nearest the point, else the root. */
 function parentFor(core: EditorCore, M: MindmapModel, at: Point | null): string | null {
@@ -97,20 +97,17 @@ export const EDIT: EditKind<MindmapModel, MindmapGeometry> = {
   // a shape from the menu: a new child of the selected node (or the one nearest the drop)
   drop: (core, M, item, pt) => addNode(core, M, pt, MIND_NEW, (MIND_SHAPES as readonly string[]).includes(item.key) ? (item.key as MindShape) : 'mm-default', 'Add node', item.preset ? { preset: item.preset } : undefined),
   // an empty URL is the placeholder: the node is selected, its picture chosen from the toolbar or Properties
-  addImage: (core, M, url, pt) => addNode(core, M, pt, 'Image', 'mm-default', 'Add image', { img: url }, !!url),
+  addImage: (core, M, url, pt) => addNode(core, M, pt, 'Image', 'mm-default', 'Add image', { img: url, ...NEW_IMAGE }, !!url),
+  // an image or icon node, as the flowchart's image node, in metadata (core/ops/meta-media.ts); an icon is its image's
+  // source, so a node has no Icon button (a `::icon()` or a token already written is still drawn)
   media(M, ref, core) {
     const n = ref.kind === 'node' ? M.nodes.get(ref.id) : undefined;
-    if (!n) return null;
-    const token = leadingIcon(n.label, isIconOf(core));
-    const icon = token?.name ?? (n.icon ? core.ctx.icons.resolve(n.icon, 'class') ?? n.icon : null);
-    const img = core.meta.nodes?.[n.id]?.img;
-    return { icon, image: typeof img === 'string' ? img : null, node: null, canImage: true };
+    return n ? metaItemMedia(metaMediaSource(core.meta.nodes?.[n.id] ?? {})) : null;
   },
-  setIcon: (code, M, ref, icon, core) => (ref.kind === 'node' ? setMindIcon(code, M, ref.id, icon, isIconOf(core)) : null),
-  // images are metadata (`img`): the editor writes them (imageInMeta), so this write is never asked for
+  setIcon: () => null,
   setImage: () => null,
-  imageInMeta: true,
-  decorated: true,
+  setMedia: () => null,
+  mediaNodesInMeta: true,
   // no connectors to route; colour by branch or by depth (frontmatter) and the layout (page) in Page properties
   straight: true,
   layout: { title: 'page.mindLayout', fields: ['mindLayout'] },

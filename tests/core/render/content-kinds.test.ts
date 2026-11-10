@@ -5,7 +5,7 @@
 // picture or the icon is the state, captioned above or below) with the same keys and the same boxes; a catalogue shape
 // from metadata; the boxes growing with what they hold.
 import { describe, expect, it } from 'vitest';
-import type { MindmapGeometry, StateGeometry } from '../../../src/core/render/types.js';
+import type { MindmapGeometry, SequenceGeometry, StateGeometry } from '../../../src/core/render/types.js';
 import { renderProd } from './helpers.js';
 
 const IMG = 'https://example.com/photo.png';
@@ -32,15 +32,8 @@ const TOKENS: Record<string, [string, string]> = {
   'token above': ['fa:fa-cog Running', '{"iconPos":"t"}'],
   'token below, coloured': ['fa:fa-cog Running', '{"iconPos":"b","iconColor":"@red"}'],
 };
-const IMAGES: Record<string, [string, string]> = {
-  'image': ['Running', `{"img":"${IMG}"}`],
-  'image imgW × imgH, cover': ['Running', `{"img":"${IMG}","imgW":120,"imgH":40,"imgFit":"cover"}`],
-  'image and the token above': ['tabler:user Alice', `{"img":"${IMG}","iconPos":"t"}`],
-  'refused image': ['Running', '{"img":"http://example.com/a.png"}'],
-  'picture not chosen yet': ['Running', '{"img":""}'],
-};
 
-/** Image and icon states: the flowchart image node's keys in the state's metadata. */
+/** Image and icon states and mindmap nodes: the flowchart image node's keys in the item's metadata. */
 const STATE_MEDIA: Record<string, [string, string]> = {
   'image state': ['Running', `{"img":"${IMG}","w":200,"h":200,"pos":"b","constraint":"on"}`],
   'image state, caption above, w × h, cover': ['Running', `{"img":"${IMG}","w":120,"h":40,"pos":"t","imgFit":"cover"}`],
@@ -58,10 +51,11 @@ describe('state and mindmap content (goldens)', () => {
         const r = renderProd(src(label, meta));
         expect(nodeSvg(r.svg, 's')).toMatchSnapshot();
       });
-  for (const [name, [label, meta]] of Object.entries(IMAGES))
-    it(`mindmap: ${name}`, () => {
-      expect(nodeSvg(renderProd(mind(label, meta)).svg, 's')).toMatchSnapshot();
-    });
+  for (const [name, [label, meta]] of Object.entries(STATE_MEDIA))
+    if (!name.includes('description'))
+      it(`mindmap: ${name.replace('state', 'node')}`, () => {
+        expect(nodeSvg(renderProd(mind(label, meta)).svg, 's')).toMatchSnapshot();
+      });
   for (const [name, [label, meta]] of Object.entries(STATE_MEDIA))
     it(`state: ${name}`, () => {
       const src = name.includes('description') ? `${state(label, meta)}\n  s : waiting for input` : state(label, meta);
@@ -80,20 +74,25 @@ describe('state and mindmap content', () => {
       expect(top.h).toBeGreaterThan(plain.h);
       expect(box('fa:fa-cog Running', '{"iconPos":"b"}').h).toBe(top.h);
     }
-    expect(mindBox('Running', `{"img":"${IMG}"}`).h).toBeGreaterThan(mindBox('Running', '{}').h + 70);
-    expect(mindBox('Running', `{"img":"${IMG}","imgW":200,"imgH":20}`).w).toBeGreaterThanOrEqual(200);
   });
 
-  it('an image or icon state is drawn as the flowchart draws an image or icon node with the same keys', () => {
+  it('an image or icon state, mindmap node or participant is drawn as the flowchart draws an image or icon node with the same keys', () => {
     const cases: [string, string][] = [
       [`{"img":"${IMG}","w":200,"h":120,"pos":"b"}`, `img: "${IMG}", w: 200, h: 120, pos: "b"`],
       [`{"img":"${IMG}","w":90,"h":60,"pos":"t"}`, `img: "${IMG}", w: 90, h: 60, pos: "t"`],
       ['{"icon":"tabler:user","form":"circle","h":60}', 'icon: "tabler:user", form: "circle", h: 60'],
       ['{"icon":"tabler:user"}', 'icon: "tabler:user"'],
     ];
+    const seq = (label: string, meta: string): string => `sequenceDiagram\n  participant s as ${label}\n  participant B\n  s->>B: hi\n%%@ participant s ${meta}`;
     for (const [meta, data] of cases) {
-      const s = (renderProd(state('Running', meta)).result.geom as StateGeometry).nodes.get('s')!;
       const f = (renderProd(flow('Running', data)).result.geom as StateGeometry).nodes.get('s')!;
+      const m = (renderProd(mind('Running', meta)).result.geom as MindmapGeometry).nodes.get('s')!;
+      const q = (renderProd(seq('Running', meta)).result.geom as SequenceGeometry).participants.get('s')!;
+      for (const o of [m, q]) {
+        expect([o.asset!.w, o.asset!.h], meta).toEqual([f.asset!.w, f.asset!.h]);
+        expect(Math.sign(o.asset!.y - o.y), meta).toBe(Math.sign(f.asset!.y - f.y));
+      }
+      const s = (renderProd(state('Running', meta)).result.geom as StateGeometry).nodes.get('s')!;
       expect(s.asset, meta).toBeDefined();
       // the same asset and the same box around it and its caption (the state's text is a pixel smaller than the node's)
       expect([s.asset!.w, s.asset!.h], meta).toEqual([f.asset!.w, f.asset!.h]);
@@ -122,12 +121,6 @@ describe('state and mindmap content', () => {
     expect(inline).not.toMatch(/class="mmdx-icon"/);
   });
 
-  it('a mindmap node draws its image and its icon above the text', () => {
-    const at = (svg: string): number[] => [...svg.matchAll(/<image [^>]*?y="([\d.-]+)"[^>]*?height="([\d.]+)"/g)].map((m) => Number(m[2]));
-    const m = nodeSvg(renderProd(mind('tabler:user Alice', `{"img":"${IMG}","iconPos":"t"}`)).svg, 's');
-    // the image box; the icon 1.75 em (16 px → 28 px)
-    expect(at(m)).toEqual([72, 28]);
-  });
 
   it('a refused image reports image.blocked from the metadata; a picture not chosen yet reports nothing', () => {
     for (const src of [state, mind]) {

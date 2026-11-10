@@ -153,6 +153,18 @@ export function setFlowIcon(code: string, model: FlowchartModel, id: string, nam
 }
 
 /**
+ * Sets the image of a node to an icon (the image tool's Icon tab): a plain node becomes an icon node — its label the
+ * caption, framed in a square, caption below, Mermaid Chart's height — and an image or icon node takes the icon as its
+ * source (setFlowIcon); null removes an icon node's icon.
+ */
+export function setFlowIconNode(code: string, model: FlowchartModel, id: string, name: string | null, isIcon: IsIconToken = faOnly): CodeResult | null {
+  const n = nodeOf(model, id);
+  if (!n) return null;
+  if (n.data?.icon || n.data?.img != null) return setFlowIcon(code, model, id, name, isIcon);
+  return name ? writeNodeData(code, model, id, { icon: name, form: 'square', h: ICON_NODE_H, pos: 'b' }) : { code };
+}
+
+/**
  * Sets a node's image (a URL the image policy accepted) or removes it (null). A node without one becomes an image
  * node (its label the caption, Mermaid Chart's default size, caption below); an icon node gives up its icon.
  */

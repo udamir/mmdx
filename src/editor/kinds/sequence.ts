@@ -10,7 +10,6 @@
 import { activationsOf } from '../../core/ids.js';
 import type { SequenceModel } from '../../core/model.js';
 import { addSeqMessage } from '../../core/ops/connect.js';
-import { leadingIcon, withIconToken, type IsIconToken } from '../../core/ops/icon-token.js';
 import {
   addBranch, boxParticipants, BRANCH_WORD, branchLabels, deleteSeq, MESSAGE_ARROWS, reattachMessage, relabelBox, relabelBranch, relabelSeq,
   removeActivation, removeBranch, reverseMessage, setMessageArrow, setNotePlacement, setParticipantType, unboxParticipants,
@@ -25,6 +24,8 @@ import { reparse } from '../../core/kinds/registry.js';
 import type { BlockKind, SeqBlockStart, SeqMessage, SeqNote } from '../../core/model.js';
 import { addNote, addParticipant, seqInsertAfter, wrapBlock } from '../../core/ops/sequence.js';
 import { applyThenStyle, focusLabel, setPreset } from '../modules/shapes/drop.js';
+import { metaMediaSource, NEW_IMAGE } from '../../core/ops/meta-media.js';
+import { metaItemMedia } from './meta-media.js';
 import { blockIcon, noteIcon, shapeIcon } from './palette.js';
 import type { EditKind, ItemAction, PropControl } from './types.js';
 
@@ -32,7 +33,6 @@ import type { EditKind, ItemAction, PropControl } from './types.js';
 // the canvas: this chunk registers the extended geometry and the media kit statically, as the state chunk does
 registerExtendedShapes();
 
-const isIconOf = (core: EditorCore): IsIconToken => (t) => core.ctx.icons.resolve(t, 'token') !== null;
 
 const reparseSeq = (code: string): SequenceModel | null => {
   const N = reparse(code);
@@ -199,25 +199,23 @@ export const EDIT: EditKind<SequenceModel, SequenceGeometry> = {
       .filter((o): o is { id: string; x: number } => o.x != null && o.x > pt.x)
       .sort((a, b) => a.x - b.x)[0];
     const res = addParticipant(core.code, M, { beforeId: right?.id ?? null });
-    return applyThenStyle(core, res.code, 'Add participant', res.select, () => setPreset(core, 'participant', res.select.id, undefined, { img: url }));
+    return applyThenStyle(core, res.code, 'Add participant', res.select, () => setPreset(core, 'participant', res.select.id, undefined, { img: url, ...NEW_IMAGE }));
   },
+  // an image or icon participant, as the flowchart's image node, in metadata (core/ops/meta-media.ts), else the picture
+  // of Mermaid's `properties` icon (read, never written: a change writes metadata); an icon is its image's source, so a
+  // participant has no Icon button (a token already in its name is still drawn)
   media(M, ref, core) {
     const p = ref.kind === 'participant' ? M.participants.find((x) => x.id === ref.id) : undefined;
     if (!p) return null;
-    const img = core.meta.participants?.[p.id]?.img;
-    return { icon: leadingIcon(p.label, isIconOf(core))?.name ?? null, image: typeof img === 'string' ? img : null, node: null, canImage: true };
+    const own = metaMediaSource(core.meta.participants?.[p.id] ?? {});
+    const icon = p.properties?.['icon'];
+    const url = typeof icon === 'string' && icon.trim() && !icon.trim().startsWith('@') ? icon.trim() : null;
+    return metaItemMedia(own ?? (url ? { img: url } : null));
   },
-  // a token at the start of the name: in the alias (`as …` or `@{ "alias" }`), one added when there is none
-  setIcon(code, M, ref, icon, core) {
-    const p = ref.kind === 'participant' ? M.participants.find((x) => x.id === ref.id) : undefined;
-    return p ? relabelSeq(code, M, ref, withIconToken(p.label, icon, isIconOf(core))) : null;
-  },
-  // images are metadata (`img`): the editor writes them (imageInMeta), so this write is never asked for
+  setIcon: () => null,
   setImage: () => null,
-  imageInMeta: true,
-  decorated: true,
-  iconPos: 't',
-  iconsAsText: true,
+  setMedia: () => null,
+  mediaNodesInMeta: true,
   codeArrow(core, M, ref) {
     if (ref.kind !== 'message') return null;
     const m = M.items.find((x): x is SeqMessage => x.kind === 'message' && x.id === ref.id);

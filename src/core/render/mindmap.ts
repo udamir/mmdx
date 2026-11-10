@@ -25,6 +25,8 @@ import {
   textBlock, withLink, type RenderEnv, type SubResult,
 } from './common.js';
 import { decorate, decoratedSize, decoration, lazyKit, type Decoration } from './decorate.js';
+import { assetBox, captionY, mediaAssetNodes, mediaLayout, mediaPort, type MediaBox } from './media-node.js';
+import { metaMediaSource } from '../ops/meta-media.js';
 import { mindPreset, mindPresets } from './mind-presets.js';
 import type { MindmapGeometry } from './types.js';
 
@@ -50,6 +52,8 @@ interface Item {
   textH: number;
   /** The icon and the image beside the label. */
   deco: Decoration;
+  /** An image or icon node's asset and caption (metadata `img` or `icon`, drawn as the flowchart's image node). */
+  media?: MediaBox;
   w: number;
   h: number;
   x: number;
@@ -124,20 +128,39 @@ export function renderMindmap(model: MindmapModel, env: RenderEnv): SubResult {
     const fs = st.fontSize ?? 16;
     const fnt = font(fs, st.fontWeight, st.fontFamily || family);
     const line = n.line;
+    /** The label's lines at `maxW`: plain, or runs (markdown, icon tokens). */
+    const labelAt = (label: string, color: string | undefined, maxW: number): { lines: string[]; w: number; rich?: TextRun[][] } => {
+      const k = needsRuns(label) ? kit() : null;
+      const runs = k ? k.labelRuns(label, { markdown: true, icons: k.iconResolver(ctx, color, fs, { diagnostics: env.diagnostics, line }), iconSize: fs }) : null;
+      if (k && runs) {
+        const r = k.wrapRuns(runs, maxW, fnt, ctx.measure);
+        const out: { lines: string[]; w: number; rich?: TextRun[][] } = { lines: r.map(k.runsText), w: k.runsBlockWidth(r, fnt, ctx.measure) };
+        if (k.richLines(r)) out.rich = r;
+        return out;
+      }
+      const lines = wrap(label, maxW, fnt, ctx.measure);
+      return { lines, w: textBlockWidth(lines, fnt, ctx.measure) };
+    };
+    // an image or icon node (metadata `img` or `icon`): the picture or the icon is the node, its label the caption, as
+    // the flowchart's image node
+    const src = metaMediaSource(nm);
+    if (src) {
+      const kind = src.img != null ? 'image' : 'icon';
+      st.shape = kind;
+      const { box, caption, w, h } = mediaLayout(env, kit(), src, {}, fs, wrapW, st.text, line, (cw) => labelAt(n.label, st.text, cw));
+      const it: Item = {
+        n, m: nm, st, preset, shape: kind, section, color: st.color, lines: caption.lines, textW: caption.w, textH: caption.lines.length * fs * 1.3,
+        deco: decoration(ctx, kit, { label: '', meta: {}, fontSize: fs, color: st.text }), media: box, w, h, x: 0, y: 0,
+        hidden: hiddenNodes.has(n.id), folded: folded.has(n.id) ? descendantsOf(model, n.id).length : 0,
+      };
+      if (caption.rich) it.rich = caption.rich;
+      items.set(n.id, it);
+      continue;
+    }
     // `::icon(…)` above the label; a leading token where `iconPos` puts it
     const deco = decoration(ctx, kit, { label: n.label, meta: nm, fontSize: fs, color: st.text, icon: n.icon ? { written: n.icon, form: 'class' } : null });
-    const k = needsRuns(deco.label) ? kit() : null;
-    const runs = k ? k.labelRuns(deco.label, { markdown: true, icons: k.iconResolver(ctx, deco.inlineColor ?? st.text, fs, { diagnostics: env.diagnostics, line }), iconSize: fs }) : null;
-    let lines: string[], textW: number, rich: TextRun[][] | undefined;
-    if (k && runs) {
-      const r = k.wrapRuns(runs, wrapW, fnt, ctx.measure);
-      lines = r.map(k.runsText);
-      textW = k.runsBlockWidth(r, fnt, ctx.measure);
-      if (k.richLines(r)) rich = r;
-    } else {
-      lines = wrap(deco.label, wrapW, fnt, ctx.measure);
-      textW = textBlockWidth(lines, fnt, ctx.measure);
-    }
+    const L = labelAt(deco.label, deco.inlineColor ?? st.text, wrapW);
+    const lines = L.lines, textW = L.w, rich = L.rich;
     const textH = lines.length * fs * 1.3;
     const block = decoratedSize(deco, { w: textW, h: textH });
     let w = block.w + (st.padX ?? 10) * 2, h = block.h + (st.padY ?? 6) * 2;
@@ -183,6 +206,12 @@ export function renderMindmap(model: MindmapModel, env: RenderEnv): SubResult {
   const branches = new Map<string, string>();
   /** Where a branch leaves a node (`out`) or reaches it: an edge's middle, or an underline's end. */
   const anchor = (it: Item, side: 'l' | 'r' | 'd', out: boolean): Point => {
+    // an image or icon node: on the asset's frame (past the caption on its side), as a flowchart connector
+    if (it.media) {
+      const dir = side === 'd' ? (out ? 1 : -1) : (side === 'r') === out ? 1 : -1;
+      const p = side === 'd' ? { x: it.x, y: it.y + (dir * it.h) / 2, n: { x: 0, y: dir } } : { x: it.x + (dir * it.w) / 2, y: it.y + it.media.dy, n: { x: dir, y: 0 } };
+      return mediaPort(it, it.media, it.lines.length > 0, p);
+    }
     const plain = it.shape === 'mm-default';
     if (side === 'd') {
       const dir = out ? 1 : -1;
@@ -207,6 +236,19 @@ export function renderMindmap(model: MindmapModel, env: RenderEnv): SubResult {
   }
 
   // ---- nodes
+  /** A folded subtree: +N on the node's outer side. */
+  const foldBadge = (it: Item, box: { x: number; y: number; w: number; h: number }): SceneNode[] => {
+    if (!it.folded) return [];
+    const tl = `+${it.folded}`;
+    const tw = ctx.measure.width(tl, font(11, 700, family)) + 12;
+    const side = it.side ?? 'r';
+    const bx = side === 'd' ? box.x : side === 'l' ? box.x - box.w / 2 - 6 - tw / 2 : box.x + box.w / 2 + 6 + tw / 2;
+    const by = side === 'd' ? box.y + box.h / 2 + 12 : box.y;
+    return [
+      el('rect', { class: 'mm-fold', x: bx - tw / 2, y: by - 9, width: tw, height: 18, rx: 9, fill: it.color ?? it.st.text, stroke: env.paper, 'stroke-width': 1.5 }),
+      text({ 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-family': family, 'font-size': 11, 'font-weight': 700, fill: env.paper }, [{ text: tl, x: bx, y: by }]),
+    ];
+  };
   const nodeNodes: SceneNode[] = [];
   for (const [id, it] of items) {
     if (it.hidden) continue;
@@ -215,6 +257,20 @@ export function renderMindmap(model: MindmapModel, env: RenderEnv): SubResult {
     const fs = st.fontSize ?? 16;
     const box = { x: it.x, y: it.y, w: it.w, h: it.h };
     const parts: SceneNode[] = [];
+    if (it.media) {
+      // an image or icon node: the asset, then its caption
+      const src = metaMediaSource(it.m)!;
+      parts.push(...mediaAssetNodes(env, kit(), box, it.media, src, st, { key: `node-${id}`, family, line: it.n.line, source: 'meta' }));
+      if (it.lines.some((l) => l)) {
+        const cy = captionY(box, it.media);
+        const to = { size: fs, weight: st.fontWeight, color: href ? LINK_COLOR : st.text, family: st.fontFamily || family, lh: 1.3, underline: !!href };
+        const K = it.rich ? kit() : null;
+        parts.push(...withLink(href, it.rich && K ? (K as MediaKit).richText(it.rich, box.x, cy, { ...to, measure: ctx.measure }) : [textBlock(it.lines, box.x, cy, to)]));
+      }
+      parts.push(...foldBadge(it, box));
+      nodeNodes.push(itemGroup('node', id, `mm-node mm-${it.media.kind}${it.n.id === model.root ? ' mm-root' : ''}`, parts, { ...linkAttr(href), ...(it.folded ? { 'data-folded': it.folded } : {}) }));
+      continue;
+    }
     if (it.shape === 'mm-default') {
       // the label over an underline (a transparent box keeps the whole node clickable)
       // a fill of its own (a preset, the node's style) draws a box behind the label
@@ -232,18 +288,7 @@ export function renderMindmap(model: MindmapModel, env: RenderEnv): SubResult {
     const K = it.rich ? kit() : null;
     const label = it.rich && K ? (K as MediaKit).richText(it.rich, tx, ty, { ...to, measure: ctx.measure }) : [textBlock(it.lines, tx, ty, to)];
     if (it.lines.some((l) => l)) parts.push(...withLink(href, label));
-    // a folded subtree: +N on the node's outer side
-    if (it.folded) {
-      const tl = `+${it.folded}`;
-      const tw = ctx.measure.width(tl, font(11, 700, family)) + 12;
-      const side = it.side ?? 'r';
-      const bx = side === 'd' ? box.x : side === 'l' ? box.x - box.w / 2 - 6 - tw / 2 : box.x + box.w / 2 + 6 + tw / 2;
-      const by = side === 'd' ? box.y + box.h / 2 + 12 : box.y;
-      parts.push(
-        el('rect', { class: 'mm-fold', x: bx - tw / 2, y: by - 9, width: tw, height: 18, rx: 9, fill: it.color ?? st.text, stroke: env.paper, 'stroke-width': 1.5 }),
-        text({ 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-family': family, 'font-size': 11, 'font-weight': 700, fill: env.paper }, [{ text: tl, x: bx, y: by }]),
-      );
-    }
+    parts.push(...foldBadge(it, box));
     nodeNodes.push(itemGroup('node', id, `mm-node${it.n.id === model.root ? ' mm-root' : ''}`, parts, { ...linkAttr(href), ...(it.folded ? { 'data-folded': it.folded } : {}) }));
   }
 
@@ -272,7 +317,8 @@ export function renderMindmap(model: MindmapModel, env: RenderEnv): SubResult {
       [...items].map(([id, it]) => {
         const b: MindmapGeometry['nodes'] extends Map<string, infer V> ? V : never = { x: it.x, y: it.y, w: it.w, h: it.h, depth: it.n.depth, parent: it.n.parent, section: it.section, hidden: it.hidden };
         if (it.side) b.side = it.side;
-        if (it.shape !== 'mm-default') b.shape = it.shape;
+        if (it.media) b.asset = assetBox(it, it.media);
+        else if (it.shape !== 'mm-default') b.shape = it.shape;
         return [id, b];
       }),
     ),

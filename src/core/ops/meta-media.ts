@@ -1,8 +1,9 @@
-// Image and icon states: Mermaid has no image or icon syntax in state diagrams, so a state's picture (`img`) or icon
-// (`icon`) and the flowchart image node's layout keys (`pos`, `w`, `h`, `constraint`, `form`, and `imgFit`) are its
-// metadata. The renderer reads them (render/media-node.ts draws the state as the flowchart draws an image node); the
-// editor's image tool, icon picker, toolbar and Properties write them, as the flowchart writes its node data
-// (core/ops/flow-media.ts): a picture and an icon replace each other, and removing one makes the state plain again.
+// Image and icon items kept in metadata: in the types whose code has no image or icon syntax for them — state diagrams,
+// mindmaps, sequence participants — an item's picture (`img`) or icon (`icon`) and the flowchart image node's layout
+// keys (`pos`, `w`, `h`, `constraint`, `form`, and `imgFit`) are its metadata. The renderers read them
+// (render/media-node.ts draws the item as the flowchart draws an image node); the editor's image tool, toolbar and
+// Properties write them, as the flowchart writes its node data (core/ops/flow-media.ts): a picture and an icon replace
+// each other, and removing one makes the item plain again.
 import type { MediaSource } from '../render/media-node.js';
 import type { MediaPatch } from './flow-media.js';
 
@@ -11,14 +12,17 @@ type Meta = Record<string, unknown>;
 /** The flowchart's defaults (flow-media.ts: ICON_NODE_H, IMAGE_NODE_SIZE), not imported: that module carries the flowchart's ops. */
 const ICON_NODE_H = 60, IMAGE_NODE_SIZE = 200;
 
-/** Every key of an image or icon state (`imgW` / `imgH`: the first metadata images' size, read where `w` / `h` are not). */
+/** Every key of an image or icon item (`imgW` / `imgH`: the first metadata images' size, read where `w` / `h` are not). */
 const MEDIA_KEYS = ['img', 'icon', 'form', 'pos', 'w', 'h', 'constraint', 'imgFit', 'imgW', 'imgH'] as const;
+
+/** A new picture's keys: Mermaid Chart's default size, the caption below, the aspect kept (the flowchart's image node). */
+export const NEW_IMAGE = { h: IMAGE_NODE_SIZE, w: IMAGE_NODE_SIZE, pos: 'b', constraint: 'on' } as const;
 
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
 const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined);
 
-/** A state's picture (`img`, `""`: not chosen yet) or icon and its layout keys; null: a plain state. */
-export function stateMediaSource(m: Meta): MediaSource | null {
+/** An item's picture (`img`, `""`: not chosen yet) or icon and its layout keys; null: a plain item. */
+export function metaMediaSource(m: Meta): MediaSource | null {
   const img = typeof m['img'] === 'string' ? m['img'] : undefined, icon = str(m['icon']);
   if (img === undefined && !icon) return null;
   return {
@@ -34,16 +38,16 @@ const clear = (m: Meta): void => {
 };
 
 /**
- * Sets a state's picture or removes it (null). A plain state becomes an image state (Mermaid Chart's default size,
- * caption below, the aspect kept); an icon state gives up its icon.
+ * Sets an item's picture or removes it (null). A plain item becomes an image item (Mermaid Chart's default size,
+ * caption below, the aspect kept); an icon item gives up its icon.
  */
-export function setStateImage(m: Meta, url: string | null): void {
+export function setMetaImage(m: Meta, url: string | null): void {
   if (url === null) {
     if (typeof m['img'] === 'string') clear(m);
     return;
   }
   if (typeof m['img'] !== 'string') {
-    // a plain state's `w` / `h` were its box: the picture starts at the default size
+    // a plain item's `w` / `h` were its box: the picture starts at the default size
     if (m['icon']) delete m['icon'], delete m['form'];
     else delete m['w'], delete m['h'];
     m['h'] ??= IMAGE_NODE_SIZE;
@@ -54,8 +58,8 @@ export function setStateImage(m: Meta, url: string | null): void {
   m['img'] = url;
 }
 
-/** Sets an image or icon state's icon, or removes it (null): a picture gives way to it; without one the state is plain. */
-export function setStateIcon(m: Meta, name: string | null): void {
+/** Sets an image or icon item's icon, or removes it (null): a picture gives way to it; without one the item is plain. */
+export function setMetaIcon(m: Meta, name: string | null): void {
   if (name === null) {
     if (m['icon']) clear(m);
     return;
@@ -69,8 +73,8 @@ export function setStateIcon(m: Meta, name: string | null): void {
   m['pos'] ??= 'b';
 }
 
-/** Changes an image or icon state's caption side, frame, size or aspect lock (null removes a key). */
-export function patchStateMedia(m: Meta, patch: MediaPatch): void {
+/** Changes an image or icon item's caption side, frame, size or aspect lock (null removes a key). */
+export function patchMetaMedia(m: Meta, patch: MediaPatch): void {
   for (const k of ['pos', 'form', 'w', 'h', 'constraint'] as const) {
     if (!(k in patch)) continue;
     const v = patch[k];

@@ -33,6 +33,8 @@ import {
   presetOf, presets, shapeNodes, stackedShapeNodes, textBlock, urlRef, withLink, type RenderEnv, type SubResult, type TextOpts,
 } from './common.js';
 import { decorate, decorated, decoratedSize, decoration, lazyKit, type Decoration } from './decorate.js';
+import { assetBox, captionY, mediaAssetNodes, mediaLayout, type MediaBox, type MediaSource } from './media-node.js';
+import { metaMediaSource } from '../ops/meta-media.js';
 import type { BoxGeom, SequenceGeometry } from './types.js';
 import { dashAttrs } from './dash.js';
 
@@ -91,9 +93,11 @@ interface Part {
   name: Txt;
   /** The size the name is drawn at (a figure's name is smaller). */
   nameSize: number;
-  /** The icon and the image beside the name; `fromCode`: the image is the `properties` icon. */
+  /** The icon beside the name (a token in it); `fromCode`: the image is the `properties` icon. */
   deco: Decoration;
   fromCode: boolean;
+  /** An image or icon participant: its picture or icon and asset box (the head drawn as the flowchart's image node). */
+  media?: { box: MediaBox; src: MediaSource };
   /** The figure drawn above the name (actor, boundary, control, entity), else null: the name is inside the shape. */
   figure: { w: number; h: number } | null;
   w: number;
@@ -149,11 +153,16 @@ const FIGURES = new Set(['actor', 'boundary', 'control', 'entity']);
 const ACTOR_H = 52, FIGURE_H = 40;
 
 /** The image a participant shows: metadata `img`, else the URL of its `properties` icon (`@…`, an embedded picture, is not read). */
-function imageMeta(m: ItemMeta, p: Participant): { meta: ItemMeta; fromCode: boolean } {
+/**
+ * A participant's picture or icon: its metadata (`img` or `icon`, with the flowchart image node's keys), else the URL
+ * of Mermaid's `properties A: {"icon": …}` (read, never written; `@…` embedded pictures are not read).
+ */
+function mediaOf(m: ItemMeta, p: Participant): { src: MediaSource; fromCode: boolean } | null {
+  const own = metaMediaSource(m);
+  if (own) return { src: own, fromCode: false };
   const icon = p.properties?.['icon'];
   const url = typeof icon === 'string' ? icon.trim() : '';
-  if (typeof m.img === 'string' || !url || url.startsWith('@')) return { meta: m, fromCode: false };
-  return { meta: { ...m, img: url }, fromCode: true };
+  return url && !url.startsWith('@') ? { src: { img: url }, fromCode: true } : null;
 }
 
 export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult {
@@ -221,10 +230,19 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     const def = FIGURES.has(shape) && shape !== 'actor' ? shapeDef(shape) : null;
     const figure = shape === 'actor' ? { w: 28, h: ACTOR_H } : def ? { w: (def.size.w * FIGURE_H) / def.size.h, h: FIGURE_H } : null;
     const nameSize = figure ? fontSize * 0.6 : fontSize;
-    // the icon (above the name by default) and the image
-    const img = imageMeta(m, p);
-    const deco = decoration(ctx, kit, { label: p.label, meta: img.meta, fontSize: nameSize, color: st.text, pos: 't' });
     const line = p.defLine ?? Math.min(...p.lines);
+    // an image or icon participant: the picture or the icon is its head, the name the caption, as the flowchart's image
+    // node (the figure and the box give way to it)
+    const media = mediaOf(m, p);
+    if (media) {
+      st.shape = media.src.img != null ? 'image' : 'icon';
+      const ln = Number.isFinite(line) ? line : undefined;
+      const { box, caption, w, h } = mediaLayout(env, kit(), media.src, {}, fontSize, 200, st.text, ln ?? null, (cw) => textOf(p.label, fnt, st.text, ln, cw));
+      const deco = decoration(ctx, kit, { label: '', meta: {}, fontSize, color: st.text });
+      return { p, m, st, preset, name: caption, nameSize: fontSize, deco, fromCode: media.fromCode, figure: null, w, h, hidden: hidden.participant.has(p.id), media: { box, src: media.src } };
+    }
+    // the icon (above the name by default): a token in the name
+    const deco = decoration(ctx, kit, { label: p.label, meta: m, fontSize: nameSize, color: st.text, pos: 't' });
     const fixedW = metaNum(m.w);
     // word wrap: lines break to fit the participant's width (its own width, else the style's maxW, else minW / 200)
     const maxW = st.wrap ? Math.max(20, (fixedW || st.maxW || Math.max(st.minW ?? 0, 200)) - padX * 2) : undefined;
@@ -240,7 +258,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     if (st.wrap && !figure) h = Math.max(h, textH + 2 * padY);
     // the icon and the image too: inside the shape, or with the name under the figure
     if (block) h = Math.max(h, figure ? 4 + figure.h + 6 + block.h + 4 : block.h + 2 * padY);
-    return { p, m, st, preset, name, nameSize, deco, fromCode: img.fromCode, figure, w, h, hidden: hidden.participant.has(p.id) };
+    return { p, m, st, preset, name, nameSize, deco, fromCode: false, figure, w, h, hidden: hidden.participant.has(p.id) };
   });
   const idx = new Map(parts.map((x, i) => [x.p.id, i]));
   const msgStyle = (it: SeqMessage): { m: ItemMeta; preset: string; st: StyleProps } => {
@@ -701,6 +719,15 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     const { st, figure, deco } = x;
     const color = href ? LINK_COLOR : st.text;
     const to: TextOpts = { size: x.nameSize, weight: st.fontWeight, color, family: st.fontFamily || family, underline: !!href };
+    if (x.media) {
+      // an image or icon participant: the asset, then the name under (or above) it; the foot's assets are the head's again
+      const box = { x: px, y: cy, w: x.w, h: x.h };
+      const out = mediaAssetNodes(foot ? { ...env, diagnostics: [] } : env, kit(), box, x.media.box, x.media.src, st, {
+        key: foot ? `${x.p.id}:foot` : x.p.id, family, line: x.p.defLine ?? Math.min(...x.p.lines), source: x.fromCode ? 'code' : 'meta',
+      });
+      if (x.name.lines.length) out.push(...withLink(href, drawText(x.name, px, captionY(box, x.media.box), { ...to, lh: 1.3 })));
+      return out;
+    }
     const text = { w: x.name.w, h: x.name.lines.length * x.nameSize * 1.3 };
     // the assets of the foot are the head's again: its diagnostics are not repeated, its images get keys of their own
     const at = (top: number): { nodes: SceneNode[]; y: number; x: number } => {
@@ -743,9 +770,9 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
       body.push(
         itemGroup('participant', x.p.id, 'participant', headNodes(x, px, fy, href, true), { 'data-foot': '1', ...attrs }, 'foot'),
       );
-      footGeom.set(x.p.id, { x: px, y: fy, w: x.w, h: x.h });
+      footGeom.set(x.p.id, { x: px, y: fy, w: x.w, h: x.h, ...(x.media ? { asset: assetBox({ x: px, y: fy, w: x.w, h: x.h }, x.media.box) } : {}) });
     }
-    partGeom.set(x.p.id, { x: px, y: hy, w: x.w, h: x.h });
+    partGeom.set(x.p.id, { x: px, y: hy, w: x.w, h: x.h, ...(x.media ? { asset: assetBox({ x: px, y: hy, w: x.w, h: x.h }, x.media.box) } : {}) });
   });
 
   const pad = env.pad;

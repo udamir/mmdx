@@ -171,9 +171,10 @@ export function openImageTool(core: EditorCore, anchor: HTMLElement | null, o: {
   const insert = !targets.length;
   if (insert && !kind?.addImage) return core.toast(t('media.noImages'));
   const current = targets.length === 1 ? mediaOf(core, targets[0]!)?.image ?? '' : '';
-  // an image node's image may be an icon instead of a picture (a flowchart's image nodes, image states): the Icon tab
+  // an image may be an icon instead of a picture: the Icon tab sets the selected items' image to an icon (a plain item
+  // becomes an icon node)
   const media = targets.map((r) => mediaOf(core, r));
-  const iconTargets = !insert && media.every((m) => !!m?.node && m.canIcon !== false) ? mediaTargets(core, 'icon') : [];
+  const iconTargets = !insert && kind?.setIcon ? targets : [];
   const icons = iconTargets.length ? iconPicker(core, iconTargets, true) : null;
   // a tab of the image tool, not a dialog of its own
   icons?.el.setAttribute('role', 'group');
