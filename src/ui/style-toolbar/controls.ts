@@ -305,10 +305,17 @@ function build(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLElement {
       return b;
     }
     case 'source': {
-      // Change image: what an image node shows — a picture (from the library, uploaded, by URL) or an icon
+      // Change image: the image tool, its tabs the picture's sources (library, upload, URL) and an icon
       const m = api.media?.();
-      if (!m?.node || !api.pickImage || !api.pickIcon) return h('span');
-      return button('source', svgIcon('media'), m.node === 'icon' ? t('tb.changeImageIcon', { name: m.icon ?? '' }) : t('tb.changeImage'));
+      if (!m?.node || !api.pickImage) return h('span');
+      const title = m.node === 'icon' ? t('tb.changeImageIcon', { name: m.icon ?? '' }) : t('tb.changeImage');
+      const b = h('button', { type: 'button', class: 'mtb-btn', title, 'aria-label': title, 'aria-haspopup': 'dialog', dataset: { c: 'source' } }, svgIcon('media'));
+      b.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        x.close();
+        api.pickImage?.(b);
+      });
+      return b;
     }
     case 'media': {
       // an image node's settings, per its source: the icon's frame or the picture's fit and aspect lock, and the label's

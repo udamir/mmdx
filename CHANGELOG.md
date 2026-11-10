@@ -12,7 +12,7 @@ Mindmaps, state diagrams, icons and images.
 - All Mermaid flowchart shapes.
 - Icons: icon packs, a built-in Tabler set, Font Awesome look-alikes.
 - Images: image and icon nodes in flowcharts and state diagrams, pictures on mindmap nodes and participants.
-- Image library from the host: the `images` property (`ImageStore`), with Library, Upload and URL in the image tool.
+- Image library from the host: the `images` property (`ImageStore`). The toolbar's Change image opens the image tool with Library, Upload, URL and Icon tabs.
 - Rich text labels, an emoji picker and animated connectors in the editor.
 - Mermaid's full sequence and ER syntax, including ER subgraphs.
 - `wheel: 'zoom'`.

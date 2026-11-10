@@ -43,6 +43,8 @@ export interface IconPickerProps {
   onRemove?: (() => void) | null;
   /** The "Icons" docs page, linked from the hint shown while only the built-in set is registered. */
   docsUrl?: string | null;
+  /** Smaller tiles and the search alone: no title, pack filters, recent row, hints or footer (the image tool's Icon tab). */
+  compact?: boolean;
 }
 
 export interface IconPickerHandle extends BlockHandle<IconPickerProps> {
@@ -54,6 +56,8 @@ export interface IconPickerHandle extends BlockHandle<IconPickerProps> {
 
 /** Tile pitch of the grid (48 px tiles). */
 export const ICON_TILE = 48;
+/** A tile's side in the compact form (the image tool's Icon tab). */
+const COMPACT_TILE = 32;
 const ROWS = 6;
 
 export const ICON_PICKER_CSS = /* css */ `
@@ -68,10 +72,10 @@ export const ICON_PICKER_CSS = /* css */ `
 .ip-chip.failed { color: var(--mmdx-danger); }
 .ip-sub { font-size: 11px; font-weight: 600; color: var(--mmdx-muted); margin-top: 2px; }
 .ip-row { display: flex; gap: 0; overflow: hidden; }
-.ip-scroll { position: relative; height: ${ICON_TILE * ROWS}px; overflow-y: auto; overflow-x: hidden; }
+.ip-scroll { position: relative; height: calc(var(--ip-tile, var(--ip-tile, ${ICON_TILE}px)) * ${ROWS}); overflow-y: auto; overflow-x: hidden; }
 .ip-space { position: relative; }
-.ip-rows { position: absolute; left: 0; right: 0; top: 0; display: grid; grid-template-columns: repeat(var(--ip-cols, 7), ${ICON_TILE}px); grid-auto-rows: ${ICON_TILE}px; }
-.ip-tile { width: ${ICON_TILE}px; height: ${ICON_TILE}px; padding: 0; border: 1px solid transparent; background: none; border-radius: 8px; display: grid; place-items: center; }
+.ip-rows { position: absolute; left: 0; right: 0; top: 0; display: grid; grid-template-columns: repeat(var(--ip-cols, 7), var(--ip-tile, ${ICON_TILE}px)); grid-auto-rows: var(--ip-tile, ${ICON_TILE}px); }
+.ip-tile { width: var(--ip-tile, ${ICON_TILE}px); height: var(--ip-tile, ${ICON_TILE}px); padding: 0; border: 1px solid transparent; background: none; border-radius: 8px; display: grid; place-items: center; }
 .ip-tile img { width: 28px; height: 28px; pointer-events: none; }
 .ip-tile:hover { background: var(--mmdx-surface-2); }
 .ip-tile.on { background: var(--mmdx-accent-2); }
@@ -79,6 +83,9 @@ export const ICON_PICKER_CSS = /* css */ `
 .ip-none, .ip-hint { color: var(--mmdx-muted); font-size: 12px; padding: 6px 2px; }
 .ip-hint a { color: var(--mmdx-accent); }
 .ip-foot { display: flex; justify-content: flex-end; }
+.ip-compact .ip-head, .ip-compact .ip-chips, .ip-compact .ip-hint, .ip-compact .ip-sub, .ip-compact .ip-row, .ip-compact .ip-info, .ip-compact .ip-foot { display: none; }
+.ip-compact .ip-tile img { width: 20px; height: 20px; }
+.ip-compact .ip-tile { border-radius: 6px; }
 `;
 
 export function createIconPicker(props: IconPickerProps): IconPickerHandle {
@@ -92,6 +99,8 @@ export function createIconPicker(props: IconPickerProps): IconPickerHandle {
   let first = 0;
   let shown = new Map<number, HTMLElement>();
   const loading = new Set<string>();
+  /** A tile's side: smaller in the compact form. */
+  const tileSize = (): number => (p.compact ? COMPACT_TILE : ICON_TILE);
 
   const el = h('div', { class: 'ip', role: 'dialog' });
   const title = h('div', { class: 'ip-title' });
@@ -108,8 +117,8 @@ export function createIconPicker(props: IconPickerProps): IconPickerHandle {
   const foot = h('div', { class: 'ip-foot' });
   el.append(h('div', { class: 'ip-head' }, title), input, chips, hint, recentHead, recentRow, scroller, none, info, foot);
 
-  const cols = (): number => Math.max(1, Math.floor((scroller.clientWidth || ICON_TILE * 7) / ICON_TILE));
-  const visibleRows = (): number => Math.ceil((scroller.clientHeight || ICON_TILE * ROWS) / ICON_TILE) + 2;
+  const cols = (): number => Math.max(1, Math.floor((scroller.clientWidth || tileSize() * 7) / tileSize()));
+  const visibleRows = (): number => Math.ceil((scroller.clientHeight || tileSize() * ROWS) / tileSize()) + 2;
   const packOf = (name: string): IconPickerPack | undefined => p.packs().find((x) => x.name === name.slice(0, name.indexOf(':')));
   const describe = (name: string): string => {
     const lic = packOf(name)?.license;
@@ -140,9 +149,9 @@ export function createIconPicker(props: IconPickerProps): IconPickerHandle {
     },
     focus: (i) => {
       const c = cols(), row = Math.floor(i / c);
-      const top = row * ICON_TILE, bottom = top + ICON_TILE;
+      const top = row * tileSize(), bottom = top + tileSize();
       if (top < scroller.scrollTop) scroller.scrollTop = top;
-      else if (bottom > scroller.scrollTop + (scroller.clientHeight || ICON_TILE * ROWS)) scroller.scrollTop = bottom - (scroller.clientHeight || ICON_TILE * ROWS);
+      else if (bottom > scroller.scrollTop + (scroller.clientHeight || tileSize() * ROWS)) scroller.scrollTop = bottom - (scroller.clientHeight || tileSize() * ROWS);
       drawRows(true);
       shown.get(i)?.focus();
     },
@@ -151,8 +160,8 @@ export function createIconPicker(props: IconPickerProps): IconPickerHandle {
     const c = cols();
     rows.style.setProperty('--ip-cols', String(c));
     const total = Math.ceil(list.length / c);
-    space.style.height = `${total * ICON_TILE}px`;
-    const from = Math.max(0, Math.floor(scroller.scrollTop / ICON_TILE) - 1);
+    space.style.height = `${total * tileSize()}px`;
+    const from = Math.max(0, Math.floor(scroller.scrollTop / tileSize()) - 1);
     if (!force && from === first && shown.size) return;
     first = from;
     const to = Math.min(total, from + visibleRows());
@@ -166,7 +175,7 @@ export function createIconPicker(props: IconPickerProps): IconPickerHandle {
       els.push(b);
     }
     shown = next;
-    rows.style.transform = `translateY(${from * ICON_TILE}px)`;
+    rows.style.transform = `translateY(${from * tileSize()}px)`;
     // keep the focus on the same icon across a redraw
     const focused = rows.contains(document.activeElement) || (rows.getRootNode() as ShadowRoot | Document).activeElement?.parentElement === rows;
     rows.replaceChildren(...els);
@@ -218,6 +227,8 @@ export function createIconPicker(props: IconPickerProps): IconPickerHandle {
   function refresh(): void {
     const t = p.t;
     title.textContent = p.title ?? t('icons.title');
+    el.classList.toggle('ip-compact', !!p.compact);
+    el.style.setProperty('--ip-tile', `${tileSize()}px`);
     el.setAttribute('aria-label', p.title ?? t('icons.title'));
     input.setAttribute('aria-label', t('icons.search'));
     rows.setAttribute('aria-label', t('icons.grid'));

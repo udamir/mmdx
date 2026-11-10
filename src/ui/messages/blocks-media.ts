@@ -20,7 +20,7 @@ export const BLOCK_MESSAGES_MEDIA: Messages = {
   'image.types': 'PNG, JPEG, GIF, WebP, SVG or AVIF', 'image.uploading': 'Uploading {name}…', 'image.uploadFailed': 'Upload failed: {msg}',
   'image.notImage': '{name} is not an image', 'image.big': '{name} is {w} × {h} px.', 'image.reduce': 'Reduce to {n} px', 'image.asIs': 'Upload as is',
   'image.noUpload': 'Images can be added by URL; uploading is not configured here',
-  'image.source': 'Image source', 'image.tabLibrary': 'Library', 'image.tabUpload': 'Upload', 'image.tabUrl': 'URL',
+  'image.source': 'Image source', 'image.tabLibrary': 'Library', 'image.tabUpload': 'Upload', 'image.tabUrl': 'URL', 'image.tabIcon': 'Icon',
   'image.library': 'Image library', 'image.librarySearch': 'Search images', 'image.libraryMore': 'Load more', 'image.libraryLoading': 'Loading images…',
   'image.libraryEmpty': 'No images in the library yet', 'image.libraryNone': 'No images match “{query}”', 'image.libraryFailed': 'The library could not be loaded: {msg}',
   'image.libraryBlocked': '{name} cannot be used here: {why}',

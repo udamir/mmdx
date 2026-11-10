@@ -1,6 +1,7 @@
-// The popovers of an image node (T05 §4.6), whose source is a picture or an icon: the source, and the settings — an
-// icon's frame or a picture's fit, and the label's position; the aspect lock and sizes are in Properties. Values come from `api.media()`, writes go through
-// `api.setMedia` (the editor: the item's node data in the Mermaid code).
+// The settings popover of an image node (T05 §4.6), whose image is a picture or an icon: an icon's frame or a
+// picture's fit, and the label's position; the aspect lock and sizes are in Properties, the image itself is changed in
+// the image tool (the toolbar's Change image). Values come from `api.media()`, writes go through `api.setMedia` (the
+// editor: the item's node data, or an image state's metadata).
 import { h } from '../../h.js';
 import { choiceRow, popLabel } from '../../toolbar-kit.js';
 import { framePreview, svgIcon } from '../icons.js';
@@ -17,32 +18,6 @@ function texts(values: readonly string[], cur: string, name: (v: string) => stri
   return row;
 }
 
-/**
- * Change image: an image node's source, as one menu — a picture from the host's library, uploaded, or by its URL (the
- * image tool on that tab; only the ones the host has), or an icon (the icon picker). Each replaces the current one.
- */
-export function sourcePop(f: Fill): void {
-  const { pop, x } = f;
-  const { t, api } = x;
-  const m = api.media?.();
-  if (!m?.node) return;
-  const anchor = x.bar.querySelector<HTMLElement>('[data-c="source"]') ?? x.bar;
-  pop.setAttribute('role', 'menu');
-  pop.setAttribute('aria-label', t('tb.changeImage'));
-  const list = h('div', { class: 'mtb-list mtb-actions', role: 'none' });
-  const item = (ic: string, text: string, on: boolean, run: () => void, key: string): void => {
-    const b = h('button', { type: 'button', role: 'menuitem', class: 'mtb-item' + (on ? ' on' : ''), dataset: { source: key } }, svgIcon(ic), h('span', null, text));
-    b.addEventListener('click', () => {
-      x.close(true);
-      run();
-    });
-    list.append(b);
-  };
-  const names = { library: t('tb.imageLibrary'), upload: t('tb.imageUpload'), url: t('tb.imageUrlPick') };
-  for (const tab of api.imageSources?.() ?? ['url']) item(tab === 'url' ? 'link' : tab, names[tab], false, () => api.pickImage?.(anchor, tab), tab);
-  item('icon', m.node === 'icon' ? t('tb.replaceIcon') : t('tb.iconPick'), m.node === 'icon', () => api.pickIcon?.(anchor), 'icon');
-  pop.append(list);
-}
 
 /** An image node's settings, per its source: an icon's frame or a picture's fit, and the label's position (the aspect lock and sizes are in Properties). */
 export function mediaPop(f: Fill): void {

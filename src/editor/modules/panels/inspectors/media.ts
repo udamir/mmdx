@@ -149,7 +149,7 @@ function nodeMedia(p: PanelCtx, host: HTMLElement, ref: ItemRef, m: ItemMedia): 
   });
   if (k?.setIcon && m.canIcon !== false) {
     const ic = h('button', { type: 'button', dataset: { source: 'icon' } }, t('props.imageIcon'));
-    ic.addEventListener('click', () => core.run('openIconPicker', ic));
+    ic.addEventListener('click', () => core.run('openImageTool', ic, { insert: false, tab: 'icon' }));
     buttons.push(ic);
   }
   host.append(row(t('props.changeImage'), ...buttons));

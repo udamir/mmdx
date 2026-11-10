@@ -14,12 +14,12 @@ import { createTabs, TABS_CSS } from './tabs.js';
 /** The picture types the file input offers. */
 export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml', 'image/avif'] as const;
 
-/** Where a picture comes from: the host's library, an upload, or a URL. */
-export type ImageTab = 'library' | 'upload' | 'url';
+/** Where an image comes from: the host's library, an upload, a URL — or an icon instead of a picture. */
+export type ImageTab = 'library' | 'upload' | 'url' | 'icon';
 
 export interface ImagePickerProps {
   t: Translate;
-  /** The heading (default "Image"). */
+  /** The dialog's accessible name (default "Image"; no heading is shown). */
   title?: string;
   /** The URL shown at first (selection mode: the item's image). */
   value?: string;
@@ -35,6 +35,10 @@ export interface ImagePickerProps {
   upload?: ((file: File) => Promise<string>) | null;
   /** The tab shown first (default: the library when there is one, else the URL). */
   tab?: ImageTab;
+  /** The content of an Icon tab (an icon picker: an icon as the image's source); absent: no Icon tab. */
+  icon?: HTMLElement | null;
+  /** The Icon tab is shown (focus its search). */
+  onIconTab?(): void;
   /** A file's pixel size (null: unknown), to offer reducing it. */
   measure?: (file: File) => Promise<{ w: number; h: number } | null>;
   /** Re-encodes a file to at most `side` px on its longer side. */
@@ -60,9 +64,9 @@ export interface ImagePickerHandle extends BlockHandle<ImagePickerProps> {
 
 export const IMAGE_PICKER_CSS = /* css */ `${TABS_CSS}
 .imp { width: 340px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 8px; }
-.imp-tabs [role=tab] { border: 0; background: none; padding: 4px 8px; font-size: 12px; border-radius: 6px 6px 0 0; color: var(--mmdx-muted); }
-.imp-tabs [role=tab][aria-selected=true] { color: inherit; box-shadow: inset 0 -2px 0 var(--mmdx-accent); }
-.imp-tabs { border-bottom: 1px solid var(--mmdx-border); }
+.imp-tabs { gap: 2px; padding: 2px; border-radius: 10px; background: var(--mmdx-float-2); }
+.imp-tabs [role=tab] { flex: 1; border: 0; background: none; padding: 5px 8px; font-size: 12px; border-radius: 8px; color: var(--mmdx-text-2); }
+.imp-tabs [role=tab][aria-selected=true] { background: var(--mmdx-float); color: var(--mmdx-accent); font-weight: 600; box-shadow: 0 1px 2px rgba(20, 30, 60, .12); }
 .imp-panel { display: flex; flex-direction: column; gap: 8px; }
 .imp-panel[hidden] { display: none; }
 .imp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; max-height: 236px; overflow-y: auto; align-content: start; }
@@ -72,7 +76,9 @@ export const IMAGE_PICKER_CSS = /* css */ `${TABS_CSS}
 .imp-tile[aria-disabled=true] { opacity: .45; }
 .imp-empty { font-size: 12px; color: var(--mmdx-muted); padding: 10px 0; text-align: center; }
 .imp-more { align-self: center; }
-.imp-title { font-weight: 600; font-size: 13px; }
+.imp.imp-wide { width: 300px; }
+.imp .ip { width: auto; }
+.imp .ip-title { display: none; }
 .imp-row { display: flex; gap: 6px; }
 .imp-url { flex: 1; min-width: 0; }
 .imp-url[aria-invalid=true] { border-color: var(--mmdx-danger); }
@@ -92,7 +98,6 @@ export function createImagePicker(props: ImagePickerProps): ImagePickerHandle {
   let p = { ...props };
   const scope = new Scope();
   const el = h('div', { class: 'imp', role: 'dialog' });
-  const title = h('div', { class: 'imp-title' });
   // the library: a search, the grid, "Load more"
   const search = h('input', { type: 'search', class: 'imp-search', autocomplete: 'off', spellcheck: false });
   const grid = h('div', { class: 'imp-grid', role: 'list' });
@@ -111,12 +116,14 @@ export function createImagePicker(props: ImagePickerProps): ImagePickerHandle {
     library: h('div', { class: 'imp-panel', role: 'tabpanel', dataset: { panel: 'library' } }, search, grid, empty, more),
     upload: h('div', { class: 'imp-panel', role: 'tabpanel', dataset: { panel: 'upload' } }, drop, fileInput, status, offer),
     url: h('div', { class: 'imp-panel', role: 'tabpanel', dataset: { panel: 'url' } }, h('div', { class: 'imp-row' }, input, submit), error),
+    icon: h('div', { class: 'imp-panel', role: 'tabpanel', dataset: { panel: 'icon' } }),
   };
-  const tabsOf = (): ImageTab[] => [...(p.library ? ['library' as const] : []), ...(p.upload ? ['upload' as const] : []), 'url'];
+  const tabsOf = (): ImageTab[] => [...(p.library ? ['library' as const] : []), ...(p.upload ? ['upload' as const] : []), 'url', ...(p.icon ? ['icon' as const] : [])];
   let tab: ImageTab = p.tab && tabsOf().includes(p.tab) ? p.tab : tabsOf()[0]!;
   const tabs = createTabs<ImageTab>({ label: '', class: 'imp-tabs', tabs: [], value: tab, onChange: (v) => show(v) });
   scope.add(() => tabs.destroy());
-  el.append(title, tabs.el, panels.library, panels.upload, panels.url, foot);
+  // no visible heading: the tabs say where the image comes from (the title is the dialog's accessible name)
+  el.append(tabs.el, panels.library, panels.upload, panels.url, panels.icon, foot);
   let busy = false;
 
   // ---- library: pages of the host's pictures; a click takes one
@@ -169,6 +176,9 @@ export function createImagePicker(props: ImagePickerProps): ImagePickerHandle {
       loaded = true;
       void load(false);
     }
+    // the picture's Remove belongs to the picture tabs (the icon picker has its own)
+    foot.hidden = !p.onRemove || v === 'icon';
+    if (v === 'icon') p.onIconTab?.();
   };
 
   const validate = (show: boolean): string | null => {
@@ -228,7 +238,6 @@ export function createImagePicker(props: ImagePickerProps): ImagePickerHandle {
 
   const render = (): void => {
     const t = p.t;
-    title.textContent = p.title ?? t('image.title');
     el.setAttribute('aria-label', p.title ?? t('image.title'));
     input.placeholder = t('image.urlPlaceholder');
     input.setAttribute('aria-label', t('image.url'));
@@ -240,7 +249,9 @@ export function createImagePicker(props: ImagePickerProps): ImagePickerHandle {
     search.setAttribute('aria-label', t('image.librarySearch'));
     grid.setAttribute('aria-label', t('image.library'));
     more.textContent = t('image.libraryMore');
-    const names: Record<ImageTab, string> = { library: t('image.tabLibrary'), upload: t('image.tabUpload'), url: t('image.tabUrl') };
+    const names: Record<ImageTab, string> = { library: t('image.tabLibrary'), upload: t('image.tabUpload'), url: t('image.tabUrl'), icon: t('image.tabIcon') };
+    el.classList.toggle('imp-wide', !!p.icon);
+    if (p.icon && p.icon.parentElement !== panels.icon) panels.icon.replaceChildren(p.icon);
     const list = tabsOf();
     if (!list.includes(tab)) tab = list[0]!;
     tabs.update({ label: t('image.source'), tabs: list.map((v) => ({ value: v, label: names[v] })), value: tab });
@@ -252,7 +263,7 @@ export function createImagePicker(props: ImagePickerProps): ImagePickerHandle {
       rm.addEventListener('click', () => p.onRemove?.());
       foot.append(rm);
     }
-    foot.hidden = !p.onRemove;
+    foot.hidden = !p.onRemove || tab === 'icon';
     validate(!!input.value);
   };
 
@@ -315,7 +326,7 @@ export function createImagePicker(props: ImagePickerProps): ImagePickerHandle {
     get tab() {
       return tab;
     },
-    focus: () => (tab === 'library' ? search : tab === 'upload' ? choose : input).focus(),
+    focus: () => (tab === 'icon' ? p.onIconTab?.() : (tab === 'library' ? search : tab === 'upload' ? choose : input).focus()),
     takeFile,
     refresh: () => (loaded ? load(false) : Promise.resolve()),
     update(next) {

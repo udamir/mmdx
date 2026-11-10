@@ -198,8 +198,8 @@ export interface EditorActions {
   /** Opens the icon picker beside `anchor`: it sets the selected items' icon. */
   openIconPicker(anchor?: HTMLElement | null): void;
   /** Opens the image tool beside `anchor`: `insert` adds an image item, else it sets the selected item's image; `file` is uploaded at once. */
-  /** The image tool, on its Library, Upload or URL tab (`tab`; default: the library when the host has one). */
-  openImageTool(anchor?: HTMLElement | null, opts?: { insert?: boolean; file?: File; at?: { x: number; y: number }; tab?: 'library' | 'upload' | 'url' }): void;
+  /** The image tool, on its Library, Upload, URL or Icon tab (`tab`; default: an icon node's Icon, else the library when the host has one). */
+  openImageTool(anchor?: HTMLElement | null, opts?: { insert?: boolean; file?: File; at?: { x: number; y: number }; tab?: 'library' | 'upload' | 'url' | 'icon' }): void;
   /** Opens the emoji picker beside `anchor`; `onPick` inserts the chosen emoji (it stays open), `onClose` when it closes. */
   pickEmoji(anchor: HTMLElement, onPick: (emoji: string) => void, onClose?: () => void): void;
 }

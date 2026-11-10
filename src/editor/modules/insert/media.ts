@@ -6,7 +6,7 @@
 import { checkImageUrl } from '../../../core/media/policy.js';
 import { iconImage } from '../../../core/icons/draw.js';
 import { searchIcons } from '../../../core/icons/search.js';
-import type { Point } from '../../../core/types.js';
+import type { ItemRef, Point } from '../../../core/types.js';
 import { loadEmoji } from '../../../emoji/data.js';
 import { h } from '../../../ui/h.js';
 import { registerMessages } from '../../../ui/i18n.js';
@@ -26,7 +26,9 @@ registerMessages(BLOCK_MESSAGES_MEDIA);
 registerMessages(EDITOR_MEDIA_MESSAGES);
 
 export const MEDIA_CSS = /* css */ `
-.ins-pop.mmdx-pop { position: fixed; padding: 10px; }
+/* the look of the floating toolbar's popovers */
+.ins-pop.mmdx-pop { position: fixed; padding: 12px; background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: 14px;
+  box-shadow: 0 10px 34px rgba(20, 30, 60, .18); }
 `;
 
 const RECENT_ICONS = 'icons.recent', RECENT_EMOJI = 'emoji.recent', TONE = 'emoji.tone';
@@ -76,9 +78,15 @@ const spot = (core: EditorCore, at?: Point): Point => {
 
 export function openIconPicker(core: EditorCore, anchor: HTMLElement | null): void {
   if (anchor && core.popovers.isOpenFor(anchor)) return core.popovers.close();
-  const t = core.i18n.t;
   const targets = mediaTargets(core, 'icon');
-  if (!targets.length) return core.toast(t('media.selectIcon'));
+  if (!targets.length) return core.toast(core.i18n.t('media.selectIcon'));
+  const picker = iconPicker(core, targets);
+  openPop(core, picker.el, anchor, () => picker.destroy());
+}
+
+/** The icon picker for `targets` (a pick or a removal sets their icon and closes the popover). */
+function iconPicker(core: EditorCore, targets: readonly ItemRef[], compact = false): { el: HTMLElement; focus(): void; destroy(): void } {
+  const t = core.i18n.t;
   core.addCss([ICON_PICKER_CSS, MEDIA_CSS]);
   const reg = core.ctx.icons;
   const ink = inkOf(core);
@@ -91,6 +99,7 @@ export function openIconPicker(core: EditorCore, anchor: HTMLElement | null): vo
   };
   const picker = createIconPicker({
     t,
+    compact,
     packs: () => reg.packList().map((p) => ({
       name: p.name, title: p.info?.name ?? p.name, loaded: p.loaded, failed: p.failed, builtin: p.builtin,
       ...(p.info?.license?.title ? { license: p.info.license.title } : {}),
@@ -119,11 +128,16 @@ export function openIconPicker(core: EditorCore, anchor: HTMLElement | null): vo
   });
   // the built-in set is a lazy chunk: listed once it is in
   const off = reg.onChange(() => picker.refresh());
-  for (const p of reg.packList()) if (p.builtin && !p.loaded) void reg.load(p.name);
-  openPop(core, picker.el, anchor, () => {
-    off();
-    picker.destroy();
-  });
+  // the built-in set; in the compact form, which has no pack filters to load a pack by, every pack
+  for (const p of reg.packList()) if ((p.builtin || compact) && !p.loaded && !p.failed) void reg.load(p.name);
+  return {
+    el: picker.el,
+    focus: () => picker.focus(),
+    destroy() {
+      off();
+      picker.destroy();
+    },
+  };
 }
 
 // ---- image tool ------------------------------------------------------------------------------------------------------
@@ -137,13 +151,22 @@ export function openImageTool(core: EditorCore, anchor: HTMLElement | null, o: {
   const insert = !targets.length;
   if (insert && !kind?.addImage) return core.toast(t('media.noImages'));
   const current = targets.length === 1 ? mediaOf(core, targets[0]!)?.image ?? '' : '';
+  // an image node's image may be an icon instead of a picture (a flowchart's image nodes, image states): the Icon tab
+  const media = targets.map((r) => mediaOf(core, r));
+  const iconTargets = !insert && media.every((m) => !!m?.node && m.canIcon !== false) ? mediaTargets(core, 'icon') : [];
+  const icons = iconTargets.length ? iconPicker(core, iconTargets, true) : null;
+  // a tab of the image tool, not a dialog of its own
+  icons?.el.setAttribute('role', 'group');
+  const tab = o.tab ?? (icons && media.every((m) => m?.node === 'icon') ? 'icon' : undefined);
   const close = (): void => core.popovers.close(true);
   const upload = core.upload;
   const store = core.images;
   const picker = createImagePicker({
     t,
     value: current,
-    ...(o.tab ? { tab: o.tab } : {}),
+    ...(tab ? { tab } : {}),
+    icon: icons?.el ?? null,
+    onIconTab: () => icons?.focus(),
     library: store ? (q) => store.list(q) : null,
     thumbUrl: (img) => thumbUrl(core, img),
     submitLabel: insert ? t('image.add') : t('image.replace'),
@@ -171,6 +194,7 @@ export function openImageTool(core: EditorCore, anchor: HTMLElement | null, o: {
   const off = store?.subscribe?.(() => void picker.refresh());
   openPop(core, picker.el, anchor, () => {
     off?.();
+    icons?.destroy();
     picker.destroy();
   });
   if (o.file) void picker.takeFile(o.file);

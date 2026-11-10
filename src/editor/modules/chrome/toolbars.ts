@@ -22,7 +22,7 @@ import type { EditorCore, Sel, TextEditSession } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { saveItemAsPreset, presetPicker } from '../panels/presets.js';
 import { styleWithShapes } from '../../ops/shape.js';
-import { imageSources, mediaOf, mediaTargets, setImageFit, setMediaOf } from '../../ops/media.js';
+import { mediaOf, mediaTargets, setImageFit, setMediaOf } from '../../ops/media.js';
 import { applyDoc, applyMeta, DIAGRAM_TYPES, FLOW_DIRS, setAutonumberOn, setFlowDirection, styleEnv, switchDiagramType } from '../../ops/doc.js';
 import { canGroup, groupResetState, resetSelectedGroup } from '../../ops/group.js';
 import { LiveEdit } from '../../ops/live.js';
@@ -478,8 +478,7 @@ export const toolbarsModule: EditorModule = {
           return { ...m, canIcon: (m.canIcon ?? true) && !!editKind(core.model.type)?.setIcon && m.node !== 'image', ...(typeof fit === 'string' ? { fit } : {}) };
         },
         pickIcon: (anchor) => core.run('openIconPicker', anchor),
-        pickImage: (anchor, tab) => core.run('openImageTool', anchor, { insert: false, ...(tab ? { tab } : {}) }),
-        imageSources: () => imageSources(core),
+        pickImage: (anchor) => core.run('openImageTool', anchor, { insert: false }),
         setMedia: (patch) => {
           live.flush();
           const { fit, ...rest } = patch;

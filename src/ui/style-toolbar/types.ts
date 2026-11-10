@@ -215,10 +215,8 @@ export interface ToolbarApi {
   media?(): ToolbarMedia | null;
   /** Opens the icon picker for the selection, beside the button. */
   pickIcon?(anchor: HTMLElement): void;
-  /** Opens the image tool for the selection (replace the image), on its library, upload or URL tab. */
-  pickImage?(anchor: HTMLElement, tab?: 'library' | 'upload' | 'url'): void;
-  /** Where a picture can come from: the host's library, an upload, a URL (default: a URL only). */
-  imageSources?(): readonly ('library' | 'upload' | 'url')[];
+  /** Opens the image tool for the selection (change the image): its tabs the library, an upload, a URL and an icon. */
+  pickImage?(anchor: HTMLElement): void;
   setMedia?(patch: ToolbarMediaPatch): void;
 }
 

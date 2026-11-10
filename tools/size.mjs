@@ -335,7 +335,8 @@ for (const [name, keys, budget] of rows) report(name, (await loads(keys)).n, bud
   let n = 0;
   for (const k of libClosure('src/editor/modules/insert/media.ts')) if (!have.has(k)) n += await chunkSize(k);
   // 14.5 kB (14.1 kB measured) with the image library (ImageStore: the image tool's Library, Upload and URL tabs; Source and Properties open each)
-  report('editor pickers (lazy chunk)', n, 14.5 * KB);
+  // 15 kB with the image tool's Icon tab (the compact icon picker) and the toolbar's look (14.6 kB measured)
+  report('editor pickers (lazy chunk)', n, 15 * KB);
 }
 // the built-in icon set is never part of an entry's static closure (it loads on first use, T04 §4.7)
 {
