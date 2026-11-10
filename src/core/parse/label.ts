@@ -1,6 +1,7 @@
 // Mermaid label text <-> plain text. `cleanLabel` reads a label as written in the code; `encodeLabel` is its inverse
 // for write-back (`id["…"]`): newlines become `<br>`, `"` becomes `#quot;`, and only text that would otherwise be
 // decoded on the way back in is escaped, so ordinary labels stay readable in the code.
+import { stripMarks } from '../text/marks.js';
 
 // One pass, so `&amp;lt;` reads as `&lt;` rather than being decoded twice. `</br>` breaks a line too, as in Mermaid.
 const DECODE = /<\/?br\s*\/?>|#quot;|#(\d{1,7});|&(amp|lt|gt);/gi;
@@ -22,9 +23,13 @@ export function cleanLabel(s: string | null | undefined): string {
   return decodeLabel(t);
 }
 
-/** Mermaid's entity codes and line breaks in text as written (`#9829;`, `#quot;`, `&lt;`, `<br>`), without unquoting. */
+/**
+ * Mermaid's entity codes and line breaks in text as written (`#9829;`, `#quot;`, `&lt;`, `<br>`), without unquoting.
+ * The diff's mark characters (U+FDD0–FDD3, text/marks.ts) are taken out, written or encoded: a label must not fake a
+ * diff mark (B38).
+ */
 export function decodeLabel(t: string): string {
-  return t.replace(DECODE, (m: string, num?: string, ent?: string) => {
+  return stripMarks(t.replace(DECODE, (m: string, num?: string, ent?: string) => {
     if (num !== undefined) {
       const cp = Number(num);
       // surrogates and out-of-range code points stay as written
@@ -32,7 +37,7 @@ export function decodeLabel(t: string): string {
     }
     if (ent !== undefined) return ENTITIES[ent.toLowerCase()] ?? m;
     return m.startsWith('<') ? '\n' : '"';
-  });
+  }));
 }
 
 /** Text -> the inside of a double-quoted Mermaid label. `cleanLabel('"' + encodeLabel(s) + '"') === s` for trimmed `s`. */

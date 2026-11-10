@@ -10,7 +10,7 @@ import type { DiagramMeta } from '../meta/types.js';
 import type { DiagramModel } from '../model.js';
 import { reparse, withKind, withOps } from '../kinds/registry.js';
 import type { ConnectorEnds } from '../kinds/types.js';
-import { own } from '../own.js';
+import { own, setOwn } from '../own.js';
 import type { GeometryIndex } from '../render/types.js';
 import type { DiagramType, ItemKind, ItemRef, Point } from '../types.js';
 import { elementExists, takenIds, usedIds } from './ids.js';
@@ -47,7 +47,7 @@ const getOwnMeta = (meta: DiagramMeta, ref: ItemRef): unknown => own(meta[collOf
 /** Sets a connector's look (a copy). */
 function setLook(meta: DiagramMeta, ref: ItemRef, look: unknown): void {
   const c = collOf(ref.kind);
-  (meta[c] ??= {})[ref.id] = cloneJson(look) as Record<string, unknown>;
+  setOwn((meta[c] ??= {}), ref.id, cloneJson(look) as Record<string, unknown>);
 }
 
 /** Flowchart nodes / groups and ER tables can be copied. */

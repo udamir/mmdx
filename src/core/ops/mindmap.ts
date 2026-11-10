@@ -8,6 +8,7 @@ import type { DiagramMeta, ItemMeta } from '../meta/types.js';
 import type { MindmapModel, MindNode, MindShape } from '../model.js';
 import { descendantsOf, MIND_DELIMS, MIND_SHAPES, mindKeys, parseMindmap } from '../parse/mindmap.js';
 import { labelText } from '../parse/label.js';
+import { setOwn } from '../own.js';
 import type { ItemRef } from '../types.js';
 import { withIconToken, type IsIconToken } from './icon-token.js';
 import type { CloneResult, CodeResult, LineResult, MoveResult, RefusableResult } from './types.js';
@@ -498,7 +499,8 @@ export function remapMindMeta(meta: DiagramMeta, before: MindmapModel, after: Mi
   const out: Record<string, ItemMeta> = {};
   const used = new Set<string>();
   // written ids and entries of ids no node has stay as they are
-  for (const [id, v] of Object.entries(m)) if (!positional(before, id)) out[id] = v;
+  // ids come from the document: never a plain assignment (`__proto__`, B32)
+  for (const [id, v] of Object.entries(m)) if (!positional(before, id)) setOwn(out, id, v);
   for (const id of Object.keys(out)) used.add(id);
   const pending: string[] = [];
   for (const id of Object.keys(m)) {
@@ -506,7 +508,7 @@ export function remapMindMeta(meta: DiagramMeta, before: MindmapModel, after: Mi
     const k = ka.get(id);
     const hit = k !== undefined ? byKey.get(k) : undefined;
     if (hit && !used.has(hit)) {
-      out[hit] = m[id]!;
+      setOwn(out, hit, m[id]!);
       used.add(hit);
     } else pending.push(id);
   }
@@ -516,7 +518,7 @@ export function remapMindMeta(meta: DiagramMeta, before: MindmapModel, after: Mi
     const same = after.nodes.has(id) && positional(after, id) && !used.has(id) ? id : undefined;
     const to = hit ?? same;
     if (to) {
-      out[to] = m[id]!;
+      setOwn(out, to, m[id]!);
       used.add(to);
     }
   }

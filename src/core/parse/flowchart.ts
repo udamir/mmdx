@@ -6,6 +6,7 @@ import type {
 } from '../model.js';
 import { EXTENDED_NAMES } from '../shapes/names.js';
 import { namedShapes, registerShapeNames, resolveShape } from '../shapes/registry.js';
+import { encodeId } from '../meta/index.js';
 import { diag } from '../types.js';
 import { frontmatterValues, titleToFrontmatter } from './frontmatter.js';
 
@@ -827,11 +828,13 @@ export function renameClashingSubgraph(code: string, id: string): string {
   const old = L[g.line] ?? '';
   const indent = /^\s*/.exec(old)?.[0] ?? '';
   L[g.line] = `${indent}subgraph ${nid} ["${encodeLabel(g.label || id)}"]`;
-  const enc = encodeURIComponent(id);
+  // `%%@ group` lines spell the id as the metadata writer does (encodeId: only ids with spaces, `%` or brackets are
+  // URI-encoded), so a non-ASCII id is found too (B33)
+  const enc = encodeId(id);
   const meta = new RegExp(`^(\\s*%%@\\s+group\\s+)${enc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s+\\{)`);
   for (let i = 0; i < L.length; i++) {
     const l = L[i] ?? '';
-    if (meta.test(l)) L[i] = l.replace(meta, `$1${encodeURIComponent(nid)}$2`);
+    if (meta.test(l)) L[i] = l.replace(meta, `$1${encodeId(nid)}$2`);
   }
   return L.join('\n');
 }

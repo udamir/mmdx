@@ -15,7 +15,8 @@ export type Palette = Readonly<Record<string, string>>;
 export type Rgb = [number, number, number];
 export type Hsl = [number, number, number];
 
-const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+// 3, 4, 6 or 8 digits, as validate.ts accepts; the alpha digits are not part of the colour here (B39)
+const HEX = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const REL = /^@([\w-]+)~(=?[+-]?[\d.]+),([+-]?[\d.]+),([+-]?[\d.]+)$/;
 
 export const isColorRef = (v: unknown): v is string => typeof v === 'string' && (v[0] === '@' || REL.test(v));
@@ -24,8 +25,8 @@ export const refName = (v: unknown): string | null => (typeof v === 'string' && 
 export function hexToRgb(hex: string | null | undefined): Rgb | null {
   if (!hex || !HEX.test(hex)) return null;
   let h = hex.slice(1);
-  if (h.length === 3) h = h.replace(/./g, (c) => c + c);
-  const n = parseInt(h, 16);
+  if (h.length <= 4) h = h.replace(/./g, (c) => c + c);
+  const n = parseInt(h.slice(0, 6), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 export const rgbToHex = (r: number, g: number, b: number): string =>
