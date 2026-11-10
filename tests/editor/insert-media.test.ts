@@ -319,9 +319,11 @@ describe('selection toolbar and Properties', () => {
     expect(image.slice(0, 2)).toEqual(['source', 'media']);
     expect(image).not.toContain('icon');
     expect(image).not.toContain('shape');
-    const titles = (): string[] => [...$$('.mtb-pop .mtb-choice')].map((b) => b.getAttribute('title') ?? b.textContent ?? '');
-    $<HTMLButtonElement>('.mtb [data-c="source"]')!.click();
-    expect(titles()).toEqual(['By URL…', 'Use an icon instead…']);
+    const source = $<HTMLButtonElement>('.mtb [data-c="source"]')!;
+    expect(source.title).toBe('Change image');
+    source.click();
+    // Change image: the picture's sources the host has (here a URL only) and an icon
+    expect([...$$('.mtb-pop [role=menuitem]')].map((b) => b.textContent ?? '')).toEqual(['By URL…', 'Icon…']);
   });
 
   test('an image node: Source (a picture or an icon) and its settings (frame, label position); no shape picker, no sizes', async () => {
@@ -338,8 +340,10 @@ describe('selection toolbar and Properties', () => {
     expect(controls()).not.toContain('icon');
     expect(bar.querySelector('[data-c="mediaSize"]')).toBeNull();
     const titles = (): string[] => [...$$('.mtb-pop .mtb-choice')].map((b) => b.getAttribute('title') ?? b.textContent ?? '');
+    expect(bar.querySelector<HTMLButtonElement>('[data-c="source"]')!.title).toBe('Change image — now the icon tabler:user');
     bar.querySelector<HTMLButtonElement>('[data-c="source"]')!.click();
-    expect(titles()).toEqual(['By URL…', 'Replace icon…']);
+    expect([...$$('.mtb-pop [role=menuitem]')].map((b) => b.textContent ?? '')).toEqual(['By URL…', 'Another icon…']);
+    expect($('.mtb-pop [role=menuitem].on')!.dataset['source']).toBe('icon');
     bar.querySelector<HTMLButtonElement>('[data-c="media"]')!.click();
     expect(titles()).toEqual(['No frame', 'Square', 'Circle', 'Rounded', 'Above', 'Below']);
     [...$$('.mtb-pop .mtb-choice')].find((b) => b.getAttribute('title') === 'Circle')!.click();
@@ -368,7 +372,7 @@ describe('selection toolbar and Properties', () => {
     await settle();
     e.core.run('refreshToolbar');
     $<HTMLButtonElement>('.mtb [data-c="source"]')!.click();
-    expect([...$$('.mtb-pop .mtb-choice')].map((b) => b.getAttribute('title') ?? b.textContent)).toEqual(['By URL…', 'Use an icon instead…']);
+    expect([...$$('.mtb-pop [role=menuitem]')].map((b) => b.textContent ?? '')).toEqual(['By URL…', 'Icon…']);
     $<HTMLButtonElement>('.mtb [data-c="media"]')!.click();
     expect([...$$('.mtb-pop .mtb-choice')].map((b) => b.getAttribute('title') ?? b.textContent)).toEqual(['Contain', 'Cover', 'Stretch', 'Above', 'Below']);
     expect($('.mtb-pop input[type="checkbox"]')).toBeNull();
@@ -386,8 +390,8 @@ describe('selection toolbar and Properties', () => {
     await settle();
     e.core.run('refreshToolbar');
     $<HTMLButtonElement>('.mtb [data-c="source"]')!.click();
-    const choices = (): HTMLElement[] => $$('.mtb-pop .mtb-choice');
-    expect(choices().map((b) => b.getAttribute('title'))).toEqual(['From the library…', 'Upload…', 'By URL…', 'Use an icon instead…']);
+    const choices = (): HTMLElement[] => $$('.mtb-pop [role=menuitem]');
+    expect(choices().map((b) => b.textContent)).toEqual(['From the library…', 'Upload…', 'By URL…', 'Icon…']);
     // the library: the store's pictures; one the image policy refuses is marked and not taken
     choices()[0]!.click();
     await settle();
@@ -404,7 +408,7 @@ describe('selection toolbar and Properties', () => {
     e.core.run('setPanel', 'properties', true);
     e.core.fire('panels');
     await settle();
-    expect($$('[data-source]').map((b) => b.textContent)).toEqual(['Library…', 'Upload…', 'URL…']);
+    expect($$('[data-source]').map((b) => b.textContent)).toEqual(['Library…', 'Upload…', 'URL…', 'Icon…']);
     $<HTMLButtonElement>('[data-source="upload"]')!.click();
     await settle();
     expect($('.imp [role=tab][aria-selected=true]')!.textContent).toBe('Upload');

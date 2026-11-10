@@ -18,8 +18,8 @@ function texts(values: readonly string[], cur: string, name: (v: string) => stri
 }
 
 /**
- * An image node's source: a picture — from the host's library, uploaded, or by its URL (the image tool on that tab;
- * only the ones the host has) — or an icon (the icon picker). Either replaces the current one.
+ * Change image: an image node's source, as one menu — a picture from the host's library, uploaded, or by its URL (the
+ * image tool on that tab; only the ones the host has), or an icon (the icon picker). Each replaces the current one.
  */
 export function sourcePop(f: Fill): void {
   const { pop, x } = f;
@@ -27,17 +27,21 @@ export function sourcePop(f: Fill): void {
   const m = api.media?.();
   if (!m?.node) return;
   const anchor = x.bar.querySelector<HTMLElement>('[data-c="source"]') ?? x.bar;
-  pop.classList.add('narrow');
-  const sources = api.imageSources?.() ?? ['url'];
+  pop.setAttribute('role', 'menu');
+  pop.setAttribute('aria-label', t('tb.changeImage'));
+  const list = h('div', { class: 'mtb-list mtb-actions', role: 'none' });
+  const item = (ic: string, text: string, on: boolean, run: () => void, key: string): void => {
+    const b = h('button', { type: 'button', role: 'menuitem', class: 'mtb-item' + (on ? ' on' : ''), dataset: { source: key } }, svgIcon(ic), h('span', null, text));
+    b.addEventListener('click', () => {
+      x.close(true);
+      run();
+    });
+    list.append(b);
+  };
   const names = { library: t('tb.imageLibrary'), upload: t('tb.imageUpload'), url: t('tb.imageUrlPick') };
-  pop.append(popLabel(t('tb.picture')), choiceRow(sources, '', (v) => {
-    x.close();
-    api.pickImage?.(anchor, v as 'library' | 'upload' | 'url');
-  }, (v) => svgIcon(v === 'url' ? 'link' : v), (v) => names[v as keyof typeof names]));
-  pop.append(popLabel(t('tb.iconSource')), choiceRow(['icon'], m.node, () => {
-    x.close();
-    api.pickIcon?.(anchor);
-  }, () => svgIcon('icon'), () => (m.node === 'icon' ? t('tb.replaceIcon') : t('tb.useIcon'))));
+  for (const tab of api.imageSources?.() ?? ['url']) item(tab === 'url' ? 'link' : tab, names[tab], false, () => api.pickImage?.(anchor, tab), tab);
+  item('icon', m.node === 'icon' ? t('tb.replaceIcon') : t('tb.iconPick'), m.node === 'icon', () => api.pickIcon?.(anchor), 'icon');
+  pop.append(list);
 }
 
 /** An image node's settings, per its source: an icon's frame or a picture's fit, and the label's position (the aspect lock and sizes are in Properties). */

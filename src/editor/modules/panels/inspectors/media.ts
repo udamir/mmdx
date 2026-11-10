@@ -55,6 +55,7 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
   const k = editKind(core.model.type);
   const m = mediaOf(core, ref);
   if (!k || !m) return;
+  if (m.node) return nodeMedia(p, host, ref, m);
   // a label's icon token on a node that takes no icon of its own (a flowchart's plain shapes): it can become an icon node
   if (m.canIcon === false && !m.node && m.icon && k.setMedia) {
     sect(host, t('props.icon'));
@@ -63,7 +64,7 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
     conv.addEventListener('click', () => void setMediaOf(core, [ref], { node: 'icon' }));
     host.append(row(t('props.icon'), h('code', { class: 'hint' }, m.icon), conv));
   }
-  if (k.setIcon && m.node !== 'image' && m.canIcon !== false) {
+  if (k.setIcon && m.canIcon !== false) {
     sect(host, t('props.icon'));
     const pick = h('button', { type: 'button' }, t('props.choose'));
     pick.addEventListener('click', () => core.run('openIconPicker', pick));
@@ -76,7 +77,7 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
     }
     host.append(row(t('props.icon'), ...ctl));
     // an icon in the label (T06 §3.3, §3.6): stock Mermaid draws Font Awesome tokens only; the icon can become the node
-    if (!m.node && m.icon) {
+    if (m.icon) {
       if (k.iconsAsText) host.append(h('div', { class: 'hint' }, t('props.iconTokenText')));
       else if (!isFaPack(splitIconName(m.icon)[0])) host.append(h('div', { class: 'hint' }, t('props.iconTokenMmdx')));
       if (k.setMedia) {
@@ -85,25 +86,15 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
         host.append(row('', conv));
       }
     }
-    if (k.decorated && !m.node && m.icon) {
+    if (k.decorated && m.icon) {
       // where the icon is drawn (inline before the text, above, below) and its size (inline: the font's)
       const meta = core.getM(ref.kind, ref.id);
       const pos = typeof meta['iconPos'] === 'string' ? meta['iconPos'] : k.iconPos ?? 'l';
       host.append(row(t('props.iconPos'), choice(t('props.iconPos'), ['l', 't', 'b'], pos, (v) => t(`media.iconPos.${v}`), (v) => setDecoration(core, [ref], 'iconPos', v))));
       host.append(row(t('props.iconSize'), size(t('props.iconSize'), typeof meta['iconSize'] === 'number' ? meta['iconSize'] : undefined, (v) => setDecoration(core, [ref], 'iconSize', v))));
     }
-    if (m.node === 'icon') {
-      // the node's source is an icon: a picture can replace it
-      if (k.setImage && m.canImage) {
-        const img = h('button', { type: 'button' }, t('props.useImage'));
-        img.addEventListener('click', () => core.run('openImageTool', img, { insert: false }));
-        host.append(row('', img));
-      }
-      host.append(row(t('props.iconForm'), choice(t('props.iconForm'), ['', 'square', 'circle', 'rounded'], m.form ?? '', (v) => t(`media.form.${v || 'none'}`), (v) => void setMediaOf(core, [ref], { form: v || null }))));
-      layoutRows(p, host, ref, m);
-    }
   }
-  if (k.setImage && m.canImage && m.node !== 'icon') {
+  if (k.setImage && m.canImage) {
     sect(host, t('props.image'));
     const url = h('input', { type: 'text', readOnly: true, 'aria-label': t('props.imageUrl'), value: m.image ?? '' });
     const ctl: (Node | null)[] = [m.image ? url : h('span', { class: 'hint' }, t('props.imageNone'))];
@@ -120,7 +111,7 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
       b.addEventListener('click', () => core.run('openImageTool', b, { insert: false, tab }));
       return b;
     })));
-    if (k.decorated && !m.node && m.image !== null) {
+    if (k.decorated && m.image !== null) {
       // the picture's box (one of the two: the other follows its aspect) and fit
       const meta = core.getM(ref.kind, ref.id);
       const num = (key: string): number | undefined => (typeof meta[key] === 'number' ? (meta[key] as number) : undefined);
@@ -129,20 +120,46 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
       const fit = meta['imgFit'];
       host.append(row(t('props.fit'), choice(t('props.fit'), ['contain', 'cover', 'stretch'], typeof fit === 'string' ? fit : 'contain', (v) => t(`media.fit.${v}`), (v) => setImageFit(core, [ref], v))));
     }
-    if (m.node === 'image') {
-      // the node's source is a picture: an icon can replace it
-      if (k.setIcon && m.canIcon !== false) {
-        const ic = h('button', { type: 'button' }, t('props.useIcon'));
-        ic.addEventListener('click', () => core.run('openIconPicker', ic));
-        host.append(row('', ic));
-      }
-      layoutRows(p, host, ref, m);
-      const lock = h('input', { type: 'checkbox', 'aria-label': t('props.aspect') });
-      lock.checked = m.constraint === 'on';
-      lock.addEventListener('change', () => void setMediaOf(core, [ref], { constraint: lock.checked ? 'on' : null }));
-      host.append(row(t('props.aspect'), lock));
-      const fit = core.getM(ref.kind, ref.id)['imgFit'];
-      host.append(row(t('props.fit'), choice(t('props.fit'), ['contain', 'cover', 'stretch'], typeof fit === 'string' ? fit : 'contain', (v) => t(`media.fit.${v}`), (v) => setImageFit(core, [ref], v))));
-    }
   }
+}
+
+/**
+ * An image node's Image section (a flowchart's image and icon nodes, image states): its source — the picture's URL or
+ * the icon — changed from the host's library, by an upload, by URL or to an icon (the same four as the toolbar's Change
+ * image), then that source's settings: the icon's frame, or the picture's aspect lock and fit; the label's position
+ * and the size.
+ */
+function nodeMedia(p: PanelCtx, host: HTMLElement, ref: ItemRef, m: ItemMedia): void {
+  const { core } = p;
+  const t = core.i18n.t;
+  const k = editKind(core.model.type);
+  sect(host, t('props.image'));
+  const current = m.node === 'icon'
+    ? h('code', { class: 'hint' }, m.icon ?? '')
+    : m.image ? h('input', { type: 'text', readOnly: true, 'aria-label': t('props.imageUrl'), value: m.image }) : h('span', { class: 'hint' }, t('props.imageNone'));
+  const rm = h('button', { type: 'button', class: 'danger' }, t('props.removeImage'));
+  rm.addEventListener('click', () => void (m.node === 'icon' ? setIconOf(core, [ref], null) : setImageOf(core, [ref], null)));
+  host.append(row(m.node === 'icon' ? t('props.icon') : t('props.imageUrl'), current, rm));
+  // change it: a picture from the library, uploaded or by URL (the image tool on that tab), or an icon
+  const names = { library: t('props.imageLibrary'), upload: t('props.imageUpload'), url: t('props.imageByUrl') };
+  const buttons = (k?.setImage && m.canImage ? imageSources(core) : []).map((tab) => {
+    const b = h('button', { type: 'button', dataset: { source: tab } }, names[tab]);
+    b.addEventListener('click', () => core.run('openImageTool', b, { insert: false, tab }));
+    return b;
+  });
+  if (k?.setIcon && m.canIcon !== false) {
+    const ic = h('button', { type: 'button', dataset: { source: 'icon' } }, t('props.imageIcon'));
+    ic.addEventListener('click', () => core.run('openIconPicker', ic));
+    buttons.push(ic);
+  }
+  host.append(row(t('props.changeImage'), ...buttons));
+  if (m.node === 'icon') host.append(row(t('props.iconForm'), choice(t('props.iconForm'), ['', 'square', 'circle', 'rounded'], m.form ?? '', (v) => t(`media.form.${v || 'none'}`), (v) => void setMediaOf(core, [ref], { form: v || null }))));
+  layoutRows(p, host, ref, m);
+  if (m.node !== 'image') return;
+  const lock = h('input', { type: 'checkbox', 'aria-label': t('props.aspect') });
+  lock.checked = m.constraint === 'on';
+  lock.addEventListener('change', () => void setMediaOf(core, [ref], { constraint: lock.checked ? 'on' : null }));
+  host.append(row(t('props.aspect'), lock));
+  const fit = core.getM(ref.kind, ref.id)['imgFit'];
+  host.append(row(t('props.fit'), choice(t('props.fit'), ['contain', 'cover', 'stretch'], typeof fit === 'string' ? fit : 'contain', (v) => t(`media.fit.${v}`), (v) => setImageFit(core, [ref], v))));
 }

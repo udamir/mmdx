@@ -4,11 +4,10 @@ import type { Messages } from '../i18n.js';
 
 export const TOOLBAR_MEDIA_MESSAGES: Messages = {
   'tb.icon': 'Icon — choose, replace or remove', 'tb.iconOf': 'Icon: {name} — replace or remove', 'tb.mediaImage': 'Picture settings — fit, aspect ratio, label position', 'tb.mediaIcon': 'Icon settings — frame, label position',
-  'tb.source': 'Source', 'tb.sourceImage': 'Source: a picture — replace it, or use an icon instead', 'tb.sourceIcon': 'Source: icon {name} — replace it, or use a picture instead',
-  'tb.useIcon': 'Use an icon instead…', 'tb.replaceIcon': 'Replace icon…', 'tb.useImage': 'Use a picture instead…',
-  'tb.picture': 'Picture', 'tb.iconSource': 'Icon', 'tb.imageLibrary': 'From the library…', 'tb.imageUpload': 'Upload…', 'tb.imageUrlPick': 'By URL…',
+  'tb.changeImage': 'Change image', 'tb.changeImageIcon': 'Change image — now the icon {name}', 'tb.iconPick': 'Icon…', 'tb.replaceIcon': 'Another icon…',
+  'tb.imageLibrary': 'From the library…', 'tb.imageUpload': 'Upload…', 'tb.imageUrlPick': 'By URL…',
   'tb.labelPos': 'Label position', 'tb.iconForm': 'Icon frame', 'tb.fit': 'Fit', 'tb.aspect': 'Keep aspect ratio',
-  'tb.imageUrl': 'Image URL', 'tb.replaceImage': 'Replace image…', 'tb.cat.basic': 'Basic', 'tb.cat.process': 'Process', 'tb.cat.technical': 'Technical',
+  'tb.imageUrl': 'Image URL', 'tb.cat.basic': 'Basic', 'tb.cat.process': 'Process', 'tb.cat.technical': 'Technical',
   'tb.cat.annotation': 'Annotation', 'tb.cat.figure': 'Figures', 'tb.cat.media': 'Media',
   'tb.form.none': 'No frame', 'tb.form.square': 'Square', 'tb.form.circle': 'Circle', 'tb.form.rounded': 'Rounded',
   'tb.fit.contain': 'Contain', 'tb.fit.cover': 'Cover', 'tb.fit.stretch': 'Stretch', 'tb.labelAbove': 'Above', 'tb.labelBelow': 'Below',

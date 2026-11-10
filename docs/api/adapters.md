@@ -607,7 +607,7 @@ diff.history = history;
 
 ## Images
 
-An `ImageStore` is the host's image library: `<mmdx-editor>` takes it as its `images` property (the `images` option of `DiagramEditor`). The image tool's **Library** tab lists its pictures, and the **Upload** tab and a picture pasted or dropped on the canvas put files into it; the toolbar's **Source** and the Properties panel open the tool on either, or on **URL**. A diagram never embeds a file: an image references the picture's `url`, which the [image policy](/guide/security#image-policy) checks like any image URL. See [Images](/components/editor#images).
+An `ImageStore` is the host's image library: `<mmdx-editor>` takes it as its `images` property (the `images` option of `DiagramEditor`). The image tool's **Library** tab lists its pictures, and the **Upload** tab and a picture pasted or dropped on the canvas put files into it; the toolbar's **Change image** and the Properties panel open the tool on either, or on **URL**. A diagram never embeds a file: an image references the picture's `url`, which the [image policy](/guide/security#image-policy) checks like any image URL. See [Images](/components/editor#images).
 
 ### `ImageStore`
 

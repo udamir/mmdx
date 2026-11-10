@@ -305,10 +305,10 @@ function build(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLElement {
       return b;
     }
     case 'source': {
-      // what an image node shows: a picture (its URL) or an icon
+      // Change image: what an image node shows — a picture (from the library, uploaded, by URL) or an icon
       const m = api.media?.();
       if (!m?.node || !api.pickImage || !api.pickIcon) return h('span');
-      return button('source', svgIcon(m.node === 'icon' ? 'icon' : 'media'), m.node === 'icon' ? t('tb.sourceIcon', { name: m.icon ?? '' }) : t('tb.sourceImage'));
+      return button('source', svgIcon('media'), m.node === 'icon' ? t('tb.changeImageIcon', { name: m.icon ?? '' }) : t('tb.changeImage'));
     }
     case 'media': {
       // an image node's settings, per its source: the icon's frame or the picture's fit and aspect lock, and the label's
