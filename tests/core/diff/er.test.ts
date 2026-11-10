@@ -79,3 +79,18 @@ describe('ER diff with subgraphs', () => {
     expect(DIFF.shape(geom, { kind: 'group', id: 'Sales' })?.t).toBe('rect');
   });
 });
+
+describe('ER diff details (B34)', () => {
+  it('a removed attribute is spelled like an added one: type, name, keys and comment', () => {
+    const a = 'erDiagram\n  A {\n    int id PK "the key"\n  }\n', b = 'erDiagram\n  A {\n  }\n';
+    const f = diffDiagrams(a, b).items.find((i) => i.kind === 'entity' && i.id === 'A')!.fields;
+    expect(f).toContainEqual({ facet: 'content', field: 'attribute id', before: 'int id PK "the key"' });
+    const back = diffDiagrams(b, a).items.find((i) => i.kind === 'entity' && i.id === 'A')!.fields;
+    expect(back).toContainEqual({ facet: 'content', field: 'attribute id', after: 'int id PK "the key"' });
+  });
+
+  it('classDef changes are reported', () => {
+    const d = diffDiagrams('erDiagram\n  A\n  classDef hot fill:#f00\n', 'erDiagram\n  A\n  classDef hot fill:#0f0\n');
+    expect(d.doc.map((x) => x.field)).toContain('classDef hot');
+  });
+});

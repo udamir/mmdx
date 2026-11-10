@@ -15,15 +15,16 @@ import { deleted, inserted, stripMarks } from '../text/marks.js';
 export function diffEr(a: ErModel, b: ErModel, ma: DiagramMeta, mb: DiagramMeta, items: ItemChange[], doc: FieldChange[]): void {
   field(doc, 'layout', 'direction', a.direction, b.direction);
   const presets = changedPresets(ma, mb, 'entity'), relPresets = changedPresets(ma, mb, 'rel'), groupPresets = changedPresets(ma, mb, 'group');
+  for (const c of new Set([...Object.keys(a.classDefs), ...Object.keys(b.classDefs)])) field(doc, 'style', `classDef ${c}`, a.classDefs[c], b.classDefs[c]);
+  // one spelling for an attribute, added, changed or removed (B34)
+  const show = (v: ErAttribute) => `${v.type} ${v.name}${v.keys.length ? ` ${v.keys.join(',')}` : ''}${v.comment ? ` "${v.comment}"` : ''}`;
   const attrFields = (ea: Entity, eb: Entity, f: FieldChange[]) => {
     const A = new Map(ea.attrs.map((x) => [x.name, x])), B = new Map(eb.attrs.map((x) => [x.name, x]));
     for (const [n, x] of B) {
       const y = A.get(n);
-      const show = (v: typeof x) => `${v.type} ${v.name}${v.keys.length ? ` ${v.keys.join(',')}` : ''}${v.comment ? ` "${v.comment}"` : ''}`;
-      if (!y) field(f, 'content', `attribute ${n}`, undefined, show(x));
-      else field(f, 'content', `attribute ${n}`, show(y), show(x));
+      field(f, 'content', `attribute ${n}`, y ? show(y) : undefined, show(x));
     }
-    for (const [n, y] of A) if (!B.has(n)) field(f, 'content', `attribute ${n}`, `${y.type} ${y.name}`, undefined);
+    for (const [n, y] of A) if (!B.has(n)) field(f, 'content', `attribute ${n}`, show(y), undefined);
     field(f, 'content', 'attribute order', ea.attrs.map((x) => x.name).filter((n) => B.has(n)), eb.attrs.map((x) => x.name).filter((n) => A.has(n)));
   };
   for (const [id, eb] of b.entities) {
