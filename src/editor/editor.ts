@@ -2,6 +2,7 @@
 // its feature modules; the custom element is a thin wrapper around it.
 import { EDITOR_MESSAGES } from '../ui/messages/editor.js';
 import { registerMessages } from '../ui/i18n.js';
+import { isTextTarget } from '../ui/shortcuts.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import type { ImageStore } from '../adapters/images.js';
 import type { WheelMode } from '../dom/viewport.js';
@@ -99,13 +100,19 @@ export class DiagramEditor {
   private destroyed = false;
   /** The adapter's latest load (resolved without an adapter). */
   private loading: Promise<void> = Promise.resolve();
-  name: string;
+  /** The document's name (exports, the studio's title): the core's file name, so it follows every open (B35). */
+  get name(): string {
+    return this.core.fileName;
+  }
+  set name(v: string) {
+    this.core.fileName = v;
+  }
 
   constructor(private readonly host: HTMLElement, options: EditorOptions = {}) {
     registerMessages(EDITOR_MESSAGES);
     registerMessages(TOOLBAR_MESSAGES);
     this.o = { ...options };
-    this.name = options.name ?? 'diagram';
+    const name = options.name ?? 'diagram';
     const features: EditorFeatures = { ...DEFAULT_FEATURES, ...(options.features ?? {}) };
     if (options.toolbar === 'none') features.styleToolbar = false;
     this.store = new DocStore({
@@ -192,7 +199,7 @@ export class DiagramEditor {
 
     core.useModules(options.modules ?? DEFAULT_MODULES);
 
-    core.fileName = this.name;
+    core.fileName = name;
     // built-in themes besides baseline load on demand; redraw when they (or a theme saved elsewhere) arrive
     this.cleanups.push(core.ctx.themes.onChange(() => {
       if (this.destroyed) return;
@@ -308,7 +315,7 @@ export class DiagramEditor {
     return this.core.fileName;
   }
   set fileName(v: string) {
-    this.name = this.core.fileName = v;
+    this.core.fileName = v;
   }
 
   /** The id of the theme the diagram is shown in (the host's, the user's pick or the default; §7.5). */
@@ -400,7 +407,7 @@ export class DiagramEditor {
       const r = await a.load();
       if (this.destroyed || this.o.adapter !== a) return;
       this.version = r.version;
-      if (r.name) this.name = this.core.fileName = r.name.replace(/\.(mmdx|mmd|md|txt)$/i, '');
+      if (r.name) this.core.fileName = r.name.replace(/\.(mmdx|mmd|md|txt)$/i, '');
       this.setSource(r.source, { history: 'reset' });
       this.unsubscribe?.();
       this.unsubscribe = a.subscribe?.((src, version) => {
@@ -699,10 +706,8 @@ export class DiagramEditor {
   }
 }
 
-const isTyping = (ev: KeyboardEvent): boolean => {
-  const t = ev.composedPath()[0] as HTMLElement | undefined;
-  return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
-};
+// a text field, a select or editable text takes the key (B31: Space in a <select> armed space-pan)
+const isTyping = (ev: KeyboardEvent): boolean => isTextTarget(ev.composedPath()[0] ?? ev.target);
 
 // ---- custom element ------------------------------------------------------------------------------------------------
 

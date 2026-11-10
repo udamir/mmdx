@@ -1,5 +1,6 @@
 // Item text ops of the editor (no UI): how an item's text is read and written back to Mermaid (the inline editor and
 // the Properties panel), and the title / sub line that describes an item.
+import { POSITIONAL_KINDS } from '../../core/ids.js';
 import type { DiagramMeta } from '../../core/meta/types.js';
 import type { DiagramModel } from '../../core/model.js';
 import type { CodeResult } from '../../core/ops/types.js';
@@ -49,8 +50,6 @@ function textOf(core: EditorCore, kind: ItemKind, id: string): TextOf | null {
   return out;
 }
 
-/** Sequence ids are positions (`m3` is the third message): an insertion above moves them to another item. */
-const POSITIONAL: ReadonlySet<ItemKind> = new Set(['message', 'note', 'block', 'box']);
 
 /** How an item's text is read and written back to Mermaid (prototype `labelSpec`; the inline editor and Properties). */
 export function labelSpec(core: EditorCore, kind: ItemKind, id: string): LabelSpec | null {
@@ -61,7 +60,8 @@ export function labelSpec(core: EditorCore, kind: ItemKind, id: string): LabelSp
     apply: (v, markdown) => {
       if (!core.store.exists({ kind, id })) return null;
       const now = textOf(core, kind, id);
-      if (!now || (POSITIONAL.has(kind) && now.value !== at.value)) return null;
+      // a positional id (`m3` is the third message) may name another item after an edit above it
+      if (!now || (POSITIONAL_KINDS.has(kind) && now.value !== at.value)) return null;
       // a shape the item keeps only in metadata moves to the code with the edit (T02.6); formatted text writes a markdown string
       const res = markdown && !now.markdown && now.writeMarkdown ? now.writeMarkdown(v) : now.write(v);
       return shapeDoc(core, [{ kind, id }], null, { code: res.code, meta: core.meta }) ?? res;

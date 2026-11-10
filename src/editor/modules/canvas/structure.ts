@@ -3,6 +3,7 @@
 // disabled "Nothing to paste"; on a group whose type offers it, "Reset positions in this group" of T07). Ported from
 // prototype app.js (`deleteSelection`, `canGroup`, `groupSelection`, `ungroupSelection`, `copySelection`, `pasteable`,
 // `pasteAt`, `duplicateSelection`, `unlockAll`, `arrangeSelection`, `moveSelection`, `showContextMenu`).
+import { POSITIONAL_KINDS } from '../../../core/ids.js';
 import { KIND_TO_COLL } from '../../../core/meta/types.js';
 import type { DiagramModel } from '../../../core/model.js';
 import { reparse, withKind } from '../../../core/kinds/registry.js';
@@ -77,8 +78,8 @@ export const canvasStructureModule: EditorModule = {
       }
       const meta = cloneMeta(core.meta);
       const nodes = new Set(sel.filter((x) => x.kind === 'node' || x.kind === 'entity').map((x) => x.id));
-      // messages, notes, blocks and processes have positional ids: the code change carries their metadata over
-      for (const it of sel) if (it.kind !== 'message' && it.kind !== 'note' && it.kind !== 'block' && it.kind !== 'activation') delete meta[KIND_TO_COLL[it.kind]]?.[it.id];
+      // positional ids (messages, notes, blocks, boxes, processes): the code change carries their metadata over
+      for (const it of sel) if (!POSITIONAL_KINDS.has(it.kind)) delete meta[KIND_TO_COLL[it.kind]]?.[it.id];
       for (const c of withKind(M, (k, m) => k.connectors(m)) ?? []) if (nodes.has(c.from.id) || nodes.has(c.to.id)) delete meta[KIND_TO_COLL[c.ref.kind]]?.[c.ref.id];
       // positional ids (mindmap nodes without a written id) move with the code: their metadata follows
       const kept = remapMeta(M, core.code, reparse(res.code), res.code, meta);

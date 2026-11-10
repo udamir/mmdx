@@ -31,17 +31,25 @@ export const canvasPaintModule: EditorModule = {
     };
 
     /** Applies the copied look to `target`; false when refused (toast) or nothing to do. Records one step. */
-    const pasteStyle = (target: Sel): boolean => {
+    const pasteStyle = (target: Sel): boolean => pasteStyleOn([target]);
+
+    /** Applies the copied look to every target, as one step; false when every one was refused or unchanged. */
+    const pasteStyleOn = (targets: readonly Sel[]): boolean => {
       if (!clip) return false;
       const env = core.styleEnv();
-      if (paintFrom && target.kind === clip.kind && target.id === paintFrom.id) return false;
-      const res = pasteStyleOp(env, clip, target);
-      if (res.reason) {
-        core.toast(res.reason);
+      let meta = env.meta, reason: string | undefined;
+      for (const target of targets) {
+        if (paintFrom && target.kind === clip.kind && target.id === paintFrom.id) continue;
+        const res = pasteStyleOp({ ...env, meta }, clip, target);
+        if (res.reason) reason ??= res.reason;
+        else meta = res.meta;
+      }
+      if (meta === env.meta) {
+        if (reason) core.toast(reason);
         return false;
       }
-      if (res.meta === env.meta) return false;
-      core.change('Paste style', () => core.store.meta.set(res.meta));
+      const next = meta;
+      core.change('Paste style', () => core.store.meta.set(next));
       return true;
     };
 
@@ -97,9 +105,10 @@ export const canvasPaintModule: EditorModule = {
       {
         id: 'paste-style', keys: ['mod+alt+v'], label: 'Paste style', group: 'Style', editOnly: true,
         run: () => {
-          const sel = core.primary() ?? core.selection()[0];
-          if (!sel || !clip) return false;
-          if (pasteStyle(sel)) {
+          // onto the whole selection, as documented (B27)
+          const sel = core.selection();
+          if (!sel.length || !clip) return false;
+          if (pasteStyleOn(sel)) {
             core.run('refreshToolbar');
             core.toast('Style pasted');
           }
