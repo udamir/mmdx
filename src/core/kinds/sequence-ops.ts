@@ -126,6 +126,7 @@ export const OPS: OpsKind<SequenceModel, SequenceGeometry> = {
     return [...set].sort((a, b) => a - b);
   },
   isEmpty: (model) => !model.participants.length,
+  theme: { slots: { participant: 'sequence.participant', message: 'sequence.message', block: 'sequence.block', note: 'sequence.note', activation: 'sequence.activation', box: 'sequence.box' } },
   presets: (theme, meta) => seqPresets(theme, meta) as unknown as Record<string, Presets>,
   drawn: (g) => [
     ...[...g.participants].map(([id, box]) => ({ ref: { kind: 'participant' as const, id }, box })),

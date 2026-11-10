@@ -84,6 +84,7 @@ export const OPS: OpsKind<ErModel, ErGeometry> = {
     return [...set].sort((a, b) => a - b);
   },
   isEmpty: (model) => !model.entities.size && !model.groups.size,
+  theme: { slots: { entity: 'er.entity', rel: 'er.rel', group: 'flowchart.group' } },
   presets: (theme, meta) => erPresets(theme, meta) as unknown as Record<string, Presets>,
   codePreset(model, meta, theme, { kind, id }) {
     const P = erPresets(theme, meta);

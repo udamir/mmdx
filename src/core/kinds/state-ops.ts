@@ -13,6 +13,7 @@ import { minOf } from '../geom.js';
 
 export const OPS: OpsKind<StateModel, StateGeometry> = {
   type: 'state',
+  theme: { slots: { node: 'state.node', group: 'state.composite', edge: 'state.transition', note: 'state.note' } },
   presets: (theme, meta) => statePresets(theme, meta) as unknown as Record<string, Presets>,
   box: (g, it) => (it.kind === 'node' ? g.nodes.get(it.id) : it.kind === 'group' ? g.groups.get(it.id) : it.kind === 'note' ? g.notes.get(it.id) : undefined) ?? null,
   edge: (g, { kind, id }) => (kind === 'edge' ? g.edges.get(id) : undefined),

@@ -10,8 +10,23 @@ import type { BoxGeom, EdgeGeom, GeometryIndex } from '../render/types.js';
 import type { DrawnItem, Presets } from './types.js';
 import type { DiagramType, ItemKind, ItemRef } from '../types.js';
 
+/** A theme slot: `<section>.<slot>` of a theme file (`state.composite`, `flowchart.group`). */
+export type ThemeSlot = `${'flowchart' | 'sequence' | 'er' | 'mindmap' | 'state'}.${string}`;
+
+/**
+ * Where a diagram type's item kinds take their theme styles (B6; the first part of the kind's theme section
+ * declaration, architecture A11): an item kind's defaults are at its slot, its theme presets at `<slot>Presets`, its
+ * per-shape defaults at `<slot>Shapes` (`state.node`, `state.nodePresets`, `state.nodeShapes`).
+ */
+export interface ThemeSection {
+  readonly slots: Readonly<Partial<Record<ItemKind, ThemeSlot>>>;
+}
+
 export interface OpsKind<M extends SupportedModel = SupportedModel, G extends GeometryIndex = GeometryIndex> {
   readonly type: M['type'];
+
+  /** Where the type's item kinds take their theme styles. */
+  readonly theme: ThemeSection;
 
   // ---- presets and geometry (the editor, item previews) ----
   /** The theme's presets plus the diagram's own, for each item kind of the type. */

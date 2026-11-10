@@ -5,6 +5,7 @@ import type { DiagramMeta } from '../meta/types.js';
 import type { DiagramModel } from '../model.js';
 import { own } from '../own.js';
 import { withOps } from '../kinds/registry.js';
+import type { ThemeSlot } from '../kinds/ops-types.js';
 import type { Presets } from '../kinds/types.js';
 import { effectivePage } from '../render/page.js';
 import { byShapeId, shapeIdOf } from '../shapes/registry.js';
@@ -40,28 +41,26 @@ export function presetsFor(env: StyleEnv, kind: ItemKind): Presets | undefined {
   return model.type ? withOps(model, (k) => k.presets(T, meta)[kind]) : {};
 }
 
-/** The theme's own default style of an item kind. */
-export function defaultsFor(theme: ResolvedTheme, kind: ItemKind): StyleProps | undefined {
-  const F = theme.flowchart, Sq = theme.sequence, E = theme.er;
-  const map: Record<ItemKind, StyleProps | undefined> = {
-    node: F.node, group: F.group, edge: F.edge,
-    participant: Sq.participant, message: Sq.message, block: Sq.block, note: Sq.note, activation: Sq.activation, box: Sq.box,
-    entity: E.entity, rel: E.rel,
-  };
-  return map[kind];
+/** Where the diagram's type takes an item kind's theme styles (its ops kind's theme slots, B6). */
+const slotOf = (env: StyleEnv, kind: ItemKind): ThemeSlot | undefined => (env.model.type ? withOps(env.model, (k) => k.theme.slots[kind]) : undefined);
+
+/** `theme.<section>.<slot><suffix>`. */
+function themeAt<T>(theme: ResolvedTheme | ThemeFile | null | undefined, slot: ThemeSlot | undefined, suffix = ''): T | undefined {
+  if (!theme || !slot) return undefined;
+  const [section, key] = slot.split('.') as [string, string];
+  return (theme as unknown as Record<string, Record<string, T> | undefined>)[section]?.[key + suffix];
 }
 
-/** The theme's presets of a kind; `raw`: from the unresolved theme (palette references kept). */
+/** The theme's own default style of an item kind, in the diagram's type (a state's node is the theme's `state.node`). */
+export const defaultsFor = (env: StyleEnv, kind: ItemKind): StyleProps | undefined => themeAt(env.theme, slotOf(env, kind));
+
+/** The theme's presets of a kind in the diagram's type; `raw`: from the unresolved theme (palette references kept). */
 export function themePresetsOf(env: StyleEnv, kind: ItemKind, raw = false): Presets {
-  const T = (raw ? env.rawTheme : null) ?? env.theme;
-  const F = T.flowchart, Sq = T.sequence, E = T.er;
-  const map: Partial<Record<ItemKind, Presets | undefined>> = {
-    node: F?.nodePresets, group: F?.groupPresets, edge: F?.edgePresets, participant: Sq?.participantPresets,
-    message: Sq?.messagePresets, block: Sq?.blockPresets, activation: Sq?.activationPresets, box: Sq?.boxPresets,
-    note: Sq?.notePresets, entity: E?.entityPresets, rel: E?.relPresets,
-  };
-  return map[kind] ?? {};
+  return themeAt<Presets>((raw ? env.rawTheme : null) ?? env.theme, slotOf(env, kind), 'Presets') ?? {};
 }
+
+/** The theme's per-shape defaults of a kind in the diagram's type (`flowchart.nodeShapes`, `state.nodeShapes`…). */
+const shapeDefsOf = (env: StyleEnv, kind: ItemKind): Record<string, StyleProps> | undefined => themeAt(env.theme, slotOf(env, kind), 'Shapes');
 
 /** A preset defined in this diagram (and not in the theme). */
 export const isLocalPreset = (env: StyleEnv, kind: ItemKind, name: string): boolean =>
@@ -95,23 +94,24 @@ export function participantShapeOf(env: StyleEnv, id: string): string {
 
 /** The shape a node is drawn with (its own, its preset's or its Mermaid shape). */
 export function nodeShapeOf(env: StyleEnv, id: string): string {
-  const { model, meta, theme } = env;
+  const { model, meta } = env;
   const m = getM(meta, 'node', id);
   const pst = presetsFor(env, 'node')?.[currentPreset(env, { kind: 'node', id })];
-  const n = str(m.shape) ?? str(pst?.shape) ?? withOps(model, (k, m) => k.codeShape?.(m, { kind: 'node', id })) ?? str(theme.flowchart.node.shape) ?? 'rect';
+  const n = str(m.shape) ?? str(pst?.shape) ?? withOps(model, (k, m) => k.codeShape?.(m, { kind: 'node', id })) ?? str(defaultsFor(env, 'node')?.shape) ?? 'rect';
   // any name of a shape (`cyl`) is its catalogue id (`cylinder`)
   return shapeIdOf(n) ?? n;
 }
 
 /** Theme + shape default + diagram `_base` + preset, with colour values resolved when `env.color` is given. */
 export function baseStyleOf(env: StyleEnv, kind: ItemKind, id: string | null): StyleProps & Record<string, unknown> {
-  const { theme, meta } = env;
+  const { meta } = env;
   const preset = id != null ? currentPreset(env, { kind, id }) : '';
-  const shapeDef = id == null ? undefined
-    : kind === 'node' ? byShapeId(theme.flowchart.nodeShapes)?.[nodeShapeOf(env, id)]
-      : kind === 'participant' ? theme.sequence.participantShapes?.[participantShapeOf(env, id)]
+  const shapes = id == null ? undefined : shapeDefsOf(env, kind);
+  const shapeDef = !shapes || id == null ? undefined
+    : kind === 'node' ? byShapeId(shapes)?.[nodeShapeOf(env, id)]
+      : kind === 'participant' ? shapes[participantShapeOf(env, id)]
         : undefined;
-  const layers: (object | undefined)[] = [defaultsFor(theme, kind), shapeDef, meta.styles[kind]?.['_base'], presetsFor(env, kind)?.[preset]];
+  const layers: (object | undefined)[] = [defaultsFor(env, kind), shapeDef, meta.styles[kind]?.['_base'], presetsFor(env, kind)?.[preset]];
   const b = mergeLayers<StyleProps & Record<string, unknown>>(...(layers as Record<string, unknown>[]));
   if (env.color) for (const k of Object.keys(b)) if (COLOR_KEYS.has(k) && typeof b[k] === 'string') b[k] = env.color(b[k]) ?? b[k];
   return b;

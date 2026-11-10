@@ -62,7 +62,7 @@ describe('style env', () => {
     const e = env();
     expect(nodeShapeOf(e, 'n1')).toBe('cylinder');
     expect(nodeShapeOf(env({ ...emptyMeta(), nodes: { n1: { shape: 'card' } } }), 'n1')).toBe('card');
-    expect(defaultsFor(baseline, 'node')).toBe(baseline.flowchart.node);
+    expect(defaultsFor(e, 'node')).toBe(baseline.flowchart.node);
     const b = baseStyleOf(e, 'node', 'n4');
     expect(b.fill).toBe(baseline.palette['paper']); // colour references resolved
     expect(edgeEndsOf(e, 'n1->n2')).toEqual({ start: 'none', end: baseStyleOf(e, 'edge', 'n1->n2').arrow });
@@ -76,3 +76,32 @@ describe('style env', () => {
     expect(ownLook({ ...emptyMeta(), nodes: { a: { x: 1, fill: '#fff', preset: 'p' } } }, { kind: 'node', id: 'a' })).toEqual({ fill: '#fff' });
   });
 });
+
+describe('style env per diagram type (B6)', () => {
+  const envOf = (code: string): StyleEnv => ({ model: parse(code) as never, meta: emptyMeta(), theme: baseline, rawTheme: registry.merged('default-light') });
+
+  it('a state diagram takes the theme\'s state section', () => {
+    const e = envOf('stateDiagram-v2\n  A --> B\n  note right of A : hi\n');
+    expect(defaultsFor(e, 'node')).toBe(baseline.state.node);
+    expect(defaultsFor(e, 'group')).toBe(baseline.state.composite);
+    expect(themePresetsOf(e, 'node')).toBe(baseline.state.nodePresets);
+    expect(Object.keys(themePresetsOf(e, 'node', true))).toEqual(Object.keys(registry.merged('default-light')!.state?.nodePresets ?? {}));
+    // the state note style, not the sequence note's
+    expect(baseStyleOf(e, 'note', null)).toEqual({ ...baseline.state.note });
+    expect(baseStyleOf(e, 'note', null)).not.toEqual({ ...baseline.sequence.note });
+    expect(themePresetsOf(e, 'node')).not.toBe(baseline.flowchart.nodePresets);
+  });
+
+  it('a mindmap takes the theme\'s mindmap section', () => {
+    const e = envOf('mindmap\n  root\n    A\n');
+    expect(defaultsFor(e, 'node')).toBe(baseline.mindmap.node);
+    expect(themePresetsOf(e, 'node')).toBe(baseline.mindmap.nodePresets);
+  });
+
+  it('an item kind the type does not have has no theme style', () => {
+    const e = envOf('stateDiagram-v2\n  A\n');
+    expect(defaultsFor(e, 'participant')).toBeUndefined();
+    expect(themePresetsOf(e, 'participant')).toEqual({});
+  });
+});
+

@@ -202,6 +202,7 @@ export const OPS: OpsKind<FlowchartModel, FlowGeometry> = {
     return [...set].sort((a, b) => a - b);
   },
   isEmpty: (model) => !model.nodes.size,
+  theme: { slots: { node: 'flowchart.node', group: 'flowchart.group', edge: 'flowchart.edge' } },
   presets: (theme, meta) => flowPresets(theme, meta) as unknown as Record<string, Presets>,
   drawn: (g) => [
     ...[...g.nodes].map(([id, box]) => ({ ref: { kind: 'node' as const, id }, box })),

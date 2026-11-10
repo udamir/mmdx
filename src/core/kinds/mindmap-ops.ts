@@ -10,6 +10,7 @@ import type { Presets } from './types.js';
 
 export const OPS: OpsKind<MindmapModel, MindmapGeometry> = {
   type: 'mindmap',
+  theme: { slots: { node: 'mindmap.node' } },
   presets: (theme, meta) => mindPresets(theme, meta) as unknown as Record<string, Presets>,
   box: (g, it) => (it.kind === 'node' ? g.nodes.get(it.id) : undefined) ?? null,
   drawn: (g) => [...g.nodes].map(([id, box]) => ({ ref: { kind: 'node' as const, id }, box })),
