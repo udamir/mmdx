@@ -144,6 +144,8 @@ function loadDocument(core: EditorCore, src: string, name?: string): void {
 }
 
 const isJson = (f: File): boolean => /\.json$/i.test(f.name);
+/** A file that can be a document: a diagram, Markdown or text file, or a `.json` layout sidecar — never an image. */
+export const isDocumentFile = (f: File): boolean => /\.(mmdx|mmd|md|markdown|txt|json)$/i.test(f.name) && !/^image\//.test(f.type ?? '');
 
 /** The text of a Markdown file is its first ```mermaid block (other files are taken as they are). */
 export function extractMermaid(text: string, fileName: string): string {
@@ -167,7 +169,7 @@ export interface ReadFiles {
  * nothing could be opened.
  */
 export async function readDocumentFiles(files: FileList | File[], current: () => string): Promise<ReadFiles | null> {
-  const list = Array.from(files);
+  const list = Array.from(files).filter(isDocumentFile);
   const json = list.find(isJson);
   const src = list.find((f) => !isJson(f));
   if (!json && !src) return null;
@@ -229,9 +231,12 @@ export const documentModule: EditorModule = {
       scope.listen(wrap, 'dragleave', () => wrap.classList.remove('drop-target'));
       scope.listen(wrap, 'drop', (ev: DragEvent) => {
         wrap.classList.remove('drop-target');
-        if (!ev.dataTransfer?.files.length || core.mode.peek() !== 'edit' || core.version.peek()) return;
+        // a drop another handler took (an image placed on the canvas) is not also opened as the document (B4)
+        if (ev.defaultPrevented || core.mode.peek() !== 'edit' || core.version.peek()) return;
+        const docs = Array.from(ev.dataTransfer?.files ?? []).filter(isDocumentFile);
+        if (!docs.length) return;
         ev.preventDefault();
-        void core.run('openFiles', ev.dataTransfer.files);
+        void core.run('openFiles', docs);
       });
       cleanups.push(() => wrap.classList.remove('drop-target'));
     }
