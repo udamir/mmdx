@@ -319,6 +319,22 @@ describe('History: Restore, the working copy, destroy', () => {
     await wait(() => ed.historySession!.getDiff()?.items.some((c) => c.status === 'changed'));
   });
 
+  it('exportAs exports nothing while History shows no version and no comparison (B23)', async () => {
+    await open(gated(Promise.resolve()));
+    const exports: unknown[] = [];
+    // the host takes the export (cancels the download)
+    ed.core.host.addEventListener('mmdx-history-export', (e) => {
+      exports.push((e as CustomEvent).detail);
+      e.preventDefault();
+    });
+    await ed.historySession!.exportAs('mmdx');
+    expect(exports).toEqual([]);
+    ed.historySession!.setPair('v1', 'v2');
+    await wait(() => ed.historySession?.getDiff());
+    await ed.historySession!.exportAs('mmdx', { version: 'before' });
+    expect(exports).toHaveLength(1);
+  });
+
   it('destroying the host with History open closes it without giving the canvas back (no repaint, no event)', async () => {
     const { events } = await open(gated(Promise.resolve()));
     ed.historySession!.setPair('v1', 'v2');

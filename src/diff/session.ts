@@ -830,18 +830,24 @@ export class DiffSession {
     const stem = this.o.name();
     const safe = (s: string | null): string => (s ?? '').replace(/[^\w.-]+/g, '_');
     const viewOnly = this.viewOnly.peek();
-    if (kind === 'mmdx' || kind === 'mmd') {
-      const id = o.version === 'before' ? this.base.peek() : o.version === 'viewed' || viewOnly ? this.viewing.peek() : this.head.peek();
-      return `${stem}-${safe(id)}.${kind}`;
-    }
+    if (kind === 'mmdx' || kind === 'mmd') return `${stem}-${safe(this.exportVersionId(o.version))}.${kind}`;
     if (viewOnly && (kind === 'svg' || kind === 'png')) return `${stem}-${safe(this.viewing.peek())}.${kind}`;
     const view = kind === 'svg' || kind === 'png' ? `-${o.view ?? this.view.peek()}` : '';
     return `${stem}-${safe(this.base.peek())}..${safe(this.head.peek())}${view}.${kind}`;
   }
 
+  /**
+   * The version a source export writes — one answer for its name and its content (B23): `before` / `after` the
+   * comparison's ends, `viewed` the version shown, none: the version shown when one is, else the after version.
+   */
+  private exportVersionId(which: DiffExportOptions['version']): string | null {
+    if (which === 'before') return this.base.peek();
+    if (which === 'after') return this.head.peek();
+    return which === 'viewed' || this.viewOnly.peek() ? this.viewing.peek() : this.head.peek();
+  }
+
   private versionSource(which: DiffExportOptions['version']): Promise<string> {
-    const id = which === 'before' ? this.base.peek() : which === 'viewed' || (!which && this.viewOnly.peek()) ? this.viewing.peek() : this.head.peek();
-    return this.sourceOf(id);
+    return this.sourceOf(this.exportVersionId(which));
   }
 
   private async portable(src: string): Promise<string> {

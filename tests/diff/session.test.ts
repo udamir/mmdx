@@ -174,6 +174,27 @@ describe('DiffSession', () => {
   });
 });
 
+describe('exports name what they write (B23)', () => {
+  it('after viewing one version, an "after" export is named and filled with the after version', async () => {
+    const got: { name: string; data: unknown }[] = [];
+    const { s } = session({
+      emit: (type, detail) => {
+        if (type === 'mmdx-export') got.push(detail as { name: string; data: unknown });
+        return type !== 'mmdx-export';
+      },
+    });
+    const A = 'flowchart LR\n  a', B = 'flowchart LR\n  a --> b', C = 'flowchart LR\n  a --> c';
+    await s.load({ history: [{ id: 'v3', source: C }, { id: 'v2', source: B }, { id: 'v1', source: A }] });
+    s.setPair('v1', 'v2');
+    s.viewVersion('v3');
+    await s.exportAs('mmdx', { version: 'after' });
+    await s.exportAs('mmdx');
+    expect(got[0]).toMatchObject({ name: 'arch-v2.mmdx', data: B });
+    expect(got[1]).toMatchObject({ name: 'arch-v3.mmdx', data: C });
+    s.destroy();
+  });
+});
+
 /** A promise resolved or rejected from outside. */
 function deferred<T>(): { promise: Promise<T>; resolve(v: T): void; reject(e: unknown): void } {
   let resolve!: (v: T) => void, reject!: (e: unknown) => void;
