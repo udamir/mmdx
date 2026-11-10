@@ -176,7 +176,10 @@ export const OPS: OpsKind<StateModel, StateGeometry> = {
       delete gm.y;
       delete gm.w;
       delete gm.h;
-      const placed = Object.entries(meta.nodes ?? {}).some(([id, m]) => !within.has(id) && typeof m.x === 'number');
+      // as the flowchart's (B22): a hand-placed state or composite outside this one keeps it in place
+      const placedOutside = (coll: 'nodes' | 'groups'): boolean =>
+        Object.entries(meta[coll] ?? {}).some(([id, m]) => !within.has(id) && typeof m.x === 'number' && typeof m.y === 'number');
+      const placed = placedOutside('nodes') || placedOutside('groups');
       const box = geom?.type === 'state' ? geom.groups.get(gid) : undefined;
       if (box && placed) {
         const m = ensure(meta, 'group', gid);

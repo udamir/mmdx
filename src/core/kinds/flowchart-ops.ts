@@ -79,7 +79,7 @@ export const OPS: OpsKind<FlowchartModel, FlowGeometry> = {
     if (geom?.type !== 'flowchart') return meta;
     let pinned = false;
     for (const [id, b] of geom.nodes)
-      if (b.auto) {
+      if (b.auto && Number.isFinite(b.x) && Number.isFinite(b.y)) {
         const m = ensure(meta, 'node', id);
         if (m.x == null || m.y == null) {
           m.x = Math.round(b.x);

@@ -162,7 +162,10 @@ export const OPS: OpsKind<ErModel, ErGeometry> = {
       delete gm.y;
       delete gm.w;
       delete gm.h;
-      const placed = Object.entries(meta.entities ?? {}).some(([id, m]) => !within.has(id) && typeof m.x === 'number');
+      // as the flowchart's (B22): a hand-placed table or subgraph outside this one keeps it in place
+      const placedOutside = (coll: 'entities' | 'groups'): boolean =>
+        Object.entries(meta[coll] ?? {}).some(([id, m]) => !within.has(id) && typeof m.x === 'number' && typeof m.y === 'number');
+      const placed = placedOutside('entities') || placedOutside('groups');
       const box = geom?.type === 'er' ? geom.groups.get(gid) : undefined;
       if (box && placed) {
         const m = ensure(meta, 'group', gid);

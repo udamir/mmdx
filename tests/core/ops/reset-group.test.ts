@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import type { DiagramMeta } from '../../../src/core/meta/types.js';
 import { emptyMeta } from '../../../src/core/meta/types.js';
 import { groupHasPositions, resetGroupPositions } from '../../../src/core/ops/meta-ops.js';
+import { parse as parseAny } from '../../../src/core/parse/index.js';
 import { flow, geomOf, seq } from './helpers.js';
 
 const CODE = [
@@ -110,5 +111,19 @@ describe('groupHasPositions', () => {
     expect(groupHasPositions(model, metaOf({ nodes: { A: { fill: '#fff' }, X: { x: 1, y: 2 } }, groups: { G: { x: 1, y: 2, w: 300, h: 200 } } }), G)).toBe(false);
     expect(groupHasPositions(model, metaOf({ nodes: { A: { x: 1, y: 2 } } }), { kind: 'group', id: 'H' })).toBe(false);
     expect(groupHasPositions(model, metaOf({ nodes: { A: { x: 1, y: 2 } } }), { kind: 'node', id: 'A' })).toBe(false);
+  });
+});
+
+describe('ER and state: a hand-placed sibling group keeps the reset group in place (B22)', () => {
+  it.each([
+    ['ER', 'erDiagram\n  subgraph G\n    A\n  end\n  subgraph S\n    B\n  end\n', 'er'],
+    ['state', 'stateDiagram-v2\n  state G {\n    A\n  }\n  state S {\n    B\n  }\n', 'state'],
+  ])('%s', (_, code) => {
+    // only the sibling group S is placed by hand, no single table or state outside G
+    const meta = metaOf({ groups: { S: { x: 400, y: 40 } } });
+    const model = parseAny(code);
+    const r = resetGroupPositions(model, meta, geomOf(code, meta), G);
+    expect(typeof r?.meta.groups?.['G']?.x).toBe('number');
+    expect(r?.meta.groups?.['S']).toEqual({ x: 400, y: 40 });
   });
 });
