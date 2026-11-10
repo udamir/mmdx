@@ -15,7 +15,8 @@ import type { DiagnosticFix } from '../types.js';
 import { diag } from '../types.js';
 import { frontmatterValues } from './frontmatter.js';
 import { decodeLabel } from './label.js';
-import { ItemBudget, stripControl } from './limits.js';
+import { guardParse, ItemBudget, LexBudget, stripControl } from './limits.js';
+import { LineScan } from './line-scan.js';
 import { parseStyleList } from './style.js';
 
 export function emptyState(): StateModel {
@@ -96,11 +97,27 @@ interface Act {
   throws?: string;
 }
 
-const R = (re: string, act: Act): { re: RegExp; act: Act } => ({ re: new RegExp(re, 'iy'), act });
-const DIRS = (): { re: RegExp; act: Act }[] => (['TB', 'BT', 'RL', 'LR'] as const).map((d) => R(`.*direction\\s+${d}[^\\n]*`, { tok: `dir_${d}` }));
+/**
+ * A lexer rule: a sticky RegExp, or a `test` giving the match length at a position (-1: none) where the RegExp
+ * would re-read the line at every token (B1). `scan`: how far a failed attempt of the RegExp may read (to the end of
+ * the line, or of the source); it is charged that much against the step budget.
+ */
+interface Rule {
+  re: RegExp;
+  act: Act;
+  test?: (L: LineScan, pos: number) => number;
+  scan?: 'line' | 'all';
+}
+
+const R = (re: string, act: Act, more: Partial<Rule> = {}): Rule => ({ re: new RegExp(re, 'iy'), act, ...more });
+// `.*direction\s+TB[^\n]*` in Mermaid's lexer, answered from a per-line index
+const DIRS = (): Rule[] =>
+  (['TB', 'BT', 'RL', 'LR'] as const).map((d) => R(`.*direction\\s+${d}[^\\n]*`, { tok: `dir_${d}` }, { test: (L, pos) => L.direction(pos, d) }));
+// `.*<<fork>>` and the like: up to the word's last occurrence on the line
+const UPTO = (re: string, needle: RegExp, act: Act): Rule => R(re, act, { test: (L, pos) => L.upToLast(pos, needle) });
 
 // stateDiagram.jison's rules, by their index in Mermaid's lexer
-const RULES: { re: RegExp; act: Act }[] = [
+const RULES: Rule[] = [
   /* 0 */ R('click\\b', { tok: 'CLICK' }),
   /* 1 */ R('href\\b', { tok: 'HREF' }),
   /* 2 */ R('"[^"]*"', { tok: 'STRING' }),
@@ -135,19 +152,19 @@ const RULES: { re: RegExp; act: Act }[] = [
   /* 34 */ R('\\d+', { tok: 'WIDTH' }),
   /* 35 */ R('\\s+width\\b', { pop: true }),
   /* 36 */ R('state\\s+', { push: 'STATE' }),
-  /* 37 */ R('.*<<fork>>', { pop: true, tok: 'FORK', text: (v) => v.slice(0, -8).trim() }),
-  /* 38 */ R('.*<<join>>', { pop: true, tok: 'JOIN', text: (v) => v.slice(0, -8).trim() }),
-  /* 39 */ R('.*<<choice>>', { pop: true, tok: 'CHOICE', text: (v) => v.slice(0, -10).trim() }),
-  /* 40 */ R('.*\\[\\[fork\\]\\]', { pop: true, tok: 'FORK', text: (v) => v.slice(0, -8).trim() }),
-  /* 41 */ R('.*\\[\\[join\\]\\]', { pop: true, tok: 'JOIN', text: (v) => v.slice(0, -8).trim() }),
-  /* 42 */ R('.*\\[\\[choice\\]\\]', { pop: true, tok: 'CHOICE', text: (v) => v.slice(0, -10).trim() }),
+  /* 37 */ UPTO('.*<<fork>>', /<<fork>>/gi, { pop: true, tok: 'FORK', text: (v) => v.slice(0, -8).trim() }),
+  /* 38 */ UPTO('.*<<join>>', /<<join>>/gi, { pop: true, tok: 'JOIN', text: (v) => v.slice(0, -8).trim() }),
+  /* 39 */ UPTO('.*<<choice>>', /<<choice>>/gi, { pop: true, tok: 'CHOICE', text: (v) => v.slice(0, -10).trim() }),
+  /* 40 */ UPTO('.*\\[\\[fork\\]\\]', /\[\[fork\]\]/gi, { pop: true, tok: 'FORK', text: (v) => v.slice(0, -8).trim() }),
+  /* 41 */ UPTO('.*\\[\\[join\\]\\]', /\[\[join\]\]/gi, { pop: true, tok: 'JOIN', text: (v) => v.slice(0, -8).trim() }),
+  /* 42 */ UPTO('.*\\[\\[choice\\]\\]', /\[\[choice\]\]/gi, { pop: true, tok: 'CHOICE', text: (v) => v.slice(0, -10).trim() }),
   /* 43–46 */ ...DIRS(),
   /* 47 */ R('["]', { push: 'STATE_STRING' }),
   /* 48 */ R('\\s*as\\s+', { push: 'STATE_ID', tok: 'AS' }),
   /* 49 */ R('[^\\n\\{]*', { id: true, pop: true, tok: 'ID' }),
   /* 50 */ R('["]', { pop: true }),
   /* 51 */ R('[^"]*', { tok: 'STATE_DESCR' }),
-  /* 52 */ R('\\w+\\s+\\w+.*?\\{', { throws: 'single-word' }),
+  /* 52 */ R('\\w+\\s+\\w+.*?\\{', { throws: 'single-word' }, { scan: 'line' }),
   /* 53 */ R('[^\\n\\s\\{]+', { tok: 'COMPOSIT_STATE' }),
   /* 54 */ R('\\n', { pop: true }),
   /* 55 */ R('\\{', { pop: true, push: 'struct', tok: 'STRUCT_START' }),
@@ -163,7 +180,7 @@ const RULES: { re: RegExp; act: Act }[] = [
   /* 65 */ R('[^\\n]*', { id: true, pop: true, tok: 'ID' }),
   /* 66 */ R('\\s*[^:\\n\\s\\-]+', { id: true, pop: true, push: 'NOTE_TEXT', tok: 'ID' }),
   /* 67 */ R('\\s*:[^:\\n;]+', { pop: true, tok: 'NOTE_TEXT', text: (v) => v.substring(2).trim() }),
-  /* 68 */ R('[\\s\\S]*?\\n\\s*end note\\b', { pop: true, tok: 'NOTE_TEXT', text: (v) => v.slice(0, -8).trim() }),
+  /* 68 */ R('[\\s\\S]*?\\n\\s*end note\\b', { pop: true, tok: 'NOTE_TEXT', text: (v) => v.slice(0, -8).trim() }, { scan: 'all' }),
   /* 69 */ R('stateDiagram\\s+', { tok: 'SD' }),
   /* 70 */ R('stateDiagram-v2\\s+', { tok: 'SD' }),
   /* 71 */ R('hide empty description\\b', { tok: 'HIDE_EMPTY' }),
@@ -199,7 +216,12 @@ class Lexer {
   private done = false;
   /** Empty tokens in a row at one offset (a guard: Mermaid's lexer would loop there). */
   private empties = 0;
-  constructor(private readonly src: string) {}
+  private readonly L: LineScan;
+  private readonly budget: LexBudget;
+  constructor(private readonly src: string) {
+    this.L = new LineScan(src);
+    this.budget = new LexBudget(src.length);
+  }
 
   /** The prepared source between two offsets. */
   text(s: number, e: number): string {
@@ -221,10 +243,18 @@ class Lexer {
       let hit: { m: string; act: Act } | null = null;
       for (const i of rules) {
         const r = RULES[i]!;
-        r.re.lastIndex = this.pos;
-        const m = r.re.exec(this.src);
-        if (m) {
-          hit = { m: m[0], act: r.act };
+        this.budget.step();
+        let m: string | null;
+        if (r.test) {
+          const n = r.test(this.L, this.pos);
+          m = n < 0 ? null : this.src.slice(this.pos, this.pos + n);
+        } else {
+          r.re.lastIndex = this.pos;
+          m = r.re.exec(this.src)?.[0] ?? null;
+          if (r.scan) this.budget.step(m !== null ? m.length : r.scan === 'line' ? this.L.lineEnd(this.pos) - this.pos : this.src.length - this.pos);
+        }
+        if (m !== null) {
+          hit = { m, act: r.act };
           break;
         }
       }
@@ -529,7 +559,12 @@ function lineIndex(src: string): (at: number) => number {
 /** A label as Mermaid shows it: entity codes decoded, `<br>` as a line break, control characters out. */
 const textOf = (raw: string): string => stripControl(decodeLabel(raw).replace(/\n/g, '\uE000')).replace(/\uE000/g, '\n');
 
+/** Never throws: a source past the lexer's limits gives an empty model with `doc.too-complex`. */
 export function parseState(code: string): StateModel {
+  return guardParse(emptyState, () => readState(code));
+}
+
+function readState(code: string): StateModel {
   const model = emptyState();
   const D = model.diagnostics;
   const budget = new ItemBudget(D);

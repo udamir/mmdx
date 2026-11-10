@@ -6,6 +6,7 @@ import { splitSource, type DiagramDocument } from './meta/index.js';
 import type { DiagramModel } from './model.js';
 import type { Kinds } from './kinds/types.js';
 import { parseWith } from './parse/dispatch.js';
+import { TOO_BIG_CODES } from './parse/limits.js';
 import { renderSvgString, renderWith } from './render/dispatch.js';
 import type { RenderContext, RenderResult } from './render/types.js';
 import { createColorResolver, diagramPaletteOf } from './theme/colors.js';
@@ -93,7 +94,7 @@ export function renderDocumentWith(kinds: Kinds, doc: DiagramDocument, model: Di
 export function renderSourceWith(kinds: Kinds, src: string, ctx: CoreContext, opts: PipelineOptions = {}): Rendered {
   const split = splitSource(src);
   const model = parseWith(split.doc.code, kinds);
-  const tooLarge = model.diagnostics.some((d) => d.code === 'doc.too-large' || d.code === 'doc.too-many-items');
+  const tooLarge = model.diagnostics.some((d) => TOO_BIG_CODES.has(d.code));
   const r = renderDocumentWith(kinds, split.doc, model, ctx, opts);
   return {
     doc: split.doc,

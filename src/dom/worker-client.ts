@@ -13,6 +13,8 @@ import type { WorkerRequest, WorkerResponse } from './worker-protocol.js';
 
 /** Diagrams with more source lines than this render in the worker. */
 export const WORKER_THRESHOLD_LINES = 300;
+/** …or more than this many characters (a few very long lines cost as much as many short ones). */
+export const WORKER_THRESHOLD_BYTES = 32 * 1024;
 const TIMEOUT_MS = 2000;
 
 interface Job {

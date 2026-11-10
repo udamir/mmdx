@@ -5,12 +5,13 @@
 import { renderWithMermaid } from '../../config.js';
 import { splitSource } from '../../core/meta/index.js';
 import { detectType } from '../../core/parse/dispatch.js';
+import { TOO_BIG_CODES } from '../../core/parse/limits.js';
 import { renderSourceWith, type PipelineOptions, type Rendered } from '../../core/pipeline-core.js';
 import { pageScene } from '../../core/render/page.js';
 import { BUILTIN_IDS } from '../../core/theme/builtin-ids.js';
 import { diagnosticText, type Diagnostic, type Rect } from '../../core/types.js';
 import { cancelIdle, idle } from '../../dom/idle.js';
-import { renderInWorker, workerAvailable, WORKER_THRESHOLD_LINES } from '../../dom/worker-client.js';
+import { renderInWorker, workerAvailable, WORKER_THRESHOLD_BYTES, WORKER_THRESHOLD_LINES } from '../../dom/worker-client.js';
 import { h } from '../../ui/h.js';
 import type { ViewCore } from '../core.js';
 import { drawShapes, lazyKinds, loadShapes, type KindsProvider } from '../kinds.js';
@@ -131,7 +132,8 @@ export class TextScene extends BaseScene {
     const layers = core.visibleLayers.peek();
     if (layers) opts.visibleLayers = layers;
     // the host's URL resolver is a function: it does not reach the worker
-    if (countLines(text) > WORKER_THRESHOLD_LINES && workerAvailable() && !core.ctx.resolveUrl) {
+    // by size too: one long line is as slow to parse as many short ones (G13)
+    if ((text.length > WORKER_THRESHOLD_BYTES || countLines(text) > WORKER_THRESHOLD_LINES) && workerAvailable() && !core.ctx.resolveUrl) {
       const seq = ++this.renderSeq;
       void renderInWorker(text, core.ctx, opts, this).then((wr) => {
         if (this.destroyed || seq !== this.renderSeq || text !== this.text) return;
@@ -244,7 +246,7 @@ export class TextScene extends BaseScene {
       },
     }, t('error.copy'));
     this.o.msg.replaceChildren(h('div', { class: 'error', role: 'alert' },
-      h('h2', null, diags.some((d) => d.code === 'doc.too-large' || d.code === 'doc.too-many-items') ? t('error.tooLarge') : t('error.title')),
+      h('h2', null, diags.some((d) => TOO_BIG_CODES.has(d.code)) ? t('error.tooLarge') : t('error.title')),
       h('ul', null, ...diags.slice(0, 20).map((d) => h('li', null, diagnosticText(d)))),
       source ? pre : null,
       source ? h('div', { class: 'actions' }, copy) : null));

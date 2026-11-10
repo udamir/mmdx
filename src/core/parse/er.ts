@@ -20,7 +20,8 @@ import type { AttrKey, Cardinality, Direction, Entity, ErAttribute, ErEntityStmt
 import { diag } from '../types.js';
 import { frontmatterValues, titleToFrontmatter } from './frontmatter.js';
 import { decodeLabel } from './label.js';
-import { ItemBudget, stripControl } from './limits.js';
+import { guardParse, ItemBudget, LexBudget, stripControl } from './limits.js';
+import { LineScan } from './line-scan.js';
 import { parseStyleList } from './style.js';
 
 // ---- attributes as the editor types them ------------------------------------------------------------------------
@@ -117,12 +118,25 @@ interface Act {
   v?: string;
 }
 
-const R = (re: string, act: Act): { re: RegExp; act: Act } => ({ re: new RegExp(re, 'iy'), act });
-const CARD = (re: string, v: Cardinality | 'md-parent'): { re: RegExp; act: Act } => R(re, { tok: 'CARD', v });
-const DIR = (d: Direction): { re: RegExp; act: Act } => R(`.*direction\\s+${d}[^\\n]*`, { tok: 'DIR', v: d });
+/**
+ * A lexer rule: a sticky RegExp, or a `test` giving the match length at a position (-1: none) where the RegExp
+ * would re-read the line at every token (B1). `scan`: a RegExp that may read to the end of the line before failing;
+ * its attempts are charged that much against the step budget.
+ */
+interface Rule {
+  re: RegExp;
+  act: Act;
+  test?: (L: LineScan, pos: number) => number;
+  scan?: boolean;
+}
+
+const R = (re: string, act: Act, more: Partial<Rule> = {}): Rule => ({ re: new RegExp(re, 'iy'), act, ...more });
+const CARD = (re: string, v: Cardinality | 'md-parent'): Rule => R(re, { tok: 'CARD', v });
+// `.*direction\s+TB[^\n]*` in Mermaid's lexer, answered from a per-line index
+const DIR = (d: Direction): Rule => R(`.*direction\\s+${d}[^\\n]*`, { tok: 'DIR', v: d }, { test: (L, pos) => L.direction(pos, d) });
 
 // erDiagram.jison's rules, by their index in Mermaid's lexer
-const RULES: { re: RegExp; act: Act }[] = [
+const RULES: Rule[] = [
   /* 0 */ R('accTitle\\s*:\\s*', { begin: 'acc_title', tok: 'ACC_TITLE' }),
   /* 1 */ R('[^\\n]*', { pop: true, tok: 'ACC_VALUE' }),
   /* 2 */ R('accDescr\\s*:\\s*', { begin: 'acc_descr', tok: 'ACC_DESCR' }),
@@ -144,7 +158,7 @@ const RULES: { re: RegExp; act: Act }[] = [
   /* 21 */ R(':', { tok: 'COLON' }),
   /* 22 */ R('\\s+', {}),
   /* 23 */ R('\\b((?:PK)|(?:FK)|(?:UK))\\b', { tok: 'KEY' }),
-  /* 24 */ R('([^\\s]*)[~].*[~]([^\\s]*)', { tok: 'AWORD' }),
+  /* 24 */ R('([^\\s]*)[~].*[~]([^\\s]*)', { tok: 'AWORD' }, { scan: true }),
   /* 25 */ R(AWORD, { tok: 'AWORD' }),
   /* 26 */ R('[`]', { begin: 'block_bq' }),
   /* 27 */ R('[^`]+', { tok: 'AWORD' }),
@@ -219,16 +233,25 @@ const CONDITIONS: Readonly<Record<string, readonly number[]>> = {
 function lex(src: string): { toks: Tok[]; bad: number[] } {
   const toks: Tok[] = [], bad: number[] = [];
   const stack = ['INITIAL'];
+  const L = new LineScan(src), budget = new LexBudget(src.length);
   let pos = 0;
   while (pos < src.length) {
     const cond = stack[stack.length - 1]!;
     let hit: { m: string; act: Act } | null = null;
     for (const i of CONDITIONS[cond] ?? CONDITIONS['INITIAL']!) {
       const r = RULES[i]!;
-      r.re.lastIndex = pos;
-      const m = r.re.exec(src);
-      if (m) {
-        hit = { m: m[0], act: r.act };
+      budget.step();
+      let m: string | null;
+      if (r.test) {
+        const n = r.test(L, pos);
+        m = n < 0 ? null : src.slice(pos, pos + n);
+      } else {
+        r.re.lastIndex = pos;
+        m = r.re.exec(src)?.[0] ?? null;
+        if (r.scan) budget.step(m === null ? L.lineEnd(pos) - pos : m.length);
+      }
+      if (m !== null) {
+        hit = { m, act: r.act };
         break;
       }
     }
@@ -270,7 +293,12 @@ interface OpenGroup {
   members: string[];
 }
 
+/** Never throws: a source past the lexer's limits gives an empty model with `doc.too-complex`. */
 export function parseER(code: string): ErModel {
+  return guardParse(emptyEr, () => readER(code));
+}
+
+function readER(code: string): ErModel {
   const model = emptyEr();
   const D = model.diagnostics;
   const budget = new ItemBudget(D);
