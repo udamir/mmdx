@@ -2,57 +2,40 @@
 
 All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project follows [semantic versioning](https://semver.org/); below 1.0, a minor version may change public API, listed under **Changed (breaking)**.
 
-## 0.4.0 — Mindmaps, state diagrams, icons and images
+## 0.4.0 — 2026-11-10
 
-Two new diagram types, icons and images in every type but ER, an image library from the host, every Mermaid flowchart shape, and sequence and ER diagrams read and edited as Mermaid writes them.
+Mindmaps, state diagrams, icons and images.
 
 ### Added
 
-- **Mindmaps**: drawn, edited (outline keys, folding, branch sides and colours) and compared in the viewer, the editor, `<mmdx-diff>`, History, `renderToSvg` and the markdown plugins; a `mindmap` theme section.
-- **State diagrams**: composites, concurrency regions, choice, fork / join and notes, each composite laid out in its own direction; drawn, edited and compared everywhere; a `state` theme section.
-- **Every Mermaid flowchart shape**: the 53 shapes of `A@{ shape: … }` and their aliases, written to the Mermaid code; the Shapes menu and the shape picker by category; connectors end on a shape's outline.
-- **Icons**: icon packs (`configure({ iconPacks })`, Iconify JSON), a built-in Tabler set (`tabler:`), Font Awesome look-alikes for `fa:` names, the same packs for stock Mermaid and on the server, and the `mmdx-icons` command that builds Azure, AWS and Google Cloud packs with Mermaid Chart's names.
-- **Images**: flowchart image and icon nodes (`@{ img }`, `@{ icon }`), image states with the same keys, pictures on mindmap nodes and sequence participants; the image policy (`configure({ imagePolicy })`) and `configure({ resolveUrl })`; PNG export includes remote images.
-- **An image library**: the editor's `images` property takes the host's `ImageStore` (`list`, `get`, `put`, `delete`, `subscribe`; `memoryImageStore`, `httpImageStore`). The image tool has Library, Upload and URL tabs, and an image node's first toolbar item, **Change image**, offers From the library…, Upload…, By URL… and Icon….
-- **Rich text labels**: markdown strings drawn with their emphasis; the toolbar's text menu sets bold, italic, underline and strikethrough.
-- **Editor**: icon picker, emoji picker (`⌘;`), animated connectors (Off, Fast, Slow), Reset positions in this group.
-- **Sequence diagrams**: Mermaid's 26 arrows and 8 participant types, participant link menus, icons on participants, `blockTags`, editing that keeps the code as written.
-- **ER diagrams**: subgraphs, Mermaid's whole syntax, lossless relationship and alias editing.
-- **Flowchart syntax**: invisible links, edge ids and animation, subgraph `direction`; files from Mermaid Chart open as they are.
-- **`wheel: 'zoom'`**: the wheel zooms at the pointer (viewer, editor, `<mmdx-diff>`).
-- Examples of each new type, and guide pages for flowchart content, shapes, icons, mindmaps, state, sequence and ER diagrams.
+- Mindmaps and state diagrams in every component.
+- All Mermaid flowchart shapes.
+- Icons: icon packs, a built-in Tabler set, Font Awesome look-alikes.
+- Images: image and icon nodes in flowcharts and state diagrams, pictures on mindmap nodes and participants.
+- Image library from the host: the `images` property (`ImageStore`), with Library, Upload and URL in the image tool.
+- Rich text labels, an emoji picker and animated connectors in the editor.
+- Mermaid's full sequence and ER syntax, including ER subgraphs.
+- `wheel: 'zoom'`.
 
 ### Changed
 
-- **Fit fills the canvas**: the diagram is zoomed to the whole canvas, under the floating panels.
-- **Flowcharts with subgraphs** are laid out one container at a time, so frames no longer overlap; `%%@ canvas {"layout":"legacy"}` keeps the earlier layout for one minor release.
-- **Sequence diagrams look as Mermaid draws them**: dotted messages are dashed and blocks show their kind.
-- **ER diagrams are read as Mermaid reads them**, which changes what some files mean (a relationship label is one word or a quoted text).
-- **An icon is an image's source**: flowchart shapes and states have no Icon button; ER diagrams draw no icons. Image sizes and Keep aspect ratio are in Properties.
-- **Editing keeps the code as written**: node data, edge lengths, styles, chains, `&` groups and classes.
-- **Faster on large diagrams**: zoom and pan are shown as a CSS transform; the editor loads diagram types, extra shapes and rich labels on demand.
-- **Mermaid 12.2** is the development dependency; every edit is checked to parse in 12.2 and 11.17.
+- Fit fills the whole canvas.
+- Flowchart subgraphs no longer overlap (`layout: "legacy"` keeps the old layout).
+- Sequence and ER diagrams are read and drawn as Mermaid does.
+- An icon is an image's source; ER diagrams have no icons.
+- Edits keep the Mermaid code as written.
+- Faster zoom and pan on large diagrams.
 
 ### Changed (breaking)
 
-- **`<mmdx-studio>` keeps no diagram in the URL** (no `#d=…`, no Share button; `persist` takes only `local`), and `encodeHash` / `decodeHash` are removed.
-- **`CoreContext` has `icons` and `imagePolicy`**: a context built by hand needs them (`createIconRegistry()`, `DEFAULT_IMAGE_POLICY`).
-- **`rehypeMmdx`'s transformer returns a promise** when diagrams reference icons that are not loaded yet.
-- **The model types grew**: `DiagramType` and the model and geometry unions include `mindmap` and `state`; `Kinds` is keyed by type; `NodeShape` is a shape catalogue id; `SequenceModel`, `ErModel` and `FlowchartModel` have new fields; a flowchart edge's `id` is its own id when the code gives one.
+- The studio no longer keeps the diagram in the URL; `encodeHash` and `decodeHash` are removed.
+- `CoreContext` needs `icons` and `imagePolicy`.
+- `rehypeMmdx` may return a promise.
+- Model types include `mindmap` and `state`.
 
 ### Fixed
 
-- ER ids Mermaid cannot read bare are written in quotes; relationship edits keep word cardinalities and aliases.
-- Sequence: a rename keeps `@{…}` data and `create`; `autonumber off` and `autonumber 10 5` work.
-- `@{…}` node data: a quoted `}` or `,` no longer ends it; an unknown shape name is reported.
-- `classDef default` and classes on subgraphs apply; `</br>` breaks a line; `accDescr { … }` no longer becomes nodes.
-- The render worker uses the component's link policy; `configure({ mermaid })` takes effect after a fallback render.
-
-### Upgrading from 0.3
-
-- Code that builds a `CoreContext` by hand adds `icons` and `imagePolicy`; code that switches over diagram types adds `mindmap` and `state`.
-- Await `rehypeMmdx`'s transformer.
-- Flowcharts with subgraphs lay out differently: positions saved in metadata stay; `layout: "legacy"` keeps the old automatic layout.
+- Quoting of ER ids, `autonumber` options, quoted `}` in node data, `classDef default`, `</br>`.
 
 ## 0.3.0 — Hooks for sandboxed hosts
 
