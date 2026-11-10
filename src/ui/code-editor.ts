@@ -5,6 +5,7 @@
 
 import { HIDDEN_LINE, highlightLine, type LineHighlighter } from './highlight.js';
 import { CODE_TOKENS_CSS } from './styles/code-tokens.js';
+import { maxOf } from '../core/geom.js';
 
 export { highlightLine, highlightMetaLine, type LineHighlighter, type Token } from './highlight.js';
 
@@ -106,7 +107,7 @@ export function createCodeEditor(opts: CodeEditorOptions = {}): CodeEditor {
     const key = labels.join(',');
     if (key === lastLabels && !force) return;
     lastLabels = key;
-    const digits = Math.max(2, ...labels.map((l) => l.length));
+    const digits = Math.max(2, maxOf(labels.map((l) => l.length)));
     wrap.style.setProperty('--gutter', `${digits * 7.6 + 32}px`);
     const rows = labels.map((l) => {
       if (l === '⋯') return el('div', 'fold', '⋯');

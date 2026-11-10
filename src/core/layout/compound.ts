@@ -44,6 +44,7 @@
 // Deterministic: insertion order everywhere, no randomness, the same input gives the same output.
 import { layered, type LayeredOptions, type LayoutEdge, type LayoutNode } from './layered.js';
 import type { Point, Rect } from '../types.js';
+import { maxOf } from '../geom.js';
 
 export type CompoundDir = 'TB' | 'BT' | 'LR' | 'RL';
 
@@ -384,7 +385,7 @@ export function layoutCompound(input: CompoundInput, opts: CompoundOptions = {})
       if (host.has(it.id)) continue;
       const s = sides.get(it.id);
       if (!s) ln.push({ id: it.id, w: it.w, h: it.h });
-      else ln.push({ id: it.id, w: it.w + span(s.left) + span(s.right), h: Math.max(it.h, ...[...s.left, ...s.right].map((x) => x.h)) });
+      else ln.push({ id: it.id, w: it.w + span(s.left) + span(s.right), h: Math.max(it.h, maxOf([...s.left, ...s.right].map((x) => x.h))) });
     }
     const le: LayoutEdge[] = edges.map((e) => ({ from: host.get(e.from) ?? e.from, to: host.get(e.to) ?? e.to, minlen: e.minlen ?? 1 }));
     const lo = { dir, rankSep, nodeSep };

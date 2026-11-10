@@ -9,6 +9,7 @@ import { field, metaFields, mermaidStyleOf, finish, added, removed, changedPrese
 import type { FieldChange, ItemChange } from './types.js';
 import { carryMeta, changedField, REMOVED, type MergeEnv } from './merge.js';
 import { mergeText } from './text.js';
+import { maxOf } from '../geom.js';
 
 // ---- diff --------------------------------------------------------------------------------------------------
 
@@ -208,7 +209,7 @@ export function mergeState(env: MergeEnv, a: StateModel, b: StateModel): StateMo
     const before = a.edges.find((x) => x.id === (c?.beforeId ?? e.id));
     return before && changedField(c, 'label') ? { ...e, label: mergeText(before.label, e.label) } : e;
   });
-  let index = Math.max(-1, ...edges.map((e) => e.index)) + 1;
+  let index = Math.max(-1, maxOf(edges.map((e) => e.index))) + 1;
   for (const e of a.edges) {
     const c = goneBy.get(`edge:${e.id}`);
     if (!c) continue;

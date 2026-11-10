@@ -23,6 +23,7 @@ import type { Point } from '../../../core/types.js';
 import type { EditorCore, Gesture, Hit, Sel } from '../../core.js';
 import type { ModuleScope } from '../../../view/module.js';
 import { mindmapKeys } from './index.js';
+import { maxOf } from '../../../core/geom.js';
 
 export { MINDMAP_CSS } from './css.js';
 
@@ -179,7 +180,7 @@ export function activateMindmap(scope: ModuleScope<EditorCore>): () => void {
         const n = mindNodeAt(N, at);
         if (!n) break;
         sel.push({ kind: 'node', id: n.id });
-        at = Math.max(n.endLine, ...descendantsOf(N, n.id).map((d) => N.nodes.get(d)!.endLine)) + 1;
+        at = Math.max(n.endLine, maxOf(descendantsOf(N, n.id).map((d) => N.nodes.get(d)!.endLine))) + 1;
       }
     }
     core.applyCode({ code: res.code }, 'Paste', { select: sel });

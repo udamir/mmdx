@@ -15,7 +15,7 @@ import type { ItemRef } from '../types.js';
 import { copyIds, uniqueId } from './ids.js';
 import { applyEdits, contentEnd, indentOf, type LineEdit } from './lines.js';
 import type { CloneInto, CloneResult, CodeResult, ConnectResult, RefusableResult, SelectResult } from './types.js';
-import { minOf } from '../geom.js';
+import { maxOf, minOf } from '../geom.js';
 
 /** A scope: a composite (null: the top level) and a region of it. */
 export interface StateScope {
@@ -275,7 +275,7 @@ export function setDescriptions(code: string, model: StateModel, id: string, row
   let at: number, indent: string;
   const title = n.texts[0];
   if (title) {
-    const lastKept = Math.max(title.line, ...old.filter((t) => !gone.has(t.line)).map((t) => t.line));
+    const lastKept = Math.max(title.line, maxOf(old.filter((t) => !gone.has(t.line)).map((t) => t.line)));
     at = lastKept + 1;
     indent = indentOf(L[title.line]);
   } else {

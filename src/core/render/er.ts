@@ -26,6 +26,7 @@ import {
 import type { BoxGeom, EdgeGeom, ErGeometry, Port, RenderContext } from './types.js';
 import { dashAttrs } from './dash.js';
 import { attrLook, entityPreset, erGroupPreset, erPresets, highlight, relPreset } from './er-presets.js';
+import { maxOf } from '../geom.js';
 
 export { ATTR_PRESETS, attrLook, entityPreset, erGroupPreset, erPresets, relPreset, type ErPresets } from './er-presets.js';
 
@@ -612,7 +613,7 @@ function compactLayout(ctx: RenderContext, e: Entity, st: StyleProps, m: ItemMet
   const w = metaNum(m.w) || Math.max(st.minW ?? 0, inner + padX * 2);
   const lh = size * 1.32, tlh = titleSize * 1.3;
   // a line with a larger attribute font is taller
-  const lineH = lines.map((l) => Math.max(size, ...l.words.map((wd) => wd.size ?? size)) * 1.32);
+  const lineH = lines.map((l) => Math.max(size, maxOf(l.words.map((wd) => wd.size ?? size))) * 1.32);
   const even = lineH.every((x) => x === lh);
   const linesH = even ? lines.length * lh : lineH.reduce((a, b) => a + b, 0);
   const h = metaNum(m.h) || padY * 2 + titleLines.length * tlh + linesH;
