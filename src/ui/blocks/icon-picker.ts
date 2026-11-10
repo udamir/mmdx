@@ -8,6 +8,7 @@ import { registerMessages } from '../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
 import { gridKeys } from './grid-keys.js';
+import { createOverlayScroll, OVERLAY_SCROLL_CSS } from './overlay-scroll.js';
 
 export interface IconPickerPack {
   name: string;
@@ -60,8 +61,8 @@ export const ICON_TILE = 48;
 const COMPACT_TILE = 32;
 const ROWS = 6;
 
-export const ICON_PICKER_CSS = /* css */ `
-.ip { width: 368px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 6px; }
+export const ICON_PICKER_CSS = /* css */ `${OVERLAY_SCROLL_CSS}
+.ip { position: relative; width: 368px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 6px; }
 .ip-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ip-title { font-weight: 600; font-size: 13px; }
 .ip-search { width: 100%; }
@@ -74,8 +75,8 @@ export const ICON_PICKER_CSS = /* css */ `
 .ip-row { display: flex; gap: 0; overflow: hidden; }
 .ip-scroll { position: relative; height: calc(var(--ip-tile, var(--ip-tile, ${ICON_TILE}px)) * ${ROWS}); overflow-y: auto; overflow-x: hidden; }
 .ip-space { position: relative; }
-.ip-rows { position: absolute; left: 0; right: 0; top: 0; display: grid; grid-template-columns: repeat(var(--ip-cols, 7), var(--ip-tile, ${ICON_TILE}px)); grid-auto-rows: var(--ip-tile, ${ICON_TILE}px); }
-.ip-tile { width: var(--ip-tile, ${ICON_TILE}px); height: var(--ip-tile, ${ICON_TILE}px); padding: 0; border: 1px solid transparent; background: none; border-radius: 8px; display: grid; place-items: center; }
+.ip-rows { position: absolute; left: 0; right: 0; top: 0; display: grid; grid-template-columns: repeat(var(--ip-cols, 7), minmax(0, 1fr)); grid-auto-rows: var(--ip-tile, ${ICON_TILE}px); }
+.ip-tile { width: 100%; height: var(--ip-tile, ${ICON_TILE}px); padding: 0; border: 1px solid transparent; background: none; border-radius: 8px; display: grid; place-items: center; }
 .ip-tile img { width: 28px; height: 28px; pointer-events: none; }
 .ip-tile:hover { background: var(--mmdx-surface-2); }
 .ip-tile.on { background: var(--mmdx-accent-2); }
@@ -116,6 +117,10 @@ export function createIconPicker(props: IconPickerProps): IconPickerHandle {
   const info = h('div', { class: 'ip-info', 'aria-live': 'polite' });
   const foot = h('div', { class: 'ip-foot' });
   el.append(h('div', { class: 'ip-head' }, title), input, chips, hint, recentHead, recentRow, scroller, none, info, foot);
+  // the panels' thin scrollbar over the icons (the native one hidden)
+  const thumbs = createOverlayScroll(el);
+  el.append(...thumbs.thumbs);
+  scope.add(() => thumbs.destroy());
 
   const cols = (): number => Math.max(1, Math.floor((scroller.clientWidth || tileSize() * 7) / tileSize()));
   const visibleRows = (): number => Math.ceil((scroller.clientHeight || tileSize() * ROWS) / tileSize()) + 2;
@@ -184,6 +189,15 @@ export function createIconPicker(props: IconPickerProps): IconPickerHandle {
     if (focused) stop?.focus({ preventScroll: true });
   };
   scope.on(scroller, 'scroll', () => drawRows());
+  // the columns follow the width (a tab shown after the picker was built, a resized popover)
+  let width = 0;
+  const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => {
+    if (scroller.clientWidth === width) return;
+    width = scroller.clientWidth;
+    drawRows(true);
+  }) : null;
+  ro?.observe(scroller);
+  scope.add(() => ro?.disconnect());
 
   const renderChips = (): void => {
     const t = p.t;

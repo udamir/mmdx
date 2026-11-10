@@ -51,20 +51,40 @@ function place(el: HTMLElement, anchor: HTMLElement | null, core: EditorCore): v
   const w = el.offsetWidth || 360, ht = el.offsetHeight || 420;
   const dock = !!anchor?.closest('.tool-dock');
   let left = dock ? r.right + 10 : r.left, top = dock ? r.top - 20 : r.bottom + 6;
+  // from the floating toolbar: where its own popovers open — 8 px under the bar (above it without room), by the button
+  const bar = anchor?.closest<HTMLElement>('.mtb');
+  if (bar) {
+    const b = bar.getBoundingClientRect();
+    left = r.left - 20;
+    top = b.bottom + 8 + ht <= vh - 8 || b.top - 8 - ht < 8 ? b.bottom + 8 : b.top - 8 - ht;
+  }
   if (!anchor) {
     left = r.left + r.width / 2 - w / 2;
     top = r.top + 60;
   }
-  el.style.left = `${Math.round(Math.max(8, Math.min(left, vw - w - 8)))}px`;
-  el.style.top = `${Math.round(Math.max(8, Math.min(top, vh - ht - 8)))}px`;
+  const x = Math.round(Math.max(8, Math.min(left, vw - w - 8))), y = Math.round(Math.max(8, Math.min(top, vh - ht - 8)));
+  el.style.left = `${x}px`;
+  el.style.top = `${y}px`;
+  // a transformed or contained ancestor makes `fixed` relative to it (an embedding page's frame): measured and taken off
+  const at = el.getBoundingClientRect();
+  if (at.width && (at.left !== x || at.top !== y)) {
+    el.style.left = `${Math.round(2 * x - at.left)}px`;
+    el.style.top = `${Math.round(2 * y - at.top)}px`;
+  }
 }
 
 /** Opens `content` as a dialog popover (Tab kept inside, Esc and an outside press close it). */
 function openPop(core: EditorCore, content: HTMLElement, anchor: HTMLElement | null, onClose: () => void): HTMLElement {
   const pop = h('div', { class: 'ins-pop' }, content);
   core.dom.shadow.append(pop);
-  core.popovers.open(pop, anchor, { onClose, trap: true });
+  // placed again when its size changes (another tab of the image tool), so it stays by its bar
+  const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => place(pop, anchor, core)) : null;
+  core.popovers.open(pop, anchor, { onClose: () => {
+    ro?.disconnect();
+    onClose();
+  }, trap: true });
   place(pop, anchor, core);
+  ro?.observe(pop);
   return pop;
 }
 

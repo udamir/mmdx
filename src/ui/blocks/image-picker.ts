@@ -9,6 +9,7 @@ import { h } from '../h.js';
 import { registerMessages } from '../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
+import { createOverlayScroll, OVERLAY_SCROLL_CSS } from './overlay-scroll.js';
 import { createTabs, TABS_CSS } from './tabs.js';
 
 /** The picture types the file input offers. */
@@ -62,12 +63,13 @@ export interface ImagePickerHandle extends BlockHandle<ImagePickerProps> {
   readonly tab: ImageTab;
 }
 
-export const IMAGE_PICKER_CSS = /* css */ `${TABS_CSS}
+export const IMAGE_PICKER_CSS = /* css */ `${TABS_CSS}${OVERLAY_SCROLL_CSS}
 .imp { width: 340px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 8px; }
 .imp-tabs { gap: 2px; padding: 2px; border-radius: 10px; background: var(--mmdx-float-2); }
+.imp-tabs .mmdx-tabs-spacer { display: none; }
 .imp-tabs [role=tab] { flex: 1; border: 0; background: none; padding: 5px 8px; font-size: 12px; border-radius: 8px; color: var(--mmdx-text-2); }
 .imp-tabs [role=tab][aria-selected=true] { background: var(--mmdx-float); color: var(--mmdx-accent); font-weight: 600; box-shadow: 0 1px 2px rgba(20, 30, 60, .12); }
-.imp-panel { display: flex; flex-direction: column; gap: 8px; }
+.imp-panel { position: relative; display: flex; flex-direction: column; gap: 8px; }
 .imp-panel[hidden] { display: none; }
 .imp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; max-height: 236px; overflow-y: auto; align-content: start; }
 .imp-tile { aspect-ratio: 1; padding: 0; border: 1px solid var(--mmdx-border); border-radius: var(--mmdx-radius); background: var(--mmdx-surface-2, transparent); overflow: hidden; }
@@ -122,6 +124,10 @@ export function createImagePicker(props: ImagePickerProps): ImagePickerHandle {
   let tab: ImageTab = p.tab && tabsOf().includes(p.tab) ? p.tab : tabsOf()[0]!;
   const tabs = createTabs<ImageTab>({ label: '', class: 'imp-tabs', tabs: [], value: tab, onChange: (v) => show(v) });
   scope.add(() => tabs.destroy());
+  // the panels' thin scrollbar over the library's grid (the native one hidden)
+  const libScroll = createOverlayScroll(panels.library);
+  panels.library.append(...libScroll.thumbs);
+  scope.add(() => libScroll.destroy());
   // no visible heading: the tabs say where the image comes from (the title is the dialog's accessible name)
   el.append(tabs.el, panels.library, panels.upload, panels.url, panels.icon, foot);
   let busy = false;
