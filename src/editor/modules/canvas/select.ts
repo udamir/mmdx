@@ -25,6 +25,18 @@ const KIND_NAME: Record<ItemKind, string> = {
   block: 'block', box: 'box', activation: 'process', entity: 'table', rel: 'relationship',
 };
 
+
+/** `base` plus the items of `add` it does not have yet, in order (a Set of keys: linear for a big marquee, P5). */
+function withAdded(base: readonly Sel[], add: readonly Sel[]): Sel[] {
+  const out = [...base], have = new Set(base.map(selKey));
+  for (const it of add) {
+    const k = selKey(it);
+    if (have.has(k)) continue;
+    have.add(k);
+    out.push(it);
+  }
+  return out;
+}
 export const SELECT_CSS = /* css */ `
 .sel-box { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 5 3; pointer-events: none; }
 .sel-handle { fill: #fff; stroke: var(--accent); stroke-width: 1.5; cursor: nwse-resize; }
@@ -407,9 +419,9 @@ export const canvasSelectModule: EditorModule = {
             const area = { x0: Math.min(p0.x, x1), x1: Math.max(p0.x, x1), y0: Math.min(p0.y, y1), y1: Math.max(p0.y, y1) };
             const crossing = x1 < p0.x;
             const hits = all.filter((it) => inArea(it, area, crossing)).map(({ kind, id }) => ({ kind, id }));
-            const merged: Sel[] = [...base];
-            for (const it of hits) if (!merged.some((x) => selKey(x) === selKey(it))) merged.push(it);
-            core.select(merged);
+            // an unchanged selection fires nothing (core.select, P5); the band itself is drawn on every move
+            core.select(withAdded(base, hits));
+            core.drawOverlay();
           },
           end: finish,
           cancel: finish,
@@ -565,7 +577,6 @@ export const canvasSelectModule: EditorModule = {
 
     const selectAll = (): void => {
       core.select(selectable(core).map(({ kind, id }) => ({ kind, id })));
-      core.draw();
       core.fire('panels');
     };
 
@@ -597,7 +608,6 @@ export const canvasSelectModule: EditorModule = {
       const next = list[j];
       if (!next) return false; // past the ends: focus leaves the canvas
       core.select([next]);
-      core.draw();
       ensureVisible(next);
       core.fire('panels');
       return true;

@@ -544,8 +544,7 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
       return { base: what === 'compare' ? session.base.peek() : null, head: what === 'compare' ? session.head.peek() : null, viewing: what === 'version' ? viewing.peek() : null };
     },
     getDiff: () => (shown.peek() === 'compare' ? session.getDiff() : null),
-    // as getDiff: nothing to export while History shows no version and no comparison (B23)
-    exportAs: (kind, opts) => (shown.peek() === 'none' ? Promise.resolve() : session.exportAs(kind, opts ?? {})),
+    exportAs: (kind, opts) => (shown.peek() === 'none' ? Promise.resolve() : session.exportAs(kind, opts ?? {})), // as getDiff (B23)
     close,
   };
   core.historySession.set(api);

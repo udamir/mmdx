@@ -32,7 +32,7 @@ import type { TextFormat, TextFormats } from './ops/format.js';
 import { HIGHLIGHT_CSS } from '../dom/highlight.js';
 import type { Viewport, WheelMode } from '../dom/viewport.js';
 import { Dialogs, DIALOG_CSS } from '../ui/dialog.js';
-import { signal, type Signal } from '../ui/signal.js';
+import { effect, signal, untracked, type Signal } from '../ui/signal.js';
 import { ALIASES } from '../ui/styles/base.js';
 import { EDITOR_CSS } from '../ui/styles/editor.js';
 import { ViewCore } from '../view/core.js';
@@ -358,6 +358,24 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     this.domCache = { shadow: this.shadow, root: this.root, wrap: this.area, svg: c.svg, defs: c.defs, vp: c.vp, page: c.page, body: c.body, overlay: c.overlay };
     this.storeScene = new StoreScene(this);
     this.pushScene(this.storeScene);
+    // the document's selection, however it changes (a pick, undo / redo, a rolled-back gesture, a load): `selection`
+    // and `mmdx-selection` once per real change (B11, P5) — not on construction, not for the same items again, and not
+    // while a version is shown (its items are picked to copy them; the net change is reported when it closes)
+    let last = this.store.selection.peek().map(itemKey).join('\n');
+    this.cleanups.push(effect(() => {
+      const sel = this.store.selection();
+      if (this.version()) return;
+      const key = sel.map(itemKey).join('\n');
+      if (key === last) return;
+      last = key;
+      untracked(() => {
+        this.fire('selection');
+        // the picture does not depend on the selection: its marks and the overlay only, no render (P4)
+        if (this.storeScene.attached && this.dom.body.childElementCount) this.decorate();
+        this.drawOverlay();
+        this.emit('mmdx-selection', { items: sel.map((r) => ({ kind: r.kind, id: r.id })) });
+      });
+    }));
   }
 
   /** The editor's DOM (the shell's root and canvas area, the main canvas's layers). */
@@ -512,14 +530,25 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       seen.add(k);
       list.push({ kind: it.kind, id: it.id });
     }
-    this.foot = !!items[0]?.foot;
+    const foot = !!items[0]?.foot;
     if (list.length) this.pageSelected.set(false);
     // a version's items are selected to copy them: the document's selection and its event stay as they are
-    if (this.version.peek()) this.versionSel = list;
-    else this.store.selection.set(list);
-    this.fire('selection');
-    this.drawOverlay();
-    if (!this.version.peek()) this.emit('mmdx-selection', { items: list });
+    if (this.version.peek()) {
+      this.foot = foot;
+      this.versionSel = list;
+      this.fire('selection');
+      this.drawOverlay();
+      return;
+    }
+    // the document's selection: the effect in the constructor fires and emits when it changes; the same items again
+    // do nothing (P5) unless only the participant end (its foot) changed
+    const footChanged = foot !== this.foot;
+    this.foot = foot;
+    this.store.selection.set(list);
+    if (footChanged) {
+      this.fire('selection');
+      this.drawOverlay();
+    }
   }
 
   toggleSelected(it: Sel): void {
