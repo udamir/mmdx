@@ -300,7 +300,7 @@ describe('History: Restore, the working copy, destroy', () => {
     expect(events).not.toContain('mmdx-history-restore');
   });
 
-  it('the working copy check reads the newest version once, not on every document change', async () => {
+  it('the working copy check reads neither the history nor the newest version on every document change', async () => {
     const a = gated(Promise.resolve());
     await open(a);
     await wait(() => a.lists > 0 && a.loads.includes('v2'));
@@ -311,8 +311,9 @@ describe('History: Restore, the working copy, destroy', () => {
       ed.setSource(`flowchart LR\n  a[${label}] --> b[End]\n`);
       await new Promise((r) => setTimeout(r, 30));
     }
-    // the list was read again on each change; the newest version's source was not
-    expect(a.lists).toBe(lists + 3);
+    await new Promise((r) => setTimeout(r, 250));
+    // the working copy's row follows the document without reading the history again (B10), nor the newest source
+    expect(a.lists).toBe(lists);
     expect(newest()).toBe(n);
     ed.historySession!.setPair('v2', WORKING_COPY);
     await wait(() => ed.historySession!.getDiff()?.items.some((c) => c.status === 'changed'));

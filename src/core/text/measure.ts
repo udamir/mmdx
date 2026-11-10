@@ -40,6 +40,10 @@ export class Lru<K, V> {
   clear(): void {
     this.map.clear();
   }
+  /** Drops the entries whose key matches. */
+  deleteWhere(f: (k: K) => boolean): void {
+    for (const k of [...this.map.keys()]) if (f(k)) this.map.delete(k);
+  }
 }
 
 export const fontKey = (f: FontSpec): string => `${f.style ?? 'normal'}|${f.weight ?? 400}|${f.size}|${f.family}`;

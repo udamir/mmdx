@@ -24,6 +24,9 @@ import type { Translate } from '../ui/blocks/block.js';
 import { batch, computed, signal, type ReadSignal, type Signal } from '../ui/signal.js';
 import { loadKindsOf } from './kinds.js';
 
+/** How long the document must rest before History follows it (a working copy row, a comparison that shows it). */
+const SOURCE_DEBOUNCE_MS = 150;
+
 export type DiffViewName = DiffView | 'side';
 export type DiffFilter = 'added' | 'removed' | ChangeFacet;
 /** The version panel's tab: compare two versions, or view one as it is. */
@@ -143,6 +146,9 @@ export class DiffSession {
   private readonly countMap = new Map<string, DiffResult['counts'] | null>();
   private countQueue: Promise<void> = Promise.resolve();
   private readonly cache = new Lru<string, DiffRendered>(8);
+  /** Versions whose source changed since the last flush (sourceChanged, debounced). */
+  private readonly changedSources = new Set<string>();
+  private sourceTimer: ReturnType<typeof setTimeout> | 0 = 0;
   /** The load generation: bumped by every `load()`; work of an older generation is dropped when it arrives. */
   private loadSeq = 0;
   private refreshSeq = 0;
@@ -502,13 +508,48 @@ export class DiffSession {
    * version list is read again (the working copy may appear or go), and a comparison that shows it renders again.
    */
   sourceChanged(id: string): void {
-    this.sources.delete(id);
-    this.countMap.delete(id);
-    for (const [i, v] of this.versions.peek().entries()) if (this.versions.peek()[i + 1]?.id === id) this.countMap.delete(v.id);
-    this.cache.clear();
-    void this.reloadHistory();
+    // typing changes the document on every key: the work below runs once the changes pause (B10)
+    this.changedSources.add(id);
+    if (this.sourceTimer) clearTimeout(this.sourceTimer);
+    this.sourceTimer = setTimeout(() => this.flushSourceChanges(), SOURCE_DEBOUNCE_MS);
+  }
+
+  private flushSourceChanges(): void {
+    this.sourceTimer = 0;
+    if (this.destroyed) return;
+    const ids = [...this.changedSources];
+    this.changedSources.clear();
     const p = this.pair;
-    if (p.base === id || p.head === id || p.viewing === id) this.scheduleRefresh();
+    let refresh = false;
+    for (const id of ids) {
+      this.sources.delete(id);
+      this.countMap.delete(id);
+      for (const [i, v] of this.versions.peek().entries()) if (this.versions.peek()[i + 1]?.id === id) this.countMap.delete(v.id);
+      // only the renders that show this version
+      this.cache.deleteWhere((k) => k.split('|', 2).includes(id));
+      if (p.base === id || p.head === id || p.viewing === id) refresh = true;
+    }
+    const a = this.adapter;
+    // History's working copy: its row is updated here; any other history is read again
+    if (a && 'workingCopy' in a && typeof a.workingCopy === 'function') void this.updateWorkingCopy(a.workingCopy as () => Promise<VersionInfo | null>, ids);
+    else void this.reloadHistory();
+    if (refresh) this.scheduleRefresh();
+  }
+
+  /** Puts the working copy's row in the version list, or takes it out, without reading the history again. */
+  private async updateWorkingCopy(row: () => Promise<VersionInfo | null>, ids: readonly string[]): Promise<void> {
+    const gen = this.loadSeq;
+    let working: VersionInfo | null;
+    try {
+      working = await row();
+    } catch (e) {
+      if (gen === this.loadSeq && !this.destroyed) this.loadError(e);
+      return;
+    }
+    if (gen !== this.loadSeq || this.destroyed) return;
+    const rest = this.versions.peek().filter((v) => !ids.includes(v.id));
+    this.versions.set(working && ids.includes(working.id) ? [working, ...rest] : rest);
+    this.queueCounts();
   }
 
   /** The theme, the display settings or the registered themes changed: render again. */
@@ -611,6 +652,8 @@ export class DiffSession {
     this.unsubscribe = null;
     if (this.refreshHandle) clearTimeout(this.refreshHandle);
     this.refreshHandle = 0;
+    if (this.sourceTimer) clearTimeout(this.sourceTimer);
+    this.sourceTimer = 0;
   }
 
   // ---- rendering --------------------------------------------------------------------------------------------------
