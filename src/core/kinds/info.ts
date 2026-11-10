@@ -12,16 +12,21 @@ export interface KindInfo {
   readonly starter: string;
   /** i18n key of the type's name (`type.flowchart`). */
   readonly label: string;
+  /**
+   * The type has Mermaid style statements (`classDef`, `class`, `style`, `linkStyle`) and `:::` class shorthands, so
+   * "without styling" (strip-styles.ts) removes them; elsewhere such words are text (a mindmap node "class notes").
+   */
+  readonly styleStatements: boolean;
 }
 
 /** Every diagram type, in the order the UI lists them. */
 export const KIND_INFO: Readonly<Record<DiagramType, KindInfo>> = {
-  flowchart: { type: 'flowchart', header: /^(flowchart|graph)\b/i, starter: 'flowchart TB\n', label: 'type.flowchart' },
-  sequence: { type: 'sequence', header: /^sequenceDiagram\b/, starter: 'sequenceDiagram\n', label: 'type.sequence' },
-  er: { type: 'er', header: /^erDiagram\b/, starter: 'erDiagram\n', label: 'type.er' },
-  mindmap: { type: 'mindmap', header: /^mindmap\b/i, starter: 'mindmap\n  root((Topic))\n', label: 'type.mindmap' },
+  flowchart: { type: 'flowchart', header: /^(flowchart|graph)\b/i, starter: 'flowchart TB\n', label: 'type.flowchart', styleStatements: true },
+  sequence: { type: 'sequence', header: /^sequenceDiagram\b/, starter: 'sequenceDiagram\n', label: 'type.sequence', styleStatements: false },
+  er: { type: 'er', header: /^erDiagram\b/, starter: 'erDiagram\n', label: 'type.er', styleStatements: true },
+  mindmap: { type: 'mindmap', header: /^mindmap\b/i, starter: 'mindmap\n  root((Topic))\n', label: 'type.mindmap', styleStatements: false },
   // both headers read the same (Mermaid 11.17 and 12.2 draw them alike); new diagrams take the v2 header (T09 Q1)
-  state: { type: 'state', header: /^stateDiagram(?:-v2)?\b/, starter: 'stateDiagram-v2\n', label: 'type.state' },
+  state: { type: 'state', header: /^stateDiagram(?:-v2)?\b/, starter: 'stateDiagram-v2\n', label: 'type.state', styleStatements: true },
 };
 
 /** The diagram types, in UI order. */
