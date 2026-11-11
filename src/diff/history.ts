@@ -26,6 +26,12 @@ import type { HistorySession } from '../view/history.js';
 import type { ViewModule } from '../view/module.js';
 import { panelStacksModule } from '../view/modules/panels.js';
 import { diffLayersModule } from '../view/modules/side-panels.js';
+
+/**
+ * The comparison's layers card: its own module id, so a host whose `view-settings` is a document-stage module (the
+ * viewer) does not shadow it — the host's set drops an added module whose id it has (B43).
+ */
+const HISTORY_LAYERS = { ...diffLayersModule, id: 'history-view-settings' };
 import type { Rendered } from '../core/pipeline-core.js';
 import { diffBarModule } from './modules/bar.js';
 import { diffExportModule } from './modules/export.js';
@@ -470,7 +476,7 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
     versionsModule(session, { dockButton: false, rowActions, controls }),
     pillModule,
     // the host's own panel stacks hold the comparison's panels too (same widths); one without them gets the kernel's
-    ...[...(ownStacks ? [] : [panelStacksModule]), diffBarModule(session), codeDiffModule(session), changeListModule(session), diffStageModule(scene), diffExportModule(session), documentModule, diffLayersModule].map(inHistory),
+    ...[...(ownStacks ? [] : [panelStacksModule]), diffBarModule(session), codeDiffModule(session), changeListModule(session), diffStageModule(scene), diffExportModule(session), documentModule, HISTORY_LAYERS].map(inHistory),
   ] as ViewModule<ViewCore>[]).map(inHostStacks);
 
   // ---- open: the version panel only

@@ -369,3 +369,14 @@ describe('theme', () => {
     expect(theme).toHaveBeenCalledOnce();
   });
 });
+
+describe('the view event (B45)', () => {
+  it('fires on pan and zoom in a viewer kernel, not only in the editor', () => {
+    const core = mount();
+    let n = 0;
+    core.on('view', () => n++);
+    core.canvas.viewport!.panBy(10, 0);
+    expect(n).toBeGreaterThan(0);
+    core.destroy();
+  });
+});

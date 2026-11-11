@@ -500,3 +500,18 @@ describe('viewer state sync (B19, B20)', () => {
     expect(root().classList.contains('can-pan')).toBe(false);
   });
 });
+
+describe('theme menu (B44)', () => {
+  it('lists the themes of the host\'s theme source before any is registered', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const themeSource = { list: async () => [{ id: 'brand-x', name: 'Brand X', appearance: 'light' as const, extends: null }], get: async () => ({ id: 'brand-x', name: 'Brand X' }) };
+    const v = new DiagramViewer(host, { lazy: false, source: 'flowchart LR\n  a --> b', controls: ['theme'], themeSource, storage: memoryStorage() });
+    const sr = host.shadowRoot!;
+    await vi.waitFor(() => expect(sr.querySelector('.mmdx-theme-btn')).not.toBeNull());
+    await new Promise((r) => setTimeout(r, 20));
+    sr.querySelector<HTMLButtonElement>('.mmdx-theme-btn')!.click();
+    await vi.waitFor(() => expect([...sr.querySelectorAll('[role=menu] [role=menuitemradio], [role=menu] [role=menuitem]')].map((x) => x.textContent)).toEqual(expect.arrayContaining([expect.stringContaining('Brand X')])));
+    v.destroy();
+  });
+});

@@ -333,10 +333,8 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
         // fit() fills the canvas under the panels, leaving room above the page for its badge
         insets: () => ({ left: 0, right: 0, top: 28, bottom: 0 }),
         pageClass: 'page-layer page-shadow',
-        onView: () => {
-          this.fire('view');
-          this.drawOverlay();
-        },
+        // the kernel fires `view`
+        onView: () => this.drawOverlay(),
       },
       feature: (name) => this.featureOn(name),
       loadHistory: () => import('../diff/history.js'),
@@ -748,7 +746,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     // a version shown read-only is never written (and the store is not what is shown)
     if (this.version.peek()) return false;
     if (!res || res.code == null || (res.code === this.code && !res.meta)) return false;
-    if (!this.emit('mmdx-op', { type: opts.type ?? label, code: res.code }, true)) return false;
+    if (!this.emit('mmdx-op', opDetail(opts.type ?? label, res.code), true)) return false;
     const oldModel = this.model, oldCode = this.code;
     this.store.begin();
     try {
@@ -812,7 +810,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       this.store.rollback();
       throw e;
     }
-    if (!this.emit('mmdx-op', { type: label }, true)) {
+    if (!this.emit('mmdx-op', opDetail(label, this.code), true)) {
       this.store.rollback();
       this.draw();
       return;
@@ -829,7 +827,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   commit(label: string): void {
     if (!this.store.inTransaction) return;
-    if (!this.emit('mmdx-op', { type: label }, true)) {
+    if (!this.emit('mmdx-op', opDetail(label, this.code), true)) {
       this.rollback();
       return;
     }
@@ -982,3 +980,9 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     return this.store.exists({ kind: 'group', id: gid }) && currentPreset(this.styleEnv(), { kind: 'group', id: gid }) === 'lane';
   }
 }
+
+/**
+ * The `mmdx-op` payload, the same for every commit path (B46): the op's type and the code it leaves (a gesture's and a
+ * metadata change's too, so a host's veto policy sees one shape).
+ */
+const opDetail = (type: string, code: string): { type: string; code: string } => ({ type, code });

@@ -7,6 +7,8 @@ import { MENU_CSS } from '../../ui/blocks/menu.js';
 import { createSchemeToggle, SCHEME_TOGGLE_CSS } from '../../ui/blocks/scheme-toggle.js';
 import { createThemeButton, THEME_MENU_CSS } from '../../ui/blocks/theme-menu.js';
 import { createToolbar, TOOLBAR_CSS } from '../../ui/blocks/toolbar.js';
+import { getShared } from '../../config.js';
+import type { ThemeInfo } from '../../core/theme/types.js';
 import { h } from '../../ui/h.js';
 import { signal } from '../../ui/signal.js';
 import type { ViewCore } from '../core.js';
@@ -32,12 +34,26 @@ export const viewParamsModule: ViewModule<ViewCore> = {
     const scheme = core.feature('scheme') ? createSchemeToggle({ scheme: core.scheme, onChange: (v) => core.chooseScheme(v), t }) : null;
     if (scheme) parts.push(scheme);
 
-    // the theme menu lists the registered themes; the picks re-render through the kernel
+    // the theme menu lists the registered themes and those of the host's theme source, not loaded yet (B44); a pick
+    // of one loads it through the source and re-renders through the kernel
     const themesRev = signal(0);
     scope.onDispose(core.ctx.themes.onChange(() => themesRev.update((n) => n + 1)));
+    const fromSource = signal<readonly ThemeInfo[]>([]);
+    const readSource = (): void => {
+      const src = core.themeSource ?? getShared().themeSource;
+      if (!src) return;
+      src.list().then((list) => fromSource.set(list), () => fromSource.set([]));
+    };
+    const src = core.themeSource ?? getShared().themeSource;
+    if (src?.subscribe) scope.onDispose(src.subscribe(readSource));
+    const themeList = () => {
+      const out = core.ctx.themes.list().map((x) => ({ id: x.id, name: x.name, appearance: x.appearance === 'dark' ? ('dark' as const) : ('light' as const) }));
+      for (const x of fromSource()) if (!out.some((o) => o.id === x.id)) out.push({ id: x.id, name: x.name, appearance: x.appearance === 'dark' ? 'dark' : 'light' });
+      return out;
+    };
     const theme = core.feature('theme')
       ? createThemeButton({
-        themes: core.ctx.themes.list().map((x) => ({ id: x.id, name: x.name, appearance: x.appearance === 'dark' ? 'dark' : 'light' })),
+        themes: themeList(),
         // the pick the shown theme comes from (not a remembered pick the host's `theme` attribute overrides)
         picked: core.themes.picked,
         shown: core.themes.current,
@@ -52,8 +68,9 @@ export const viewParamsModule: ViewModule<ViewCore> = {
       parts.push(theme);
       scope.effect(() => {
         themesRev();
-        theme.update({ themes: core.ctx.themes.list().map((x) => ({ id: x.id, name: x.name, appearance: x.appearance === 'dark' ? 'dark' : 'light' })) });
+        theme.update({ themes: themeList() });
       });
+      readSource();
     }
 
     const exp = core.feature('export')

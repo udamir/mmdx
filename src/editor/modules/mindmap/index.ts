@@ -41,12 +41,11 @@ export const mindmapModule: EditorModule = {
       { id: 'mm-duplicate', keys: ['mod+d'], label: 'Duplicate the selected branches', group: G, editOnly: true, run: run('duplicate') },
       { id: 'mm-paste', keys: ['mod+v'], label: 'Paste branches or indented text under the selected node', group: G, editOnly: true, run: run('paste') },
     );
-    // the gestures load with the first mindmap
-    const need = (): void => {
-      if (core.model.type === 'mindmap') void scope.load();
-    };
-    scope.on('model', need);
-    need();
+    // the gestures load with the first mindmap, however the document becomes one: an effect on the model, not the
+    // `model` event, which does not fire when the kind was already loaded (a second editor on the page, B42)
+    scope.effect(() => {
+      if (core.store.model().type === 'mindmap') void scope.load();
+    });
   },
   load: () => import('./gestures.js').then((m) => ({ css: [m.MINDMAP_CSS], activate: m.activateMindmap })),
 };

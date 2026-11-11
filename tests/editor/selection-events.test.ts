@@ -61,3 +61,20 @@ describe('selection events', () => {
     expect(core.dom.body.querySelectorAll('.selected').length).toBe(2);
   });
 });
+
+describe('mmdx-op payload (B46)', () => {
+  it('a gesture commit and a metadata change carry the code, as applyCode does', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const ed = new DiagramEditor(host, { value: FLOW, storage: memoryStorage() });
+    editors.push(ed);
+    const ops: { type: string; code?: string }[] = [];
+    host.addEventListener('mmdx-op', (e) => ops.push((e as CustomEvent<{ type: string; code?: string }>).detail));
+    ed.core.begin();
+    (ed.core.meta.nodes ??= {})['A'] = { x: 10, y: 10 };
+    ed.core.commit('Move');
+    ed.core.change('Fill', () => void ((ed.core.meta.nodes ??= {})['B'] = { fill: '#f00' }));
+    ed.core.applyCode({ code: FLOW + '  C --> D\n' }, 'Edit');
+    expect(ops.map((o) => [o.type, typeof o.code])).toEqual([['Move', 'string'], ['Fill', 'string'], ['Edit', 'string']]);
+  });
+});

@@ -257,3 +257,24 @@ describe('History in the viewer', () => {
   });
 });
 
+
+describe('History in the viewer has its layers card (B43)', () => {
+  it('the comparison\'s view settings install in the history stage', async () => {
+    await loadKind('flowchart');
+    const host = document.createElement('div');
+    document.body.append(host);
+    const rendered = new Promise((r) => host.addEventListener('mmdx-render', r, { once: true }));
+    const v = new DiagramViewer(host, { lazy: false, source: 'flowchart LR\n  a --> b', history: [{ id: 'v2', source: 'flowchart LR\n  a --> b' }, { id: 'v1', source: 'flowchart LR\n  a' }], controls: ['zoom', 'history', 'layers'], storage: memoryStorage(), ui: 'light' });
+    await rendered;
+    await wait(() => v.core.has('toggleHistory'));
+    v.toggleHistory(true);
+    await wait(() => v.historySession);
+    v.historySession!.setPair('v1', 'v2');
+    await wait(() => v.core.stage.peek() === 'history' && v.historySession?.getDiff());
+    // the Layers card is one of the panels over the comparison
+    await wait(() => v.core.panelItems.peek().some((p) => p.id === 'view-settings'));
+    expect(v.core.panelItems.peek().some((p) => p.id === 'view-settings')).toBe(true);
+    v.toggleHistory(false);
+    v.destroy();
+  });
+});

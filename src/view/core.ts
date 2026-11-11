@@ -157,7 +157,14 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.compact = shell.compact;
     this.stackInsets = shell.stackInsets;
     // fit() uses the whole canvas: the panels float over it, so the diagram is as large as the window allows
-    const canvasOptions = (): CanvasOptions => ({ ...o.canvas });
+    // pan and zoom fire `view` in every product, as documented (B45: only the editor fired it)
+    const canvasOptions = (): CanvasOptions => ({
+      ...o.canvas,
+      onView: (v) => {
+        o.canvas.onView?.(v);
+        this.modules.bus.fire('view', undefined);
+      },
+    });
     this.canvas = new DiagramCanvas(this.area, canvasOptions());
     shell.placeAreaSlots();
     this.scenes = new SceneStack(this.area, this.canvas, canvasOptions, () => this.modules.bus.fire('draw', undefined));
