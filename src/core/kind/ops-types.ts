@@ -18,6 +18,11 @@ export type ThemeSlot = `${'flowchart' | 'sequence' | 'er' | 'mindmap' | 'state'
  * per-shape defaults at `<slot>Shapes` (`state.node`, `state.nodePresets`, `state.nodeShapes`).
  */
 export interface ThemeSection {
+  /**
+   * The theme slot of each item kind of the type. A theme preset there may set the metadata registry's look and layout
+   * keys (META_KEYS, with values its cleaners accept) and a `label`; tests/core/theme/sections.test.ts checks every
+   * theme file against these declarations (the base theme holds every slot's defaults).
+   */
   readonly slots: Readonly<Partial<Record<ItemKind, ThemeSlot>>>;
 }
 
