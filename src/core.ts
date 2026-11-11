@@ -1,6 +1,22 @@
 // @mmdx/studio/core — the pure API (§5.5): parse, render to SVG, metadata, themes, ops. Runs in Node, workers and browsers.
-export * from './core/types.js';
-export * from './core/model.js';
+// Every export is listed by name (A15): what this entry gives is what is written here, reviewed in
+// tests/arch/__snapshots__/exports.txt (the names) and api-report.txt (their shapes).
+export {
+  type CenterBox, diag, type Diagnostic, type DiagnosticFix, diagnosticText, type DiagramType, ITEM_KINDS, itemKey,
+  type ItemKey, type ItemKind, type ItemRef, parseItemKey, type Point, type Rect, type Severity, type SourceRange,
+} from './core/types.js';
+export {
+  type AttrKey, type BaseModel, type BlockKind, type BracketSpan, type Cardinality, type DataEntry, type DataValue,
+  type DiagramModel, type Direction, type EdgeHead, type EdgeLine, type Entity, type ErAttribute,
+  type ErEntityStmt, type ErGroup, type ErModel, type ErRel, type FlowchartModel, type FlowConfig, type FlowEdge,
+  type FlowEdgeData, type FlowGroup, type FlowLink, type FlowMention, type FlowNode, type FlowNodeData,
+  type FlowStatement, isSupported, type MermaidStyle, type MessageHead, type MindmapConfig, type MindmapModel,
+  type MindNode, type MindShape, type NodeDataBlock, type NodeShape, type Participant, type ParticipantShape,
+  type SeqActivate, type SeqBlockElse, type SeqBlockEnd, type SeqBlockStart, type SeqBox, type SeqItem, type SeqLink,
+  type SeqMessage, type SeqNote, type SeqNumbering, type SequenceModel, type StateBlock, type StateEdge,
+  type StateGroup, type StateKind, type StateModel, type StateNode, type StateNote, type StateText,
+  type SupportedModel, type UnsupportedModel,
+} from './core/model.js';
 export type { StyleProps, ArrowType, Routing, Side } from './core/style.js';
 export { parse, detectType, cleanLabel, encodeLabel } from './core/parse/index.js';
 export { splitSource, joinSource, metaToLines, checkMetaLine, pruneMeta, normalizeMeta, mergeLegacySidecar, META_HEADER, type DiagramDocument } from './core/meta/index.js';

@@ -1,0 +1,395 @@
+## adapters
+contentId: (text: string) => string
+ContentUrlKind (type): = 'image' | 'link'
+DocumentAdapter (type): { load, save, subscribe? }
+DocumentSaveResult (type): = { version?: string } | { conflict: { source: string; version: string } }
+fetchThemeSource: (manifestUrl: string, init?: RequestInit) => ThemeSource
+HistoryAdapter (type): { list, load, subscribe? }
+httpDocumentAdapter: (url: string, init?: { headers?: Record<string, string>; credentials?: RequestCredentials; }) => DocumentAdapter
+httpHistoryAdapter: (url: string, init?: RequestInit) => HistoryAdapter
+httpImageStore: (url: string, init?: RequestInit) => ImageStore
+ImageInfo (type): { id, url, thumb?, name?, w?, h?, type?, size?, date? }
+ImagePage (type): { images, next? }
+ImageStore (type): { list, get, put, delete?, subscribe? }
+isLocalEdit: (store: ThemeStore, source: ThemeSource | undefined, id: string) => Promise<boolean>
+LoadResult (type): { source, name?, version? }
+localStorageAdapter: (namespace?: string) => StorageAdapter
+localStorageThemeStore: (storage: StorageAdapter, base?: ThemeSource | undefined, key?: string) => ThemeStore
+memoryDocumentAdapter: (initial: string, name?: string) => DocumentAdapter & { readonly current: string; setRemote(src: string): void; }
+memoryImageStore: (initial?: readonly ImageInfo[], o?: MemoryImageStoreOptions) => ImageStore
+MemoryImageStoreOptions (type): { url?, pageSize? }
+memoryStorage: (initial?: Record<string, unknown>) => StorageAdapter
+memoryThemeStore: (initial?: readonly ThemeFile[]) => ThemeStore
+preloadedStorage: (read: () => Promise<Record<string, unknown>>, write: (key: string, value: unknown) => Promise<void>, opts?: PreloadedStorageOptions) => Promise<StorageAdapter>
+PreloadedStorageOptions (type): { onError? }
+relativeUrlResolver: (base: string | URL) => UrlResolver
+SaveResult (type): = { version: string } | { conflict: ThemeFile }
+staticHistory: (versions: readonly StaticVersion[]) => HistoryAdapter
+StaticVersion (type): = VersionInfo & { source: string }
+StorageAdapter (type): { get, set, remove }
+ThemeSource (type): { list, get, subscribe? }
+ThemeStore (type): { save, delete?, publish?, usage?, list, get, subscribe? }
+UrlResolver (type): = (url: string, kind: ContentUrlKind) => string | null | undefined
+VersionInfo (type): { id, message?, author?, date?, url? }
+## core
+ALL_KINDS: Partial<Record<DiagramType, ViewKind<SupportedModel>>>
+annotate: (input: AnnotateInput, o?: AnnotateOptions) => Annotated
+ArrowType (type): = 'none' | 'open' | 'filled' | 'arrow' | 'circle' | 'dot' | 'cross' | 'default'
+AttrKey (type): = 'PK' | 'FK' | 'UK'
+BASELINE: "default-light"
+BaseModel (type): { diagnostics }
+BlockKind (type): = 'loop' | 'alt' | 'opt' | 'par' | 'critical' | 'break' | 'rect'
+BracketSpan (type): { start, text, end, open, close }
+BUILTIN_THEMES: readonly ThemeFile[]
+CanvasMeta (type): { v?, preset?, layout?, w?, h?, x?, y?, background?, border?, grid?, pad?, routing?, ratio?, gap?, rowH?, mirror?, blockSpan?, margin?, blockTags?, mindLayout?, composites? }
+Cardinality (type): = 'zero-one' | 'one' | 'zero-many' | 'one-many'
+CenterBox (type): { x, y, w, h }
+ChangeFacet (type): = 'content' | 'layout' | 'style'
+changeKey: (c: Pick<ItemChange, "kind" | "id" | "status">) => string
+ChangeStatus (type): = 'added' | 'removed' | 'changed' | 'unchanged'
+checkImageUrl: (src: unknown, policy?: ImagePolicy, resolve?: UrlResolver | undefined) => { url: SafeImageUrl; } | { reason: ImageBlockReason; }
+checkMetaLine: (raw: string) => MetaLineCheck | null
+cleanLabel: (s: string | null | undefined) => string
+ContentUrlKind (type): = 'image' | 'link'
+CoreContext (type): { themes, icons, resolveUrl?, locale?, measure, idPrefix, linkPolicy, imagePolicy, imageSizes? }
+createColorResolver: (theme: Pick<ResolvedTheme, "palette" | "basePalette">, diagramPalette?: Readonly<Record<string, string>> | undefined) => (v: unknown) => string | undefined
+createContext: (opts?: Partial<CoreContext>) => CoreContext
+createDefaultRegistry: () => ThemeRegistry
+createIconRegistry: (packs?: readonly IconPack[], o?: Omit<IconRegistryOptions, "decoder">) => IconRegistry
+createStaticMeasurer: () => TextMeasurer
+DataEntry (type): { key, value, at, valueAt, valueEnd, bare? }
+DataValue (type): = string | number | boolean | null
+DEFAULT_IMAGE_POLICY: ImagePolicy
+DEFAULT_LAYER: "default"
+DEFAULT_LINK_POLICY: LinkPolicy
+detectType: (code: string) => DiagramType | null
+diag: (severity: Severity, code: string, message: string, line?: number | undefined, extra?: Partial<Pick<Diagnostic, "params" | "fix" | "source">>) => Diagnostic
+Diagnostic (type): { severity, message, code, range?, source?, params?, fix? }
+DiagnosticFix (type): { title, apply }
+diagnosticText: (d: Diagnostic) => string
+DiagramDiff (type): { type, typeChanged, items, doc, counts, diagnostics? }
+DiagramDocument (type): { code, meta }
+DiagramMeta (type): { canvas, styles, layers?, groups?, nodes?, edges?, participants?, messages?, notes?, blocks?, boxes?, activations?, entities?, rels?, unknown? }
+DiagramModel (type): = FlowchartModel | SequenceModel | ErModel | MindmapModel | StateModel | UnsupportedModel
+DiagramType (type): = 'flowchart' | 'sequence' | 'er' | 'mindmap' | 'state'
+DIFF_COLORS: Record<"light" | "dark", DiffColors>
+diffDiagrams: (before: string, after: string) => DiagramDiff
+diffDiagramsWith: (kinds: Partial<Record<DiagramType, ViewKind<SupportedModel>>>, before: string, after: string, parse?: (code: string) => DiagramModel) => DiagramDiff
+DiffHide (type): { added?, removed? }
+DiffIgnore (type): { content?, layout?, style? }
+diffLines: (a: readonly string[], b: readonly string[]) => LineOp[]
+diffModels: (a: DiagramModel, b: DiagramModel, ma: DiagramMeta, mb: DiagramMeta) => DiagramDiff
+DiffRendered (type): { raw, diff, changes, before, after, merged, sources, layoutAligned, bounds, themeId }
+DiffRenderOptions (type): { ignore?, hide?, theme?, visibleLayers?, hideLabels?, allLayers?, tableView? }
+diffReport: (diff: DiagramDiff, o: ReportOptions) => string
+diffSvg: (d: DiffRendered, o?: DiffSvgOptions) => string
+DiffSvgOptions (type): { view?, dim?, highlights?, legend?, scheme?, titles?, badgeScale?, ssr? }
+DiffView (type): = 'before' | 'merged' | 'after'
+diffWords: (a: string, b: string) => TextOp[]
+Direction (type): = 'TB' | 'BT' | 'LR' | 'RL'
+EdgeHead (type): = 'arrow' | 'cross' | 'circle' | 'none'
+EdgeLine (type): = 'solid' | 'dotted' | 'thick' | 'invisible'
+encodeLabel: (s: string) => string
+Entity (type): { id, label, alias?, attrs, order, lines, defLine?, endLine?, classes, style, parent, stmts }
+ErAttribute (type): { type, name, keys, comment }
+ErEntityStmt (type): { line, endLine, start, end, block, nameAt, aliasAt?, blockAt? }
+ErGroup (type): { id, label, parent, children, order, line, endLine?, start, end, idAt, headEnd, lines, classes, style, dir? }
+ErModel (type): { type, direction, dirLine?, entities, rels, groups, classDefs, undefinedClasses, headerLine, title?, accTitle?, accDescr?, diagnostics }
+ErRel (type): { id, from, to, fromCard, toCard, identifying, label, src, start, end, fromAt, toAt, fromCardAt, lineAt, toCardAt, labelAt? }
+FACETS: readonly ChangeFacet[]
+FieldChange (type): { facet, field, before?, after? }
+FlowchartModel (type): { type, direction, nodes, groups, edges, classDefs, linkStyles, undefinedClasses, idClashes, statements, title?, accTitle?, accDescr?, config?, diagnostics }
+FlowConfig (type): { curve?, htmlLabels?, markdownAutoWrap?, wrappingWidth? }
+FlowEdge (type): { id, uid?, key?, from, to, label, line, start, end, minlen, index, src, stmt?, seg?, md?, data?, blocks? }
+FlowEdgeData (type): { animate?, animation?, curve? }
+FlowGroup (type): { id, label, parent, children, order, line, endLine?, lines, classes?, style?, md?, dir? }
+FlowLink (type): { start, end, arrow, idEnd? }
+FlowMention (type): { id, start, end, idEnd, def }
+FlowNode (type): { id, label, shape, classes, inlineClass?, style, parent, order, lines, defLine, link?, data?, blocks?, bracket?, shapeFrom?, labelFrom?, md?, tooltip? }
+FlowNodeData (type): { labelType?, icon?, form?, pos?, img?, constraint?, w?, h? }
+FlowStatement (type): { line, start, end, groups, links }
+fmt: (v: number) => string
+FontSpec (type): { size, weight?, family, style? }
+GeometryIndex (type): = FlowGeometry | SequenceGeometry | ErGeometry | MindmapGeometry | StateGeometry | { type: null }
+hiddenByLayers: (model: DiagramModel, meta: DiagramMeta, visible?: readonly string[] | undefined) => Partial<Record<ItemKind, ReadonlySet<string>>>
+IconData (type): { body, left, top, width, height, mono }
+IconForm (type): = 'token' | 'node' | 'class'
+IconifyAlias (type): { parent, left?, top?, width?, height?, rotate?, hFlip?, vFlip?, hidden? }
+IconifyIcon (type): { body, left?, top?, width?, height?, rotate?, hFlip?, vFlip?, hidden? }
+IconifyInfo (type): { name?, author?, license?, palette?, version? }
+IconifyJSON (type): { prefix, icons, aliases?, left?, top?, width?, height?, info?, categories?, keywords? }
+IconMissing (type): = 'pack' | 'icon' | 'invalid' | 'failed'
+iconNamesOf: (input: string | object | Iterable<string>, reg: Scan) => string[]
+IconPack (type): { name, icons?, loader? }
+IconPackInfo (type): { name, loaded, failed, builtin, info? }
+IconRegistry: typeof IconRegistry
+IconRegistryOptions (type): { builtin?, decoder?, now? }
+IconResult (type): = | { status: 'ready'; icon: IconData; /** The built-in look-alike drawn for a Font Awesome name (`tabler:car`). */ fallback?: string } | { status: 'loading' } | { status: 'missing'; reason: IconMissing }
+IconSnapshot (type): { packs, icons }
+ignoreFacets: (diff: DiagramDiff, ignore: DiffIgnore) => DiagramDiff
+ImageBlockReason (type): = 'invalid' | 'protocol' | 'data-off' | 'data-type' | 'data-size' | 'host' | 'relative'
+ImageDataType (type): = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' | 'image/svg+xml' | 'image/avif'
+ImagePolicy (type): { protocols, dataTypes, maxDataBytes, hosts?, relative? }
+isSupported: (m: DiagramModel) => m is SupportedModel
+ITEM_KINDS: readonly ItemKind[]
+ItemChange (type): { kind, id, beforeId?, label, status, facets, fields }
+itemKey: (r: ItemRef) => `node:${string}` | `group:${string}` | `edge:${string}` | `participant:${string}` | `message:${string}` | `note:${string}` | `block:${string}` | `box:${string}` | `activation:${string}` | `entity:${string}` | `rel:${string}`
+ItemKey (type): = `${ItemKind}:${string}`
+ItemKind (type): = | 'node' | 'group' | 'edge' // flowchart (and state diagrams: states, composites, transitions) | 'participant' | 'message' | 'note' | 'block' | 'box' | 'activation' // sequence (notes: also state diagrams) | 'entity' | 'rel'
+ItemMeta (type): { preset?, layer?, locked?, link?, x?, y?, fromSide?, toSide?, fromAt?, toAt?, labelDx?, labelDy?, points?, dy?, dx?, side?, section?, collapsed?, iconPos?, iconSize?, iconColor?, img?, imgW?, imgH?, imgFit?, icon?, form?, pos?, constraint?, attrs?, fill?, stroke?, strokeWidth?, fillOpacity?, strokeOpacity?, radius?, stack?, dash?, shape?, text?, fontSize?, fontWeight?, fontFamily…
+ItemRef (type): { kind, id }
+joinSource: (doc: DiagramDocument) => string
+Kinds (type): = Partial<Record<DiagramType, ViewKind>>
+layerDefs: (meta: DiagramMeta) => LayerDef[]
+LayerMeta (type): { name?, hidden? }
+LinkPolicy (type): { protocols, target? }
+Merged (type): { model, meta, status }
+mergeDiagrams: (diff: DiagramDiff, a: SupportedModel, b: SupportedModel, ma: DiagramMeta, mb: DiagramMeta) => Merged | null
+mergeLegacySidecar: (code: string, sidecarJson: string) => { doc: DiagramDocument; diagnostics: Diagnostic[]; }
+mergeText: (before: string, after: string) => string
+MermaidStyle (type): { fill?, stroke?, text?, strokeWidth?, dash?, fontSize?, interpolate? }
+MessageHead (type): = 'arrow' | 'cross' | 'async' | 'open'
+META_HEADER: "%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----"
+metaToLines: (meta: DiagramMeta) => string[]
+migrateTheme: (file: ThemeFile) => ThemeFile
+MindmapConfig (type): { colorBy?, maxNodeWidth? }
+MindmapModel (type): { type, root, nodes, colorBy, maxNodeWidth, config, header, indentUnit, diagnostics }
+MindNode (type): { id, written, label, md, shape, open, close, quote, parent, children, depth, section, icon, classes, line, endLine, indentText, indent, start, end }
+MindShape (type): = 'mm-default' | 'rect' | 'rounded' | 'circle' | 'bang' | 'cloud' | 'hexagon'
+NodeDataBlock (type): { open, end, entries, multiline }
+NodeShape (type): = ShapeId
+normalizeMeta: (m: unknown) => DiagramMeta
+outline: (model: DiagramModel) => OutlineItem[]
+PageSettings (type): { background?, border?, grid?, pad?, routing?, ratio?, gap?, rowH?, mirror?, blockSpan?, margin?, blockTags?, mindLayout?, composites? }
+parse: (code: string) => DiagramModel
+parseItemKey: (k: string) => ItemRef | null
+Participant (type): { id, label, kind, box, lines, defLine?, shape?, created?, createdBy?, destroyedBy?, links?, properties? }
+ParticipantShape (type): = 'box' | 'actor' | 'boundary' | 'control' | 'entity' | 'database' | 'collections' | 'queue' | string
+PipelineOptions (type): { theme?, visibleLayers?, hideLabels?, allLayers?, tableView? }
+Point (type): { x, y }
+pruneMeta: (meta: DiagramMeta, ids: Partial<Record<Collection, ReadonlySet<string>>>) => DiagramMeta
+Rect (type): { x, y, w, h }
+relativeColor: (hex: string, palette?: Readonly<Record<string, string>> | null | undefined) => string
+renderDiff: (before: string, after: string, ctx: CoreContext, o?: DiffRenderOptions) => DiffRendered
+renderDiffToSvg: (before: string, after: string, o?: DiffRenderOptions & DiffSvgOptions & { ctx?: CoreContext; }) => Promise<string>
+renderDiffToSvgWith: (kinds: Partial<Record<DiagramType, ViewKind<SupportedModel>>>, before: string, after: string, o?: DiffRenderOptions & DiffSvgOptions & { ctx?: CoreContext; }) => Promise<string>
+renderDiffWith: (kinds: Partial<Record<DiagramType, ViewKind<SupportedModel>>>, before: string, after: string, ctx: CoreContext, o?: DiffRenderOptions) => DiffRendered
+renderDocument: (doc: DiagramDocument, model: DiagramModel, ctx: CoreContext, opts?: PipelineOptions) => Omit<Rendered, "doc" | "model" | "tooLarge">
+Rendered (type): { doc, model, theme, themeId, rctx, result, diagnostics, tooLarge }
+RenderResult (type): { defs, body, bounds, contentBounds, page, pageSettings, geom, presetsUsed, diagnostics?, a11y?, missing? }
+renderSource: (src: string, ctx: CoreContext, opts?: PipelineOptions) => Rendered
+renderToSvg: (src: string, opts?: { theme?: string; ctx?: CoreContext; layers?: "visible" | "all"; ssr?: boolean; iconPacks?: readonly IconPack[]; }) => Promise<string>
+ReportOptions (type): { format, before?, after?, links?, name? }
+resolveColor: { (v: string, palette?: Readonly<Record<string, string>> | null | undefined, basePalette?: Readonly<Record<string, string>> | null | undefined): string; (v: unknown, palette?: Readonly<Record<string, string>> | null | undefined, basePalette?: Readonly<Record<string, string>> | null | undefined): unknown; }
+resolveContentUrl: (raw: unknown, kind: ContentUrlKind, resolve: UrlResolver | undefined) => unknown
+ResolvedTheme (type): { id, name, appearance, palette, basePalette, font, canvas, flowchart, sequence, er, mindmap, state }
+Routing (type): = 'curved' | 'orthogonal' | 'straight'
+safeImageUrl: (raw: unknown, policy?: ImagePolicy, resolve?: UrlResolver | undefined) => SafeImageUrl | null
+SafeImageUrl (type): = string & { readonly [SAFE_IMAGE_URL]: true }
+safeUrl: (raw: unknown, policy?: LinkPolicy) => SafeUrl | null
+SafeUrl (type): = string & { readonly [SAFE_URL]: true }
+SceneNode (type): = SceneGroup | SceneShape | SceneText | SceneLink | SceneImage | SceneDef | SceneTitle
+SeqActivate (type): { kind, who, src }
+SeqBlockElse (type): { kind, id, label, src }
+SeqBlockEnd (type): { kind, id, src }
+SeqBlockStart (type): { kind, id, block, label, color, src, lines }
+SeqBox (type): { id, color, label, members, line, endLine? }
+SeqItem (type): = SeqMessage | SeqNote | SeqBlockStart | SeqBlockElse | SeqBlockEnd | SeqActivate
+SeqLink (type): { label, url }
+SeqMessage (type): { kind, id, from, to, text, arrow, line, head, both, half?, stick?, reverse?, central?, activate, deactivate, src }
+SeqNote (type): { kind, id, pos, targets, text, src }
+SeqNumbering (type): { line, on, start?, step? }
+SequenceModel (type): { type, participants, items, boxes, autonumber, numbering, title, accTitle?, accDescr?, diagnostics }
+serializeNode: (n: SceneNode) => string
+serializeNodes: (ns: readonly SceneNode[]) => string
+Severity (type): = 'error' | 'warning' | 'info'
+Side (type): = 't' | 'b' | 'l' | 'r'
+SourceRange (type): { line, col?, endLine?, endCol? }
+splitSource: (src: string) => { doc: DiagramDocument; hadMeta: boolean; diagnostics: Diagnostic[]; }
+standaloneSvg: (r: Rendered, _ctx?: CoreContext | undefined, attrs?: { ssr?: boolean; }) => string
+starterSource: (type: DiagramType) => string
+StarterType (type): = DiagramType
+StateBlock (type): { line, endLine?, start, end, dividers }
+StateEdge (type): { id, from, to, label, src, index, scope, region, start, end, fromAt, toAt, labelAt? }
+StateGroup (type): { id, label, texts, parent, region, children, order, line, endLine?, blocks, dir?, regions, lines, classes, style, link?, tooltip? }
+StateKind (type): = 'state' | 'start' | 'end' | 'choice' | 'fork' | 'join'
+StateModel (type): { type, header, headerLine, direction, dirLine?, nodes, groups, edges, notes, classDefs, classDefLines, undefinedClasses, title?, accTitle?, accDescr?, diagnostics }
+StateNode (type): { id, kind, label, descriptions, texts, parent, region, classes, style, lines, defLine, order, link?, tooltip? }
+StateNote (type): { id, target, side, text, line, endLine, multi, scope, region }
+StateText (type): { text, form, line, start, end }
+StyleProps (type): { fill?, stroke?, strokeWidth?, fillOpacity?, strokeOpacity?, radius?, stack?, dash?, shape?, text?, fontSize?, fontWeight?, fontFamily?, align?, valign?, wrap?, padX?, padY?, minW?, minH?, maxW?, w?, h?, titleSize?, titleColor?, titleAlign?, titleWeight?, pad?, padTop?, color?, width?, arrow?, startArrow?, endArrow?, labelColor?, labelSize?, curve?, routing?, labelAt?, replyDas…
+summarize: (model: DiagramModel) => Summary
+SupportedModel (type): = FlowchartModel | SequenceModel | ErModel | MindmapModel | StateModel
+TextMeasurer (type): { width, kind }
+ThemeFile (type): { id, name?, extends?, appearance?, counterpart?, schemaVersion?, palette?, font?, canvas?, flowchart?, sequence?, er?, mindmap?, state? }
+ThemeInfo (type): { id, name, appearance, extends, version? }
+ThemeRegistry: typeof ThemeRegistry
+unifiedDiff: (before: string, after: string, o?: UnifiedDiffOptions) => string
+UnifiedDiffOptions (type): { name?, context?, part?, ignore? }
+UnsupportedModel (type): { type, keyword?, diagnostics }
+UrlResolver (type): = (url: string, kind: ContentUrlKind) => string | null | undefined
+validateTheme: (input: unknown) => { theme: ThemeFile | null; diagnostics: Diagnostic[]; }
+VersionInfo (type): { id, message?, author?, date?, url? }
+withLayoutOf: (before: string, after: string) => string
+withoutStyle: (source: string) => string
+## diff
+ChangeFacet (type): = 'content' | 'layout' | 'style'
+Config (type): { themes?, themeSource?, measure?, i18n?, linkPolicy?, imagePolicy?, resolveUrl?, iconPacks?, builtinIcons?, mermaid?, fonts? }
+configure: (c: Config) => void
+contentId: (text: string) => string
+defineDiff: (name?: string) => void
+DiagramCanvas: typeof DiagramCanvas
+DiagramDiff: typeof DiagramDiff
+DIFF_FILTERS: readonly DiffFilter[]
+DIFF_VIEWS: readonly DiffViewName[]
+DiffAction (type): { id, label, title?, primary?, enabled?, run }
+diffDiagrams: (before: string, after: string) => Promise<DiagramDiff>
+DiffEventMap (type): { mmdx-compare, mmdx-select, mmdx-view, mmdx-mode, mmdx-filters, mmdx-version, mmdx-export, mmdx-render, mmdx-error, mmdx-fullscreen, mmdx-link, mmdx-ui }
+DiffExportKind (type): = 'svg' | 'png' | 'mmdx' | 'mmd' | 'diff' | 'json' | 'md'
+DiffExportOptions (type): { view?, version?, highlights?, legend?, scale?, scheme?, filtered? }
+DiffFeature (type): = 'history' | 'code' | 'changes' | 'views' | 'filters' | 'pen' | 'export' | 'help' | 'fullscreen' | 'select' | 'theme' | 'scheme' | 'layers'
+DiffFilter (type): = 'added' | 'removed' | ChangeFacet
+DiffMode (type): = 'compare' | 'history'
+diffModules: (scene: DiffScene, o: { actions: ReadSignal<readonly DiffAction[]>; }) => ViewModule<ViewCore<ViewActions, Readonly<Record<string, boolean>>, ViewEvents>>[]
+DiffOptions (type): { before?, after?, beforeSource?, afterSource?, history?, base?, head?, mode?, view?, filters?, dim?, panels?, features?, theme?, themeDark?, ui?, compact?, wheel?, name?, label?, loader?, storage?, ctx?, iconPacks?, themeSource?, actions? }
+DiffPair (type): { base, head, viewing }
+DiffPanel (type): = 'history' | 'code' | 'changes'
+diffReport: (diff: DiagramDiff, o: ReportOptions) => string
+DiffResult (type): { type, typeChanged, items, doc, counts, diagnostics? }
+DiffScene: typeof DiffScene
+DiffSceneOptions (type): { reducedMotion, label?, canvas?, versionTitle?, hostLook? }
+DiffSession: typeof DiffSession
+DiffSessionOptions (type): { ctx, t, emit, renderOptions, ensureTheme?, scheme, name, showVersions?, pick?, view?, mode?, filters?, dim? }
+DiffSource (type): = | { history: HistoryAdapter | readonly StaticVersion[]; base?: string | undefined; head?: string | undefined } | { before: string | null | Promise<string | null>; after: string | null | Promise<string | null>; base?: string | undefined; head?: string | undefined }
+DiffStatus (type): { kind, text, retry? }
+DiffViewName (type): = DiffView | 'side'
+FieldChange (type): { facet, field, before?, after? }
+HistoryAdapter (type): { list, load, subscribe? }
+httpHistoryAdapter: (url: string, init?: RequestInit) => HistoryAdapter
+IconifyJSON (type): { prefix, icons, aliases?, left?, top?, width?, height?, info?, categories?, keywords? }
+IconPack (type): { name, icons?, loader? }
+ignoreFacets: (diff: DiagramDiff, ignore: DiffIgnore) => DiagramDiff
+ItemChange (type): { kind, id, beforeId?, label, status, facets, fields }
+MmdxDiffElement: typeof MmdxDiffElement
+ModuleScope (type): { core, id, active, slot, mount, listen, canvas, on, provide, provideDefault, effect, computed, shortcut, gesture, painter, contribute, contributeAll, claim, register, onDispose, load }
+registerBuiltinThemes: () => Promise<void>
+registerThemes: (themes: Iterable<unknown>) => Diagnostic[]
+renderDiffToSvg: (before: string, after: string, o?: DiffRenderOptions & DiffSvgOptions & { ctx?: CoreContext; }) => Promise<string>
+SceneSource (type): { id, attach, detach, invalidate, bounds, destroy? }
+Stage (type): = 'document' | 'version' | 'history'
+staticHistory: (versions: readonly StaticVersion[]) => HistoryAdapter
+StaticVersion (type): = VersionInfo & { source: string }
+unifiedDiff: (before: string, after: string, o?: UnifiedDiffOptions) => string
+VersionInfo (type): { id, message?, author?, date?, url? }
+ViewCore: typeof ViewCore
+ViewModule (type): { id, replaces?, after?, when?, enabled?, install, load?, css? }
+## editor
+Config (type): { themes?, themeSource?, measure?, i18n?, linkPolicy?, imagePolicy?, resolveUrl?, iconPacks?, builtinIcons?, mermaid?, fonts? }
+configure: (c: Config) => void
+DEFAULT_FEATURES: EditorFeatures
+DEFAULT_MODULES: readonly EditorModule[]
+defineEditor: (name?: string) => void
+DiagramCanvas: typeof DiagramCanvas
+DiagramEditor: typeof DiagramEditor
+DocumentAdapter (type): { load, save, subscribe? }
+DocumentSaveResult (type): = { version?: string } | { conflict: { source: string; version: string } }
+EditorEventMap (type): { mmdx-load, mmdx-save, mmdx-saved, mmdx-conflict, mmdx-change, mmdx-dirty, mmdx-op, mmdx-selection, mmdx-link, mmdx-export, mmdx-error, mmdx-ui, mmdx-history-open, mmdx-history-close, mmdx-history-show, mmdx-history-version, mmdx-history-restore, mmdx-history-error }
+EditorFeatures (type): { codePanel, metadataTab, properties, layers, pen, copyStyle, styleToolbar, pageToolbar, autoLayout, plainMermaid, open, themePicker, schemeToggle, export, exportFormats, help, fullscreen, history }
+EditorModule (type): = ViewModule<EditorModuleApi>
+EditorModuleApi (type): = Pick< EditorCore, // typing of the scope's events and actions | '$actions' | '$events' // kernel: context, state, services, events and actions | 'product' | 'host' | 'ctx' | 'i18n' | 'storage' | 'mode' | 'stage' | 'tool' | 'panels' | 'display' | 'scheme' | 'compact' | 'features' | 'toast' | 'emit' | 'on' | 'fire' | 'run' | 'has' | 'setPanel' | 'setTool' | 'setMode' // the…
+EditorOptions (type): { value?, adapter?, readOnly?, features?, panels?, toolbar?, autosave?, storage?, themeSource?, ui?, theme?, themeDark?, compact?, wheel?, guardUnload?, name?, ctx?, iconPacks?, modules?, history?, uploadImage?, images? }
+Gesture (type): { move, end?, cancel?, click?, threshold? }
+GestureSource (type): { id, priority, down }
+HistorySession (type): { setPair, viewVersion, setView, setFilters, select, next, prev, pair, getDiff, exportAs, close }
+httpDocumentAdapter: (url: string, init?: { headers?: Record<string, string>; credentials?: RequestCredentials; }) => DocumentAdapter
+IconifyJSON (type): { prefix, icons, aliases?, left?, top?, width?, height?, info?, categories?, keywords? }
+IconPack (type): { name, icons?, loader? }
+LoadResult (type): { source, name?, version? }
+memoryDocumentAdapter: (initial: string, name?: string) => DocumentAdapter & { readonly current: string; setRemote(src: string): void; }
+MmdxEditorElement: typeof MmdxEditorElement
+ModuleScope (type): { core, id, active, slot, mount, listen, canvas, on, provide, provideDefault, effect, computed, shortcut, gesture, painter, contribute, contributeAll, claim, register, onDispose, load }
+OverlayPainter (type): { id, order, paint, exclusive? }
+registerBuiltinThemes: () => Promise<void>
+registerThemes: (themes: Iterable<unknown>) => Diagnostic[]
+SaveOutcome (type): = 'saved' | 'cancelled' | 'conflict' | 'failed' | 'no-adapter'
+SceneSource (type): { id, attach, detach, invalidate, bounds, destroy? }
+SetSourceOptions (type): { history?, fit?, markSaved? }
+Stage (type): = 'document' | 'version' | 'history'
+ViewCore: typeof ViewCore
+ViewModule (type): { id, replaces?, after?, when?, enabled?, install, load?, css? }
+## markdown
+diagramHtml: (source: string, opts?: MmdxMarkdownOptions, ctx?: CoreContext) => string
+markdownItMmdx: (md: MarkdownIt, opts?: MmdxMarkdownOptions) => void
+MmdxMarkdownOptions (type): { theme?, themeDark?, prerender?, themes?, attrs?, ctx?, iconPacks? }
+preloadIcons: (ctx: CoreContext, sources: readonly string[]) => Promise<void>
+rehypeMmdx: (opts?: MmdxMarkdownOptions) => (tree: HastNode) => void | Promise<void>
+scriptSafe: (s: string) => string
+## react
+createReactWrappers: (React: ReactLike) => MmdxReactComponents
+MmdxReactComponents (type): { MmdxViewer, MmdxEditor, MmdxThemeEditor, MmdxStudio, MmdxDiff }
+## studio
+Config (type): { themes?, themeSource?, measure?, i18n?, linkPolicy?, imagePolicy?, resolveUrl?, iconPacks?, builtinIcons?, mermaid?, fonts? }
+configure: (c: Config) => void
+defineStudio: (name?: string) => void
+DiagramStudio: typeof DiagramStudio
+ExampleInfo (type): { id, title, file, thumbnail?, tags?, history? }
+IconifyJSON (type): { prefix, icons, aliases?, left?, top?, width?, height?, info?, categories?, keywords? }
+IconPack (type): { name, icons?, loader? }
+MmdxStudioElement: typeof MmdxStudioElement
+registerBuiltinThemes: () => Promise<void>
+registerThemes: (themes: Iterable<unknown>) => Diagnostic[]
+StudioOptions (type): { examples?, themes?, persist?, initial?, storage?, images?, wheel? }
+## theme-editor
+BUILTIN_THEMES: readonly ThemeFile[]
+Config (type): { themes?, themeSource?, measure?, i18n?, linkPolicy?, imagePolicy?, resolveUrl?, iconPacks?, builtinIcons?, mermaid?, fonts? }
+configure: (c: Config) => void
+contrastRatio: (a: string, b: string) => number | null
+defineThemeEditor: (name?: string) => void
+fetchThemeSource: (manifestUrl: string, init?: RequestInit) => ThemeSource
+isLocalEdit: (store: ThemeStore, source: ThemeSource | undefined, id: string) => Promise<boolean>
+localStorageAdapter: (namespace?: string) => StorageAdapter
+localStorageThemeStore: (storage: StorageAdapter, base?: ThemeSource | undefined, key?: string) => ThemeStore
+memoryStorage: (initial?: Record<string, unknown>) => StorageAdapter
+memoryThemeStore: (initial?: readonly ThemeFile[]) => ThemeStore
+MmdxThemeEditorElement: typeof MmdxThemeEditorElement
+preloadedStorage: (read: () => Promise<Record<string, unknown>>, write: (key: string, value: unknown) => Promise<void>, opts?: PreloadedStorageOptions) => Promise<StorageAdapter>
+PreloadedStorageOptions (type): { onError? }
+registerBuiltinThemes: () => Promise<void>
+registerThemes: (themes: Iterable<unknown>) => Diagnostic[]
+SaveResult (type): = { version: string } | { conflict: ThemeFile }
+StorageAdapter (type): { get, set, remove }
+ThemeEditor: typeof ThemeEditor
+ThemeEditorEventMap (type): { mmdx-theme-save, mmdx-theme-saved, mmdx-theme-dirty, mmdx-theme-select, mmdx-theme-close }
+ThemeEditorOptions (type): { store?, source?, theme?, canEdit?, canPublish?, canDelete?, samples?, presentation?, storage?, ui?, ctx? }
+ThemeFile (type): { id, name?, extends?, appearance?, counterpart?, schemaVersion?, palette?, font?, canvas?, flowchart?, sequence?, er?, mindmap?, state? }
+ThemeInfo (type): { id, name, appearance, extends, version? }
+ThemeSamples (type): = Partial<Record<DiagramType, string>>
+ThemeSource (type): { list, get, subscribe? }
+ThemeStore (type): { save, delete?, publish?, usage?, list, get, subscribe? }
+## viewer
+Config (type): { themes?, themeSource?, measure?, i18n?, linkPolicy?, imagePolicy?, resolveUrl?, iconPacks?, builtinIcons?, mermaid?, fonts? }
+configure: (c: Config) => void
+defineViewer: (name?: string) => void
+DiagramCanvas: typeof DiagramCanvas
+DiagramViewer: typeof DiagramViewer
+HistorySession (type): { setPair, viewVersion, setView, setFilters, select, next, prev, pair, getDiff, exportAs, close }
+HostFullscreen (type): { available, enter, exit, active? }
+IconifyJSON (type): { prefix, icons, aliases?, left?, top?, width?, height?, info?, categories?, keywords? }
+IconPack (type): { name, icons?, loader? }
+MmdxViewerElement: typeof MmdxViewerElement
+ModuleScope (type): { core, id, active, slot, mount, listen, canvas, on, provide, provideDefault, effect, computed, shortcut, gesture, painter, contribute, contributeAll, claim, register, onDispose, load }
+registerBuiltinThemes: () => Promise<void>
+registerThemes: (themes: Iterable<unknown>) => Diagnostic[]
+SceneSource (type): { id, attach, detach, invalidate, bounds, destroy? }
+setWorkerUrl: (url: string | URL, opts?: { type?: WorkerType; }) => void
+Stage (type): = 'document' | 'version' | 'history'
+upgradeMermaidBlocks: (root?: ParentNode, opts?: Partial<Pick<ViewerOptions, "theme" | "themeDark" | "controls" | "fit">> & { tag?: string; }) => HTMLElement[]
+ViewCore: typeof ViewCore
+VIEWER_MODULES: readonly ViewModule<ViewCore<ViewActions, Readonly<Record<string, boolean>>, ViewEvents>>[]
+ViewerControl (type): = 'zoom' | 'layers' | 'pen' | 'fullscreen' | 'export' | 'code' | 'history' | 'theme'
+ViewerEventMap (type): { mmdx-render, mmdx-error, mmdx-link, mmdx-fullscreen, mmdx-fullscreen-request, mmdx-ui, mmdx-history-open, mmdx-history-close, mmdx-history-show, mmdx-history-version, mmdx-history-restore, mmdx-history-error }
+ViewerOptions (type): { source?, src?, loader?, theme?, themeDark?, fit?, controls?, interactive?, lazy?, layers?, wheel?, fallback?, label?, labels?, hoverHighlight?, ui?, schemeToggle?, compact?, themeSource?, storage?, ctx?, iconPacks?, history?, fullscreen? }
+ViewModule (type): { id, replaces?, after?, when?, enabled?, install, load?, css? }
+## worker-inline
+useInlineWorker: () => boolean
+workerSource: string
