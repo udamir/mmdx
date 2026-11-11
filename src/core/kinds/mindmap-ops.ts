@@ -6,23 +6,21 @@ import { mindPresets } from '../render/mind-presets.js';
 import type { MindmapGeometry } from '../render/types.js';
 import type { ItemRef } from '../types.js';
 import type { OpsKind } from '../kind/ops-types.js';
-import type { Presets } from '../kind/types.js';
+import { asPresets, collectionOps } from './ops-kit.js';
 
 export const OPS: OpsKind<MindmapModel, MindmapGeometry> = {
   type: 'mindmap',
   theme: { slots: { node: 'mindmap.node' } },
-  presets: (theme, meta) => mindPresets(theme, meta) as unknown as Record<string, Presets>,
-  box: (g, it) => (it.kind === 'node' ? g.nodes.get(it.id) : undefined) ?? null,
-  drawn: (g) => [...g.nodes].map(([id, box]) => ({ ref: { kind: 'node' as const, id }, box })),
+  presets: (theme, meta) => asPresets(mindPresets(theme, meta)),
+  ...collectionOps<MindmapModel, MindmapGeometry>([
+    { kind: 'node', ids: (m) => m.nodes.keys(), has: (m, id) => m.nodes.has(id), boxes: (g) => g.nodes, texts: (m) => [...m.nodes.values()].map((n) => [n.id, [n.written ?? undefined, n.label, ...n.classes]] as const) },
+  ]),
   codeShape(model, ref) {
     const n = ref.kind === 'node' ? model.nodes.get(ref.id) : undefined;
     return n && n.shape !== 'mm-default' ? n.shape : undefined;
   },
-  find: (model, id) => (model.nodes.has(id) ? { kind: 'node', id } : null),
-  search: (model) => [...model.nodes.values()].map((n) => ({ ref: { kind: 'node' as const, id: n.id }, texts: [n.written ?? undefined, n.label, ...n.classes] })),
-  exists: (model, { kind, id }) => kind === 'node' && model.nodes.has(id),
+  // the ids written in the code (a node's id is its line's otherwise)
   takenIds: (model) => [...model.nodes.values()].flatMap((n) => (n.written ? [n.written] : [])),
-  usedIds: (model) => ({ nodes: new Set(model.nodes.keys()) }),
   lines(model, { kind, id }) {
     const n = kind === 'node' ? model.nodes.get(id) : undefined;
     if (!n) return [];

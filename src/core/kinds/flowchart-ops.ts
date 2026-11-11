@@ -1,39 +1,40 @@
 // The flowchart ops kind: code order, the clipboard, auto-placed nodes, subgraph contents and the direction.
-import type { Presets } from '../kind/types.js';
 import { edgeMeta, edgePreset, flowPresets, groupPreset, nodePreset } from '../render/flow-presets.js';
 import { minOf } from '../geom.js';
 import type { FlowchartModel } from '../model.js';
 import { cloneFlow, deleteFlow, setFlowDirection } from '../ops/flowchart.js';
 import { groupDescendants } from '../ops/meta-ops.js';
-import { ensure, getM, tidy } from '../ops/meta-util.js';
-import type { LineSpan } from '../ops/types.js';
+import { tidy } from '../ops/meta-util.js';
 import type { FlowGeometry } from '../render/types.js';
 import type { ItemRef } from '../types.js';
 import type { OpsKind } from '../kind/ops-types.js';
+import { asPresets, collectionOps, lineSpan, pinAutoPlaced, rankByLine, resetGroupScope } from './ops-kit.js';
 
-const one = (li: number | null | undefined): LineSpan | null => (li == null ? null : { start: li, end: li });
-const byLine = (arr: { id: string; key: number | null | undefined }[], id: string): number =>
-  arr.slice().sort((a, b) => (a.key ?? 1e9) - (b.key ?? 1e9)).findIndex((x) => x.id === id);
 
 export const OPS: OpsKind<FlowchartModel, FlowGeometry> = {
   type: 'flowchart',
+  ...collectionOps<FlowchartModel, FlowGeometry>([
+    { kind: 'node', ids: (m) => m.nodes.keys(), has: (m, id) => m.nodes.has(id), taken: true, boxes: (g) => g.nodes, texts: (m) => [...m.nodes.values()].map((n) => [n.id, [n.id, n.label, ...n.classes]] as const) },
+    { kind: 'group', ids: (m) => m.groups.keys(), has: (m, id) => m.groups.has(id), taken: true, boxes: (g) => g.groups, texts: (m) => [...m.groups.values()].map((g) => [g.id, [g.id, g.label, ...(g.classes ?? [])]] as const) },
+    { kind: 'edge', ids: (m) => m.edges.map((e) => e.id), lines: (g) => g.edges, texts: (m) => m.edges.map((e) => [e.id, [e.label]] as const) },
+  ]),
   blocks: (model) => [...model.groups.values()].flatMap((g) => (g.endLine != null ? [{ start: g.line, end: g.endLine }] : [])),
   unit(M, { kind, id }) {
     if (kind === 'node') {
       const n = M.nodes.get(id);
-      return n ? one(n.defLine ?? minOf(n.lines)) : null;
+      return n ? lineSpan(n.defLine ?? minOf(n.lines)) : null;
     }
     if (kind === 'group') {
       const g = M.groups.get(id);
       return g ? { start: g.line, end: g.endLine ?? g.line } : null;
     }
-    if (kind === 'edge') return one(M.edges.find((e) => e.id === id)?.src);
+    if (kind === 'edge') return lineSpan(M.edges.find((e) => e.id === id)?.src);
     return null;
   },
   relocate: (M, sel, line) => (sel.kind === 'edge' ? M.edges.find((e) => e.src === line)?.id : undefined),
   orderRank(M, sel) {
-    if (sel.kind === 'node') return byLine([...M.nodes.values()].map((n) => ({ id: n.id, key: n.defLine })), sel.id);
-    if (sel.kind === 'edge') return byLine(M.edges.map((e) => ({ id: e.id, key: e.src })), sel.id);
+    if (sel.kind === 'node') return rankByLine([...M.nodes.values()].map((n) => ({ id: n.id, key: n.defLine })), sel.id);
+    if (sel.kind === 'edge') return rankByLine(M.edges.map((e) => ({ id: e.id, key: e.src })), sel.id);
     return null;
   },
   copyable: (_model, it) => it.kind === 'node' || it.kind === 'group',
@@ -74,77 +75,23 @@ export const OPS: OpsKind<FlowchartModel, FlowGeometry> = {
     for (const e of after.edges) if (!e.uid && had.has(e.id) && !after.edges.some((x) => x.id === had.get(e.id))) move(had.get(e.id)!, e.id);
     return out ? { ...meta, edges: out } : meta;
   },
-  pinAuto(meta, _model, geom) {
-    // auto-placed nodes are laid out below hand-placed ones: pin them where they are before the first manual placement
-    if (geom?.type !== 'flowchart') return meta;
-    let pinned = false;
-    for (const [id, b] of geom.nodes)
-      if (b.auto && Number.isFinite(b.x) && Number.isFinite(b.y)) {
-        const m = ensure(meta, 'node', id);
-        if (m.x == null || m.y == null) {
-          m.x = Math.round(b.x);
-          m.y = Math.round(b.y);
-          pinned = true;
-        }
-      }
-    // a group's place after "Reset positions in this group" (x / y without a size) is its contents' place now
-    if (pinned)
-      for (const [id, m] of Object.entries(meta.groups ?? {}))
-        if (m.w == null && m.h == null && (m.x != null || m.y != null)) {
-          delete m.x;
-          delete m.y;
-          tidy(meta, 'group', id);
-        }
-    return meta;
-  },
+  // auto-placed nodes are laid out below hand-placed ones
+  pinAuto: (meta, _model, geom) => (geom?.type === 'flowchart' ? pinAutoPlaced(meta, geom.nodes, 'node') : meta),
   descendants: groupDescendants,
   resetScope(meta, model, geom, gid) {
-    const g = model.groups.get(gid);
-    if (!g) return meta;
-    const inside = groupDescendants(model, gid);
-    const nodes = new Set(inside.nodes), groups = new Set(inside.groups);
-    for (const id of nodes) {
-      const m = getM(meta, 'node', id);
-      delete m.x;
-      delete m.y;
-      tidy(meta, 'node', id);
-    }
-    for (const id of groups) {
-      const m = getM(meta, 'group', id);
-      delete m.x;
-      delete m.y;
-      delete m.w;
-      delete m.h;
-      tidy(meta, 'group', id);
-    }
-    const within = (id: string): boolean => id === gid || nodes.has(id) || groups.has(id);
-    for (const e of model.edges)
-      if (within(e.from) && within(e.to)) {
-        const m = edgeMeta(e, meta);
-        if (!m?.points) continue;
-        delete m.points;
-        for (const k of [e.id, e.key]) if (k !== undefined && meta.edges?.[k] === m) tidy(meta, 'edge', k);
-      }
-    // the group keeps its place when something outside it is placed by hand (a fixed frame stays as it is): its
-    // top-left, without a size, which the layout keeps while it lays the contents out (core/layout/compound.ts)
-    const gm = getM(meta, 'group', gid);
-    const framed = gm.x != null && gm.y != null && gm.w != null && gm.h != null;
-    const placed = (coll: 'nodes' | 'groups', skip: ReadonlySet<string>): boolean =>
-      Object.entries(meta[coll] ?? {}).some(([id, m]) => id !== gid && !skip.has(id) && typeof m.x === 'number' && typeof m.y === 'number');
-    const box = geom?.type === 'flowchart' ? geom.groups.get(gid) : undefined;
-    if (!framed) {
-      delete gm.x;
-      delete gm.y;
-      delete gm.w;
-      delete gm.h;
-      if (box && (placed('nodes', nodes) || placed('groups', groups))) {
-        const m = ensure(meta, 'group', gid);
-        m.x = Math.round(box.x - box.w / 2);
-        m.y = Math.round(box.y - box.h / 2);
-      }
-      tidy(meta, 'group', gid);
-    }
-    return meta;
+    if (!model.groups.has(gid)) return meta;
+    return resetGroupScope(meta, gid, {
+      leaf: 'node', inside: groupDescendants(model, gid), box: geom?.type === 'flowchart' ? geom.groups.get(gid) : undefined,
+      clearLines: (within) => {
+        for (const e of model.edges)
+          if (within(e.from) && within(e.to)) {
+            const m = edgeMeta(e, meta);
+            if (!m?.points) continue;
+            delete m.points;
+            for (const k of [e.id, e.key]) if (k !== undefined && meta.edges?.[k] === m) tidy(meta, 'edge', k);
+          }
+      },
+    });
   },
   setDirection: (code, _model, dir) => setFlowDirection(code, dir),
   codePreset(model, meta, theme, { kind, id }) {
@@ -170,21 +117,6 @@ export const OPS: OpsKind<FlowchartModel, FlowGeometry> = {
     const e = kind === 'edge' ? model.edges.find((x) => x.id === id) : undefined;
     return e ? { start: e.start, end: e.end } : null;
   },
-  find(model, id) {
-    if (model.nodes.has(id)) return { kind: 'node', id };
-    if (model.groups.has(id)) return { kind: 'group', id };
-    if (model.edges.some((e) => e.id === id)) return { kind: 'edge', id };
-    return null;
-  },
-  search: (model) => [
-    ...[...model.nodes.values()].map((n) => ({ ref: { kind: 'node' as const, id: n.id }, texts: [n.id, n.label, ...n.classes] })),
-    ...[...model.groups.values()].map((g) => ({ ref: { kind: 'group' as const, id: g.id }, texts: [g.id, g.label, ...(g.classes ?? [])] })),
-    ...model.edges.map((e) => ({ ref: { kind: 'edge' as const, id: e.id }, texts: [e.label] })),
-  ],
-  exists: (model, { kind, id }) =>
-    kind === 'node' ? model.nodes.has(id) : kind === 'group' ? model.groups.has(id) : kind === 'edge' ? model.edges.some((e) => e.id === id) : false,
-  takenIds: (model) => [...model.nodes.keys(), ...model.groups.keys()],
-  usedIds: (model) => ({ nodes: new Set(model.nodes.keys()), groups: new Set(model.groups.keys()), edges: new Set(model.edges.map((e) => e.id)) }),
   lines(M, { kind, id }) {
     const set = new Set<number>();
     const add = (x: number | null | undefined): void => {
@@ -203,12 +135,5 @@ export const OPS: OpsKind<FlowchartModel, FlowGeometry> = {
   },
   isEmpty: (model) => !model.nodes.size,
   theme: { slots: { node: 'flowchart.node', group: 'flowchart.group', edge: 'flowchart.edge' } },
-  presets: (theme, meta) => flowPresets(theme, meta) as unknown as Record<string, Presets>,
-  drawn: (g) => [
-    ...[...g.nodes].map(([id, box]) => ({ ref: { kind: 'node' as const, id }, box })),
-    ...[...g.groups].map(([id, box]) => ({ ref: { kind: 'group' as const, id }, box })),
-    ...[...g.edges].map(([id, e]) => ({ ref: { kind: 'edge' as const, id }, d: e.d, label: e.label })),
-  ],
-  edge: (g, { kind, id }) => (kind === 'edge' ? g.edges.get(id) : undefined),
-  box: (g, it) => (it.kind === 'node' ? g.nodes.get(it.id) : it.kind === 'group' ? g.groups.get(it.id) : undefined) ?? null,
+  presets: (theme, meta) => asPresets(flowPresets(theme, meta)),
 };

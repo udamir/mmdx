@@ -3,26 +3,27 @@
 import type { StateModel } from '../model.js';
 import { isPseudo } from '../parse/state.js';
 import { cloneState, deleteState, remapStateNotes, setStateDirection, stateDescendants } from '../ops/state.js';
-import { ensure, getM, tidy } from '../ops/meta-util.js';
+import { tidy } from '../ops/meta-util.js';
 import { stateEdgePreset, stateGroupPreset, stateNodePreset, statePresets } from '../render/state-presets.js';
 import type { StateGeometry } from '../render/types.js';
 import type { ItemRef } from '../types.js';
 import type { OpsKind } from '../kind/ops-types.js';
-import type { Presets } from '../kind/types.js';
+import { asPresets, collectionOps, pinAutoPlaced, resetGroupScope } from './ops-kit.js';
 import { minOf } from '../geom.js';
 
 export const OPS: OpsKind<StateModel, StateGeometry> = {
   type: 'state',
   theme: { slots: { node: 'state.node', group: 'state.composite', edge: 'state.transition', note: 'state.note' } },
-  presets: (theme, meta) => statePresets(theme, meta) as unknown as Record<string, Presets>,
-  box: (g, it) => (it.kind === 'node' ? g.nodes.get(it.id) : it.kind === 'group' ? g.groups.get(it.id) : it.kind === 'note' ? g.notes.get(it.id) : undefined) ?? null,
-  edge: (g, { kind, id }) => (kind === 'edge' ? g.edges.get(id) : undefined),
-  drawn: (g) => [
-    ...[...g.nodes].map(([id, box]) => ({ ref: { kind: 'node' as const, id }, box })),
-    ...[...g.groups].map(([id, box]) => ({ ref: { kind: 'group' as const, id }, box })),
-    ...[...g.notes].map(([id, box]) => ({ ref: { kind: 'note' as const, id }, box })),
-    ...[...g.edges].map(([id, e]) => ({ ref: { kind: 'edge' as const, id }, d: e.d, label: e.label })),
-  ],
+  presets: (theme, meta) => asPresets(statePresets(theme, meta)),
+  ...collectionOps<StateModel, StateGeometry>([
+    {
+      kind: 'node', ids: (m) => m.nodes.keys(), has: (m, id) => m.nodes.has(id), taken: true, boxes: (g) => g.nodes,
+      texts: (m) => [...m.nodes.values()].map((n) => [n.id, [isPseudo(n.id) ? n.kind : n.id, n.label, ...n.descriptions, ...n.classes]] as const),
+    },
+    { kind: 'group', ids: (m) => m.groups.keys(), has: (m, id) => m.groups.has(id), taken: true, boxes: (g) => g.groups, texts: (m) => [...m.groups.values()].map((g) => [g.id, [g.id, g.label, ...g.classes]] as const) },
+    { kind: 'edge', ids: (m) => m.edges.map((e) => e.id), lines: (g) => g.edges, texts: (m) => m.edges.map((e) => [e.id, [e.label]] as const) },
+    { kind: 'note', ids: (m) => m.notes.map((n) => n.id), boxes: (g) => g.notes, texts: (m) => m.notes.map((n) => [n.id, [n.text]] as const) },
+  ]),
   codePreset(model, meta, theme, { kind, id }) {
     const P = statePresets(theme, meta);
     if (kind === 'node') {
@@ -41,23 +42,6 @@ export const OPS: OpsKind<StateModel, StateGeometry> = {
   },
   codeLink: (model, { kind, id }) => (kind === 'node' ? model.nodes.get(id)?.link : kind === 'group' ? model.groups.get(id)?.link : undefined),
   codeEnds: (model, { kind, id }) => (kind === 'edge' && model.edges.some((e) => e.id === id) ? { start: 'none', end: 'arrow' } : null),
-  find(model, id) {
-    if (model.nodes.has(id)) return { kind: 'node', id };
-    if (model.groups.has(id)) return { kind: 'group', id };
-    if (model.edges.some((e) => e.id === id)) return { kind: 'edge', id };
-    if (model.notes.some((n) => n.id === id)) return { kind: 'note', id };
-    return null;
-  },
-  search: (model) => [
-    ...[...model.nodes.values()].map((n) => ({ ref: { kind: 'node' as const, id: n.id }, texts: [isPseudo(n.id) ? n.kind : n.id, n.label, ...n.descriptions, ...n.classes] })),
-    ...[...model.groups.values()].map((g) => ({ ref: { kind: 'group' as const, id: g.id }, texts: [g.id, g.label, ...g.classes] })),
-    ...model.edges.map((e) => ({ ref: { kind: 'edge' as const, id: e.id }, texts: [e.label] })),
-    ...model.notes.map((n) => ({ ref: { kind: 'note' as const, id: n.id }, texts: [n.text] })),
-  ],
-  exists: (model, { kind, id }) =>
-    kind === 'node' ? model.nodes.has(id) : kind === 'group' ? model.groups.has(id) : kind === 'edge' ? model.edges.some((e) => e.id === id) : kind === 'note' ? model.notes.some((n) => n.id === id) : false,
-  takenIds: (model) => [...model.nodes.keys(), ...model.groups.keys()],
-  usedIds: (model) => ({ nodes: new Set(model.nodes.keys()), groups: new Set(model.groups.keys()), edges: new Set(model.edges.map((e) => e.id)), notes: new Set(model.notes.map((n) => n.id)) }),
   lines(M, { kind, id }) {
     const set = new Set<number>();
     if (kind === 'node') {
@@ -124,71 +108,21 @@ export const OPS: OpsKind<StateModel, StateGeometry> = {
   remove: (code, model, items) => deleteState(code, model, items),
   clone: cloneState,
   idKind: (model, id) => (model.groups.has(id) ? 'group' : 'node'),
-  pinAuto(meta, _model, geom) {
-    // auto-placed states are laid out below hand-placed ones: pinned where they are before the first manual placement
-    if (geom?.type !== 'state') return meta;
-    let pinned = false;
-    for (const [id, b] of geom.nodes)
-      if (b.auto && Number.isFinite(b.x)) {
-        const m = ensure(meta, 'node', id);
-        if (m.x == null || m.y == null) {
-          m.x = Math.round(b.x);
-          m.y = Math.round(b.y);
-          pinned = true;
-        }
-      }
-    if (pinned)
-      for (const [id, m] of Object.entries(meta.groups ?? {}))
-        if (m.w == null && m.h == null && (m.x != null || m.y != null)) {
-          delete m.x;
-          delete m.y;
-          tidy(meta, 'group', id);
-        }
-    return meta;
-  },
+  // auto-placed states are laid out below hand-placed ones
+  pinAuto: (meta, _model, geom) => (geom?.type === 'state' ? pinAutoPlaced(meta, geom.nodes, 'node') : meta),
   descendants: stateDescendants,
   resetScope(meta, model, geom, gid) {
     if (!model.groups.has(gid)) return meta;
-    const inside = stateDescendants(model, gid);
-    for (const id of inside.nodes) {
-      const m = getM(meta, 'node', id);
-      delete m.x;
-      delete m.y;
-      tidy(meta, 'node', id);
-    }
-    for (const id of inside.groups) {
-      const m = getM(meta, 'group', id);
-      delete m.x;
-      delete m.y;
-      delete m.w;
-      delete m.h;
-      tidy(meta, 'group', id);
-    }
-    const within = new Set([gid, ...inside.nodes, ...inside.groups]);
-    for (const e of model.edges)
-      if (within.has(e.from) && within.has(e.to) && meta.edges?.[e.id]?.points) {
-        delete meta.edges[e.id]!.points;
-        tidy(meta, 'edge', e.id);
-      }
-    const gm = getM(meta, 'group', gid);
-    if (!(gm.x != null && gm.y != null && gm.w != null && gm.h != null)) {
-      delete gm.x;
-      delete gm.y;
-      delete gm.w;
-      delete gm.h;
-      // as the flowchart's (B22): a hand-placed state or composite outside this one keeps it in place
-      const placedOutside = (coll: 'nodes' | 'groups'): boolean =>
-        Object.entries(meta[coll] ?? {}).some(([id, m]) => !within.has(id) && typeof m.x === 'number' && typeof m.y === 'number');
-      const placed = placedOutside('nodes') || placedOutside('groups');
-      const box = geom?.type === 'state' ? geom.groups.get(gid) : undefined;
-      if (box && placed) {
-        const m = ensure(meta, 'group', gid);
-        m.x = Math.round(box.x - box.w / 2);
-        m.y = Math.round(box.y - box.h / 2);
-      }
-      tidy(meta, 'group', gid);
-    }
-    return meta;
+    return resetGroupScope(meta, gid, {
+      leaf: 'node', inside: stateDescendants(model, gid), box: geom?.type === 'state' ? geom.groups.get(gid) : undefined,
+      clearLines: (within) => {
+        for (const e of model.edges)
+          if (within(e.from) && within(e.to) && meta.edges?.[e.id]?.points) {
+            delete meta.edges[e.id]!.points;
+            tidy(meta, 'edge', e.id);
+          }
+      },
+    });
   },
   setDirection: (code, model, dir) => setStateDirection(code, model, dir),
 };

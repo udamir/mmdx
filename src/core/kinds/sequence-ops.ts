@@ -1,7 +1,6 @@
 // The sequence ops kind: code order (participants trade places, items move within their blocks), positional ids and
 // the metadata that follows them.
 import { seqPresets } from '../render/sequence-presets.js';
-import type { Presets } from '../kind/types.js';
 import { activationsOf } from '../ids.js';
 import type { ItemRef } from '../types.js';
 import type { SequenceModel } from '../model.js';
@@ -11,8 +10,8 @@ import { swapParticipant } from '../ops/sequence.js';
 import type { LineSpan } from '../ops/types.js';
 import type { SequenceGeometry } from '../render/types.js';
 import type { OpsKind } from '../kind/ops-types.js';
+import { asPresets, lineSpan } from './ops-kit.js';
 
-const one = (li: number | null | undefined): LineSpan | null => (li == null ? null : { start: li, end: li });
 
 export const OPS: OpsKind<SequenceModel, SequenceGeometry> = {
   type: 'sequence',
@@ -26,7 +25,7 @@ export const OPS: OpsKind<SequenceModel, SequenceGeometry> = {
     switch (sel.kind) {
       case 'participant': {
         const p = M.participants.find((x) => x.id === sel.id);
-        return p ? one(p.defLine) : null;
+        return p ? lineSpan(p.defLine) : null;
       }
       case 'box': {
         const b = M.boxes.find((x) => x.id === sel.id);
@@ -38,7 +37,7 @@ export const OPS: OpsKind<SequenceModel, SequenceGeometry> = {
       }
       case 'message':
       case 'note':
-        return one(M.items.find((x) => x.kind === sel.kind && x.id === sel.id)?.src);
+        return lineSpan(M.items.find((x) => x.kind === sel.kind && x.id === sel.id)?.src);
       default:
         return null;
     }
@@ -127,7 +126,7 @@ export const OPS: OpsKind<SequenceModel, SequenceGeometry> = {
   },
   isEmpty: (model) => !model.participants.length,
   theme: { slots: { participant: 'sequence.participant', message: 'sequence.message', block: 'sequence.block', note: 'sequence.note', activation: 'sequence.activation', box: 'sequence.box' } },
-  presets: (theme, meta) => seqPresets(theme, meta) as unknown as Record<string, Presets>,
+  presets: (theme, meta) => asPresets(seqPresets(theme, meta)),
   drawn: (g) => [
     ...[...g.participants].map(([id, box]) => ({ ref: { kind: 'participant' as const, id }, box })),
     ...[...g.boxes].map(([id, box]) => ({ ref: { kind: 'box' as const, id }, box })),
