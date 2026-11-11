@@ -48,7 +48,7 @@ export const canvasPaintModule: EditorModule = {
         return false;
       }
       const next = meta;
-      core.change('Paste style', () => core.store.meta.set(next));
+      core.setMeta('Paste style', next);
       return true;
     };
 

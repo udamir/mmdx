@@ -107,8 +107,8 @@ export const toolbarsModule: EditorModule = {
         orderTx = core.store.txId;
       }
       const doc = applyOrderState(o.base, st);
-      core.store.meta.set(doc.meta);
-      core.store.code.set(doc.code);
+      core.write({ meta: doc.meta });
+      core.write({ code: doc.code });
       core.select([st.sel]);
       core.draw();
       o.shown = i;
@@ -212,7 +212,7 @@ export const toolbarsModule: EditorModule = {
       live.run(t('history.style'), () => {
         let meta = setStyle(core.meta, boxes, patch, { multi: multi() }).meta;
         if (Object.keys(textPatch).length) meta = setStyle(meta, lines, textPatch, { multi: true }).meta;
-        core.store.meta.set(meta);
+        core.write({ meta: meta });
       });
     };
     // the counter's type filter: kinds taken out of a multi-selection can be put back while that selection lasts
@@ -514,7 +514,7 @@ export const toolbarsModule: EditorModule = {
             return;
           }
           const meta = setPageValue(core, k, v, seqDefaults()[k]);
-          if (o.live) live.run(t('history.page'), () => core.store.meta.set(meta));
+          if (o.live) live.run(t('history.page'), () => core.write({ meta: meta }));
           else {
             live.flush();
             applyMeta(core, t('history.page'), { meta });

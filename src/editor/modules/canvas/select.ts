@@ -194,7 +194,7 @@ export const canvasSelectModule: EditorModule = {
       return metaGesture('Move', (dx, dy, ev) => {
         const opts: MoveOpts = { snap: ev.altKey ? 0 : core.snap };
         if (part === 'label') opts.part = 'label';
-        core.store.meta.set(moveItem(model, meta, geom, ref, dx, dy, opts).meta);
+        core.write({ meta: moveItem(model, meta, geom, ref, dx, dy, opts).meta });
       });
     };
 
@@ -202,7 +202,7 @@ export const canvasSelectModule: EditorModule = {
       const model = core.model, meta = core.meta, geom = core.geom, sel = core.selection();
       return metaGesture('Move', (dx, dy, ev) => {
         const snap = ev.altKey && !keepSnapWithAlt ? 0 : core.snap;
-        core.store.meta.set(moveItems(model, meta, geom, sel, dx, dy, snap).meta);
+        core.write({ meta: moveItems(model, meta, geom, sel, dx, dy, snap).meta });
       });
     };
 
@@ -214,15 +214,15 @@ export const canvasSelectModule: EditorModule = {
         return null;
       }
       core.begin();
-      core.store.code.set(res.code);
-      core.store.meta.set(res.meta);
+      core.write({ code: res.code });
+      core.write({ meta: res.meta });
       core.select(res.selection ?? []);
       core.draw();
       core.dom.root.classList.add('copying');
       const model = core.model, meta = core.meta, geom = core.geom, sel = core.selection();
       return {
         move(dx, dy) {
-          core.store.meta.set(moveItems(model, meta, geom, sel, dx, dy, core.snap).meta); // Alt means copy here: keep snapping
+          core.write({ meta: moveItems(model, meta, geom, sel, dx, dy, core.snap).meta }); // Alt means copy here: keep snapping
           core.draw();
         },
         end() {
@@ -249,7 +249,7 @@ export const canvasSelectModule: EditorModule = {
       const asset = media?.node ? b.asset : undefined;
       const g = metaGesture('Resize', (dx, dy, ev) => {
         sizing = s;
-        core.store.meta.set(cloneMeta(meta0));
+        core.write({ meta: cloneMeta(meta0) });
         const m = core.ensure(kind, id);
         const snap = (v: number): number => core.snapV(v, ev);
         if (asset && media) {
@@ -303,8 +303,8 @@ export const canvasSelectModule: EditorModule = {
         const own = ensureMeta(meta, kind, id);
         delete own.w;
         delete own.h;
-        core.store.code.set(res.code);
-        core.store.meta.set(meta);
+        core.write({ code: res.code });
+        core.write({ meta: meta });
       };
       // the size badge goes with the gesture
       return {
@@ -556,7 +556,7 @@ export const canvasSelectModule: EditorModule = {
         nudgeOpen = true;
         nudgeTx = core.store.txId;
       }
-      core.store.meta.set(next);
+      core.write({ meta: next });
       core.draw();
       clearTimeout(nudgeTimer);
       nudgeTimer = setTimeout(flushNudge, 450);

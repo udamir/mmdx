@@ -5,12 +5,9 @@ diff/modules/stage.ts: kernel DOM ×4
 editor/modules/canvas/empty.ts: bare core.on ×3
 editor/modules/canvas/empty.ts: kernel DOM ×6
 editor/modules/canvas/inline-edit.ts: kernel DOM ×4
-editor/modules/canvas/paint.ts: store write ×1
 editor/modules/canvas/select.ts: bare core.on ×3
 editor/modules/canvas/select.ts: kernel DOM ×17
-editor/modules/canvas/select.ts: store write ×9
 editor/modules/canvas/structure.ts: kernel DOM ×4
-editor/modules/canvas/structure.ts: store write ×2
 editor/modules/chrome/document.ts: kernel DOM ×1
 editor/modules/chrome/panes.ts: bare computed ×1
 editor/modules/chrome/panes.ts: kernel DOM ×1
@@ -18,7 +15,6 @@ editor/modules/chrome/tool-dock.ts: bare computed ×2
 editor/modules/chrome/tool-dock.ts: bare core.on ×2
 editor/modules/chrome/toolbars.ts: bare core.on ×7
 editor/modules/chrome/toolbars.ts: kernel DOM ×1
-editor/modules/chrome/toolbars.ts: store write ×4
 editor/modules/chrome/version-copy.ts: bare core.on ×4
 editor/modules/chrome/version-copy.ts: kernel DOM ×1
 editor/modules/connect/index.ts: bare core.on ×1
@@ -29,7 +25,6 @@ editor/modules/insert/index.ts: kernel DOM ×3
 editor/modules/insert/media.ts: kernel DOM ×3
 editor/modules/mindmap/gestures.ts: bare core.on ×1
 editor/modules/mindmap/gestures.ts: kernel DOM ×1
-editor/modules/mindmap/gestures.ts: store write ×1
 editor/modules/panels/code-panel.ts: bare core.on ×2
 editor/modules/panels/code-panel.ts: kernel DOM ×2
 editor/modules/panels/layers.ts: bare computed ×3
@@ -37,7 +32,6 @@ editor/modules/panels/layers.ts: kernel DOM ×1
 editor/modules/panels/right-panels.ts: kernel DOM ×1
 editor/modules/sequence/index.ts: bare core.on ×1
 editor/modules/sequence/index.ts: kernel DOM ×1
-editor/modules/sequence/index.ts: store write ×2
 editor/modules/shapes/index.ts: bare core.on ×2
 editor/modules/shapes/index.ts: kernel DOM ×1
 view/modules/canvas.ts: kernel DOM ×2

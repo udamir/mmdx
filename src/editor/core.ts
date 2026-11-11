@@ -796,6 +796,22 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   }
 
   /**
+   * Writes the document inside the open transaction (a drag, a nudge, a live field edit; A10d: modules do not write
+   * the store themselves): its code and / or metadata. The commit records it as one step, a rollback undoes it.
+   */
+  write(doc: { code?: string; meta?: DiagramMeta }): void {
+    if (this.version.peek()) return;
+    if (doc.meta !== undefined) this.store.meta.set(doc.meta);
+    if (doc.code !== undefined) this.store.code.set(doc.code);
+  }
+
+  /** As `write`, then draws (a gesture's preview frame). */
+  preview(doc: { code?: string; meta?: DiagramMeta }): void {
+    this.write(doc);
+    this.draw();
+  }
+
+  /**
    * Runs a metadata-only change as one history step (styles, positions): `f` mutates `this.meta` in place.
    * Fires `mmdx-op`; a veto rolls the change back.
    */

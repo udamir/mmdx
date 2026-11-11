@@ -379,7 +379,7 @@ export function activateMindmap(scope: ModuleScope<EditorCore>): () => void {
       };
       if (sameSpot) {
         const meta = withSide(M, M, id);
-        core.change('Switch side', () => core.store.meta.set(meta));
+        core.setMeta('Switch side', meta);
         return;
       }
       applyAt(core, res, d.copy ? 'Copy node' : 'Move node', false, withSide);

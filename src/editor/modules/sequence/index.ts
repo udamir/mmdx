@@ -126,9 +126,9 @@ export function edgeAnchors(core: EditorCore, id: string, edge: 'top' | 'bottom'
 /** Replaces the code inside an open transaction (live gesture preview), carrying positional metadata along. */
 function liveCode(core: EditorCore, code: string): void {
   const oldModel = core.model, oldCode = core.code;
-  core.store.code.set(code);
+  core.write({ code: code });
   const M = core.model;
-  if (oldModel.type === 'sequence' && M.type === 'sequence') core.store.meta.set(remapSequenceMeta(core.meta, oldModel, oldCode, M, code));
+  if (oldModel.type === 'sequence' && M.type === 'sequence') core.write({ meta: remapSequenceMeta(core.meta, oldModel, oldCode, M, code) });
 }
 
 /** Two selected messages → can they become a process (`activationInfo`)? */

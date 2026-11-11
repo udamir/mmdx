@@ -166,7 +166,7 @@ export const canvasStructureModule: EditorModule = {
 
     const unlockAll = (): void => {
       const res = unlockAllOp(core.meta);
-      core.change('Unlock all', () => core.store.meta.set(res.meta));
+      core.setMeta('Unlock all', res.meta);
       core.toast(`Unlocked ${nItems(res.count)}`);
     };
 
@@ -174,7 +174,7 @@ export const canvasStructureModule: EditorModule = {
       const meta = core.meta;
       const res = alignItems(core.model, meta, core.geom, core.selection(), ALIGN[op] ?? (op as AlignOp));
       if (res.meta === meta) return;
-      core.change(op.endsWith('dist') ? 'Distribute' : 'Align', () => core.store.meta.set(res.meta));
+      core.setMeta(op.endsWith('dist') ? 'Distribute' : 'Align', res.meta);
     };
 
     const moveSelection = (dir: -1 | 1): void => {
