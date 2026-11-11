@@ -8,7 +8,7 @@ import type { MindmapModel, MindNode } from '../model.js';
 import { assignDepths, mindKeys } from '../parse/mindmap.js';
 import { field, metaFields, finish, added, removed, changedPresets } from './kit.js';
 import type { FieldChange, ItemChange } from './types.js';
-import { carryMeta, REMOVED } from './merge.js';
+import { keepRemoved, REMOVED } from './merge.js';
 import { type MergeEnv } from './types.js';
 import { mergeText } from './text.js';
 
@@ -102,8 +102,7 @@ export function diffMindmap(a: MindmapModel, b: MindmapModel, ma: DiagramMeta, m
 
 /** The merged map: the after version, the removed nodes back under their old parent at their old rank, changed text marked. */
 export function mergeMindmap(env: MergeEnv, a: MindmapModel, b: MindmapModel): MindmapModel {
-  const { meta, byAfter, removed: gone, mark } = env;
-  const ma = env.before;
+  const { byAfter, removed: gone } = env;
   const nodes = new Map<string, MindNode>();
   for (const [id, n] of b.nodes) {
     const c = byAfter.get(`node:${id}`);
@@ -119,16 +118,15 @@ export function mergeMindmap(env: MergeEnv, a: MindmapModel, b: MindmapModel): M
   for (const na of a.nodes.values()) {
     const c = goneById.get(na.id);
     if (!c) continue;
-    const id = na.id + REMOVED;
     const parent = na.parent ? idOf(na.parent) ?? b.root : null;
-    nodes.set(id, { ...na, id, written: null, parent, children: [] });
+    const kept = keepRemoved(env, c, (id) => ({ ...na, id, written: null, parent, children: [] as string[] }));
+    const id = kept.id;
+    nodes.set(id, kept);
     const p = parent ? nodes.get(parent) : undefined;
     if (p) {
       const at = Math.min(ra.get(na.id) ?? p.children.length, p.children.length);
       p.children.splice(at, 0, id);
     }
-    carryMeta(meta, ma, 'node', na.id, id);
-    mark(c, id);
   }
   const model: MindmapModel = { ...b, nodes, root: b.root ?? (a.root ? idOf(a.root) ?? null : null) };
   assignDepths(model);

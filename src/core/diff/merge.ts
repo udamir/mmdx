@@ -2,7 +2,8 @@
 // text carrying word-level change marks. The renderer lays it out like any diagram, so removed items, removed ER
 // attributes and removed sequence messages get real room instead of being drawn on top of the new version. A removed
 // item keeps its text unmarked (the item itself shows as removed); a removed ER row inside a kept entity is marked.
-import type { DiagramMeta, ItemMeta } from '../meta/types.js';
+import { COLLECTIONS, KIND_TO_COLL, type DiagramMeta, type ItemMeta } from '../meta/types.js';
+import { mergeText } from './text.js';
 import { own, setOwn } from '../own.js';
 import { diffKind, withDiff } from '../kinds/registry.js';
 import type { SupportedModel } from '../model.js';
@@ -34,23 +35,32 @@ function mergeMeta(a: DiagramMeta, b: DiagramMeta): DiagramMeta {
   const styles: DiagramMeta['styles'] = {};
   for (const k of new Set([...Object.keys(a.styles), ...Object.keys(b.styles)])) styles[k] = { ...a.styles[k], ...b.styles[k] };
   const meta = { ...b, canvas: { ...b.canvas }, styles } as DiagramMeta;
-  for (const k of ['nodes', 'groups', 'edges', 'participants', 'messages', 'notes', 'blocks', 'boxes', 'activations', 'entities', 'rels'] as const)
-    (meta as unknown as Record<string, unknown>)[k] = { ...(b[k] ?? {}) };
+  for (const k of COLLECTIONS) if (k !== 'layers') (meta as unknown as Record<string, unknown>)[k] = { ...(b[k] ?? {}) };
   return meta;
 }
 
-const collOf: Partial<Record<ItemKind, keyof DiagramMeta>> = {
-  node: 'nodes', group: 'groups', edge: 'edges', participant: 'participants', message: 'messages', note: 'notes', block: 'blocks', entity: 'entities', rel: 'rels',
-};
-
 export function carryMeta(meta: DiagramMeta, before: DiagramMeta, kind: ItemKind, fromId: string, toId: string): void {
-  const coll = collOf[kind];
-  if (!coll) return;
+  const coll = Object.hasOwn(KIND_TO_COLL, kind) ? KIND_TO_COLL[kind as keyof typeof KIND_TO_COLL] : undefined;
+  if (!coll || coll === 'layers') return;
   const src = own(before[coll] as Record<string, ItemMeta> | undefined, fromId);
   if (src) setOwn(meta[coll] as Record<string, ItemMeta>, toId, { ...src });
 }
 
 export const changedField = (c: ItemChange | undefined, name: string) => c?.status === 'changed' && c.fields.some((f) => f.facet === 'content' && f.field === name);
+
+/** A removed item kept in the merged picture: made with its merged id (the `~del` suffix), its metadata carried, marked. */
+export function keepRemoved<T>(env: MergeEnv, c: ItemChange, make: (id: string) => T): T {
+  const id = c.id + REMOVED;
+  const x = make(id);
+  carryMeta(env.meta, env.before, c.kind, c.id, id);
+  env.mark(c, id);
+  return x;
+}
+
+/** An item of the after version with its text marked word by word when the change touched it (`key`: the text field). */
+export function relabelChanged<T extends { label: string }>(c: ItemChange | undefined, before: { label: string } | undefined, after: T): T {
+  return changedField(c, 'label') ? { ...after, label: mergeText(before?.label ?? '', after.label) } : after;
+}
 
 /**
  * Builds the merged model, or null when the diagram type changed (the views then fall back to before / after).

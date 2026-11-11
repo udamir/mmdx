@@ -5,9 +5,9 @@
 // link are content. Pseudo-states (`[*]start`, `X/[*]end`…) are matched by id only.
 import type { DiagramMeta } from '../meta/types.js';
 import type { StateEdge, StateGroup, StateModel, StateNode, StateNote } from '../model.js';
-import { field, metaFields, mermaidStyleOf, finish, added, removed, changedPresets, align, renames } from './kit.js';
+import { added, align, changedPresets, classDefFields, diffAligned, diffById, field, finish, metaFields, removed, renames, styleFields } from './kit.js';
 import type { FieldChange, ItemChange } from './types.js';
-import { carryMeta, changedField, REMOVED } from './merge.js';
+import { changedField, keepRemoved, relabelChanged, REMOVED } from './merge.js';
 import { type MergeEnv } from './types.js';
 import { mergeText } from './text.js';
 import { maxOf } from '../geom.js';
@@ -33,7 +33,7 @@ const linkOf = (x: { link?: string; tooltip?: string }): string | undefined => (
 export function diffState(a: StateModel, b: StateModel, ma: DiagramMeta, mb: DiagramMeta, items: ItemChange[], doc: FieldChange[]): void {
   field(doc, 'layout', 'direction', a.direction, b.direction);
   field(doc, 'content', 'title', a.title, b.title);
-  for (const c of new Set([...Object.keys(a.classDefs), ...Object.keys(b.classDefs)])) field(doc, 'style', `classDef ${c}`, a.classDefs[c], b.classDefs[c]);
+  classDefFields(doc, a.classDefs, b.classDefs);
   const nodePresets = changedPresets(ma, mb, 'node'), edgePresets = changedPresets(ma, mb, 'edge'), groupPresets = changedPresets(ma, mb, 'group'), notePresets = changedPresets(ma, mb, 'note');
 
   // states: by id; a removed and an added state with the same title and kind are a rename (pseudo-states by id only)
@@ -44,65 +44,36 @@ export function diffState(a: StateModel, b: StateModel, ma: DiagramMeta, mb: Dia
     return `${n.label}\u0000${n.kind}`;
   };
   const renamed = renames(goneNodes, newNodes, sig);
-  const back = new Map([...renamed].map(([x, y]) => [y, x]));
   const toAfter = (id: string) => renamed.get(id) ?? id;
 
-  const nodeFields = (na: StateNode, nb: StateNode): FieldChange[] => {
-    const f: FieldChange[] = [];
+  diffById(items, 'node', a.nodes, b.nodes, nodeName, (na, nb, f) => {
     field(f, 'content', 'id', na.id, nb.id);
     field(f, 'content', 'label', na.label, nb.label);
     field(f, 'content', 'descriptions', na.descriptions.join('\n') || undefined, nb.descriptions.join('\n') || undefined);
     field(f, 'content', 'kind', na.kind, nb.kind);
     field(f, 'content', 'link', linkOf(na), linkOf(nb));
     field(f, 'layout', 'composite', placeOf(a, na.parent, na.region), placeOf(b, nb.parent, nb.region));
-    field(f, 'style', 'classes', na.classes.join(' ') || undefined, nb.classes.join(' ') || undefined);
-    field(f, 'style', 'Mermaid style', mermaidStyleOf(na.classes, na.style, a.classDefs), mermaidStyleOf(nb.classes, nb.style, b.classDefs));
+    styleFields(f, na, nb, a.classDefs, b.classDefs);
     metaFields(f, ma.nodes?.[na.id], mb.nodes?.[nb.id], nodePresets);
-    return f;
-  };
-  for (const [id, nb] of b.nodes) {
-    const beforeId = back.get(id) ?? id;
-    const na = a.nodes.get(beforeId);
-    items.push(na ? finish('node', id, nodeName(nb), nodeFields(na, nb), beforeId) : added('node', id, nodeName(nb)));
-  }
-  for (const [id, na] of a.nodes) if (!b.nodes.has(id) && !renamed.has(id)) items.push(removed('node', id, nodeName(na)));
+  }, renamed);
 
   // composites: by id
-  for (const [id, gb] of b.groups) {
-    const ga = a.groups.get(id);
-    if (!ga) {
-      items.push(added('group', id, one(gb.label) || id));
-      continue;
-    }
-    const f: FieldChange[] = [];
+  diffById(items, 'group', a.groups, b.groups, (g, id) => one(g.label) || id, (ga, gb, f) => {
     field(f, 'content', 'label', ga.label, gb.label);
     field(f, 'content', 'link', linkOf(ga), linkOf(gb));
     field(f, 'layout', 'parent composite', placeOf(a, ga.parent, ga.region), placeOf(b, gb.parent, gb.region));
     field(f, 'layout', 'direction', ga.dir, gb.dir);
     field(f, 'layout', 'regions', ga.regions, gb.regions);
-    field(f, 'style', 'classes', ga.classes.join(' ') || undefined, gb.classes.join(' ') || undefined);
-    field(f, 'style', 'Mermaid style', mermaidStyleOf(ga.classes, ga.style, a.classDefs), mermaidStyleOf(gb.classes, gb.style, b.classDefs));
-    metaFields(f, ma.groups?.[id], mb.groups?.[id], groupPresets);
-    items.push(finish('group', id, one(gb.label) || id, f));
-  }
-  for (const [id, ga] of a.groups) if (!b.groups.has(id)) items.push(removed('group', id, one(ga.label) || id));
+    styleFields(f, ga, gb, a.classDefs, b.classDefs);
+    metaFields(f, ma.groups?.[gb.id], mb.groups?.[gb.id], groupPresets);
+  });
 
   // transitions: matched by their ends (through renames), then in order among parallel ones
   const edgeKey = (e: StateEdge, map: (id: string) => string) => `${map(e.from)}->${map(e.to)}`;
-  const { pairs, onlyA, onlyB } = align(
-    a.edges,
-    b.edges,
-    (e) => `${edgeKey(e, toAfter)}|${e.label}`,
-    (e, side) => edgeKey(e, side === 'a' ? toAfter : (i) => i),
-  );
-  for (const [ea, eb] of pairs) {
-    const f: FieldChange[] = [];
+  diffAligned(items, 'edge', a.edges, b.edges, (e) => `${edgeKey(e, toAfter)}|${e.label}`, (e, side) => edgeKey(e, side === 'a' ? toAfter : (i) => i), (e, side) => edgeName(e, side === 'a' ? a : b), (ea, eb, f) => {
     field(f, 'content', 'label', ea.label, eb.label);
     metaFields(f, ma.edges?.[ea.id], mb.edges?.[eb.id], edgePresets);
-    items.push(finish('edge', eb.id, edgeName(eb, b), f, ea.id));
-  }
-  for (const e of onlyB) items.push(added('edge', e.id, edgeName(e, b)));
-  for (const e of onlyA) items.push(removed('edge', e.id, edgeName(e, a)));
+  });
 
   // notes: by (state, side), then in order among those (the same text first); a note that only changed sides is moved
   const where = (n: StateNote, map: (id: string) => string) => `${map(n.target)}|${n.side}`;
@@ -145,8 +116,7 @@ export function diffState(a: StateModel, b: StateModel, ma: DiagramMeta, mb: Dia
  * them; changed titles, description rows, transition labels and note texts marked word by word.
  */
 export function mergeState(env: MergeEnv, a: StateModel, b: StateModel): StateModel {
-  const { diff, meta, byAfter, removed: gone, mark } = env;
-  const ma = env.before;
+  const { diff, byAfter, removed: gone } = env;
   const groups = new Map<string, StateGroup>(), nodes = new Map<string, StateNode>();
   for (const [id, g] of b.groups) {
     const c = byAfter.get(`group:${id}`);
@@ -182,25 +152,21 @@ export function mergeState(env: MergeEnv, a: StateModel, b: StateModel): StateMo
 
   // removed composites: all of them first, so a removed composite inside another removed one finds its parent
   const goneGroups = [...a.groups.values()].filter((g) => goneBy.has(`group:${g.id}`));
-  for (const ga of goneGroups) groups.set(ga.id + REMOVED, { ...ga, id: ga.id + REMOVED, children: [] });
+  for (const ga of goneGroups) groups.set(ga.id + REMOVED, keepRemoved(env, goneBy.get(`group:${ga.id}`)!, (id) => ({ ...ga, id, children: [] })));
   for (const ga of goneGroups) {
     const id = ga.id + REMOVED;
     const at = placeIn(ga.parent, ga.region);
     Object.assign(groups.get(id)!, at);
     groups.get(at.parent ?? '')?.children.push(id);
-    carryMeta(meta, ma, 'group', ga.id, id);
-    mark(goneBy.get(`group:${ga.id}`)!, id);
   }
   // removed states, in their old composite
   for (const na of a.nodes.values()) {
     const c = goneBy.get(`node:${na.id}`);
     if (!c) continue;
-    const id = na.id + REMOVED;
     const at = placeIn(na.parent, na.region);
-    nodes.set(id, { ...na, id, ...at });
-    groups.get(at.parent ?? '')?.children.push(id);
-    carryMeta(meta, ma, 'node', na.id, id);
-    mark(c, id);
+    const kept = keepRemoved(env, c, (id) => ({ ...na, id, ...at }));
+    nodes.set(kept.id, kept);
+    groups.get(at.parent ?? '')?.children.push(kept.id);
   }
 
   const end = (id: string): string => idOf.get(id) ?? id;
@@ -209,7 +175,7 @@ export function mergeState(env: MergeEnv, a: StateModel, b: StateModel): StateMo
   const edges: StateEdge[] = b.edges.map((e) => {
     const c = byAfter.get(`edge:${e.id}`);
     const before = aEdges.get(c?.beforeId ?? e.id);
-    return before && changedField(c, 'label') ? { ...e, label: mergeText(before.label, e.label) } : e;
+    return before ? relabelChanged(c, before, e) : e;
   });
   let index = Math.max(-1, maxOf(edges.map((e) => e.index))) + 1;
   for (const e of a.edges) {
@@ -217,11 +183,8 @@ export function mergeState(env: MergeEnv, a: StateModel, b: StateModel): StateMo
     if (!c) continue;
     const from = end(e.from), to = end(e.to);
     if (!exists(from) || !exists(to)) continue;
-    const id = e.id + REMOVED;
     const at = placeIn(e.scope, e.region);
-    edges.push({ ...e, id, from, to, scope: at.parent, region: at.region, index: index++ });
-    carryMeta(meta, ma, 'edge', e.id, id);
-    mark(c, id);
+    edges.push(keepRemoved(env, c, (id) => ({ ...e, id, from, to, scope: at.parent, region: at.region, index: index++ })));
   }
 
   const aNotes = new Map(a.notes.map((n) => [n.id, n]));
@@ -235,11 +198,8 @@ export function mergeState(env: MergeEnv, a: StateModel, b: StateModel): StateMo
     if (!c) continue;
     const target = end(n.target);
     if (!exists(target)) continue;
-    const id = n.id + REMOVED;
     const at = placeIn(n.scope, n.region);
-    notes.push({ ...n, id, target, scope: at.parent, region: at.region });
-    carryMeta(meta, ma, 'note', n.id, id);
-    mark(c, id);
+    notes.push(keepRemoved(env, c, (id) => ({ ...n, id, target, scope: at.parent, region: at.region })));
   }
 
   const model: StateModel = { ...b, nodes, groups, edges, notes, classDefs: { ...a.classDefs, ...b.classDefs } };

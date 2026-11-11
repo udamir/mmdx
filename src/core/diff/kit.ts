@@ -164,3 +164,61 @@ export function renames(goneIds: string[], newIds: string[], sig: (side: 'a' | '
   }
   return out;
 }
+
+// ---- the per-kind diff bodies (X4, task 4.6) ------------------------------------------------------------------------
+
+/** What a kind compares on two versions of one item (its content, layout and style fields). */
+export type FieldsFn<T> = (a: T, b: T, f: FieldChange[]) => void;
+
+/**
+ * Items matched by id: each item of the after version is added or compared, then the before version's items that are
+ * gone are removed. `renamed` (before id → after id) pairs items whose id changed; the change keeps the before id.
+ */
+export function diffById<T>(out: ItemChange[], kind: ItemKind, A: ReadonlyMap<string, T>, B: ReadonlyMap<string, T>, name: (t: T, id: string) => string, fields: FieldsFn<T>, renamed?: ReadonlyMap<string, string>): void {
+  const from = renamed ? new Map([...renamed].map(([a, b]) => [b, a])) : null;
+  for (const [id, xb] of B) {
+    const beforeId = from?.get(id) ?? id;
+    const xa = A.get(beforeId);
+    if (xa === undefined) {
+      out.push(added(kind, id, name(xb, id)));
+      continue;
+    }
+    const f: FieldChange[] = [];
+    fields(xa, xb, f);
+    out.push(finish(kind, id, name(xb, id), f, beforeId));
+  }
+  for (const [id, xa] of A) if (!B.has(id) && !renamed?.has(id)) out.push(removed(kind, id, name(xa, id)));
+}
+
+/**
+ * Positional items matched by aligning the two lists (`align`: equal keys first, then in order within a group); the
+ * pairs are compared, the rest added or removed. `name` reads an item in its own version.
+ */
+export function diffAligned<T extends { id: string }>(
+  out: ItemChange[], kind: ItemKind, A: readonly T[], B: readonly T[], key: (x: T) => string, group: (x: T, side: 'a' | 'b') => string,
+  name: (x: T, side: 'a' | 'b') => string, fields: FieldsFn<T>,
+): void {
+  const { pairs, onlyA, onlyB } = align(A, B, key, group);
+  for (const [xa, xb] of pairs) {
+    const f: FieldChange[] = [];
+    fields(xa, xb, f);
+    out.push(finish(kind, xb.id, name(xb, 'b'), f, xa.id));
+  }
+  for (const x of onlyB) out.push(added(kind, x.id, name(x, 'b')));
+  for (const x of onlyA) out.push(removed(kind, x.id, name(x, 'a')));
+}
+
+/** Every `classDef` that differs, as a document-level style change. */
+export function classDefFields(doc: FieldChange[], a: Readonly<Record<string, MermaidStyle>>, b: Readonly<Record<string, MermaidStyle>>): void {
+  for (const c of new Set([...Object.keys(a), ...Object.keys(b)])) field(doc, 'style', `classDef ${c}`, a[c], b[c]);
+}
+
+/** An item's Mermaid classes (as written, space-separated) and its Mermaid style (its classes' and its own), as style changes. */
+export function styleFields(
+  f: FieldChange[], a: { readonly classes?: readonly string[]; readonly style?: MermaidStyle }, b: { readonly classes?: readonly string[]; readonly style?: MermaidStyle },
+  defsA: Record<string, MermaidStyle>, defsB: Record<string, MermaidStyle>,
+): void {
+  field(f, 'style', 'classes', a.classes?.join(' ') || undefined, b.classes?.join(' ') || undefined);
+  field(f, 'style', 'Mermaid style', mermaidStyleOf(a.classes, a.style, defsA), mermaidStyleOf(b.classes, b.style, defsB));
+}
+
