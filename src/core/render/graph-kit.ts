@@ -1,13 +1,9 @@
 // The graph render kit (X1, task 4.4): what the flowchart, state and ER renderers each did in their own copy — the
 // empty metadata, a string-or-nothing read, the groups a hidden group hides, a group's depth, the bounds accumulator
-// and the diagram's title above it. Pure: scene nodes and numbers, no DOM.
+// and the accessibility line (the title block above a diagram is render/common.ts `diagramTitle`). Pure numbers and
+// sets, no imports at run time, so a renderer that loads it pays for nothing it does not use.
 import type { ItemMeta } from '../meta/types.js';
-import { g } from '../scene/build.js';
-import type { SceneNode } from '../scene/types.js';
-import { textBlockWidth } from '../text/wrap.js';
 import type { CenterBox, Rect } from '../types.js';
-import { font, textBlock } from './common.js';
-import type { RenderContext } from './types.js';
 
 /** The metadata of an item that has none (never written: a renderer reads it, the ops build their own). */
 export const EMPTY_META: Readonly<ItemMeta> = Object.freeze({});
@@ -68,6 +64,15 @@ export class Bounds {
     this.y1 = Math.max(this.y1, b.y + b.h / 2 + this.slack);
   }
 
+  /** Grows by an edge rectangle (a box with extras on some sides); a non-finite edge is skipped. */
+  growEdges(left: number, top: number, right: number, bottom: number): void {
+    if (![left, top, right, bottom].every(Number.isFinite)) return;
+    this.x0 = Math.min(this.x0, left);
+    this.y0 = Math.min(this.y0, top);
+    this.x1 = Math.max(this.x1, right + this.slack);
+    this.y1 = Math.max(this.y1, bottom + this.slack);
+  }
+
   /** Nothing was grown in. */
   get empty(): boolean {
     return this.x0 === Infinity;
@@ -80,23 +85,8 @@ export class Bounds {
   }
 }
 
-/**
- * The diagram's title (the frontmatter's, or a `title` statement), above the diagram: `bounds` grows up by the
- * title's block and wide enough for it; returns the title's scene (none without a title).
- */
-export function diagramTitle(bounds: Rect, title: string | undefined, ctx: RenderContext, family: string, pad: number): SceneNode[] {
-  const text = (title ?? '').trim();
-  if (!text) return [];
-  const tl = text.split('\n');
-  const size = 22, blockH = tl.length * size * 1.3;
-  const tw = textBlockWidth(tl, font(size, 600, family), ctx.measure);
-  bounds.y -= blockH + 14;
-  bounds.h += blockH + 14;
-  if (tw + 2 * pad > bounds.w) {
-    bounds.x -= (tw + 2 * pad - bounds.w) / 2;
-    bounds.w = tw + 2 * pad;
-  }
-  return [g({ class: 'title', 'data-part': 'title' }, [
-    textBlock(tl, bounds.x + bounds.w / 2, bounds.y + pad + blockH / 2, { size, weight: 600, color: ctx.color('@title') ?? '#333', family }),
-  ], { key: 'title' })];
+/** `accTitle` / `accDescr`: the SVG's <title> and <desc>; undefined when the diagram has neither. */
+export function a11yOf(model: { readonly accTitle?: string; readonly accDescr?: string }): { title?: string; desc?: string } | undefined {
+  if (!model.accTitle && !model.accDescr) return undefined;
+  return { ...(model.accTitle ? { title: model.accTitle } : {}), ...(model.accDescr ? { desc: model.accDescr } : {}) };
 }

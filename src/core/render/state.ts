@@ -7,11 +7,13 @@
 // dashed line to its state; a transition an arrow with its label on a halo. A state's icon (the leading label token,
 // where `iconPos` puts it) and its metadata image draw as in every kind (render/decorate.ts), the image above the
 // title. Labels with markdown or icon tokens and images draw through the media kit (a lazy chunk), as in the flowchart.
+import { a11yOf, Bounds, depthOf, EMPTY_META, hiddenGroups, str } from './graph-kit.js';
+import { diagramTitle } from './title.js';
 import { ancestorsOf, layoutCompound, type CompoundContainer, type CompoundEdge, type CompoundNode, type CompoundResult } from '../layout/compound.js';
 import { polylineCrosses, routeAround } from '../layout/route.js';
 import type { ItemMeta } from '../meta/types.js';
 import type { Direction, MermaidStyle, StateGroup, StateModel, StateNode, StateNote } from '../model.js';
-import { el, g, title as tooltip } from '../scene/build.js';
+import { el, title as tooltip } from '../scene/build.js';
 import type { SceneNode, TextRun } from '../scene/types.js';
 import type { StyleProps } from '../style.js';
 import { textBlockWidth, wrap } from '../text/wrap.js';
@@ -32,14 +34,12 @@ import { minOf } from '../geom.js';
 
 export { statePresets, stateNodePreset, stateGroupPreset, stateEdgePreset, stateNotePreset, type StatePresets } from './state-presets.js';
 
-const NO_META: ItemMeta = {};
 /** A style whose border colour is `c` (filled marks take the border colour: the start dot, the fork bar). */
 const withStroke = (st: StyleProps, c: string | undefined): StyleProps => {
   const out = { ...st };
   if (c !== undefined) out.stroke = c;
   return out;
 };
-const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
 
 /** Where labels wrap (Mermaid's default wrapping width). */
 const WRAP = 200;
@@ -94,7 +94,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
   const family = T.font;
   const defs = new Defs(ctx.idPrefix);
   const routingDefault = meta.canvas.routing || 'curved';
-  const m = (coll: 'nodes' | 'groups' | 'edges' | 'notes', id: string): ItemMeta => meta[coll]?.[id] ?? NO_META;
+  const m = (coll: 'nodes' | 'groups' | 'edges' | 'notes', id: string): ItemMeta => meta[coll]?.[id] ?? EMPTY_META;
 
   // rich labels, icons and images draw through the media kit (a lazy chunk), asked for only when a label needs it
   const kit = lazyKit();
@@ -117,17 +117,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
 
   // ---- hidden by layers: a hidden composite hides its contents; a hidden state its transitions and notes
   const hidden = { node: hiddenOf(opts, 'node'), group: hiddenOf(opts, 'group'), edge: hiddenOf(opts, 'edge'), note: hiddenOf(opts, 'note') };
-  const groupHidden = new Set<string>();
-  for (const g of model.groups.values()) {
-    if (!hidden.group.has(g.id)) continue;
-    const stack = [g.id];
-    while (stack.length) {
-      const id = stack.pop()!;
-      if (groupHidden.has(id)) continue;
-      groupHidden.add(id);
-      for (const c of model.groups.get(id)?.children ?? []) if (model.groups.has(c)) stack.push(c);
-    }
-  }
+  const groupHidden = hiddenGroups(model.groups, hidden.group);
   const hiddenNodes = new Set<string>();
   for (const n of model.nodes.values()) if (hidden.node.has(n.id) || (n.parent && groupHidden.has(n.parent))) hiddenNodes.add(n.id);
   const endHidden = (id: string): boolean => hiddenNodes.has(id) || groupHidden.has(id);
@@ -163,11 +153,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
   // ---- composites: order, colours, styles and titles (their boxes come from the layout)
   const groupOrder = [...model.groups.values()].sort((a, b) => a.order - b.order).map((g) => g.id);
   const palette = meta.canvas.composites === 'palette' ? Object.keys(S.compositeColors).sort((a, b) => Number(a) - Number(b)).map((k) => S.compositeColors[k]!) : [];
-  const depthOf = (g: StateGroup): number => {
-    let d = 0;
-    for (let p = g.parent; p && d <= model.groups.size; p = model.groups.get(p)?.parent ?? null) d++;
-    return d;
-  };
+  const depth = depthOf(model.groups);
   const classStyles = (classes: readonly string[], presetsOf: Record<string, StyleProps>): (MermaidStyle | undefined)[] =>
     classes.filter((c) => !presetOf(presetsOf, c) && c !== 'default').map((c) => model.classDefs[c]);
   const groups = new Map<string, GroupItem>();
@@ -178,7 +164,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
     const st = mergeStyle(ctx, S.composite, colour, baseStyle(meta, 'group'), presetOf(P.group, preset), ...classStyles(g.classes, P.group), g.style, pickStyle(gm));
     const tfont = font(st.titleSize ?? 14, st.titleWeight, st.fontFamily || family);
     const title = g.label.trim() && (st.titleSize ?? 14) > 0 ? labelOf(g.label, tfont, st.titleColor, g.line, 0) : null;
-    groups.set(g.id, { g, m: gm, st, preset, title, box: { x: NaN, y: NaN, w: 0, h: 0 }, depth: depthOf(g) });
+    groups.set(g.id, { g, m: gm, st, preset, title, box: { x: NaN, y: NaN, w: 0, h: 0 }, depth: depth(g.id) });
   }
 
   // ---- states: styles and sizes
@@ -512,14 +498,8 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
   }
 
   // ---- bounds
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  const grow = (b: CenterBox): void => {
-    if (!Number.isFinite(b.x) || !Number.isFinite(b.y)) return;
-    x0 = Math.min(x0, b.x - b.w / 2);
-    y0 = Math.min(y0, b.y - b.h / 2);
-    x1 = Math.max(x1, b.x + b.w / 2 + 6);
-    y1 = Math.max(y1, b.y + b.h / 2 + 6);
-  };
+  const box = new Bounds(6);
+  const grow = (b: CenterBox): void => box.grow(b);
   for (const [id, N] of nodes) if (!hiddenNodes.has(id)) grow(N);
   for (const G of groups.values()) if (!groupHidden.has(G.g.id)) grow(G.box);
   for (const it of notes.values()) if (!hidden.note.has(it.note.id) && !endHidden(it.note.target)) grow(it);
@@ -528,31 +508,10 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
     for (const [px, py] of eg.points) grow({ x: px, y: py, w: 0, h: 0 });
   }
   for (const x of visibleEdges) if (x.e.from === x.e.to) grow({ x: x.a.x + x.a.w / 2 + 30, y: x.a.y, w: 8, h: 40 });
-  if (x0 === Infinity) {
-    x0 = 0;
-    y0 = 0;
-    x1 = 400;
-    y1 = 300;
-  }
   const pad = env.pad;
-  const bounds: Rect = { x: x0 - pad, y: y0 - pad, w: x1 - x0 + 2 * pad, h: y1 - y0 + 2 * pad };
+  const bounds: Rect = box.rect(pad);
   // the frontmatter's `title`, above the diagram
-  const titleNodes: SceneNode[] = [];
-  const titleText = (model.title ?? '').trim();
-  if (titleText) {
-    const tl = titleText.split('\n');
-    const size = 22, blockH = tl.length * size * 1.3;
-    const tw = textBlockWidth(tl, font(size, 600, family), ctx.measure);
-    bounds.y -= blockH + 14;
-    bounds.h += blockH + 14;
-    if (tw + 2 * pad > bounds.w) {
-      bounds.x -= (tw + 2 * pad - bounds.w) / 2;
-      bounds.w = tw + 2 * pad;
-    }
-    titleNodes.push(g({ class: 'title', 'data-part': 'title' }, [
-      textBlock(tl, bounds.x + bounds.w / 2, bounds.y + pad + blockH / 2, { size, weight: 600, color: ctx.color('@title') ?? '#333', family }),
-    ], { key: 'title' }));
-  }
+  const titleNodes = diagramTitle(bounds, model.title, ctx, family, pad);
 
   const geom: StateGeometry = {
     type: 'state',
@@ -579,7 +538,8 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
       note: countBy([...notes.values()].map((x) => x.preset || '(none)')),
     },
   };
-  if (model.accTitle || model.accDescr) out.a11y = { ...(model.accTitle ? { title: model.accTitle } : {}), ...(model.accDescr ? { desc: model.accDescr } : {}) };
+  const a11y = a11yOf(model);
+  if (a11y) out.a11y = a11y;
   return out;
 
   /** The compound layout's input: states and notes as nodes, composites as containers, transitions as edges. */

@@ -1,6 +1,7 @@
 // The graph render kit (X1, task 4.4a): the pieces the flowchart, state and ER renderers shared by copying.
 import { describe, expect, it } from 'vitest';
-import { Bounds, depthOf, diagramTitle, EMPTY_META, hiddenGroups, str } from '../../../src/core/render/graph-kit.js';
+import { diagramTitle } from '../../../src/core/render/title.js';
+import { a11yOf, Bounds, depthOf, EMPTY_META, hiddenGroups, str } from '../../../src/core/render/graph-kit.js';
 import { emptyMeta } from '../../../src/core/meta/types.js';
 import { makeCtx, registry } from './helpers.js';
 
@@ -53,4 +54,15 @@ describe('graph kit', () => {
     expect(bounds.w).toBeGreaterThan(10);
     expect(bounds.x).toBeLessThan(0);
   });
+
+  it('Bounds.growEdges takes a box with extras on some sides; a11yOf gives the SVG title and description', () => {
+    const b = new Bounds();
+    b.growEdges(-50, 0, 10, 20);
+    b.growEdges(0, NaN, 100, 0);
+    expect(b.rect(0)).toEqual({ x: -50, y: 0, w: 60, h: 20 });
+    expect(a11yOf({})).toBeUndefined();
+    expect(a11yOf({ accTitle: 'T' })).toEqual({ title: 'T' });
+    expect(a11yOf({ accTitle: 'T', accDescr: 'D' })).toEqual({ title: 'T', desc: 'D' });
+  });
 });
+
