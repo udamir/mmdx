@@ -43,6 +43,15 @@ export function coreLayerOf(r) {
   if (r === 'icons/names.ts') return 0;
   if (r === 'strip-styles.ts') return 3;
   if (r === 'media/kit-impl.ts') return 5;
+  // a diagram type's own folder (A12: core/kinds/<type>/): each file keeps the sub-layer of the stage it implements
+  const slice = /^kinds\/[^/]+\/([^/]+)\.ts$/.exec(r)?.[1];
+  if (slice) {
+    if (slice.startsWith('parse')) return 3;
+    if (/^(render|presets|style)$/.test(slice)) return 5;
+    if (slice === 'ops' || (slice.startsWith('ops-') && slice !== 'ops-kind')) return 6;
+    if (slice === 'diff') return 7;
+    return 8;
+  }
   if (/^(kinds\/all[^/]*|pipeline|context|parse\/index|render\/index|diff\/all|all|extras)\.ts$/.test(r)) return 9;
   if (/^kinds\/(types|ops-types|diff-types|info|names|registry)\.ts$/.test(r) || r === 'summary.ts' || r.startsWith('kind/')) return 1;
   if (/^(types|geom|own|style|validate|model|ids|item-caps)\.ts$/.test(r) || /^(text|scene)\//.test(r) || /^[^/]+\/types\.ts$/.test(r)) return 0;
@@ -105,7 +114,8 @@ export function edgeViolation(e) {
   if (mod(e.from) && mod(e.to) && mod(e.from) !== mod(e.to)) return `module → module ${mod(e.from)} → ${mod(e.to)}`;
   if (/^editor\/kinds\//.test(e.from) && /^editor\/modules\//.test(e.to)) return 'editor kinds → editor module';
   if (/^view\/modules\/[^/]+$/.test(e.from) && /^view\/modules\/[^/]+$/.test(e.to) && !/index|viewer|lazy/.test(e.from)) return 'view module → view module';
-  if (/^core\/(ops|kinds)\//.test(e.from) && /^core\/render\/(flowchart|sequence|er|state|mindmap)\.ts$/.test(e.to)) return 'ops/kinds → full renderer';
+  // the full renderer is the view kind's (view.ts): the ops, the other kind descriptors and other types do not load it
+  if (/^core\/(ops\/|kinds\/)/.test(e.from) && !/\/view\.ts$/.test(e.from) && /^core\/kinds\/[^/]+\/render\.ts$/.test(e.to)) return 'ops/kinds → full renderer';
   if (af === 'core' && at === 'core') {
     const cf = coreLayerOf(e.from.slice(5)), ct = coreLayerOf(e.to.slice(5));
     if (ct > cf) return `upward core C${cf} → C${ct}`;

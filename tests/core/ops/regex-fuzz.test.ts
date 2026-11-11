@@ -35,7 +35,9 @@ const INPUTS = [
 ];
 
 describe('regex fuzz: the parsers\' and the ops\' RegExps on adversarial lines', () => {
-  const all = [...files(join(ROOT, 'parse')), ...files(join(ROOT, 'ops'))].flatMap(literals);
+  // the shared parsers and ops, and each type's own (core/kinds/<type>/parse*.ts, ops*.ts, A12)
+  const kindFiles = files(join(ROOT, 'kinds')).filter((f) => /[\\/]kinds[\\/][^\\/]+[\\/](parse|ops)[^\\/]*\.ts$/.test(f) && !/ops-kind\.ts$/.test(f));
+  const all = [...files(join(ROOT, 'parse')), ...files(join(ROOT, 'ops')), ...kindFiles].flatMap(literals);
 
   it('finds the RegExps', () => {
     expect(all.length).toBeGreaterThan(150);

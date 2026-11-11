@@ -4,9 +4,9 @@
 // shape change writes a bracket or `@{ shape }` in Mermaid Chart's style. Every output is parsed by stock Mermaid 12.2 and 11.17.
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { FlowchartModel } from '../../../src/core/model.js';
-import { addFlowNode, cloneFlow, deleteFlow, relabelFlowEdge, relabelFlowNode, setFlowShape } from '../../../src/core/ops/flowchart.js';
+import { addFlowNode, cloneFlow, deleteFlow, relabelFlowEdge, relabelFlowNode, setFlowShape } from '../../../src/core/kinds/flowchart/ops.js';
 import { reconnectFlow } from '../../../src/core/ops/connect.js';
-import { parseFlowchart } from '../../../src/core/parse/flowchart.js';
+import { parseFlowchart } from '../../../src/core/kinds/flowchart/parse.js';
 import { stockParse } from '../../helpers/mermaid.js';
 
 const P = (code: string): FlowchartModel => parseFlowchart(code);

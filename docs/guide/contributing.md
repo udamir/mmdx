@@ -36,12 +36,12 @@ pnpm size             # gzip size budgets per entry point
 
 | Folder | Contents |
 |---|---|
-| `src/core` | Parsers, layout, renderers, metadata, themes — pure TypeScript, no DOM; each diagram type's kinds in `src/core/kinds` |
+| `src/core` | Parsers, layout, renderers, metadata, themes — pure TypeScript, no DOM; each diagram type's code in its folder, `src/core/kinds/<type>/` |
 | `src/dom` | DOM patcher, viewport, `DiagramCanvas`, pen strokes, worker client, export |
 | `src/ui` | Signals, the UI blocks (`src/ui/blocks`), toolbars, dialogs, styles and UI strings |
 | `src/view` | The view kernel (`ViewCore`), module host, scene sources and the standard view modules |
 | `src/diff` | The diff session, scene and modules (`<mmdx-diff>` and History) |
-| `src/editor` | The editor core (on the kernel), its store scene, its feature modules and each diagram type's edit kind (`src/editor/kinds`) |
+| `src/editor` | The editor core (on the kernel), its store scene, its feature modules and each diagram type's edit kind (`src/editor/kinds/<type>/`) |
 | `src/theme-editor` | The theme editor |
 | `src/elements` | The web components |
 | `src/adapters`, `src/markdown`, `src/wrappers` | Host adapters, Markdown plugins, React wrappers |
@@ -58,13 +58,13 @@ pnpm size             # gzip size budgets per entry point
 
 ## Adding a diagram type
 
-A diagram type is a set of kinds ([Architecture → Diagram kinds](/guide/architecture#diagram-kinds)); the compiler points at every table that still lacks the new type.
+A diagram type is a set of kinds in a folder of its own ([Architecture → Diagram kinds](/guide/architecture#diagram-kinds)). A type outside the repository is a kind plugin: it registers with `registerKindPlugin` and `registerEditorKind` and edits no file here (`tests/arch/kind-plugin.test.ts` is the smallest one). A built-in type also takes the five built-in tables:
 
-1. Add the type to `DiagramType` (`src/core/types.ts`), its header and starter to `KIND_INFO` (`src/core/kinds/info.ts`) and its names to `KIND_NAMES`.
-2. Write the model (`src/core/model.ts`), the parser (`src/core/parse/<type>.ts`) and the renderer with its geometry index (`src/core/render/<type>.ts`, `src/core/render/types.ts`).
-3. Write the view, diff and ops kinds (`src/core/kinds/<type>.ts`, `<type>-diff.ts`, `<type>-ops.ts`) and add them to `all.ts`, `all-diff.ts` and `all-ops.ts`; the outline goes to `<type>-outline.ts` and the `OUTLINES` table.
-4. Write the edit kind (`src/editor/kinds/<type>.ts`, re-exporting the view and ops kinds) and add it to `src/editor/kinds/all.ts`.
-5. Fill the tables the compiler asks for: the viewer's and the diff's importers (`KIND_MODULES` in `src/platform/kinds.ts`), the editor's (`src/editor/kinds/loader.ts`), the theme section (`src/core/theme/types.ts`, the registry's `SECTION_DEFAULTS`, the theme editor's `SECTION_UI` and `DEFAULT_SAMPLES`), the empty-state pictogram. A type whose items share a kind with the flowchart but look different (mindmap nodes, states) gets its own preview samples in `src/ui/item-preview-core.ts` (`TYPE_PREVIEWS`, `ITEM_SAMPLES`). Shapes only the type draws are registered by its view kind's chunk (as `src/core/shapes/state.ts` is by `src/core/kinds/state.ts`), so a page without that type does not load them.
+1. Add the type to `BuiltinType` (`src/core/types.ts`), its header and starter to `KIND_INFO` (`src/core/kinds/info.ts`) and its names to `KIND_NAMES`.
+2. Write the model (`src/core/model.ts`), the parser (`src/core/kinds/<type>/parse.ts`) and the renderer with its geometry index (`src/core/kinds/<type>/render.ts`, `src/core/render/types.ts`).
+3. Write the view, diff, ops and extras kinds (`view.ts`, `diff-kind.ts`, `ops-kind.ts`, `extras.ts` in the same folder) and add them to `all.ts`, `all-diff.ts`, `all-ops.ts` and `all-extras.ts`.
+4. Write the edit kind (`src/editor/kinds/<type>/index.ts`, re-exporting the view, ops and extras kinds) and add it to `src/editor/kinds/all.ts`.
+5. Fill the tables the compiler asks for: the kinds' importers (`kindModules` in `src/platform/kinds.ts`), the editor's (`src/editor/kinds/loader.ts`), the theme section (`src/core/theme/types.ts`, the registry's `SECTION_DEFAULTS`, the theme editor's `SECTION_UI` and `DEFAULT_SAMPLES`), and the UI (`src/ui/diagram/kind-ui.ts`: the pictogram, and the preview samples of items that share a kind with the flowchart but look different, as mindmap nodes and states do; their samples are `ITEM_SAMPLES` in `src/ui/diagram/item-preview-core.ts`). Shapes only the type draws are registered by its view kind's chunk (as `src/core/shapes/state.ts` is by `src/core/kinds/state/view.ts`), so a page without that type does not load them.
 6. Gestures of the type's own (keys, handles, drags) go into an editor module in `src/editor/modules/<type>/`, listed in `src/editor/modules/index.ts` and allow-listed in `tests/arch/no-kind-branches.test.ts`, as the sequence, `er-table` and mindmap modules are.
 7. Add an example to `examples/` (golden snapshots for every theme follow), parser and ops tests, a size row in `tools/size.mjs`, and the docs.
 

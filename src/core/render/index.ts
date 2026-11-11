@@ -7,10 +7,10 @@ import { renderWith } from './dispatch.js';
 import type { RenderContext, RenderOptions, RenderResult } from './types.js';
 
 export { effectivePage, fitPage, gridPattern, isClear, MIN_PAGE, pageBounds, pagePresets, pageScene, ratioOf } from './page.js';
-export { edgePreset, flowPresets, groupPreset, nodePreset, presetShape } from './flowchart.js';
-export { participantPresetShape } from './sequence.js';
-export { seqPresets } from './sequence-presets.js';
-export { erPresets } from './er.js';
+export { edgePreset, flowPresets, groupPreset, nodePreset, presetShape } from '../kinds/flowchart/render.js';
+export { participantPresetShape } from '../kinds/sequence/render.js';
+export { seqPresets } from '../kinds/sequence/presets.js';
+export { erPresets } from '../kinds/er/render.js';
 export { LINK_COLOR, mergeStyle, pickStyle } from './common.js';
 export { exportScene, renderSvgString, renderWith, type ExportScene, type SvgStringOptions } from './dispatch.js';
 

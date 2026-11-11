@@ -13,7 +13,7 @@ import { editKind } from '../../src/editor/kinds/registry.js';
 import { createConnection } from '../../src/editor/modules/connect/index.js';
 import { moveItem } from '../../src/core/ops/positions.js';
 import { currentPreset } from '../../src/core/ops/style-env.js';
-import { updateRel } from '../../src/core/ops/er.js';
+import { updateRel } from '../../src/core/kinds/er/ops.js';
 import { stockParse } from '../helpers/mermaid.js';
 
 vi.spyOn(console, 'error').mockImplementation(() => undefined);

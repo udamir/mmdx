@@ -10,7 +10,7 @@ import { diffModels, mergeDiagrams, stripMarks } from '../../../src/core/diff/in
 import { renderDiffWith } from '../../../src/core/diff/render.js';
 import { createContext } from '../../../src/core/context.js';
 import { ALL_VIEW_KINDS } from '../../../src/core/kinds/all.js';
-import { DIFF } from '../../../src/core/kinds/state-diff.js';
+import { DIFF } from '../../../src/core/kinds/state/diff-kind.js';
 import { splitSource } from '../../../src/core/meta/index.js';
 import type { StateModel } from '../../../src/core/model.js';
 import { parse } from '../../../src/core/parse/index.js';

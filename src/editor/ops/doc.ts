@@ -3,7 +3,7 @@
 // panel and the page toolbar share.
 import type { DiagramMeta } from '../../core/meta/types.js';
 import type { Direction, DiagramType } from '../../core/model.js';
-import { setAutonumber } from '../../core/ops/sequence.js';
+import { setAutonumber } from '../../core/kinds/sequence/ops.js';
 import { newDiagram, setDirection } from '../../core/ops/document.js';
 import type { StyleEnv } from '../../core/ops/style-env.js';
 import { DIAGRAM_TYPES as TYPES, kindInfo } from '../../core/kinds/info.js';

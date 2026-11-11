@@ -2,7 +2,7 @@
 // spaces took 1.2 s), and line offsets were found by a scan from the top per line. Compared as a ratio (4× the input
 // under 8× the time), so it holds on any machine; tiny durations are below timer noise and pass.
 import { describe, expect, it } from 'vitest';
-import { addNote } from '../../../src/core/ops/sequence.js';
+import { addNote } from '../../../src/core/kinds/sequence/ops.js';
 import { lineStart } from '../../../src/core/ops/lines.js';
 import { parse } from '../../../src/core/parse/index.js';
 import type { SequenceModel } from '../../../src/core/model.js';

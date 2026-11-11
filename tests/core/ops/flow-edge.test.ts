@@ -2,8 +2,8 @@
 // A flowchart edge's animation in the code (Mermaid 11.10 edge data): an id given where the edge has none, the data
 // written, changed and taken off in place; every output parsed by stock Mermaid and read back with the same animation.
 import { beforeAll, describe, expect, it } from 'vitest';
-import { flowEdgeAnimation, setFlowEdgeAnimation, type EdgeAnimation } from '../../../src/core/ops/flow-edge.js';
-import { parseFlowchart } from '../../../src/core/parse/flowchart.js';
+import { flowEdgeAnimation, setFlowEdgeAnimation, type EdgeAnimation } from '../../../src/core/kinds/flowchart/ops-edge.js';
+import { parseFlowchart } from '../../../src/core/kinds/flowchart/parse.js';
 
 let mermaidParse: (code: string) => Promise<unknown>;
 beforeAll(async () => {

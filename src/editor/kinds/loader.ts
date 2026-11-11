@@ -21,11 +21,11 @@ export interface KindChunk {
 }
 
 const importers = new Map<DiagramType, () => Promise<KindChunk>>(Object.entries({
-  flowchart: () => import('./flowchart.js') as Promise<KindChunk>,
-  sequence: () => import('./sequence.js') as Promise<KindChunk>,
-  er: () => import('./er.js') as Promise<KindChunk>,
-  mindmap: () => import('./mindmap.js') as Promise<KindChunk>,
-  state: () => import('./state.js') as Promise<KindChunk>,
+  flowchart: () => import('./flowchart/index.js') as Promise<KindChunk>,
+  sequence: () => import('./sequence/index.js') as Promise<KindChunk>,
+  er: () => import('./er/index.js') as Promise<KindChunk>,
+  mindmap: () => import('./mindmap/index.js') as Promise<KindChunk>,
+  state: () => import('./state/index.js') as Promise<KindChunk>,
 }));
 
 /** Where a kind plugin's editor chunk is (A11e); the built-in types' are above. */

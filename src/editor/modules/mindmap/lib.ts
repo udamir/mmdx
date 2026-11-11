@@ -3,7 +3,7 @@
 import type { DiagramMeta } from '../../../core/meta/types.js';
 import type { MindmapModel } from '../../../core/model.js';
 import { reparse } from '../../../core/parse/dispatch.js';
-import { mindNodeAt } from '../../../core/ops/mindmap.js';
+import { mindNodeAt } from '../../../core/kinds/mindmap/ops.js';
 import type { MindmapGeometry } from '../../../core/render/types.js';
 import type { Point } from '../../../core/types.js';
 import type { EditorCore, Gesture, Sel } from '../../core.js';

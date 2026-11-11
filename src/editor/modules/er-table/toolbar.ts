@@ -3,7 +3,7 @@
 import type { AttrHighlight } from '../../../core/meta/types.js';
 import type { ErAttribute } from '../../../core/model.js';
 import { addLocalColor, removeLocalColor } from '../../../core/ops/palette.js';
-import { ATTR_PRESETS, attrLook } from '../../../core/render/er-presets.js';
+import { ATTR_PRESETS, attrLook } from '../../../core/kinds/er/presets.js';
 import { themeStyleTarget } from '../../../ui/diagram/style-toolbar/theme-target.js';
 import type { Rect } from '../../../core/types.js';
 import type { KindSpec, ToolbarApi } from '../../../ui/diagram/style-toolbar.js';

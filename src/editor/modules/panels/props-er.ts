@@ -4,10 +4,10 @@
 // The attribute style popup duplicates the table editor's presets (er-table `renderPresets`) as its own markup.
 import type { AttrHighlight, ItemMeta } from '../../../core/meta/types.js';
 import type { Cardinality, ErAttribute } from '../../../core/model.js';
-import { attrText, updateEntity, updateRel } from '../../../core/ops/er.js';
+import { attrText, updateEntity, updateRel } from '../../../core/kinds/er/ops.js';
 import { cloneMeta, tidy } from '../../../core/ops/meta-util.js';
-import { parseAttrLine } from '../../../core/parse/er.js';
-import { ATTR_PRESETS, attrLook } from '../../../core/render/er-presets.js';
+import { parseAttrLine } from '../../../core/kinds/er/parse.js';
+import { ATTR_PRESETS, attrLook } from '../../../core/kinds/er/presets.js';
 import { FONTS } from '../../../ui/diagram/fonts.js';
 import { h } from '../../../ui/kit/h.js';
 import { applyMeta } from '../../ops/doc.js';

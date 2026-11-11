@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { getShared, instanceContext } from '../../src/platform/config.js';
-import { parseFlowchart } from '../../src/core/parse/flowchart.js';
+import { parseFlowchart } from '../../src/core/kinds/flowchart/parse.js';
 import { ALL_VIEW_KINDS } from '../../src/core/kinds/all.js';
 import { drawItemPreview, drawItemPreviewWith, ITEM_SAMPLES, renderItemSample, renderItemSampleWith, type PreviewKind } from '../../src/ui/diagram/item-preview.js';
 import { fitPresetGrid, shapePreview } from '../../src/ui/diagram/shape-preview.js';

@@ -2,8 +2,8 @@
 // (delete, group), copying, connecting, the Shapes menu, inspectors and toolbars. The editor loads it with the type's
 // view and ops kinds; a missing hook means the type does not offer that action.
 import type { Direction, SupportedModel } from '../../core/model.js';
-import type { EdgeAnimation } from '../../core/ops/flow-edge.js';
-import type { MediaPatch } from '../../core/ops/flow-media.js';
+import type { EdgeAnimation } from '../../core/kinds/flowchart/ops-edge.js';
+import type { MediaPatch } from '../../core/kinds/flowchart/ops-media.js';
 import type { CodeResult, ConnectResult, RefusableResult, SelectResult } from '../../core/ops/types.js';
 import type { GeometryIndex } from '../../core/render/types.js';
 import type { DiagramType, Diagnostic, ItemKind, ItemRef } from '../../core/types.js';
@@ -24,7 +24,7 @@ export interface ItemText {
   writeMarkdown?(code: string, v: string): CodeResult;
 }
 
-export type { MediaPatch } from '../../core/ops/flow-media.js';
+export type { MediaPatch } from '../../core/kinds/flowchart/ops-media.js';
 
 /** An item's icon and image, as the insert UI, the selection toolbar and Properties show them (T05). */
 export interface ItemMedia {

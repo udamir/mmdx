@@ -2,7 +2,7 @@
 // end circle → a process to another message or the end re-attached to another lifeline; process top / bottom
 // handles; block edge handles (pull / push statements); note edge handles (span); participant ◀ ▶ swap arrows.
 import type { SeqBlockStart, SeqMessage } from '../../../core/model.js';
-import { addActivation, addSeqMessageAt, moveActivationEdge, reattachMessage, resizeBlockStep, setNoteSpan, toggleActivation } from '../../../core/ops/sequence.js';
+import { addActivation, addSeqMessageAt, moveActivationEdge, reattachMessage, resizeBlockStep, setNoteSpan, toggleActivation } from '../../../core/kinds/sequence/ops.js';
 import { reparse as parse } from '../../../core/parse/dispatch.js';
 import { maxOf, minOf } from '../../../core/geom.js';
 import type { EditorCore, Gesture, Hit, Sel } from '../../core.js';

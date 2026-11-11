@@ -20,11 +20,11 @@ export interface KindModules {
 }
 
 const MODULES = new Map<DiagramType, KindModules>(Object.entries({
-  flowchart: { view: () => import('../core/kinds/flowchart.js'), diff: () => import('../core/kinds/flowchart-diff.js'), extras: () => import('../core/kinds/flowchart-extras.js') },
-  sequence: { view: () => import('../core/kinds/sequence.js'), diff: () => import('../core/kinds/sequence-diff.js'), extras: () => import('../core/kinds/sequence-extras.js') },
-  er: { view: () => import('../core/kinds/er.js'), diff: () => import('../core/kinds/er-diff.js'), extras: () => import('../core/kinds/er-extras.js') },
-  mindmap: { view: () => import('../core/kinds/mindmap.js'), diff: () => import('../core/kinds/mindmap-diff.js'), extras: () => import('../core/kinds/mindmap-extras.js') },
-  state: { view: () => import('../core/kinds/state.js'), diff: () => import('../core/kinds/state-diff.js'), extras: () => import('../core/kinds/state-extras.js') },
+  flowchart: { view: () => import('../core/kinds/flowchart/view.js'), diff: () => import('../core/kinds/flowchart/diff-kind.js'), extras: () => import('../core/kinds/flowchart/extras.js') },
+  sequence: { view: () => import('../core/kinds/sequence/view.js'), diff: () => import('../core/kinds/sequence/diff-kind.js'), extras: () => import('../core/kinds/sequence/extras.js') },
+  er: { view: () => import('../core/kinds/er/view.js'), diff: () => import('../core/kinds/er/diff-kind.js'), extras: () => import('../core/kinds/er/extras.js') },
+  mindmap: { view: () => import('../core/kinds/mindmap/view.js'), diff: () => import('../core/kinds/mindmap/diff-kind.js'), extras: () => import('../core/kinds/mindmap/extras.js') },
+  state: { view: () => import('../core/kinds/state/view.js'), diff: () => import('../core/kinds/state/diff-kind.js'), extras: () => import('../core/kinds/state/extras.js') },
 } satisfies Record<string, KindModules>));
 
 /** Where a kind plugin's kinds are (A11e); a type registered again takes the new modules. */

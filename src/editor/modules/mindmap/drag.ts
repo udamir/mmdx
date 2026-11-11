@@ -4,8 +4,8 @@
 import type { DiagramMeta } from '../../../core/meta/types.js';
 import type { MindmapModel } from '../../../core/model.js';
 import { cloneMeta, ensure, tidy } from '../../../core/ops/meta-util.js';
-import { addMindChild, remapMindMeta, reparentMind } from '../../../core/ops/mindmap.js';
-import { descendantsOf } from '../../../core/parse/mindmap.js';
+import { addMindChild, remapMindMeta, reparentMind } from '../../../core/kinds/mindmap/ops.js';
+import { descendantsOf } from '../../../core/kinds/mindmap/parse.js';
 import type { MindmapGeometry } from '../../../core/render/types.js';
 import { el, g } from '../../../core/scene/build.js';
 import type { SceneNode } from '../../../core/scene/types.js';

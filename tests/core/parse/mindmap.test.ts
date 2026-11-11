@@ -9,7 +9,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { splitSource } from '../../../src/core/meta/index.js';
 import type { MindmapModel, MindNode } from '../../../src/core/model.js';
 import { parse } from '../../../src/core/parse/index.js';
-import { parseMindmap } from '../../../src/core/parse/mindmap.js';
+import { parseMindmap } from '../../../src/core/kinds/mindmap/parse.js';
 import { detectType } from '../../../src/core/parse/dispatch.js';
 import { stockParse } from '../../helpers/mermaid.js';
 

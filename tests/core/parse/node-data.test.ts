@@ -3,7 +3,7 @@
 // js-yaml's JSON schema does, and handles what Mermaid accepts — quotes protecting `}` and `,`, multi-line blocks; the
 // writer changes values in place. Checked against stock Mermaid's parser where the input is Mermaid's.
 import { beforeAll, describe, expect, it } from 'vitest';
-import { parseFlowchart } from '../../../src/core/parse/flowchart.js';
+import { parseFlowchart } from '../../../src/core/kinds/flowchart/parse.js';
 import { applySplices, editBlock, formatValue, readNodeData } from '../../../src/core/parse/node-data.js';
 import { type NodeDataBlock } from '../../../src/core/model.js';
 import { stockParse } from '../../helpers/mermaid.js';

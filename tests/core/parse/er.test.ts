@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { splitSource } from '../../../src/core/meta/index.js';
 import type { ErModel } from '../../../src/core/model.js';
-import { erId, isErWord, lexLine, parseAttrLine, parseER } from '../../../src/core/parse/er.js';
+import { erId, isErWord, lexLine, parseAttrLine, parseER } from '../../../src/core/kinds/er/parse.js';
 import { stockOk } from '../../helpers/mermaid.js';
 
 const ROOT = join(__dirname, '../../..');

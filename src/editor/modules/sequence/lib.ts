@@ -2,7 +2,7 @@
 // heights a block edge snaps to, a live code change carrying positional metadata, and Show as process.
 import type { SeqBlockStart, SeqMessage, SeqNote, SequenceModel } from '../../../core/model.js';
 import { remapSequenceMeta } from '../../../core/ops/remap.js';
-import { toggleActivation } from '../../../core/ops/sequence.js';
+import { toggleActivation } from '../../../core/kinds/sequence/ops.js';
 import type { SequenceGeometry } from '../../../core/render/types.js';
 import type { EditorCore } from '../../core.js';
 

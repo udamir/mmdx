@@ -53,7 +53,7 @@ console.log('consumer bundles (esbuild, per entry)');
 const v = await bundle('viewer');
 const flow = [];
 for (const k of ['flowchart', 'sequence', 'er', 'mindmap', 'state']) {
-  const f = Object.keys(v.outs).find((x) => v.outs[x].entryPoint === `src/core/kinds/${k}.ts`);
+  const f = Object.keys(v.outs).find((x) => v.outs[x].entryPoint === `src/core/kinds/${k}/view.ts`);
   const extra = [...v.closure(f)].filter((x) => !v.base.has(x));
   if (k === 'flowchart') flow.push(...extra);
   // sequence 76.2 and ER 84.7 kB with participant types, icons and images (T10.2: 75.8 kB measured, +2.5 kB: the boundary, control, entity, collections and queue heads, decorate() and icon runs in names, messages and notes) and ER title icons (T10.3: 84.3 kB measured, +2 kB: decorate() in the ER chunk, icon runs in relationship labels and subgraph titles)
@@ -107,7 +107,7 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
 // the viewer with History opened on a flowchart (no `@mmdx/studio/diff` on the page any more)
 {
   const loaded = new Set([...v.base, ...flow]);
-  const hist = [...lazy(v, 'src/diff/history.ts', loaded), ...lazy(v, 'src/core/kinds/flowchart-diff.ts', loaded)];
+  const hist = [...lazy(v, 'src/diff/history.ts', loaded), ...lazy(v, 'src/core/kinds/flowchart/diff-kind.ts', loaded)];
   // 144.9 kB with the compound layout (T07, 144.5 kB measured: the flowchart's +5.1 kB)
   // 139.4 kB with flowchart content (T06, 139 kB measured: the viewer's +0.7 kB and the flowchart's +4.8 kB)
   // 133.9 kB with the icon registry (T04, 133.5 kB measured: the viewer's +2.8 kB)
@@ -192,13 +192,13 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // its gestures is 238.6 kB measured; 239.4: with 5.9's catalog strings (239.0); 239.9: kernel enterStage/leaveStage + HistoryStage class (A13d, 239.5 measured); 240.5: shared adapter helpers (4.12, 240.1 measured)
     const KIND_MODULES = { sequence: 'src/editor/modules/sequence/index.ts', er: 'src/editor/modules/er-table/index.ts' };
     for (const k of ['flowchart', 'sequence', 'er']) {
-      const kind = lazy(b, `src/editor/kinds/${k}.ts`, b.base);
+      const kind = lazy(b, `src/editor/kinds/${k}/index.ts`, b.base);
       const mods = KIND_MODULES[k] ? lazy(b, KIND_MODULES[k], new Set([...b.base, ...kind])) : [];
       report(`editor (first ${k})`, b.size(b.base) + b.size(kind) + b.size(mods), 240.5 * KB);
     }
     {
       // a mindmap: its kinds and the mindmap module's gestures, both loaded with the first mindmap (T08: 228.3 kB measured; the view, ops and edit kinds with the geometry of bang and cloud and the media kit, which its edit kind registers as the flowchart's does, and the drag, handles and keys of the outline)
-      const kind = lazy(b, 'src/editor/kinds/mindmap.ts', b.base);
+      const kind = lazy(b, 'src/editor/kinds/mindmap/index.ts', b.base);
       const gestures = lazy(b, 'src/editor/modules/mindmap/gestures.ts', new Set([...b.base, ...kind]));
       // 230.3 kB with state diagrams (T09, 229.9 kB measured: the editor's +1.8 kB)
       // 237 kB with media in every kind and the sequence and ER fixes (T10, T11: 236.6 kB measured)
@@ -240,9 +240,9 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 252.5 kB (252.1 kB measured) 5.9: the kind modules' labels and toasts in the editor's message catalog (+0.4 kB)
     // 253 kB (252.6 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
     // 253.5 kB (253.1 kB measured) shared adapter helpers (http, subscribers, base64) and ownPreset (4.12)
-    report('editor (first state)', b.size(b.base) + b.size(lazy(b, 'src/editor/kinds/state.ts', b.base)), 253.5 * KB);
+    report('editor (first state)', b.size(b.base) + b.size(lazy(b, 'src/editor/kinds/state/index.ts', b.base)), 253.5 * KB);
     // the insert dock's lazy chunks (T05): the pickers (icon picker, image tool, emoji picker and their glue), the shape palette block, the Connector and Container tools, the English emoji data (§4.5: at most 30 kB)
-    const loaded = new Set([...b.base, ...lazy(b, 'src/editor/kinds/flowchart.ts', b.base)]);
+    const loaded = new Set([...b.base, ...lazy(b, 'src/editor/kinds/flowchart/index.ts', b.base)]);
     // 13.2 kB with the image tool's Icon tab, the overlay scrollbars of its grids and its place by the toolbar (12.8 kB measured)
     report('editor pickers (lazy chunk)', b.size(new Set(lazy(b, 'src/editor/modules/insert/media.ts', loaded))), 13.2 * KB);
     report('shape palette (lazy chunk)', b.size(new Set(lazy(b, 'src/ui/blocks/shape-palette.ts', loaded))), 4 * KB);
@@ -313,13 +313,14 @@ const loads = async (keys) => {
   for (const k of all) n += await chunkSize(k);
   return { n, all };
 };
-// a core module the viewer and the diff load on demand (view kind `flowchart`, diff kind `flowchart-diff`, the shapes
+// a core module the viewer and the diff load on demand (a type's view kind and diff kind, the shapes
 // beyond the 17): its own chunk, or (core imports it statically too) the shared chunk they load it from
-const lazyChunk = (path, name) =>
-  manifest[path] ? path : Object.keys(manifest).find((k) => !k.startsWith('src/') && manifest[k].isDynamicEntry && manifest[k].name === name);
-const kindChunk = (name) => lazyChunk(`src/core/kinds/${name}.ts`, name);
+const lazyChunk = (path, name, prefix) =>
+  manifest[path] ? path : Object.keys(manifest).find((k) => !k.startsWith('src/') && manifest[k].isDynamicEntry && (prefix ? manifest[k].file.startsWith(prefix) : manifest[k].name === name));
+// a type's view kind and diff kind (A12: core/kinds/<type>/view.ts, diff-kind.ts; their chunks are named after the type, vite.lib.config.ts)
+const kindChunk = (type, file = 'view') => lazyChunk(`src/core/kinds/${type}/${file}.ts`, file, `chunks/${type}-${file}-`);
 const FLOW = kindChunk('flowchart');
-const FLOW_DIFF = kindChunk('flowchart-diff');
+const FLOW_DIFF = kindChunk('flowchart', 'diff-kind');
 const SHAPES = lazyChunk('src/core/extras.ts', 'extended');
 const BUILTIN_ICONS = lazyChunk('src/icons/builtin.ts', 'builtin');
 const HISTORY = ['src/view/modules/history.ts', 'src/diff/history.ts'];
@@ -428,7 +429,7 @@ const rows = [
   // 232.8 kB (232.4 kB measured) 5.9: the kind modules' labels and toasts in the editor's message catalog (+0.4 kB)
   // 233.3 kB (232.9 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
   // 234.5 kB (234.1 kB measured) kind registries open to plugin types: KindInfo, kind modules, extras, theme sections, KindUi (A11c)
-  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart.ts'], 234.5],
+  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart/index.ts'], 234.5],
   // the first mindmap (T08, 70.8 kB measured): the viewer and the mindmap's kind chunk (parser, tidy tree layout, renderer)
   // 72 kB with state diagrams (T09, 71.6 kB measured: the viewer's +0.5 kB)
   // 75.1 kB with media in every kind and the sequence and ER fixes (T10, T11, 74.7 kB measured)
@@ -459,7 +460,7 @@ const rows = [
   // 220.8 kB (220.4 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
   // 221.2 kB (220.8 kB measured) 5.9: the kind modules' labels and toasts in the editor's message catalog (+0.4 kB)
   // 221.7 kB (221.3 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
-  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap.ts', 'src/editor/modules/mindmap/gestures.ts'], 221.7],
+  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap/index.ts', 'src/editor/modules/mindmap/gestures.ts'], 221.7],
   // the first state diagram (T09, 85.6 kB measured): the viewer and the state's kind chunk (parser, compound layout, renderer, shapes)
   // 89.1 kB with media in every kind and the sequence and ER fixes (T10, T11, 88.7 kB measured)
   // 89.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (89.5 kB measured)
@@ -489,7 +490,7 @@ const rows = [
   // 235.4 kB (235.0 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
   // 235.9 kB (235.5 kB measured) 5.9: the kind modules' labels and toasts in the editor's message catalog (+0.4 kB)
   // 236.4 kB (236.0 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
-  ['editor (first state)', ['src/editor.ts', 'src/editor/kinds/state.ts'], 236.4],
+  ['editor (first state)', ['src/editor.ts', 'src/editor/kinds/state/index.ts'], 236.4],
   // the English emoji data (T05 §4.5: at most 30 kB), a lazy chunk of its own
   ['emoji data, English (lazy chunk)', ['src/emoji/en.ts'], 30],
   // 240.2 kB with the shape catalogue (239.7 kB measured); 236.2 kB once the shapes beyond the 17 load on demand (T02.9, 235.8 kB measured)
@@ -561,7 +562,7 @@ const rows = [
 for (const [name, keys, budget] of rows) report(name, (await loads(keys)).n, budget * KB);
 // the pickers' chunks (T05), beyond what the editor with a flowchart has loaded
 {
-  const have = (await loads(['src/editor.ts', 'src/editor/kinds/flowchart.ts'])).all;
+  const have = (await loads(['src/editor.ts', 'src/editor/kinds/flowchart/index.ts'])).all;
   let n = 0;
   for (const k of libClosure('src/editor/modules/insert/media.ts')) if (!have.has(k)) n += await chunkSize(k);
   // 14.5 kB (14.1 kB measured) with the image library (ImageStore: the image tool's Library, Upload and URL tabs; Source and Properties open each)

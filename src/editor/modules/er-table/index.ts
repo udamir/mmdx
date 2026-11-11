@@ -7,7 +7,7 @@
 // on to the next empty row. Esc clears the row selection, then leaves the table (so does a click outside).
 import type { DiagramMeta } from '../../../core/meta/types.js';
 import type { ErAttribute, ErModel } from '../../../core/model.js';
-import { updateEntity } from '../../../core/ops/er.js';
+import { updateEntity } from '../../../core/kinds/er/ops.js';
 import { cloneMeta, ensure, tidy } from '../../../core/ops/meta-util.js';
 import { effectiveValue } from '../../../core/ops/style-env.js';
 import { el } from '../../../core/scene/build.js';

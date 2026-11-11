@@ -1,7 +1,7 @@
 # Functions over 300 lines — baseline (2026-11-11, e726eb1): <lines>	<file › name>; each may only shrink.
-727	core/render/flowchart.ts › renderFlowchart
-651	core/render/sequence.ts › renderSequence
-534	core/parse/flowchart.ts › readFlowchart
-521	core/parse/er.ts › readER
+727	core/kinds/flowchart/render.ts › renderFlowchart
+651	core/kinds/sequence/render.ts › renderSequence
+534	core/kinds/flowchart/parse.ts › readFlowchart
+521	core/kinds/er/parse.ts › readER
 415	core/layout/compound.ts › layoutCompound
-371	core/parse/state.ts › readState
+371	core/kinds/state/parse.ts › readState

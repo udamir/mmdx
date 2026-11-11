@@ -5,11 +5,11 @@
 // subgraph ops (⌘G, Ungroup, Delete, titles, directions) — and every output parsed by stock Mermaid 12.2 and 11.17.
 import { afterAll, describe, expect, it } from 'vitest';
 import type { Cardinality } from '../../../src/core/model.js';
-import { parseER } from '../../../src/core/parse/er.js';
+import { parseER } from '../../../src/core/kinds/er/parse.js';
 import {
   addERRel, addEntity, canGroupER, cloneER, deleteER, erFragment, groupER, reconnectER, relabelErGroup, relText, setErDirection, setErGroupDirection, ungroupER,
   updateEntity, updateRel,
-} from '../../../src/core/ops/er.js';
+} from '../../../src/core/kinds/er/ops.js';
 import { stockParse } from '../../helpers/mermaid.js';
 
 /** Every op output of this file, parsed by stock Mermaid at the end. */

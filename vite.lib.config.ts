@@ -35,7 +35,13 @@ export default defineConfig({
     },
     rollupOptions: {
       external: ['mermaid'],
-      output: { chunkFileNames: 'chunks/[name]-[hash].js' },
+      output: {
+        // a diagram type's chunks are named after the type (A12: core/kinds/<type>/view.ts → chunks/flowchart-view-….js)
+        chunkFileNames: (c) => {
+          const own = c.moduleIds.map((id) => /[\\/]kinds[\\/]([^\\/]+)[\\/]([^\\/.]+)\.ts$/.exec(id)).find((m) => m && m[2] === c.name);
+          return own ? `chunks/${own[1]}-${c.name}-[hash].js` : 'chunks/[name]-[hash].js';
+        },
+      },
     },
   },
 });

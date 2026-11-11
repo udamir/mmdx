@@ -5,8 +5,8 @@ import { activationsOf } from '../../../src/core/ids.js';
 import type { DiagramModel } from '../../../src/core/model.js';
 import { parse } from '../../../src/core/parse/index.js';
 import * as OPS from '../../../src/core/ops/index.js';
-import * as MM from '../../../src/core/ops/mindmap.js';
-import * as ST from '../../../src/core/ops/state.js';
+import * as MM from '../../../src/core/kinds/mindmap/ops.js';
+import * as ST from '../../../src/core/kinds/state/ops.js';
 import type { ItemRef } from '../../../src/core/types.js';
 import { EXAMPLES } from './helpers.js';
 

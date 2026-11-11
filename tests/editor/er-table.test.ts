@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
-import { parseAttrLine } from '../../src/core/parse/er.js';
+import { parseAttrLine } from '../../src/core/kinds/er/parse.js';
 import type { EditorCore } from '../../src/editor/core.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
 import { CANVAS_MODULES } from '../../src/editor/modules/canvas/index.js';

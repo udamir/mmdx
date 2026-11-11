@@ -4,9 +4,9 @@
 import { describe, expect, it } from 'vitest';
 import { activationsBalanced } from '../../../src/core/ops/activations.js';
 import { toggleActivation } from '../../../src/core/ops/index.js';
-import { parseAttrLine, splitAttrComment } from '../../../src/core/parse/er.js';
+import { parseAttrLine, splitAttrComment } from '../../../src/core/kinds/er/parse.js';
 import { parse } from '../../../src/core/parse/index.js';
-import { lexDecl, lexMessage } from '../../../src/core/parse/sequence.js';
+import { lexDecl, lexMessage } from '../../../src/core/kinds/sequence/parse.js';
 import { stripMermaidStyles } from '../../../src/core/strip-styles.js';
 
 const SPACES = ' '.repeat(50_000);

@@ -1,6 +1,6 @@
 // A connector's animation, read and written through the diagram type's edit kind (flowchart edges: Mermaid's edge
 // data). Shared by the toolbar's line popover and Properties.
-import type { EdgeAnimation } from '../../core/ops/flow-edge.js';
+import type { EdgeAnimation } from '../../core/kinds/flowchart/ops-edge.js';
 import type { ItemRef } from '../../core/types.js';
 import type { EditorCore } from '../core.js';
 import { withEdit } from '../kinds/registry.js';

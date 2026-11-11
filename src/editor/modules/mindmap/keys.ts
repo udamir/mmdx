@@ -5,8 +5,8 @@
 import type { MindmapModel } from '../../../core/model.js';
 import { reparse } from '../../../core/parse/dispatch.js';
 import { cloneMeta, ensure } from '../../../core/ops/meta-util.js';
-import { addMindChild, addMindSibling, blockText, cloneMind, indentMind, liftMind, mindNodeAt, moveMind, outdentMind, pasteMindLines, pasteMindText, remapMindMeta } from '../../../core/ops/mindmap.js';
-import { descendantsOf, parseMindmap } from '../../../core/parse/mindmap.js';
+import { addMindChild, addMindSibling, blockText, cloneMind, indentMind, liftMind, mindNodeAt, moveMind, outdentMind, pasteMindLines, pasteMindText, remapMindMeta } from '../../../core/kinds/mindmap/ops.js';
+import { descendantsOf, parseMindmap } from '../../../core/kinds/mindmap/parse.js';
 import type { EditorCore, Sel } from '../../core.js';
 import type { ModuleScope } from '../../../view/module.js';
 import { mindmapKeys } from './index.js';

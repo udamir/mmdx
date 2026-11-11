@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseFlowchart, renameClashingSubgraph } from '../../../src/core/parse/flowchart.js';
+import { parseFlowchart, renameClashingSubgraph } from '../../../src/core/kinds/flowchart/parse.js';
 import type { FlowchartModel } from '../../../src/core/model.js';
 
 const codes = (m: FlowchartModel): string[] => m.diagnostics.map((d) => d.code);

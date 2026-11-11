@@ -12,7 +12,7 @@ import { splitSource } from '../../../src/core/meta/index.js';
 import type { StateGroup, StateModel, StateNode } from '../../../src/core/model.js';
 import { detectType } from '../../../src/core/parse/dispatch.js';
 import { parse } from '../../../src/core/parse/index.js';
-import { isPseudo, parseState, pseudoId } from '../../../src/core/parse/state.js';
+import { isPseudo, parseState, pseudoId } from '../../../src/core/kinds/state/parse.js';
 import { stockParse } from '../../helpers/mermaid.js';
 
 const P = parseState;

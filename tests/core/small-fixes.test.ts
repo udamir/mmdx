@@ -1,11 +1,11 @@
 // Small core fixes of the codebase audit (task 1.14): B32, B33, B38, B39.
 import { describe, expect, it } from 'vitest';
 import { parse } from '../../src/core/parse/index.js';
-import { renameClashingSubgraph } from '../../src/core/parse/flowchart.js';
+import { renameClashingSubgraph } from '../../src/core/kinds/flowchart/parse.js';
 import { decodeLabel } from '../../src/core/parse/label.js';
 import { hexToRgb } from '../../src/core/theme/colors.js';
 import { MARK } from '../../src/core/text/marks.js';
-import { remapMindMeta } from '../../src/core/ops/mindmap.js';
+import { remapMindMeta } from '../../src/core/kinds/mindmap/ops.js';
 import { emptyMeta } from '../../src/core/meta/types.js';
 
 describe('B32: ids from the document are never plain assignments', () => {

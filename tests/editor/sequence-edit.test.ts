@@ -8,7 +8,7 @@ import { memoryStorage } from '../../src/adapters/storage.js';
 import type { SequenceModel } from '../../src/core/model.js';
 import type { EditorCore } from '../../src/editor/core.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
-import { EDIT } from '../../src/editor/kinds/sequence.js';
+import { EDIT } from '../../src/editor/kinds/sequence/index.js';
 import { labelSpec } from '../../src/editor/ops/label.js';
 import { sequenceModule } from '../../src/editor/modules/sequence/index.js';
 import { drag, handle, lines, mount as mountGestures } from './connect.helpers.js';

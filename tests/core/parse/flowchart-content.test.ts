@@ -3,7 +3,7 @@
 // data, linkStyle curves and colours, `classDef default`, several classes, classes on subgraphs, tooltips, `accTitle` /
 // `accDescr` (F1), `title`, the frontmatter settings that change the content, and repeated subgraphs (Mermaid 12.1).
 import { describe, expect, it } from 'vitest';
-import { linkLength, parseFlowchart, titleToFrontmatter } from '../../../src/core/parse/flowchart.js';
+import { linkLength, parseFlowchart, titleToFrontmatter } from '../../../src/core/kinds/flowchart/parse.js';
 
 const P = parseFlowchart;
 const codes = (code: string): string[] => P(code).diagnostics.map((d) => d.code);

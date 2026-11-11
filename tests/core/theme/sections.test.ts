@@ -5,11 +5,11 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { OPS as ER } from '../../../src/core/kinds/er-ops.js';
-import { OPS as FLOW } from '../../../src/core/kinds/flowchart-ops.js';
-import { OPS as MIND } from '../../../src/core/kinds/mindmap-ops.js';
-import { OPS as SEQ } from '../../../src/core/kinds/sequence-ops.js';
-import { OPS as STATE } from '../../../src/core/kinds/state-ops.js';
+import { OPS as ER } from '../../../src/core/kinds/er/ops-kind.js';
+import { OPS as FLOW } from '../../../src/core/kinds/flowchart/ops-kind.js';
+import { OPS as MIND } from '../../../src/core/kinds/mindmap/ops-kind.js';
+import { OPS as SEQ } from '../../../src/core/kinds/sequence/ops-kind.js';
+import { OPS as STATE } from '../../../src/core/kinds/state/ops-kind.js';
 import { CLEANERS, DROP, classOf, keyDef } from '../../../src/core/meta/keys.js';
 import { BASE_THEME_ID } from '../../../src/core/theme/builtin-ids.js';
 

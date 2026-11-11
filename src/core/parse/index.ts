@@ -5,9 +5,9 @@ import { parseWith } from './dispatch.js';
 
 export { cleanLabel, encodeLabel, isMarkdownString } from './label.js';
 export { parseStyleList } from './style.js';
-export { parseFlowchart, renameClashingSubgraph } from './flowchart.js';
-export { parseSequence } from './sequence.js';
-export { parseER } from './er.js';
+export { parseFlowchart, renameClashingSubgraph } from '../kinds/flowchart/parse.js';
+export { parseSequence } from '../kinds/sequence/parse.js';
+export { parseER } from '../kinds/er/parse.js';
 export { MAX_ITEMS, MAX_SOURCE_LENGTH } from './limits.js';
 export { detectType, parseWith } from './dispatch.js';
 

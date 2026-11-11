@@ -6,7 +6,7 @@ import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import type { SeqMessage, SequenceModel } from '../../../src/core/model.js';
-import { ARROW_KINDS, lexDecl, lexMessage, messageNumbers, parseSequence, shapeType } from '../../../src/core/parse/sequence.js';
+import { ARROW_KINDS, lexDecl, lexMessage, messageNumbers, parseSequence, shapeType } from '../../../src/core/kinds/sequence/parse.js';
 import { stockResults } from '../../helpers/mermaid.js';
 import { parse } from '../../../src/core/parse/index.js';
 

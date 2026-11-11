@@ -7,7 +7,7 @@ import { diffModels, mergeDiagrams } from '../../../src/core/diff/index.js';
 import { renderDiffWith } from '../../../src/core/diff/render.js';
 import { createContext } from '../../../src/core/context.js';
 import { ALL_VIEW_KINDS } from '../../../src/core/kinds/all.js';
-import { DIFF } from '../../../src/core/kinds/er-diff.js';
+import { DIFF } from '../../../src/core/kinds/er/diff-kind.js';
 import { splitSource } from '../../../src/core/meta/index.js';
 import type { ErModel } from '../../../src/core/model.js';
 import { parse } from '../../../src/core/parse/index.js';

@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 // Every state op over every item of the examples writes code stock Mermaid 12.2 and 11.17 read (T09.5). Transitions
 // are connected between one state of each scope (and its pseudo-state) and each composite, and reconnected to one state
-// of each scope: whether Mermaid accepts one depends on the scopes of its ends (core/ops/state.ts), so these ends cover
+// of each scope: whether Mermaid accepts one depends on the scopes of its ends (core/kinds/state/ops.ts), so these ends cover
 // the rules without parsing every pair.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { it, expect } from 'vitest';
 import { splitSource } from '../../../src/core/meta/index.js';
-import * as ST from '../../../src/core/ops/state.js';
-import { parseState } from '../../../src/core/parse/state.js';
+import * as ST from '../../../src/core/kinds/state/ops.js';
+import { parseState } from '../../../src/core/kinds/state/parse.js';
 import type { ItemRef } from '../../../src/core/types.js';
 import { stockParse } from '../../helpers/mermaid.js';
 

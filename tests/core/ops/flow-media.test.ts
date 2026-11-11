@@ -3,8 +3,8 @@
 // its bracket, the node data in a separate `id@{ … }` statement — label tokens on other nodes, and their layout keys
 // changed in place. Every output is parsed by stock Mermaid 11.17 and by mmdx without warnings.
 import { beforeAll, describe, expect, it } from 'vitest';
-import { addFlowMediaNode, flowMedia, iconToken, leadingIcon, setFlowIcon, setFlowImage, setFlowMedia, withIconToken, writeNodeData } from '../../../src/core/ops/flow-media.js';
-import { parseFlowchart } from '../../../src/core/parse/flowchart.js';
+import { addFlowMediaNode, flowMedia, iconToken, leadingIcon, setFlowIcon, setFlowImage, setFlowMedia, withIconToken, writeNodeData } from '../../../src/core/kinds/flowchart/ops-media.js';
+import { parseFlowchart } from '../../../src/core/kinds/flowchart/parse.js';
 import { stockParse } from '../../helpers/mermaid.js';
 
 const P = parseFlowchart;

@@ -6,12 +6,12 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { OPS } from '../../../src/core/kinds/flowchart-ops.js';
+import { OPS } from '../../../src/core/kinds/flowchart/ops-kind.js';
 import type { DiagramMeta } from '../../../src/core/meta/types.js';
 import { edgeText, nodeDef } from '../../../src/core/ops/connect.js';
-import { setFlowIcon, setFlowImage, setFlowMedia, toFlowIconNode } from '../../../src/core/ops/flow-media.js';
-import { relabelFlowEdge, relabelFlowNode, relabelGroup } from '../../../src/core/ops/flowchart.js';
-import { parseFlowchart } from '../../../src/core/parse/flowchart.js';
+import { setFlowIcon, setFlowImage, setFlowMedia, toFlowIconNode } from '../../../src/core/kinds/flowchart/ops-media.js';
+import { relabelFlowEdge, relabelFlowNode, relabelGroup } from '../../../src/core/kinds/flowchart/ops.js';
+import { parseFlowchart } from '../../../src/core/kinds/flowchart/parse.js';
 import { stockParse } from '../../helpers/mermaid.js';
 
 const P = parseFlowchart;

@@ -4,7 +4,7 @@ import type { EdgeHead, EdgeLine, FlowNode, FlowchartModel, NodeShape } from '..
 import { labelText } from '../parse/label.js';
 import { applySplices } from '../parse/node-data.js';
 import { resolveShape } from '../shapes/registry.js';
-import { lineOf, rewriteStatement, statementSplice } from './flow-statements.js';
+import { lineOf, rewriteStatement, statementSplice } from '../kinds/flowchart/ops-statements.js';
 import type { ConnectResult, LineResult } from './types.js';
 
 export interface NodeDefInput {
@@ -94,7 +94,7 @@ export function addFlowEdge(code: string, from: string, to: string): LineResult 
   return { code: `${t}\n  ${from} --> ${to}\n`, line: t.split('\n').length };
 }
 
-// ---- ER: core/ops/er.ts (relText, reconnectER, addERRel)
+// ---- ER: core/kinds/er/ops.ts (relText, reconnectER, addERRel)
 
 /** Sequence: a new message at the end. */
 export function addSeqMessage(code: string, from: string, to: string): LineResult {

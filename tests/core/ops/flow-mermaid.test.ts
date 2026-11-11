@@ -5,8 +5,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { FlowchartModel } from '../../../src/core/model.js';
 import { reconnectFlow } from '../../../src/core/ops/connect.js';
-import { addFlowNode, cloneFlow, deleteFlow, groupFlow, relabelFlowEdge, relabelFlowNode, setFlowShape } from '../../../src/core/ops/flowchart.js';
-import { parseFlowchart } from '../../../src/core/parse/flowchart.js';
+import { addFlowNode, cloneFlow, deleteFlow, groupFlow, relabelFlowEdge, relabelFlowNode, setFlowShape } from '../../../src/core/kinds/flowchart/ops.js';
+import { parseFlowchart } from '../../../src/core/kinds/flowchart/parse.js';
 import { pickerShapes } from '../../../src/core/shapes/catalog.js';
 import type { ItemRef } from '../../../src/core/types.js';
 import { stockOk } from '../../helpers/mermaid.js';

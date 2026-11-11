@@ -27,6 +27,11 @@ describe('layers', () => {
     expect(edgeViolation({ from: 'core/render/flowchart.ts', to: 'core/parse/dispatch.ts', kind: 'value' })).toBeNull();
     expect([coreLayerOf('types.ts'), coreLayerOf('kinds/registry.ts'), coreLayerOf('meta/keys.ts'), coreLayerOf('parse/er.ts'), coreLayerOf('layout/tree.ts')]).toEqual([0, 1, 2, 3, 4]);
     expect([coreLayerOf('render/er.ts'), coreLayerOf('ops/er.ts'), coreLayerOf('diff/er.ts'), coreLayerOf('kinds/er-ops.ts'), coreLayerOf('kinds/all.ts')]).toEqual([5, 6, 7, 8, 9]);
+    // a type's folder (A12): each file the layer of its stage
+    expect(['parse', 'parse-id', 'render', 'presets', 'style', 'ops', 'ops-edge', 'diff', 'view', 'ops-kind', 'diff-kind', 'extras'].map((f) => coreLayerOf(`kinds/er/${f}.ts`))).toEqual([3, 3, 5, 5, 5, 6, 6, 7, 8, 8, 8, 8]);
+    expect(edgeViolation({ from: 'core/kinds/er/view.ts', to: 'core/kinds/er/render.ts', kind: 'value' })).toBeNull();
+    expect(edgeViolation({ from: 'core/kinds/er/ops-kind.ts', to: 'core/kinds/er/render.ts', kind: 'value' })).toBe('ops/kinds → full renderer');
+    expect(edgeViolation({ from: 'core/kinds/er/render.ts', to: 'core/kinds/er/ops.ts', kind: 'value' })).toMatch(/^upward core C5 → C6/);
   });
 });
 

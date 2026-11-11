@@ -1,8 +1,8 @@
 // Editing a row of the ER table in place: a text box over the row (`type name PK (comment)`). Enter applies it (a new
 // attribute goes on to the next empty row), Esc drops it, a blur applies it; an emptied row is deleted, a text that
 // does not read as an attribute stays open and marked.
-import { attrText } from '../../../core/ops/er.js';
-import { parseAttrLine } from '../../../core/parse/er.js';
+import { attrText } from '../../../core/kinds/er/ops.js';
+import { parseAttrLine } from '../../../core/kinds/er/parse.js';
 import { h } from '../../../ui/kit/h.js';
 import type { TableContext } from './state.js';
 

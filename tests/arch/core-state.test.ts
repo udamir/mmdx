@@ -12,7 +12,7 @@ const walk = (d: string): string[] => readdirSync(d).flatMap((n) => (statSync(jo
 /** `file name` → what it is. */
 const ALLOWED: Record<string, string> = {
   'context-base.ts counter': 'id counter: each context a unique id prefix',
-  'diff/mindmap.ts matched': 'cache: the node matching of a pair of models (WeakMap on the models)',
+  'kinds/mindmap/diff.ts matched': 'cache: the node matching of a pair of models (WeakMap on the models)',
   'diff/render.ts marklessContexts': 'cache: the derived mark-free context per context (WeakMap)',
   'icons/draw.ts placeholders': 'cache: the placeholder image per colour',
   'icons/draw.ts reported': 'cache: what a diagnostics list already holds (WeakMap on the list)',
@@ -26,10 +26,10 @@ const ALLOWED: Record<string, string> = {
   'media/kit.ts kit': 'registry: the media kit code, once loaded',
   'ops/lines.ts starts': 'cache: the line offsets of the last code',
   'ops/lines.ts startsOf': 'cache: the code they belong to',
-  'ops/state.ts patterns': 'cache: compiled patterns by source',
+  'kinds/state/ops.ts patterns': 'cache: compiled patterns by source',
   'pipeline-core.ts layoutCaches': 'cache: the layout cache per context (WeakMap)',
   'pipeline-core.ts resolvers': 'cache: the colour resolver per context (WeakMap)',
-  'render/flow-style.ts shapeStylesOf': 'cache: the shape styles of a resolved theme (WeakMap on the theme)',
+  'kinds/flowchart/style.ts shapeStylesOf': 'cache: the shape styles of a resolved theme (WeakMap on the theme)',
   'shapes/misses.ts collecting': "a render's collection of what it drew without (A18: read from RenderResult.missing)",
   'text/measure.ts segmenter': 'registry: the platform grapheme segmenter, once made',
 };
