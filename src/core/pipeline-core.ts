@@ -4,7 +4,7 @@ import type { CoreContext } from './context-base.js';
 import { hiddenByLayers } from './layers.js';
 import { splitSource, type DiagramDocument } from './meta/index.js';
 import type { DiagramModel } from './model.js';
-import type { Kinds } from './kinds/types.js';
+import type { Kinds } from './kind/types.js';
 import { parseWith } from './parse/dispatch.js';
 import { TOO_BIG_CODES } from './parse/limits.js';
 import { renderSvgString, renderWith } from './render/dispatch.js';
@@ -15,7 +15,7 @@ import type { ResolvedTheme } from './theme/types.js';
 import { Lru } from './text/measure.js';
 import type { Diagnostic, Point } from './types.js';
 
-export type { Kinds } from './kinds/types.js';
+export type { Kinds } from './kind/types.js';
 
 export interface PipelineOptions {
   /** Theme to draw with (default: baseline). Diagrams do not carry a theme: the host or the user picks it. */

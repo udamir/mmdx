@@ -1,6 +1,6 @@
 // The diff with every diagram kind (component architecture §9.1, §10): `diffDiagrams`, `renderDiff` and `renderDiffToSvg` parse and render with every parser and renderer. Only `@mmdx/studio/core` exports them; the diff engine (index.ts) and the renderer (render.ts) take the kinds, so `@mmdx/studio/diff` and History ship no kind statically.
 import { createContext, type CoreContext } from '../context.js';
-import type { Kinds } from '../kinds/types.js';
+import type { Kinds } from '../kind/types.js';
 import { ALL_DIFF_KINDS } from '../kinds/all-diff.js';
 import { registerDiffs } from '../kinds/registry.js';
 import { ALL_KINDS } from '../pipeline.js';

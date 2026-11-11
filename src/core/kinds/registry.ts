@@ -4,9 +4,9 @@
 // every component on the page — no instance state (that comes in through the CoreContext).
 import type { DiagramModel, SupportedModel } from '../model.js';
 import type { DiagramType } from '../types.js';
-import type { DiffKind, DiffKinds } from './diff-types.js';
-import type { OpsKind, OpsKinds } from './ops-types.js';
-import type { Kinds, ViewKind } from './types.js';
+import type { DiffKind, DiffKinds } from '../kind/diff-types.js';
+import type { OpsKind, OpsKinds } from '../kind/ops-types.js';
+import type { Kinds, ViewKind } from '../kind/types.js';
 
 const registered: Kinds = {};
 

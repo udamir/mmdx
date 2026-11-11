@@ -3,7 +3,7 @@ import { diffFlowchart, mergeFlowchart } from '../diff/flowchart.js';
 import { boxShape, pathShape } from '../diff/shape.js';
 import type { FlowchartModel } from '../model.js';
 import type { FlowGeometry } from '../render/types.js';
-import type { DiffKind } from './diff-types.js';
+import type { DiffKind } from '../kind/diff-types.js';
 
 export const DIFF: DiffKind<FlowchartModel, FlowGeometry> = {
   type: 'flowchart',

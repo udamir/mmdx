@@ -2,8 +2,8 @@
 // time a document of that type is shown, so an editor of flowcharts never downloads the sequence and ER code. Loading
 // bumps `kindsVersion`, which the store's model reads, so the document is parsed again with the new kind.
 import { opsKind, registerKinds, registerOps, viewKind } from '../../core/kinds/registry.js';
-import type { OpsKind } from '../../core/kinds/ops-types.js';
-import type { ViewKind } from '../../core/kinds/types.js';
+import type { OpsKind } from '../../core/kind/ops-types.js';
+import type { ViewKind } from '../../core/kind/types.js';
 import type { DiagramType } from '../../core/types.js';
 import { signal } from '../../ui/signal.js';
 import { editKind, registerEditKinds } from './registry.js';

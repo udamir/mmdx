@@ -1,6 +1,6 @@
 // Parse dispatch: the type from the header, then the parser of that type's kind. Kinds are passed in, so a bundle can
 // include only the diagram types it loads (the viewer loads them per type, §R5).
-import type { Kinds } from '../kinds/types.js';
+import type { Kinds } from '../kind/types.js';
 import type { DiagramModel, UnsupportedModel } from '../model.js';
 import type { DiagramType } from '../types.js';
 import { diag } from '../types.js';

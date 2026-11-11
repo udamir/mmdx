@@ -5,8 +5,8 @@ import { cloneMind, deleteMind, mindNodeAt, moveMind, remapMindMeta, subtreeEnd 
 import { mindPresets } from '../render/mind-presets.js';
 import type { MindmapGeometry } from '../render/types.js';
 import type { ItemRef } from '../types.js';
-import type { OpsKind } from './ops-types.js';
-import type { Presets } from './types.js';
+import type { OpsKind } from '../kind/ops-types.js';
+import type { Presets } from '../kind/types.js';
 
 export const OPS: OpsKind<MindmapModel, MindmapGeometry> = {
   type: 'mindmap',

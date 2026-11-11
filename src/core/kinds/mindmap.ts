@@ -3,7 +3,7 @@ import type { MindmapModel } from '../model.js';
 import type { ItemRef } from '../types.js';
 import { descendantsOf, emptyMindmap, parseMindmap } from '../parse/mindmap.js';
 import { renderMindmap } from '../render/mindmap.js';
-import type { ViewKind } from './types.js';
+import type { ViewKind } from '../kind/types.js';
 
 export const VIEW: ViewKind<MindmapModel> = {
   type: 'mindmap',

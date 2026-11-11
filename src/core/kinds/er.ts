@@ -6,7 +6,7 @@ import type { ErModel } from '../model.js';
 import type { ItemRef } from '../types.js';
 import { emptyEr, parseER } from '../parse/er.js';
 import { renderER } from '../render/er.js';
-import type { ViewKind } from './types.js';
+import type { ViewKind } from '../kind/types.js';
 
 /** The subgraphs holding a table or a subgraph, innermost first. */
 export function erAncestors(model: ErModel, id: string): string[] {

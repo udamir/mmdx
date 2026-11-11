@@ -8,7 +8,7 @@ import type { ItemRef } from '../types.js';
 import { emptyState, parseState } from '../parse/state.js';
 import { renderState } from '../render/state.js';
 import { registerStateShapes } from '../shapes/state.js';
-import type { ViewKind } from './types.js';
+import type { ViewKind } from '../kind/types.js';
 
 registerStateShapes();
 

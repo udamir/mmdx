@@ -3,7 +3,7 @@ import { diffMindmap, mergeMindmap } from '../diff/mindmap.js';
 import { boxShape } from '../diff/shape.js';
 import type { MindmapModel } from '../model.js';
 import type { MindmapGeometry } from '../render/types.js';
-import type { DiffKind } from './diff-types.js';
+import type { DiffKind } from '../kind/diff-types.js';
 
 export const DIFF: DiffKind<MindmapModel, MindmapGeometry> = {
   type: 'mindmap',

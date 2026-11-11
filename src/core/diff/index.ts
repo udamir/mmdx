@@ -12,7 +12,7 @@ import { classOf } from '../meta/keys.js';
 import type { DiagramMeta } from '../meta/types.js';
 import type { DiagramModel } from '../model.js';
 import { withDiff } from '../kinds/registry.js';
-import type { Kinds } from '../kinds/types.js';
+import type { Kinds } from '../kind/types.js';
 import { parseWith } from '../parse/dispatch.js';
 import { diag } from '../types.js';
 import { field } from './kit.js';

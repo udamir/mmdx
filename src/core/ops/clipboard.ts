@@ -10,7 +10,7 @@ import type { DiagramMeta } from '../meta/types.js';
 import type { DiagramModel } from '../model.js';
 import { withKind, withOps } from '../kinds/registry.js';
 import { reparse } from '../parse/dispatch.js';
-import type { ConnectorEnds } from '../kinds/types.js';
+import type { ConnectorEnds } from '../kind/types.js';
 import { own, setOwn } from '../own.js';
 import type { GeometryIndex } from '../render/types.js';
 import type { DiagramType, ItemKind, ItemRef, Point } from '../types.js';

@@ -1,5 +1,5 @@
 // The flowchart ops kind: code order, the clipboard, auto-placed nodes, subgraph contents and the direction.
-import type { Presets } from './types.js';
+import type { Presets } from '../kind/types.js';
 import { edgeMeta, edgePreset, flowPresets, groupPreset, nodePreset } from '../render/flow-presets.js';
 import { minOf } from '../geom.js';
 import type { FlowchartModel } from '../model.js';
@@ -9,7 +9,7 @@ import { ensure, getM, tidy } from '../ops/meta-util.js';
 import type { LineSpan } from '../ops/types.js';
 import type { FlowGeometry } from '../render/types.js';
 import type { ItemRef } from '../types.js';
-import type { OpsKind } from './ops-types.js';
+import type { OpsKind } from '../kind/ops-types.js';
 
 const one = (li: number | null | undefined): LineSpan | null => (li == null ? null : { start: li, end: li });
 const byLine = (arr: { id: string; key: number | null | undefined }[], id: string): number =>

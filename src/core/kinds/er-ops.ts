@@ -1,7 +1,7 @@
 // The ER ops kind: code order, the clipboard (tables), the direction, presets from Mermaid classes, and subgraphs
 // (11.17+, T11.6): their contents, auto-placed tables pinned before a manual placement, "Reset positions in this group".
 import { entityPreset, erGroupPreset, erPresets, relPreset } from '../render/er-presets.js';
-import type { Presets } from './types.js';
+import type { Presets } from '../kind/types.js';
 import { minOf } from '../geom.js';
 import type { ErModel } from '../model.js';
 import { cloneER, deleteER, erDescendants, setErDirection } from '../ops/er.js';
@@ -9,7 +9,7 @@ import { ensure, getM, tidy } from '../ops/meta-util.js';
 import type { LineSpan } from '../ops/types.js';
 import type { ErGeometry } from '../render/types.js';
 import type { ItemRef } from '../types.js';
-import type { OpsKind } from './ops-types.js';
+import type { OpsKind } from '../kind/ops-types.js';
 
 const one = (li: number | null | undefined): LineSpan | null => (li == null ? null : { start: li, end: li });
 const byLine = (arr: { id: string; key: number | null | undefined }[], id: string): number =>

@@ -1,7 +1,7 @@
 // The sequence ops kind: code order (participants trade places, items move within their blocks), positional ids and
 // the metadata that follows them.
 import { seqPresets } from '../render/sequence-presets.js';
-import type { Presets } from './types.js';
+import type { Presets } from '../kind/types.js';
 import { activationsOf } from '../ids.js';
 import type { ItemRef } from '../types.js';
 import type { SequenceModel } from '../model.js';
@@ -10,7 +10,7 @@ import { remapSequenceMeta } from '../ops/remap.js';
 import { swapParticipant } from '../ops/sequence.js';
 import type { LineSpan } from '../ops/types.js';
 import type { SequenceGeometry } from '../render/types.js';
-import type { OpsKind } from './ops-types.js';
+import type { OpsKind } from '../kind/ops-types.js';
 
 const one = (li: number | null | undefined): LineSpan | null => (li == null ? null : { start: li, end: li });
 

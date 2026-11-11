@@ -1,6 +1,6 @@
 // The kind descriptor (T01): one object per diagram type with everything the generic code needs from that type, so
 // nothing outside the type's own files branches on `model.type`. A view kind is what drawing a diagram needs (the
-// viewer, the diff, SSR); the editor adds an ops kind (core/kinds/ops-types.ts) and an edit kind (editor/kinds).
+// viewer, the diff, SSR); the editor adds an ops kind (core/kind/ops-types.ts) and an edit kind (editor/kinds).
 import type { SupportedModel } from '../model.js';
 import type { RenderEnv, SubResult, BoxGeom } from '../render/types.js';
 import type { StyleProps } from '../style.js';

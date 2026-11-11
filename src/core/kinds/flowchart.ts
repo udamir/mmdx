@@ -3,7 +3,7 @@ import type { FlowchartModel } from '../model.js';
 import type { ItemRef } from '../types.js';
 import { emptyFlowchart, parseFlowchart } from '../parse/flowchart.js';
 import { renderFlowchart } from '../render/flowchart.js';
-import type { ViewKind } from './types.js';
+import type { ViewKind } from '../kind/types.js';
 
 export const VIEW: ViewKind<FlowchartModel> = {
   type: 'flowchart',

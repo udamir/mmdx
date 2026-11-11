@@ -7,7 +7,7 @@ import { VIEW as mindmap } from './mindmap.js';
 import { registerKinds } from './registry.js';
 import { VIEW as sequence } from './sequence.js';
 import { VIEW as state } from './state.js';
-import type { Kinds } from './types.js';
+import type { Kinds } from '../kind/types.js';
 
 registerExtendedShapes();
 

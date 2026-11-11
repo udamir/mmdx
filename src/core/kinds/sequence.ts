@@ -3,7 +3,7 @@ import type { SequenceModel } from '../model.js';
 import type { ItemRef } from '../types.js';
 import { emptySequence, parseSequence } from '../parse/sequence.js';
 import { renderSequence } from '../render/sequence.js';
-import type { ViewKind } from './types.js';
+import type { ViewKind } from '../kind/types.js';
 
 export const VIEW: ViewKind<SequenceModel> = {
   type: 'sequence',

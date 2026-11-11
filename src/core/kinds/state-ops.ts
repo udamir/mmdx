@@ -7,8 +7,8 @@ import { ensure, getM, tidy } from '../ops/meta-util.js';
 import { stateEdgePreset, stateGroupPreset, stateNodePreset, statePresets } from '../render/state-presets.js';
 import type { StateGeometry } from '../render/types.js';
 import type { ItemRef } from '../types.js';
-import type { OpsKind } from './ops-types.js';
-import type { Presets } from './types.js';
+import type { OpsKind } from '../kind/ops-types.js';
+import type { Presets } from '../kind/types.js';
 import { minOf } from '../geom.js';
 
 export const OPS: OpsKind<StateModel, StateGeometry> = {

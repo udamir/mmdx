@@ -3,7 +3,7 @@
 // and the diff. A loaded kind is registered for the generic helpers (core/kinds/registry.ts). The geometry of the shapes
 // beyond the 17 loads the same way, the first time a render draws one of them (T02.9).
 import { registerKinds, registeredKinds, viewKind } from '../core/kinds/registry.js';
-import type { Kinds, ViewKind } from '../core/kinds/types.js';
+import type { Kinds, ViewKind } from '../core/kind/types.js';
 import { shapeMisses } from '../core/shapes/misses.js';
 import type { DiagramType } from '../core/types.js';
 

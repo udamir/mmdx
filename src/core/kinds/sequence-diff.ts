@@ -3,7 +3,7 @@ import { diffSequence, mergeSequence } from '../diff/sequence.js';
 import { boxShape } from '../diff/shape.js';
 import type { SequenceModel } from '../model.js';
 import type { SequenceGeometry } from '../render/types.js';
-import type { DiffKind } from './diff-types.js';
+import type { DiffKind } from '../kind/diff-types.js';
 
 export const DIFF: DiffKind<SequenceModel, SequenceGeometry> = {
   type: 'sequence',

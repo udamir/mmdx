@@ -3,7 +3,7 @@ import { diffState, mergeState } from '../diff/state.js';
 import { boxShape, pathShape } from '../diff/shape.js';
 import type { StateModel } from '../model.js';
 import type { StateGeometry } from '../render/types.js';
-import type { DiffKind } from './diff-types.js';
+import type { DiffKind } from '../kind/diff-types.js';
 
 export const DIFF: DiffKind<StateModel, StateGeometry> = {
   type: 'state',

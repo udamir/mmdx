@@ -22,8 +22,8 @@ describe('layers', () => {
     expect(edgeViolation({ from: 'diff/history.ts', to: 'editor/core.ts', kind: 'type' })).toMatch(/^product → product/);
     expect(edgeViolation({ from: 'view/core.ts', to: 'core/types.ts', kind: 'value' })).toBeNull();
     // core's sub-layers: C0 base … C9 assembly, a stage's types.ts is C0
-    expect(edgeViolation({ from: 'core/kinds/types.ts', to: 'core/render/common.ts', kind: 'type' })).toBe('upward core C1 → C5');
-    expect(edgeViolation({ from: 'core/kinds/types.ts', to: 'core/render/types.ts', kind: 'type' })).toBeNull();
+    expect(edgeViolation({ from: 'core/kind/types.ts', to: 'core/render/common.ts', kind: 'type' })).toBe('upward core C1 → C5');
+    expect(edgeViolation({ from: 'core/kind/types.ts', to: 'core/render/types.ts', kind: 'type' })).toBeNull();
     expect(edgeViolation({ from: 'core/render/flowchart.ts', to: 'core/parse/dispatch.ts', kind: 'value' })).toBeNull();
     expect([coreLayerOf('types.ts'), coreLayerOf('kinds/registry.ts'), coreLayerOf('meta/keys.ts'), coreLayerOf('parse/er.ts'), coreLayerOf('layout/tree.ts')]).toEqual([0, 1, 2, 3, 4]);
     expect([coreLayerOf('render/er.ts'), coreLayerOf('ops/er.ts'), coreLayerOf('diff/er.ts'), coreLayerOf('kinds/er-ops.ts'), coreLayerOf('kinds/all.ts')]).toEqual([5, 6, 7, 8, 9]);

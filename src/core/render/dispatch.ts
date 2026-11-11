@@ -9,7 +9,7 @@ import type { ResolvedTheme } from '../theme/types.js';
 import type { Rect } from '../types.js';
 import { toNumber } from '../validate.js';
 import type { RenderEnv, SubResult, RenderContext, RenderOptions, RenderResult } from './types.js';
-import type { Kinds } from '../kinds/types.js';
+import type { Kinds } from '../kind/types.js';
 import { effectivePage, fitPage, gridPattern, isClear, pageBounds, pageScene } from './page.js';
 
 

@@ -1,7 +1,7 @@
 // The text outline of a state diagram (the core's `outline`: for screen readers and copying): each state with its
 // outgoing transitions, composites with their contents, notes.
 import type { StateModel } from '../model.js';
-import type { OutlineItem } from './types.js';
+import type { OutlineItem } from '../kind/types.js';
 
 const one = (s: string): string => s.replace(/\s*\n\s*/g, ' ').trim();
 

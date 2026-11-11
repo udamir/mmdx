@@ -3,7 +3,7 @@ import { diffEr, mergeEr } from '../diff/er.js';
 import { boxShape, pathShape } from '../diff/shape.js';
 import type { ErModel } from '../model.js';
 import type { ErGeometry } from '../render/types.js';
-import type { DiffKind } from './diff-types.js';
+import type { DiffKind } from '../kind/diff-types.js';
 
 export const DIFF: DiffKind<ErModel, ErGeometry> = {
   type: 'er',

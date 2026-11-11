@@ -8,7 +8,7 @@ import { createContextWith, type CoreContext } from '../core/context-base.js';
 import { ensureBuiltinThemes, getShared } from '../config.js';
 import { detectType } from '../core/parse/dispatch.js';
 import { diffKind, registerDiffs } from '../core/kinds/registry.js';
-import type { DiffKind } from '../core/kinds/diff-types.js';
+import type { DiffKind } from '../core/kind/diff-types.js';
 import type { DiagramType } from '../core/types.js';
 import { loadedKinds, loadKind, renderShapes } from '../view/kinds.js';
 

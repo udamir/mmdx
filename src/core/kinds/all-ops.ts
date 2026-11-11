@@ -5,6 +5,6 @@ import { OPS as mindmap } from './mindmap-ops.js';
 import { registerOps } from './registry.js';
 import { OPS as sequence } from './sequence-ops.js';
 import { OPS as state } from './state-ops.js';
-import type { OpsKinds } from './ops-types.js';
+import type { OpsKinds } from '../kind/ops-types.js';
 
 export const ALL_OPS_KINDS: OpsKinds = registerOps({ flowchart, sequence, er, mindmap, state });
