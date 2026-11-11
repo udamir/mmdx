@@ -34,7 +34,7 @@ import type { TextFormat, TextFormats } from './ops/format.js';
 import { HIGHLIGHT_CSS } from '../dom/highlight.js';
 import type { Viewport, WheelMode } from '../dom/viewport.js';
 import { Dialogs, DIALOG_CSS } from '../ui/kit/dialog.js';
-import { signal, type ReadSignal, type Signal } from '../reactive/signal.js';
+import { signal, untracked, type ReadSignal, type Signal } from '../reactive/signal.js';
 import { ALIASES } from '../ui/kit/base.js';
 import { EDITOR_CSS } from './styles.js';
 import { ViewCore } from '../view/core.js';
@@ -403,6 +403,11 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     this.store = o.store;
     this.features = o.features;
     this.docType = this.owner.computed(() => detectType(this.store.code()));
+    // a kind's own modules (`when.kind`) install when the document becomes of their type, and go when it leaves it
+    this.owner.effect(() => {
+      this.docType();
+      untracked(() => this.refreshModules());
+    });
     this.dialogs = new Dialogs(this.shadow, this.i18n.t);
     this.toolState.set('pointer');
     this.panelsState.set({ code: true, properties: true, layers: true });

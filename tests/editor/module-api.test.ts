@@ -120,3 +120,23 @@ describe('EditorModuleApi', () => {
   });
 });
 
+
+describe('kind modules (A11d): installed only for their diagram type', () => {
+  it('the ER table and the sequence gestures install with an ER or a sequence document, and go when it changes type', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const e = new DiagramEditor(host, { value: 'flowchart LR\n  a --> b', storage: memoryStorage() });
+    await e.whenLoaded();
+    expect(e.core.moduleIds).not.toContain('er-table');
+    expect(e.core.moduleIds).not.toContain('sequence');
+    e.setSource('erDiagram\n  A ||--o{ B : has\n');
+    await e.whenLoaded();
+    expect(e.core.moduleIds).toContain('er-table');
+    expect(e.core.moduleIds).not.toContain('sequence');
+    e.setSource('sequenceDiagram\n  A->>B: hi\n');
+    await e.whenLoaded();
+    expect(e.core.moduleIds).toContain('sequence');
+    expect(e.core.moduleIds).not.toContain('er-table');
+    e.destroy();
+  });
+});

@@ -9,6 +9,11 @@ import type { Mode, SlotName, Stage } from './types.js';
 export interface ModuleWhen {
   mode?: readonly Mode[];
   stage?: readonly Stage[];
+  /**
+   * Installed only while the document is of one of these diagram types (A11d: a kind's own gestures and panels; a
+   * lazy module's code loads then). Read from the core's `docType`; a product without one installs the module.
+   */
+  kind?: readonly string[];
 }
 
 /** The action map of a kernel type (`ViewCore<Actions, …>`). */

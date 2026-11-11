@@ -433,6 +433,11 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     return this.modules.ids;
   }
 
+  /** Resolves once the modules' lazy parts asked for so far have loaded (a kind's modules after its document loads). */
+  modulesReady(): Promise<void> {
+    return this.modules.settled();
+  }
+
   /** Runs `f` with registrations attributed to a module's scope (lazy parts, late registrations). */
   inScope(scope: ModuleScope<this>, f: () => void): void {
     if (scope instanceof Scope) this.modules.within(scope, f);

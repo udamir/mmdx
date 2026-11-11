@@ -344,7 +344,7 @@ export class DiagramEditor {
    */
   whenLoaded(): Promise<void> {
     // and the editor code of the document's diagram type, which loads on demand
-    return this.sync.loading.then(() => this.core.kindsReady());
+    return this.sync.loading.then(() => this.core.kindsReady()).then(() => this.core.modulesReady());
   }
 
   private addBaseShortcuts(): void {

@@ -76,7 +76,8 @@ for (const k of ['flowchart', 'sequence', 'er', 'mindmap', 'state']) {
   // flowchart 95.4, sequence 86.4, ER 90.7, mindmap 82.1 and state 97.1 kB with Stage 2's A8 (the component shell)
   // flowchart 95.9, sequence 86.4, ER 91.2, mindmap 82.1 and state 97.6 kB 4.3: the parser kit as modules of its own (frontmatter rule, kit, jison; +0.1 kB of module boundaries)
   // flowchart 96.5, sequence 87.3, ER 91.8, mindmap 83 and state 98.2 kB 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
-  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), ({ flowchart: 96.5, sequence: 87.3, er: 91.8, mindmap: 83, state: 98.2 })[k] * KB);
+  // flowchart 96.5, sequence 87.3, ER 91.8, mindmap 83 and state 98.6 kB A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
+  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), ({ flowchart: 96.5, sequence: 87.3, er: 91.8, mindmap: 83, state: 98.6 })[k] * KB);
 }
 // a flowchart that draws one of the shapes beyond the 17 (T02.9): their geometry, 4.3 kB, loads before it renders (72.7 kB measured; 73.5 kB with media in the scene, T03; 76.3 kB with the icon registry, T04); since T06 the chunk also holds the media kit (rich labels, icons, images), which a flowchart with markdown, icon tokens, icon or image nodes loads the same way (86.8 kB measured: +5.5 kB the flowchart's own growth, +5 kB the kit); 92.7 kB with the compound layout (T07, 92.3 kB measured: the flowchart's +5.1 kB)
 // 97.1 kB with media in every kind and the sequence and ER fixes (T10, T11: 96.7 kB measured, the viewer's +2 kB)
@@ -149,7 +150,8 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
 // core 128.8, theme-editor 176, editor 218.1 and diff 95.2 kB 5.3/5.4: DocumentSync and the canvas selection split into five files (+0.1 kB of module boundaries)
 // core 128.8, theme-editor 176, editor 218.6 and diff 95.2 kB 5.5: the sequence module split into its parts (+0.1–0.2 kB of module boundaries)
 // core 128.8, theme-editor 176, editor 219.6 and diff 95.2 kB 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
-for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor', 219.6], ['diff', 95.2]]) {
+// core 128.8, theme-editor 176, editor 204.3 and diff 95.2 kB A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
+for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor', 204.3], ['diff', 95.2]]) {
   const b = await bundle(entry);
   report(entry, b.size(b.base), budget * KB);
   if (entry === 'editor') {
@@ -176,7 +178,15 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 251.6 kB (251.2 kB measured) 5.5: the sequence module split into its parts (+0.1–0.2 kB of module boundaries)
     // 252.5 kB (252.1 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
     // 253 kB (252.6 kB measured) 4.5: the ops kinds share the ops kit (a chunk of its own: +0.1–0.4 kB for one diagram type)
-    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 253 * KB);
+    // 237.7 kB (237.3 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
+    // with its own modules where the type has them (A11d: they load with the type); 239 kB: the sequence diagram with
+    // its gestures is 238.6 kB measured
+    const KIND_MODULES = { sequence: 'src/editor/modules/sequence/index.ts', er: 'src/editor/modules/er-table/index.ts' };
+    for (const k of ['flowchart', 'sequence', 'er']) {
+      const kind = lazy(b, `src/editor/kinds/${k}.ts`, b.base);
+      const mods = KIND_MODULES[k] ? lazy(b, KIND_MODULES[k], new Set([...b.base, ...kind])) : [];
+      report(`editor (first ${k})`, b.size(b.base) + b.size(kind) + b.size(mods), 239 * KB);
+    }
     {
       // a mindmap: its kinds and the mindmap module's gestures, both loaded with the first mindmap (T08: 228.3 kB measured; the view, ops and edit kinds with the geometry of bang and cloud and the media kit, which its edit kind registers as the flowchart's does, and the drag, handles and keys of the outline)
       const kind = lazy(b, 'src/editor/kinds/mindmap.ts', b.base);
@@ -197,7 +207,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
       // 251.8 kB (251.4 kB measured) 5.5: the sequence module split into its parts (+0.1–0.2 kB of module boundaries)
       // 252.7 kB (252.3 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
       // 253.5 kB (253.1 kB measured) 4.5: the ops kinds share the ops kit (a chunk of its own: +0.1–0.4 kB for one diagram type)
-      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 253.5 * KB);
+      // 238.2 kB (237.8 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
+      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 238.2 * KB);
     }
     // a state diagram: its view, ops and edit kinds in one chunk loaded with the first state diagram (T09: 240.5 kB measured; the parser, compound layout, renderer, state shapes, ops, palette and Properties controls)
     // 249.4 kB with media in every kind and the sequence and ER fixes (T10, T11: 249 kB measured)
@@ -213,7 +224,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 264.7 kB (264.3 kB measured) 5.5: the toolbars and the ER table split into their parts (+0.1–0.3 kB of module boundaries)
     // 265.2 kB (264.8 kB measured) 5.5: the code panel split into its parts (+0.1 kB of module boundaries)
     // 265.9 kB (265.5 kB measured) 4.5: the ops kinds share the ops kit (a chunk of its own: +0.1–0.4 kB for one diagram type)
-    report('editor (first state)', b.size(b.base) + b.size(lazy(b, 'src/editor/kinds/state.ts', b.base)), 265.9 * KB);
+    // 252.1 kB (251.7 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
+    report('editor (first state)', b.size(b.base) + b.size(lazy(b, 'src/editor/kinds/state.ts', b.base)), 252.1 * KB);
     // the insert dock's lazy chunks (T05): the pickers (icon picker, image tool, emoji picker and their glue), the shape palette block, the Connector and Container tools, the English emoji data (§4.5: at most 30 kB)
     const loaded = new Set([...b.base, ...lazy(b, 'src/editor/kinds/flowchart.ts', b.base)]);
     // 13.2 kB with the image tool's Icon tab, the overlay scrollbars of its grids and its place by the toolbar (12.8 kB measured)
@@ -239,7 +251,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 262 kB (261.6 kB measured) 5.5: the code panel split into its parts (+0.1 kB of module boundaries)
     // 262.7 kB (262.3 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
     // 263.2 kB (262.8 kB measured) 4.7: the group tree and escapeRegExp as shared modules (+0.1 kB)
-    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 263.2 * KB);
+    // 247.8 kB (247.4 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
+    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 247.8 * KB);
   }
 }
 
@@ -365,7 +378,8 @@ const rows = [
   // 214.3 kB (213.9 kB measured) 5.3/5.4: DocumentSync and the canvas selection split into five files (+0.1 kB of module boundaries)
   // 214.8 kB (214.4 kB measured) 5.5: the sequence module split into its parts (+0.1–0.2 kB of module boundaries)
   // 215.8 kB (215.4 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
-  ['editor', ['src/editor.ts'], 215.8],
+  // 185.6 kB (185.2 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
+  ['editor', ['src/editor.ts'], 185.6],
   // 184.2 kB measured; 197.8 kB with the shape catalogue (197.3 kB measured); 198.2 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 197.8 kB measured: the same code as before, in more chunks, each compressed on its own)
   // 199.2 kB with media in the scene (T03, 198.8 kB measured); 201.9 kB with the icon registry (T04, 201.5 kB measured)
   // 206.9 kB with the insert dock (T05, 206.5 kB measured: the editor's part, and the flowchart's icon and image node ops and palette sections)
@@ -385,7 +399,8 @@ const rows = [
   // 252.5 kB (252.1 kB measured) 4.3: the parser kit as modules of its own (frontmatter rule, kit, jison; +0.1 kB of module boundaries)
   // 253.2 kB (252.8 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
   // 253.7 kB (253.3 kB measured) 4.5: the ops kinds share the ops kit (a chunk of its own: +0.1–0.4 kB for one diagram type)
-  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart.ts'], 253.7],
+  // 232.4 kB (232.0 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
+  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart.ts'], 232.4],
   // the first mindmap (T08, 70.8 kB measured): the viewer and the mindmap's kind chunk (parser, tidy tree layout, renderer)
   // 72 kB with state diagrams (T09, 71.6 kB measured: the viewer's +0.5 kB)
   // 75.1 kB with media in every kind and the sequence and ER fixes (T10, T11, 74.7 kB measured)
@@ -412,7 +427,8 @@ const rows = [
   // 248.1 kB (247.7 kB measured) 5.5: the sequence module split into its parts (+0.1–0.2 kB of module boundaries)
   // 248.9 kB (248.5 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
   // 249.8 kB (249.4 kB measured) 4.5: the ops kinds share the ops kit (a chunk of its own: +0.1–0.4 kB for one diagram type)
-  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap.ts', 'src/editor/modules/mindmap/gestures.ts'], 249.8],
+  // 220.8 kB (220.4 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
+  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap.ts', 'src/editor/modules/mindmap/gestures.ts'], 220.8],
   // the first state diagram (T09, 85.6 kB measured): the viewer and the state's kind chunk (parser, compound layout, renderer, shapes)
   // 89.1 kB with media in every kind and the sequence and ER fixes (T10, T11, 88.7 kB measured)
   // 89.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (89.5 kB measured)
@@ -423,7 +439,8 @@ const rows = [
   // 99.3 kB (98.9 kB measured) with Stage 2's A8 (the component shell)
   // 99.8 kB (99.4 kB measured) 4.3: the parser kit as modules of its own (frontmatter rule, kit, jison; +0.1 kB of module boundaries)
   // 100.5 kB (100.1 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
-  ['viewer (first state)', ['src/viewer.ts', kindChunk('state')], 100.5],
+  // 101 kB (100.6 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
+  ['viewer (first state)', ['src/viewer.ts', kindChunk('state')], 101],
   // the first state diagram in the editor (T09, 238.2 kB measured): its view, ops and edit kinds
   // 245.2 kB with media in every kind and the sequence and ER fixes (T10, T11, 244.8 kB measured)
   // 248.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (248.5 kB measured)
@@ -437,7 +454,8 @@ const rows = [
   // 261.2 kB (260.8 kB measured) 5.5: the sequence module split into its parts (+0.1–0.2 kB of module boundaries)
   // 261.8 kB (261.4 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
   // 262.3 kB (261.9 kB measured) 4.5: the ops kinds share the ops kit (a chunk of its own: +0.1–0.4 kB for one diagram type)
-  ['editor (first state)', ['src/editor.ts', 'src/editor/kinds/state.ts'], 262.3],
+  // 235.4 kB (235.0 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
+  ['editor (first state)', ['src/editor.ts', 'src/editor/kinds/state.ts'], 235.4],
   // the English emoji data (T05 §4.5: at most 30 kB), a lazy chunk of its own
   ['emoji data, English (lazy chunk)', ['src/emoji/en.ts'], 30],
   // 240.2 kB with the shape catalogue (239.7 kB measured); 236.2 kB once the shapes beyond the 17 load on demand (T02.9, 235.8 kB measured)
@@ -457,7 +475,8 @@ const rows = [
   // 263.1 kB (262.7 kB measured) 5.3/5.4: DocumentSync and the canvas selection split into five files (+0.1 kB of module boundaries)
   // 263.7 kB (263.3 kB measured) 5.5: the sequence module split into its parts (+0.1–0.2 kB of module boundaries)
   // 264.7 kB (264.3 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
-  ['editor + History opened', ['src/editor.ts', ...HISTORY], 264.7],
+  // 234.8 kB (234.4 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
+  ['editor + History opened', ['src/editor.ts', ...HISTORY], 234.8],
   // 125.2 kB while the entry re-exported the all-kinds diff
   // 92.5 kB once the per-type diffs left the entry for the diff kinds (90.9 kB measured); 94.6 kB before; 91.5 kB with the shapes on demand (T02.9, 91.1 kB measured)
   // 92.5 kB with media in the scene (T03, 92.1 kB measured); 95.1 kB with the icon registry (T04, 94.7 kB measured)

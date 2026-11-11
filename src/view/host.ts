@@ -25,6 +25,8 @@ export interface HostCore {
   readonly isDestroyed: boolean;
   addCss(css: readonly string[]): void;
   removeCss(css: readonly string[]): void;
+  /** The document's diagram type, for modules installed by kind (`when.kind`); none: every module installs. */
+  readonly docType?: ReadSignal<string | null>;
   /** Whether a feature is on (outside install, nothing is recorded). */
   feature(name: string): boolean;
 }
@@ -106,7 +108,9 @@ export class ModuleHost<C extends HostCore> {
 
   private refreshOnce(): void {
     const core = this.core;
+    const kind = core.docType?.peek() ?? null;
     const want = this.available.filter((m) => {
+      if (m.when?.kind && core.docType && !m.when.kind.includes(kind ?? '')) return false;
       try {
         return !m.enabled || m.enabled(core);
       } catch (e) {
@@ -129,6 +133,11 @@ export class ModuleHost<C extends HostCore> {
 
   get ids(): string[] {
     return [...this.installed.keys()];
+  }
+
+  /** Resolves once the lazy parts asked for so far have loaded (a failed one counts as done: it is reported). */
+  settled(): Promise<void> {
+    return Promise.all([...this.installed.values()].map((s) => s.loading.catch(() => undefined))).then(() => undefined);
   }
 
   private matches(m: ViewModule<C>): boolean {
@@ -399,6 +408,11 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
   }
 
   /** Loads and activates the lazy part once; a failed load is not kept (the next call tries again). */
+  /** The module's lazy part as it loads (resolved when it has none or it has not been asked for). */
+  get loading(): Promise<void> {
+    return this.loaded ?? Promise.resolve();
+  }
+
   load(): Promise<void> {
     const load = this.module.load;
     if (!load) return Promise.resolve();
