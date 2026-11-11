@@ -4,14 +4,19 @@ How Mermaid Studio is put together: a pure core that turns text into a scene, a 
 
 ## Layers
 
+Each layer imports only from the layers above it in this table; `tests/arch` checks it (with a baseline of the few edges still to remove that may only shrink), and inside core the same holds for its sub-layers, from the base types up to the assembly of every kind.
+
 | Layer | Where | What it does |
 |---|---|---|
-| Core | `src/core` | Parsers, layout, renderers, metadata, themes, diff — pure TypeScript, no DOM. The `@mmdx/studio/core` entry |
-| DOM | `src/dom` | The DOM patcher, viewport, `DiagramCanvas`, pen strokes, the render worker and its client, PNG / SVG export |
-| UI blocks | `src/ui/blocks` | Small UI pieces with no diagram knowledge: tool dock, zoom bar, menus, panels and panel stacks, code view, version and change lists… |
-| Kernel | `src/view` | `ViewCore`: services, state, the shell, the scene stack and the module host |
-| Products | `src/editor`, `src/diff`, `src/elements` | The viewer, the editor and the diff as the kernel plus a scene and modules; the five custom elements |
-| Integrations | `src/adapters`, `src/markdown`, `src/wrappers` | Host adapters, Markdown plugins, React wrappers |
+| Reactive | `src/reactive` | Signals (`signal`, `computed`, `effect`, `batch`) and `Owner`, the disposal scope every component, block and module sets things up in |
+| Core | `src/core` | Parsers, layout, renderers, metadata, themes, diff — pure TypeScript, no DOM. The `@mmdx/studio/core` entry. Inside: base types, the kind contract (`core/kind`), resources (metadata, themes, shapes, icons, media), parse, layout, render, ops, diff and export, the kinds' implementations, and the assembly of every kind |
+| Ports, i18n | `src/ports.ts`, `src/i18n.ts` | The host interfaces (storage, documents, themes, history, images, full screen, Mermaid) and the message catalogue — types and plain functions, no DOM |
+| DOM, adapters, platform | `src/dom`, `src/adapters`, `src/platform` | The DOM patcher, viewport, pen strokes, the render worker and its client, PNG / SVG export; the built-in host adapters; `configure()`, the shared theme registry, the stock Mermaid bridge and the diagram kinds loaded on demand |
+| UI | `src/ui` | `ui/kit`: primitives (elements, focus and roving, popovers, dialogs, icons, the tokens and base styles). `ui/blocks`: small UI pieces with no diagram knowledge — tool dock, zoom bar, menus, panels and panel stacks, code view, version and change lists, status box… `ui/diagram`: the widgets that know diagrams — style and page toolbars, item and shape previews, the code editor |
+| Canvas | `src/dom/canvas.ts` | `DiagramCanvas`, every picture's canvas |
+| Kernel | `src/view` | `ViewCore`: services, state, the shell, the keymap, the scene stack and the module host |
+| Products | `src/editor`, `src/diff`, `src/theme-editor` | The editor and the diff as the kernel plus a scene and modules, and the theme editor; each with its own messages and styles |
+| Elements, integrations | `src/elements`, `src/markdown`, `src/wrappers` | The five custom elements (the viewer is the kernel plus a scene), Markdown plugins, React wrappers |
 
 ## The core pipeline
 
@@ -23,11 +28,11 @@ Every picture — on screen, exported, server-rendered, in a diff — comes from
 4. **Render**: the model, the metadata and the theme become a scene tree — layout, styles and geometry, with a geometry index for hit testing.
 5. **Output**: the scene tree is serialized to an SVG string (`standaloneSvg`, SSR, export) or patched into the DOM by keyed patching.
 
-The pipeline never throws on bad input, and every instance-scoped thing it needs — theme registry, text measurer, link policy, id prefix — comes in through a `CoreContext`; there are no module singletons. Each diagram type's parser and renderer is a separate chunk that the viewer and the diff load on first use, and diagrams over 300 lines render in a module worker.
+The pipeline never throws on bad input, and every instance-scoped thing it needs — theme registry, text measurer, link policy, id prefix — comes in through a `CoreContext`; what core keeps at module level is code registries and caches only (`tests/arch` lists each one), and what a render drew without — a shape or the media kit not loaded yet — comes back in its result (`missing`). Each diagram type's parser and renderer is a separate chunk that the viewer and the diff load on first use, and large diagrams (over 300 lines or 32 KiB) render in a module worker.
 
 ## Blocks
 
-Blocks (`src/ui/blocks`) are the UI pieces the products share: tool dock, zoom bar, menus, theme menu, panels and panel stacks, code view, layer list, version list, change list, filter toggles, pill, help popup, export menu… Each takes plain props and callbacks, knows nothing about diagrams, and has a test and a story in [Storybook](/storybook/){target="_self"}. One set of blocks is why every component has the same chrome.
+Blocks (`src/ui/blocks`) are the UI pieces the products share: tool dock, zoom bar, menus, theme menu, panels and panel stacks, code view, layer list, version list, change list, filter toggles, pill, status box, help popup, export menu… Each takes plain props and callbacks — what it shows comes from its host (the code view its line diff, the emoji picker its search) — knows nothing about diagrams, and exports its CSS and has a test and a story in [Storybook](/storybook/){target="_self"} (`tests/arch` checks all three). The primitives below them are in `src/ui/kit`, the widgets that do know diagrams in `src/ui/diagram`. One set of blocks is why every component has the same chrome.
 
 ## Canvas
 
@@ -102,7 +107,7 @@ Each diagram type (flowchart, sequence, ER, mindmap, state) plugs in through its
 | Ops kind | `src/core/kinds/<type>-ops.ts` | the editor | Code order, positional ids and their metadata, the clipboard, presets, geometry lookups, the code filter's search, the styles the code gives |
 | Edit kind | `src/editor/kinds/<type>.ts` | the editor | Item text, delete, group, connect, the Shapes menu and drop placement, page settings, the code panel's fixes |
 
-A type's per-type code stays in its own files (`parse/<type>.ts`, `render/<type>.ts`, `ops/<type>.ts`, `diff/<type>.ts`, its editor module); the kinds bring it together. Loaded kinds are registered (`src/core/kinds/registry.ts`, `src/editor/kinds/registry.ts`), and the generic helpers find a model's kind there: a model only exists once its type's parser ran.
+A type's per-type code stays in its own files (`parse/<type>.ts`, `render/<type>.ts`, `ops/<type>.ts`, `diff/<type>.ts`, its editor module); the kinds bring it together. The kinds' contract (what each kind holds) is in `src/core/kind`. Loaded kinds are registered (`src/core/kinds/registry.ts`, `src/editor/kinds/registry.ts`), and the generic helpers find a model's kind there: a model only exists once its type's parser ran, so a missing kind is a bug and the lookup fails closed (`requireKind`; the diff reports it as `kind.not-loaded`). Where each type's view and diff kinds are is one manifest, `KIND_MODULES` in `src/platform/kinds.ts`, whose loaders share one load in flight per chunk.
 
 The editor loads a type's view, ops and edit kinds in one chunk the first time a document of that type is shown (`src/editor/kinds/loader.ts`): an editor of flowcharts never downloads the sequence and ER code. The document draws once they arrive, and `whenLoaded()` waits for them.
 
@@ -110,17 +115,20 @@ The editor loads a type's view, ops and edit kinds in one chunk the first time a
 
 | Folder | Contents |
 |---|---|
-| `src/core` | Parsers, layout, renderers, metadata, themes, diff — pure TypeScript, no DOM |
+| `src/reactive` | Signals and `Owner` |
+| `src/core` | Parsers, layout, renderers, metadata, themes, diff — pure TypeScript, no DOM; `core/kind` holds the kinds' contract |
+| `src/ports.ts`, `src/i18n.ts` | Host interfaces; the message catalogue |
+| `src/platform` | `configure()`, the shared themes, the stock Mermaid bridge, the kinds loaded on demand |
 | `src/dom` | DOM patcher, viewport, `DiagramCanvas`, pen strokes, worker client, export |
-| `src/ui` | Signals, the UI blocks (`src/ui/blocks`), toolbars, dialogs, styles and UI strings |
-| `src/view` | The view kernel (`ViewCore`), module host, scene sources and the standard view modules |
-| `src/diff` | The diff session, scene and modules (`<mmdx-diff>` and History) |
-| `src/editor` | The editor core (on the kernel), its store scene and its feature modules |
-| `src/theme-editor` | The theme editor |
+| `src/ui` | `ui/kit` (primitives, tokens), `ui/blocks` (the shared UI blocks), `ui/diagram` (toolbars, previews, the code editor), and the blocks' strings |
+| `src/view` | The view kernel (`ViewCore`), keymap, module host, scene sources, the standard view modules, the viewer's messages and styles |
+| `src/diff` | The diff session, scene and modules (`<mmdx-diff>` and History), its messages and styles |
+| `src/editor` | The editor core (on the kernel), its store scene and its feature modules, its messages and styles |
+| `src/theme-editor` | The theme editor, its messages and styles |
 | `src/elements` | The web components |
 | `src/adapters`, `src/markdown`, `src/wrappers` | Host adapters, Markdown plugins, React wrappers |
 | `src/*.ts` | The entry points (`viewer.ts`, `editor.ts`, `core.ts`, …) |
-| `themes/` | Built-in theme files |
+| `themes/` | Built-in theme files (the two core bundles are generated into `src/core/theme/data` by `tools/build-theme-data.mjs`) |
 | `examples/` | Example diagrams and their version histories |
 
 See [Contributing](/guide/contributing) for the rest of the repository.
