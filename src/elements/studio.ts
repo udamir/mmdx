@@ -2,10 +2,10 @@
 // gallery, appearance toggle — the prototype's index.html, packaged as one element. The studio gives the editor the
 // open document's versions (an example's bundled history and the versions saved here), shown by the editor's History.
 import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../ui/kit/overlay-scroll.js';
+import { ComponentShell } from '../view/component-shell.js';
 import { Owner } from '../reactive/owner.js';
 import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
 import type { ImageStore } from '../ports.js';
-import { localStorageAdapter, memoryStorage } from '../adapters/storage.js';
 import { type StorageAdapter, type ThemeSource, type HistoryAdapter } from '../ports.js';
 import { fetchThemeSource, localStorageThemeStore } from '../adapters/themes.js';
 import { getShared } from '../platform/config.js';
@@ -23,12 +23,12 @@ import type { BlockHandle } from '../ui/blocks/block.js';
 import { createSegmented, type SegmentedOption, type SegmentedProps } from '../ui/blocks/segmented.js';
 import { MENU_CSS, openMenu } from '../ui/blocks/menu.js';
 import { h, icon } from '../ui/kit/h.js';
-import { signal } from '../reactive/signal.js';
+import { effect, signal } from '../reactive/signal.js';
 import { I_close, I_eye, I_file, I_folder, I_palette, I_save } from '../ui/kit/icons.js';
 import { logoMark } from '../ui/kit/logo.js';
 import { PopoverManager, Toaster } from '../ui/kit/popover.js';
 import { Dialogs, DIALOG_CSS } from '../ui/kit/dialog.js';
-import { adoptStyles, ALIASES, BASE, resolveUiScheme, TOKENS, watchUiScheme } from '../ui/kit/base.js';
+import { adoptStyles, ALIASES, BASE, TOKENS } from '../ui/kit/base.js';
 
 /** The studio's mode switch: the editor's Edit and View, and Diff (its History, compared with the version before). */
 export type StudioMode = 'edit' | 'view' | 'diff';
@@ -99,6 +99,8 @@ mmdx-editor { position: absolute; inset: 0; height: auto; min-height: 0; }
 `;
 
 export class DiagramStudio {
+  /** The shadow root, storage, popovers, dialogs, scheme and events (A8: the kernel's component shell). */
+  private readonly shell: ComponentShell;
   private readonly shadow: ShadowRoot;
   private readonly o: StudioOptions;
   private readonly storage: StorageAdapter;
@@ -118,7 +120,6 @@ export class DiagramStudio {
   private bundled: StaticVersion[] = [];
   /** The editor's History source: this document's versions, read fresh every time it opens. */
   private history!: HistoryAdapter;
-  private ui: 'light' | 'dark' | 'auto';
   /** Bumps on every document opened: a slow load (an example, a file) started before gives up. */
   private openSeq = 0;
   private destroyed = false;
@@ -130,15 +131,15 @@ export class DiagramStudio {
 
   constructor(private readonly host: HTMLElement, opts: StudioOptions = {}) {
     this.o = { ...opts };
-    this.storage = opts.storage ?? (typeof localStorage !== 'undefined' ? localStorageAdapter() : memoryStorage());
-    this.shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
+    const shell = (this.shell = new ComponentShell(host, { product: 'studio', storage: opts.storage, schemeKey: 'ui' }));
+    this.storage = shell.storage;
+    this.shadow = shell.shadow;
     adoptStyles(this.shadow, [TOKENS, ALIASES, BASE, DIALOG_CSS, MENU_CSS, OVERLAY_SCROLL_CSS, STUDIO_CSS]);
     defineEditor();
-    this.ui = this.storage.get<'light' | 'dark'>('ui') ?? 'auto';
 
     this.editorEl = document.createElement('mmdx-editor');
     this.editorEl.features = { open: true };
-    this.editorEl.setAttribute('ui', this.ui);
+    this.editorEl.setAttribute('ui', shell.scheme.peek());
     if (opts.wheel) this.editorEl.setAttribute('wheel', opts.wheel);
     if (opts.images) this.editorEl.images = opts.images;
     this.nameEl = h('span', { class: 'name', title: 'File name' });
@@ -162,9 +163,9 @@ export class DiagramStudio {
     const main = h('div', { class: 'main' }, this.editorEl, h('div', { class: 'drop' }, 'Drop a .mmdx / .mmd / .md file'));
     const root = h('div', { class: 'studio' }, top, main);
     this.shadow.append(root);
-    this.pops = new PopoverManager(this.shadow);
+    this.pops = shell.popovers;
     this.toaster = new Toaster(root);
-    this.dialogs = new Dialogs(this.shadow, getShared().i18n.t);
+    this.dialogs = shell.dialogs;
     this.history = this.historyAdapter();
 
     const sig = { signal: this.ac.signal };
@@ -177,10 +178,7 @@ export class DiagramStudio {
     this.editorEl.addEventListener('mmdx-history-show', (ev) => this.mode.set((ev as CustomEvent<{ shown: string }>).detail.shown === 'compare' ? 'diff' : docMode()), sig);
     this.editorEl.addEventListener('mmdx-history-close', () => this.mode.set(docMode()), sig);
     this.editorEl.addEventListener('mmdx-ui', (ev) => {
-      const ui = (ev as CustomEvent<{ ui: 'light' | 'dark' }>).detail.ui;
-      this.ui = ui;
-      this.storage.set('ui', ui);
-      this.applyScheme();
+      this.shell.chooseScheme((ev as CustomEvent<{ ui: 'light' | 'dark' }>).detail.ui);
     }, sig);
     // save = download the styled file (the studio has no backend) and record a version in the history
     this.editorEl.addEventListener('mmdx-save', (ev) => {
@@ -208,8 +206,11 @@ export class DiagramStudio {
       ev.preventDefault();
       void this.openFiles(ev.dataTransfer.files);
     }, sig);
-    this.owner.add(watchUiScheme(() => this.applyScheme()));
-    this.applyScheme();
+    this.owner.add(effect(() => {
+      const s = shell.scheme();
+      this.host.setAttribute('data-ui', s);
+      this.editorEl.setAttribute('ui', s);
+    }));
     void this.boot();
   }
 
@@ -226,8 +227,8 @@ export class DiagramStudio {
     this.destroyed = true;
     this.ac.abort();
     this.owner.dispose();
-    this.pops.close();
     this.toaster.destroy();
+    this.shell.destroy();
     this.shadow.replaceChildren();
   }
 
@@ -541,12 +542,6 @@ export class DiagramStudio {
     };
   }
 
-  private applyScheme(): void {
-    const s = resolveUiScheme(this.ui === 'auto' ? null : this.ui);
-    this.host.setAttribute('data-ui', s);
-    this.editorEl.setAttribute('ui', s);
-  }
-
   // ---- theme editor (dialog) ----------------------------------------------------------------------------------------
 
   private async openThemeEditor(): Promise<void> {
@@ -560,7 +555,7 @@ export class DiagramStudio {
     const te = document.createElement('mmdx-theme-editor') as HTMLElement & { store?: unknown; source?: unknown };
     const store = localStorageThemeStore(this.storage, this.themeSource);
     te.store = store;
-    te.setAttribute('ui', resolveUiScheme(this.ui === 'auto' ? null : this.ui));
+    te.setAttribute('ui', this.shell.scheme.peek());
     // the theme the diagram is shown in (component state, §7.5; documents no longer carry one)
     const current = this.editorEl.instance?.theme;
     if (current) te.setAttribute('theme', current);

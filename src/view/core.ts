@@ -3,12 +3,11 @@
 // keymap) and the shared state (mode, stage, chrome scheme, theme, display, panels, tool, compact), and puts together
 // the shell with its named slots (shell.ts), the scene stack with the canvas area (scene.ts), the events and actions
 // (bus.ts) and the module host (host.ts). Products are compositions: a kernel, a scene source and a set of modules.
-import { localStorageAdapter, memoryStorage } from '../adapters/storage.js';
+import { ComponentShell } from './component-shell.js';
 import { type StorageAdapter } from '../ports.js';
 import { Owner } from '../reactive/owner.js';
 import type { ThemeSource, HistoryAdapter, HostFullscreen } from '../ports.js';
 import type { StaticVersion } from '../adapters/history.js';
-import { getShared, instanceContext } from '../platform/config.js';
 import type { CoreContext } from '../core/context.js';
 import type { IconPack } from '../core/icons/types.js';
 import type { Rect } from '../core/types.js';
@@ -20,13 +19,13 @@ import { VIEW_MESSAGES } from './messages.js';
 import { PopoverManager, Toaster } from '../ui/kit/popover.js';
 import { ShortcutRegistry } from './keymap.js';
 import { batch, effect, signal, untracked, type Signal, type ReadSignal } from '../reactive/signal.js';
-import { BASE, TOKENS, watchUiScheme } from '../ui/kit/base.js';
+import { BASE, TOKENS } from '../ui/kit/base.js';
 import type { HistoryHost, HistorySession } from './history.js';
 import { ModuleHost, Scope } from './host.js';
 import type { ModuleScope, Registration, ViewModule } from './module.js';
 import { SceneStack, type CanvasArea, type SceneSource } from './scene.js';
 import { createShell, SHELL_CSS, type Shell } from './shell.js';
-import { schemeState, themeLoader, ThemeState, type Scheme, type SchemeState, type UiOption } from './theme.js';
+import { themeLoader, ThemeState, type Scheme, type UiOption } from './theme.js';
 import type { Display, DockItem, ExportFormat, Mode, PanelItem, SlotName, Stage, Tool, ViewActions, ViewEvents } from './types.js';
 
 
@@ -108,7 +107,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   protected readonly stageState: Signal<Stage> = signal<Stage>('document');
   readonly stage: ReadSignal<Stage> = this.stageState;
   /** The chrome's light / dark scheme. */
-  readonly scheme: Signal<Scheme>;
+  readonly scheme: ReadSignal<Scheme>;
   readonly themes: ThemeState;
   protected readonly displayState: Signal<Display> = signal<Display>({ labels: true, hoverHighlight: true, animate: true });
   readonly display: ReadSignal<Display> = this.displayState;
@@ -154,11 +153,11 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   protected destroyed = false;
   private readonly o: ViewCoreOptions;
   private readonly shell: Shell;
+  /** The shadow root, i18n, context, storage, popovers, dialogs, scheme and events (A8: shared with the theme editor and the studio). */
+  private readonly component: ComponentShell;
   private readonly scenes: SceneStack;
   private readonly modules: ModuleHost<this> = new ModuleHost<this>(this);
-  private readonly schemeState: SchemeState;
   private readonly loadTheme: (id: string) => Promise<boolean>;
-  private prefs: StorageAdapter;
   private source: ThemeSource | undefined;
 
   constructor(host: HTMLElement, o: ViewCoreOptions) {
@@ -166,13 +165,14 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.o = o;
     this.product = o.product;
     this.host = host;
-    this.i18n = getShared().i18n;
-    this.prefs = o.storage ?? defaultStorage();
-    this.storage = { get: (k) => this.prefs.get(k), set: (k, v) => this.prefs.set(k, v), remove: (k) => this.prefs.remove(k) };
-    this.ctx = instanceContext(o.ctx, o.iconPacks);
+    // the shadow root, i18n, context, storage, popovers, dialogs, scheme and events every component has (A8)
+    const component = (this.component = new ComponentShell(host, { product: o.product, storage: o.storage, ctx: o.ctx, iconPacks: o.iconPacks, ui: o.ui }));
+    this.i18n = component.i18n;
+    this.storage = component.storage;
+    this.ctx = component.ctx;
     this.source = o.themeSource;
     this.loadHistory = o.loadHistory ?? null;
-    this.shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
+    this.shadow = component.shadow;
 
     // ---- shell, canvas area, scenes
     const shell = (this.shell = createShell(host, this.shadow, { root: o.root, areaClass: o.areaClass, css: [TOKENS, BASE, SHELL_CSS, CANVAS_CSS, ...o.css], compact: o.compact ?? 'auto' }));
@@ -195,19 +195,16 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     shell.placeAreaSlots();
     this.scenes = new SceneStack(this.area, this.canvas, canvasOptions, () => this.modules.bus.fire('draw', undefined));
     this.canvasArea = this.scenes.area;
-    this.popovers = new PopoverManager(this.shadow);
+    this.popovers = component.popovers;
     this.toaster = new Toaster(this.root);
     this.owner.add(() => this.toaster.destroy());
-    this.owner.add(() => this.popovers.close());
 
     // ---- state
     this.modeState = signal<Mode>(o.initialMode ?? 'view');
     this.mode = this.modeState;
-    this.schemeState = schemeState(this.storage, `${o.product}.ui`, o.ui);
-    this.scheme = this.schemeState.scheme;
+    this.scheme = component.scheme;
     this.themes = new ThemeState({ registry: this.ctx.themes, storage: this.storage, product: o.product, scheme: this.scheme, theme: o.theme, themeDark: o.themeDark });
     this.loadTheme = themeLoader(this.ctx.themes, () => this.source, () => !this.destroyed);
-    this.owner.add(watchUiScheme(() => this.schemeState.apply()));
     // an icon pack (or the icon code) finished loading: what was drawn as an empty box or a placeholder can show now
     this.owner.add(this.ctx.icons.onChange(() => {
       if (!this.destroyed) this.invalidate();
@@ -293,7 +290,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
    */
   emit(type: string, detail: unknown, cancelable = false): boolean {
     if (this.destroyed) return true;
-    return this.host.dispatchEvent(new CustomEvent(type, { detail, bubbles: true, composed: true, cancelable }));
+    return this.component.emit(type, detail, cancelable);
   }
 
   toast(msg: string, opts: { error?: boolean } = {}): void {
@@ -372,12 +369,12 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
 
   /** Sets the chrome scheme option (`ui`): explicit light / dark, or `auto` (the remembered choice, else the page). */
   setUi(ui: UiOption | undefined): void {
-    this.schemeState.setUi(ui);
+    this.component.setUi(ui);
   }
 
   /** The user toggles the chrome scheme: remembered per product, the theme is not touched. */
   chooseScheme(s: Scheme): void {
-    this.schemeState.choose(s);
+    this.component.chooseScheme(s);
     this.emit('mmdx-ui', { ui: s });
   }
 
@@ -394,8 +391,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
 
   /** Changes where UI preferences live: the remembered scheme and theme pick are read from it again. */
   setStorage(s: StorageAdapter | undefined): void {
-    this.prefs = s ?? defaultStorage();
-    this.schemeState.apply();
+    this.component.setStorage(s);
     this.themes.reload();
   }
 
@@ -458,6 +454,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.scenes.destroy();
     this.owner.dispose();
     this.shell.destroy();
+    this.component.destroy();
   }
 
   // ---- owners of the state (A7) ----------------------------------------------------------------------------------
@@ -513,4 +510,3 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   }
 }
 
-const defaultStorage = (): StorageAdapter => (typeof localStorage !== 'undefined' ? localStorageAdapter() : memoryStorage());

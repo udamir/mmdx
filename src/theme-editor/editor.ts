@@ -4,10 +4,9 @@
 // the tiles they affect and the preview after a short pause. Can be mounted into any element; <mmdx-theme-editor>
 // wraps it.
 import { memoryThemeStore } from '../adapters/themes.js';
+import { ComponentShell } from '../view/component-shell.js';
 import { Owner } from '../reactive/owner.js';
-import { localStorageAdapter, memoryStorage } from '../adapters/storage.js';
 import { type StorageAdapter } from '../ports.js';
-import { getShared, instanceContext } from '../platform/config.js';
 import { ensureBuiltinThemes } from '../platform/themes.js';
 import type { CoreContext } from '../core/context.js';
 import { THEME_SECTIONS } from '../core/schema/style-fields.js';
@@ -32,9 +31,9 @@ import { TOOLBAR_MESSAGES } from '../ui/messages/toolbar.js';
 import { PopoverManager, Toaster } from '../ui/kit/popover.js';
 import { formatKeys } from '../ui/kit/keys.js';
 import { ShortcutRegistry } from '../view/keymap.js';
-import { signal, untracked } from '../reactive/signal.js';
+import { effect, signal, untracked } from '../reactive/signal.js';
 import { createStyleToolbar, type StyleToolbarHandle } from '../ui/diagram/style-toolbar.js';
-import { ALIASES, adoptStyles, BASE, resolveUiScheme, TOKENS, watchUiScheme } from '../ui/kit/base.js';
+import { ALIASES, adoptStyles, BASE, TOKENS } from '../ui/kit/base.js';
 import { THEME_EDITOR_CSS } from './styles.js';
 import { TOOLBAR_CSS } from '../ui/diagram/toolbar-styles.js';
 import { card } from './cards/card.js';
@@ -59,7 +58,9 @@ export class ThemeEditor {
   /** Resolves when the theme list is loaded and the first theme is open. */
   ready: Promise<void>;
   private o: ThemeEditorOptions;
-  private storage: StorageAdapter;
+  /** The shadow root, i18n, context, storage, popovers, dialogs, scheme and events (A8: the kernel's component shell, without a scene kernel). */
+  private readonly shell: ComponentShell;
+  private readonly storage: StorageAdapter;
   private readonly i18n: I18n;
   private readonly shadow: ShadowRoot;
   private readonly frame: HTMLElement;
@@ -106,10 +107,11 @@ export class ThemeEditor {
     void ensureBuiltinThemes();
     registerMessages(TOOLBAR_MESSAGES);
     this.o = { ...options };
-    this.i18n = getShared().i18n;
-    this.ctx = instanceContext(options.ctx);
-    this.storage = options.storage ?? (typeof localStorage !== 'undefined' ? localStorageAdapter() : memoryStorage());
-    this.shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
+    const shell = (this.shell = new ComponentShell(host, { product: 'theme-editor', storage: options.storage, ctx: options.ctx, ui: options.ui }));
+    this.i18n = shell.i18n;
+    this.ctx = shell.ctx;
+    this.storage = shell.storage;
+    this.shadow = shell.shadow;
     adoptStyles(this.shadow, [TOKENS, ALIASES, BASE, DIALOG_CSS, TOOLBAR_CSS, BAR_CSS, ZOOM_BAR_CSS, TABS_CSS, SEGMENTED_CSS, MENU_CSS, DISCLOSURE_CSS, TILE_GALLERY_CSS, COLOR_PICKER_CSS, THEME_EDITOR_CSS]);
     const t = this.i18n.t;
     this.readPrefs();
@@ -127,8 +129,8 @@ export class ThemeEditor {
     this.dlg = h('div', { class: 'te-dialog', role: 'region', 'aria-labelledby': titleId, tabindex: '-1', part: 'panel' }, this.head, this.body, this.fileInput);
     this.frame = h('div', { class: 'te-overlay' });
     this.shadow.append(this.frame);
-    this.dialogs = new Dialogs(this.shadow, t);
-    this.pops = new PopoverManager(this.shadow);
+    this.dialogs = shell.dialogs;
+    this.pops = shell.popovers;
     this.toaster = new Toaster(this.shadow);
 
     // the draft reads the library's registry (created next) only when it resolves
@@ -186,8 +188,7 @@ export class ThemeEditor {
     this.listView = listView(this.env, this.list, () => this.o, () => this.fileInput.click());
     this.wire();
     this.wireKeys();
-    this.owner.add(watchUiScheme(() => this.applyScheme()));
-    this.applyScheme();
+    this.owner.add(effect(() => void this.host.setAttribute('data-ui', shell.scheme())));
     this.ready = this.lib.load(options.theme);
   }
 
@@ -220,10 +221,10 @@ export class ThemeEditor {
     const prev = this.o;
     this.o = { ...this.o, ...patch };
     const id = (): string => this.draft.id.peek();
-    if ('ui' in patch) this.applyScheme();
+    if ('ui' in patch) this.shell.setUi(this.o.ui);
     if ('presentation' in patch && patch.presentation !== prev.presentation) this.layout();
     if ('storage' in patch && patch.storage) {
-      this.storage = patch.storage;
+      this.shell.setStorage(patch.storage);
       this.readPrefs();
     }
     if (('store' in patch && patch.store && patch.store !== prev.store) || ('source' in patch && patch.source !== prev.source)) {
@@ -301,6 +302,7 @@ export class ThemeEditor {
     this.toolbar.destroy();
     this.pops.close();
     this.toaster.destroy();
+    this.shell.destroy();
     this.draft.dispose();
     this.frame.remove();
   }
@@ -337,11 +339,6 @@ export class ThemeEditor {
     // shown when first laid out and when embedded; a dialog the user closed stays closed
     this.frame.hidden = dialog && this.laidOut ? this.frame.hidden : false;
     this.laidOut = true;
-  }
-
-  private applyScheme(): void {
-    const ui = this.o.ui;
-    this.host.setAttribute('data-ui', resolveUiScheme(ui === 'auto' || !ui ? null : ui));
   }
 
   private readPrefs(): void {
