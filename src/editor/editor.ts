@@ -10,16 +10,14 @@ import { TOOLBAR_MESSAGES } from '../ui/messages/toolbar.js';
 import { ensureBuiltinThemes } from '../platform/themes.js';
 import type { CoreContext } from '../core/context.js';
 import type { IconPack } from '../core/icons/types.js';
-import { h } from '../ui/kit/h.js';
 import { effect, untracked } from '../reactive/signal.js';
 import { DEFAULT_FEATURES, EditorCore, type EditorFeatures, type Mode } from './core.js';
 import type { EditorModule } from './module.js';
 import { DEFAULT_MODULES } from './modules/index.js';
-import { DocStore, type ChangeReason } from './store.js';
+import { DocStore } from './store.js';
+import { DocumentSync, type SaveOutcome } from './services/document-sync.js';
 import type { ItemRef } from '../core/types.js';
 import type { HistorySession } from '../view/history.js';
-import type { BlockHandle } from '../ui/blocks/block.js';
-import type { PillProps } from '../ui/blocks/pill.js';
 
 export interface EditorOptions {
   value?: string;
@@ -63,7 +61,7 @@ export interface EditorOptions {
   images?: ImageStore | null;
 }
 
-export type SaveOutcome = 'saved' | 'cancelled' | 'conflict' | 'failed' | 'no-adapter';
+export type { SaveOutcome };
 
 /** How `setSource` replaces the document. */
 export interface SetSourceOptions {
@@ -81,19 +79,9 @@ export class DiagramEditor {
   private readonly o: EditorOptions;
   private readonly owner = new Owner('editor');
   private readonly ac = new AbortController();
-  private version: string | undefined;
-  private saving: Promise<SaveOutcome> | null = null;
-  private autosaveTimer: ReturnType<typeof setTimeout> | undefined;
-  /** The remote-change pill (top centre), and the count of the bars asked for (the pill block loads on first use). */
-  private remoteBar: BlockHandle<PillProps> | null = null;
-  private remoteAsked = 0;
-  /** The adapter's subscription to remote changes (one at a time; replaced when the adapter changes). */
-  private unsubscribe: (() => void) | null = null;
-  /** The latest remote update that arrived during a gesture or a transaction; applied when it ends. */
-  private pendingRemote: { src: string; version: string } | null = null;
+  /** The document and its adapter: load, save, conflicts, remote updates, autosave (5.3). */
+  private readonly sync: DocumentSync;
   private destroyed = false;
-  /** The adapter's latest load (resolved without an adapter). */
-  private loading: Promise<void> = Promise.resolve();
   /** The document's name (exports, the studio's title): the core's file name, so it follows every open (B35). */
   get name(): string {
     return this.core.fileName;
@@ -110,9 +98,9 @@ export class DiagramEditor {
     const features: EditorFeatures = { ...DEFAULT_FEATURES, ...(options.features ?? {}) };
     if (options.toolbar === 'none') features.styleToolbar = false;
     this.store = new DocStore({
-      onChange: (src, reason) => this.onStoreChange(src, reason),
+      onChange: (src, reason) => this.sync.onStoreChange(src, reason),
       // a remote update waits for the transaction to end (after the caller of commit / rollback is done)
-      onIdle: () => queueMicrotask(() => this.applyPendingRemote()),
+      onIdle: () => queueMicrotask(() => this.sync.applyPendingRemote()),
     });
     this.core = new EditorCore(host, {
       store: this.store,
@@ -132,6 +120,8 @@ export class DiagramEditor {
     const core = this.core;
     const root = core.root;
     this.owner.add(() => core.destroy());
+    this.sync = new DocumentSync({ core, setSource: (src, o) => this.setSource(src, o), autosave: options.autosave, owner: this.owner }, options.adapter);
+    this.owner.add(() => this.sync.destroy());
 
     // panel visibility from storage, then options
     const savedPanels = core.storage.get<{ code?: boolean; properties?: boolean; layers?: boolean }>('panels') ?? {};
@@ -160,18 +150,13 @@ export class DiagramEditor {
       }
       untracked(() => core.cancelGesture());
     }));
-    // the remote-change bar waits while History is open
-    this.owner.add(effect(() => {
-      const history = core.stage() === 'history';
-      if (this.remoteBar) this.remoteBar.el.hidden = history;
-    }));
     this.owner.add(effect(() => {
       const t = core.tool();
       for (const c of Array.from(root.classList)) if (c.startsWith('tool-')) root.classList.remove(c);
       root.classList.add(`tool-${t}`);
     }));
 
-    core.input.wire({ signal: this.ac.signal, owner: this.owner, onIdle: () => this.applyPendingRemote() });
+    core.input.wire({ signal: this.ac.signal, owner: this.owner, onIdle: () => this.sync.applyPendingRemote() });
     this.addBaseShortcuts();
 
     // what History needs from the document (component architecture §8.2)
@@ -210,7 +195,7 @@ export class DiagramEditor {
       window.addEventListener('beforeunload', onBeforeUnload, { signal: this.ac.signal });
     }
 
-    if (options.adapter) this.startLoad();
+    if (options.adapter) this.sync.startLoad();
     else this.setSource(options.value ?? '', { history: 'reset' });
   }
 
@@ -230,19 +215,11 @@ export class DiagramEditor {
   }
 
   get adapter(): DocumentAdapter | undefined {
-    return this.o.adapter;
+    return this.sync.adapter;
   }
   set adapter(a: DocumentAdapter | undefined) {
-    if (a === this.o.adapter) return;
     // the old adapter stops reporting remote changes, and what it reported is dropped
-    this.unsubscribe?.();
-    this.unsubscribe = null;
-    this.pendingRemote = null;
-    this.hideRemoteBar();
-    this.version = undefined;
-    if (a) this.o.adapter = a;
-    else delete this.o.adapter;
-    if (a) this.startLoad();
+    this.sync.setAdapter(a);
   }
 
   /** The document's versions; null hides the History button. */
@@ -349,20 +326,12 @@ export class DiagramEditor {
 
   /** Saves through the adapter (§8.2 flow): `mmdx-save` (cancelable) → adapter.save → `mmdx-saved` or conflict dialog. */
   save(): Promise<SaveOutcome> {
-    if (this.saving) return this.saving;
-    this.saving = this.doSave().finally(() => {
-      this.saving = null;
-    });
-    return this.saving;
+    return this.sync.save();
   }
 
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
-    clearTimeout(this.autosaveTimer);
-    this.unsubscribe?.();
-    this.unsubscribe = null;
-    this.pendingRemote = null;
     this.ac.abort();
     this.owner.dispose();
   }
@@ -375,180 +344,7 @@ export class DiagramEditor {
    */
   whenLoaded(): Promise<void> {
     // and the editor code of the document's diagram type, which loads on demand
-    return this.loading.then(() => this.core.kindsReady());
-  }
-
-  // ---- adapter ----------------------------------------------------------------------------------------------------
-
-  private startLoad(): void {
-    const p = this.loadFromAdapter();
-    // a failed load is reported (toast, mmdx-error); whenLoaded() rejects for whoever waits
-    p.catch(() => undefined);
-    this.loading = p;
-  }
-
-  private async loadFromAdapter(): Promise<void> {
-    const a = this.o.adapter;
-    if (!a) return;
-    try {
-      const r = await a.load();
-      if (this.destroyed || this.o.adapter !== a) return;
-      this.version = r.version;
-      if (r.name) this.core.uiState.fileName.set(r.name.replace(/\.(mmdx|mmd|md|txt)$/i, ''));
-      this.setSource(r.source, { history: 'reset' });
-      this.unsubscribe?.();
-      this.unsubscribe = a.subscribe?.((src, version) => {
-        if (!this.destroyed && this.o.adapter === a) this.onRemote(src, version);
-      }) ?? null;
-      this.core.emit('mmdx-load', { source: r.source, version: r.version ?? null });
-    } catch (e) {
-      if (this.destroyed || this.o.adapter !== a) return;
-      this.core.toast(`Could not load the diagram: ${e instanceof Error ? e.message : String(e)}`, { error: true });
-      this.core.emit('mmdx-error', { diagnostics: [{ severity: 'error', code: 'load.failed', message: String(e) }] });
-      throw e;
-    }
-  }
-
-  private async doSave(): Promise<SaveOutcome> {
-    const source = this.getSource();
-    if (!this.core.emit('mmdx-save', { source }, true)) return 'cancelled';
-    const a = this.o.adapter;
-    if (!a) return 'no-adapter';
-    try {
-      const ctx: { version?: string } = {};
-      if (this.version !== undefined) ctx.version = this.version;
-      const res = await a.save(source, ctx);
-      if ('conflict' in res) return this.resolveConflict(source, res.conflict);
-      this.version = res.version ?? this.version;
-      this.store.markSaved(source);
-      this.hideRemoteBar();
-      this.core.emit('mmdx-saved', { source, version: this.version });
-      return 'saved';
-    } catch (e) {
-      this.core.toast(`Save failed: ${e instanceof Error ? e.message : String(e)}`, { error: true });
-      this.core.emit('mmdx-error', { diagnostics: [{ severity: 'error', code: 'save.failed', message: String(e) }] });
-      return 'failed';
-    }
-  }
-
-  private async resolveConflict(mine: string, theirs: { source: string; version: string }): Promise<SaveOutcome> {
-    this.core.emit('mmdx-conflict', { mine, theirs: theirs.source, version: theirs.version });
-    const choice = await this.core.dialogs.choose<'mine' | 'theirs' | 'both' | 'cancel'>({
-      title: 'Someone else saved this diagram',
-      message: 'The diagram was changed since you opened it. Keep your version (overwrites theirs), take theirs (drops your changes), or open both to compare.',
-      cancel: 'cancel',
-      buttons: [
-        { label: 'View both', value: 'both' },
-        { label: 'Take theirs', value: 'theirs', danger: true },
-        { label: 'Keep mine', value: 'mine', primary: true },
-      ],
-    });
-    if (choice === 'mine') {
-      this.version = theirs.version;
-      return this.doSave();
-    }
-    if (choice === 'theirs') {
-      this.version = theirs.version;
-      this.setSource(theirs.source, { history: 'push', fit: false });
-      return 'conflict';
-    }
-    if (choice === 'both') {
-      const side = (title: string, text: string): HTMLElement => h('div', null, h('b', null, title), h('pre', null, text));
-      const c2 = await this.core.dialogs.choose<'mine' | 'theirs' | 'cancel'>({
-        title: 'Compare versions',
-        class: 'compare',
-        body: h('div', { class: 'compare-sides' }, side('Yours', mine), side('Theirs', theirs.source)),
-        cancel: 'cancel',
-        buttons: [{ label: 'Take theirs', value: 'theirs' }, { label: 'Keep mine', value: 'mine', primary: true }],
-      });
-      if (c2 === 'mine') {
-        this.version = theirs.version;
-        return this.doSave();
-      }
-      if (c2 === 'theirs') {
-        this.version = theirs.version;
-        this.setSource(theirs.source, { history: 'push', fit: false });
-      }
-    }
-    return 'conflict';
-  }
-
-  /** A gesture is running or a transaction is open: the store holds an uncommitted state. */
-  private get busy(): boolean {
-    return this.core.input.active || this.store.inTransaction;
-  }
-
-  private applyPendingRemote(): void {
-    const r = this.pendingRemote;
-    if (!r || this.busy || this.destroyed) return;
-    this.pendingRemote = null;
-    this.onRemote(r.src, r.version);
-  }
-
-  /**
-   * Remote update (§8.2): applied when clean (undoable), otherwise a non-blocking bar offers Reload / Keep mine. During
-   * a gesture or a transaction it waits (the latest one wins) and is handled when the edit ends — committed (the
-   * document is then dirty: the bar) or rolled back (clean again: applied).
-   */
-  private onRemote(src: string, version: string): void {
-    if (this.busy) {
-      this.pendingRemote = { src, version };
-      return;
-    }
-    if (src === this.getSource()) {
-      this.version = version;
-      return;
-    }
-    if (!this.store.dirty.peek()) {
-      this.version = version;
-      this.setSource(src, { history: 'push', fit: false });
-      return;
-    }
-    this.hideRemoteBar();
-    // a pill at the top centre (the block loads the first time); the latest bar asked for wins
-    const asked = ++this.remoteAsked;
-    const reload = (): void => {
-      this.version = version;
-      this.setSource(src, { history: 'push', fit: false });
-      this.hideRemoteBar();
-    };
-    void import('../ui/blocks/pill.js').then((m) => {
-      if (this.destroyed || asked !== this.remoteAsked) return;
-      this.core.addCss([m.PILL_CSS]);
-      const bar = m.createPill({
-        text: 'Changed by someone else', label: 'Remote change', class: 'remote', t: this.core.i18n.t,
-        tools: [{ id: 'reload', label: 'Reload', onClick: reload }], action: { label: 'Keep mine', plain: true, onClick: () => this.hideRemoteBar() },
-      });
-      bar.el.hidden = this.core.stage.peek() === 'history';
-      this.remoteBar = bar;
-      this.core.slots['top-center'].append(bar.el);
-    });
-  }
-
-  private hideRemoteBar(): void {
-    this.remoteAsked++;
-    this.remoteBar?.destroy();
-    this.remoteBar = null;
-  }
-
-  private onStoreChange(source: string, reason: ChangeReason): void {
-    this.core.fire('document');
-    this.core.emit('mmdx-change', { source, reason });
-    this.core.emit('mmdx-dirty', { dirty: this.store.dirty.peek() });
-    if (this.o.autosave && this.o.adapter && reason !== 'load' && reason !== 'remote' && this.store.dirty.peek()) {
-      this.scheduleAutosave();
-    }
-  }
-
-  /** Debounced save; while a gesture or transaction is open it waits (the source would be uncommitted). */
-  private scheduleAutosave(): void {
-    clearTimeout(this.autosaveTimer);
-    if (!this.o.autosave) return;
-    this.autosaveTimer = setTimeout(() => {
-      if (this.destroyed) return;
-      if (this.busy) this.scheduleAutosave();
-      else void this.save();
-    }, this.o.autosave);
+    return this.sync.loading.then(() => this.core.kindsReady());
   }
 
   private addBaseShortcuts(): void {
