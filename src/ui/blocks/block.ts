@@ -4,7 +4,7 @@
 // `--mmdx-*` tokens only.
 import { isMac, type I18n } from '../i18n.js';
 import { formatKeys } from '../shortcuts.js';
-import { effect, type ReadSignal } from '../signal.js';
+import { effect, type ReadSignal } from '../../reactive/signal.js';
 
 /** The translation function every block takes its strings through. */
 export type Translate = I18n['t'];

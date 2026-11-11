@@ -5,7 +5,7 @@
 // `openExport` and `renderActions` of elements/diff.ts.
 import { keepFocus } from '../../ui/blocks/focus.js';
 import { h } from '../../ui/h.js';
-import { untracked, type ReadSignal } from '../../ui/signal.js';
+import { untracked, type ReadSignal } from '../../reactive/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import type { ViewModule } from '../../view/module.js';
 import type { ExportFormat } from '../../view/types.js';

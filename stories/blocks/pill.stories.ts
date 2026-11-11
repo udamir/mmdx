@@ -5,7 +5,7 @@ import { createPill, PILL_CSS } from '../../src/ui/blocks/pill.js';
 import { h, icon } from '../../src/ui/h.js';
 import { DIFF_TOKENS } from '../../src/ui/styles/diff.js';
 import { createI18n } from '../../src/ui/i18n.js';
-import { signal } from '../../src/ui/signal.js';
+import { signal } from '../../src/reactive/signal.js';
 import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; kind: 'version' | 'compare' | 'remote' };

@@ -11,7 +11,7 @@ import { createToolbar, TOOLBAR_CSS, type ToolbarItem } from '../../ui/blocks/to
 import { h } from '../../ui/h.js';
 import { I_list } from '../../ui/icons.js';
 import type { Shortcut } from '../../ui/shortcuts.js';
-import { untracked } from '../../ui/signal.js';
+import { untracked } from '../../reactive/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import type { ViewModule } from '../../view/module.js';
 import { DIFF_FILTERS, DIFF_VIEWS, type DiffSession, type DiffViewName } from '../session.js';

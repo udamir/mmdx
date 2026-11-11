@@ -15,7 +15,7 @@ import { MENU_CSS } from '../../ui/blocks/menu.js';
 import { createVersionList, VERSION_LIST_CSS } from '../../ui/blocks/version-list.js';
 import { h } from '../../ui/h.js';
 import { I_code } from '../../ui/icons.js';
-import { signal, untracked, type ReadSignal, type Signal } from '../../ui/signal.js';
+import { signal, untracked, type ReadSignal, type Signal } from '../../reactive/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import type { ModuleScope, ViewModule } from '../../view/module.js';
 import { metaLines, relatedLines } from '../lines.js';

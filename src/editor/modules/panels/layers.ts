@@ -9,7 +9,7 @@ import { cloneMeta } from '../../../core/ops/meta-util.js';
 import { ownOr } from '../../../core/own.js';
 import { clearHighlight, highlightItems } from '../../../dom/highlight.js';
 import { createLayerList, LAYER_LIST_CSS, type DisplayToggle } from '../../../ui/blocks/layer-list.js';
-import { computed } from '../../../ui/signal.js';
+import { computed } from '../../../reactive/signal.js';
 import type { EditorCore } from '../../core.js';
 import { applyMeta } from '../../ops/doc.js';
 

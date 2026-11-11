@@ -6,7 +6,7 @@
 import { createPanelStack, PANEL_STACK_CSS, type PanelStackHandle } from '../../ui/blocks/panel-stack.js';
 import { SIDE_PANEL_CSS } from '../../ui/blocks/side-panel.js';
 import { TABS_CSS } from '../../ui/blocks/tabs.js';
-import { computed, untracked } from '../../ui/signal.js';
+import { computed, untracked } from '../../reactive/signal.js';
 import type { ViewCore } from '../core.js';
 import type { ViewModule } from '../module.js';
 

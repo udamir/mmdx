@@ -11,7 +11,7 @@ import type { StorageAdapter } from '../../../adapters/storage.js';
 import { createPanelStack, PANEL_STACK_CSS, type PanelStackHandle, type StackStorage } from '../../../ui/blocks/panel-stack.js';
 import { SIDE_PANEL_CSS } from '../../../ui/blocks/side-panel.js';
 import { TABS_CSS } from '../../../ui/blocks/tabs.js';
-import { computed, untracked } from '../../../ui/signal.js';
+import { computed, untracked } from '../../../reactive/signal.js';
 import type { EditorModule } from '../../module.js';
 
 type StackKey = 'left' | 'right' | 'right-view';

@@ -6,7 +6,7 @@
 import { h } from '../h.js';
 import { registerMessages } from '../i18n.js';
 import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
-import type { Signal } from '../signal.js';
+import type { Signal } from '../../reactive/signal.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
 import { createIconButton, type IconButtonHandle } from './button.js';
 import { keepFocus } from './focus.js';

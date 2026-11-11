@@ -10,7 +10,7 @@ import { createToolbar, TOOLBAR_CSS } from '../../ui/blocks/toolbar.js';
 import { getShared } from '../../config.js';
 import type { ThemeInfo } from '../../core/theme/types.js';
 import { h } from '../../ui/h.js';
-import { signal } from '../../ui/signal.js';
+import { signal } from '../../reactive/signal.js';
 import type { ViewCore } from '../core.js';
 import type { ViewModule } from '../module.js';
 

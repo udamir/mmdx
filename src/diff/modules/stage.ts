@@ -9,7 +9,7 @@ import type { DiagramModel } from '../../core/model.js';
 import { clearHighlight, HIGHLIGHT_CSS, hoverHighlight } from '../../dom/highlight.js';
 import { registerMessages } from '../../ui/i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../../ui/messages/blocks-diff.js';
-import { untracked } from '../../ui/signal.js';
+import { untracked } from '../../reactive/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import type { ViewModule } from '../../view/module.js';
 import type { DiffScene } from '../scene.js';

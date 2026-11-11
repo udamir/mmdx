@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createBanner } from '../../../src/ui/blocks/messages.js';
-import { signal } from '../../../src/ui/signal.js';
+import { signal } from '../../../src/reactive/signal.js';
 
 afterEach(() => {
   document.body.replaceChildren();

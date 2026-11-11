@@ -9,7 +9,7 @@ import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
 import { gridKeys } from './grid-keys.js';
 import { createTabs } from './tabs.js';
-import { signal } from '../signal.js';
+import { signal } from '../../reactive/signal.js';
 
 export interface EmojiPickerProps {
   t: Translate;

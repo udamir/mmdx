@@ -20,7 +20,7 @@ import { reducedMotion } from '../dom/motion.js';
 import type { WheelMode } from '../dom/viewport.js';
 import { registerMessages } from '../ui/i18n.js';
 import { DIFF_MESSAGES } from '../ui/messages/diff.js';
-import { computed, effect, signal, untracked } from '../ui/signal.js';
+import { computed, effect, signal, untracked } from '../reactive/signal.js';
 import { DIFF_CSS, DIFF_HOST_CSS, DIFF_TOKENS } from '../ui/styles/diff.js';
 import { ViewCore } from '../view/core.js';
 import { diffModules, type DiffAction } from '../diff/modules/index.js';

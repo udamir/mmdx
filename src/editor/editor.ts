@@ -15,7 +15,7 @@ import { ensureBuiltinThemes } from '../config.js';
 import type { CoreContext } from '../core/context.js';
 import type { IconPack } from '../core/icons/types.js';
 import { h } from '../ui/h.js';
-import { effect, untracked } from '../ui/signal.js';
+import { effect, untracked } from '../reactive/signal.js';
 import { DEFAULT_FEATURES, EditorCore, type EditorFeatures, type Gesture, type Mode } from './core.js';
 import type { EditorModule } from './module.js';
 import { DEFAULT_MODULES } from './modules/index.js';

@@ -5,7 +5,7 @@ import { createIconButton } from '../../../src/ui/blocks/button.js';
 import { createSchemeToggle } from '../../../src/ui/blocks/scheme-toggle.js';
 import { createToolbar } from '../../../src/ui/blocks/toolbar.js';
 import { createI18n } from '../../../src/ui/i18n.js';
-import { signal } from '../../../src/ui/signal.js';
+import { signal } from '../../../src/reactive/signal.js';
 
 const key = (el: Element, k: string): KeyboardEvent => {
   const ev = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true });

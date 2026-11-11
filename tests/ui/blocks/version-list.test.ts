@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { VersionInfo } from '../../../src/adapters/history.js';
-import { signal } from '../../../src/ui/signal.js';
+import { signal } from '../../../src/reactive/signal.js';
 import { ago, createVersionList, type VersionCounts, type VersionListProps } from '../../../src/ui/blocks/version-list.js';
 import { createI18n } from '../../../src/ui/i18n.js';
 import { PopoverManager } from '../../../src/ui/popover.js';

@@ -4,7 +4,7 @@ import { createZoomBar, ZOOM_BAR_CSS } from '../../src/ui/blocks/zoom-bar.js';
 import { createI18n } from '../../src/ui/i18n.js';
 import { PopoverManager } from '../../src/ui/popover.js';
 import type { Shortcut } from '../../src/ui/shortcuts.js';
-import { signal } from '../../src/ui/signal.js';
+import { signal } from '../../src/reactive/signal.js';
 import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; compact: boolean; help: boolean; fullscreen: boolean };

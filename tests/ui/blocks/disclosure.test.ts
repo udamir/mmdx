@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDisclosure } from '../../../src/ui/blocks/disclosure.js';
 import { h } from '../../../src/ui/h.js';
-import { signal } from '../../../src/ui/signal.js';
+import { signal } from '../../../src/reactive/signal.js';
 
 afterEach(() => document.body.replaceChildren());
 

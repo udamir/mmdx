@@ -7,7 +7,7 @@ import { elementExists } from '../core/ops/ids.js';
 import { reparse } from '../core/parse/dispatch.js';
 import { kindsVersion } from './kinds/loader.js';
 import type { ItemRef } from '../core/types.js';
-import { computed, signal, type ReadSignal } from '../ui/signal.js';
+import { computed, signal, type ReadSignal } from '../reactive/signal.js';
 
 export type ChangeReason = 'op' | 'code' | 'undo' | 'redo' | 'load' | 'remote';
 

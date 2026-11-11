@@ -12,7 +12,7 @@ import { h, icon } from '../h.js';
 import type { PopoverManager } from '../popover.js';
 import { registerMessages } from '../i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
-import { untracked } from '../signal.js';
+import { untracked } from '../../reactive/signal.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
 import { focusedIn, keepFocus, rovingKeys } from './focus.js';
 import { openMenu, type MenuEntry } from './menu.js';

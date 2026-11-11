@@ -31,7 +31,7 @@ import type { TextFormat, TextFormats } from './ops/format.js';
 import { HIGHLIGHT_CSS } from '../dom/highlight.js';
 import type { Viewport, WheelMode } from '../dom/viewport.js';
 import { Dialogs, DIALOG_CSS } from '../ui/dialog.js';
-import { effect, signal, untracked, type Signal } from '../ui/signal.js';
+import { effect, signal, untracked, type Signal } from '../reactive/signal.js';
 import { ALIASES } from '../ui/styles/base.js';
 import { EDITOR_CSS } from '../ui/styles/editor.js';
 import { ViewCore } from '../view/core.js';

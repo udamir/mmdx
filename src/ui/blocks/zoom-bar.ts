@@ -7,7 +7,7 @@
 import { h, icon } from '../h.js';
 import { registerMessages } from '../i18n.js';
 import { BLOCK_MESSAGES_CHROME } from '../messages/blocks.js';
-import type { ReadSignal } from '../signal.js';
+import type { ReadSignal } from '../../reactive/signal.js';
 import { ariaKeys, read, Scope, tipText, type BlockHandle, type Translate, type Value } from './block.js';
 import { keepFocus, rovingKeys } from './focus.js';
 

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BUILTIN_THEMES } from '../../src/core/theme/builtin.js';
 import { ThemeRegistry } from '../../src/core/theme/registry.js';
 import { Draft } from '../../src/theme-editor/draft.js';
-import { effect, signal } from '../../src/ui/signal.js';
+import { effect, signal } from '../../src/reactive/signal.js';
 
 const THEME = {
   id: 'mine', name: 'Mine', extends: 'default-light',

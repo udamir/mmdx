@@ -23,7 +23,7 @@ import type { Diagnostic } from '../core/types.js';
 import { nextIdle } from '../dom/idle.js';
 import { loadedKinds, renderShapes } from '../view/kinds.js';
 import type { Translate } from '../ui/blocks/block.js';
-import { batch, computed, signal, type ReadSignal, type Signal } from '../ui/signal.js';
+import { batch, computed, signal, type ReadSignal, type Signal } from '../reactive/signal.js';
 import { loadKindsOf } from './kinds.js';
 
 /** How long the document must rest before History follows it (a working copy row, a comparison that shows it). */

@@ -8,7 +8,7 @@ import { resolveColor } from '../core/theme/colors.js';
 import { contrastRatio } from '../core/theme/contrast.js';
 import type { ResolvedTheme, ThemeFile } from '../core/theme/types.js';
 import type { DiagramType } from '../core/types.js';
-import { batch, computed, signal, type Computed, type ReadSignal } from '../ui/signal.js';
+import { batch, computed, signal, type Computed, type ReadSignal } from '../reactive/signal.js';
 import { TEXT_ON_FILL } from './constants.js';
 import type { TileSel } from './types.js';
 import { changedPaths, clone, getPath, isObj, obj, related, type Obj } from './util.js';

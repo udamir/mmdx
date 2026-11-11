@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { batch, computed, effect, signal } from '../../src/ui/signal.js';
+import { batch, computed, effect, signal } from '../../src/reactive/signal.js';
 
 describe('signals', () => {
   it('effects re-run when a read signal changes, and only then', () => {

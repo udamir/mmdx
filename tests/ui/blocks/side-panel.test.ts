@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSidePanel } from '../../../src/ui/blocks/side-panel.js';
 import { createTabs } from '../../../src/ui/blocks/tabs.js';
 import { h } from '../../../src/ui/h.js';
-import { signal } from '../../../src/ui/signal.js';
+import { signal } from '../../../src/reactive/signal.js';
 
 const key = (el: Element, k: string): KeyboardEvent => {
   const ev = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true });

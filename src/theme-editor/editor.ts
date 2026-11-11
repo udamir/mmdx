@@ -28,7 +28,7 @@ import { THEME_EDITOR_MESSAGES } from '../ui/messages/theme-editor.js';
 import { TOOLBAR_MESSAGES } from '../ui/messages/toolbar.js';
 import { PopoverManager, Toaster } from '../ui/popover.js';
 import { formatKeys, ShortcutRegistry } from '../ui/shortcuts.js';
-import { effect, signal, untracked } from '../ui/signal.js';
+import { effect, signal, untracked } from '../reactive/signal.js';
 import { createStyleToolbar, type StyleToolbarHandle } from '../ui/style-toolbar.js';
 import { ALIASES, adoptStyles, BASE, resolveUiScheme, TOKENS, watchUiScheme } from '../ui/styles/base.js';
 import { THEME_EDITOR_CSS } from '../ui/styles/theme-editor.js';

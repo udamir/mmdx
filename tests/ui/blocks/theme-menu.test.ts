@@ -4,7 +4,7 @@ import { createThemeButton, themeMenuEntries, type ThemeInfo } from '../../../sr
 import { h } from '../../../src/ui/h.js';
 import { createI18n } from '../../../src/ui/i18n.js';
 import { PopoverManager } from '../../../src/ui/popover.js';
-import { signal } from '../../../src/ui/signal.js';
+import { signal } from '../../../src/reactive/signal.js';
 
 const t = createI18n().t;
 const THEMES: ThemeInfo[] = [

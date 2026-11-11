@@ -20,7 +20,7 @@ import type { BlockHandle } from '../ui/blocks/block.js';
 import { createSegmented, type SegmentedOption, type SegmentedProps } from '../ui/blocks/segmented.js';
 import { MENU_CSS, openMenu } from '../ui/blocks/menu.js';
 import { h, icon } from '../ui/h.js';
-import { signal } from '../ui/signal.js';
+import { signal } from '../reactive/signal.js';
 import { I_close, I_eye, I_file, I_folder, I_palette, I_save } from '../ui/icons.js';
 import { logoMark } from '../ui/logo.js';
 import { PopoverManager, Toaster } from '../ui/popover.js';

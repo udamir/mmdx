@@ -12,7 +12,7 @@ import { createTabs } from '../../../ui/blocks/tabs.js';
 import { CODE_EDITOR_CSS, createCodeEditor, highlightMetaLine, type CodeEditor } from '../../../ui/code-editor.js';
 import { h, icon } from '../../../ui/h.js';
 import { I_search } from '../../../ui/icons.js';
-import { signal } from '../../../ui/signal.js';
+import { signal } from '../../../reactive/signal.js';
 import type { EditorCore } from '../../core.js';
 import { withEdit } from '../../kinds/registry.js';
 import type { EditorModule } from '../../module.js';

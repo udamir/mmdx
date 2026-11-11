@@ -2,7 +2,7 @@
 // the kernel contract. Each check returns stable keys (no line numbers) so a baseline of today's violations can be
 // kept in tests/arch/baseline/ and only ever shrink.
 //
-// Layers (temp/component-architecture.md §4): core 0 → dom, adapters 1 → ui 2 → dom/canvas 3 → view 4 →
+// Layers (temp/component-architecture.md §4): core and reactive 0 → dom, adapters 1 → ui 2 → dom/canvas 3 → view 4 →
 // editor / diff / theme-editor 5 → elements, markdown, wrappers 6 → entries 7.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -17,6 +17,7 @@ const walk = (d) =>
 export function layerOf(r) {
   if (r === 'core.ts') return [7, 'entry'];
   if (r.startsWith('core/')) return [0, 'core'];
+  if (r.startsWith('reactive/')) return [0, 'reactive'];
   if (r === 'config.ts') return [0, 'config'];
   if (r.startsWith('icons/') || r.startsWith('emoji/')) return [0, 'data'];
   if (r === 'dom/canvas.ts') return [3, 'dom/canvas'];
@@ -98,7 +99,8 @@ export function edgeViolation(e) {
   const mod = (r) => /^editor\/modules\/([^/]+)\//.exec(r)?.[1];
   if (lt > lf) return `upward ${af} → ${at}`;
   if (PRODUCTS.has(af) && PRODUCTS.has(at) && af !== at) return `product → product ${af} → ${at}`;
-  if (/^ui\/blocks\//.test(e.from) && !/^ui\//.test(e.to) && !/^core\/(types|diff|text|icons|shapes|model)/.test(e.to) && at !== 'adapters') return `block → ${at}`;
+  if (/^ui\/blocks\//.test(e.from) && !/^(ui|reactive)\//.test(e.to) && !/^core\/(types|diff|text|icons|shapes|model)/.test(e.to) && at !== 'adapters') return `block → ${at}`;
+  if (at === 'reactive' && af === 'core') return 'core → reactive (core holds no state)';
   if (mod(e.from) && mod(e.to) && mod(e.from) !== mod(e.to)) return `module → module ${mod(e.from)} → ${mod(e.to)}`;
   if (/^editor\/kinds\//.test(e.from) && /^editor\/modules\//.test(e.to)) return 'editor kinds → editor module';
   if (/^view\/modules\/[^/]+$/.test(e.from) && /^view\/modules\/[^/]+$/.test(e.to) && !/index|viewer|lazy/.test(e.from)) return 'view module → view module';

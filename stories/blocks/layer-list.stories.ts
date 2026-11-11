@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createLayerList, LAYER_LIST_CSS, type LayerRow } from '../../src/ui/blocks/layer-list.js';
 import { createI18n } from '../../src/ui/i18n.js';
-import { signal } from '../../src/ui/signal.js';
+import { signal } from '../../src/reactive/signal.js';
 import { chromeHost } from '../support.js';
 
 type Args = { editable: boolean; display: boolean; ui: 'light' | 'dark' };

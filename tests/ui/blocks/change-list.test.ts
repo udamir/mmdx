@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DiagramDiff, ItemChange } from '../../../src/core/diff/index.js';
 import { changeKey } from '../../../src/core/diff/merge.js';
-import { signal } from '../../../src/ui/signal.js';
+import { signal } from '../../../src/reactive/signal.js';
 import { createChangeList, describeChange, fieldRow, kindLabel, type ChangeListProps } from '../../../src/ui/blocks/change-list.js';
 import { createI18n } from '../../../src/ui/i18n.js';
 

@@ -3,7 +3,7 @@
 // (`core.hostFullscreen`, for sandboxed iframes). Provides `fitView`; keys + − 0 / F (fit), arrows
 // (pan in View mode), ? and Esc (help).
 import { createZoomBar, ZOOM_BAR_CSS } from '../../ui/blocks/zoom-bar.js';
-import { signal, untracked } from '../../ui/signal.js';
+import { signal, untracked } from '../../reactive/signal.js';
 import type { ViewCore } from '../core.js';
 import type { HostFullscreen } from '../types.js';
 import type { ViewModule } from '../module.js';

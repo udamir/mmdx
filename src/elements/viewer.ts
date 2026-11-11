@@ -15,7 +15,7 @@ import type { IconPack } from '../core/icons/types.js';
 import { splitSource } from '../core/meta/index.js';
 import { standaloneSvg } from '../core/pipeline-core.js';
 import { summarize } from '../core/summary.js';
-import { effect } from '../ui/signal.js';
+import { effect } from '../reactive/signal.js';
 import type { Diagnostic, Rect } from '../core/types.js';
 import type { WheelMode } from '../dom/viewport.js';
 import { h } from '../ui/h.js';

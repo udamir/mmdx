@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSchemeToggle, type Scheme } from '../../../src/ui/blocks/scheme-toggle.js';
 import { createI18n } from '../../../src/ui/i18n.js';
-import { signal } from '../../../src/ui/signal.js';
+import { signal } from '../../../src/reactive/signal.js';
 
 const { t } = createI18n();
 

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createSchemeToggle, SCHEME_TOGGLE_CSS, type Scheme } from '../../src/ui/blocks/scheme-toggle.js';
 import { createI18n } from '../../src/ui/i18n.js';
-import { signal } from '../../src/ui/signal.js';
+import { signal } from '../../src/reactive/signal.js';
 import { chromeHost } from '../support.js';
 
 type Args = { ui: Scheme };

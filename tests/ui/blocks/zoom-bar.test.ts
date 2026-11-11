@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createZoomBar } from '../../../src/ui/blocks/zoom-bar.js';
 import { createI18n } from '../../../src/ui/i18n.js';
-import { signal } from '../../../src/ui/signal.js';
+import { signal } from '../../../src/reactive/signal.js';
 
 const { t } = createI18n();
 const fmt = (k: string): string => k.toUpperCase();

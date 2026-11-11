@@ -4,7 +4,7 @@
 import type { Insets } from '../dom/canvas.js';
 import { observeSize } from '../dom/resize.js';
 import { h } from '../ui/h.js';
-import { effect, signal, type Signal } from '../ui/signal.js';
+import { effect, signal, type Signal } from '../reactive/signal.js';
 import { adoptStyles } from '../ui/styles/base.js';
 import type { SlotName } from './types.js';
 

@@ -3,7 +3,7 @@
 // registration, so the kernel can suspend it when its `when` no longer matches (detach its DOM, mute its listeners,
 // shortcuts, actions, gestures and painters, keep its state), resume it, and uninstall it with nothing left behind.
 import type { Shortcut } from '../ui/shortcuts.js';
-import type { ReadSignal } from '../ui/signal.js';
+import type { ReadSignal } from '../reactive/signal.js';
 import type { Mode, SlotName, Stage } from './types.js';
 
 export interface ModuleWhen {

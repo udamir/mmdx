@@ -17,7 +17,7 @@ import type { StrokeStore } from '../dom/pen.js';
 import { createBanner, MESSAGES_CSS } from '../ui/blocks/messages.js';
 import { ago } from '../ui/blocks/version-list.js';
 import { h } from '../ui/h.js';
-import { effect, untracked, type ReadSignal } from '../ui/signal.js';
+import { effect, untracked, type ReadSignal } from '../reactive/signal.js';
 import type { ViewCore } from '../view/core.js';
 import { BaseScene, type CanvasArea } from '../view/scene.js';
 import type { DiffSession, DiffViewName } from './session.js';

@@ -3,7 +3,7 @@ import { MENU_CSS } from '../../src/ui/blocks/menu.js';
 import { createThemeButton, THEME_MENU_CSS, type ThemeInfo } from '../../src/ui/blocks/theme-menu.js';
 import { createI18n } from '../../src/ui/i18n.js';
 import { PopoverManager } from '../../src/ui/popover.js';
-import { signal } from '../../src/ui/signal.js';
+import { signal } from '../../src/reactive/signal.js';
 import { chromeHost, THEME_FILES } from '../support.js';
 
 type Args = { edit: boolean; ui: 'light' | 'dark' };

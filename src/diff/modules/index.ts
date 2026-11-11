@@ -4,7 +4,7 @@
 // the light / dark toggle, view settings). The diff modules install first, so their keys (L, arrows) win over the
 // standard ones (§13). As in the viewer, the pen, the view params and view settings load on demand (§10).
 // The side panels (versions, code diff, change list) load on demand too, as the viewer's do (§10.1).
-import type { ReadSignal } from '../../ui/signal.js';
+import type { ReadSignal } from '../../reactive/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import { lazyModule, type ViewModule } from '../../view/module.js';
 import { panelStacksModule } from '../../view/modules/panels.js';

@@ -7,7 +7,7 @@
 import { h } from '../h.js';
 import { registerMessages } from '../i18n.js';
 import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
-import { signal, untracked } from '../signal.js';
+import { signal, untracked } from '../../reactive/signal.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
 import { keepFocus } from './focus.js';
 import { createGrip } from './grip.js';

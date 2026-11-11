@@ -12,7 +12,7 @@ import { ensureBuiltinThemes, getShared } from '../config.js';
 import { BUILTIN_IDS } from '../core/theme/builtin-ids.js';
 import { HOUSE, counterpartTheme } from '../core/theme/pairs.js';
 import type { ThemeRegistry } from '../core/theme/registry.js';
-import { computed, signal, type ReadSignal, type Signal } from '../ui/signal.js';
+import { computed, signal, type ReadSignal, type Signal } from '../reactive/signal.js';
 import { resolveUiScheme } from '../ui/styles/base.js';
 
 export type Scheme = 'light' | 'dark';

@@ -4,7 +4,7 @@
 // effects, computeds, contributions — so it can be suspended, resumed and uninstalled with nothing left behind. It
 // holds the kernel's events and actions, which the kernel types per product (bus.ts).
 import type { Shortcut, ShortcutRegistry } from '../ui/shortcuts.js';
-import { computed, effect, signal, type ReadSignal } from '../ui/signal.js';
+import { computed, effect, signal, type ReadSignal } from '../reactive/signal.js';
 import { actionRegistry, eventBus } from './bus.js';
 import { matchesWhen, orderModules, type ActionsOf, type EventsOf, type ModuleScope, type Registration, type ViewModule } from './module.js';
 import type { Mode, SlotName, Stage } from './types.js';

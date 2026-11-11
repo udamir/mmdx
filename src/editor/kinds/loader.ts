@@ -5,7 +5,7 @@ import { opsKind, registerKinds, registerOps, viewKind } from '../../core/kinds/
 import type { OpsKind } from '../../core/kind/ops-types.js';
 import type { ViewKind } from '../../core/kind/types.js';
 import type { DiagramType } from '../../core/types.js';
-import { signal } from '../../ui/signal.js';
+import { signal } from '../../reactive/signal.js';
 import { editKind, registerEditKinds } from './registry.js';
 import type { EditKind } from './types.js';
 

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createDisclosure, DISCLOSURE_CSS } from '../../src/ui/blocks/disclosure.js';
 import { h } from '../../src/ui/h.js';
-import { signal } from '../../src/ui/signal.js';
+import { signal } from '../../src/reactive/signal.js';
 import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; badge: boolean };

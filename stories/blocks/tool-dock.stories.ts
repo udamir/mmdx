@@ -6,7 +6,7 @@ import { createToolDock, dockBadge, dockButton, TOOL_DOCK_CSS } from '../../src/
 import { createI18n, registerMessages } from '../../src/ui/i18n.js';
 import { I_code, I_hand, I_layers, I_pen, I_pointer, I_props, I_redo, I_shapes, I_undo } from '../../src/ui/icons.js';
 import { EDITOR_MESSAGES } from '../../src/ui/messages/editor.js';
-import { computed, signal } from '../../src/ui/signal.js';
+import { computed, signal } from '../../src/reactive/signal.js';
 import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; compact: boolean; issues: number; canUndo: boolean };

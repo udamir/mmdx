@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createSegmented, SEGMENTED_CSS } from '../../src/ui/blocks/segmented.js';
 import { createToolbar, TOOLBAR_CSS } from '../../src/ui/blocks/toolbar.js';
-import { signal } from '../../src/ui/signal.js';
+import { signal } from '../../src/reactive/signal.js';
 import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; compact: boolean };

@@ -12,7 +12,7 @@ import type { SceneNode } from '../core/scene/types.js';
 import { patchChildren } from './patch.js';
 import type { StrokeStore } from './pen.js';
 import { Viewport, type ViewState, type WheelMode } from './viewport.js';
-import { signal, type Signal } from '../ui/signal.js';
+import { signal, type Signal } from '../reactive/signal.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 /** A view shown by CSS during a gesture is written for real once the gesture rests this long (a wheel burst is one zoom). */

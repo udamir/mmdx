@@ -7,7 +7,7 @@ import { editKind } from '../../kinds/registry.js';
 import { dockBadge, dockButton } from '../../../ui/blocks/tool-dock.js';
 import { icon } from '../../../ui/h.js';
 import { I_code, I_layers, I_pointer, I_props, I_redo, I_shapes, I_undo } from '../../../ui/icons.js';
-import { computed } from '../../../ui/signal.js';
+import { computed } from '../../../reactive/signal.js';
 import type { Tool } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 

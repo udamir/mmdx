@@ -2,7 +2,7 @@
 // the linked theme of the other appearance, the font, and the page colours.
 import { createSegmented } from '../../ui/blocks/segmented.js';
 import { h } from '../../ui/h.js';
-import { signal } from '../../ui/signal.js';
+import { signal } from '../../reactive/signal.js';
 import { FONTS } from '../constants.js';
 import type { Env } from '../env.js';
 import { fieldRow } from '../fields.js';

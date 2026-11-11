@@ -10,7 +10,7 @@ import { createSidePanel } from '../../ui/blocks/side-panel.js';
 import { dockButton } from '../../ui/blocks/tool-dock.js';
 import { h } from '../../ui/h.js';
 import { I_code, I_layers } from '../../ui/icons.js';
-import { signal } from '../../ui/signal.js';
+import { signal } from '../../reactive/signal.js';
 import type { ViewCore } from '../core.js';
 import type { ModuleScope, ViewModule } from '../module.js';
 import { registerMessages } from '../../ui/i18n.js';
