@@ -88,6 +88,8 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   readonly loadHistory: HistoryLoader | null;
   /** What the product offers History (its own version scene, Restore, clipboard); null: History brings its scene. */
   historyHost: HistoryHost | null = null;
+  /** What `enterStage` put aside (its scene, the tool), given back by `leaveStage`. */
+  private staged: { scene: SceneSource | null; tool: Tool } | null = null;
 
   // ---- shell
   /** The root element inside the shadow root. */
@@ -476,6 +478,31 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   /** Shows a stage of the component (History drives it: `version`, `history`; `document` is back). */
   setStage(st: Stage): void {
     this.stageState.set(st);
+  }
+
+  /**
+   * Shows a stage with its own scene over the document's (History's comparison, A7 `StageController`): the scene is
+   * pushed, the tool put aside (and `tool` taken, when given); `leaveStage` gives both back. Entering again while
+   * entered only sets the stage.
+   */
+  enterStage(st: Stage, o: { scene?: SceneSource; tool?: Tool } = {}): void {
+    if (!this.staged) {
+      this.staged = { scene: o.scene ?? null, tool: this.toolState.peek() };
+      this.setStage(st);
+      if (o.tool && o.tool !== this.toolState.peek()) this.setTool(o.tool);
+      if (o.scene) this.pushScene(o.scene);
+    } else this.setStage(st);
+  }
+
+  /** Back from `enterStage`: the stage's scene popped, the `document` stage, the tool put aside back. False when not entered. */
+  leaveStage(): boolean {
+    const st = this.staged;
+    if (!st) return false;
+    this.staged = null;
+    if (st.scene && this.scene === st.scene) this.popScene();
+    this.setStage('document');
+    this.setTool(st.tool);
+    return true;
   }
 
   /** The display settings (labels, hover highlight, animation); the picture repaints itself where they show. */
