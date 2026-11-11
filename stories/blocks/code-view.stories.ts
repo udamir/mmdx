@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { CODE_VIEW_CSS, createCodeView, type CodeLanguage, type CodeViewProps } from '../../src/ui/blocks/code-view.js';
 import { createI18n } from '../../src/i18n.js';
+import { diffLines } from '../../src/core/diff/text.js';
 import { DIFF_TOKENS } from '../../src/diff/styles.js';
 import { chromeHost, exampleHistory } from '../support.js';
 
@@ -23,7 +24,7 @@ function codeView(a: Args): HTMLElement {
   let narrowed = a.narrowed;
   const props = (): CodeViewProps => (a.mode === 'plain'
     ? { mode: 'plain', lines: after, language: a.language, label, t, copy: a.copy }
-    : { mode: 'diff', a: before, b: after, language: a.language, label, t, copy: a.copy, notes: ['style removed'], sel: narrowed ? sel : null, onShowAll: () => ((narrowed = false), cv.update(props())) });
+    : { mode: 'diff', a: before, b: after, ops: diffLines(before, after), language: a.language, label, t, copy: a.copy, notes: ['style removed'], sel: narrowed ? sel : null, onShowAll: () => ((narrowed = false), cv.update(props())) });
   const cv = createCodeView(props());
   const card = document.createElement('div');
   card.className = 'card';

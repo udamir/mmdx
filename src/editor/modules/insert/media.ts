@@ -7,7 +7,7 @@ import { checkImageUrl } from '../../../core/media/policy.js';
 import { iconImage } from '../../../core/icons/draw.js';
 import { searchIcons } from '../../../core/icons/search.js';
 import type { ItemRef, Point } from '../../../core/types.js';
-import { loadEmoji } from '../../../emoji/data.js';
+import { loadEmoji, searchEmoji, withTone } from '../../../emoji/data.js';
 import { h } from '../../../ui/kit/h.js';
 import { registerMessages } from '../../../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../../../ui/messages/blocks-media.js';
@@ -230,7 +230,7 @@ export function pickEmoji(core: EditorCore, anchor: HTMLElement, onPick: (emoji:
   void loadEmoji(core.i18n.locale).then((data) => {
     if (!open) return;
     const picker = createEmojiPicker({
-      t, data,
+      t, data, search: (q) => searchEmoji(data, q), withTone,
       recent: core.storage.get<string[]>(RECENT_EMOJI) ?? [],
       tone: core.storage.get<number>(TONE) ?? 0,
       onTone: (n) => core.storage.set(TONE, n),

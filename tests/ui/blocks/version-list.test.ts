@@ -2,7 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { VersionInfo } from '../../../src/ports.js';
 import { signal } from '../../../src/reactive/signal.js';
-import { ago, createVersionList, type VersionCounts, type VersionListProps } from '../../../src/ui/blocks/version-list.js';
+import { createVersionList, type VersionCounts, type VersionListProps } from '../../../src/ui/blocks/version-list.js';
+import { ago } from '../../../src/ui/kit/format.js';
 import { createI18n } from '../../../src/i18n.js';
 import { PopoverManager } from '../../../src/ui/kit/popover.js';
 

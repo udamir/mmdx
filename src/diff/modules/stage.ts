@@ -3,7 +3,7 @@
 // `mmdx-link`, then the link policy's target); hovering an item highlights what it connects to (view settings);
 // the selected change is announced. Keys: Esc clears the selection, ⌘Z takes back the last pen stroke. Replaces the
 // plain `links` and `hoverHighlight` modules inside a diff, and the canvas listeners of elements/diff.ts.
-import { describeChange } from '../../ui/blocks/change-list.js';
+import { describeChange } from '../../ui/diagram/change-text.js';
 import { renderedOf } from '../../core/diff/render.js';
 import type { DiagramModel } from '../../core/model.js';
 import { clearHighlight, HIGHLIGHT_CSS, hoverHighlight } from '../../dom/highlight.js';

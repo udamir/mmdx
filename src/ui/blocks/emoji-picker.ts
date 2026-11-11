@@ -1,8 +1,6 @@
 // EmojiPicker (T05 §4.5): the emoji of the nine groups as tabs, a search over CLDR short names and keywords, the
 // recently used emoji and a skin tone choice. The host loads the data (src/emoji/data.ts, a lazy chunk) and inserts
 // the chosen emoji as plain text at the caret; the OS emoji font draws them.
-import type { Emoji, EmojiSet } from '../../emoji/data.js';
-import { searchEmoji, withTone } from '../../emoji/data.js';
 import { h } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
@@ -11,9 +9,22 @@ import { gridKeys } from '../kit/grid-keys.js';
 import { createTabs } from './tabs.js';
 import { signal } from '../../reactive/signal.js';
 
+/** One emoji as the picker shows it (the emoji data's entries fit). */
+export interface PickerEmoji {
+  e: string;
+  name: string;
+  /** Takes skin tones. */
+  tones: boolean;
+}
+
 export interface EmojiPickerProps {
   t: Translate;
-  data: EmojiSet;
+  /** The emoji by group (the host loads the data: src/emoji/data.ts). */
+  data: { readonly groups: readonly { key: string; items: readonly PickerEmoji[] }[] };
+  /** The emoji matching a query, best first (the host's search: `searchEmoji` of the data). */
+  search(query: string): readonly PickerEmoji[];
+  /** An emoji in a skin tone 1–5 (0: as is). */
+  withTone(e: string, tone: number, tones?: boolean): string;
   /** Recently used emoji (as inserted), newest first. */
   recent?: readonly string[];
   /** Skin tone 0 (default) – 5. */
@@ -83,9 +94,9 @@ export function createEmojiPicker(props: EmojiPickerProps): EmojiPickerHandle {
     },
   });
 
-  const shown = (it: Emoji): string => withTone(it.e, p.tone ?? 0, it.tones);
-  const byEmoji = (): Map<string, Emoji> => {
-    const m = new Map<string, Emoji>();
+  const shown = (it: PickerEmoji): string => p.withTone(it.e, p.tone ?? 0, it.tones);
+  const byEmoji = (): Map<string, PickerEmoji> => {
+    const m = new Map<string, PickerEmoji>();
     for (const g of p.data.groups) for (const it of g.items) m.set(it.e, it);
     return m;
   };
@@ -104,7 +115,7 @@ export function createEmojiPicker(props: EmojiPickerProps): EmojiPickerHandle {
     let items: { text: string; name: string }[];
     if (query.trim()) {
       head.textContent = '';
-      items = searchEmoji(p.data, query).map((it) => ({ text: shown(it), name: it.name }));
+      items = p.search(query).map((it) => ({ text: shown(it), name: it.name }));
     } else if (tab === 'recent') {
       head.textContent = t('emoji.recent');
       const all = byEmoji();
@@ -133,7 +144,7 @@ export function createEmojiPicker(props: EmojiPickerProps): EmojiPickerHandle {
     input.placeholder = t('emoji.searchPlaceholder');
     input.setAttribute('aria-label', t('emoji.search'));
     tone.setAttribute('aria-label', t('emoji.tone'));
-    tone.replaceChildren(...[0, 1, 2, 3, 4, 5].map((n) => h('option', { value: String(n), title: t(`emoji.tone.${n}`) }, `${withTone('✋', n)} ${t(`emoji.tone.${n}`)}`)));
+    tone.replaceChildren(...[0, 1, 2, 3, 4, 5].map((n) => h('option', { value: String(n), title: t(`emoji.tone.${n}`) }, `${p.withTone('✋', n)} ${t(`emoji.tone.${n}`)}`)));
     tone.value = String(p.tone ?? 0);
     renderTabs();
     renderGrid();

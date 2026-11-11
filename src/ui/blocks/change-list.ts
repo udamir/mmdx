@@ -13,16 +13,7 @@ import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
 import { FILTER_ICONS } from './filter-toggles.js';
 import { keepFocus, rovingKeys } from '../kit/focus.js';
-
-export const kindLabel = (t: Translate, kind: string): string => t(`diff.kind.${kind}`);
-
-/** One line describing a change, for tooltips and the live region. */
-export function describeChange(t: Translate, c: ItemChange): string {
-  const facets = c.facets.join(', ');
-  const what = c.status !== 'changed' ? t(`diff.status.${c.status}`)
-    : c.fields.length ? t('diff.status.changedFields', { facets, fields: c.fields.map((f) => f.field).join(', ') }) : t('diff.status.changed', { facets });
-  return t('diff.announce', { kind: kindLabel(t, c.kind), name: c.label, what });
-}
+import { describeChange, kindLabel } from '../diagram/change-text.js';
 
 // the highlight colours of a change (core/diff/annotate's `marksOf`, kept here so the block does not load the annotator)
 const marksOf = (c: ItemChange): Mark[] => (c.status === 'added' ? ['added'] : c.status === 'removed' ? ['removed'] : c.facets.length ? [...c.facets] : ['content']);

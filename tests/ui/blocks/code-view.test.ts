@@ -2,12 +2,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createCodeView, highlighted, type CodeViewDiffProps } from '../../../src/ui/blocks/code-view.js';
 import { createI18n } from '../../../src/i18n.js';
+import { diffLines } from '../../../src/core/diff/text.js';
 
 const t = createI18n().t;
 const SRC = ['flowchart LR', '  a[Start] --> b{Valid?}', '', '  b -->|yes| c[Done]'];
-const diffProps = (over: Partial<CodeViewDiffProps> = {}): CodeViewDiffProps => ({
-  mode: 'diff', a: SRC, b: ['flowchart LR', '  a[Start] --> b{Valid?}', '', '  b -->|no| c[Done]', '  c --> d'], language: 'mermaid', label: 'Code diff', t, ...over,
-});
+const B = ['flowchart LR', '  a[Start] --> b{Valid?}', '', '  b -->|no| c[Done]', '  c --> d'];
+/** Diff props; the line ops are those of the final pair (the host computes them). */
+const diffProps = (over: Partial<CodeViewDiffProps> = {}): CodeViewDiffProps => {
+  const a = over.a ?? SRC, b = over.b ?? B;
+  return { mode: 'diff', a, b, ops: diffLines(a, b), language: 'mermaid', label: 'Code diff', t, ...over };
+};
 const texts = (el: Element, sel: string): string[] => [...el.querySelectorAll(sel)].map((e) => e.textContent ?? '');
 
 afterEach(() => {

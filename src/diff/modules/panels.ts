@@ -5,6 +5,7 @@
 // panel half of elements/diff.ts (`renderHistory`, `renderCode`, `renderChanges`, `applyPanels`) and the DOM
 // builders of elements/diff/panels.ts.
 import { changeKey } from '../../core/diff/merge.js';
+import { diffLines } from '../../core/diff/text.js';
 import { createChangeList, CHANGE_LIST_CSS } from '../../ui/blocks/change-list.js';
 import { createCodeView, CODE_VIEW_CSS, type CodeSelection } from '../../ui/blocks/code-view.js';
 import { createSidePanel } from '../../ui/blocks/side-panel.js';
@@ -209,7 +210,7 @@ export function codeDiffModule(session: DiffSession): ViewModule<ViewCore> {
           const notes: string[] = [];
           if (ignore.style) notes.push(t('diff.panel.styleRemoved'));
           if (D.layoutAligned) notes.push(t('diff.panel.layoutReplaced'));
-          view.update({ mode: 'diff', a, b, sel, notes, language, onShowAll: () => all.set(true) });
+          view.update({ mode: 'diff', a, b, ops: diffLines(a, b), sel, notes, language, onShowAll: () => all.set(true) });
         });
       });
       return () => {

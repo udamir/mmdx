@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { parseEmoji } from '../../../src/emoji/data.js';
+import { parseEmoji, searchEmoji, withTone } from '../../../src/emoji/data.js';
 import { createEmojiPicker } from '../../../src/ui/blocks/emoji-picker.js';
 import { createI18n } from '../../../src/i18n.js';
 
@@ -15,7 +15,7 @@ const DATA = parseEmoji({
 describe('EmojiPicker', () => {
   it('groups as tabs; recents first when there are some; a click picks', () => {
     const onPick = vi.fn();
-    const p = createEmojiPicker({ t, data: DATA, recent: ['😂'], onPick });
+    const p = createEmojiPicker({ t, data: DATA, search: (q) => searchEmoji(DATA, q), withTone, recent: ['😂'], onPick });
     document.body.append(p.el);
     expect(p.tab).toBe('recent');
     expect([...p.el.querySelectorAll('.ep-tabs [role=tab]')].map((b) => b.getAttribute('aria-label'))).toEqual(['Recent', 'Smileys & emotion', 'People & body', 'Flags']);
@@ -29,7 +29,7 @@ describe('EmojiPicker', () => {
   it('search by name and keywords; skin tones apply where the emoji takes them', () => {
     const onPick = vi.fn();
     const onTone = vi.fn();
-    const p = createEmojiPicker({ t, data: DATA, onPick, onTone });
+    const p = createEmojiPicker({ t, data: DATA, search: (q) => searchEmoji(DATA, q), withTone, onPick, onTone });
     p.setQuery('hello');
     expect([...p.el.querySelectorAll('.ep-e')].map((b) => b.textContent)).toEqual(['👋']);
     const tone = p.el.querySelector<HTMLSelectElement>('.ep-tone')!;
@@ -44,7 +44,7 @@ describe('EmojiPicker', () => {
   });
 
   it('arrow keys move through the grid; the search field leads into it', () => {
-    const p = createEmojiPicker({ t, data: DATA, onPick: () => undefined });
+    const p = createEmojiPicker({ t, data: DATA, search: (q) => searchEmoji(DATA, q), withTone, onPick: () => undefined });
     document.body.append(p.el);
     p.focus();
     p.el.querySelector('.ep-search')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
@@ -57,7 +57,7 @@ describe('EmojiPicker', () => {
 
 describe('emoji picker tabs follow the ARIA tab pattern (B28)', () => {
   it('one tab stop, arrows move and select', () => {
-    const p = createEmojiPicker({ t, data: DATA, onPick: () => {} });
+    const p = createEmojiPicker({ t, data: DATA, search: (q) => searchEmoji(DATA, q), withTone, onPick: () => {} });
     document.body.append(p.el);
     const tabs = [...p.el.querySelectorAll<HTMLButtonElement>('.ep-tabs [role=tab]')];
     expect(tabs.filter((b) => b.tabIndex === 0)).toHaveLength(1);

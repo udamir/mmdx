@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
-import { loadEmoji } from '../../src/emoji/data.js';
+import { loadEmoji, searchEmoji, withTone } from '../../src/emoji/data.js';
 import { createEmojiPicker, EMOJI_PICKER_CSS } from '../../src/ui/blocks/emoji-picker.js';
 import { createI18n } from '../../src/i18n.js';
 import { chromeHost } from '../support.js';
@@ -15,7 +15,7 @@ function emojiPicker(a: Args): HTMLElement {
   root.append(pop);
   void loadEmoji().then((data) => {
     let tone = 0;
-    const p = createEmojiPicker({ t: createI18n().t, data, recent: ['👍', '🚀', '✅'], tone, onTone: (n) => void (tone = n), onPick: (e) => console.log('pick', e) });
+    const p = createEmojiPicker({ t: createI18n().t, data, search: (q) => searchEmoji(data, q), withTone, recent: ['👍', '🚀', '✅'], tone, onTone: (n) => void (tone = n), onPick: (e) => console.log('pick', e) });
     if (a.query) p.setQuery(a.query);
     pop.replaceChildren(p.el);
   });

@@ -15,7 +15,7 @@ import { Morph, transitionFrom, type MorphState } from '../dom/morph.js';
 import { patchChildren } from '../dom/patch.js';
 import type { StrokeStore } from '../dom/pen.js';
 import { createBanner, MESSAGES_CSS } from '../ui/blocks/messages.js';
-import { ago } from '../ui/blocks/version-list.js';
+import { ago } from '../ui/kit/format.js';
 import { h } from '../ui/kit/h.js';
 import { effect, untracked, type ReadSignal } from '../reactive/signal.js';
 import type { ViewCore } from '../view/core.js';
