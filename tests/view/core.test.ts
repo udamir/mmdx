@@ -66,7 +66,7 @@ describe('module host', () => {
     expect(calls).toEqual(['mode:view', 'draw', 'click', 'fit', 'key']);
     calls.length = 0;
 
-    core.stage.set('history');
+    core.setStage('history');
     expect(core.moduleScope('probe')?.active).toBe(false);
     expect(core.slots['top-right'].contains(btn)).toBe(false);
     core.fire('draw');
@@ -74,10 +74,10 @@ describe('module host', () => {
     expect(core.has('fitView')).toBe(false);
     expect(core.run('fitView')).toBeUndefined();
     key(core, 'x');
-    core.mode.set('edit');
+    core.setMode('edit');
     expect(calls).toEqual([]);
 
-    core.stage.set('document');
+    core.setStage('document');
     expect(core.slots['top-right'].contains(btn)).toBe(true);
     expect(calls).toEqual(['mode:edit']);
     core.fire('draw');
@@ -106,9 +106,9 @@ describe('module host', () => {
     expect(core.moduleIds).toEqual(['a', 'b', 'c']);
     const order = (): string[] => [...core.slots['bottom-right'].children].map((e) => e.className);
     expect(order()).toEqual(['a', 'b', 'c']);
-    core.mode.set('edit');
+    core.setMode('edit');
     expect(order()).toEqual(['a', 'c']);
-    core.mode.set('view');
+    core.setMode('view');
     expect(order()).toEqual(['a', 'b', 'c']);
   });
 
@@ -152,27 +152,27 @@ describe('module scope', () => {
     expect(late.isConnected).toBe(true);
     core.fire('draw');
     core.run('fitView');
-    core.tool.set('pen');
+    core.setTool('pen');
     expect(calls).toEqual(['pen:false', 'draw', 'fit', 'pen:true']);
     calls.length = 0;
-    core.stage.set('history');
+    core.setStage('history');
     expect(late.isConnected).toBe(false);
     core.fire('draw');
     expect(core.has('fitView')).toBe(false);
-    core.stage.set('document');
+    core.setStage('document');
     expect(late.isConnected).toBe(true);
     const again = h('b');
     const unmount = s.mount(core.slots.overlay, again);
-    core.stage.set('history');
+    core.setStage('history');
     unmount();
-    core.stage.set('document');
+    core.setStage('document');
     expect(again.isConnected).toBe(false);
     expect(core.slots.overlay.childNodes.length).toBe(1);
     core.useModules([]);
     expect(late.isConnected).toBe(false);
     calls.length = 0;
     core.fire('draw');
-    core.tool.set('hand');
+    core.setTool('hand');
     expect(core.has('fitView')).toBe(false);
     expect(calls).toEqual([]);
   });
@@ -195,9 +195,9 @@ describe('module scope', () => {
     core.useModules([m]);
     await core.moduleScope('lazy')!.load();
     expect(el.parentNode).toBe(core.root);
-    core.stage.set('history');
+    core.setStage('history');
     expect(el.isConnected).toBe(false);
-    core.stage.set('document');
+    core.setStage('document');
     expect(el.parentNode).toBe(core.root);
     core.useModules([]);
     expect(el.isConnected).toBe(false);
@@ -222,7 +222,7 @@ describe('module scope', () => {
     const core = mount();
     const seen: string[] = [];
     core.useModules([
-      { id: 'switch', install: () => void core.stage.set('history') },
+      { id: 'switch', install: () => void core.setStage('history') },
       { id: 'doc-only', when: { stage: ['document'] }, install: (scope) => scope.effect(() => void seen.push('active')) },
     ]);
     expect(core.stage.peek()).toBe('history');
@@ -420,6 +420,29 @@ describe('module host semantics (A6)', () => {
     expect(sheets().some((t) => t.includes('probe-a'))).toBe(true);
     core.useModules([]);
     expect(sheets().some((t) => t.includes('probe-a'))).toBe(false);
+    core.destroy();
+  });
+});
+
+describe('contributions (A7)', () => {
+  it('claim fills a one-value slot while active and gives it back on uninstall; contributeAll replaces the module\'s entries', () => {
+    const core = mount();
+    const el = document.createElement('div');
+    let slot!: { set(v: HTMLElement | null): void };
+    let list!: { set(items: readonly { id: string; label: string; run(): void }[]): void };
+    core.exportFormats.set([{ id: 'host', label: 'Host', run: () => undefined }]);
+    core.useModules([{ id: 'm', install: (s) => {
+      slot = s.claim(core.dockFlyout);
+      list = s.contributeAll(core.exportFormats);
+    } }]);
+    slot.set(el);
+    expect(core.dockFlyout.peek()).toBe(el);
+    list.set([{ id: 'a', label: 'A', run: () => undefined }]);
+    list.set([{ id: 'b', label: 'B', run: () => undefined }]);
+    expect(core.exportFormats.peek().map((f) => f.id)).toEqual(['host', 'b']);
+    core.useModules([]);
+    expect(core.dockFlyout.peek()).toBeNull();
+    expect(core.exportFormats.peek().map((f) => f.id)).toEqual(['host']);
     core.destroy();
   });
 });

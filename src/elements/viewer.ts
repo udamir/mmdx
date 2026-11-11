@@ -110,8 +110,8 @@ export class DiagramViewer {
     const core = this.core;
     this.ctx = core.ctx;
     core.canvas.svg.setAttribute('aria-hidden', 'true');
-    core.display.set({ ...core.display.peek(), labels: o.labels !== false, hoverHighlight: o.hoverHighlight !== false });
-    if (o.layers) core.visibleLayers.set(o.layers);
+    core.setDisplay({ labels: o.labels !== false, hoverHighlight: o.hoverHighlight !== false });
+    if (o.layers) core.setVisibleLayers(o.layers);
     this.msg = h('div', { class: 'msg' });
     core.area.after(this.msg);
     this.scene = new TextScene(core, {
@@ -136,8 +136,8 @@ export class DiagramViewer {
     core.provide('documentCode', () => this.scene.rendered?.doc.code ?? (this.scene.text !== null ? splitSource(this.scene.text).doc.code : null));
     core.provide('documentSource', () => this.scene.text);
     core.provide('documentName', () => this.fileName);
-    if (o.history) core.history.set(o.history);
-    if (o.fullscreen) core.hostFullscreen.set(o.fullscreen);
+    if (o.history) core.setHostOptions({ history: o.history });
+    if (o.fullscreen) core.setHostOptions({ fullscreen: o.fullscreen });
 
     core.pushScene(this.scene);
     this.installModules();
@@ -189,10 +189,10 @@ export class DiagramViewer {
       core.root.classList.toggle('can-pan', core.canvas.interaction === 'pan-zoom');
     }
     if (changed('wheel')) core.canvas.setOptions({ wheel: this.o.wheel ?? 'ctrl' });
-    if (changed('labels') || changed('hoverHighlight')) core.display.set({ ...core.display.peek(), labels: this.o.labels !== false, hoverHighlight: this.o.hoverHighlight !== false });
-    if (changed('layers')) core.visibleLayers.set(this.o.layers);
-    if (changed('history')) core.history.set(this.o.history ?? null);
-    if (changed('fullscreen')) core.hostFullscreen.set(this.o.fullscreen ?? null);
+    if (changed('labels') || changed('hoverHighlight')) core.setDisplay({ labels: this.o.labels !== false, hoverHighlight: this.o.hoverHighlight !== false });
+    if (changed('layers')) core.setVisibleLayers(this.o.layers);
+    if (changed('history')) core.setHostOptions({ history: this.o.history ?? null });
+    if (changed('fullscreen')) core.setHostOptions({ fullscreen: this.o.fullscreen ?? null });
     if (changed('label')) this.syncLabel();
     // the modules follow the controls (each one re-evaluates what it shows)
     if (changed('controls') || changed('interactive')) core.refreshModules();
@@ -225,7 +225,7 @@ export class DiagramViewer {
   setLayers(ids: readonly string[] | undefined): void {
     if (ids) this.o.layers = ids;
     else delete this.o.layers;
-    this.core.visibleLayers.set(ids);
+    this.core.setVisibleLayers(ids);
   }
 
   /** Standalone SVG document of what is shown (visible layers, label setting). */

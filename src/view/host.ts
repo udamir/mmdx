@@ -341,6 +341,40 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
     this.register({ set: (on) => (on ? add() : remove()), dispose: remove });
   }
 
+  contributeAll<T>(list: { peek(): readonly T[]; set(v: readonly T[]): void }): { set(items: readonly T[]): void } {
+    let mine: readonly T[] = [];
+    const put = (next: readonly T[]): void => {
+      const others = list.peek().filter((x) => !mine.includes(x));
+      list.set([...others, ...next]);
+    };
+    this.register({ set: (on) => put(on ? mine : []), dispose: () => put([]) });
+    return {
+      set: (items) => {
+        // the old entries out, the new ones in (only while active; a resume puts them back)
+        put(this.active ? items : []);
+        mine = items;
+      },
+    };
+  }
+
+  claim<T>(slot: { peek(): T | null; set(v: T | null): void }): { set(v: T | null): void } {
+    let mine: T | null = null;
+    const show = (on: boolean): void => {
+      if (on && mine !== null) slot.set(mine);
+      else if (!on && mine !== null && slot.peek() === mine) slot.set(null);
+    };
+    this.register({ set: show, dispose: () => show(false) });
+    return {
+      set: (v) => {
+        const prev = mine;
+        mine = v;
+        if (!this.active) return;
+        if (v !== null) slot.set(v);
+        else if (prev !== null && slot.peek() === prev) slot.set(null);
+      },
+    };
+  }
+
   register(r: Registration): void {
     // registered after uninstall (a late async step): removed at once
     if (this.disposed) {

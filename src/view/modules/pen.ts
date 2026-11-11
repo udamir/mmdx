@@ -17,7 +17,7 @@ export const penModule: ViewModule<ViewCore> = {
     const core = scope.core;
     const t = core.i18n.t;
     const store = new StrokeStore(core.storage, reducedMotion);
-    core.strokes.set(store);
+    scope.claim(core.strokes).set(store);
     const detach = core.canvas.attachInk(store);
     const defaultTool = (): 'hand' | 'pointer' => (core.mode.peek() === 'edit' ? 'pointer' : 'hand');
     const toggle = (): void => void core.run('setTool', core.tool.peek() === 'pen' ? defaultTool() : 'pen');
@@ -28,11 +28,11 @@ export const penModule: ViewModule<ViewCore> = {
     scope.onDispose(store.subscribe(() => opts.refresh()));
 
     // the tool drives the pen; its options show in the dock's flyout while drawing
+    const flyout = scope.claim(core.dockFlyout);
     scope.effect(() => {
       const on = core.tool() === 'pen';
       store.setActive(on);
-      if (on) core.dockFlyout.set(opts.el);
-      else if (core.dockFlyout.peek() === opts.el) core.dockFlyout.set(null);
+      flyout.set(on ? opts.el : null);
     });
     // strokes are never part of a mode or a stage: switching clears them
     let last = `${core.mode.peek()}/${core.stage.peek()}`;
@@ -49,9 +49,7 @@ export const penModule: ViewModule<ViewCore> = {
     );
 
     return () => {
-      if (core.tool.peek() === 'pen') core.tool.set(defaultTool());
-      if (core.dockFlyout.peek() === opts.el) core.dockFlyout.set(null);
-      if (core.strokes.peek() === store) core.strokes.set(null);
+      if (core.tool.peek() === 'pen') core.setTool(defaultTool());
       detach();
       opts.destroy();
       btn.destroy();

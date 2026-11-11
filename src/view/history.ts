@@ -43,3 +43,19 @@ export interface HistorySession {
   /** Leaves History. */
   close(): void;
 }
+
+/**
+ * What a product that edits its document offers History (A7: an explicit port instead of probing actions): its own
+ * scene for a version, a Restore and an item clipboard. A product without one (the viewer) gets History's own scene.
+ */
+export interface HistoryHost {
+  /**
+   * Shows a version of the document read-only in the host's own scene, drawn as the document is (History's version
+   * view), or the document again (null). Nothing writes the document while a version shows.
+   */
+  showVersion(version: { id: string; source: string } | null): void;
+  /** Opens a version in the document as one undoable change (History's Restore). */
+  restoreVersion?(source: string, version: { id: string }): void;
+  /** Puts copied items on the host's item clipboard (copying from History). */
+  setClipboard?(data: unknown): void;
+}

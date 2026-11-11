@@ -186,7 +186,7 @@ describe('icons, links and the view', () => {
     const { core } = await mount('flowchart LR\n  A e1@--> B\n  e1@{ animate: true }\n');
     expect(core.dom.body.querySelector('path.line.mmdx-flow')).not.toBeNull();
     expect(core.root.dataset['edgeAnim']).toBe('on');
-    core.display.set({ ...core.display.peek(), animate: false });
+    core.setDisplay({ animate: false });
     expect(core.root.dataset['edgeAnim']).toBe('off');
   });
 });

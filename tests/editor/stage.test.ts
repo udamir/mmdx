@@ -34,12 +34,12 @@ const mount = (readOnly = false): DiagramEditor => {
 };
 const enter = (e: DiagramEditor, scene: Probe): void => {
   e.core.canvas.saveView();
-  e.core.stage.set('history');
+  e.core.setStage('history');
   e.core.pushScene(scene);
 };
 const leave = (e: DiagramEditor): void => {
   e.core.popScene();
-  e.core.stage.set('document');
+  e.core.setStage('document');
 };
 const key = (e: DiagramEditor, k: string, mod = false): void => {
   e.core.root.dispatchEvent(new KeyboardEvent('keydown', { key: k, ctrlKey: mod, metaKey: mod, bubbles: true, cancelable: true, composed: true }));

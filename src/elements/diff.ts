@@ -137,7 +137,7 @@ export class DiagramDiff {
     this.ctx = core.ctx;
     core.canvas.svg.setAttribute('aria-hidden', 'true');
     // hover highlight is a view setting the diff starts with off (unchanged items are already dimmed)
-    core.display.set({ labels: true, hoverHighlight: false, animate: true });
+    core.setDisplay({ labels: true, hoverHighlight: false, animate: true });
     this.actions.set(o.actions ?? []);
     this.label.set(o.label ?? null);
 
@@ -179,7 +179,7 @@ export class DiagramDiff {
     core.provide('documentCode', () => shown()?.doc.code ?? null);
     core.pushScene(this.scene);
 
-    core.panels.set({ ...core.panels.peek(), ...panelState(o.panels) });
+    core.setPanels({ ...panelState(o.panels) });
     core.useModules(diffModules(this.scene, { actions: this.actions }));
     this.owner.add(effect(() => core.root.setAttribute('aria-label', label())));
     // History mode needs the version panel
@@ -211,7 +211,7 @@ export class DiagramDiff {
     if ('mode' in patch && patch.mode) s.applyMode(patch.mode);
     if ('filters' in patch) s.applyFilters(patch.filters);
     if ('dim' in patch && patch.dim !== undefined) s.dim.set(patch.dim);
-    if ('panels' in patch) core.panels.set({ ...core.panels.peek(), ...panelState(patch.panels) });
+    if ('panels' in patch) core.setPanels({ ...panelState(patch.panels) });
     if ('storage' in patch) core.setStorage(patch.storage);
     if ('themeSource' in patch) core.setThemeSource(patch.themeSource);
     if ('ctx' in patch && patch.ctx !== ctx) warnOnce('diff: `ctx` is read when the diff is created');

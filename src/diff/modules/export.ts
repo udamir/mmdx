@@ -53,17 +53,11 @@ export function diffExportModule(session: DiffSession): ViewModule<ViewCore> {
         ];
       });
       // the entries change with History mode: this module's own entries are replaced, the others' stay
-      let mine: readonly ExportFormat[] = [];
-      const put = (next: readonly ExportFormat[]): void => {
-        const others = core.exportFormats.peek().filter((f) => !mine.includes(f));
-        mine = next;
-        core.exportFormats.set([...others, ...next]);
-      };
+      const mine = scope.contributeAll(core.exportFormats);
       scope.effect(() => {
         const list = formats();
-        untracked(() => put(list));
+        untracked(() => mine.set(list));
       });
-      scope.register({ set: (on) => put(on ? formats.peek() : []), dispose: () => put([]) });
     },
   };
 }

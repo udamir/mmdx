@@ -71,7 +71,7 @@ export const panesModule: EditorModule = {
     const core = scope.core;
     scope.provide('setPanel', (name, open) => {
       if (core.panels.peek()[name] === open) return;
-      core.panels.set({ ...core.panels.peek(), [name]: open });
+      core.setPanels({ [name]: open });
       core.storage.set('panels', core.panels.peek());
       core.fire('panels');
       core.fire('view');

@@ -186,7 +186,7 @@ afterEach(() => {
   it('setLayers() and the labels repaint; the hover highlight and the animation do not (P20)', async () => {
     const src = 'flowchart LR\n  a -- go --> b\n%%@ layer L1 {"name":"One"}\n%%@ node b {"layer":"L1"}';
     const { host, v } = mount({ source: src });
-    const core = (v as unknown as { core: { display: { set(d: object): void; peek(): object }; on(e: string, f: () => void): () => void } }).core;
+    const core = (v as unknown as { core: { display: { peek(): object }; setDisplay(d: object): void; on(e: string, f: () => void): () => void } }).core;
     const settle = () => new Promise((r) => setTimeout(r, 30));
     const nodes = () => host.shadowRoot!.querySelectorAll('.el[data-kind="node"]').length;
     // the first paint, and whatever it loaded on the way (a busy machine is slow), are over
@@ -199,7 +199,7 @@ afterEach(() => {
     const once = draws;
     expect(once).toBeGreaterThan(0);
     v.setLayers(['default']);
-    core.display.set({ ...core.display.peek(), hoverHighlight: false, animate: false });
+    core.setDisplay({ hoverHighlight: false, animate: false });
     await settle();
     expect(draws).toBe(once);
     v.set({ labels: false });
@@ -284,7 +284,7 @@ describe('<mmdx-viewer> attributes', () => {
     const v = el.instance!;
     await vi.waitFor(() => expect(v.core.moduleScope('pen')).not.toBeNull());
     const pen = v.core.moduleScope('pen');
-    v.core.tool.set('pen');
+    v.core.setTool('pen');
     // the diagram follows the chrome to dark (nothing picked)
     const dark = new Promise((r) => el.addEventListener('mmdx-render', r, { once: true }));
     v.core.chooseScheme('dark');

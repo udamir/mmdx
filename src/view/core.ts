@@ -19,9 +19,9 @@ import { registerMessages, type I18n } from '../i18n.js';
 import { VIEW_MESSAGES } from './messages.js';
 import { PopoverManager, Toaster } from '../ui/kit/popover.js';
 import { ShortcutRegistry } from './keymap.js';
-import { effect, signal, untracked, type Signal } from '../reactive/signal.js';
+import { batch, effect, signal, untracked, type Signal, type ReadSignal } from '../reactive/signal.js';
 import { BASE, TOKENS, watchUiScheme } from '../ui/kit/base.js';
-import type { HistorySession } from './history.js';
+import type { HistoryHost, HistorySession } from './history.js';
 import { ModuleHost, Scope } from './host.js';
 import type { ModuleScope, Registration, ViewModule } from './module.js';
 import { SceneStack, type CanvasArea, type SceneSource } from './scene.js';
@@ -87,6 +87,8 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   readonly shortcuts = new ShortcutRegistry();
   /** Loads the History code; null: no History in this component. */
   readonly loadHistory: HistoryLoader | null;
+  /** What the product offers History (its own version scene, Restore, clipboard); null: History brings its scene. */
+  historyHost: HistoryHost | null = null;
 
   // ---- shell
   /** The root element inside the shadow root. */
@@ -99,31 +101,42 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   readonly canvas: DiagramCanvas;
   readonly canvasArea: CanvasArea;
 
-  // ---- state (signals)
-  readonly mode: Signal<Mode>;
-  readonly stage: Signal<Stage> = signal<Stage>('document');
+  // ---- state (signals): read here, written through the kernel's methods (A7: setMode, setStage, setDisplay,
+  // setPanel, setTool, setVisibleLayers, setHostOptions, setHistoryState) or a module's scope (contribute, claim)
+  protected readonly modeState: Signal<Mode>;
+  readonly mode: ReadSignal<Mode>;
+  protected readonly stageState: Signal<Stage> = signal<Stage>('document');
+  readonly stage: ReadSignal<Stage> = this.stageState;
   /** The chrome's light / dark scheme. */
   readonly scheme: Signal<Scheme>;
   readonly themes: ThemeState;
-  readonly display: Signal<Display> = signal<Display>({ labels: true, hoverHighlight: true, animate: true });
+  protected readonly displayState: Signal<Display> = signal<Display>({ labels: true, hoverHighlight: true, animate: true });
+  readonly display: ReadSignal<Display> = this.displayState;
   /** Open panels by name. */
-  readonly panels: Signal<P> = signal<P>({} as P);
-  readonly tool: Signal<Tool> = signal<Tool>('hand');
+  protected readonly panelsState: Signal<P> = signal<P>({} as P);
+  readonly panels: ReadSignal<P> = this.panelsState;
+  protected readonly toolState: Signal<Tool> = signal<Tool>('hand');
+  readonly tool: ReadSignal<Tool> = this.toolState;
   readonly compact: Signal<boolean>;
   /** What the open panel stacks take from the canvas area (`--inset-l` / `--inset-r`); null: the product's CSS decides. */
   readonly stackInsets: Signal<{ left: number; right: number } | null>;
   /** Layers shown by the host's override (viewer / diff); undefined = the document's own visibility. */
-  readonly visibleLayers: Signal<readonly string[] | undefined> = signal<readonly string[] | undefined>(undefined);
+  protected readonly visibleLayersState = signal<readonly string[] | undefined>(undefined);
+  readonly visibleLayers: ReadSignal<readonly string[] | undefined> = this.visibleLayersState;
   /** The document's versions (host-provided); null: no History. */
-  readonly history: Signal<HistoryAdapter | readonly StaticVersion[] | null> = signal<HistoryAdapter | readonly StaticVersion[] | null>(null);
-  /** History is open: its version panel, whatever it shows (set by History). */
-  readonly historyOpen: Signal<boolean> = signal(false);
+  private readonly historyState = signal<HistoryAdapter | readonly StaticVersion[] | null>(null);
+  readonly history: ReadSignal<HistoryAdapter | readonly StaticVersion[] | null> = this.historyState;
+  /** History is open: its version panel, whatever it shows (set by History, `setHistoryState`). */
+  private readonly historyOpenState = signal(false);
+  readonly historyOpen: ReadSignal<boolean> = this.historyOpenState;
   /** The open History's session (the `<mmdx-diff>` methods), null while History is closed (§8.3). */
-  readonly historySession: Signal<HistorySession | null> = signal<HistorySession | null>(null);
-  /** The pen's strokes (set by the pen module), painted into every canvas the scenes add. */
+  private readonly historySessionState = signal<HistorySession | null>(null);
+  readonly historySession: ReadSignal<HistorySession | null> = this.historySessionState;
+  /** The pen's strokes (claimed by the pen module), painted into every canvas the scenes add. */
   readonly strokes: Signal<StrokeStore | null> = signal<StrokeStore | null>(null);
   /** The host's full screen, used by the zoom bar when the browser's is unavailable (sandboxed iframes); null: none. */
-  readonly hostFullscreen: Signal<HostFullscreen | null> = signal<HostFullscreen | null>(null);
+  private readonly hostFullscreenState = signal<HostFullscreen | null>(null);
+  readonly hostFullscreen: ReadSignal<HostFullscreen | null> = this.hostFullscreenState;
   /** Buttons of the tool dock, contributed by modules. */
   readonly dockItems: Signal<readonly DockItem[]> = signal<readonly DockItem[]>([]);
   /** Entries of the Export menu, contributed by modules. */
@@ -188,7 +201,8 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.owner.add(() => this.popovers.close());
 
     // ---- state
-    this.mode = signal<Mode>(o.initialMode ?? 'view');
+    this.modeState = signal<Mode>(o.initialMode ?? 'view');
+    this.mode = this.modeState;
     this.schemeState = schemeState(this.storage, `${o.product}.ui`, o.ui);
     this.scheme = this.schemeState.scheme;
     this.themes = new ThemeState({ registry: this.ctx.themes, storage: this.storage, product: o.product, scheme: this.scheme, theme: o.theme, themeDark: o.themeDark });
@@ -444,6 +458,54 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.scenes.destroy();
     this.owner.dispose();
     this.shell.destroy();
+  }
+
+  // ---- owners of the state (A7) ----------------------------------------------------------------------------------
+
+  setMode(m: Mode): void {
+    this.modeState.set(m);
+  }
+
+  /** Shows a stage of the component (History drives it: `version`, `history`; `document` is back). */
+  setStage(st: Stage): void {
+    this.stageState.set(st);
+  }
+
+  /** The display settings (labels, hover highlight, animation); the picture repaints itself where they show. */
+  setDisplay(patch: Partial<Display>): void {
+    this.displayState.set({ ...this.displayState.peek(), ...patch });
+  }
+
+  /** Opens or closes a panel (the stack modules only render what is open). */
+  setPanel(name: keyof P & string, open: boolean): void {
+    this.setPanels({ [name]: open } as Partial<P>);
+  }
+
+  setPanels(patch: Partial<P>): void {
+    this.panelsState.set({ ...this.panelsState.peek(), ...patch });
+  }
+
+  setTool(t: Tool): void {
+    this.toolState.set(t);
+  }
+
+  /** The host's layer override (undefined: the document's own visibility). */
+  setVisibleLayers(ids: readonly string[] | undefined): void {
+    this.visibleLayersState.set(ids);
+  }
+
+  /** What the host page gives the component: its versions (History) and its full screen. */
+  setHostOptions(o: { history?: HistoryAdapter | readonly StaticVersion[] | null; fullscreen?: HostFullscreen | null }): void {
+    if (o.history !== undefined) this.historyState.set(o.history);
+    if (o.fullscreen !== undefined) this.hostFullscreenState.set(o.fullscreen);
+  }
+
+  /** History says whether it is open and which session it shows (src/diff/history.ts). */
+  setHistoryState(open: boolean, session: HistorySession | null): void {
+    batch(() => {
+      this.historyOpenState.set(open);
+      this.historySessionState.set(session);
+    });
   }
 
   get isDestroyed(): boolean {

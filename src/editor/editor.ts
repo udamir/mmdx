@@ -138,7 +138,7 @@ export class DiagramEditor {
 
     // panel visibility from storage, then options
     const savedPanels = core.storage.get<{ code?: boolean; properties?: boolean; layers?: boolean }>('panels') ?? {};
-    core.panels.set({ code: true, properties: true, layers: true, ...savedPanels, ...(options.panels ?? {}) });
+    core.setPanels({ code: true, properties: true, layers: true, ...savedPanels, ...(options.panels ?? {}) });
     this.owner.add(effect(() => {
       const p = core.panels();
       const m = core.mode();
@@ -181,17 +181,19 @@ export class DiagramEditor {
     // what History needs from the document (component architecture §8.2)
     core.provide('documentSource', () => this.store.source());
     core.provide('documentName', () => core.fileName || 'diagram');
-    core.provide('setClipboard', (data) => void (core.clipboard = data as typeof core.clipboard));
-    core.provide('showVersion', (v) => core.showVersion(v));
-    core.provide('restoreVersion', (source, v) => {
-      core.cancelGesture();
-      core.store.load(source, { history: 'push', reason: 'remote', markSaved: false });
-      core.draw();
-      core.viewport.setBounds(core.result.result.bounds, { fit: true });
-      core.fire('model');
-      core.fire('panels');
-      core.toast(core.i18n.t('history.restored', { id: v.id }));
-    });
+    core.historyHost = {
+      setClipboard: (data) => void (core.clipboard = data as typeof core.clipboard),
+      showVersion: (v) => core.showVersion(v),
+      restoreVersion: (source, v) => {
+        core.cancelGesture();
+        core.store.load(source, { history: 'push', reason: 'remote', markSaved: false });
+        core.draw();
+        core.viewport.setBounds(core.result.result.bounds, { fit: true });
+        core.fire('model');
+        core.fire('panels');
+        core.toast(core.i18n.t('history.restored', { id: v.id }));
+      },
+    };
 
     core.useModules(options.modules ?? DEFAULT_MODULES);
 
@@ -204,7 +206,7 @@ export class DiagramEditor {
     }));
     void ensureBuiltinThemes();
     if (options.readOnly) core.setMode('view');
-    if (options.history) core.history.set(options.history);
+    if (options.history) core.setHostOptions({ history: options.history });
     if (options.guardUnload) {
       const onBeforeUnload = (ev: BeforeUnloadEvent): void => {
         if (this.store.dirty.peek()) ev.preventDefault();
@@ -252,7 +254,7 @@ export class DiagramEditor {
     return this.core.history.peek();
   }
   set history(h: HistoryAdapter | readonly StaticVersion[] | null) {
-    this.core.history.set(h ?? null);
+    this.core.setHostOptions({ history: h ?? null });
   }
 
   /** Opens or closes History (when there is a history): the version panel; `compare` opens on the newest change compared. */
@@ -807,7 +809,7 @@ export class MmdxEditorElement extends MmdxElement<EditorOptions, DiagramEditor>
           core.canvas.setOptions({ wheel: p.wheel ?? 'always' });
           break;
         case 'panels':
-          core.panels.set({ ...core.panels.peek(), ...p.panels });
+          core.setPanels({ ...p.panels });
           break;
         case 'storage':
           core.setStorage(p.storage);
@@ -820,7 +822,8 @@ export class MmdxEditorElement extends MmdxElement<EditorOptions, DiagramEditor>
           Object.assign(core.features, DEFAULT_FEATURES, p.features);
           if (this.props.toolbar === 'none') core.features.styleToolbar = false;
           core.useModules((this.props.modules ?? DEFAULT_MODULES).map((m) => Object.create(m) as EditorModule));
-          core.panels.set({ ...core.panels.peek() });
+          // the panels again (the new modules render what is open)
+          core.setPanels({});
           break;
         case 'modules':
           core.useModules(p.modules ?? DEFAULT_MODULES);

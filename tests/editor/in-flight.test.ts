@@ -159,14 +159,14 @@ describe('switching the stage or the mode during a gesture', () => {
     const ed = mount();
     const d = startDrag(ed);
     expect(ed.getSource()).not.toBe(SRC);
-    ed.core.stage.set('history');
+    ed.core.setStage('history');
     expect(ed.store.inTransaction).toBe(false);
     expect(ed.getSource()).toBe(SRC);
     d.move(80);
     d.release();
     expect(ed.getSource()).toBe(SRC);
     expect(ed.store.canUndo.peek()).toBe(false);
-    ed.core.stage.set('document');
+    ed.core.setStage('document');
   });
 
   it('switching to View rolls the drag back', () => {

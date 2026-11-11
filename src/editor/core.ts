@@ -348,8 +348,8 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     this.store = o.store;
     this.features = o.features;
     this.dialogs = new Dialogs(this.shadow, this.i18n.t);
-    this.tool.set('pointer');
-    this.panels.set({ code: true, properties: true, layers: true });
+    this.toolState.set('pointer');
+    this.panelsState.set({ code: true, properties: true, layers: true });
     const c = this.canvas;
     this.domCache = { shadow: this.shadow, root: this.root, wrap: this.area, svg: c.svg, defs: c.defs, vp: c.vp, page: c.page, body: c.body, overlay: c.overlay };
     this.storeScene = new StoreScene(this);
@@ -458,7 +458,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       this.beforeVersion = null;
       if (back) {
         this.enteredGroup.set(back.group);
-        this.visibleLayers.set(back.layers);
+        this.visibleLayersState.set(back.layers);
       }
     }
     this.rendered = null;
@@ -856,11 +856,11 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     this.fire('panels');
   }
 
-  setMode(m: Mode): void {
+  override setMode(m: Mode): void {
     // no Edit / View switching while History is open (§8.2)
     if (this.mode.peek() === m || this.stage.peek() !== 'document') return;
-    this.mode.set(m);
-    this.tool.set(m === 'edit' ? 'pointer' : 'hand');
+    this.modeState.set(m);
+    this.toolState.set(m === 'edit' ? 'pointer' : 'hand');
     if (m === 'view') {
       this.select([]);
       this.enteredGroup.set(null);
@@ -871,9 +871,9 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     this.fire('panels');
   }
 
-  setTool(t: Tool): void {
+  override setTool(t: Tool): void {
     if (this.tool.peek() === t) return;
-    this.tool.set(t);
+    this.toolState.set(t);
     this.fire('tool');
     this.drawOverlay();
   }

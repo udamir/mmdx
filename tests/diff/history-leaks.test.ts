@@ -60,7 +60,7 @@ describe('History open and close (B9)', () => {
     expect(live).toBe(0);
     // and nothing reads the layout of a closed History's bar when the panels change
     const spy = vi.spyOn(window, 'getComputedStyle');
-    ed.core.panels.set({ ...ed.core.panels.peek(), code: !ed.core.panels.peek()['code'] });
+    ed.core.setPanels({ code: !ed.core.panels.peek()['code'] });
     expect(spy.mock.calls.filter(([e]) => !(e as Element).isConnected)).toEqual([]);
   });
 });

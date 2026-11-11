@@ -66,15 +66,6 @@ export interface ViewActions {
   documentSource(): string | null;
   /** File name stem of exports. */
   documentName(): string;
-  /** Opens a version in the document as one undoable change (the editor; History's Restore). */
-  restoreVersion(source: string, version: { id: string }): void;
-  /** Puts copied items on the host's item clipboard (the editor; copying from History). */
-  setClipboard(data: unknown): void;
-  /**
-   * Shows a version of the document read-only in the host's own scene, drawn as the document is (the editor;
-   * History's version view), or the document again (null). Nothing writes the document while a version shows.
-   */
-  showVersion(version: { id: string; source: string } | null): void;
 }
 
 /**

@@ -144,7 +144,8 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
   core.addCss([DIFF_TOKENS, DIFF_CSS, PILL_CSS]);
   const label = (id: string | null): string => (id === WORKING_COPY ? t('history.workingShort') : id ?? '');
   // the editor shows a version in its own scene, drawn as the document; a viewer in the DiffScene
-  const ownScene = core.has('showVersion');
+  // the product's own version scene, Restore and clipboard (the editor), else History's own scene
+  const host = core.historyHost, ownScene = !!host;
 
   const session: DiffSession = new DiffSession({
     ctx: core.ctx,
@@ -225,10 +226,10 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
     diff = { tool: core.tool.peek() };
     // the host's Layers card shows over a comparison as its view settings (layers and display), open as it was
     const p = core.panels.peek();
-    if ('layers' in p) core.panels.set({ ...p, 'view-settings': !!p['layers'] });
+    if ('layers' in p) core.setPanels({ 'view-settings': !!p['layers'] });
     keepingFocus(() => inPlace(() => {
-      core.stage.set('history');
-      if (core.tool.peek() !== 'hand' && core.tool.peek() !== 'pen') core.tool.set('hand');
+      core.setStage('history');
+      if (core.tool.peek() !== 'hand' && core.tool.peek() !== 'pen') core.setTool('hand');
       core.pushScene(scene);
     }));
   };
@@ -239,11 +240,11 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
     diff = null;
     keepingFocus(() => inPlace(() => {
       core.popScene();
-      core.stage.set('document');
+      core.setStage('document');
       const p = core.panels.peek();
-      if ('view-settings' in p && 'layers' in p) core.panels.set({ ...p, layers: !!p['view-settings'] });
+      if ('view-settings' in p && 'layers' in p) core.setPanels({ layers: !!p['view-settings'] });
     }));
-    core.tool.set(d.tool);
+    core.setTool(d.tool);
   };
 
   /** Nothing picked: the document as it is (editable in the editor). */
@@ -253,9 +254,9 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
     const version = ownScene && shown.peek() === 'version';
     animated(() => {
       leaveDiff();
-      if (version) core.run('showVersion', null);
+      if (version) host?.showVersion(null);
     });
-    core.stage.set('document');
+    core.setStage('document');
     viewing.set(null);
     shown.set('none');
     // nothing shown and the panel closed: History is left
@@ -289,10 +290,10 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
     if (ticket !== seq || closed) return;
     animated(() => {
       leaveDiff();
-      core.stage.set('version');
+      core.setStage('version');
       const tool = core.tool.peek();
       if (tool !== 'pointer' && tool !== 'hand' && tool !== 'pen') core.run('setTool', 'pointer');
-      core.run('showVersion', { id, source });
+      host?.showVersion({ id, source });
     });
     shown.set('version');
     core.emit('mmdx-history-version', { base: null, head: null, viewing: id });
@@ -305,7 +306,7 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
     const version = ownScene && shown.peek() === 'version';
     // the comparison morphs from the version on the canvas; the document is put back under it (not painted meanwhile)
     enterDiff();
-    if (version) core.run('showVersion', null);
+    if (version) host?.showVersion(null);
     viewing.set(null);
     shown.set('compare');
     session.setPair(base, head);
@@ -359,10 +360,10 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
     const info = session.versions.peek().find((v) => v.id === id) ?? { id };
     if (!core.emit('mmdx-history-restore', { id, source }, true)) return;
     close();
-    core.run('restoreVersion', source, info);
+    host?.restoreVersion?.(source, info);
   };
   // Restore (Edit mode) is in each version's "⋮" menu of the History panel
-  const canRestore = core.mode.peek() === 'edit' && core.has('restoreVersion');
+  const canRestore = core.mode.peek() === 'edit' && !!host?.restoreVersion;
   // not for the current version (the top row: the document as it is)
   const rowActions = (id: string): MenuEntry[] =>
     canRestore && id !== WORKING_COPY && id !== session.versions.peek()[0]?.id
@@ -414,7 +415,7 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
     const D = session.rendered.peek();
     const key = session.selected.peek();
     const ch = key ? session.change(key) : null;
-    if (!D || !ch || !core.has('setClipboard')) {
+    if (!D || !ch || !host?.setClipboard) {
       core.toast(t('history.copyNothing'));
       return;
     }
@@ -436,7 +437,7 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
       core.toast(t('history.copyNothing'));
       return;
     }
-    core.run('setClipboard', data);
+    host?.setClipboard?.(data);
     core.toast(t('history.copied', { label: ch.label, id: label(before ? session.base.peek() : session.head.peek()) }));
   };
 
@@ -480,8 +481,8 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
   ] as ViewModule<ViewCore>[]).map(inHostStacks);
 
   // ---- open: the version panel only
-  core.historyOpen.set(true);
-  core.panels.set({ ...core.panels.peek(), history: true });
+  core.setHistoryState(true, null);
+  core.setPanels({ history: true });
   const removeModules = core.addModules(modules);
   const loaded = session.load({ history: withWorkingCopy(history, () => core.run('documentSource') ?? '', t('history.working')) });
   if (o.compare) compareNewest();
@@ -511,8 +512,7 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
     closed = true;
     seq++;
     owner.dispose();
-    core.historySession.set(null);
-    core.historyOpen.set(false);
+    core.setHistoryState(false, null);
     morph?.finish();
     if (core.isDestroyed) {
       // the host is being destroyed (its modules uninstall): nothing to give back, nothing to repaint, no event
@@ -523,12 +523,12 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
     const version = ownScene && shown.peek() === 'version';
     animated(() => {
       leaveDiff();
-      if (version) core.run('showVersion', null);
+      if (version) host?.showVersion(null);
     });
-    core.stage.set('document');
+    core.setStage('document');
     removeModules();
     session.destroy();
-    core.panels.set({ ...core.panels.peek(), history: false });
+    core.setPanels({ history: false });
     core.root.focus({ preventScroll: true });
     core.emit('mmdx-history-close', {});
     o.onClose();
@@ -553,7 +553,7 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
     exportAs: (kind, opts) => (shown.peek() === 'none' ? Promise.resolve() : session.exportAs(kind, opts ?? {})), // as getDiff (B23)
     close,
   };
-  core.historySession.set(api);
+  core.setHistoryState(true, api);
   core.emit('mmdx-history-open', {});
   return { close, compareNewest };
 }

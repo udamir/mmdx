@@ -47,7 +47,7 @@ export function layersCard(core: EditorCore): LayersCard {
     applyMeta(core, label, { meta });
   };
   const display = (key: 'labels' | 'hoverHighlight' | 'animate', v: boolean): void => {
-    core.display.set({ ...core.display.peek(), [key]: v });
+    core.setDisplay({ [key]: v });
     if (key === 'hoverHighlight' && !v) clearHighlight(svg());
   };
   const labels = computed(() => core.display().labels), hover = computed(() => core.display().hoverHighlight), animate = computed(() => core.display().animate);
@@ -67,7 +67,7 @@ export function layersCard(core: EditorCore): LayersCard {
         const on = new Set(shownLayers());
         if (visible) on.add(id);
         else on.delete(id);
-        core.visibleLayers.set([...on]);
+        core.setVisibleLayers([...on]);
         core.fire('panels');
         return;
       }
