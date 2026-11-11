@@ -2,6 +2,7 @@
 // slots modules fill, the styles adopted into the shadow root, the insets of the canvas area (what fit() keeps clear
 // of, and the `--inset-l` / `--inset-r` of the open panel stacks), and the `compact` preset (§7.6).
 import type { Insets } from '../dom/canvas.js';
+import { observeSize } from '../dom/resize.js';
 import { h } from '../ui/h.js';
 import { effect, signal, type Signal } from '../ui/signal.js';
 import { adoptStyles } from '../ui/styles/base.js';
@@ -112,11 +113,7 @@ export function createShell(host: HTMLElement, shadow: ShadowRoot, o: ShellOptio
     const r = host.getBoundingClientRect();
     compact.set(!!r.width && (r.width < COMPACT_W || r.height < COMPACT_H));
   };
-  if (typeof ResizeObserver !== 'undefined') {
-    const ro = new ResizeObserver(syncCompact);
-    ro.observe(host);
-    cleanups.push(() => ro.disconnect());
-  }
+  cleanups.push(observeSize(host, syncCompact));
   syncCompact();
 
   return {

@@ -1,6 +1,7 @@
 // Pan and zoom (A.2 rows 17–18), shared by the viewer and the editor canvas. Instance-scoped; destroy() removes
 // every listener and observer.
 import type { Rect } from '../core/types.js';
+import { observeSize } from './resize.js';
 import { ease, reducedMotion, TRANSITION_MS } from './motion.js';
 
 export interface ViewState {
@@ -38,9 +39,12 @@ export class Viewport {
   private bounds: Rect | null = null;
   private drag: { x: number; y: number; tx: number; ty: number; id: number } | null = null;
   private gestureScale = 1;
+  /** The pointers down (touch): two make a pinch, which zooms about their midpoint and pans with it. */
+  private readonly down = new Map<number, { x: number; y: number }>();
+  private pinch: { dist: number; mid: { x: number; y: number }; k: number; tx: number; ty: number } | null = null;
   /** The animation frame of a fit gliding to its place (0: none). */
   private glide = 0;
-  private readonly ro: ResizeObserver | null;
+  private readonly unobserve: () => void;
   private readonly ac = new AbortController();
   private readonly o: Required<Omit<ViewportOptions, 'insets' | 'onChange'>> & {
     insets: ViewportOptions['insets'] | undefined;
@@ -61,8 +65,8 @@ export class Viewport {
     el.addEventListener('wheel', (e) => this.onWheel(e as WheelEvent), { passive: false, signal: this.ac.signal });
     el.addEventListener('pointerdown', (e) => this.onDown(e as PointerEvent), sig);
     el.addEventListener('pointermove', (e) => this.onMove(e as PointerEvent), sig);
-    el.addEventListener('pointerup', () => this.endDrag(), sig);
-    el.addEventListener('pointercancel', () => this.endDrag(), sig);
+    el.addEventListener('pointerup', (e) => this.onUp(e as PointerEvent), sig);
+    el.addEventListener('pointercancel', (e) => this.onUp(e as PointerEvent), sig);
     // Safari trackpad pinch
     el.addEventListener('gesturestart', (e) => { e.preventDefault(); this.gestureScale = 1; }, sig);
     el.addEventListener('gesturechange', (e) => {
@@ -78,8 +82,9 @@ export class Viewport {
       this.gestureScale = g.scale;
     }, sig);
     // a resize while the view glides to a fit (panels sliding) goes on gliding to the new fit
-    this.ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => { if (this.auto) this.fit(!!this.glide); }) : null;
-    this.ro?.observe(el);
+    this.unobserve = observeSize(el, () => {
+      if (this.auto) this.fit(!!this.glide);
+    });
   }
 
   setOptions(opts: Partial<Pick<ViewportOptions, 'wheel' | 'panOnDrag'>>): void {
@@ -191,7 +196,7 @@ export class Viewport {
   destroy(): void {
     this.stopGlide();
     this.ac.abort();
-    this.ro?.disconnect();
+    this.unobserve();
   }
 
   private local(ev: { clientX: number; clientY: number }): { x: number; y: number } {
@@ -220,17 +225,65 @@ export class Viewport {
   }
 
   private onDown(ev: PointerEvent): void {
+    if (ev.pointerType === 'touch' && ev.button === 0) {
+      this.down.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+      // a second finger: the pan becomes a pinch (Chrome and Android send no gesture events)
+      if (this.down.size === 2) {
+        ev.preventDefault();
+        this.endDrag();
+        try {
+          (this.el as Element & { setPointerCapture(id: number): void }).setPointerCapture(ev.pointerId);
+        } catch {
+          // best-effort
+        }
+        this.startPinch();
+        return;
+      }
+      if (this.down.size > 2) return;
+    }
     const middle = ev.button === 1;
     if (!middle && (ev.button !== 0 || !this.o.panOnDrag)) return;
     ev.preventDefault(); // no text selection while panning
     this.startPan(ev);
   }
 
+  private startPinch(): void {
+    const [a, b] = [...this.down.values()] as [{ x: number; y: number }, { x: number; y: number }];
+    const v = this.state;
+    this.pinch = { dist: Math.hypot(b.x - a.x, b.y - a.y) || 1, mid: this.local({ clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2 }), k: v.k, tx: v.tx, ty: v.ty };
+  }
+
   private onMove(ev: PointerEvent): void {
+    if (this.down.has(ev.pointerId)) this.down.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    const p = this.pinch;
+    if (p && this.down.size === 2) {
+      const [a, b] = [...this.down.values()] as [{ x: number; y: number }, { x: number; y: number }];
+      const k = clampK(p.k * (Math.hypot(b.x - a.x, b.y - a.y) / p.dist), this.o.minK, this.o.maxK);
+      const mid = this.local({ clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2 });
+      // the diagram point under the fingers' first midpoint stays under their midpoint
+      const px = (p.mid.x - p.tx) / p.k, py = (p.mid.y - p.ty) / p.k;
+      this.auto = false;
+      this.wheeling = true;
+      try {
+        this.set({ k, tx: mid.x - px * k, ty: mid.y - py * k });
+      } finally {
+        this.wheeling = false;
+      }
+      return;
+    }
     const d = this.drag;
     if (!d || d.id !== ev.pointerId) return;
     this.auto = false;
     this.set({ k: this.state.k, tx: d.tx + ev.clientX - d.x, ty: d.ty + ev.clientY - d.y });
+  }
+
+  private onUp(ev: PointerEvent): void {
+    this.down.delete(ev.pointerId);
+    if (this.pinch) {
+      if (this.down.size < 2) this.pinch = null;
+      return;
+    }
+    this.endDrag();
   }
 
   private endDrag(): void {

@@ -25,6 +25,14 @@ class FakeWorker {
   answer(id: number): void {
     for (const f of this.listeners['message'] ?? []) f({ data: { id, ok: false, error: 'boom' } });
   }
+  /** The worker has loaded (its first message). */
+  start(): void {
+    for (const f of this.listeners['message'] ?? []) f({ data: { ready: true } });
+  }
+  /** The worker no longer holds the job's themes. */
+  noThemes(id: number): void {
+    for (const f of this.listeners['message'] ?? []) f({ data: { id, ok: false, error: 'themes' } });
+  }
 }
 
 const load = async (): Promise<typeof import('../../src/dom/worker-client.js')> => {
@@ -103,6 +111,7 @@ describe('render worker client', () => {
     const ctx = createContext({ idPrefix: 'a' });
     const slow = renderInWorker('slow', ctx, {}, {});
     const other = renderInWorker('other', ctx, {}, {});
+    FakeWorker.all[0]!.start();
     vi.advanceTimersByTime(2001);
     expect(await slow).toEqual({ error: 'timeout' });
     expect(FakeWorker.all[0]!.terminated).toBe(true);
@@ -110,6 +119,45 @@ describe('render worker client', () => {
     expect(w2.posted.map((r) => r.src)).toEqual(['other']);
     w2.answer(w2.posted[0]!.id);
     expect(await other).toBeNull();
+  });
+
+  it('the worker\'s start-up does not count against the job\'s timeout; a worker that never starts gives up', async () => {
+    const { renderInWorker } = await load();
+    const ctx = createContext({ idPrefix: 'a' });
+    const job = renderInWorker('a', ctx, {}, {});
+    const w = FakeWorker.all[0]!;
+    // loading for 5 s: the job is waiting, not timing out
+    vi.advanceTimersByTime(5000);
+    expect(w.terminated).toBe(false);
+    w.start();
+    vi.advanceTimersByTime(1900);
+    expect(w.terminated).toBe(false);
+    vi.advanceTimersByTime(200);
+    expect(await job).toEqual({ error: 'timeout' });
+    // the restarted worker never starts: after 10 s the main thread renders
+    const next = renderInWorker('b', ctx, {}, {});
+    vi.advanceTimersByTime(10_001);
+    expect(await next).toBeNull();
+    expect(FakeWorker.all[1]!.terminated).toBe(true);
+  });
+
+  it('sends the themes once per registry revision per worker; a worker that let them go asks again', async () => {
+    const { renderInWorker } = await load();
+    const ctx = createContext({ idPrefix: 'a' });
+    const one = renderInWorker('a', ctx, {}, {});
+    const w = FakeWorker.all[0]!;
+    w.start();
+    expect(w.posted[0]!.themes?.length).toBeGreaterThan(0);
+    w.answer(w.posted[0]!.id);
+    await one;
+    const two = renderInWorker('b', ctx, {}, {});
+    expect(w.posted[1]!.themes).toBeUndefined();
+    w.noThemes(w.posted[1]!.id);
+    expect(w.posted).toHaveLength(3);
+    expect(w.posted[2]!.src).toBe('b');
+    expect(w.posted[2]!.themes?.length).toBeGreaterThan(0);
+    w.answer(w.posted[2]!.id);
+    expect(await two).toBeNull();
   });
 
   it('the themes key changes when the registry changes, not with the size of a theme', async () => {

@@ -7,17 +7,26 @@ import { createStaticMeasurer } from '../core/text/measure.js';
 import { ThemeRegistry } from '../core/theme/registry.js';
 import type { ThemeFile } from '../core/theme/types.js';
 import { createCanvasMeasurer } from './measure.js';
-import type { WorkerRequest, WorkerResponse } from './worker-protocol.js';
+import type { WorkerReady, WorkerRequest, WorkerResponse } from './worker-protocol.js';
 
 const measure = createCanvasMeasurer() ?? createStaticMeasurer();
 /** Contexts by id prefix and theme registry revision (most recently used last). */
 const contexts = new Map<string, CoreContext>();
+/** The registries by revision: a job brings its themes only the first time (most recently used last). */
+const registries = new Map<string, ThemeRegistry>();
 
-function contextFor(idPrefix: string, themes: readonly ThemeFile[], themesKey: string): CoreContext {
+/** The context of a job, or null when its themes are neither given nor held. */
+function contextFor(idPrefix: string, themes: readonly ThemeFile[] | undefined, themesKey: string): CoreContext | null {
+  let reg = registries.get(themesKey);
+  if (reg) registries.delete(themesKey);
+  else if (themes) reg = new ThemeRegistry(themes);
+  else return null;
+  registries.set(themesKey, reg);
+  if (registries.size > 8) registries.delete(registries.keys().next().value!);
   const key = `${idPrefix}|${themesKey}`;
   let ctx = contexts.get(key);
   if (ctx) contexts.delete(key);
-  else ctx = createContext({ themes: new ThemeRegistry(themes), measure, idPrefix });
+  else ctx = createContext({ themes: reg, measure, idPrefix });
   contexts.set(key, ctx);
   if (contexts.size > 32) contexts.delete(contexts.keys().next().value!);
   return ctx;
@@ -28,6 +37,10 @@ addEventListener('message', (ev: MessageEvent<WorkerRequest>) => {
   let res: WorkerResponse;
   try {
     const ctx = contextFor(idPrefix, themes, themesKey);
+    if (!ctx) {
+      postMessage({ id, ok: false, error: 'themes' } satisfies WorkerResponse);
+      return;
+    }
     ctx.linkPolicy = linkPolicy;
     ctx.imagePolicy = imagePolicy;
     ctx.icons = IconRegistry.fromSnapshot(icons);
@@ -48,3 +61,6 @@ addEventListener('message', (ev: MessageEvent<WorkerRequest>) => {
   }
   postMessage(res);
 });
+
+// started: the client counts its jobs' time from here
+postMessage({ ready: true } satisfies WorkerReady);

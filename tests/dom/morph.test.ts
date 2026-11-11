@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Morph, type MorphState } from '../../src/dom/morph.js';
+import { Morph, MORPH_MAX_ITEMS, type MorphState } from '../../src/dom/morph.js';
 import { TRANSITION_MS } from '../../src/dom/motion.js';
 import { Viewport } from '../../src/dom/viewport.js';
 
@@ -83,6 +83,20 @@ describe('Morph.replace (switching to another version)', () => {
     expect(rectOf(content, 'node:a')!.getAttribute('x')).toBe('100');
     m.replace([state({ 'node:a': 30 })], 0, false);
     expect(rectOf(content, 'node:a')!.getAttribute('x')).toBe('30');
+  });
+
+  it('over MORPH_MAX_ITEMS items a switch is instant, with no copy of what was shown', () => {
+    const many = (x: number) => state(Object.fromEntries(Array.from({ length: MORPH_MAX_ITEMS + 1 }, (_, i) => [`node:n${i}`, x])));
+    const content = svg('g');
+    const m = new Morph(svg('defs'), content, [many(0), many(5)], 0);
+    const clone = vi.spyOn(content, 'cloneNode');
+    m.replace([many(100)], 0, true);
+    expect(clone).not.toHaveBeenCalled();
+    expect(frames.size).toBe(0);
+    expect(rectOf(content, 'node:n0')!.getAttribute('x')).toBe('100');
+    const small = new Morph(svg('defs'), svg('g'), [state({ 'node:a': 0 }), state({ 'node:a': 9 })], 0);
+    small.go(1);
+    expect(frames.size).toBe(1);
   });
 
   it('a second switch while one runs finishes the first', () => {

@@ -141,15 +141,30 @@ export function resolveUiScheme(ui: string | null): 'light' | 'dark' {
   return typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
+// one media query listener and one observer of <html> for every component (the previous review: a set per instance)
+const schemeWatchers = new Set<() => void>();
+let schemeStop: (() => void) | null = null;
+const schemeChanged = (): void => {
+  for (const f of [...schemeWatchers]) f();
+};
+
 /** Calls `cb` when the page's colour scheme may have changed (OS preference or <html data-theme>). */
 export function watchUiScheme(cb: () => void): () => void {
-  const mq = typeof matchMedia !== 'undefined' ? matchMedia('(prefers-color-scheme: dark)') : null;
-  mq?.addEventListener('change', cb);
-  const mo = typeof MutationObserver !== 'undefined' ? new MutationObserver(cb) : null;
-  if (mo && typeof document !== 'undefined')
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-ui'] });
+  if (!schemeWatchers.size) {
+    const mq = typeof matchMedia !== 'undefined' ? matchMedia('(prefers-color-scheme: dark)') : null;
+    mq?.addEventListener('change', schemeChanged);
+    const mo = typeof MutationObserver !== 'undefined' && typeof document !== 'undefined' ? new MutationObserver(schemeChanged) : null;
+    mo?.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-ui'] });
+    schemeStop = () => {
+      mq?.removeEventListener('change', schemeChanged);
+      mo?.disconnect();
+    };
+  }
+  const f = (): void => cb();
+  schemeWatchers.add(f);
   return () => {
-    mq?.removeEventListener('change', cb);
-    mo?.disconnect();
+    if (!schemeWatchers.delete(f) || schemeWatchers.size) return;
+    schemeStop?.();
+    schemeStop = null;
   };
 }

@@ -14,6 +14,12 @@ const LAYERS = ['dx-layer', 'dx-runs'];
 
 type Tween = (t: number) => void;
 
+/**
+ * Over this many items a switch is instant: pairing and tweening every item costs more than the frame budget, and
+ * copying what is shown for the transition is wasted (the previous review's morph item threshold).
+ */
+export const MORPH_MAX_ITEMS = 1500;
+
 const NUM = /-?\d*\.?\d+(?:e[-+]?\d+)?/gi;
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
@@ -110,6 +116,9 @@ const keyOf = (e: Element): string => {
 };
 
 /** Outermost item groups by pairing key. */
+/** At most MORPH_MAX_ITEMS items to pair. */
+const small = (root: Element): boolean => root.querySelectorAll(ITEM).length <= MORPH_MAX_ITEMS;
+
 function items(root: Element): Map<string, Element> {
   const m = new Map<string, Element>();
   for (const e of root.querySelectorAll(ITEM)) if (!e.parentElement?.closest(ITEM)) m.set(keyOf(e), e);
@@ -162,11 +171,13 @@ export class Morph {
    */
   replace(states: MorphState[], i: number, animate: boolean): void {
     this.running?.finish();
-    const from: MorphState = { defs: [...this.defs.children].map((n) => n.cloneNode(true) as Element), content: this.content.cloneNode(true) as Element };
+    // what is shown is copied only when it will animate
+    const moving = animate && this.content.childElementCount > 0 && this.animates() && small(this.content) && !!states[i] && small(states[i].content);
+    const from: MorphState | null = moving ? { defs: [...this.defs.children].map((n) => n.cloneNode(true) as Element), content: this.content.cloneNode(true) as Element } : null;
     this.states = states;
     this.current = i;
     this.show(i);
-    if (animate && from.content.childElementCount && !this.reducedMotion() && typeof requestAnimationFrame !== 'undefined') this.running = this.transition(from);
+    if (from) this.running = this.transition(from);
   }
 
   go(i: number, animate = true): void {
@@ -175,7 +186,11 @@ export class Morph {
     const from = this.states[this.current]!;
     this.current = i;
     this.show(i);
-    if (animate && !this.reducedMotion() && typeof requestAnimationFrame !== 'undefined') this.running = this.transition(from);
+    if (animate && this.animates() && small(from.content) && small(this.content)) this.running = this.transition(from);
+  }
+
+  private animates(): boolean {
+    return !this.reducedMotion() && typeof requestAnimationFrame !== 'undefined';
   }
 
   finish(): void {

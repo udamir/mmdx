@@ -59,3 +59,48 @@ describe('Viewport wheel modes', () => {
     expect(vp.wheeling).toBe(false);
   });
 });
+
+describe('two-finger pinch (Chrome and Android send pointer events only)', () => {
+  // jsdom has no PointerEvent: a MouseEvent with the pointer fields
+  const ptr = (el: Element, type: string, id: number, x: number, y: number): void => {
+    const ev = new MouseEvent(type, { clientX: x, clientY: y, button: 0, bubbles: true, cancelable: true });
+    Object.assign(ev, { pointerId: id, pointerType: 'touch' });
+    el.dispatchEvent(ev);
+  };
+
+  it('zooms about the fingers\' midpoint and pans with it; lifting a finger ends it', () => {
+    const { el, vp, seen } = setup('always');
+    vp.set({ k: 1, tx: 0, ty: 0 });
+    ptr(el, 'pointerdown', 1, 100, 100);
+    ptr(el, 'pointerdown', 2, 200, 100);
+    expect(vp.panning).toBe(false);
+    // twice as far apart around the same midpoint (150, 100): double the scale, that point stays put
+    seen.length = 0;
+    ptr(el, 'pointermove', 1, 50, 100);
+    ptr(el, 'pointermove', 2, 250, 100);
+    expect(vp.state.k).toBeCloseTo(2);
+    expect(vp.state.tx).toBeCloseTo(150 - 150 * 2);
+    expect(vp.state.ty).toBeCloseTo(100 - 100 * 2);
+    expect(seen.every(Boolean)).toBe(true);
+    // the fingers move together: the view pans with them
+    ptr(el, 'pointermove', 1, 60, 120);
+    ptr(el, 'pointermove', 2, 260, 120);
+    expect(vp.state.k).toBeCloseTo(2);
+    expect(vp.state.ty).toBeCloseTo(-100 + 20);
+    ptr(el, 'pointerup', 2, 260, 120);
+    const after = { ...vp.state };
+    ptr(el, 'pointermove', 1, 90, 150);
+    expect(vp.state).toEqual(after);
+    ptr(el, 'pointerup', 1, 90, 150);
+  });
+
+  it('one finger pans as before', () => {
+    const { el, vp } = setup('always');
+    vp.set({ k: 1, tx: 0, ty: 0 });
+    ptr(el, 'pointerdown', 1, 100, 100);
+    ptr(el, 'pointermove', 1, 130, 110);
+    expect(vp.state).toMatchObject({ k: 1, tx: 30, ty: 10 });
+    ptr(el, 'pointerup', 1, 130, 110);
+    expect(vp.panning).toBe(false);
+  });
+});
