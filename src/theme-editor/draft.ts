@@ -55,6 +55,8 @@ export class Draft {
   readonly resolved: Computed<ResolvedTheme>;
   /** The merged theme the draft extends (null for the baseline). */
   readonly parent: Computed<Obj | null>;
+  /** The draft merged onto what it extends, once per change (P19: per tile and toolbar read). Read only. */
+  readonly merged: Computed<Obj>;
 
   private file: Obj | null = null;
   private saved: Obj = {};
@@ -75,6 +77,11 @@ export class Draft {
       if (this.isBase()) return null;
       const ext = typeof this.file?.['extends'] === 'string' ? this.file['extends'] : BASELINE;
       return (reg.merged(ext) as unknown as Obj | null) ?? {};
+    });
+    this.merged = computed(() => {
+      this.version();
+      const parent = this.parent();
+      return this.isBase() ? obj(this.file) : deepMerge(parent, this.file);
     });
   }
 
@@ -236,7 +243,7 @@ export class Draft {
 
   /** The presets of `<type>.<key>`: inherited, then the draft's own. */
   allPresets(type: DiagramType, key: string): Obj {
-    return deepMerge(obj(obj(this.parent.peek()?.[type])[key]), obj(obj(this.file?.[type])[key]));
+    return { ...obj(obj(this.merged.peek()[type])[key]) };
   }
 
   /** Where the selected tile's style lives: `<type>.<shapesKey>.<shape>` for a shape's default, else `<type>.<kind>` / `<type>.<presets>.<name>`. */
@@ -246,8 +253,7 @@ export class Draft {
 
   /** The effective style of a tile: the item's style, its shape's default and the preset, inherited values included. */
   effectiveFor(s: TileSel): Obj {
-    const all = this.isBase() ? obj(this.file) : deepMerge(this.parent.peek(), this.file);
-    const tt = obj(all[s.type]);
+    const tt = obj(this.merged.peek()[s.type]);
     const shapeDef = s.shape && s.shapesKey ? obj(obj(tt[s.shapesKey])[s.shape]) : {};
     const base = { ...obj(tt[s.kind]), ...shapeDef };
     return s.preset === null ? base : { ...base, ...obj(obj(tt[s.presets ?? ''])[s.preset]) };

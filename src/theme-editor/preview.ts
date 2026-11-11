@@ -106,12 +106,18 @@ export function createPreview(env: Env, side: HTMLElement, p: PreviewProps): Pre
     untracked(paint);
   });
 
+  // the sample parsed once while its text stays (P19: a theme edit repaints, the sample is the same)
+  let parsed: { text: string; doc: ReturnType<typeof splitSource>['doc']; model: ReturnType<typeof parse> } | null = null;
   function paint(): void {
     if (!draft.current()) return;
     try {
       const T = draft.resolved.peek();
-      const { doc } = splitSource(sample(p.type.peek()));
-      const model = parse(doc.code);
+      const text = sample(p.type.peek());
+      if (parsed?.text !== text) {
+        const { doc } = splitSource(text);
+        parsed = { text, doc, model: parse(doc.code) };
+      }
+      const { doc, model } = parsed;
       if (!model.type) throw new Error(model.diagnostics.find((d) => d.severity === 'error')?.message ?? t('te.notDiagram'));
       const meta = { ...doc.meta, canvas: { ...doc.meta.canvas } };
       delete meta.canvas.theme;

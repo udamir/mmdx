@@ -1,7 +1,7 @@
 // DiffSession (component architecture §8.1): the model behind the diff scene and the diff modules, without a DOM —
 // loading a pair or a history, the filters, the selection, the view, History mode and the events it emits.
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { HistoryAdapter, StaticVersion } from '../../src/adapters/history.js';
 import { createContext } from '../../src/core/context.js';
 import { changeKey } from '../../src/core/diff/merge.js';
@@ -149,11 +149,26 @@ describe('DiffSession', () => {
     expect(s.pair.viewing).toBe(versions[2]!.id);
     expect(s.plain.peek()!.model.type).toBe('flowchart');
     expect(s.toSvg()).toContain('<svg');
-    // per-version counts arrive lazily
+    // per-version counts arrive lazily, for the versions a row asks for (P12)
     await new Promise((r) => setTimeout(r, 400));
+    expect(s.countsRev.peek()).toBe(0);
+    expect(s.counts(versions[0]!.id)).toBeUndefined();
+    s.counts(versions.at(-1)!.id);
+    await vi.waitFor(() => expect(s.counts(versions[0]!.id)).toMatchObject({ added: expect.any(Number) }));
     expect(s.counts(versions.at(-1)!.id)).toBeNull();
-    expect(s.counts(versions[0]!.id)).toMatchObject({ added: expect.any(Number) });
-    expect(s.countsRev.peek()).toBeGreaterThan(0);
+    expect(s.countsRev.peek()).toBe(2);
+    s.destroy();
+  });
+
+  it('keeps the latest 16 sources read, and always the shown pair (P12)', async () => {
+    const versions: StaticVersion[] = Array.from({ length: 40 }, (_, i) => ({ id: `v${i}`, date: new Date(2026, 0, 40 - i).toISOString(), source: `flowchart LR\n  a${i} --> b` }) as StaticVersion);
+    const { s } = session();
+    await s.load({ history: versions });
+    for (const v of versions) await s.sourceOf(v.id);
+    const sources = (s as unknown as { sources: { size: number; get(k: string): unknown } }).sources;
+    expect(sources.size).toBe(16);
+    expect(sources.get(s.pair.head!)).toBeDefined();
+    expect(sources.get(s.pair.base!)).toBeDefined();
     s.destroy();
   });
 

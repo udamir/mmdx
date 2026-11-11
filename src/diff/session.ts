@@ -16,6 +16,8 @@ import { changeKey } from '../core/diff/merge.js';
 import { diffSvg, renderDiffWith, type DiffHide, type DiffRendered, type DiffSvgOptions } from '../core/diff/render.js';
 import { diffReport, sourcePart, unifiedDiff, type VersionInfo } from '../core/diff/report.js';
 import { renderSourceWith, standaloneSvg, type PipelineOptions, type Rendered } from '../core/pipeline-core.js';
+import type { DiagramModel } from '../core/model.js';
+import { parseWith } from '../core/parse/dispatch.js';
 import { Lru } from '../core/text/measure.js';
 import type { Diagnostic } from '../core/types.js';
 import { nextIdle } from '../dom/idle.js';
@@ -142,8 +144,13 @@ export class DiffSession {
   private adapter: HistoryAdapter | null = null;
   private unsubscribe: (() => void) | null = null;
   private nextPage: string | undefined;
-  private readonly sources = new Map<string, Promise<string>>();
+  /** Versions' sources: the latest read, and always the shown ones (P12: every version read stayed). */
+  private readonly sources = new Lru<string, Promise<string>>(16, 16, (id) => this.shows(id));
+  /** Versions' parsed codes: a version's count and the next one's read the same model (P12: parsed twice). */
+  private readonly models = new Lru<string, DiagramModel>(16);
   private readonly countMap = new Map<string, DiffResult['counts'] | null>();
+  /** The versions whose counts a row asked for (counts(): computed for the rows shown, P12). */
+  private readonly countsAsked = new Set<string>();
   private countQueue: Promise<void> = Promise.resolve();
   private readonly cache = new Lru<string, DiffRendered>(8);
   /** Versions whose source changed since the last flush (sourceChanged, debounced). */
@@ -210,9 +217,22 @@ export class DiffSession {
     return key && D ? D.changes.find((c) => changeKey(c) === key) ?? null : null;
   }
 
-  /** Change counts of a version against the one before it (undefined: not computed yet; null: the first). */
+  /**
+   * Change counts of a version against the one before it (undefined: not computed yet; null: the first). Asking
+   * starts the count in idle time; `countsRev` bumps when it arrives.
+   */
   counts(id: string): DiffResult['counts'] | null | undefined {
+    if (!this.countMap.has(id) && !this.countsAsked.has(id)) {
+      this.countsAsked.add(id);
+      this.queueCounts([id]);
+    }
     return this.countMap.get(id);
+  }
+
+  /** The version is in the shown pair or viewed. */
+  private shows(id: string): boolean {
+    const p = this.pair;
+    return p.base === id || p.head === id || p.viewing === id;
   }
 
   get diagnostics(): readonly Diagnostic[] {
@@ -233,7 +253,9 @@ export class DiffSession {
     this.more = null;
     const t = this.o.t;
     this.sources.clear();
+    this.models.clear();
     this.countMap.clear();
+    this.countsAsked.clear();
     this.cache.clear();
     this.countQueue = Promise.resolve();
     batch(() => {
@@ -525,6 +547,8 @@ export class DiffSession {
       this.sources.delete(id);
       this.countMap.delete(id);
       for (const [i, v] of this.versions.peek().entries()) if (this.versions.peek()[i + 1]?.id === id) this.countMap.delete(v.id);
+      // asked again by the rows that show them
+      this.countsAsked.clear();
       // only the renders that show this version
       this.cache.deleteWhere((k) => k.split('|', 2).includes(id));
       if (p.base === id || p.head === id || p.viewing === id) refresh = true;
@@ -791,14 +815,18 @@ export class DiffSession {
     this.queueCounts();
   }
 
-  /** Change counts of every version against the one before it, one at a time in idle time (§8.6). */
-  private queueCounts(): void {
+  /**
+   * Change counts of the versions asked for (all asked so far: a newer page may give the last one its older
+   * version) against the one before each, one at a time in idle time (§8.6).
+   */
+  private queueCounts(ids: Iterable<string> = this.countsAsked): void {
     if (!this.hasHistory.peek()) return;
     const seq = this.loadSeq;
     const list = this.versions.peek();
+    const want = new Set(ids);
     for (let i = 0; i < list.length; i++) {
       const v = list[i]!, older = list[i + 1];
-      if (this.countMap.has(v.id)) continue;
+      if (!want.has(v.id) || this.countMap.has(v.id)) continue;
       if (!older) {
         if (!this.nextPage) {
           this.countMap.set(v.id, null);
@@ -815,7 +843,8 @@ export class DiffSession {
           if (stale()) return;
           await loadKindsOf(a, b);
           if (stale()) return;
-          counts = diffDiagramsWith(loadedKinds(), a, b).counts;
+          const kinds = loadedKinds();
+          counts = diffDiagramsWith(kinds, a, b, (code) => this.models.get(code) ?? (this.models.set(code, parseWith(code, kinds)), this.models.get(code)!)).counts;
         } catch {
           counts = { ...EMPTY_COUNTS };
         }

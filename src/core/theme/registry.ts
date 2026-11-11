@@ -44,11 +44,17 @@ const isObj = (v: unknown): v is Obj => !!v && typeof v === 'object' && !Array.i
 /** Objects merge key by key; anything else (arrays included) replaces. Inputs are not modified. */
 export function deepMerge(base: Obj | null | undefined, over: Obj | null | undefined): Obj {
   const out: Obj = clone(base ?? {});
+  mergeInto(out, over, true);
+  return out;
+}
+
+/** Merges `over` into `out` (which the caller owns): a copy of each value of `over` unless `copy` is false (it owns them too). One clone per level, not two (P22). */
+function mergeInto(out: Obj, over: Obj | null | undefined, copy: boolean): void {
   for (const [k, v] of Object.entries(over ?? {})) {
     const cur = out[k];
-    out[k] = isObj(v) && isObj(cur) ? deepMerge(cur, v) : clone(v);
+    if (isObj(v) && isObj(cur)) mergeInto(cur, v, copy);
+    else out[k] = copy ? clone(v) : v;
   }
-  return out;
 }
 
 /** A theme id as registered: earlier ids of the built-in themes map to the current ones, none to the base theme. */
@@ -58,6 +64,7 @@ export class ThemeRegistry {
   readonly #files = new Map<string, ThemeFile>();
   readonly #cache = new Map<string, ResolvedTheme>();
   readonly #listeners = new Set<() => void>();
+  #list: ThemeInfo[] | null = null;
 
   constructor(files: Iterable<unknown> = []) {
     for (const f of files) this.#add(f);
@@ -93,6 +100,12 @@ export class ThemeRegistry {
   }
 
   list(): ThemeInfo[] {
+    // read per toolbar and menu refresh: built once per change of the registered themes (P22)
+    this.#list ??= this.#buildList();
+    return this.#list.map((x) => ({ ...x }));
+  }
+
+  #buildList(): ThemeInfo[] {
     const ids = [...new Set([BASELINE, ...this.#files.keys()])].filter((id) => this.has(id));
     return ids.map((id) => {
       const t = this.#files.get(id)!;
@@ -119,8 +132,10 @@ export class ThemeRegistry {
     seen.add(tid);
     let p = canonicalId(parent);
     if (seen.has(p) || depth >= MAX_EXTENDS_DEPTH) p = BASELINE;
-    const base = this.#merge(p, seen, depth + 1);
-    return { ...(deepMerge(base as Obj | null, rest as Obj) as Omit<ThemeFile, 'id'>), id: tid, name: name || tid, extends: parent || BASELINE };
+    // both are fresh copies: merged in place
+    const out = (this.#merge(p, seen, depth + 1) ?? {}) as Obj;
+    mergeInto(out, rest as Obj, false);
+    return { ...(out as Omit<ThemeFile, 'id'>), id: tid, name: name || tid, extends: parent || BASELINE };
   }
 
   /** Theme ready for rendering: inherited, every colour reference turned into a colour. Unknown ids → baseline. */
@@ -159,6 +174,7 @@ export class ThemeRegistry {
 
   #changed(): void {
     this.#cache.clear();
+    this.#list = null;
     for (const f of [...this.#listeners]) f();
   }
 

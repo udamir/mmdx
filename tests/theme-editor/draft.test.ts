@@ -135,3 +135,17 @@ describe('Draft', () => {
     expect(low.stylePath({ ...sel, preset: null, shape: 'rect', shapesKey: 'nodeShapes' })).toEqual(['flowchart', 'nodeShapes', 'rect']);
   });
 });
+
+describe('Draft.merged (P19)', () => {
+  it('merges once per change: tile reads share it, an edit makes a new one', () => {
+    const d = make();
+    const m = d.merged.peek();
+    const sel = { type: 'flowchart', kind: 'node', preset: 'core', presets: 'nodePresets', fields: [], props: {} } as unknown as Parameters<Draft['effectiveFor']>[0];
+    expect(d.effectiveFor(sel)['fill']).toBe('#ffffff');
+    expect(d.allPresets('flowchart' as never, 'nodePresets')['core']).toMatchObject({ text: '#111111' });
+    expect(d.merged.peek()).toBe(m);
+    d.set(['flowchart', 'nodePresets', 'core', 'fill'], '#000000');
+    expect(d.merged.peek()).not.toBe(m);
+    expect(d.effectiveFor(sel)['fill']).toBe('#000000');
+  });
+});

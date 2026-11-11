@@ -18,8 +18,11 @@ export interface TextMeasurer {
 export class Lru<K, V> {
   private readonly map = new Map<K, V>();
   private max: number;
-  /** @param limit the most `reserve` grows it to */
-  constructor(private readonly base: number, private readonly limit = base) {
+  /**
+   * @param limit the most `reserve` grows it to
+   * @param keep entries never evicted (what is shown now); they count towards the size
+   */
+  constructor(private readonly base: number, private readonly limit = base, private readonly keep?: (k: K) => boolean) {
     this.max = base;
   }
   /**
@@ -44,10 +47,16 @@ export class Lru<K, V> {
   set(k: K, v: V): void {
     if (this.map.has(k)) this.map.delete(k);
     else if (this.map.size >= this.max) {
-      const first = this.map.keys().next();
-      if (!first.done) this.map.delete(first.value);
+      for (const old of this.map.keys())
+        if (!this.keep?.(old)) {
+          this.map.delete(old);
+          break;
+        }
     }
     this.map.set(k, v);
+  }
+  delete(k: K): void {
+    this.map.delete(k);
   }
   get size(): number {
     return this.map.size;
