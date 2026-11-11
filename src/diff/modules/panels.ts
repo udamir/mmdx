@@ -4,6 +4,7 @@
 // History mode (left, C); `changeList` — the changes of the shown pair (right, L; not in History mode). Replace the
 // panel half of elements/diff.ts (`renderHistory`, `renderCode`, `renderChanges`, `applyPanels`) and the DOM
 // builders of elements/diff/panels.ts.
+import { PANEL_META, panelStub } from './panel-meta.js';
 import { changeKey } from '../../core/diff/merge.js';
 import { diffLines } from '../../core/diff/text.js';
 import { createChangeList, CHANGE_LIST_CSS } from '../../ui/blocks/change-list.js';
@@ -65,10 +66,8 @@ export interface VersionControls {
  */
 export function versionsModule(session: DiffSession, o: { dockButton?: boolean; rowActions?: (id: string) => readonly MenuEntry[]; controls?: VersionControls } = {}): ViewModule<ViewCore> {
   return {
-    id: 'versions',
-    after: ['panel-stacks'],
+    ...panelStub(PANEL_META.versions),
     css: [VERSION_LIST_CSS, MENU_CSS, DIFF_PANELS_CSS],
-    enabled: (core) => core.feature('history'),
     install(scope) {
       registerMessages(BLOCK_MESSAGES_DIFF); // the panels' names are the blocks' (one table)
       const core = scope.core;
@@ -145,10 +144,8 @@ export function versionsModule(session: DiffSession, o: { dockButton?: boolean; 
 
 export function codeDiffModule(session: DiffSession): ViewModule<ViewCore> {
   return {
-    id: 'code-diff',
-    after: ['panel-stacks'],
+    ...panelStub(PANEL_META.codeDiff),
     css: [CODE_VIEW_CSS, DIFF_PANELS_CSS],
-    enabled: (core) => core.feature('code'),
     install(scope) {
       registerMessages(BLOCK_MESSAGES_DIFF); // the panels' names are the blocks' (one table)
       const core = scope.core;
@@ -225,10 +222,8 @@ export function codeDiffModule(session: DiffSession): ViewModule<ViewCore> {
 
 export function changeListModule(session: DiffSession): ViewModule<ViewCore> {
   return {
-    id: 'changes',
-    after: ['panel-stacks'],
+    ...panelStub(PANEL_META.changes),
     css: [CHANGE_LIST_CSS],
-    enabled: (core) => core.feature('changes'),
     install(scope) {
       registerMessages(BLOCK_MESSAGES_DIFF); // the panels' names are the blocks' (one table)
       const core = scope.core;

@@ -6,6 +6,7 @@
 // behaviour, the export formats, the host's buttons — next to the standard ones: the zoom bar with help and full
 // screen, the tool dock with Hand and the pen, the view params with the theme menu and the light / dark toggle, and
 // view settings. Views: Before, Merged, After (one canvas; switching animates) and Side by side (two linked canvases).
+import { sessionHost } from '../diff/session-host.js';
 import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
 import { Owner } from '../reactive/owner.js';
 import { fetchText } from '../adapters/fetch-text.js';
@@ -142,15 +143,8 @@ export class DiagramDiff {
     this.label.set(o.label ?? null);
 
     const session = (this.session = new DiffSession({
-      ctx: core.ctx,
-      t: core.i18n.t,
+      ...sessionHost(core),
       emit: (type, detail, cancelable) => core.emit(type, detail, cancelable),
-      renderOptions: () => {
-        const d = core.display.peek(), layers = core.visibleLayers.peek();
-        return { theme: core.shownTheme(), ...(d.labels ? {} : { hideLabels: true }), ...(layers ? { visibleLayers: layers } : {}) };
-      },
-      ensureTheme: (id) => core.ensureTheme(id),
-      scheme: () => core.scheme.peek(),
       name: () => this.o.name ?? 'diagram',
       showVersions: () => {
         if (!core.feature('history')) return;

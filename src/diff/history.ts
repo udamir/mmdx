@@ -11,6 +11,7 @@
 // copy follows the document.
 // Session events reach the host as `mmdx-history-*`. Loaded on first use: the viewer and the editor bundles never
 // contain the diff.
+import { sessionHost } from './session-host.js';
 import { staticHistory, type StaticVersion } from '../adapters/history.js';
 import { type HistoryAdapter, type VersionInfo } from '../ports.js';
 import { Owner } from '../reactive/owner.js';
@@ -148,16 +149,9 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
   const host = core.historyHost, ownScene = !!host;
 
   const session: DiffSession = new DiffSession({
-    ctx: core.ctx,
-    t,
+    ...sessionHost(core),
     pick: false,
     emit: (type, detail, cancelable) => (EVENTS.has(type) ? core.emit(type.replace(/^mmdx-/, 'mmdx-history-'), detail, cancelable) : true),
-    renderOptions: () => {
-      const d = core.display.peek(), layers = core.visibleLayers.peek();
-      return { theme: core.shownTheme(), ...(d.labels ? {} : { hideLabels: true }), ...(layers ? { visibleLayers: layers } : {}) };
-    },
-    ensureTheme: (id) => core.ensureTheme(id),
-    scheme: () => core.scheme.peek(),
     name: () => core.run('documentName') ?? 'diagram',
     showVersions: () => void core.run('setPanel', 'history', true),
   });

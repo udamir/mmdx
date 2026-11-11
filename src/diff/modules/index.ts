@@ -14,6 +14,7 @@ import type { DiffScene } from '../scene.js';
 import { diffBarModule } from './bar.js';
 import { diffExportModule, hostActionsModule, type DiffAction } from './export.js';
 import { diffStageModule } from './stage.js';
+import { PANEL_META, panelStub } from './panel-meta.js';
 
 export type { DiffAction };
 export { diffBarModule, diffExportModule, diffStageModule, hostActionsModule };
@@ -24,9 +25,9 @@ export function diffModules(scene: DiffScene, o: { actions: ReadSignal<readonly 
   return [
     panelStacksModule,
     diffBarModule(session),
-    lazyModule({ id: 'versions', after: ['panel-stacks'], enabled: (c) => c.feature('history') }, () => import('./panels.js').then((m) => m.versionsModule(session))),
-    lazyModule({ id: 'code-diff', after: ['panel-stacks'], enabled: (c) => c.feature('code') }, () => import('./panels.js').then((m) => m.codeDiffModule(session))),
-    lazyModule({ id: 'changes', after: ['panel-stacks'], enabled: (c) => c.feature('changes') }, () => import('./panels.js').then((m) => m.changeListModule(session))),
+    lazyModule(panelStub(PANEL_META.versions), () => import('./panels.js').then((m) => m.versionsModule(session))),
+    lazyModule(panelStub(PANEL_META.codeDiff), () => import('./panels.js').then((m) => m.codeDiffModule(session))),
+    lazyModule(panelStub(PANEL_META.changes), () => import('./panels.js').then((m) => m.changeListModule(session))),
     zoomBarModule,
     toolDockModule,
     panModule,
