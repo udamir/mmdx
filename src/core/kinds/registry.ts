@@ -8,7 +8,38 @@ import type { DiffKind, DiffKinds } from '../kind/diff-types.js';
 import type { OpsKind, OpsKinds } from '../kind/ops-types.js';
 import type { Kinds, ViewKind } from '../kind/types.js';
 
-const registered: Kinds = {};
+/** Which part of a type's code: the view kind (parse, render), the ops kind (the editor's edits) or the diff kind. */
+export type KindLayer = 'view' | 'ops' | 'diff';
+
+/** A kind asked for that is not loaded (A4: lookups fail closed). */
+export class KindNotLoaded extends Error {
+  readonly code = 'kind.not-loaded';
+  constructor(readonly type: DiagramType, readonly layer: KindLayer) {
+    super(`the ${layer} kind of ${type} is not loaded`);
+  }
+}
+
+/** The kinds registered so far, by layer (one set for the page). */
+export class KindSet {
+  readonly view: Kinds = {};
+  readonly ops: OpsKinds = {};
+  readonly diff: DiffKinds = {};
+
+  /** A layer's kind of a type; throws KindNotLoaded when it is not loaded. */
+  require<L extends KindLayer>(layer: L, type: DiagramType): NonNullable<KindSet[L][DiagramType]> {
+    const k = this[layer][type];
+    if (!k) throw new KindNotLoaded(type, layer);
+    return k as NonNullable<KindSet[L][DiagramType]>;
+  }
+}
+
+/** The page's kinds. */
+export const KINDS = new KindSet();
+
+/** A layer's kind of a type, failing closed: throws KindNotLoaded (code `kind.not-loaded`) when it is not loaded. */
+export const requireKind = <L extends KindLayer>(type: DiagramType, layer: L): NonNullable<KindSet[L][DiagramType]> => KINDS.require(layer, type);
+
+const registered: Kinds = KINDS.view;
 
 /** Makes the kinds available to the generic helpers; returns the same set. */
 export function registerKinds<K extends Kinds>(kinds: K): K {
@@ -28,19 +59,18 @@ export const registeredKinds = (): Kinds => registered;
 export const viewKind = (type: DiagramType | null | undefined): ViewKind | undefined => (type ? registered[type] : undefined);
 
 /**
- * Calls `f` with the model's view kind and the model as a supported one; undefined for an unsupported diagram (or a
- * kind that is not loaded, which cannot happen for a parsed model).
+ * Calls `f` with the model's view kind and the model as a supported one; undefined for an unsupported diagram. A model
+ * of a type whose view kind is not loaded cannot come from a parser: it fails closed (KindNotLoaded).
  */
 export function withKind<R>(model: DiagramModel, f: (kind: ViewKind, model: SupportedModel) => R): R | undefined {
   if (!model.type) return undefined;
-  const k = registered[model.type];
-  return k ? f(k, model) : undefined;
+  return f(KINDS.require('view', model.type), model);
 }
 
 
 // ---- ops kinds (the editor) ----
 
-const ops: OpsKinds = {};
+const ops: OpsKinds = KINDS.ops;
 
 /** Makes the ops kinds available to the editing ops; returns the same set. */
 export function registerOps<K extends OpsKinds>(kinds: K): K {
@@ -56,16 +86,15 @@ export function forgetOps(): void {
 /** The ops kind of a type, when it is loaded. */
 export const opsKind = (type: DiagramType | null | undefined): OpsKind | undefined => (type ? ops[type] : undefined);
 
-/** As `withKind`, with the model's ops kind. */
+/** As `withKind`, with the model's ops kind (fails closed: KindNotLoaded when the type's ops kind is not loaded). */
 export function withOps<R>(model: DiagramModel, f: (kind: OpsKind, model: SupportedModel) => R): R | undefined {
   if (!model.type) return undefined;
-  const k = ops[model.type];
-  return k ? f(k, model) : undefined;
+  return f(KINDS.require('ops', model.type), model);
 }
 
 // ---- diff kinds (the diff, History, core) ----
 
-const diffs: DiffKinds = {};
+const diffs: DiffKinds = KINDS.diff;
 
 /** Makes the diff kinds available to the diff engine; returns the same set. */
 export function registerDiffs<K extends DiffKinds>(kinds: K): K {
@@ -81,9 +110,8 @@ export function forgetDiffs(): void {
 /** The diff kind of a type, when it is loaded. */
 export const diffKind = (type: DiagramType | null | undefined): DiffKind | undefined => (type ? diffs[type] : undefined);
 
-/** As `withKind`, with the model's diff kind. */
+/** As `withKind`, with the model's diff kind (fails closed: KindNotLoaded when the type's diff kind is not loaded). */
 export function withDiff<R>(model: DiagramModel, f: (kind: DiffKind, model: SupportedModel) => R): R | undefined {
   if (!model.type) return undefined;
-  const k = diffs[model.type];
-  return k ? f(k, model) : undefined;
+  return f(KINDS.require('diff', model.type), model);
 }

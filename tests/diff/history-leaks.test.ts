@@ -5,7 +5,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { StaticVersion } from '../../src/adapters/history.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { defineEditor, type MmdxEditorElement } from '../../src/editor/editor.js';
-import { loadKind } from '../../src/view/kinds.js';
+import { loadKind } from '../../src/platform/kinds.js';
 
 beforeAll(async () => {
   (globalThis as { ResizeObserver?: unknown }).ResizeObserver ??= class { observe(): void {} disconnect(): void {} };

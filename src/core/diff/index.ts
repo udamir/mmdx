@@ -11,7 +11,7 @@ import { splitSource } from '../meta/index.js';
 import { classOf } from '../meta/keys.js';
 import type { DiagramMeta } from '../meta/types.js';
 import type { DiagramModel } from '../model.js';
-import { withDiff } from '../kinds/registry.js';
+import { KindNotLoaded, withDiff } from '../kinds/registry.js';
 import type { Kinds } from '../kind/types.js';
 import { parseWith } from '../parse/dispatch.js';
 import { diag } from '../types.js';
@@ -50,11 +50,19 @@ export function diffModels(a: DiagramModel, b: DiagramModel, ma: DiagramMeta, mb
   for (const id of new Set([...Object.keys(ma.layers ?? {}), ...Object.keys(mb.layers ?? {})])) field(doc, 'layout', `layer ${id}`, ma.layers?.[id], mb.layers?.[id]);
 
   const typeChanged = a.type !== b.type;
-  const done = !typeChanged && b.type ? withDiff(a, (k, m) => (k.diff(m, b, ma, mb, items, doc), true)) : undefined;
+  // the same type without its diff kind: the lookup fails closed, and the diff says "not compared", not "no changes" (B40)
+  let done = false, missing = false;
+  if (!typeChanged && b.type) {
+    try {
+      done = !!withDiff(a, (k, m) => (k.diff(m, b, ma, mb, items, doc), true));
+    } catch (e) {
+      if (!(e instanceof KindNotLoaded)) throw e;
+      missing = true;
+    }
+  }
   if (!done) field(doc, 'content', 'diagram type', a.type, b.type);
   const out: DiagramDiff = { type: b.type, typeChanged, items, doc, counts: count(items, doc) };
-  // the same type without its diff kind: not "no changes" but "not compared" (B40)
-  if (!done && !typeChanged && b.type)
+  if (missing && b.type)
     out.diagnostics = [diag('error', 'kind.not-loaded', `the ${b.type} diff is not loaded — the versions were not compared`, undefined, { params: { type: b.type } })];
   return out;
 }

@@ -1,5 +1,5 @@
 // Diagram kinds of a diff, loaded on demand (component architecture §9.1, §10): both versions may be any type, so a
-// session loads the view kind of each version's type (through view/kinds.ts, shared with the viewer) and its diff kind
+// session loads the view kind of each version's type (through platform/kinds.ts, shared with the viewer) and its diff kind
 // before it renders. `renderDiffToSvg` of `@mmdx/studio/diff` does the same, so the entry ships no kind statically.
 import { renderDiffToSvgWith, type DiffRenderOptions, type DiffSvgOptions } from '../core/diff/render.js';
 import { diffDiagramsWith } from '../core/diff/index.js';
@@ -8,35 +8,7 @@ import { createContextWith, type CoreContext } from '../core/context-base.js';
 import { getShared } from '../platform/config.js';
 import { ensureBuiltinThemes } from '../platform/themes.js';
 import { detectType } from '../core/parse/dispatch.js';
-import { diffKind, registerDiffs } from '../core/kinds/registry.js';
-import type { DiffKind } from '../core/kind/diff-types.js';
-import type { DiagramType } from '../core/types.js';
-import { loadedKinds, loadKind, renderShapes } from '../view/kinds.js';
-
-const diffImporters: Record<DiagramType, () => Promise<{ DIFF: DiffKind }>> = {
-  flowchart: () => import('../core/kinds/flowchart-diff.js'),
-  sequence: () => import('../core/kinds/sequence-diff.js'),
-  er: () => import('../core/kinds/er-diff.js'),
-  mindmap: () => import('../core/kinds/mindmap-diff.js'),
-  state: () => import('../core/kinds/state-diff.js'),
-};
-
-/** Loads in progress: concurrent callers share one (B37: each registered the kind again). */
-const loading = new Map<DiagramType, Promise<void>>();
-
-/** Loads a type's diff kind (resolves at once when it is loaded). */
-function loadDiffKind(t: DiagramType): Promise<void> {
-  if (diffKind(t)) return Promise.resolve();
-  let p = loading.get(t);
-  if (!p) {
-    p = diffImporters[t]().then(({ DIFF }) => {
-      if (!diffKind(t)) registerDiffs({ [t]: DIFF });
-    });
-    p.finally(() => loading.delete(t)).catch(() => {});
-    loading.set(t, p);
-  }
-  return p;
-}
+import { loadDiffKind, loadedKinds, loadKind, renderShapes } from '../platform/kinds.js';
 
 /** Loads the kinds of every given source (sources of an unsupported type load nothing). */
 export async function loadKindsOf(...sources: readonly string[]): Promise<void> {

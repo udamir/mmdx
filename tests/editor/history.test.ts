@@ -5,7 +5,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { HistoryAdapter } from '../../src/ports.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
-import { loadKind } from '../../src/view/kinds.js';
+import { loadKind } from '../../src/platform/kinds.js';
 import { changeKey } from '../../src/core/diff/merge.js';
 import { WORKING_COPY } from '../../src/diff/history.js';
 

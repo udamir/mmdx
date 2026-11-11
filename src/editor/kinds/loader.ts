@@ -5,6 +5,7 @@ import { opsKind, registerKinds, registerOps, viewKind } from '../../core/kinds/
 import type { OpsKind } from '../../core/kind/ops-types.js';
 import type { ViewKind } from '../../core/kind/types.js';
 import type { DiagramType } from '../../core/types.js';
+import { loadOnce } from '../../platform/kinds.js';
 import { signal } from '../../reactive/signal.js';
 import { editKind, registerEditKinds } from './registry.js';
 import type { EditKind } from './types.js';
@@ -24,7 +25,6 @@ const importers: Record<DiagramType, () => Promise<KindChunk>> = {
 };
 
 const version = signal(0);
-const pending = new Map<DiagramType, Promise<void>>();
 
 /** Changes whenever a kind finishes loading (a tracked read: computeds that parse depend on it). */
 export const kindsVersion = (): number => version();
@@ -33,21 +33,11 @@ export const kindsVersion = (): number => version();
 export const editorHasKind = (t: DiagramType): boolean => !!viewKind(t) && !!opsKind(t) && !!editKind(t);
 
 /** Loads a type's kinds (resolves at once when they are loaded). */
-export function loadEditorKind(t: DiagramType): Promise<void> {
-  if (editorHasKind(t)) return Promise.resolve();
-  let p = pending.get(t);
-  if (!p) {
-    p = importers[t]().then(({ VIEW, OPS, EDIT }) => {
-      registerKinds({ [t]: VIEW });
-      registerOps({ [t]: OPS });
-      registerEditKinds({ [t]: EDIT });
-      version.set(version.peek() + 1);
-    });
-    pending.set(t, p);
-    // settled: the next call registers again if the kinds were forgotten (the module itself stays cached)
-    const done = (): void => void pending.delete(t);
-    p.then(done, done);
-  }
-  return p;
-}
+export const loadEditorKind = (t: DiagramType): Promise<void> =>
+  loadOnce(`editor:${t}`, () => editorHasKind(t), () => importers[t]().then(({ VIEW, OPS, EDIT }) => {
+    registerKinds({ [t]: VIEW });
+    registerOps({ [t]: OPS });
+    registerEditKinds({ [t]: EDIT });
+    version.set(version.peek() + 1);
+  }));
 

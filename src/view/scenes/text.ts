@@ -14,7 +14,7 @@ import { cancelIdle, idle } from '../../dom/idle.js';
 import { renderInWorker, workerAvailable, WORKER_THRESHOLD_BYTES, WORKER_THRESHOLD_LINES } from '../../dom/worker-client.js';
 import { h } from '../../ui/h.js';
 import type { ViewCore } from '../core.js';
-import { drawShapes, lazyKinds, loadShapes, type KindsProvider } from '../kinds.js';
+import { drawShapes, lazyKinds, loadShapes, type KindsProvider } from '../../platform/kinds.js';
 import { BaseScene } from '../scene.js';
 
 export type FitMode = 'contain' | 'width' | 'none';

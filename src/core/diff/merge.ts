@@ -4,7 +4,7 @@
 // item keeps its text unmarked (the item itself shows as removed); a removed ER row inside a kept entity is marked.
 import type { DiagramMeta, ItemMeta } from '../meta/types.js';
 import { own, setOwn } from '../own.js';
-import { withDiff } from '../kinds/registry.js';
+import { diffKind, withDiff } from '../kinds/registry.js';
 import type { SupportedModel } from '../model.js';
 import type { ItemKind } from '../types.js';
 import type { DiagramDiff, ItemChange, MergeEnv } from './types.js';
@@ -70,6 +70,8 @@ export function mergeDiagrams(diff: DiagramDiff, a: SupportedModel, b: Supported
   const mark = (c: ItemChange, id: string) => status.set(`${c.kind}:${id}`, c);
 
   const env: MergeEnv = { diff, meta, before: ma, byAfter, removed, mark };
+  // without the type's diff kind there is no merged picture (the views show before and after; the diff says why)
+  if (!diffKind(a.type)) return null;
   const model = withDiff(a, (k, m) => k.merge(env, m, b));
   return model ? { model, meta, status } : null;
 }

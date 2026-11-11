@@ -20,7 +20,7 @@ afterEach(() => {
 describe('viewer', () => {
   it('renders again when a pack it looked up has loaded; the next render draws from it', async () => {
     const { DiagramViewer } = await import('../../src/elements/viewer.js');
-    const { loadKind } = await import('../../src/view/kinds.js');
+    const { loadKind } = await import('../../src/platform/kinds.js');
     await loadKind('flowchart');
     let resolve: ((p: IconifyJSON) => void) | null = null;
     const loader = vi.fn(() => new Promise<IconifyJSON>((r) => (resolve = r)));

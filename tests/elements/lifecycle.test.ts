@@ -13,7 +13,7 @@ import { defineDiff, type MmdxDiffElement } from '../../src/elements/diff.js';
 import { defineStudio, type MmdxStudioElement } from '../../src/elements/studio.js';
 import { defineThemeEditor, type MmdxThemeEditorElement } from '../../src/elements/theme-editor.js';
 import { defineViewer, type MmdxViewerElement } from '../../src/elements/viewer.js';
-import { loadKind } from '../../src/view/kinds.js';
+import { loadKind } from '../../src/platform/kinds.js';
 
 beforeAll(async () => {
   (globalThis as { ResizeObserver?: unknown }).ResizeObserver ??= class { observe(): void {} disconnect(): void {} };

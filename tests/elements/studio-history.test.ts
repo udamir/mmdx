@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DiagramStudio } from '../../src/elements/studio.js';
 import { DiagramViewer } from '../../src/elements/viewer.js';
-import { loadKind } from '../../src/view/kinds.js';
+import { loadKind } from '../../src/platform/kinds.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
 
 const files: Record<string, string> = {
