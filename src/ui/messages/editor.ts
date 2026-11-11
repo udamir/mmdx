@@ -1,5 +1,5 @@
 // English strings of the <mmdx-editor> panels and chrome. Registered on first use (registerMessages), so the viewer does not ship them.
-import type { Messages } from '../i18n.js';
+import type { Messages } from '../../i18n.js';
 
 export const EDITOR_MESSAGES: Messages = {
   // ---- editor panels and chrome (code panel, properties, layers, tool dock, zoom bar, view parameters, export)

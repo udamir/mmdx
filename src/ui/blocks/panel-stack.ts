@@ -5,7 +5,7 @@
 // last). Replaces the stack of editor/modules/panels/right-panels.ts (`.right-stack`, `.rp-split`, `layersH`) and the
 // diff's left stack (`leftPane`, `wireSplit` in elements/diff.ts).
 import { h } from '../h.js';
-import { registerMessages } from '../i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
 import { signal, untracked } from '../../reactive/signal.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';

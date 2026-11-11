@@ -3,7 +3,7 @@
 // and `elements/diff.ts`, and takes over `helpKeys` from `ui/zoom-bar.ts`. The host opens it through its
 // PopoverManager (anchored above the zoom bar's `?` button) and closes it in `onClose`.
 import { h } from '../h.js';
-import { registerMessages } from '../i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_CHROME } from '../messages/blocks.js';
 import { formatKeys, type Shortcut } from '../shortcuts.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';

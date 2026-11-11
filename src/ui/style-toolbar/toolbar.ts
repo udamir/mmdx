@@ -8,7 +8,7 @@
 // (arrow keys move along it). No markup is built from data: icons are fixed constants, colours go through
 // setAttribute / CSSOM. The popover host, sliders, choice rows and colour grids are ui/toolbar-kit.ts's.
 import { h } from '../h.js';
-import { createI18n, registerMessages } from '../i18n.js';
+import { createI18n, registerMessages } from '../../i18n.js';
 import { TOOLBAR_MESSAGES } from '../messages/toolbar.js';
 import { TOOLBAR_MEDIA_MESSAGES } from '../messages/toolbar-media.js';
 import { barKeys, createPopHost } from '../toolbar-kit.js';

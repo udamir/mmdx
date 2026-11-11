@@ -1,7 +1,7 @@
 // English strings of <mmdx-diff> (Appendix B): its views, filters, panels, exports and keys. The strings of the blocks it
 // uses (version list, change list, code view, filter toggles, zoom bar) come with the blocks (ui/messages/blocks-*.ts).
 // Registered on first use (registerMessages), so the viewer does not ship them.
-import type { Messages } from '../i18n.js';
+import type { Messages } from '../../i18n.js';
 
 export const DIFF_MESSAGES: Messages = {
   'diff.label': 'Diagram diff: {added} added, {removed} removed, {changed} changed',

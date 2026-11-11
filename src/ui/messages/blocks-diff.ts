@@ -2,7 +2,7 @@
 // the diff-born blocks (code view, version list, change list, filter toggles), copied from the diff's catalogue.
 // Each block registers its table on creation (registerMessages), so a page ships only the strings of the blocks it
 // uses; one file per table keeps the viewer's eager chunk free of the others.
-import type { Messages } from '../i18n.js';
+import type { Messages } from '../../i18n.js';
 
 export const BLOCK_MESSAGES_DIFF: Messages = {
   // ---- filter toggles

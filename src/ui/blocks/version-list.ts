@@ -10,7 +10,7 @@ import type { VersionInfo } from '../../adapters/history.js';
 import type { DiagramDiff } from '../../core/diff/index.js';
 import { h, icon } from '../h.js';
 import type { PopoverManager } from '../popover.js';
-import { registerMessages } from '../i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
 import { untracked } from '../../reactive/signal.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';

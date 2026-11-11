@@ -14,7 +14,7 @@ import type { Rect } from '../core/types.js';
 import { CANVAS_CSS, DiagramCanvas, type CanvasOptions, type Insets } from '../dom/canvas.js';
 import { domImageSizes, onImageSize } from '../dom/image-sizes.js';
 import type { StrokeStore } from '../dom/pen.js';
-import { registerMessages, type I18n } from '../ui/i18n.js';
+import { registerMessages, type I18n } from '../i18n.js';
 import { VIEW_MESSAGES } from '../ui/messages/view.js';
 import { PopoverManager, Toaster } from '../ui/popover.js';
 import { ShortcutRegistry } from '../ui/shortcuts.js';

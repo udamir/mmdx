@@ -1,7 +1,7 @@
 // English strings of the editor's insert parts that load on demand (T05): the Shapes palette's sections, the pickers'
 // toasts and the Properties panel's Icon and Image sections. Registered by
 // those chunks (registerMessages), so the editor's first chunk carries only the dock's labels (ui/messages/editor.ts).
-import type { Messages } from '../i18n.js';
+import type { Messages } from '../../i18n.js';
 
 export const EDITOR_MEDIA_MESSAGES: Messages = {
   'shapes.cat.basic': 'Basic', 'shapes.cat.process': 'Process', 'shapes.cat.technical': 'Technical', 'shapes.cat.annotation': 'Annotation',

@@ -3,7 +3,7 @@
 // its pack's licence. The host supplies the packs, the search and the previews (the editor: the icon registry,
 // `searchIcons`, `iconImage`), so the block knows nothing about registries.
 import { h } from '../h.js';
-import { registerMessages } from '../i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
 import { gridKeys } from './grid-keys.js';

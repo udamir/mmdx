@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createPill } from '../../../src/ui/blocks/pill.js';
-import { createI18n } from '../../../src/ui/i18n.js';
+import { createI18n } from '../../../src/i18n.js';
 import { signal } from '../../../src/reactive/signal.js';
 
 const { t } = createI18n();

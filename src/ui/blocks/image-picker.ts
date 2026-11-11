@@ -6,7 +6,7 @@
 // upload is refused with `onRefused` (the host's toast).
 import type { ImageInfo, ImagePage } from '../../adapters/images.js';
 import { h } from '../h.js';
-import { registerMessages } from '../i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
 import { createOverlayScroll, OVERLAY_SCROLL_CSS } from './overlay-scroll.js';

@@ -2,7 +2,7 @@
 // its feature modules; the custom element is a thin wrapper around it.
 import { EDITOR_MESSAGES } from '../ui/messages/editor.js';
 import { Owner } from '../reactive/owner.js';
-import { registerMessages } from '../ui/i18n.js';
+import { registerMessages } from '../i18n.js';
 import { isTextTarget } from '../ui/shortcuts.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import type { ImageStore } from '../adapters/images.js';

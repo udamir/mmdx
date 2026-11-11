@@ -2,7 +2,7 @@
 // The icon picker with three mocked packs, one of them loaded on demand.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createIconPicker, type IconPickerPack } from '../../../src/ui/blocks/icon-picker.js';
-import { createI18n } from '../../../src/ui/i18n.js';
+import { createI18n } from '../../../src/i18n.js';
 
 afterEach(() => document.body.replaceChildren());
 const t = createI18n().t;

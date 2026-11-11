@@ -3,7 +3,7 @@
 // button is the view params' palette button with a caret, labelled with the theme currently drawn. Replaces the
 // theme menu of editor/modules/chrome/view-params.ts.
 import { h, icon } from '../h.js';
-import { registerMessages } from '../i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { I_chevronDown, I_palette } from '../icons.js';
 import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
 import type { PopoverManager } from '../popover.js';

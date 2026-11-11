@@ -1,5 +1,5 @@
 // English strings of the <mmdx-theme-editor>. Registered on first use (registerMessages), so the viewer does not ship them.
-import type { Messages } from '../i18n.js';
+import type { Messages } from '../../i18n.js';
 
 export const THEME_EDITOR_MESSAGES: Messages = {
   // ---- theme editor (<mmdx-theme-editor>)

@@ -2,7 +2,7 @@
 // and callbacks, and know nothing about diagrams, editors or the kernel. A block is created by a `createX(props)`
 // function returning a handle; its CSS is a fragment the host adopts (deduplicated by identity), written against the
 // `--mmdx-*` tokens only.
-import { isMac, type I18n } from '../i18n.js';
+import { isMac, type I18n } from '../../i18n.js';
 import { Owner } from '../../reactive/owner.js';
 import { formatKeys } from '../shortcuts.js';
 import { type ReadSignal } from '../../reactive/signal.js';

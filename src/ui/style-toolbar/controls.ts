@@ -3,7 +3,7 @@
 // `aria-pressed`. The toolbar's state and actions come in through `StyleCtx`.
 import { FONTS } from '../fonts.js';
 import { h, s } from '../h.js';
-import type { I18n } from '../i18n.js';
+import type { I18n } from '../../i18n.js';
 import { formatKeys } from '../shortcuts.js';
 import type { PopHost } from '../toolbar-kit.js';
 import { isNone } from '../toolbar-kit.js';

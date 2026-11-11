@@ -8,7 +8,7 @@
 import type { Mark } from '../../core/diff/annotate.js';
 import type { FieldChange, ItemChange } from '../../core/diff/index.js';
 import { h, icon } from '../h.js';
-import { registerMessages } from '../i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
 import { FILTER_ICONS } from './filter-toggles.js';

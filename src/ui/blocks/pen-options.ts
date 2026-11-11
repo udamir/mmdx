@@ -4,7 +4,7 @@
 // Re-renders itself after each change, keeping the focus on the same choice. The choices are props (defaults: the
 // values of dom/pen.ts's MagicPen, which a test keeps in step), so the block does not import the pen.
 import { h, icon } from '../h.js';
-import { registerMessages } from '../i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { I_eraser } from '../icons.js';
 import { BLOCK_MESSAGES_CHROME } from '../messages/blocks.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';

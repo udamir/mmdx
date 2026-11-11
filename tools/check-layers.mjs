@@ -19,6 +19,7 @@ export function layerOf(r) {
   if (r.startsWith('core/')) return [0, 'core'];
   if (r.startsWith('reactive/')) return [0, 'reactive'];
   if (r === 'config.ts') return [0, 'config'];
+  if (r === 'i18n.ts') return [0, 'i18n'];
   if (r.startsWith('icons/') || r.startsWith('emoji/')) return [0, 'data'];
   if (r === 'dom/canvas.ts') return [3, 'dom/canvas'];
   if (r.startsWith('dom/')) return [1, 'dom'];
@@ -99,7 +100,7 @@ export function edgeViolation(e) {
   const mod = (r) => /^editor\/modules\/([^/]+)\//.exec(r)?.[1];
   if (lt > lf) return `upward ${af} → ${at}`;
   if (PRODUCTS.has(af) && PRODUCTS.has(at) && af !== at) return `product → product ${af} → ${at}`;
-  if (/^ui\/blocks\//.test(e.from) && !/^(ui|reactive)\//.test(e.to) && !/^core\/(types|diff|text|icons|shapes|model)/.test(e.to) && at !== 'adapters') return `block → ${at}`;
+  if (/^ui\/blocks\//.test(e.from) && !/^(ui|reactive)\//.test(e.to) && e.to !== 'i18n.ts' && !/^core\/(types|diff|text|icons|shapes|model)/.test(e.to) && at !== 'adapters') return `block → ${at}`;
   if (at === 'reactive' && af === 'core') return 'core → reactive (core holds no state)';
   if (mod(e.from) && mod(e.to) && mod(e.from) !== mod(e.to)) return `module → module ${mod(e.from)} → ${mod(e.to)}`;
   if (/^editor\/kinds\//.test(e.from) && /^editor\/modules\//.test(e.to)) return 'editor kinds → editor module';

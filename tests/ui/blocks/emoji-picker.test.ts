@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseEmoji } from '../../../src/emoji/data.js';
 import { createEmojiPicker } from '../../../src/ui/blocks/emoji-picker.js';
-import { createI18n } from '../../../src/ui/i18n.js';
+import { createI18n } from '../../../src/i18n.js';
 
 afterEach(() => document.body.replaceChildren());
 const t = createI18n().t;

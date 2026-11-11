@@ -1,6 +1,6 @@
 // The style toolbar's public types: the controls, the button sets per kind, and the host contract (`ToolbarApi`).
 import type { Rect } from '../../core/types.js';
-import type { I18n } from '../i18n.js';
+import type { I18n } from '../../i18n.js';
 import type { PaletteColor } from '../toolbar-kit.js';
 
 export type { PaletteColor } from '../toolbar-kit.js';

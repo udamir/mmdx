@@ -11,7 +11,7 @@
 import { diffLines, hunks, type LineOp } from '../../core/diff/text.js';
 import { h } from '../h.js';
 import { highlightLine, highlightMetaLine, tokenNodes } from '../highlight.js';
-import { registerMessages } from '../i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
 import { CODE_TOKENS_CSS } from '../styles/code-tokens.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';

@@ -21,7 +21,7 @@ import type { ModuleScope, ViewModule } from '../../view/module.js';
 import { metaLines, relatedLines } from '../lines.js';
 import { sourceLines, type DiffMode, type DiffSession } from '../session.js';
 import { I_HISTORY } from '../../view/icons.js';
-import { registerMessages } from '../../ui/i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../../ui/messages/blocks-diff.js';
 
 export const DIFF_PANELS_CSS = /* css */ `

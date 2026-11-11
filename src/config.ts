@@ -11,7 +11,7 @@ import type { Diagnostic } from './core/types.js';
 import { createStaticMeasurer, type TextMeasurer } from './core/text/measure.js';
 import { DEFAULT_IMAGE_POLICY, DEFAULT_LINK_POLICY, type ImagePolicy, type LinkPolicy, type UrlResolver } from './core/validate.js';
 import { createCanvasMeasurer } from './dom/measure.js';
-import { createI18n, type I18n, type Messages } from './ui/i18n.js';
+import { createI18n, type I18n, type Messages } from './i18n.js';
 
 /** Minimal surface of stock Mermaid used by the fallback renderer and the plain-Mermaid compare view. */
 export interface MermaidLike {

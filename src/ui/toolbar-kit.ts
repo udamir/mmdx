@@ -5,7 +5,7 @@
 // (a shadow root), never the document.
 import { rovingKeys, type RovingHandle } from './blocks/focus.js';
 import { h, s } from './h.js';
-import type { I18n } from './i18n.js';
+import type { I18n } from '../i18n.js';
 
 type Translate = I18n['t'];
 

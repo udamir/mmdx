@@ -19,7 +19,7 @@ import type { Rendered } from '../core/pipeline-core.js';
 import type { Diagnostic, Rect } from '../core/types.js';
 import { reducedMotion } from '../dom/motion.js';
 import type { WheelMode } from '../dom/viewport.js';
-import { registerMessages } from '../ui/i18n.js';
+import { registerMessages } from '../i18n.js';
 import { DIFF_MESSAGES } from '../ui/messages/diff.js';
 import { computed, effect, signal, untracked } from '../reactive/signal.js';
 import { DIFF_CSS, DIFF_HOST_CSS, DIFF_TOKENS } from '../ui/styles/diff.js';

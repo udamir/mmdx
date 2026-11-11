@@ -1,5 +1,5 @@
 // English strings of the style toolbar and page toolbar (ui/style-toolbar, ui/page-toolbar). Registered on first use (registerMessages), so the viewer does not ship them.
-import type { Messages } from '../i18n.js';
+import type { Messages } from '../../i18n.js';
 
 export const TOOLBAR_MESSAGES: Messages = {
   // ---- style toolbar (ui/style-toolbar)

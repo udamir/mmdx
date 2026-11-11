@@ -13,7 +13,7 @@ import { I_code, I_layers } from '../../ui/icons.js';
 import { signal } from '../../reactive/signal.js';
 import type { ViewCore } from '../core.js';
 import type { ModuleScope, ViewModule } from '../module.js';
-import { registerMessages } from '../../ui/i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_PANELS } from '../../ui/messages/blocks-panels.js';
 
 const VIEW_SETTINGS_ICON = 'M2.5 11.5C4.6 7.4 8 5.5 12 5.5s7.4 1.9 9.5 6M2.5 11.5c2.1 4.1 5.5 6 9.5 6M12 14.3a2.8 2.8 0 1 0 0-5.6 2.8 2.8 0 0 0 0 5.6zM18.5 20.7a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4z';

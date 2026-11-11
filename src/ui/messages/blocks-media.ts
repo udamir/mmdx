@@ -1,7 +1,7 @@
 // English strings of the insert blocks (T05): the shape palette, the icon picker, the image tool and the emoji
 // picker. Each block registers the table on creation (registerMessages); the blocks are lazy chunks of the editor, so
 // a page that never opens them ships none of these strings.
-import type { Messages } from '../i18n.js';
+import type { Messages } from '../../i18n.js';
 
 export const BLOCK_MESSAGES_MEDIA: Messages = {
   // shape palette

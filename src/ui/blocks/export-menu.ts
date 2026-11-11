@@ -4,7 +4,7 @@
 // through `onError`. Replaces the export menus of editor/modules/chrome/view-params.ts, the viewer's `openExport`
 // (elements/viewer.ts) and the diff's `openExport` (elements/diff.ts).
 import { h, icon } from '../h.js';
-import { registerMessages } from '../i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { I_download } from '../icons.js';
 import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
 import type { PopoverManager } from '../popover.js';

@@ -6,7 +6,7 @@
 import type { ItemRef } from '../../../../core/types.js';
 import { h, icon } from '../../../../ui/h.js';
 import { I_image, I_trash } from '../../../../ui/icons.js';
-import { registerMessages } from '../../../../ui/i18n.js';
+import { registerMessages } from '../../../../i18n.js';
 import { EDITOR_MEDIA_MESSAGES } from '../../../../ui/messages/editor-media.js';
 import { editKind } from '../../../kinds/registry.js';
 import type { ItemMedia, MediaPatch } from '../../../kinds/types.js';

@@ -1,6 +1,6 @@
 // Shortcut registry (A.11): one table drives key handling, the help popup (row 20) and the a11y hints. Scoped to
 // the component that owns it (§8.2): it handles keydown events from its own shadow root only.
-import { isMac } from './i18n.js';
+import { isMac } from '../i18n.js';
 
 export interface Shortcut {
   id: string;

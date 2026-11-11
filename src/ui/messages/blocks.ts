@@ -2,7 +2,7 @@
 // the chrome blocks (tool dock, pen options, zoom bar, help popup, scheme toggle, pill).
 // Each block registers its table on creation (registerMessages), so a page ships only the strings of the blocks it
 // uses; one file per table keeps the viewer's eager chunk free of the others.
-import type { Messages } from '../i18n.js';
+import type { Messages } from '../../i18n.js';
 
 export const BLOCK_MESSAGES_CHROME: Messages = {
   'pen.options': 'Pen options',

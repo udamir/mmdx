@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createThemeButton, themeMenuEntries, type ThemeInfo } from '../../../src/ui/blocks/theme-menu.js';
 import { h } from '../../../src/ui/h.js';
-import { createI18n } from '../../../src/ui/i18n.js';
+import { createI18n } from '../../../src/i18n.js';
 import { PopoverManager } from '../../../src/ui/popover.js';
 import { signal } from '../../../src/reactive/signal.js';
 

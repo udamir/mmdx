@@ -2,7 +2,7 @@
 // toggle of `editor/modules/chrome/view-params.ts`. Only the chrome changes; the host stores the choice. The checked
 // radio is the one in the Tab order; arrow keys switch.
 import { h, icon } from '../h.js';
-import { registerMessages } from '../i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { I_moon, I_sun } from '../icons.js';
 import { BLOCK_MESSAGES_CHROME } from '../messages/blocks.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';

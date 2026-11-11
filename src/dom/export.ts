@@ -1,7 +1,7 @@
 // Browser-side export (§7.4): PNG through a canvas with the used fonts and the remote images inlined (export-images.ts,
 // loaded only for diagrams that show one), and file downloads.
 import type { Diagnostic } from '../core/types.js';
-import type { I18n } from '../ui/i18n.js';
+import type { I18n } from '../i18n.js';
 
 const FAMILY = /^[\w\s.-]+$/;
 

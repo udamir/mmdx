@@ -24,7 +24,7 @@ import { TOOLBAR_CSS as BAR_CSS } from '../ui/blocks/toolbar.js';
 import { ZOOM_BAR_CSS } from '../ui/blocks/zoom-bar.js';
 import { DIALOG_CSS, Dialogs } from '../ui/dialog.js';
 import { h } from '../ui/h.js';
-import { registerMessages, type I18n } from '../ui/i18n.js';
+import { registerMessages, type I18n } from '../i18n.js';
 import { THEME_EDITOR_MESSAGES } from '../ui/messages/theme-editor.js';
 import { TOOLBAR_MESSAGES } from '../ui/messages/toolbar.js';
 import { PopoverManager, Toaster } from '../ui/popover.js';

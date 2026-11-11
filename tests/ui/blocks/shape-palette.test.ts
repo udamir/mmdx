@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createShapePalette, matchesShape, type ShapePaletteItem } from '../../../src/ui/blocks/shape-palette.js';
-import { createI18n } from '../../../src/ui/i18n.js';
+import { createI18n } from '../../../src/i18n.js';
 
 afterEach(() => document.body.replaceChildren());
 

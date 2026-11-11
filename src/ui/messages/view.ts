@@ -1,7 +1,7 @@
 // English strings of the view kernel's standard modules (tool dock, zoom bar keys, pen, view settings, code view,
 // History button) that the base table of `ui/i18n.ts` does not have. Registered by the kernel (registerMessages); the
 // texts match the editor's catalogue.
-import type { Messages } from '../i18n.js';
+import type { Messages } from '../../i18n.js';
 
 export const VIEW_MESSAGES: Messages = {
   'tools.title': 'Tools',

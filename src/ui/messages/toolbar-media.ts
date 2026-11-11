@@ -1,6 +1,6 @@
 // English strings of the style toolbar's icon, image and shape palette controls (T05). Registered by the toolbar
 // itself when it is created (it is a lazy chunk of the editor), not with the editor's first chunk.
-import type { Messages } from '../i18n.js';
+import type { Messages } from '../../i18n.js';
 
 export const TOOLBAR_MEDIA_MESSAGES: Messages = {
   'tb.mediaImage': 'Picture settings — fit, aspect ratio, label position', 'tb.mediaIcon': 'Icon settings — frame, label position',

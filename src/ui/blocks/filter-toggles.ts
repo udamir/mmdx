@@ -5,7 +5,7 @@
 // flow of the host's horizontal Toolbar (arrow keys, tooltip placement). The change colours come from the
 // `--mmdx-diff-*` tokens: the host adopts `DIFF_TOKENS` (ui/styles/diff.ts).
 import { h, icon } from '../h.js';
-import { registerMessages } from '../i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { I_palette } from '../icons.js';
 import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';

@@ -9,7 +9,7 @@ import { searchIcons } from '../../../core/icons/search.js';
 import type { ItemRef, Point } from '../../../core/types.js';
 import { loadEmoji } from '../../../emoji/data.js';
 import { h } from '../../../ui/h.js';
-import { registerMessages } from '../../../ui/i18n.js';
+import { registerMessages } from '../../../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../../../ui/messages/blocks-media.js';
 import { EDITOR_MEDIA_MESSAGES } from '../../../ui/messages/editor-media.js';
 import { createEmojiPicker, EMOJI_PICKER_CSS } from '../../../ui/blocks/emoji-picker.js';

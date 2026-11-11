@@ -7,7 +7,7 @@ import { describeChange } from '../../ui/blocks/change-list.js';
 import { renderedOf } from '../../core/diff/render.js';
 import type { DiagramModel } from '../../core/model.js';
 import { clearHighlight, HIGHLIGHT_CSS, hoverHighlight } from '../../dom/highlight.js';
-import { registerMessages } from '../../ui/i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../../ui/messages/blocks-diff.js';
 import { untracked } from '../../reactive/signal.js';
 import type { ViewCore } from '../../view/core.js';

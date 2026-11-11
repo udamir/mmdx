@@ -8,7 +8,7 @@
 import { presetsFor } from '../../../core/ops/style-env.js';
 import type { ItemKind, Point } from '../../../core/types.js';
 import { h } from '../../../ui/h.js';
-import { registerMessages } from '../../../ui/i18n.js';
+import { registerMessages } from '../../../i18n.js';
 import type { ShapePaletteHandle, ShapePaletteItem } from '../../../ui/blocks/shape-palette.js';
 import { drawItemPreview, previewKind, type PreviewKind } from '../../../ui/item-preview.js';
 import { fitPresetGrid } from '../../../ui/shape-preview.js';

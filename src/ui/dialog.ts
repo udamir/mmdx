@@ -2,7 +2,7 @@
 // alert(), which block the host page and cannot be styled or tested. Modal, focus-trapped, Esc cancels. The button
 // labels and the empty-name message go through the host's `t` (English without one).
 import { h } from './h.js';
-import type { I18n, Messages } from './i18n.js';
+import type { I18n, Messages } from '../i18n.js';
 
 /** English strings of the dialogs (a host catalog overrides them). */
 export const DIALOG_MESSAGES: Messages = {

@@ -7,7 +7,7 @@
 import { TOOLBAR_MESSAGES } from './messages/toolbar.js';
 import type { Rect } from '../core/types.js';
 import { h, s } from './h.js';
-import { createI18n, registerMessages, type I18n } from './i18n.js';
+import { createI18n, registerMessages, type I18n } from '../i18n.js';
 import { accentHex, barKeys, createPopHost, localColors, popLabel, slider as kitSlider, swatches, type PaletteColor } from './toolbar-kit.js';
 
 /** `[value, label]`. */

@@ -4,7 +4,7 @@
 import type { Emoji, EmojiSet } from '../../emoji/data.js';
 import { searchEmoji, withTone } from '../../emoji/data.js';
 import { h } from '../h.js';
-import { registerMessages } from '../i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
 import { gridKeys } from './grid-keys.js';

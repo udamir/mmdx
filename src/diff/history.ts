@@ -18,7 +18,7 @@ import { transitionFrom, type MorphState } from '../dom/morph.js';
 import { reducedMotion } from '../dom/motion.js';
 import { createPill, PILL_CSS } from '../ui/blocks/pill.js';
 import { h, icon } from '../ui/h.js';
-import { registerMessages } from '../ui/i18n.js';
+import { registerMessages } from '../i18n.js';
 import { DIFF_MESSAGES } from '../ui/messages/diff.js';
 import { computed, effect, signal, untracked } from '../reactive/signal.js';
 import { DIFF_CSS, DIFF_TOKENS } from '../ui/styles/diff.js';

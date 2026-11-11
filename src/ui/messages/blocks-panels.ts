@@ -2,7 +2,7 @@
 // the menu and panel blocks (theme menu, export menu, side panel, panel stack, layer list).
 // Each block registers its table on creation (registerMessages), so a page ships only the strings of the blocks it
 // uses; one file per table keeps the viewer's eager chunk free of the others.
-import type { Messages } from '../i18n.js';
+import type { Messages } from '../../i18n.js';
 
 export const BLOCK_MESSAGES_PANELS: Messages = {
   // ---- theme menu (the editor's keys, plus Follow light / dark)

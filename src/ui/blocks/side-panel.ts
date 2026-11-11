@@ -4,7 +4,7 @@
 // the card shells of editor/modules/panels/right-panels.ts (`.rpanel`, `.rp-head`), the editor's code panel and the
 // diff's panels (`.lpanel`, `.pane-side`, `.collapse-btn`); the grip replaces `attachPaneResizer` of ui/panes.ts.
 import { h } from '../h.js';
-import { registerMessages } from '../i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
 import type { Signal } from '../../reactive/signal.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';

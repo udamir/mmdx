@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PEN_COLORS, PEN_FADES, PEN_SIZES } from '../../../src/dom/pen.js';
 import { createPenOptions, PEN_COLOR_CHOICES, PEN_FADE_CHOICES, PEN_SIZE_CHOICES, type PenSettings } from '../../../src/ui/blocks/pen-options.js';
-import { createI18n } from '../../../src/ui/i18n.js';
+import { createI18n } from '../../../src/i18n.js';
 
 const { t } = createI18n();
 

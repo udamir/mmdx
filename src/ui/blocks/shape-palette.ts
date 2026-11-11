@@ -4,7 +4,7 @@
 // through the tiles. The host owns what an item is and does: a pointer press starts its drag (`onPointerDown`), a
 // click or Enter chooses it (`onPick`).
 import { h } from '../h.js';
-import { registerMessages } from '../i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
 import { gridKeys } from './grid-keys.js';
