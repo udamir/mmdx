@@ -7,6 +7,7 @@
 // shell, module host and canvas come from it — and adds the document store, the selection, gestures and overlay
 // painters. What the canvas shows is the StoreScene (src/editor/scene.ts); `draw()` invalidates it.
 import type { ImageStore, StorageAdapter, ThemeSource } from '../ports.js';
+import { UiState } from './services/ui-state.js';
 import { SelectionService } from './services/selection.js';
 import { InputService } from './services/input.js';
 import type { CoreContext } from '../core/context.js';
@@ -269,21 +270,31 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
    * The host's upload of a dropped, pasted or chosen picture (T05 `uploadImage`): resolves to the URL the image item
    * references (the editor never embeds files). Null: images are added by URL only.
    */
-  uploadImage: ((file: File) => Promise<{ url: string }>) | null = null;
+  get uploadImage(): ((file: File) => Promise<{ url: string }>) | null {
+    return this.uiState.uploadImage.peek();
+  }
   /**
    * The host's image store (`EditorOptions.images`): the image tool's Library tab lists it, and uploads go to it
    * (before `uploadImage`). Null: no library.
    */
-  images: ImageStore | null = null;
+  get images(): ImageStore | null {
+    return this.uiState.images.peek();
+  }
   /** Where an upload goes: the image store, else the host's `uploadImage` (null: images by URL only). */
   get upload(): ((file: File) => Promise<{ url: string }>) | null {
     const store = this.images;
     return store ? (file) => store.put(file, { name: file.name }) : this.uploadImage;
   }
   /** Base name for exports (no extension); files opened through `openFiles` set it. */
-  fileName = 'diagram';
+  get fileName(): string {
+    return this.uiState.fileName.peek();
+  }
   /** Session snap grid in diagram px (0 = off). Alt while dragging = free. */
-  snap = 5;
+  get snap(): number {
+    return this.uiState.snap.peek();
+  }
+  /** The session's UI state (A10f): signals, read through the getters below and written through `uiState.<name>.set`. */
+  readonly uiState = new UiState<Sel, TextEditSession, ClipboardData>();
   /** The selection (A10e): the document's and a shown version's. */
   readonly selections: SelectionService = new SelectionService(this);
   /** Primary selected item's `foot` flag (participant copy at the bottom). */
@@ -291,13 +302,21 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     return this.selections.foot;
   }
   /** An inline text editor is open over this item: no handles around it. */
-  inlineEditing: ItemRef | null = null;
+  get inlineEditing(): ItemRef | null {
+    return this.uiState.inlineEditing.peek();
+  }
   /** The open inline text editor's formatting (the toolbar's text format menu acts on its selection); null: none open. */
-  textEdit: TextEditSession | null = null;
+  get textEdit(): TextEditSession | null {
+    return this.uiState.textEdit.peek();
+  }
   /** ER table whose attributes are being edited: drawn as a table with an empty row for a new attribute. */
-  tableView: string | null = null;
+  get tableView(): string | null {
+    return this.uiState.tableView.peek();
+  }
   /** Item under the pointer (connection dots on hover). */
-  hover: Sel | null = null;
+  get hover(): Sel | null {
+    return this.uiState.hover.peek();
+  }
   /** The pointer loop and Space-to-pan (A10c: what it tracks is read here, written only by it). */
   readonly input: InputService<Hit> = new InputService<Hit>(this);
   /** A gesture is running. */
@@ -317,7 +336,9 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     this.input.cancelGesture();
   }
   /** The item clipboard (UI state, never saved): copies carry their content (§9), so History can fill it too. */
-  clipboard: ClipboardData | null = null;
+  get clipboard(): ClipboardData | null {
+    return this.uiState.clipboard.peek();
+  }
   /**
    * An old version shown read-only (History, `showVersion`): the getters, the render and the selection read it instead
    * of the store, and nothing writes (changes, transactions, undo are refused) while it shows.
@@ -438,7 +459,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     const cur = this.version.peek();
     if ((v?.id ?? null) === (cur?.id ?? null) && v?.source === cur?.source) return;
     this.cancelGesture();
-    this.inlineEditing = null;
+    this.uiState.inlineEditing.set(null);
     if (v) {
       const split = splitSource(v.source);
       const doc: DiagramDocument = { code: split.doc.code, meta: normalizeMeta(split.doc.meta) };

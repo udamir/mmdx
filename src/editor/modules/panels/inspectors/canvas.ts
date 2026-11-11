@@ -144,7 +144,7 @@ export function canvasInspector(p: PanelCtx, host: HTMLElement): void {
   sect(host, t('props.editor'));
   const si = h('input', { type: 'number', min: '0', value: String(core.snap), 'aria-label': t('props.snap') });
   si.addEventListener('input', () => {
-    core.snap = Math.max(0, Number(si.value) || 0);
+    core.uiState.snap.set(Math.max(0, Number(si.value) || 0));
   });
   host.append(row(t('props.snap'), si), h('div', { class: 'hint' }, t('props.metaHint')));
 }

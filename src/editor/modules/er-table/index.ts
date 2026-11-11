@@ -101,7 +101,7 @@ export const erTableModule: EditorModule = {
       closeEditor(true);
       table = id;
       sel = [];
-      core.tableView = id;
+      core.uiState.tableView.set(id);
       core.dom.root.classList.add('table-edit');
       core.enteredGroup.set(null);
       core.select([]);
@@ -116,7 +116,7 @@ export const erTableModule: EditorModule = {
       const id = table;
       table = null;
       sel = [];
-      core.tableView = null;
+      core.uiState.tableView.set(null);
       core.dom.root.classList.remove('table-edit');
       if (select && er()?.entities.has(id)) core.select([{ kind: 'entity', id }]);
       core.draw();
@@ -626,7 +626,7 @@ export const erTableModule: EditorModule = {
       destroyed = true;
       closeEditor(false);
       tb?.destroy();
-      core.tableView = null;
+      core.uiState.tableView.set(null);
       core.dom.root.classList.remove('table-edit');
     };
   },

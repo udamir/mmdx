@@ -99,7 +99,7 @@ export class DiagramEditor {
     return this.core.fileName;
   }
   set name(v: string) {
-    this.core.fileName = v;
+    this.core.uiState.fileName.set(v);
   }
 
   constructor(host: HTMLElement, options: EditorOptions = {}) {
@@ -127,8 +127,8 @@ export class DiagramEditor {
       ...(options.compact !== undefined ? { compact: options.compact } : {}),
       ...(options.wheel ? { wheel: options.wheel } : {}),
     });
-    this.core.uploadImage = options.uploadImage ?? null;
-    this.core.images = options.images ?? null;
+    this.core.uiState.uploadImage.set(options.uploadImage ?? null);
+    this.core.uiState.images.set(options.images ?? null);
     const core = this.core;
     const root = core.root;
     this.owner.add(() => core.destroy());
@@ -178,7 +178,7 @@ export class DiagramEditor {
     core.provide('documentSource', () => this.store.source());
     core.provide('documentName', () => core.fileName || 'diagram');
     core.historyHost = {
-      setClipboard: (data) => void (core.clipboard = data as typeof core.clipboard),
+      setClipboard: (data) => core.uiState.clipboard.set(data as NonNullable<typeof core.clipboard>),
       showVersion: (v) => core.showVersion(v),
       restoreVersion: (source, v) => {
         core.cancelGesture();
@@ -193,7 +193,7 @@ export class DiagramEditor {
 
     core.useModules(options.modules ?? DEFAULT_MODULES);
 
-    core.fileName = name;
+    core.uiState.fileName.set(name);
     // built-in themes besides baseline load on demand; redraw when they (or a theme saved elsewhere) arrive
     this.owner.add(core.ctx.themes.onChange(() => {
       if (this.destroyed) return;
@@ -293,7 +293,7 @@ export class DiagramEditor {
     return this.core.uploadImage;
   }
   set uploadImage(f: ((file: File) => Promise<{ url: string }>) | null) {
-    this.core.uploadImage = typeof f === 'function' ? f : null;
+    this.core.uiState.uploadImage.set(typeof f === 'function' ? f : null);
   }
 
   /** The host's image store (`EditorOptions.images`; null: no library). */
@@ -301,7 +301,7 @@ export class DiagramEditor {
     return this.core.images;
   }
   set images(s: ImageStore | null) {
-    this.core.images = s && typeof s.list === 'function' && typeof s.put === 'function' ? s : null;
+    this.core.uiState.images.set(s && typeof s.list === 'function' && typeof s.put === 'function' ? s : null);
   }
 
   /** The base name of exports (no extension). */
@@ -309,7 +309,7 @@ export class DiagramEditor {
     return this.core.fileName;
   }
   set fileName(v: string) {
-    this.core.fileName = v;
+    this.core.uiState.fileName.set(v);
   }
 
   /** The id of the theme the diagram is shown in (the host's, the user's pick or the default; §7.5). */
@@ -394,7 +394,7 @@ export class DiagramEditor {
       const r = await a.load();
       if (this.destroyed || this.o.adapter !== a) return;
       this.version = r.version;
-      if (r.name) this.core.fileName = r.name.replace(/\.(mmdx|mmd|md|txt)$/i, '');
+      if (r.name) this.core.uiState.fileName.set(r.name.replace(/\.(mmdx|mmd|md|txt)$/i, ''));
       this.setSource(r.source, { history: 'reset' });
       this.unsubscribe?.();
       this.unsubscribe = a.subscribe?.((src, version) => {

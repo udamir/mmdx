@@ -446,7 +446,7 @@ export const connectModule: EditorModule = {
         if (b && Math.abs(p.x - b.x) <= b.w / 2 + m && Math.abs(p.y - b.y) <= b.h / 2 + m) it = core.hover;
       }
       if (!sameRef(it, core.hover)) {
-        core.hover = it;
+        core.uiState.hover.set(it);
         core.drawOverlay();
       }
     };

@@ -69,7 +69,7 @@ describe('B31: Space in a select does not arm space-pan', () => {
 describe('B35: editor.name follows the core', () => {
   it('a name set on the core reads back from the editor', () => {
     const ed = mount();
-    ed.core.fileName = 'opened';
+    ed.core.uiState.fileName.set('opened');
     expect(ed.name).toBe('opened');
     ed.name = 'renamed';
     expect(ed.core.fileName).toBe('renamed');

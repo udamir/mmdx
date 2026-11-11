@@ -51,7 +51,7 @@ export async function switchDiagramType(core: EditorCore, type: DiagramType): Pr
     core.pageSelected.set(page);
     return;
   }
-  core.fileName = `untitled-${type}`;
+  core.uiState.fileName.set(`untitled-${type}`);
   core.viewport.setBounds(core.result.result.bounds, { fit: true });
   core.fire('model');
 }

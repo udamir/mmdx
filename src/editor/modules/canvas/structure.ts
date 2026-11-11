@@ -138,7 +138,7 @@ export const canvasStructureModule: EditorModule = {
         core.toast(withEdit(core.model, (k) => k.noCopy) ?? 'Nothing to copy');
         return false;
       }
-      core.clipboard = data;
+      core.uiState.clipboard.set(data);
       core.toast(`Copied ${nItems(data.items.length)}`);
       const json = JSON.stringify({ format: 'mmdx-items', version: 2, type: data.type, items: data.items, content: data.content, source: core.shownSource() });
       void writeSystemClipboard(mermaidFragment(core.model, core.code, data.items), json);

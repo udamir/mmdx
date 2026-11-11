@@ -139,7 +139,7 @@ export function autoLayout(core: EditorCore): void {
 /** Replaces the document (an undoable step), like the prototype's `setSource` after opening a file. */
 function loadDocument(core: EditorCore, src: string, name?: string): void {
   if (!core.emit('mmdx-op', { type: 'doc.open', code: src }, true)) return;
-  if (name) core.fileName = name.replace(/\.(mmdx|mmd|md|txt|json)$/i, '') || core.fileName;
+  if (name) core.uiState.fileName.set(name.replace(/\.(mmdx|mmd|md|txt|json)$/i, '') || core.fileName);
   core.loadSource(src, { history: 'push', reason: 'load', markSaved: false });
   core.select([]);
 }

@@ -141,8 +141,8 @@ export const canvasInlineEditModule: EditorModule = {
         ta.style.height = `${ta.scrollHeight}px`;
         ta.style.top = `${midY - ta.offsetHeight / 2}px`;
       };
-      core.inlineEditing = { kind: item.kind, id: item.id };
-      core.textEdit = rich ? session : null;
+      core.uiState.inlineEditing.set({ kind: item.kind, id: item.id });
+      core.uiState.textEdit.set(rich ? session : null);
       core.drawOverlay();
       for (const e of els) e.classList.add('text-editing');
       let closed = false;
@@ -150,8 +150,8 @@ export const canvasInlineEditModule: EditorModule = {
         if (closed) return;
         closed = true;
         const hadFocus = core.dom.shadow.activeElement === ta;
-        core.inlineEditing = null;
-        if (core.textEdit === session) core.textEdit = null;
+        core.uiState.inlineEditing.set(null);
+        if (core.textEdit === session) core.uiState.textEdit.set(null);
         close = null;
         ta.remove();
         if (picking) core.popovers.close();
