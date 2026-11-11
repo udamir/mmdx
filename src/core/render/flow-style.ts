@@ -1,6 +1,7 @@
 // The style layers mmdx puts under a flowchart item's Mermaid classes and `style` statements, theme first: the theme's
 // default, the shape's default (nodes), the diagram's `_base` and the item's preset. One definition for the renderer
 // and the portable export, so the exported Mermaid looks like the picture (B14).
+import { str } from './graph-kit.js';
 import type { DiagramMeta, ItemMeta } from '../meta/types.js';
 import type { FlowNode } from '../model.js';
 import { byShapeId, shapeDef } from '../shapes/registry.js';
@@ -12,7 +13,6 @@ import type { FlowPresets } from './flow-presets.js';
 type Layer = StyleProps | object | undefined;
 type Flow = ResolvedTheme['flowchart'];
 
-const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
 
 const shapeStylesOf = new WeakMap<object, Record<string, StyleProps> | undefined>();
 /** The theme's per-shape node defaults by catalogue id (computed once per theme). */

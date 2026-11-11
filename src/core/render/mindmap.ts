@@ -6,6 +6,7 @@
 // label (render/decorate.ts, as in every kind: `iconPos` moves the icon or a leading token below or beside the text),
 // and a folded subtree shows a +N badge. Rich text, icons and images draw through the media kit (a lazy chunk):
 // without it the render draws plain text and empty boxes and counts a miss, and the viewer renders again once it loaded.
+import { Bounds, EMPTY_META, str } from './graph-kit.js';
 import { layoutTree, type TreeMode, type TreeNode } from '../layout/tree.js';
 import type { ItemMeta } from '../meta/types.js';
 import type { MindmapModel, MindNode } from '../model.js';
@@ -32,8 +33,6 @@ export { mindPreset, mindPresets, type MindPresets } from './mind-presets.js';
 
 /** Branch widths by the child's depth (1, 2, 3, deeper) for a first-level width of 11. */
 const TAPER = [11, 8, 5, 3];
-const NO_META: ItemMeta = {};
-const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
 
 interface Item {
   n: MindNode;
@@ -88,7 +87,7 @@ export function renderMindmap(model: MindmapModel, env: RenderEnv): SubResult {
   const MT = T.mindmap;
   const P = mindPresets(T, meta);
   const family = T.font;
-  const m = (id: string): ItemMeta => meta.nodes?.[id] ?? NO_META;
+  const m = (id: string): ItemMeta => meta.nodes?.[id] ?? EMPTY_META;
   const hiddenSet = hiddenOf(opts, 'node');
   const wrapW = model.maxNodeWidth;
 
@@ -291,20 +290,15 @@ export function renderMindmap(model: MindmapModel, env: RenderEnv): SubResult {
   }
 
   // ---- bounds and geometry
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const box = new Bounds();
   for (const it of items.values()) {
     if (it.hidden) continue;
+    // a folded branch's +N badge sits past its outer side
     const extra = it.folded ? 50 : 0;
-    x0 = Math.min(x0, it.x - it.w / 2 - (it.side === 'l' ? extra : 0));
-    x1 = Math.max(x1, it.x + it.w / 2 + (it.side !== 'l' && it.side !== 'd' ? extra : 0));
-    y0 = Math.min(y0, it.y - it.h / 2);
-    y1 = Math.max(y1, it.y + it.h / 2 + (it.side === 'd' && it.folded ? 24 : 0));
-  }
-  if (x0 === Infinity) {
-    x0 = 0;
-    y0 = 0;
-    x1 = 400;
-    y1 = 300;
+    box.growEdges(
+      it.x - it.w / 2 - (it.side === 'l' ? extra : 0), it.y - it.h / 2,
+      it.x + it.w / 2 + (it.side !== 'l' && it.side !== 'd' ? extra : 0), it.y + it.h / 2 + (it.side === 'd' && it.folded ? 24 : 0),
+    );
   }
   const pad = env.pad + 20;
   const geom: MindmapGeometry = {
@@ -324,7 +318,7 @@ export function renderMindmap(model: MindmapModel, env: RenderEnv): SubResult {
   return {
     defs: [],
     body: [...branchNodes, ...nodeNodes],
-    bounds: { x: x0 - pad, y: y0 - pad, w: x1 - x0 + pad * 2, h: y1 - y0 + pad * 2 },
+    bounds: box.rect(pad),
     geom,
     presetsUsed: { node: countBy([...items.values()].map((x) => x.preset || '(none)')) },
   };

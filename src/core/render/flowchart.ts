@@ -1,12 +1,14 @@
 // Flowchart renderer: nodes, nested groups (lanes / wrappers), styled curved edges (prototype render/flowchart.js);
 // icon and image nodes (an asset with a caption), markdown labels and icon tokens as rich text, invisible links, edge
 // animation, tooltips and the diagram's title (T06).
+import { a11yOf, Bounds, depthOf, EMPTY_META, hiddenGroups, str } from './graph-kit.js';
+import { diagramTitle } from './title.js';
 import { layered, type LayoutEdge, type LayoutNode } from '../layout/layered.js';
 import { ancestorsOf, layoutCompound, type CompoundContainer, type CompoundNode, type CompoundResult } from '../layout/compound.js';
 import { polylineCrosses, routeAround } from '../layout/route.js';
 import type { ItemMeta } from '../meta/types.js';
 import type { FlowEdge, FlowGroup, FlowNode, FlowchartModel, MermaidStyle } from '../model.js';
-import { el, g, title as tooltip } from '../scene/build.js';
+import { el, title as tooltip } from '../scene/build.js';
 import type { SceneNode, TextRun } from '../scene/types.js';
 import type { StyleProps } from '../style.js';
 import { textBlockWidth, wrap } from '../text/wrap.js';
@@ -71,7 +73,6 @@ interface GroupItem {
   depth: number;
 }
 
-const NO_META: ItemMeta = {};
 
 export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResult {
   const { ctx, theme: T, meta, opts } = env;
@@ -80,7 +81,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
   const family = T.font;
   const defs = new Defs(ctx.idPrefix);
   const routingDefault = meta.canvas.routing || 'curved';
-  const m = <K extends 'nodes' | 'groups' | 'edges'>(k: K, id: string): ItemMeta => meta[k]?.[id] ?? NO_META;
+  const m = <K extends 'nodes' | 'groups' | 'edges'>(k: K, id: string): ItemMeta => meta[k]?.[id] ?? EMPTY_META;
 
   const cfg = model.config ?? {};
   const wrapWidth = cfg.wrappingWidth ?? WRAP_WIDTH;
@@ -180,18 +181,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
 
   // ---- hidden elements (layers): a hidden group hides its contents; a hidden node hides its edges
   const hidden = { node: hiddenOf(opts, 'node'), group: hiddenOf(opts, 'group'), edge: hiddenOf(opts, 'edge') };
-  const groupHidden = new Set<string>();
-  const markGroup = (gid: string): void => {
-    // iterative (nesting depth is user input)
-    const stack = [gid];
-    while (stack.length) {
-      const id = stack.pop()!;
-      if (groupHidden.has(id)) continue;
-      groupHidden.add(id);
-      for (const c of model.groups.get(id)?.children ?? []) if (model.groups.has(c)) stack.push(c);
-    }
-  };
-  for (const g of model.groups.values()) if (hidden.group.has(g.id)) markGroup(g.id);
+  const groupHidden = hiddenGroups(model.groups, hidden.group);
   const hiddenNodes = new Set<string>();
   for (const [id, N] of nodes) {
     if (hidden.node.has(id)) hiddenNodes.add(id);
@@ -199,21 +189,8 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
   }
 
   // ---- groups: style and title (their boxes come after the layout)
-  const groupDepthCache = new Map<string, number>();
-  const depth = (g: FlowGroup): number => {
-    const c = groupDepthCache.get(g.id);
-    if (c !== undefined) return c;
-    let d = 0;
-    const seen = new Set([g.id]);
-    let p = g.parent;
-    while (p && !seen.has(p)) {
-      seen.add(p);
-      d++;
-      p = model.groups.get(p)?.parent ?? null;
-    }
-    groupDepthCache.set(g.id, d);
-    return d;
-  };
+  const groupDepth = depthOf(model.groups);
+  const depth = (g: FlowGroup): number => groupDepth(g.id);
   const groupsSorted = [...model.groups.values()].sort((a, b) => depth(b) - depth(a));
   interface GroupLook {
     m: ItemMeta;
@@ -379,7 +356,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     if (e.line === 'invisible') continue;
     const a = boxOf(e.from), b = boxOf(e.to);
     if (!a || !b) continue;
-    const em = edgeMeta(e, meta) ?? NO_META;
+    const em = edgeMeta(e, meta) ?? EMPTY_META;
     const preset = edgePreset(e, meta, P);
     const ls = model.linkStyles[String(e.index)] ?? model.linkStyles['default'];
     const lsMapped = ls ? { color: ls.stroke, width: ls.strokeWidth, dash: ls.dash, labelColor: ls.text } : null;
@@ -563,42 +540,16 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
   }
 
   // ---- bounds
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  const grow = (b: CenterBox): void => {
-    x0 = Math.min(x0, b.x - b.w / 2);
-    y0 = Math.min(y0, b.y - b.h / 2);
-    x1 = Math.max(x1, b.x + b.w / 2 + 6);
-    y1 = Math.max(y1, b.y + b.h / 2 + 6);
-  };
+  const box = new Bounds(6);
+  const grow = (b: CenterBox): void => box.grow(b);
   for (const [id, N] of nodes) if (!hiddenNodes.has(id)) grow(N);
   for (const G of groups.values()) if (!G.empty && !groupHidden.has(G.g.id)) grow(G.box);
   for (const eg of edgeGeom.values()) if (eg.label) grow(eg.label);
   for (const b of belowLabels) grow(b);
-  if (x0 === Infinity) {
-    x0 = 0;
-    y0 = 0;
-    x1 = 400;
-    y1 = 300;
-  }
   const pad = env.pad;
-  const bounds = { x: x0 - pad, y: y0 - pad, w: x1 - x0 + 2 * pad, h: y1 - y0 + 2 * pad };
+  const bounds = box.rect(pad);
   // the diagram's `title`, above it as the sequence diagram draws its title
-  const titleNodes: SceneNode[] = [];
-  const titleText = (model.title ?? '').trim();
-  if (titleText) {
-    const tl = titleText.split('\n');
-    const size = 22, blockH = tl.length * size * 1.3;
-    const tw = textBlockWidth(tl, font(size, 600, family), ctx.measure);
-    bounds.y -= blockH + 14;
-    bounds.h += blockH + 14;
-    if (tw + 2 * pad > bounds.w) {
-      bounds.x -= (tw + 2 * pad - bounds.w) / 2;
-      bounds.w = tw + 2 * pad;
-    }
-    titleNodes.push(g({ class: 'title', 'data-part': 'title' }, [
-      textBlock(tl, bounds.x + bounds.w / 2, bounds.y + pad + blockH / 2, { size, weight: 600, color: ctx.color('@title') ?? '#333', family }),
-    ], { key: 'title' }));
-  }
+  const titleNodes = diagramTitle(bounds, model.title, ctx, family, pad);
 
   const geom: FlowGeometry = {
     type: 'flowchart',
@@ -630,7 +581,8 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     },
   };
   // `accTitle` / `accDescr`: the SVG's <title> and <desc>, the component's accessible name
-  if (model.accTitle || model.accDescr) out.a11y = { ...(model.accTitle ? { title: model.accTitle } : {}), ...(model.accDescr ? { desc: model.accDescr } : {}) };
+  const a11y = a11yOf(model);
+  if (a11y) out.a11y = a11y;
   return out;
 
   /** The end was placed by the layout: an auto-placed node, or a subgraph that moved as a unit. */
@@ -801,7 +753,6 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
   }
 }
 
-const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
 
 /** Where a shape's label goes, relative to its centre (the whole box unless the catalogue says otherwise). */
 const textBox = (def: ShapeDef, w: number, h: number): Rect => def.textBox?.(w, h) ?? { x: -w / 2, y: -h / 2, w, h };

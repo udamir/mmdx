@@ -15,6 +15,8 @@
 // URL, Mermaid's undocumented corner image) draw as in every kind (render/decorate.ts), and its head grows to hold
 // them. Icon tokens in names, messages and notes draw through the media kit (a lazy chunk; Mermaid has no markdown in
 // sequence diagrams, so only the tokens); emoji are text.
+import { a11yOf, EMPTY_META, str } from './graph-kit.js';
+import { diagramTitle } from './title.js';
 import { ICON_TOKEN } from '../icons/names.js';
 import { ActivationTracker } from '../ids.js';
 import type { ItemMeta } from '../meta/types.js';
@@ -32,8 +34,7 @@ import { type RenderEnv, type SubResult, type MediaSource } from './types.js';
 import { decorate, decorated, decoratedSize, decoration, lazyKit, type Decoration } from './decorate.js';
 import { assetBox, captionY, mediaAssetNodes, mediaLayout, type MediaBox } from './media-node.js';
 import { metaMediaSource } from '../media/meta-source.js';
-import type { BoxGeom, RenderContext, SequenceGeometry } from './types.js';
-import type { Rect } from '../types.js';
+import type { BoxGeom, SequenceGeometry } from './types.js';
 import { dashAttrs } from '../shapes/dash.js';
 import { seqPresets } from './sequence-presets.js';
 import { minOf } from '../geom.js';
@@ -125,8 +126,6 @@ interface BlockOut {
   hidden: boolean;
 }
 
-const NO_META: ItemMeta = {};
-const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
 
 /** The shapes Mermaid draws as a figure with the name under it; the actor's own stick figure is 52 px tall, the others 40. */
 const FIGURES = new Set(['actor', 'boundary', 'control', 'entity']);
@@ -171,7 +170,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     block: hiddenOf(opts, 'block'), box: hiddenOf(opts, 'box'), activation: hiddenOf(opts, 'activation'),
   };
   const mt = <K extends 'participants' | 'messages' | 'notes' | 'blocks' | 'boxes' | 'activations'>(k: K, id: string): ItemMeta =>
-    meta[k]?.[id] ?? NO_META;
+    meta[k]?.[id] ?? EMPTY_META;
 
   // icon tokens in names, messages and notes draw through the media kit (a lazy chunk), asked for only when a text has one
   const kit = lazyKit();
@@ -764,8 +763,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
   };
 
   // the diagram's `title` (parsed but never drawn by the prototype, A.13): a page title above the participants
-  const titleNode = pageTitle((model.title ?? '').trim(), bounds, pad, family, ctx);
-  if (titleNode) body.unshift(titleNode);
+  body.unshift(...diagramTitle(bounds, model.title, ctx, family, pad));
 
   const geom: SequenceGeometry = {
     type: 'sequence',
@@ -781,7 +779,8 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
   };
   const out: SubResult = { defs: defs.nodes(), body, bounds, geom, presetsUsed: { message: countBy(msgs.map((x) => x.preset || '(none)')) } };
   // `accTitle` / `accDescr`: the SVG's <title> and <desc>
-  if (model.accTitle || model.accDescr) out.a11y = { ...(model.accTitle ? { title: model.accTitle } : {}), ...(model.accDescr ? { desc: model.accDescr } : {}) };
+  const a11y = a11yOf(model);
+  if (a11y) out.a11y = a11y;
   return out;
 }
 
@@ -827,25 +826,3 @@ function menuAttr(ctx: RenderEnv['ctx'], p: Participant): Record<string, string>
 }
 
 const toNum = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
-
-/**
- * The page title above the diagram: grows the bounds upwards by its height and, when it is wider than the diagram,
- * sideways around it, as the other types do (B24).
- */
-function pageTitle(title: string, bounds: Rect, pad: number, family: string, ctx: RenderContext): SceneNode | null {
-  if (!title) return null;
-  const lines = title.split('\n');
-  const size = 22, lh = 1.3;
-  const blockH = lines.length * size * lh;
-  const titleH = blockH + 14;
-  bounds.y -= titleH;
-  bounds.h += titleH;
-  const tw = textBlockWidth(lines, font(size, 600, family), ctx.measure);
-  if (tw + 2 * pad > bounds.w) {
-    bounds.x -= (tw + 2 * pad - bounds.w) / 2;
-    bounds.w = tw + 2 * pad;
-  }
-  return g({ class: 'title', 'data-part': 'title' }, [
-    textBlock(lines, bounds.x + bounds.w / 2, bounds.y + pad + blockH / 2, { size, weight: 600, color: ctx.color('@title') ?? '#333', family }),
-  ], { key: 'title' });
-}
