@@ -5,7 +5,8 @@ import { renderDiffToSvgWith, type DiffRenderOptions, type DiffSvgOptions } from
 import { diffDiagramsWith } from '../core/diff/index.js';
 import type { DiagramDiff } from '../core/diff/types.js';
 import { createContextWith, type CoreContext } from '../core/context-base.js';
-import { ensureBuiltinThemes, getShared } from '../config.js';
+import { getShared } from '../platform/config.js';
+import { ensureBuiltinThemes } from '../platform/themes.js';
 import { detectType } from '../core/parse/dispatch.js';
 import { diffKind, registerDiffs } from '../core/kinds/registry.js';
 import type { DiffKind } from '../core/kind/diff-types.js';

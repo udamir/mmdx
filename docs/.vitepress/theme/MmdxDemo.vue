@@ -44,7 +44,7 @@ let themesReady: Promise<void> | null = null;
 // and `theme="dracula"` works on any demo
 function registerShippedThemes(): Promise<void> {
   return (themesReady ??= (async () => {
-    const [{ registerThemes }, files] = await Promise.all([import('../../../src/config.js'), Promise.all(Object.values(themeFiles).map((f) => f()))]);
+    const [{ registerThemes }, files] = await Promise.all([import('../../../src/platform/themes.js'), Promise.all(Object.values(themeFiles).map((f) => f()))]);
     registerThemes(files);
   })());
 }

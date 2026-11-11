@@ -7,7 +7,7 @@ import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adap
 import { Owner } from '../reactive/owner.js';
 import type { ThemeSource } from '../adapters/themes.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
-import { getShared, instanceContext } from '../config.js';
+import { getShared, instanceContext } from '../platform/config.js';
 import type { CoreContext } from '../core/context.js';
 import type { IconPack } from '../core/icons/types.js';
 import type { Rect } from '../core/types.js';

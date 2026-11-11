@@ -12,7 +12,7 @@ import { MmdxElement, readInlineSource, warnOnce, words, type AttrSpec, type Pat
 import type { DocumentAdapter } from '../adapters/documents.js';
 import type { StorageAdapter } from '../adapters/storage.js';
 import type { ThemeSource } from '../adapters/themes.js';
-import { ensureBuiltinThemes } from '../config.js';
+import { ensureBuiltinThemes } from '../platform/themes.js';
 import type { CoreContext } from '../core/context.js';
 import type { IconPack } from '../core/icons/types.js';
 import { h } from '../ui/h.js';

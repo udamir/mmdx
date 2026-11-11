@@ -18,8 +18,8 @@ export function layerOf(r) {
   if (r === 'core.ts') return [7, 'entry'];
   if (r.startsWith('core/')) return [0, 'core'];
   if (r.startsWith('reactive/')) return [0, 'reactive'];
-  if (r === 'config.ts') return [0, 'config'];
-  if (r === 'i18n.ts') return [0, 'i18n'];
+  if (r === 'i18n.ts' || r === 'ports.ts') return [0, r.slice(0, -3)];
+  if (r.startsWith('platform/')) return [1, 'platform'];
   if (r.startsWith('icons/') || r.startsWith('emoji/')) return [0, 'data'];
   if (r === 'dom/canvas.ts') return [3, 'dom/canvas'];
   if (r.startsWith('dom/')) return [1, 'dom'];

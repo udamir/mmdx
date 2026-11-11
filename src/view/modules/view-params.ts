@@ -7,7 +7,7 @@ import { MENU_CSS } from '../../ui/blocks/menu.js';
 import { createSchemeToggle, SCHEME_TOGGLE_CSS } from '../../ui/blocks/scheme-toggle.js';
 import { createThemeButton, THEME_MENU_CSS } from '../../ui/blocks/theme-menu.js';
 import { createToolbar, TOOLBAR_CSS } from '../../ui/blocks/toolbar.js';
-import { getShared } from '../../config.js';
+import { getShared } from '../../platform/config.js';
 import type { ThemeInfo } from '../../core/theme/types.js';
 import { h } from '../../ui/h.js';
 import { signal } from '../../reactive/signal.js';

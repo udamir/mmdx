@@ -4,7 +4,7 @@
 // set under `tabler`) before a fallback render.
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { IconifyJSON } from '../../src/core/icons/types.js';
-import type { MermaidLike } from '../../src/config.js';
+import type { MermaidLike } from '../../src/ports.js';
 
 const PACK: IconifyJSON = { prefix: 'p', icons: { dot: { body: '<circle cx="8" cy="8" r="4"/>' } } };
 
@@ -62,7 +62,7 @@ describe('viewer', () => {
 describe('stock Mermaid', () => {
   it('receives the packs (the built-in set under tabler) once per pack set, before rendering', async () => {
     vi.resetModules();
-    const config = await import('../../src/config.js');
+    const config = { ...(await import('../../src/platform/config.js')), ...(await import('../../src/platform/mermaid.js')) };
     const calls: string[] = [];
     const registered: { name: string; icons?: unknown; loader?: () => Promise<unknown> }[][] = [];
     const mermaid: MermaidLike = {

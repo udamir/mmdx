@@ -6,7 +6,8 @@
 import { memoryThemeStore } from '../adapters/themes.js';
 import { Owner } from '../reactive/owner.js';
 import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
-import { ensureBuiltinThemes, getShared, instanceContext } from '../config.js';
+import { getShared, instanceContext } from '../platform/config.js';
+import { ensureBuiltinThemes } from '../platform/themes.js';
 import type { CoreContext } from '../core/context.js';
 import { THEME_SECTIONS } from '../core/schema/style-fields.js';
 import { BUILTIN_THEMES } from '../core/theme/builtin.js';

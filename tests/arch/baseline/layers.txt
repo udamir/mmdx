@@ -1,7 +1,5 @@
 # Layer violations — baseline of today's violations (2026-11-11, e726eb1); may only shrink. See tools/check-layers.mjs.
 # core/media/kit.ts → kit-impl.ts [type] stays: the lazy kit's type is its implementation's (`typeof MEDIA_KIT`); an interface written by hand would repeat ten signatures.
-config.ts → adapters/themes.ts [type] (upward config → adapters)
-config.ts → dom/measure.ts [value] (upward config → dom)
 core/kinds/er.ts → core/render/er.ts [value] (ops/kinds → full renderer)
 core/kinds/flowchart.ts → core/render/flowchart.ts [value] (ops/kinds → full renderer)
 core/kinds/mindmap.ts → core/render/mindmap.ts [value] (ops/kinds → full renderer)

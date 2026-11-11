@@ -2,7 +2,7 @@
 // 300 lines, the diagram kind's parser and renderer and the shapes beyond the 17 loaded on demand), server-rendered SVG
 // adoption, the Mermaid fallback for unsupported types, the error card, and the reserved aspect ratio. Draws with the
 // kernel's theme and display settings.
-import { renderWithMermaid } from '../../config.js';
+import { renderWithMermaid } from '../../platform/mermaid.js';
 import { splitSource } from '../../core/meta/index.js';
 import { detectType } from '../../core/parse/dispatch.js';
 import { TOO_BIG_CODES } from '../../core/parse/limits.js';

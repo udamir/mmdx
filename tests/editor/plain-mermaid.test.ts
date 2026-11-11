@@ -5,8 +5,8 @@ import { DiagramEditor } from '../../src/editor/editor.js';
 import { documentModule, parseMermaidSvg } from '../../src/editor/modules/chrome/document.js';
 
 // stock Mermaid is not loaded in the tests: its render returns a small SVG saying which scheme it was asked for
-vi.mock('../../src/config.js', async (orig) => ({
-  ...(await orig<typeof import('../../src/config.js')>()),
+vi.mock('../../src/platform/mermaid.js', async (orig) => ({
+  ...(await orig<typeof import('../../src/platform/mermaid.js')>()),
   renderWithMermaid: vi.fn(async (_code: string, dark: boolean) => `<svg xmlns="http://www.w3.org/2000/svg" data-dark="${dark}"><rect width="5" height="5"/></svg>`),
 }));
 

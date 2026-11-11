@@ -7,7 +7,8 @@ import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.
 import type { ImageStore } from '../adapters/images.js';
 import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
 import { fetchThemeSource, localStorageThemeStore, type ThemeSource } from '../adapters/themes.js';
-import { ensureBuiltinThemes, getShared } from '../config.js';
+import { getShared } from '../platform/config.js';
+import { ensureBuiltinThemes } from '../platform/themes.js';
 import { defineEditor, type DiagramEditor, type MmdxEditorElement } from '../editor/editor.js';
 import { readDocumentFiles } from '../editor/modules/chrome/document.js';
 import { download } from '../dom/export.js';

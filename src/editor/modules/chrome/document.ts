@@ -4,7 +4,8 @@
 // leaves out: metadata images and shapes, T10 §4.6), the Plain Mermaid compare modal, Auto layout and
 // opening files (`features.open`: picker and drag-and-drop; `.mmdx`, `.mmd`, `.md` first mermaid block, `.txt`, `.json`
 // legacy sidecar). Every export first dispatches a cancelable `mmdx-export` event ({ kind, name, data }).
-import { getShared, renderWithMermaid } from '../../../config.js';
+import { getShared } from '../../../platform/config.js';
+import { renderWithMermaid } from '../../../platform/mermaid.js';
 import { mmdxOnlyContent, toPortableMermaid, type MmdxOnly } from '../../../core/export/portable.js';
 import { joinSource, mergeLegacySidecar, pruneMeta } from '../../../core/meta/index.js';
 import { usedIds } from '../../../core/ops/ids.js';

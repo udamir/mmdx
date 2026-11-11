@@ -9,7 +9,7 @@ import { fetchText } from '../adapters/fetch-text.js';
 import type { ThemeSource } from '../adapters/themes.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import type { StorageAdapter } from '../adapters/storage.js';
-import { getShared } from '../config.js';
+import { getShared } from '../platform/config.js';
 import type { CoreContext } from '../core/context.js';
 import type { IconPack } from '../core/icons/types.js';
 import { splitSource } from '../core/meta/index.js';

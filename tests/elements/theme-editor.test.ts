@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { memoryThemeStore, type ThemeStore } from '../../src/adapters/themes.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
-import { getShared } from '../../src/config.js';
+import { getShared } from '../../src/platform/config.js';
 import { BUILTIN_THEMES } from '../../src/core/theme/builtin.js';
 import type { ThemeFile } from '../../src/core/theme/types.js';
 import { contrastRatio, defineThemeEditor, type MmdxThemeEditorElement } from '../../src/elements/theme-editor.js';

@@ -8,7 +8,7 @@
 // rendering and export half of elements/diff.ts.
 // Every load starts a generation: a list, a page, a source, a render or a change count that arrives for an older one is dropped.
 import { contentId, staticHistory, type HistoryAdapter, type StaticVersion } from '../adapters/history.js';
-import { getShared } from '../config.js';
+import { getShared } from '../platform/config.js';
 import type { CoreContext } from '../core/context.js';
 import type { DiffView } from '../core/diff/annotate.js';
 import { diffDiagramsWith, type ChangeFacet, type DiagramDiff as DiffResult, type DiffIgnore, type ItemChange } from '../core/diff/index.js';
