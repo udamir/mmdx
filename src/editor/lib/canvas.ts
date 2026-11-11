@@ -9,7 +9,7 @@ import type { EditorCore, Sel } from '../core.js';
 import { withEdit } from '../kinds/registry.js';
 
 /** Connector kinds: flowchart edges, ER relationships and sequence messages. */
-export const LINE_KINDS: ReadonlySet<ItemKind> = new Set(['edge', 'rel', 'message']);
+export { LINE_KINDS } from '../../core/item-caps.js';
 
 /** Box kinds connectors attach to: flowchart nodes, ER tables and sequence participants. */
 export const CONNECTOR_ENDS: ReadonlySet<ItemKind> = new Set(['node', 'entity', 'participant']);

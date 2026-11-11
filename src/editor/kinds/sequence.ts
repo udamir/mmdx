@@ -209,9 +209,6 @@ export const EDIT: EditKind<SequenceModel, SequenceGeometry> = {
     const url = typeof icon === 'string' && icon.trim() && !icon.trim().startsWith('@') ? icon.trim() : null;
     return metaItemMedia(own ?? (url ? { img: url } : null));
   },
-  setIcon: () => null,
-  setImage: () => null,
-  setMedia: () => null,
   mediaNodesInMeta: true,
   codeArrow(core, M, ref) {
     if (ref.kind !== 'message') return null;

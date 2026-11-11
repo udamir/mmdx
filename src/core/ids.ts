@@ -2,7 +2,6 @@
 // render/sequence.js and in edit.js). The sequence parser numbers messages, notes, blocks and boxes in source order;
 // activations (processes) are numbered per participant in the order they open: `B:1`, `B:2`…
 import type { SequenceModel } from './model.js';
-import type { ItemKind } from './types.js';
 
 const activationId = (participant: string, n: number): string => `${participant}:${n}`;
 
@@ -11,7 +10,7 @@ const activationId = (participant: string, n: number): string => `${participant}
  * activations per participant in the order they open — an edit above one moves its id to another item, so its
  * metadata follows the code change (ops/remap) instead of being kept or deleted by id.
  */
-export const POSITIONAL_KINDS: ReadonlySet<ItemKind> = new Set(['message', 'note', 'block', 'box', 'activation']);
+export { POSITIONAL_KINDS } from './item-caps.js';
 
 /** `B:2` → { participant: 'B', n: 2 } (participant ids may themselves contain `:`). */
 export function parseActivationId(id: string): { participant: string; n: number } | null {

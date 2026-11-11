@@ -10,7 +10,7 @@ import { registerMessages } from '../../../../i18n.js';
 import { EDITOR_MEDIA_MESSAGES } from '../../../messages-media.js';
 import { editKind } from '../../../kinds/registry.js';
 import type { ItemMedia, MediaPatch } from '../../../kinds/types.js';
-import { mediaOf, setIconOf, setImageFit, setImageOf, setMediaOf } from '../../../ops/media.js';
+import { mediaOf, setIconOf, setImageFit, setImageOf, setMediaOf, takesImages, takesMedia } from '../../../ops/media.js';
 import { row, sect, type PanelCtx } from './shared.js';
 import { isFaPack, splitIconName } from '../../../../core/icons/names.js';
 
@@ -60,7 +60,7 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
   if (!k || !m) return;
   if (m.node) return nodeMedia(p, host, ref, m);
   // a label's icon token on a flowchart's plain shape (which takes no icon of its own): it can become an icon node
-  if (m.canIcon === false && m.icon && k.setMedia) {
+  if (m.canIcon === false && m.icon && takesMedia(k)) {
     sect(host, t('props.icon'));
     if (!isFaPack(splitIconName(m.icon)[0])) host.append(h('div', { class: 'hint' }, t('props.iconTokenMmdx')));
     const conv = h('button', { type: 'button' }, t('props.toIconNode'));
@@ -68,7 +68,7 @@ export function mediaSection(p: PanelCtx, host: HTMLElement, ref: ItemRef): void
     host.append(row(t('props.icon'), h('code', { class: 'hint' }, m.icon), conv));
   }
   // a plain item takes an image (it becomes an image or icon node): Set image… opens the image tool and its four tabs
-  if (k.setImage && m.canImage) {
+  if (takesImages(k) && m.canImage) {
     sect(host, t('props.image'));
     const set = iconButton(I_image, t('props.setImage'), 'set');
     set.addEventListener('click', () => core.run('openImageTool', set, { insert: false }));

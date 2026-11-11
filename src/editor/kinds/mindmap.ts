@@ -105,9 +105,6 @@ export const EDIT: EditKind<MindmapModel, MindmapGeometry> = {
     const n = ref.kind === 'node' ? M.nodes.get(ref.id) : undefined;
     return n ? metaItemMedia(metaMediaSource(core.meta.nodes?.[n.id] ?? {})) : null;
   },
-  setIcon: () => null,
-  setImage: () => null,
-  setMedia: () => null,
   mediaNodesInMeta: true,
   // no connectors to route; colour by branch or by depth (frontmatter) and the layout (page) in Page properties
   straight: true,

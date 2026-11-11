@@ -4,6 +4,7 @@
 // toolbar or Properties; a picture pasted or dropped on the canvas goes to the host's `uploadImage`. Only the button and the shortcuts are eager: the pickers (the image tool with its Icon tab, the emoji picker)
 // are a lazy chunk (`./media.ts`), loaded the first time one opens. Text, icons, containers and connectors are made
 // inline (the Shapes menu's text block, the toolbar's and Properties' icon, ⌘G, a node's connection handles).
+import { takesImages } from '../../ops/media.js';
 import type { Point } from '../../../core/types.js';
 import { dockButton } from '../../../ui/blocks/tool-dock.js';
 import { s } from '../../../ui/kit/h.js';
@@ -29,7 +30,7 @@ export const loadMedia = (): Promise<MediaChunk> =>
   }));
 
 /** Does the kind's dock offer images? */
-const offersImage = (k: EditKind | undefined): boolean => !!(k?.addImage || k?.setImage);
+const offersImage = (k: EditKind | undefined): boolean => !!k?.addImage || takesImages(k);
 
 export const insertModule: EditorModule = {
   id: 'insert',

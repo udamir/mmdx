@@ -1,5 +1,6 @@
 // How items look (R9, task 5.7): style overrides (rows 38, 58, 59), Copy style (row 40) and presets (row 60). Pure:
 // (meta or style environment, …) → { meta }, the metadata cloned first.
+import { LINE_KINDS } from '../item-caps.js';
 import { classOf, COPY_KEYS as KEY_COPY } from '../meta/keys.js';
 import type { DiagramMeta } from '../meta/types.js';
 import { KIND_TO_COLL } from '../meta/types.js';
@@ -68,7 +69,6 @@ export function resetCurve(meta: DiagramMeta, { kind, id }: ItemRef): MetaResult
 // ---- copy style (row 40) ------------------------------------------------------------------------------------------
 
 const SHAPE_KINDS: ReadonlySet<ItemKind> = new Set(['node', 'group', 'entity', 'participant', 'note', 'block']);
-const LINE_KINDS: ReadonlySet<ItemKind> = new Set(['edge', 'rel', 'message']);
 /** Everything Copy style copies (meta/keys.ts `copy`): look only, never position, size or links. */
 export const COPY_KEYS: readonly string[] = KEY_COPY;
 const SHAPE_COMMON = ['fill', 'stroke', 'strokeWidth', 'dash', 'radius', 'stack', 'fillOpacity', 'strokeOpacity', 'fontFamily'];

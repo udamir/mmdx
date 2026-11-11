@@ -1,5 +1,6 @@
 // The button sets of the style toolbar per item kind (prototype KIND plus the order / layer / presets rearrangement
 // done at load), the bulk-edit variant of a kind's set, and the value lists its popovers offer.
+import { LINE_KINDS as ITEM_LINE_KINDS } from '../../../core/item-caps.js';
 import { PARTICIPANT_SHAPES as PARTICIPANTS, pickerShapes } from '../../../core/shapes/catalog.js';
 import type { KindSpec, ToolbarControl } from './types.js';
 
@@ -20,7 +21,7 @@ type MutableSpec = { groups: ToolbarControl[][] } & Omit<KindSpec, 'groups'>;
 const SINGLE_ONLY: ReadonlySet<ToolbarControl> = new Set(['order', 'editGroup', 'ungroup', 'source', 'media', 'actions']);
 
 /** Connector kinds: no box to align or group (two messages can still become a process). */
-const LINE_KINDS: ReadonlySet<string> = new Set(['edge', 'rel', 'message']);
+const LINE_KINDS: ReadonlySet<string> = ITEM_LINE_KINDS;
 
 /**
  * A kind's button set for several items of that kind (bulk edit): its own controls minus the single-item ones,

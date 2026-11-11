@@ -111,3 +111,15 @@ describe('META_KEYS: value types and the style sets (X6, task 4.1)', () => {
     expect('@accent~=200,0,+5'.match(COLOR_REL)?.slice(1)).toEqual(['accent', '=200', '0', '+5']);
   });
 });
+
+describe('ITEM_CAPS (A11b, R11)', () => {
+  it('the line, connector, positional and container kinds derive from one table', async () => {
+    const { ITEM_CAPS, LINE_KINDS, CONNECTOR_KINDS, POSITIONAL_KINDS, CONTAINER_KINDS } = await import('../../../src/core/item-caps.js');
+    const { ITEM_KINDS } = await import('../../../src/core/types.js');
+    expect(Object.keys(ITEM_CAPS).sort()).toEqual([...ITEM_KINDS].sort());
+    expect([...LINE_KINDS].sort()).toEqual(['edge', 'message', 'rel']);
+    expect([...CONNECTOR_KINDS].sort()).toEqual(['edge', 'rel']);
+    expect([...POSITIONAL_KINDS].sort()).toEqual(['activation', 'block', 'box', 'message', 'note']);
+    expect([...CONTAINER_KINDS].sort()).toEqual(['box', 'group']);
+  });
+});

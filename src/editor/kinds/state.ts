@@ -240,7 +240,6 @@ export const EDIT: EditKind<StateModel, StateGeometry> = {
   reconnect: (code, M, ref, which, target) => (ref.kind === 'edge' ? reconnectState(code, M, ref.id, which, target) : null),
   reconnected: (M, r) => [...M.edges].reverse().find((e) => e.from === r.from && e.to === r.to)?.id,
   // Mermaid has no shapes for states: one from the toolbar stays in metadata (mmdx only)
-  setShape: () => null,
   palette: {
     mode: 'menu',
     title: 'State diagram',
@@ -257,9 +256,6 @@ export const EDIT: EditKind<StateModel, StateGeometry> = {
     return n && n.kind === 'state' ? metaItemMedia(metaMediaSource(core.meta.nodes?.[n.id] ?? {})) : null;
   },
   // pictures, icons and their layout keys are metadata (mediaNodesInMeta): the editor writes them
-  setIcon: () => null,
-  setImage: () => null,
-  setMedia: () => null,
   mediaNodesInMeta: true,
   direction: (M) => M.direction,
   properties(core, M, ref) {

@@ -19,7 +19,7 @@ import type { ImageInfo } from '../../../ports.js';
 import { reduceImage, imageSize } from '../../../dom/downscale.js';
 import type { EditorCore } from '../../core.js';
 import { editKind, withEdit } from '../../kinds/registry.js';
-import { mediaOf, mediaTargets, setIconOf, setImageOf } from '../../ops/media.js';
+import { mediaOf, mediaTargets, setIconOf, setImageOf, takesIcons } from '../../ops/media.js';
 import { canvasCenter } from '../../lib/shape-drag.js';
 
 registerMessages(BLOCK_MESSAGES_MEDIA);
@@ -150,7 +150,7 @@ export function openImageTool(core: EditorCore, anchor: HTMLElement | null, o: {
   // an image may be an icon instead of a picture: the Icon tab sets the selected items' image to an icon (a plain item
   // becomes an icon node)
   const media = targets.map((r) => mediaOf(core, r));
-  const iconTargets = !insert && kind?.setIcon ? targets : [];
+  const iconTargets = !insert && takesIcons(kind) ? targets : [];
   const icons = iconTargets.length ? iconPicker(core, iconTargets) : null;
   // a tab of the image tool, not a dialog of its own
   icons?.el.setAttribute('role', 'group');

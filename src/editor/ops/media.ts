@@ -10,6 +10,13 @@ import { editKind, withEdit } from '../kinds/registry.js';
 import type { EditKind, ItemMedia, MediaPatch } from '../kinds/types.js';
 import { patchMetaMedia, setMetaIcon, setMetaImage } from '../../core/ops/meta-media.js';
 
+/** The type sets icons: in the code (`setIcon`) or in metadata (`mediaNodesInMeta`). */
+export const takesIcons = (k: EditKind | undefined): boolean => !!(k?.setIcon || k?.mediaNodesInMeta);
+/** The type sets images: in the code (`setImage`) or in metadata. */
+export const takesImages = (k: EditKind | undefined): boolean => !!(k?.setImage || k?.mediaNodesInMeta);
+/** The type changes an icon or image item's frame and size: in the code (`setMedia`) or in metadata. */
+export const takesMedia = (k: EditKind | undefined): boolean => !!(k?.setMedia || k?.mediaNodesInMeta);
+
 /** An item's icon and image (null: it takes neither, or its type has no media). */
 export function mediaOf(core: EditorCore, ref: ItemRef): ItemMedia | null {
   return withEdit(core.model, (k, m) => k.media?.(m, ref, core)) ?? null;
@@ -18,7 +25,7 @@ export function mediaOf(core: EditorCore, ref: ItemRef): ItemMedia | null {
 /** The selected items that take an icon (`icon`) or an image (`image`). */
 export function mediaTargets(core: EditorCore, what: 'icon' | 'image'): Sel[] {
   const k = editKind(core.model.type);
-  if (!k || (what === 'icon' ? !k.setIcon : !k.setImage)) return [];
+  if (!k || !(what === 'icon' ? takesIcons(k) : takesImages(k))) return [];
   return core.selection().filter((r) => {
     const m = mediaOf(core, r);
     return !!m && (what === 'icon' ? m.canIcon !== false : m.canImage);

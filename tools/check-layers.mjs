@@ -45,7 +45,7 @@ export function coreLayerOf(r) {
   if (r === 'media/kit-impl.ts') return 5;
   if (/^(kinds\/all[^/]*|pipeline|context|parse\/index|render\/index|diff\/all|all|extras)\.ts$/.test(r)) return 9;
   if (/^kinds\/(types|ops-types|diff-types|info|names|registry)\.ts$/.test(r) || r === 'summary.ts' || r.startsWith('kind/')) return 1;
-  if (/^(types|geom|own|style|validate|model|ids)\.ts$/.test(r) || /^(text|scene)\//.test(r) || /^[^/]+\/types\.ts$/.test(r)) return 0;
+  if (/^(types|geom|own|style|validate|model|ids|item-caps)\.ts$/.test(r) || /^(text|scene)\//.test(r) || /^[^/]+\/types\.ts$/.test(r)) return 0;
   if (/^(meta|theme|shapes|icons|media|schema)\//.test(r) || /^(context-base|layers|item-lines|starter)\.ts$/.test(r)) return 2;
   if (r.startsWith('parse/')) return 3;
   if (r.startsWith('layout/')) return 4;
