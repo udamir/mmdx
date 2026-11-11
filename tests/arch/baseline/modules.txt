@@ -19,8 +19,6 @@ editor/modules/chrome/toolbars.ts: bare core.on ×7
 editor/modules/chrome/toolbars.ts: kernel DOM ×1
 editor/modules/chrome/version-copy.ts: bare core.on ×4
 editor/modules/chrome/version-copy.ts: kernel DOM ×1
-editor/modules/connect/index.ts: bare core.on ×1
-editor/modules/connect/index.ts: kernel DOM ×1
 editor/modules/er-table/index.ts: kernel DOM ×1
 editor/modules/er-table/row-editor.ts: kernel DOM ×1
 editor/modules/insert/index.ts: kernel DOM ×3
