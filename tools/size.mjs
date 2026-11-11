@@ -106,7 +106,8 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
   // 148 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (147.6 kB measured)
   // 148.5 kB (148.1 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
   // 153.3 kB (152.9 kB measured) with the codebase audit's fixes (001 Phase 1–3: the metadata key registry, the parsers' step budget and line-indexed lexers, the elements' upgrade and inline-source handling, the History working copy, the hot paths' indexes and caches)
-  report('viewer + History opened', v.size(loaded) + v.size(new Set(hist)), 153.3 * KB);
+  // 153.7 kB (153.3 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
+  report('viewer + History opened', v.size(loaded) + v.size(new Set(hist)), 153.7 * KB);
 }
 // core includes the diff engine (diffs, merged model, annotations, reports, renderDiffToSvg)
 // editor: 180 kB once the editor loads diagram types on demand (T01.9: 178.2 kB without the code of the types not shown; every type's editor code is a chunk of its own, measured in the "editor (first <type>)" rows); 188.2 kB with the view kernel (187.7 kB after the kernel split, the blocks merge and the element lifecycle; 173.2 kB measured in phase 3; 184.3 kB summed per chunk once History loads the clipboard ops on demand, which splits them into chunks of their own: 177.9 kB as one stream, as before; 165 kB before the kernel), provisional like the viewer's
@@ -260,7 +261,8 @@ const rows = [
   // 90.6 kB (90.2 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
   // 94.9 kB (94.5 kB measured) with the codebase audit's fixes (001 Phase 1–3: the metadata key registry, the parsers' step budget and line-indexed lexers, the elements' upgrade and inline-source handling, the History working copy, the hot paths' indexes and caches)
   // 95.3 kB (94.9 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
-  ['viewer (first flowchart)', ['src/viewer.ts', FLOW], 95.3],
+  // 95.8 kB (95.4 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
+  ['viewer (first flowchart)', ['src/viewer.ts', FLOW], 95.8],
   // a flowchart that draws one of the shapes beyond the 17: their geometry loads before it renders (T02.9, 74.7 kB measured)
   // 75.8 kB with media in the scene (T03, 75.4 kB measured); 79 kB with the icon registry (T04, 78.6 kB measured)
   // 89.9 kB with flowchart content (T06, 89.5 kB measured: the chunk also holds the media kit)
@@ -272,7 +274,8 @@ const rows = [
   // 101.2 kB (100.8 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
   // 105.5 kB (105.1 kB measured) with the codebase audit's fixes (001 Phase 1–3: the metadata key registry, the parsers' step budget and line-indexed lexers, the elements' upgrade and inline-source handling, the History working copy, the hot paths' indexes and caches)
   // 106.1 kB (105.7 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
-  ['viewer (flowchart, more shapes)', ['src/viewer.ts', FLOW, SHAPES], 106.1],
+  // 106.6 kB (106.2 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
+  ['viewer (flowchart, more shapes)', ['src/viewer.ts', FLOW, SHAPES], 106.6],
   // the built-in icon set, a lazy chunk of its own (T04 §4.7: at most 25 kB)
   ['built-in icons (lazy chunk)', [BUILTIN_ICONS], 25],
   // the History button is in the tool dock, which loads with the `history` control (246.5 kB while History imported the editor's chunk); 143 kB with the shape catalogue (142.4 kB measured); 138.9 kB once the shapes beyond the 17 load on demand (T02.9, 138.5 kB measured)
@@ -285,7 +288,8 @@ const rows = [
   // 157.7 kB (157.3 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
   // 161.7 kB (161.3 kB measured) with the codebase audit's fixes (001 Phase 1–3: the metadata key registry, the parsers' step budget and line-indexed lexers, the elements' upgrade and inline-source handling, the History working copy, the hot paths' indexes and caches)
   // 162.6 kB (162.2 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
-  ['viewer + History opened', ['src/viewer.ts', FLOW, 'src/view/modules/tool-dock.ts', ...HISTORY, FLOW_DIFF], 162.6],
+  // 163.6 kB (163.2 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
+  ['viewer + History opened', ['src/viewer.ts', FLOW, 'src/view/modules/tool-dock.ts', ...HISTORY, FLOW_DIFF], 163.6],
   // the editor loads diagram types on demand (T01.9): 181 kB (178.8 kB measured; 194.6 kB before), the first document's type a chunk of its own; 191.6 kB with the shape catalogue (191.2 kB measured); 187.4 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 187 kB measured)
   // 188.4 kB with media in the scene (T03, 188 kB measured); 191.1 kB with the icon registry (T04, 190.7 kB measured)
   // 194.5 kB with the insert dock (T05, 194.1 kB measured: the dock's buttons, shortcuts and labels, the inline editor's emoji button, the media hooks of the toolbar and Properties; the pickers and the emoji data are lazy)
@@ -296,7 +300,8 @@ const rows = [
   // 205.5 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (205.1 kB measured)
   // 210.8 kB (210.4 kB measured) with the codebase audit's fixes (001 Phase 1–3: the metadata key registry, the parsers' step budget and line-indexed lexers, the elements' upgrade and inline-source handling, the History working copy, the hot paths' indexes and caches)
   // 211.4 kB (211.0 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
-  ['editor', ['src/editor.ts'], 211.4],
+  // 211.9 kB (211.5 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
+  ['editor', ['src/editor.ts'], 211.9],
   // 184.2 kB measured; 197.8 kB with the shape catalogue (197.3 kB measured); 198.2 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 197.8 kB measured: the same code as before, in more chunks, each compressed on its own)
   // 199.2 kB with media in the scene (T03, 198.8 kB measured); 201.9 kB with the icon registry (T04, 201.5 kB measured)
   // 206.9 kB with the insert dock (T05, 206.5 kB measured: the editor's part, and the flowchart's icon and image node ops and palette sections)
@@ -308,14 +313,16 @@ const rows = [
   // 237.3 kB (236.9 kB measured) with the codebase audit's fixes (001 Phase 1–3: the metadata key registry, the parsers' step budget and line-indexed lexers, the elements' upgrade and inline-source handling, the History working copy, the hot paths' indexes and caches)
   // 247.9 kB (247.5 kB measured) with core untangled (A2): the flowchart's editor kind imports core/extras.ts for the extended shapes and the media kit; before, the catalogue registered them from a shared chunk this closure did not reach (rollup's chunking; the consumer bundle's row moved +0.5 kB)
   // 248.8 kB (248.4 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
-  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart.ts'], 248.8],
+  // 249.3 kB (248.9 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
+  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart.ts'], 249.3],
   // the first mindmap (T08, 70.8 kB measured): the viewer and the mindmap's kind chunk (parser, tidy tree layout, renderer)
   // 72 kB with state diagrams (T09, 71.6 kB measured: the viewer's +0.5 kB)
   // 75.1 kB with media in every kind and the sequence and ER fixes (T10, T11, 74.7 kB measured)
   // 75.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (75.5 kB measured)
   // 78.3 kB (77.9 kB measured) with images in mindmaps and sequence diagrams as the flowchart's image node (render/media-node.ts in their chunks)
   // 81.7 kB (81.3 kB measured) with the codebase audit's fixes (001 Phase 1–3: the metadata key registry, the parsers' step budget and line-indexed lexers, the elements' upgrade and inline-source handling, the History working copy, the hot paths' indexes and caches)
-  ['viewer (first mindmap)', ['src/viewer.ts', kindChunk('mindmap')], 81.7],
+  // 82.3 kB (81.9 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
+  ['viewer (first mindmap)', ['src/viewer.ts', kindChunk('mindmap')], 82.3],
   // the first mindmap in the editor (T08, 225.7 kB measured): its kinds and the mindmap module's gestures
   // 227.9 kB with state diagrams (T09, 227.5 kB measured)
   // 232.7 kB with media in every kind and the sequence and ER fixes (T10, T11, 232.3 kB measured)
@@ -324,20 +331,23 @@ const rows = [
   // 238.8 kB (238.4 kB measured) with images in mindmaps and sequence diagrams as the flowchart's image node (render/media-node.ts in their chunks)
   // 243.8 kB (243.4 kB measured) with the codebase audit's fixes (001 Phase 1–3: the metadata key registry, the parsers' step budget and line-indexed lexers, the elements' upgrade and inline-source handling, the History working copy, the hot paths' indexes and caches)
   // 244.7 kB (244.3 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
-  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap.ts', 'src/editor/modules/mindmap/gestures.ts'], 244.7],
+  // 245.2 kB (244.8 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
+  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap.ts', 'src/editor/modules/mindmap/gestures.ts'], 245.2],
   // the first state diagram (T09, 85.6 kB measured): the viewer and the state's kind chunk (parser, compound layout, renderer, shapes)
   // 89.1 kB with media in every kind and the sequence and ER fixes (T10, T11, 88.7 kB measured)
   // 89.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (89.5 kB measured)
   // 92.2 kB (91.8 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
   // 96.9 kB (96.5 kB measured) with the codebase audit's fixes (001 Phase 1–3: the metadata key registry, the parsers' step budget and line-indexed lexers, the elements' upgrade and inline-source handling, the History working copy, the hot paths' indexes and caches)
-  ['viewer (first state)', ['src/viewer.ts', kindChunk('state')], 96.9],
+  // 97.4 kB (97.0 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
+  ['viewer (first state)', ['src/viewer.ts', kindChunk('state')], 97.4],
   // the first state diagram in the editor (T09, 238.2 kB measured): its view, ops and edit kinds
   // 245.2 kB with media in every kind and the sequence and ER fixes (T10, T11, 244.8 kB measured)
   // 248.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (248.5 kB measured)
   // 251.1 kB (250.7 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
   // 257 kB (256.6 kB measured) with the codebase audit's fixes (001 Phase 1–3: the metadata key registry, the parsers' step budget and line-indexed lexers, the elements' upgrade and inline-source handling, the History working copy, the hot paths' indexes and caches)
   // 257.8 kB (257.4 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
-  ['editor (first state)', ['src/editor.ts', 'src/editor/kinds/state.ts'], 257.8],
+  // 258.4 kB (258.0 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
+  ['editor (first state)', ['src/editor.ts', 'src/editor/kinds/state.ts'], 258.4],
   // the English emoji data (T05 §4.5: at most 30 kB), a lazy chunk of its own
   ['emoji data, English (lazy chunk)', ['src/emoji/en.ts'], 30],
   // 240.2 kB with the shape catalogue (239.7 kB measured); 236.2 kB once the shapes beyond the 17 load on demand (T02.9, 235.8 kB measured)
@@ -350,7 +360,8 @@ const rows = [
   // 254.6 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (254.2 kB measured)
   // 259.3 kB (258.9 kB measured) with the codebase audit's fixes (001 Phase 1–3: the metadata key registry, the parsers' step budget and line-indexed lexers, the elements' upgrade and inline-source handling, the History working copy, the hot paths' indexes and caches)
   // 259.8 kB (259.4 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
-  ['editor + History opened', ['src/editor.ts', ...HISTORY], 259.8],
+  // 260.8 kB (260.4 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
+  ['editor + History opened', ['src/editor.ts', ...HISTORY], 260.8],
   // 125.2 kB while the entry re-exported the all-kinds diff
   // 92.5 kB once the per-type diffs left the entry for the diff kinds (90.9 kB measured); 94.6 kB before; 91.5 kB with the shapes on demand (T02.9, 91.1 kB measured)
   // 92.5 kB with media in the scene (T03, 92.1 kB measured); 95.1 kB with the icon registry (T04, 94.7 kB measured)
@@ -371,7 +382,8 @@ const rows = [
   // 141.7 kB (141.3 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
   // 145.6 kB (145.2 kB measured) with the codebase audit's fixes (001 Phase 1–3: the metadata key registry, the parsers' step budget and line-indexed lexers, the elements' upgrade and inline-source handling, the History working copy, the hot paths' indexes and caches)
   // 146.1 kB (145.7 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
-  ['diff (first flowchart)', ['src/diff.ts', FLOW, FLOW_DIFF, 'src/diff/modules/panels.ts'], 146.1],
+  // 147.1 kB (146.7 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
+  ['diff (first flowchart)', ['src/diff.ts', FLOW, FLOW_DIFF, 'src/diff/modules/panels.ts'], 147.1],
   // 65.8 kB with the kind descriptor: the same code in more, smaller chunks (one per kind and layer), each compressed on its own (54.6 kB as one esbuild stream); 63 kB before; 76.8 kB with the shape catalogue (76.4 kB measured); 77 kB with the shapes beyond the 17 in chunks of their own (T02.9, 76.6 kB measured: the name table and the geometry apart)
   // 78.5 kB with media in the scene (T03, 78.1 kB measured: the image policy check, `safeImageUrl` / `checkImageUrl`, is exported)
   // 84.1 kB with the icon registry (T04, 83.7 kB measured: the registry, `createIconRegistry` with its decoder for synchronous lookups on the server, `iconNamesOf`)

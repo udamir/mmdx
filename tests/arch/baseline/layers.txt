@@ -6,8 +6,6 @@ core/kinds/mindmap.ts → core/render/mindmap.ts [value] (ops/kinds → full ren
 core/kinds/sequence.ts → core/render/sequence.ts [value] (ops/kinds → full renderer)
 core/kinds/state.ts → core/render/state.ts [value] (ops/kinds → full renderer)
 core/media/kit.ts → core/media/kit-impl.ts [type] (upward core C2 → C5)
-core/theme/baseline.ts → ../themes/default-light.theme.json [value] (upward core → entry)
-core/theme/builtin-extra.ts → ../themes/default-dark.theme.json [value] (upward core → entry)
 editor/core.ts → diff/history.ts [dynamic] (product → product editor → diff)
 editor/editor.ts → elements/base.ts [value] (upward editor → elements)
 editor/kinds/er.ts → editor/modules/shapes/drop.ts [value] (editor kinds → editor module)

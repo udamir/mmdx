@@ -1,5 +1,6 @@
-// The themes shipped in themes/*.theme.json, bundled so a registry works without any loading.
-// The JSON is typed loosely by the compiler; the registry validates every file on register anyway.
+// The themes shipped in themes/*.theme.json, bundled so a registry works without any loading. Core bundles them as
+// typed modules generated from the JSON (data/*.ts, tools/build-theme-data.mjs); the registry validates every file on
+// register anyway.
 import { BASELINE_THEME } from './baseline.js';
 import { EXTRA_THEMES } from './builtin-extra.js';
 import { ThemeRegistry } from './registry.js';
