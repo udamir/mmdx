@@ -70,4 +70,53 @@ describe('EditorModuleApi', () => {
     expect(paint).not.toHaveBeenCalled();
     e.destroy();
   });
+
+  it('the guide\'s examples (docs/guide/editor-modules.md) install and run', () => {
+    const wordCount: HostModule = {
+      id: 'host-word-count',
+      install(scope) {
+        const core = scope.core;
+        const badge = document.createElement('span');
+        scope.slot('bottom-right').append(badge);
+        const update = (): void => {
+          badge.textContent = `${core.code.split(/\s+/).filter(Boolean).length} words`;
+        };
+        scope.on('model', update);
+        update();
+      },
+    };
+    const ring: HostModule = {
+      id: 'host-ring',
+      install(scope) {
+        const core = scope.core;
+        scope.painter({
+          id: 'host-ring',
+          order: 90,
+          paint(k) {
+            const s = core.primary(), g = core.geom;
+            const b = s?.kind === 'node' && g.type === 'flowchart' ? g.nodes.get(s.id) : undefined;
+            if (!b) return [];
+            return [{ t: 'circle', attrs: { class: 'host-ring', cx: b.x, cy: b.y, r: Math.max(b.w, b.h) / 2 + 8 / k, 'stroke-width': 1.5 / k } }];
+          },
+        });
+        scope.gesture({
+          id: 'host-stamp',
+          priority: 55,
+          down(ev, hit) {
+            if (core.mode.peek() !== 'edit' || !ev.altKey || !hit.item) return null;
+            return { move() {}, click: () => core.toast(`${hit.item!.kind} ${hit.item!.id}`) };
+          },
+        });
+      },
+    };
+    const host = document.createElement('div');
+    document.body.append(host);
+    const e = new DiagramEditor(host, { value: 'flowchart LR\n  a --> b', storage: memoryStorage(), modules: [...DEFAULT_MODULES, wordCount, ring] });
+    expect(e.core.root.textContent).toContain('5 words');
+    e.core.select([{ kind: 'node', id: 'a' }]);
+    e.core.drawOverlay();
+    expect(e.core.dom.overlay.querySelector('.host-ring')).toBeTruthy();
+    e.destroy();
+  });
 });
+

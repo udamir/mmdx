@@ -137,6 +137,7 @@ export default defineConfig({
             { text: 'Security', link: '/guide/security' },
             { text: 'Browser support and limits', link: '/guide/browser-support' },
             { text: 'Architecture', link: '/guide/architecture' },
+            { text: 'Extending the editor', link: '/guide/editor-modules' },
             { text: 'Contributing', link: '/guide/contributing' },
           ],
         },

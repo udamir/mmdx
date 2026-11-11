@@ -74,7 +74,7 @@ Modules never reach into one another; they talk through the kernel's typed event
 | Editor | `DEFAULT_MODULES` (`@mmdx/studio/editor`): ER table editing, canvas gestures, connectors, sequence editing, shapes, layout, panels, chrome; most are suspended outside the `document` stage |
 | Diff | `diffModules(scene, …)` (`@mmdx/studio/diff`): panel stacks, the diff bar, versions, code diff, change list, zoom bar, tool dock, pan, pen, view parameters, export… |
 
-The editor's `modules` property replaces its module list. A host's module is an `EditorModule` (`ViewModule<EditorModuleApi>`): its scope's `core` is the editor core as modules see it — the document and its edits, the selection, the view, the kernel's state, events and actions, the overlay and gesture hooks. The core itself (`EditorCore`) is internal.
+The editor's `modules` property replaces its module list. A host's module is an `EditorModule` (`ViewModule<EditorModuleApi>`): its scope's `core` is the editor core as modules see it — the document and its edits, the selection, the view, the kernel's state, events and actions, the overlay and gesture hooks (`scope.gesture`, `scope.painter`). The core itself (`EditorCore`) is internal; its parts are services in `src/editor/services` (input, selection, UI state, the group tree, kind loading, the version shown, the host's services, document sync). See [Extending the editor](./editor-modules).
 
 ## Scenes
 
@@ -91,7 +91,7 @@ History pushes a `DiffScene` over the document's scene and pops it on Back; the 
 ## Products
 
 - **The viewer** is the kernel with a `TextScene` and `VIEWER_MODULES`.
-- **The editor**'s `EditorCore` extends the kernel with a document store (`DocStore`: source snapshots, the derived model, undo history with transactions), a `StoreScene`, gestures and overlay painters.
+- **The editor**'s `EditorCore` extends the kernel with a document store (`DocStore`: source snapshots, the derived model, undo history with transactions), a `StoreScene` (it renders the document and paints it, its selection marks and the overlay painters), gestures and its services.
 - **`<mmdx-diff>`** is the kernel with a `DiffScene` over a `DiffSession` (the version source, the pair, filters, the rendered diff, the selection and the view).
 - **History** runs inside the viewer and the editor: its version panel joins their panels; an old version is the editor's `version` stage (its own scene draws the version read-only, nothing writes the store); a comparison is the `history` stage, a `DiffScene` pushed onto their own canvas in their own look. What a product offers it — its own version scene, Restore, an item clipboard — is the `HistoryHost` port (`src/view/history.ts`), which the editor sets; the viewer has none and History brings its own scene. Its code loads on first use.
 - **The theme editor and the studio** are built on the component shell, without a scene kernel: the theme editor draws its previews itself, the studio hosts an editor.
@@ -126,7 +126,7 @@ The editor loads a type's view, ops and edit kinds in one chunk the first time a
 | `src/ui` | `ui/kit` (primitives, tokens), `ui/blocks` (the shared UI blocks), `ui/diagram` (toolbars, previews, the code editor), and the blocks' strings |
 | `src/view` | The view kernel (`ViewCore`), keymap, module host, scene sources, the standard view modules, the viewer's messages and styles |
 | `src/diff` | The diff session, scene and modules (`<mmdx-diff>` and History), its messages and styles |
-| `src/editor` | The editor core (on the kernel), its store scene and its feature modules, its messages and styles |
+| `src/editor` | The editor core (on the kernel), its services (`services/`), its store scene, the helpers its modules share (`lib/`), its feature modules, its messages and styles |
 | `src/theme-editor` | The theme editor, its messages and styles |
 | `src/elements` | The web components |
 | `src/adapters`, `src/markdown`, `src/wrappers` | Host adapters, Markdown plugins, React wrappers |
