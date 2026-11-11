@@ -2,6 +2,7 @@
 // same source twice in a row is one version), and an example's bundled history (its history file, fetched once) — the
 // History the editor shows for it.
 import { contentId, type StaticVersion } from '../adapters/history.js';
+import { okFetch } from '../adapters/http.js';
 import type { HistoryAdapter, StorageAdapter } from '../ports.js';
 
 const VERSIONS_KEY = 'studio.versions';
@@ -28,8 +29,7 @@ export class StudioVersions {
     if (!ex.history) return Promise.resolve([]);
     let p = this.histories.get(ex.history);
     if (!p) {
-      p = fetch(ex.history).then(async (r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      p = okFetch(ex.history).then(async (r) => {
         const m = (await r.json()) as { versions?: unknown };
         return (Array.isArray(m.versions) ? m.versions : []).filter((v): v is StaticVersion =>
           !!v && typeof v === 'object' && typeof (v as StaticVersion).id === 'string' && typeof (v as StaticVersion).source === 'string');

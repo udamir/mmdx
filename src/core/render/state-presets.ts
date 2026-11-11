@@ -6,6 +6,7 @@ import type { StateEdge, StateGroup, StateNode, StateNote } from '../model.js';
 import type { StyleProps } from '../style.js';
 import type { ResolvedTheme } from '../theme/types.js';
 import { presetOf, presets } from './common.js';
+import { ownPreset } from './graph-kit.js';
 
 export interface StatePresets {
   node: Record<string, StyleProps>;
@@ -21,13 +22,12 @@ export const statePresets = (T: ResolvedTheme, meta: DiagramMeta): StatePresets 
   note: presets(T.state.notePresets, meta.styles['note']),
 });
 
-const own = (m: { preset?: unknown } | undefined): string => (typeof m?.preset === 'string' ? m.preset : '');
 
 /** The preset a state is drawn with ('' for none). */
-export const stateNodePreset = (n: StateNode, meta: DiagramMeta, P: StatePresets): string => own(meta.nodes?.[n.id]) || (n.classes.find((c) => presetOf(P.node, c)) ?? '');
+export const stateNodePreset = (n: StateNode, meta: DiagramMeta, P: StatePresets): string => ownPreset(meta.nodes?.[n.id]) || (n.classes.find((c) => presetOf(P.node, c)) ?? '');
 
 /** The preset a composite is drawn with ('' for none). */
-export const stateGroupPreset = (g: StateGroup, meta: DiagramMeta, P: StatePresets): string => own(meta.groups?.[g.id]) || (g.classes.find((c) => presetOf(P.group, c)) ?? '');
+export const stateGroupPreset = (g: StateGroup, meta: DiagramMeta, P: StatePresets): string => ownPreset(meta.groups?.[g.id]) || (g.classes.find((c) => presetOf(P.group, c)) ?? '');
 
-export const stateEdgePreset = (e: StateEdge, meta: DiagramMeta): string => own(meta.edges?.[e.id]);
-export const stateNotePreset = (n: StateNote, meta: DiagramMeta): string => own(meta.notes?.[n.id]);
+export const stateEdgePreset = (e: StateEdge, meta: DiagramMeta): string => ownPreset(meta.edges?.[e.id]);
+export const stateNotePreset = (n: StateNote, meta: DiagramMeta): string => ownPreset(meta.notes?.[n.id]);

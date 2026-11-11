@@ -1,11 +1,13 @@
 // DocumentAdapter (§8.2): how the editor loads and saves its document. The host implements it for its backend.
 import type { DocumentAdapter } from '../ports.js';
+import { okFetch } from './http.js';
+import { createSubscribers } from './subscribers.js';
 
 /** A document held in memory (tests, demos); `conflictOn` simulates a concurrent edit. */
 export function memoryDocumentAdapter(initial: string, name = 'diagram'): DocumentAdapter & { readonly current: string; setRemote(src: string): void } {
   let source = initial;
   let version = 1;
-  const subs = new Set<(s: string, v: string) => void>();
+  const subs = createSubscribers<[string, string]>();
   return {
     get current() {
       return source;
@@ -19,14 +21,11 @@ export function memoryDocumentAdapter(initial: string, name = 'diagram'): Docume
       version++;
       return { version: String(version) };
     },
-    subscribe(cb) {
-      subs.add(cb);
-      return () => subs.delete(cb);
-    },
+    subscribe: (cb) => subs.add(cb),
     setRemote(src) {
       source = src;
       version++;
-      for (const cb of subs) cb(source, String(version));
+      subs.notify(source, String(version));
     },
   };
 }
@@ -37,8 +36,7 @@ export function memoryDocumentAdapter(initial: string, name = 'diagram'): Docume
 export function httpDocumentAdapter(url: string, init: { headers?: Record<string, string>; credentials?: RequestCredentials } = {}): DocumentAdapter {
   const credentials = init.credentials ?? 'same-origin';
   const load = async (): Promise<{ source: string; version?: string }> => {
-    const r = await fetch(url, { credentials, headers: init.headers ?? {} });
-    if (!r.ok) throw new Error(`Load failed: HTTP ${r.status}`);
+    const r = await okFetch(url, { credentials, headers: init.headers ?? {} }, 'Load failed');
     const out: { source: string; version?: string } = { source: await r.text() };
     const etag = r.headers.get('ETag');
     if (etag) out.version = etag;

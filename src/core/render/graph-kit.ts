@@ -90,3 +90,6 @@ export function a11yOf(model: { readonly accTitle?: string; readonly accDescr?: 
   if (!model.accTitle && !model.accDescr) return undefined;
   return { ...(model.accTitle ? { title: model.accTitle } : {}), ...(model.accDescr ? { desc: model.accDescr } : {}) };
 }
+
+/** An item's own preset name in its metadata ('' when it has none or a bad value). */
+export const ownPreset = (m: { preset?: unknown } | undefined): string => (typeof m?.preset === 'string' ? m.preset : '');

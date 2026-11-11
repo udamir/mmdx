@@ -3,6 +3,7 @@
 // around its label box (`fit`) and says where the label goes (`textBox`). Shapes Mermaid draws without a label (bolts,
 // junctions, bars) keep their own size, and mmdx puts a label under them. Their names are in names.ts (the parser reads
 // them without this geometry, which the viewer loads on demand, T02.9).
+import { clamp } from '../geom.js';
 import { el, text } from '../scene/build.js';
 import type { SceneNode, SvgAttrs } from '../scene/types.js';
 import { box, detail, ink, P, paint, penShape } from './draw.js';
@@ -10,7 +11,6 @@ import { Pen } from './pen.js';
 import { CHOICE, FORK, FR_CIRC, NOTE, SM_CIRC } from './state.js';
 import type { ShapeBody } from './types.js';
 
-const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
 /** The sampled outline of a path-builder geometry (shapes drawn as SVG elements, whose outline is a path). */
 function sample(g: (p: Pen) => void): readonly { x: number; y: number }[] {

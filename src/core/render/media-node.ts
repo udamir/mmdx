@@ -2,6 +2,7 @@
 // its caption above or below. The flowchart reads them from Mermaid's node data (`@{ icon }`, `@{ img }`); the state
 // diagram, whose code has no such syntax, from the state's metadata (the same keys). One sizing, one connector rule and
 // one drawing, so the two types look and resize the same.
+import { clamp } from '../geom.js';
 import { shapeDef } from '../shapes/registry.js';
 import { onOutline } from '../shapes/outline.js';
 import type { ImageFit } from '../media/image.js';
@@ -110,7 +111,6 @@ export const assetBox = (N: CenterBox, M: MediaBox): { x: number; y: number; w: 
  */
 export function mediaPort(N: CenterBox, M: MediaBox, captioned: boolean, port: Port): Port {
   const f = { x: N.x, y: N.y + M.dy, w: M.fw, h: M.fh };
-  const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
   const vertical = Math.abs(port.n.y) > Math.abs(port.n.x);
   if (vertical && captioned && (port.n.y < 0) === M.top) return port;
   const p: Port = vertical

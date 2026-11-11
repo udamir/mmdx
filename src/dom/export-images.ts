@@ -4,7 +4,7 @@
 // be fetched (the image host sends no CORS headers, a timeout, too large, not an image) is replaced by the image
 // placeholder, and the caller reports how many. Loaded on demand by svgToPng, only for SVG with remote images.
 import { placeholderShapes } from '../core/media/placeholder.js';
-import { toBase64 } from './export.js';
+import { toBase64 } from './base64.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 

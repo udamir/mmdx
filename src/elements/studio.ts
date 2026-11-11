@@ -9,6 +9,7 @@ import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.
 import type { ImageStore } from '../ports.js';
 import { type StorageAdapter, type ThemeSource, type HistoryAdapter } from '../ports.js';
 import { fetchThemeSource, localStorageThemeStore } from '../adapters/themes.js';
+import { okFetch } from '../adapters/http.js';
 import { getShared } from '../platform/config.js';
 import { ensureBuiltinThemes } from '../platform/themes.js';
 import { type DiagramEditor } from '../editor/editor.js';
@@ -276,8 +277,8 @@ export class DiagramStudio {
     if (!this.o.examples) return;
     try {
       const base = new URL(this.o.examples, location.href);
-      const r = await fetch(base);
-      const m = (await r.json()) as { examples?: unknown };
+      // an error status: no examples (it was read as JSON before)
+      const m = (await (await okFetch(base)).json()) as { examples?: unknown };
       const list = Array.isArray(m.examples) ? m.examples : [];
       this.examples = list.filter((e): e is ExampleInfo => !!e && typeof e === 'object' && typeof (e as ExampleInfo).file === 'string')
         .map((e) => ({ ...e, id: e.id ?? e.file, title: e.title ?? e.file, file: new URL(e.file, base).href, ...(typeof e.history === 'string' ? { history: new URL(e.history, base).href } : {}) }));
@@ -320,9 +321,7 @@ export class DiagramStudio {
       const newest = (await this.versions.fetchHistory(ex))[0];
       let src = newest?.source;
       if (src === undefined) {
-        const r = await fetch(ex.file);
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        src = await r.text();
+        src = await (await okFetch(ex.file)).text();
       }
       // something else was opened while the example loaded: it stays
       if (this.destroyed || seq !== this.openSeq) return;

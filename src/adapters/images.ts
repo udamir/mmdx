@@ -3,13 +3,13 @@
 // by its record's `url` — a URL, or a host reference the `resolveUrl` hook maps to one — and the image policy checks it
 // as any image URL.
 import type { ImageInfo, ImageStore } from '../ports.js';
+import { toBase64 } from '../dom/base64.js';
+import { okFetch, pageOf, trimBase, withQuery } from './http.js';
+import { createSubscribers } from './subscribers.js';
 
 /** A `data:` URL of a blob (the memory store's pictures). */
 async function dataUrl(blob: Blob): Promise<string> {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let bin = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return `data:${blob.type || 'application/octet-stream'};base64,${btoa(bin)}`;
+  return `data:${blob.type || 'application/octet-stream'};base64,${toBase64(await blob.arrayBuffer())}`;
 }
 
 export interface MemoryImageStoreOptions {
@@ -22,12 +22,10 @@ export interface MemoryImageStoreOptions {
 /** An image store held in memory: `initial` pictures (newest first), files put are added in front. */
 export function memoryImageStore(initial: readonly ImageInfo[] = [], o: MemoryImageStoreOptions = {}): ImageStore {
   const images = [...initial];
-  const subs = new Set<() => void>();
+  const subs = createSubscribers();
   const size = Math.max(1, o.pageSize ?? 50);
   let n = images.length;
-  const changed = (): void => {
-    for (const cb of [...subs]) cb();
-  };
+  const changed = (): void => subs.notify();
   return {
     async list({ cursor, query } = {}) {
       const q = query?.trim().toLowerCase();
@@ -54,10 +52,7 @@ export function memoryImageStore(initial: readonly ImageInfo[] = [], o: MemoryIm
       const i = images.findIndex((x) => x.id === id);
       if (i >= 0) images.splice(i, 1), changed();
     },
-    subscribe(cb) {
-      subs.add(cb);
-      return () => subs.delete(cb);
-    },
+    subscribe: (cb) => subs.add(cb),
   };
 }
 
@@ -67,12 +62,8 @@ export function memoryImageStore(initial: readonly ImageInfo[] = [], o: MemoryIm
  * the stored picture's record; `DELETE url/<id>`.
  */
 export function httpImageStore(url: string, init: RequestInit = {}): ImageStore {
-  const base = url.replace(/\/+$/, '');
-  const call = async (u: string, more: RequestInit = {}): Promise<Response> => {
-    const r = await fetch(u, { credentials: 'same-origin', ...init, ...more });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return r;
-  };
+  const base = trimBase(url);
+  const call = (u: string, more: RequestInit = {}): Promise<Response> => okFetch(u, { credentials: 'same-origin', ...init, ...more });
   const one = async (r: Response): Promise<ImageInfo> => {
     const v = (await r.json()) as unknown;
     if (!isImage(v)) throw new Error('Not an image record');
@@ -80,11 +71,7 @@ export function httpImageStore(url: string, init: RequestInit = {}): ImageStore 
   };
   return {
     async list({ cursor, query } = {}) {
-      const qs = [cursor ? `cursor=${encodeURIComponent(cursor)}` : '', query ? `query=${encodeURIComponent(query)}` : ''].filter(Boolean).join('&');
-      const body = (await (await call(qs ? `${base}${base.includes('?') ? '&' : '?'}${qs}` : base)).json()) as unknown;
-      const raw = Array.isArray(body) ? body : (body as { images?: unknown }).images;
-      const images = (Array.isArray(raw) ? raw : []).filter(isImage).map(cleanImage);
-      const next = !Array.isArray(body) && typeof (body as { next?: unknown }).next === 'string' ? (body as { next: string }).next : undefined;
+      const { items: images, next } = pageOf((await (await call(withQuery(base, { cursor, query }))).json()) as unknown, 'images', isImage, cleanImage);
       return next ? { images, next } : { images };
     },
     async get(id) {

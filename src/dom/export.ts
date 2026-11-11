@@ -2,6 +2,7 @@
 // loaded only for diagrams that show one), and file downloads.
 import type { Diagnostic } from '../core/types.js';
 import type { I18n } from '../i18n.js';
+import { toBase64 } from './base64.js';
 
 const FAMILY = /^[\w\s.-]+$/;
 
@@ -29,13 +30,6 @@ async function fontFaceCss(fonts: Record<string, string | ArrayBuffer>, used: st
 function fontMime(buf: ArrayBuffer): string {
   const sig = String.fromCharCode(...new Uint8Array(buf.slice(0, 4)));
   return sig === 'wOF2' ? 'font/woff2' : sig === 'wOFF' ? 'font/woff' : sig === 'OTTO' ? 'font/otf' : 'font/ttf';
-}
-
-export function toBase64(buf: ArrayBuffer | Uint8Array): string {
-  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
-  let s = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(s);
 }
 
 /** Every font-family attribute value used in an SVG document string. */

@@ -7,6 +7,7 @@ import type { Entity, ErGroup, ErRel } from '../model.js';
 import type { StyleProps } from '../style.js';
 import type { ResolvedTheme } from '../theme/types.js';
 import { presetOf, presets } from './common.js';
+import { ownPreset } from './graph-kit.js';
 
 export interface ErPresets {
   entity: Record<string, StyleProps>;
@@ -23,16 +24,15 @@ export function erPresets(T: ResolvedTheme, meta: DiagramMeta): ErPresets {
   };
 }
 
-const own = (m: { preset?: unknown } | undefined): string => (typeof m?.preset === 'string' ? m.preset : '');
 
 /** The preset an entity is drawn with: its metadata's, else the first of its classes that names a preset ('' for none). */
-export const entityPreset = (e: Entity, meta: DiagramMeta, P: ErPresets): string => own(meta.entities?.[e.id]) || (e.classes.find((c) => presetOf(P.entity, c)) ?? '');
+export const entityPreset = (e: Entity, meta: DiagramMeta, P: ErPresets): string => ownPreset(meta.entities?.[e.id]) || (e.classes.find((c) => presetOf(P.entity, c)) ?? '');
 
 /** The preset a subgraph is drawn with: its metadata's, else a class naming one, else the flowchart's `box`. */
 export const erGroupPreset = (g: ErGroup, meta: DiagramMeta, P: ErPresets): string =>
-  own(meta.groups?.[g.id]) || (g.classes.find((c) => presetOf(P.group, c)) ?? (presetOf(P.group, 'box') ? 'box' : ''));
+  ownPreset(meta.groups?.[g.id]) || (g.classes.find((c) => presetOf(P.group, c)) ?? (presetOf(P.group, 'box') ? 'box' : ''));
 
-export const relPreset = (r: ErRel, meta: DiagramMeta): string => own(meta.rels?.[r.id]);
+export const relPreset = (r: ErRel, meta: DiagramMeta): string => ownPreset(meta.rels?.[r.id]);
 
 /** Built-in looks of an attribute; colours are theme palette references, so they follow theme switches. */
 export const ATTR_PRESETS: Readonly<Record<string, AttrHighlight>> = {
