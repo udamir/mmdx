@@ -8,7 +8,7 @@ import { align } from '../../../src/core/diff/kit.js';
 /** Best of three, in ms. */
 const time = (f: () => unknown): number => {
   let best = Infinity;
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 5; i++) {
     const t = performance.now();
     f();
     best = Math.min(best, performance.now() - t);
@@ -24,9 +24,9 @@ describe('diff scaling', () => {
   it('align is near-linear for an edited list and for a replaced one', () => {
     const list = (n: number, tag: string) => Array.from({ length: n }, (_, i) => ({ k: i % 7 === 0 ? `${tag}${i}` : `x${i}`, g: `g${i % 50}` }));
     const run = (n: number, tag: string) => () => align(list(n, 'a'), list(n, tag), (x) => x.k, (x) => x.g);
-    expect(ratio(run(2000, 'b'), run(8000, 'b'))).toBeLessThan(8);
+    expect(ratio(run(8000, 'b'), run(32000, 'b'))).toBeLessThan(8);
     const swap = (n: number) => () => align(list(n, 'a').map((x) => ({ ...x, k: 'a' + x.k })), list(n, 'b'), (x) => x.k, () => '');
-    expect(ratio(swap(2000), swap(8000))).toBeLessThan(8);
+    expect(ratio(swap(8000), swap(32000))).toBeLessThan(8);
   });
 
   it('align pairs a gap by group in order, the rest left on each side', () => {

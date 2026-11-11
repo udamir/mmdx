@@ -98,11 +98,15 @@ export function changedPresets(a: DiagramMeta, b: DiagramMeta, kind: string): Se
  * items).
  */
 function anchorsOf(a: readonly string[], b: readonly string[]): [number, number][] {
+  // a key the other list lacks is in no common subsequence: the diff runs on the keys that can match (a list
+  // replaced in full, or every seventh item edited, costs no edit steps)
+  const inA = new Set(a), inB = new Set(b);
+  const ia = a.flatMap((k, x) => (inB.has(k) ? [x] : [])), ib = b.flatMap((k, y) => (inA.has(k) ? [y] : []));
   const out: [number, number][] = [];
   let i = 0, j = 0;
-  for (const run of diffArrays(a, b)) {
+  for (const run of diffArrays(ia.map((x) => a[x]!), ib.map((y) => b[y]!))) {
     const n = run.items.length;
-    if (run.op === 'same') for (let k = 0; k < n; k++) out.push([i + k, j + k]);
+    if (run.op === 'same') for (let k = 0; k < n; k++) out.push([ia[i + k]!, ib[j + k]!]);
     if (run.op !== 'add') i += n;
     if (run.op !== 'del') j += n;
   }
