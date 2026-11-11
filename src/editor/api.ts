@@ -13,7 +13,7 @@ export type EditorModuleApi = Pick<
   | 'product' | 'host' | 'ctx' | 'i18n' | 'storage' | 'mode' | 'stage' | 'tool' | 'panels' | 'display' | 'scheme' | 'compact'
   | 'features' | 'toast' | 'emit' | 'on' | 'fire' | 'run' | 'has' | 'setPanel' | 'setTool' | 'setMode'
   // the document
-  | 'model' | 'code' | 'meta' | 'geom' | 'result' | 'applyCode' | 'setMeta' | 'undo' | 'redo' | 'begin' | 'commit' | 'rollback'
+  | 'model' | 'code' | 'meta' | 'docType' | 'geom' | 'result' | 'applyCode' | 'setMeta' | 'undo' | 'redo' | 'begin' | 'commit' | 'rollback'
   // the selection
   | 'selection' | 'select' | 'primary' | 'isSelected' | 'toggleSelected'
   // the view, the overlay and gestures

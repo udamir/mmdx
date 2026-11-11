@@ -127,8 +127,8 @@ export class DiagramEditor {
       ...(options.compact !== undefined ? { compact: options.compact } : {}),
       ...(options.wheel ? { wheel: options.wheel } : {}),
     });
-    this.core.uiState.uploadImage.set(options.uploadImage ?? null);
-    this.core.uiState.images.set(options.images ?? null);
+    this.core.hostServices.uploadImage.set(options.uploadImage ?? null);
+    this.core.hostServices.images.set(options.images ?? null);
     const core = this.core;
     const root = core.root;
     this.owner.add(() => core.destroy());
@@ -293,7 +293,7 @@ export class DiagramEditor {
     return this.core.uploadImage;
   }
   set uploadImage(f: ((file: File) => Promise<{ url: string }>) | null) {
-    this.core.uiState.uploadImage.set(typeof f === 'function' ? f : null);
+    this.core.hostServices.uploadImage.set(typeof f === 'function' ? f : null);
   }
 
   /** The host's image store (`EditorOptions.images`; null: no library). */
@@ -301,7 +301,7 @@ export class DiagramEditor {
     return this.core.images;
   }
   set images(s: ImageStore | null) {
-    this.core.uiState.images.set(s && typeof s.list === 'function' && typeof s.put === 'function' ? s : null);
+    this.core.hostServices.images.set(s && typeof s.list === 'function' && typeof s.put === 'function' ? s : null);
   }
 
   /** The base name of exports (no extension). */

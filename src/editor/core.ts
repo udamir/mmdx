@@ -10,15 +10,19 @@ import type { ImageStore, StorageAdapter, ThemeSource } from '../ports.js';
 import { UiState } from './services/ui-state.js';
 import { SelectionService } from './services/selection.js';
 import { InputService } from './services/input.js';
+import { KindLoader } from './services/kind-loader.js';
+import { VersionSource, type VersionView } from './services/version-source.js';
+import { HostServices } from './services/host-services.js';
+import { groupDescendants, groupTarget, insideGroup, parentOf } from './services/group-tree.js';
 import type { CoreContext } from '../core/context.js';
 import type { IconPack } from '../core/icons/types.js';
-import { normalizeMeta, splitSource, type DiagramDocument } from '../core/meta/index.js';
 import { KIND_TO_COLL, type DiagramMeta, type ItemMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
 import { own, ownOr } from '../core/own.js';
-import { opsKind, registeredKinds, withKind, withOps } from '../core/kinds/registry.js';
-import { reparse, detectType } from '../core/parse/dispatch.js';
+import { opsKind, registeredKinds, withOps } from '../core/kinds/registry.js';
+import { detectType } from '../core/parse/dispatch.js';
 import { editorHasKind, loadEditorKind } from './kinds/loader.js';
+import type { DiagramType } from '../core/types.js';
 import type { ClipboardData } from '../core/ops/clipboard.js';
 import { remapMeta } from '../core/ops/meta-ops.js';
 import { currentPreset, type StyleEnv } from '../core/ops/style-env.js';
@@ -32,15 +36,15 @@ import type { TextFormat, TextFormats } from './ops/format.js';
 import { HIGHLIGHT_CSS } from '../dom/highlight.js';
 import type { Viewport, WheelMode } from '../dom/viewport.js';
 import { Dialogs, DIALOG_CSS } from '../ui/kit/dialog.js';
-import { signal, type Signal } from '../reactive/signal.js';
+import { signal, type ReadSignal, type Signal } from '../reactive/signal.js';
 import { ALIASES } from '../ui/kit/base.js';
 import { EDITOR_CSS } from './styles.js';
 import { ViewCore } from '../view/core.js';
 import type { Mode, Tool, ViewActions, ViewEvents } from '../view/types.js';
 import { StoreScene } from './scene.js';
-import { itemExists, type ChangeReason, type DocStore } from './store.js';
+import type { ChangeReason, DocStore } from './store.js';
 
-export type { Mode, Tool };
+export type { Mode, Tool, VersionView };
 
 /** Feature flags (§8.2 `features`): every group of Appendix A rows can be turned off; all on by default. */
 export interface EditorFeatures {
@@ -71,14 +75,6 @@ export const DEFAULT_FEATURES: EditorFeatures = {
   pageToolbar: true, autoLayout: true, plainMermaid: true, open: false, themePicker: true, schemeToggle: true, export: true,
   exportFormats: ['mmdx', 'mmd', 'svg', 'png'], help: true, fullscreen: true, history: true,
 };
-
-/** An old version shown read-only in the editor's canvas (History): read and drawn instead of the store's document. */
-export interface VersionView {
-  id: string;
-  source: string;
-  doc: DiagramDocument;
-  model: DiagramModel;
-}
 
 /** What the inline text editor offers the toolbar: its selection's formats, and formatting it. */
 export interface TextEditSession {
@@ -232,18 +228,6 @@ export interface EditorCoreOptions {
 export type PanelName = 'code' | 'properties' | 'layers';
 export type EditorPanels = Readonly<Record<PanelName, boolean> & Record<string, boolean>>;
 
-/** Item key → the group it is directly in, per model (the view kind's containers of kind `group`). */
-const parentCache = new WeakMap<object, Map<string, string>>();
-function groupParents(model: DiagramModel): Map<string, string> {
-  let m = parentCache.get(model);
-  if (!m) {
-    m = new Map();
-    for (const [c, p] of withKind(model, (k, mm) => k.parents(mm)) ?? []) if (p.kind === 'group') m.set(`${c.kind}:${c.id}`, p.id);
-    parentCache.set(model, m);
-  }
-  return m;
-}
-
 /** The kernel's events plus the editor's own: the mode and the tool, the document's model, the selection, the overlay. */
 export interface EditorEvents extends ViewEvents {
   mode: void;
@@ -266,24 +250,25 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   readonly codeFilter = signal('');
   /** Problems in the Mermaid code and the metadata (code panel → canvas issue bar, badge on the Code tool). */
   readonly issueCount = signal(0);
+  /** What the host gives the editor (A10g): its image store and its upload of pictures. */
+  readonly hostServices = new HostServices();
   /**
    * The host's upload of a dropped, pasted or chosen picture (T05 `uploadImage`): resolves to the URL the image item
    * references (the editor never embeds files). Null: images are added by URL only.
    */
   get uploadImage(): ((file: File) => Promise<{ url: string }>) | null {
-    return this.uiState.uploadImage.peek();
+    return this.hostServices.uploadImage.peek();
   }
   /**
    * The host's image store (`EditorOptions.images`): the image tool's Library tab lists it, and uploads go to it
    * (before `uploadImage`). Null: no library.
    */
   get images(): ImageStore | null {
-    return this.uiState.images.peek();
+    return this.hostServices.images.peek();
   }
   /** Where an upload goes: the image store, else the host's `uploadImage` (null: images by URL only). */
   get upload(): ((file: File) => Promise<{ url: string }>) | null {
-    const store = this.images;
-    return store ? (file) => store.put(file, { name: file.name }) : this.uploadImage;
+    return this.hostServices.upload();
   }
   /** Base name for exports (no extension); files opened through `openFiles` set it. */
   get fileName(): string {
@@ -343,9 +328,46 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
    * An old version shown read-only (History, `showVersion`): the getters, the render and the selection read it instead
    * of the store, and nothing writes (changes, transactions, undo are refused) while it shows.
    */
-  readonly version: Signal<VersionView | null> = signal<VersionView | null>(null);
-  /** What showing a version put aside (the document's entered group and layer override), given back after it. */
-  private beforeVersion: { group: string | null; layers: readonly string[] | undefined } | null = null;
+  readonly versions: VersionSource = new VersionSource({
+    enteredGroup: this.enteredGroup,
+    pageSelected: this.pageSelected,
+    visibleLayers: this.visibleLayers,
+    setLayers: (ids) => this.visibleLayersState.set(ids),
+    stopEditing: () => {
+      this.cancelGesture();
+      this.uiState.inlineEditing.set(null);
+    },
+    needKind: (code) => this.kinds.need(code),
+    selections: this.selections,
+    shown: () => {
+      this.rendered = null;
+      this.draw();
+      this.fire('model');
+      this.fire('selection');
+      this.fire('panels');
+    },
+  });
+  get version(): ReadSignal<VersionView | null> {
+    return this.versions.view;
+  }
+  /** The kinds of the shown diagram types, loaded on demand (A10g; T01). */
+  readonly kinds: KindLoader = new KindLoader({
+    has: editorHasKind,
+    load: loadEditorKind,
+    live: () => this.host.isConnected,
+    loaded: (fit) => {
+      this.draw();
+      if (fit && this.scene === this.storeScene && !this.version.peek()) this.viewport.setBounds(this.result.result.bounds, { fit: true });
+      this.fire('model');
+      this.fire('panels');
+    },
+    failed: (e) => this.toast(`Could not load the editor for this diagram type: ${e instanceof Error ? e.message : String(e)}`, { error: true }),
+  });
+  /**
+   * The document's diagram type, from its code (known before its kinds load; null: not a diagram the editor knows). A
+   * module follows it instead of the `model` event, which does not fire when a kind was loaded before (B42).
+   */
+  readonly docType: ReadSignal<DiagramType | null>;
 
   private rendered: Rendered | null = null;
   private readonly gestures: GestureSource[] = [];
@@ -384,6 +406,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     });
     this.store = o.store;
     this.features = o.features;
+    this.docType = this.owner.computed(() => detectType(this.store.code()));
     this.dialogs = new Dialogs(this.shadow, this.i18n.t);
     this.toolState.set('pointer');
     this.panelsState.set({ code: true, properties: true, layers: true });
@@ -456,38 +479,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
    * and layer visibility are kept for when it is back; the view stays where it is.
    */
   showVersion(v: { id: string; source: string } | null): void {
-    const cur = this.version.peek();
-    if ((v?.id ?? null) === (cur?.id ?? null) && v?.source === cur?.source) return;
-    this.cancelGesture();
-    this.uiState.inlineEditing.set(null);
-    if (v) {
-      const split = splitSource(v.source);
-      const doc: DiagramDocument = { code: split.doc.code, meta: normalizeMeta(split.doc.meta) };
-      if (!cur) {
-        this.beforeVersion = { group: this.enteredGroup.peek(), layers: this.visibleLayers.peek() };
-        this.enteredGroup.set(null);
-        this.pageSelected.set(false);
-      }
-      // the same item stays selected from version to version while it is there
-      const model = reparse(doc.code);
-      this.needKind(doc.code);
-      this.selections.keepForVersion((r) => itemExists(model, r), !!cur);
-      this.version.set({ id: v.id, source: v.source, doc, model });
-    } else {
-      this.version.set(null);
-      this.selections.clearVersion();
-      const back = this.beforeVersion;
-      this.beforeVersion = null;
-      if (back) {
-        this.enteredGroup.set(back.group);
-        this.visibleLayersState.set(back.layers);
-      }
-    }
-    this.rendered = null;
-    this.draw();
-    this.fire('model');
-    this.fire('selection');
-    this.fire('panels');
+    this.versions.show(v);
   }
 
   /** The last render (scene, geometry, theme). */
@@ -566,7 +558,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     const v = this.version.peek();
     const doc = v?.doc ?? this.store.doc();
     const model = this.model;
-    this.needKind(doc.code);
+    this.kinds.need(doc.code);
     const opts: Parameters<typeof renderDocumentWith>[4] = {};
     if (this.mode.peek() === 'view' && !this.display.peek().labels) opts.hideLabels = true;
     opts.theme = this.shownTheme();
@@ -765,8 +757,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     this.draw();
     if (this.scene === this.storeScene && !this.version.peek() && (opts.fit !== false || before !== this.store.model.peek().type)) {
       this.viewport.setBounds(this.result.result.bounds, { fit: true });
-      const t = detectType(this.code);
-      this.fitWhenLoaded = !!t && !editorHasKind(t);
+      this.kinds.oweFit(this.code);
     }
     this.fire('model');
     this.fire('panels');
@@ -889,72 +880,29 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     this.drawOverlay();
   }
 
-  // ---- diagram kinds loaded on demand -------------------------------------------------------------------------------
-
-  /** A fit the view owes the document whose kind was still loading. */
-  private fitWhenLoaded = false;
-
-  /**
-   * Loads the kinds of the code's diagram type when they are not loaded yet (T01: the editor loads types on demand):
-   * meanwhile the document draws as not yet supported; once they arrive it is parsed again and redrawn.
-   */
-  private needKind(code: string): void {
-    const t = detectType(code);
-    if (!t || editorHasKind(t)) return;
-    void loadEditorKind(t).then(() => {
-      if (!this.host.isConnected && !this.kindWaiters.length) return;
-      this.draw();
-      if (this.fitWhenLoaded && this.scene === this.storeScene && !this.version.peek()) this.viewport.setBounds(this.result.result.bounds, { fit: true });
-      this.fitWhenLoaded = false;
-      this.fire('model');
-      this.fire('panels');
-      for (const f of this.kindWaiters.splice(0)) f();
-    }, (e: unknown) => {
-      this.toast(`Could not load the editor for this diagram type: ${e instanceof Error ? e.message : String(e)}`, { error: true });
-      for (const f of this.kindWaiters.splice(0)) f();
-    });
-  }
-
-  private readonly kindWaiters: (() => void)[] = [];
-
   /** Resolves once the kinds of the document's diagram type are loaded (at once when they are). */
   kindsReady(): Promise<void> {
-    const t = detectType(this.code);
-    if (!t || editorHasKind(t)) return Promise.resolve();
-    return new Promise((r) => {
-      this.kindWaiters.push(r);
-      this.needKind(this.code);
-    });
+    return this.kinds.ready(this.code);
   }
 
   // ---- group editing (Miro-like) ------------------------------------------------------------------------------------
 
   /** The group an item is directly in (null: none). */
   parentOf(it: ItemRef): string | null {
-    return groupParents(this.model).get(`${it.kind}:${it.id}`) ?? null;
+    return parentOf(this.model, it);
   }
 
   /** The outermost group around an item that a click selects (stops at lanes, locked groups and the entered group). */
   groupTarget(it: ItemRef, isLane: (gid: string) => boolean): string | null {
-    if (it.kind !== 'node' && it.kind !== 'group' && it.kind !== 'entity') return null;
-    const up = groupParents(this.model);
-    let best: string | null = null;
-    for (let g = this.parentOf(it), guard = 0; g && guard < 64; g = up.get(`group:${g}`) ?? null, guard++) {
-      if (g === this.enteredGroup.peek() || isLane(g)) break;
-      if (!this.getM('group', g).locked) best = g;
-    }
-    return best;
+    return groupTarget(this.model, it, { entered: this.enteredGroup.peek(), isLane, locked: (g) => !!this.getM('group', g).locked });
   }
 
   insideGroup(it: ItemRef, gid: string): boolean {
-    if (it.kind === 'group' && it.id === gid) return true;
-    const up = groupParents(this.model);
-    for (let g = this.parentOf(it), guard = 0; g && guard < 64; g = up.get(`group:${g}`) ?? null, guard++) if (g === gid) return true;
-    return false;
+    return insideGroup(this.model, it, gid);
   }
 
   groupDescendants(gid: string): { nodes: string[]; groups: string[]; leaf?: ItemKind } {
-    return withOps(this.model, (k, m) => k.descendants?.(m, gid)) ?? { nodes: [], groups: [] };
+    return groupDescendants(this.model, gid);
   }
 
   /** The diagram has no items yet (empty-canvas hint). */

@@ -139,7 +139,8 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
 // core 128.8, theme-editor 175.5, editor 216.4 and diff 95.2 kB with Stage 2's A7 (the kernel's owner methods, claim and contributeAll, the HistoryHost port)
 // core 128.8, theme-editor 176, editor 216.4 and diff 95.2 kB with Stage 2's A8 (the component shell)
 // core 128.8, theme-editor 176, editor 216.9 and diff 95.2 kB with Stage 2's A9 (the elements' schema and kernel options)
-for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor', 216.9], ['diff', 95.2]]) {
+// core 128.8, theme-editor 176, editor 217.6 and diff 95.2 kB A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
+for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor', 217.6], ['diff', 95.2]]) {
   const b = await bundle(entry);
   report(entry, b.size(b.base), budget * KB);
   if (entry === 'editor') {
@@ -161,7 +162,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 248.7 kB (248.3 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
     // 249.4 kB (249.0 kB measured) with Stage 2's A7 (the kernel's owner methods, claim and contributeAll, the HistoryHost port)
     // 249.9 kB (249.5 kB measured) with Stage 2's A9 (the elements' schema and kernel options)
-    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 249.9 * KB);
+    // 250.6 kB (250.2 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
+    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 250.6 * KB);
     {
       // a mindmap: its kinds and the mindmap module's gestures, both loaded with the first mindmap (T08: 228.3 kB measured; the view, ops and edit kinds with the geometry of bang and cloud and the media kit, which its edit kind registers as the flowchart's does, and the drag, handles and keys of the outline)
       const kind = lazy(b, 'src/editor/kinds/mindmap.ts', b.base);
@@ -177,7 +179,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
       // 249 kB (248.6 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
       // 249.7 kB (249.3 kB measured) with Stage 2's A7 (the kernel's owner methods, claim and contributeAll, the HistoryHost port)
       // 250.2 kB (249.8 kB measured) with Stage 2's A9 (the elements' schema and kernel options)
-      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 250.2 * KB);
+      // 250.9 kB (250.5 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
+      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 250.9 * KB);
     }
     // a state diagram: its view, ops and edit kinds in one chunk loaded with the first state diagram (T09: 240.5 kB measured; the parser, compound layout, renderer, state shapes, ops, palette and Properties controls)
     // 249.4 kB with media in every kind and the sequence and ER fixes (T10, T11: 249 kB measured)
@@ -189,7 +192,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 262 kB (261.6 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
     // 262.7 kB (262.3 kB measured) with Stage 2's A7 (the kernel's owner methods, claim and contributeAll, the HistoryHost port)
     // 263.2 kB (262.8 kB measured) with Stage 2's A9 (the elements' schema and kernel options)
-    report('editor (first state)', b.size(b.base) + b.size(lazy(b, 'src/editor/kinds/state.ts', b.base)), 263.2 * KB);
+    // 264 kB (263.6 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
+    report('editor (first state)', b.size(b.base) + b.size(lazy(b, 'src/editor/kinds/state.ts', b.base)), 264 * KB);
     // the insert dock's lazy chunks (T05): the pickers (icon picker, image tool, emoji picker and their glue), the shape palette block, the Connector and Container tools, the English emoji data (§4.5: at most 30 kB)
     const loaded = new Set([...b.base, ...lazy(b, 'src/editor/kinds/flowchart.ts', b.base)]);
     // 13.2 kB with the image tool's Icon tab, the overlay scrollbars of its grids and its place by the toolbar (12.8 kB measured)
@@ -209,7 +213,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 258.9 kB (258.5 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
     // 259.3 kB (258.9 kB measured) with Stage 2's A6 (the module host's replaces, default providers and sheets given back)
     // 259.8 kB (259.4 kB measured) with Stage 2's A8 (the component shell)
-    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 259.8 * KB);
+    // 260.8 kB (260.4 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
+    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 260.8 * KB);
   }
 }
 
@@ -325,7 +330,8 @@ const rows = [
   // 211.4 kB (211.0 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
   // 211.9 kB (211.5 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
   // 212.6 kB (212.2 kB measured) with Stage 2's A7 (the kernel's owner methods, claim and contributeAll, the HistoryHost port)
-  ['editor', ['src/editor.ts'], 212.6],
+  // 213.8 kB (213.4 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
+  ['editor', ['src/editor.ts'], 213.8],
   // 184.2 kB measured; 197.8 kB with the shape catalogue (197.3 kB measured); 198.2 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 197.8 kB measured: the same code as before, in more chunks, each compressed on its own)
   // 199.2 kB with media in the scene (T03, 198.8 kB measured); 201.9 kB with the icon registry (T04, 201.5 kB measured)
   // 206.9 kB with the insert dock (T05, 206.5 kB measured: the editor's part, and the flowchart's icon and image node ops and palette sections)
@@ -339,7 +345,8 @@ const rows = [
   // 248.8 kB (248.4 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
   // 249.3 kB (248.9 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
   // 250 kB (249.6 kB measured) with Stage 2's A7 (the kernel's owner methods, claim and contributeAll, the HistoryHost port)
-  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart.ts'], 250],
+  // 251.2 kB (250.8 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
+  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart.ts'], 251.2],
   // the first mindmap (T08, 70.8 kB measured): the viewer and the mindmap's kind chunk (parser, tidy tree layout, renderer)
   // 72 kB with state diagrams (T09, 71.6 kB measured: the viewer's +0.5 kB)
   // 75.1 kB with media in every kind and the sequence and ER fixes (T10, T11, 74.7 kB measured)
@@ -360,7 +367,8 @@ const rows = [
   // 244.7 kB (244.3 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
   // 245.2 kB (244.8 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
   // 245.9 kB (245.5 kB measured) with Stage 2's A7 (the kernel's owner methods, claim and contributeAll, the HistoryHost port)
-  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap.ts', 'src/editor/modules/mindmap/gestures.ts'], 245.9],
+  // 247.1 kB (246.7 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
+  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap.ts', 'src/editor/modules/mindmap/gestures.ts'], 247.1],
   // the first state diagram (T09, 85.6 kB measured): the viewer and the state's kind chunk (parser, compound layout, renderer, shapes)
   // 89.1 kB with media in every kind and the sequence and ER fixes (T10, T11, 88.7 kB measured)
   // 89.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (89.5 kB measured)
@@ -378,7 +386,8 @@ const rows = [
   // 257.8 kB (257.4 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
   // 258.4 kB (258.0 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
   // 259.1 kB (258.7 kB measured) with Stage 2's A7 (the kernel's owner methods, claim and contributeAll, the HistoryHost port)
-  ['editor (first state)', ['src/editor.ts', 'src/editor/kinds/state.ts'], 259.1],
+  // 260.3 kB (259.9 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
+  ['editor (first state)', ['src/editor.ts', 'src/editor/kinds/state.ts'], 260.3],
   // the English emoji data (T05 §4.5: at most 30 kB), a lazy chunk of its own
   ['emoji data, English (lazy chunk)', ['src/emoji/en.ts'], 30],
   // 240.2 kB with the shape catalogue (239.7 kB measured); 236.2 kB once the shapes beyond the 17 load on demand (T02.9, 235.8 kB measured)
@@ -394,7 +403,8 @@ const rows = [
   // 260.8 kB (260.4 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
   // 261.2 kB (260.8 kB measured) with Stage 2's A6 (the module host's replaces, default providers and sheets given back)
   // 261.8 kB (261.4 kB measured) with Stage 2's A9 (the elements' schema and kernel options)
-  ['editor + History opened', ['src/editor.ts', ...HISTORY], 261.8],
+  // 262.7 kB (262.3 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
+  ['editor + History opened', ['src/editor.ts', ...HISTORY], 262.7],
   // 125.2 kB while the entry re-exported the all-kinds diff
   // 92.5 kB once the per-type diffs left the entry for the diff kinds (90.9 kB measured); 94.6 kB before; 91.5 kB with the shapes on demand (T02.9, 91.1 kB measured)
   // 92.5 kB with media in the scene (T03, 92.1 kB measured); 95.1 kB with the icon registry (T04, 94.7 kB measured)
