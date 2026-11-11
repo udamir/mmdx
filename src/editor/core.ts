@@ -7,6 +7,7 @@
 // shell, module host and canvas come from it — and adds the document store, the selection, gestures and overlay
 // painters. What the canvas shows is the StoreScene (src/editor/scene.ts); `draw()` invalidates it.
 import type { ImageStore, StorageAdapter, ThemeSource } from '../ports.js';
+import { SelectionService } from './services/selection.js';
 import { InputService } from './services/input.js';
 import type { CoreContext } from '../core/context.js';
 import type { IconPack } from '../core/icons/types.js';
@@ -30,7 +31,7 @@ import type { TextFormat, TextFormats } from './ops/format.js';
 import { HIGHLIGHT_CSS } from '../dom/highlight.js';
 import type { Viewport, WheelMode } from '../dom/viewport.js';
 import { Dialogs, DIALOG_CSS } from '../ui/kit/dialog.js';
-import { effect, signal, untracked, type Signal } from '../reactive/signal.js';
+import { signal, type Signal } from '../reactive/signal.js';
 import { ALIASES } from '../ui/kit/base.js';
 import { EDITOR_CSS } from './styles.js';
 import { ViewCore } from '../view/core.js';
@@ -283,8 +284,12 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   fileName = 'diagram';
   /** Session snap grid in diagram px (0 = off). Alt while dragging = free. */
   snap = 5;
+  /** The selection (A10e): the document's and a shown version's. */
+  readonly selections: SelectionService = new SelectionService(this);
   /** Primary selected item's `foot` flag (participant copy at the bottom). */
-  foot = false;
+  get foot(): boolean {
+    return this.selections.foot;
+  }
   /** An inline text editor is open over this item: no handles around it. */
   inlineEditing: ItemRef | null = null;
   /** The open inline text editor's formatting (the toolbar's text format menu acts on its selection); null: none open. */
@@ -318,8 +323,6 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
    * of the store, and nothing writes (changes, transactions, undo are refused) while it shows.
    */
   readonly version: Signal<VersionView | null> = signal<VersionView | null>(null);
-  /** The selection while a version shows (the document's own selection is kept in the store meanwhile). */
-  private versionSel: ItemRef[] = [];
   /** What showing a version put aside (the document's entered group and layer override), given back after it. */
   private beforeVersion: { group: string | null; layers: readonly string[] | undefined } | null = null;
 
@@ -367,24 +370,9 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     this.domCache = { shadow: this.shadow, root: this.root, wrap: this.area, svg: c.svg, defs: c.defs, vp: c.vp, page: c.page, body: c.body, overlay: c.overlay };
     this.storeScene = new StoreScene(this);
     this.pushScene(this.storeScene);
-    // the document's selection, however it changes (a pick, undo / redo, a rolled-back gesture, a load): `selection`
-    // and `mmdx-selection` once per real change (B11, P5) — not on construction, not for the same items again, and not
-    // while a version is shown (its items are picked to copy them; the net change is reported when it closes)
-    let last = this.store.selection.peek().map(itemKey).join('\n');
-    this.owner.add(effect(() => {
-      const sel = this.store.selection();
-      if (this.version()) return;
-      const key = sel.map(itemKey).join('\n');
-      if (key === last) return;
-      last = key;
-      untracked(() => {
-        this.fire('selection');
-        // the picture does not depend on the selection: its marks and the overlay only, no render (P4)
-        if (this.storeScene.attached && this.dom.body.childElementCount) this.decorate();
-        this.drawOverlay();
-        this.emit('mmdx-selection', { items: sel.map((r) => ({ kind: r.kind, id: r.id })) });
-      });
-    }));
+    // the document's selection reported once per real change (B11, P5): not on construction, not for the same items
+    // again, not while a version is shown (its items are picked to copy them; the net change is reported when it closes)
+    this.owner.add(this.selections.watch());
   }
 
   /** The editor's DOM (the shell's root and canvas area, the main canvas's layers). */
@@ -462,11 +450,11 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       // the same item stays selected from version to version while it is there
       const model = reparse(doc.code);
       this.needKind(doc.code);
-      this.versionSel = cur ? this.versionSel.filter((r) => itemExists(model, r)) : [];
+      this.selections.keepForVersion((r) => itemExists(model, r), !!cur);
       this.version.set({ id: v.id, source: v.source, doc, model });
     } else {
       this.version.set(null);
-      this.versionSel = [];
+      this.selections.clearVersion();
       const back = this.beforeVersion;
       this.beforeVersion = null;
       if (back) {
@@ -516,8 +504,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   // ---- selection --------------------------------------------------------------------------------------------------
 
   selection(): Sel[] {
-    const sel = this.version.peek() ? this.versionSel : this.store.selection.peek();
-    return sel.map((r, i) => (i === 0 && this.foot && r.kind === 'participant' ? { ...r, foot: true } : r));
+    return this.selections.list();
   }
 
   /** The single selected item (null when nothing or several are selected). */
@@ -527,46 +514,20 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   }
 
   isSelected(r: ItemRef): boolean {
-    return (this.version.peek() ? this.versionSel : this.store.selection.peek()).some((x) => x.kind === r.kind && x.id === r.id);
+    return this.selections.has(r);
   }
 
   select(items: readonly Sel[]): void {
-    const seen = new Set<string>();
-    const list: ItemRef[] = [];
-    for (const it of items) {
-      const k = itemKey(it);
-      if (seen.has(k)) continue;
-      seen.add(k);
-      list.push({ kind: it.kind, id: it.id });
-    }
-    const foot = !!items[0]?.foot;
-    if (list.length) this.pageSelected.set(false);
-    // a version's items are selected to copy them: the document's selection and its event stay as they are
-    if (this.version.peek()) {
-      this.foot = foot;
-      this.versionSel = list;
-      this.fire('selection');
-      this.drawOverlay();
-      return;
-    }
-    // the document's selection: the effect in the constructor fires and emits when it changes; the same items again
-    // do nothing (P5) unless only the participant end (its foot) changed
-    const footChanged = foot !== this.foot;
-    this.foot = foot;
-    this.store.selection.set(list);
-    if (footChanged) {
-      this.fire('selection');
-      this.drawOverlay();
-    }
+    this.selections.set(items);
   }
 
   toggleSelected(it: Sel): void {
-    const cur = this.selection();
-    const i = cur.findIndex((x) => x.kind === it.kind && x.id === it.id);
-    if (i >= 0) {
-      cur.splice(i, 1);
-      this.select(cur);
-    } else this.select([it, ...cur]);
+    this.selections.toggle(it);
+  }
+
+  /** The drawn picture's selection marks (the picture itself does not depend on the selection, P4). */
+  decorateSelection(): void {
+    if (this.storeScene.attached && this.dom.body.childElementCount) this.decorate();
   }
 
   /** Geometry box of an item (participant foot when asked), or null. */
