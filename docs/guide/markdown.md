@@ -21,7 +21,7 @@ becomes
 </mmdx-viewer>
 ```
 
-The SVG shows until the viewer has rendered the source itself. A block may hold a `.mmdx` source with `%%@` lines; the layout and styles apply. A diagram type mmdx does not draw gets the source only, and the viewer falls back to stock Mermaid (when `mermaid` is installed). Pages need the viewer on the client:
+The SVG shows until the viewer has rendered the source itself. A block may hold a `.mmdx` source with `%%@` lines; the layout and styles apply. A diagram type mmdx does not draw gets the source only, and the viewer falls back to stock Mermaid (when it is [configured](/guide/configuration) or resolves at run time). Pages need the viewer on the client:
 
 ```ts
 import '@mmdx/studio/viewer';

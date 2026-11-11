@@ -24,7 +24,7 @@ The package is ESM only and has no runtime dependencies; `mermaid` (≥ 10) is a
 | `adoptedStyleSheets` | Styles go into `<style>` elements in the shadow root |
 | `localStorage` (private mode, sandboxed iframes, quota errors) | UI preferences are kept in memory |
 | The Fullscreen API (`allowfullscreen` missing) | The viewer's full-screen button shows only with a host [`fullscreen`](/guide/sandboxed-iframes#full-screen) handler |
-| `mermaid` not installed | Diagram types mmdx does not draw show an error card with their source (`fallback="source"` shows the source only) |
+| `mermaid` not installed or not configured | Diagram types mmdx does not draw show an error card with their source (`fallback="source"` shows the source only) |
 | JavaScript | Server-rendered SVG inside `<mmdx-viewer>` stays readable and printable (see [SSR](/guide/ssr)) |
 
 ## Accessibility

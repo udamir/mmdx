@@ -27,7 +27,8 @@ async function bundle(entry) {
   const dir = `${out}/esbuild/${entry}`;
   const r = await build({
     entryPoints: [`src/${entry}.ts`], bundle: true, format: 'esm', minify: true, splitting: true, outdir: dir,
-    external: ['mermaid'], metafile: true, logLevel: 'error', plugins: [cssTemplatesEsbuild()],
+    // no `external`: a consumer without the optional `mermaid` peer must bundle every entry (old D5)
+    metafile: true, logLevel: 'error', plugins: [cssTemplatesEsbuild()],
   });
   const outs = r.metafile.outputs;
   const closure = (f, seen = new Set()) => {
@@ -182,6 +183,14 @@ console.log('library build (vite, dist/ chunks)');
 const lib = `${out}/lib`;
 await viteBuild({ configFile: 'vite.lib.config.ts', logLevel: 'error', build: { outDir: lib, emptyOutDir: true, manifest: true, sourcemap: false } });
 const manifest = JSON.parse(readFileSync(`${lib}/.vite/manifest.json`, 'utf8'));
+// the optional `mermaid` peer is never imported by name: a consumer's bundler would try to resolve it (old D5)
+for (const { file } of Object.values(manifest)) {
+  const code = readFileSync(`${lib}/${file}`, 'utf8');
+  if (/\bimport\s*\(\s*["'`]mermaid["'`]\s*\)|\bfrom\s*["']mermaid["']/.test(code)) {
+    console.log(`${file}: imports "mermaid" by name`);
+    failed = true;
+  }
+}
 const libSize = new Map();
 const chunkSize = async (key) => {
   if (!libSize.has(key)) {

@@ -43,7 +43,10 @@ export interface Config {
   iconPacks?: IconPack[];
   /** The built-in Tabler subset under `tabler` (default true); a host's own `tabler` pack replaces it. */
   builtinIcons?: boolean;
-  /** A Mermaid instance, or a loader; default: `import('mermaid')` when installed. */
+  /**
+   * A Mermaid instance, or a loader (`() => import('mermaid')` in a bundled app); default: `mermaid` imported at run
+   * time where it resolves (Node, an import map).
+   */
   mermaid?: MermaidLike | (() => Promise<MermaidLike>);
   /** Font files for PNG export (§7.4): family name → URL or bytes. */
   fonts?: Record<string, string | ArrayBuffer>;
@@ -156,6 +159,8 @@ export const registerBuiltinThemes = (): Promise<void> => ensureBuiltinThemes();
 
 let mermaidQueue: Promise<unknown> = Promise.resolve();
 let mermaidInstance: Promise<MermaidLike> | null = null;
+/** Kept in a variable so no bundler sees a module name to resolve. */
+const MERMAID_MODULE: string = 'mermaid';
 
 /** The icon packs Mermaid has (Mermaid keeps one global set): registered again when another set is due. */
 let mermaidIcons = '';
@@ -172,9 +177,17 @@ export function renderWithMermaid(code: string, dark: boolean, icons: IconRegist
     const m = s.mermaid;
     if (typeof m === 'function') return m();
     if (m) return m;
-    const mod = (await import(/* @vite-ignore */ 'mermaid')) as { default: MermaidLike };
+    // an opaque run-time import (old D5): a literal `import('mermaid')` made every consumer's bundler resolve the
+    // optional peer and fail without it. This one works where `mermaid` resolves at run time (Node, an import map);
+    // a bundled app passes `configure({ mermaid: () => import('mermaid') })`.
+    const mod = (await import(/* webpackIgnore: true */ /* @vite-ignore */ MERMAID_MODULE)) as { default: MermaidLike };
     return mod.default;
   })();
+  // a failed load is not kept: the next render tries again (Mermaid installed or configured meanwhile)
+  const loading = mermaidInstance;
+  loading.catch(() => {
+    if (mermaidInstance === loading) mermaidInstance = null;
+  });
   const job = mermaidQueue.then(async () => {
     const mermaid = await mermaidInstance!;
     if (mermaid.registerIconPacks && icons.key !== mermaidIcons) {

@@ -66,7 +66,7 @@ interface Config {
   iconPacks?: IconPack[];
   /** The built-in Tabler subset under `tabler` (default true). */
   builtinIcons?: boolean;
-  /** A Mermaid instance, or a loader; default: `import('mermaid')` when installed. */
+  /** A Mermaid instance, or a loader (`() => import('mermaid')` in a bundled app); default: `mermaid` imported at run time where it resolves (Node, an import map). */
   mermaid?: MermaidLike | (() => Promise<MermaidLike>);
   /** Font files for PNG export: family name → URL or bytes. */
   fonts?: Record<string, string | ArrayBuffer>;

@@ -31,3 +31,17 @@ describe('stock Mermaid fallback', () => {
     expect(used).toEqual(['a', 'b']);
   });
 });
+
+describe('the Mermaid loader (old D5)', () => {
+  it('a failed load is not kept: a configured Mermaid is used on the next render', async () => {
+    const { configure, renderWithMermaid } = await import('../../src/config.js');
+    let fail = true;
+    configure({ mermaid: async () => {
+      if (fail) throw new Error('not installed');
+      return { initialize: () => {}, render: async () => ({ svg: '<svg data-ok="1"></svg>' }) } as never;
+    } });
+    await expect(renderWithMermaid('pie\n  "a": 1', false)).rejects.toThrow('not installed');
+    fail = false;
+    await expect(renderWithMermaid('pie\n  "a": 1', false)).resolves.toContain('data-ok');
+  });
+});

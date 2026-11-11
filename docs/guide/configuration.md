@@ -34,7 +34,7 @@ Call it before the elements are created (before they are connected); a later cal
 | `iconPacks` | `IconPack[]` | — | Icon packs diagrams draw `pack:name` icons from, as Mermaid's `registerIconPacks` takes them: `{ name, icons }` or `{ name, loader }` (called on the first icon of the pack a diagram shows). Merged across calls; stock Mermaid receives the same packs. See [Icons](/guide/icons) |
 | `builtinIcons` | `boolean` | `true` | The built-in Tabler subset under `tabler:` (a lazy chunk), which also draws look-alikes for Font Awesome names when no Font Awesome pack is registered. See [Icons](/guide/icons#the-built-in-set) |
 | `fonts` | `Record<string, string \| ArrayBuffer>` | — | Font files embedded into PNG exports: family name → URL or bytes. Without them, PNG export uses locally installed fonts |
-| `mermaid` | a Mermaid instance or `() => Promise<…>` | `import('mermaid')` when installed | Stock Mermaid for diagram types mmdx does not draw and for the editor's "Plain Mermaid" preview |
+| `mermaid` | a Mermaid instance or `() => Promise<…>` | `mermaid` imported at run time where it resolves (Node, an import map); a bundled app passes `() => import('mermaid')` | Stock Mermaid for diagram types mmdx does not draw and for the editor's "Plain Mermaid" preview |
 | `measure` | `TextMeasurer` | a canvas measurer (static estimate where no canvas exists) | How text is measured for layout |
 | `debug` | `boolean` | `false` | A development flag |
 
