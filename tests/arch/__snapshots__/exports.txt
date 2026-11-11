@@ -294,10 +294,10 @@ DiagramCanvas
 DiagramEditor
 DocumentAdapter (type)
 DocumentSaveResult (type)
-EditorCore
 EditorEventMap (type)
 EditorFeatures (type)
 EditorModule (type)
+EditorModuleApi (type)
 EditorOptions (type)
 Gesture (type)
 GestureSource (type)

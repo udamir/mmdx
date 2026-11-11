@@ -2,6 +2,18 @@
 
 All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project follows [semantic versioning](https://semver.org/); below 1.0, a minor version may change public API, listed under **Changed (breaking)**.
 
+## Unreleased (0.5.0)
+
+The codebase audit: correctness and safety fixes, hot paths, and the layers the components are built on.
+
+### Changed (breaking)
+
+- `configure({ mermaid })`: stock Mermaid is no longer bundled automatically. The default loads it at run time (Node, import maps); a bundled app passes `mermaid: () => import('mermaid')`.
+- `ViewerOptions.rehydrate` and `Config.debug` are removed (both were ignored).
+- The editor actions `toggleHelp`, `editTable`, `gotoMetaLine`, `unlockAll` and `pasteStyle` are gone; their keys and menus stay.
+- React wrapper: a prop is set as a property when the element has that property.
+- `@mmdx/studio/editor` no longer exports `EditorCore`. Editor modules of a host see the core through `EditorModuleApi`; `EditorModule` is a module of that API.
+
 ## 0.4.0 — 2026-11-10
 
 Mindmaps, state diagrams, icons and images.

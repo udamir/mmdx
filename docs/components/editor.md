@@ -93,7 +93,7 @@ Each attribute sets the `EditorOptions` option of the same name in camelCase (`r
 | `ui` | — | `'light' \| 'dark' \| 'auto'` | `auto` | Chrome colour scheme |
 | `compact` | — | `boolean \| 'auto'` | `auto` | The compact chrome (smaller, icon-only); automatic on small hosts |
 | `wheel` | — | `'always' \| 'zoom' \| 'ctrl' \| 'never'` | `always` | The mouse wheel on the canvas: `always` pans (⌘ / Ctrl + wheel or a pinch zooms); `zoom` zooms at the pointer (Shift + wheel and a sideways scroll pan); `ctrl` and `never` as in the viewer |
-| — | `modules` | `readonly EditorModule[]` | `DEFAULT_MODULES` | The editor's feature modules (advanced: add or replace modules) |
+| — | `modules` | `readonly EditorModule[]` | `DEFAULT_MODULES` | The editor's feature modules (advanced: add or replace modules; a host's module is typed with `EditorModule`, whose scope's `core` is an `EditorModuleApi`) |
 | — | `themeSource` | `ThemeSource` | `configure({ themeSource })` | Where themes the page has not loaded come from |
 | — | — | `toolbar: 'floating' \| 'none'` | `floating` | `DiagramEditor` option, read when the editor is created; `none` turns off the floating style toolbar |
 | — | — | `ctx: Partial<CoreContext>` | the shared context | `DiagramEditor` option, read when the editor is created |
@@ -132,7 +132,7 @@ Read-only properties of the element: `instance` (the `DiagramEditor`, `null` whi
 | `redraw(): void` | Repaints the document and the panels (after a theme was edited elsewhere) |
 | `setUi(ui: 'light' \| 'dark' \| 'auto'): void` | Sets the chrome scheme |
 | `historySession: HistorySession \| null` | The open History's session (the `<mmdx-diff>` methods) |
-| `core: EditorCore`, `store: DocStore` | The editor core and the document store (advanced) |
+| `core`, `store: DocStore` | The editor core and the document store (advanced; a module sees the core as `EditorModuleApi`) |
 | `destroy(): void` | Cancels the autosave, unsubscribes from the adapter and removes the component |
 
 ## Events

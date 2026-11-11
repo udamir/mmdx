@@ -74,7 +74,7 @@ Modules never reach into one another; they talk through the kernel's typed event
 | Editor | `DEFAULT_MODULES` (`@mmdx/studio/editor`): ER table editing, canvas gestures, connectors, sequence editing, shapes, layout, panels, chrome; most are suspended outside the `document` stage |
 | Diff | `diffModules(scene, …)` (`@mmdx/studio/diff`): panel stacks, the diff bar, versions, code diff, change list, zoom bar, tool dock, pan, pen, view parameters, export… |
 
-The editor's `modules` property replaces its module list; `EditorModule` is `ViewModule<EditorCore>`.
+The editor's `modules` property replaces its module list. A host's module is an `EditorModule` (`ViewModule<EditorModuleApi>`): its scope's `core` is the editor core as modules see it — the document and its edits, the selection, the view, the kernel's state, events and actions, the overlay and gesture hooks. The core itself (`EditorCore`) is internal.
 
 ## Scenes
 

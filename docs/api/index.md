@@ -62,7 +62,7 @@ The element classes, their options, methods and attributes are documented on the
 
 | Group | Exports | Documented in |
 |---|---|---|
-| Elements and classes | `MmdxEditorElement` (`<mmdx-editor>`), `DiagramEditor`, `EditorCore` (the editor's kernel, advanced) | [Editor](/components/editor) |
+| Elements and classes | `MmdxEditorElement` (`<mmdx-editor>`), `DiagramEditor` | [Editor](/components/editor) |
 | Functions | `defineEditor(name?)` | [Editor](/components/editor) |
 | | `configure`, `registerThemes`, `registerBuiltinThemes` | [Configuration](/api/configuration) |
 | | `memoryDocumentAdapter`, `httpDocumentAdapter` | [Adapters](/api/adapters#documents) |
@@ -71,7 +71,7 @@ The element classes, their options, methods and attributes are documented on the
 | | `DocumentAdapter`, `LoadResult`, `DocumentSaveResult` | [Adapters](/api/adapters#documents) |
 | | `Config` | [Configuration](/api/configuration) |
 | | `HistorySession` | [History](/guide/history) |
-| | `EditorModule`, `Gesture`, `GestureSource`, `OverlayPainter`, `ViewCore`, `ViewModule`, `ModuleScope`, `SceneSource`, `Stage`, `DiagramCanvas` (custom editor modules, advanced) | [Editor](/components/editor) |
+| | `EditorModule`, `EditorModuleApi` (the core as a module sees it), `Gesture`, `GestureSource`, `OverlayPainter`, `ViewCore`, `ViewModule`, `ModuleScope`, `SceneSource`, `Stage`, `DiagramCanvas` (custom editor modules, advanced) | [Editor](/components/editor) |
 
 The editor does not export the history adapters; import them from `@mmdx/studio/adapters` or `@mmdx/studio/diff` (History's code itself loads on first use either way).
 
