@@ -14,6 +14,15 @@ The codebase audit: correctness and safety fixes, hot paths, and the layers the 
 - React wrapper: a prop is set as a property when the element has that property.
 - `@mmdx/studio/editor` no longer exports `EditorCore`. Editor modules of a host see the core through `EditorModuleApi`; `EditorModule` is a module of that API.
 
+### Changed
+
+- `export.font-missing` is one `warning` with `params.fonts` in every component (the viewer sent an `info`, the diff nothing).
+- Export names drop a URL's query and hash, and `.json` / `.markdown` like the other document extensions.
+- `whenLoaded()` also waits for the editor modules a document's type loads; the ER table editing and the sequence gestures load with their type.
+- ER attribute highlights: `italic`, `fontFamily`, `fontSize` and `preset` are checked; the page's `background` / `border` / `grid` and `iconColor` resolve palette references.
+
+A [migration guide](https://udamir.github.io/mmdx/guide/migration-0.5) lists what a host may notice.
+
 ### Added
 
 - Editor modules: `scope.gesture(source)` and `scope.painter(painter)` register a gesture source or an overlay painter, muted while the module is suspended and removed on uninstall; `EditorModuleApi.docType`, the diagram type of the document as a signal; `scope.canvas(type, f, options)` takes listener options. A guide: [Extending the editor](https://udamir.github.io/mmdx/guide/editor-modules).
