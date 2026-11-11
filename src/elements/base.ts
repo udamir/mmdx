@@ -11,6 +11,24 @@ export type AttrSpec<O> = readonly [key: keyof O, parse: (v: string | null) => u
 
 const warned = new Set<string>();
 
+const propertyLists = new WeakMap<object, readonly string[]>();
+
+/**
+ * The properties an element class has: every accessor with a setter on its prototype chain below HTMLElement (the
+ * one list the React wrapper and the lazy-property upgrade read, so they cannot drift from the element; B15, B16).
+ */
+export function elementProperties(cls: CustomElementConstructor | (abstract new () => HTMLElement)): readonly string[] {
+  let list = propertyLists.get(cls);
+  if (!list) {
+    const names = new Set<string>();
+    for (let p = cls.prototype as object | null; p && p !== ElementBase.prototype && p !== Object.prototype; p = Object.getPrototypeOf(p))
+      for (const [k, d] of Object.entries(Object.getOwnPropertyDescriptors(p))) if (d.set && !k.startsWith('_')) names.add(k);
+    list = [...names];
+    propertyLists.set(cls, list);
+  }
+  return list;
+}
+
 /** Warns once per message (an option that cannot change on a live component). */
 export function warnOnce(msg: string): void {
   if (warned.has(msg)) return;
@@ -42,8 +60,29 @@ export abstract class MmdxElement<O extends object, I extends { destroy(): void 
   /** Called before the component is destroyed (not on a move): keep what the next one should start from. */
   protected keep(_inst: I): void {}
 
+  private upgraded = false;
+
   connectedCallback(): void {
+    if (!this.upgraded) {
+      this.upgraded = true;
+      this.upgradeProperties();
+    }
     this.inst ??= this.create({ ...this.attrOptions(), ...this.props });
+  }
+
+  /**
+   * A property set on the element before its class was defined (`el.source = …` and then `define()`, or a framework
+   * that sets properties first) is an own data property that hides the class's accessor: it is taken off and set
+   * again through the accessor (B16).
+   */
+  private upgradeProperties(): void {
+    const self = this as unknown as Record<string, unknown>;
+    for (const k of elementProperties(this.constructor as CustomElementConstructor)) {
+      if (!Object.hasOwn(this, k)) continue;
+      const v = self[k];
+      delete self[k];
+      self[k] = v;
+    }
   }
 
   disconnectedCallback(): void {
