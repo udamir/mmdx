@@ -1,5 +1,5 @@
 // The result types of a diagram diff, apart from the diff engine (core/diff/index.ts), so the merged model, the annotations, the renderer and the reports import them without importing the engine.
-import type { DiagramType, ItemKind } from '../types.js';
+import type { Diagnostic, DiagramType, ItemKind } from '../types.js';
 
 export type ChangeFacet = 'content' | 'layout' | 'style';
 export type ChangeStatus = 'added' | 'removed' | 'changed' | 'unchanged';
@@ -34,6 +34,8 @@ export interface DiagramDiff {
   /** Diagram-wide changes: theme, page settings, local presets, `classDef`, direction. */
   doc: FieldChange[];
   counts: Record<Exclude<ChangeStatus, 'unchanged'>, number> & Record<ChangeFacet, number>;
+  /** Why the diff is incomplete: `kind.not-loaded` when the type's diff kind is not registered (B40). */
+  diagnostics?: Diagnostic[];
 }
 
 export interface DiffIgnore {

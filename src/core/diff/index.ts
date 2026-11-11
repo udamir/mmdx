@@ -14,6 +14,7 @@ import type { DiagramModel } from '../model.js';
 import { withDiff } from '../kinds/registry.js';
 import type { Kinds } from '../kinds/types.js';
 import { parseWith } from '../parse/dispatch.js';
+import { diag } from '../types.js';
 import { field } from './kit.js';
 import type { ChangeFacet, DiagramDiff, DiffIgnore, FieldChange, ItemChange } from './types.js';
 
@@ -52,7 +53,11 @@ export function diffModels(a: DiagramModel, b: DiagramModel, ma: DiagramMeta, mb
   const typeChanged = a.type !== b.type;
   const done = !typeChanged && b.type ? withDiff(a, (k, m) => (k.diff(m, b, ma, mb, items, doc), true)) : undefined;
   if (!done) field(doc, 'content', 'diagram type', a.type, b.type);
-  return { type: b.type, typeChanged, items, doc, counts: count(items, doc) };
+  const out: DiagramDiff = { type: b.type, typeChanged, items, doc, counts: count(items, doc) };
+  // the same type without its diff kind: not "no changes" but "not compared" (B40)
+  if (!done && !typeChanged && b.type)
+    out.diagnostics = [diag('error', 'kind.not-loaded', `the ${b.type} diff is not loaded — the versions were not compared`, undefined, { params: { type: b.type } })];
+  return out;
 }
 
 /** Diff of two sources (Mermaid with or without `%%@` lines), parsed with the given diagram kinds (component architecture §9.1): a bundle that loads kinds on demand passes the ones it loaded (a type without its parser diffs as unsupported). Never throws on bad input. `diffDiagrams` (core/diff/all.ts) parses with every kind. */

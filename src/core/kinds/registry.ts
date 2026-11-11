@@ -80,6 +80,11 @@ export function registerDiffs<K extends DiffKinds>(kinds: K): K {
   return kinds;
 }
 
+/** Forgets every registered diff kind (tests of on-demand loading). */
+export function forgetDiffs(): void {
+  for (const t of Object.keys(diffs) as DiagramType[]) delete diffs[t];
+}
+
 /** The diff kind of a type, when it is loaded. */
 export const diffKind = (type: DiagramType | null | undefined): DiffKind | undefined => (type ? diffs[type] : undefined);
 

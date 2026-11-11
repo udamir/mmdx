@@ -1,5 +1,6 @@
 // The diff with every diagram kind (component architecture §9.1, §10): `diffDiagrams`, `renderDiff` and `renderDiffToSvg` parse and render with every parser and renderer. Only `@mmdx/studio/core` exports them; the diff engine (index.ts) and the renderer (render.ts) take the kinds, so `@mmdx/studio/diff` and History ship no kind statically.
-import type { CoreContext } from '../context.js';
+import { createContext, type CoreContext } from '../context.js';
+import type { Kinds } from '../kinds/types.js';
 import { ALL_DIFF_KINDS } from '../kinds/all-diff.js';
 import { registerDiffs } from '../kinds/registry.js';
 import { ALL_KINDS } from '../pipeline.js';
@@ -21,7 +22,8 @@ export const diffModelsAll: typeof diffModels = (...a) => (allDiffs(), diffModel
 export const mergeDiagramsAll: typeof mergeDiagrams = (...a) => (allDiffs(), mergeDiagrams(...a));
 export const annotateAll: typeof annotate = (...a) => (allDiffs(), annotate(...a));
 export const renderDiffWithAll: typeof renderDiffWith = (...a) => (allDiffs(), renderDiffWith(...a));
-export const renderDiffToSvgWithAll: typeof renderDiffToSvgWith = (...a) => (allDiffs(), renderDiffToSvgWith(...a));
+export const renderDiffToSvgWithAll = (kinds: Kinds, before: string, after: string, o: DiffRenderOptions & DiffSvgOptions & { ctx?: CoreContext } = {}): Promise<string> =>
+  (allDiffs(), renderDiffToSvgWith(kinds, before, after, { ...o, ctx: o.ctx ?? createContext() }));
 
 /** Diff of two sources (Mermaid with or without `%%@` lines), parsed with every kind. Never throws on bad input. */
 export function diffDiagrams(before: string, after: string): DiagramDiff {
@@ -38,5 +40,5 @@ export function renderDiff(before: string, after: string, ctx: CoreContext, o: D
 /** Server-side and build-time rendering of a diff (CI bots, MR comments): two sources → one standalone SVG of a view, with every kind. Uses the static text measurer unless the context brings another one. Works in Node and workers. */
 export function renderDiffToSvg(before: string, after: string, o: DiffRenderOptions & DiffSvgOptions & { ctx?: CoreContext } = {}): Promise<string> {
   allDiffs();
-  return renderDiffToSvgWith(ALL_KINDS, before, after, o);
+  return renderDiffToSvgWith(ALL_KINDS, before, after, { ...o, ctx: o.ctx ?? createContext() });
 }

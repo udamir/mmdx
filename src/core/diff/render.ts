@@ -1,6 +1,6 @@
 // Rendering a diff (§7.5): both versions, the merged picture, the filtered change list and one shared coordinate space, from two sources. `renderDiffToSvgWith` composes any view into one standalone SVG (exports, CI bots, SSR). Everything here renders with the given diagram kinds (component architecture §9.1: <mmdx-diff> loads the kinds of both versions on demand); the all-kinds wrappers are in all.ts, so a bundle that loads kinds ships none statically.
 import { diffKind } from '../kinds/registry.js';
-import { createContext, type CoreContext } from '../context.js';
+import type { CoreContext } from '../context-base.js';
 import { isSupported } from '../model.js';
 import { renderDocumentWith, renderSourceWith, type Kinds, type PipelineOptions, type Rendered } from '../pipeline-core.js';
 import { pageScene } from '../render/page.js';
@@ -202,8 +202,9 @@ export function diffSvg(d: DiffRendered, o: DiffSvgOptions = {}): string {
 }
 
 /** Server-side and build-time rendering of a diff (CI bots, MR comments) with the given diagram kinds: two sources → one standalone SVG of a view. Uses the static text measurer unless the context brings another one. Works in Node and workers (no DOM). `renderDiffToSvg` (all.ts) uses every kind. */
-export async function renderDiffToSvgWith(kinds: Kinds, before: string, after: string, o: DiffRenderOptions & DiffSvgOptions & { ctx?: CoreContext } = {}): Promise<string> {
-  const ctx = o.ctx ?? createContext();
+/** `ctx` is given (B41: a default here would put the built-in themes in every bundle that renders a diff). */
+export async function renderDiffToSvgWith(kinds: Kinds, before: string, after: string, o: DiffRenderOptions & DiffSvgOptions & { ctx: CoreContext }): Promise<string> {
+  const ctx = o.ctx;
   const ropts: DiffRenderOptions = {};
   if (o.theme) ropts.theme = o.theme;
   if (o.ignore) ropts.ignore = o.ignore;

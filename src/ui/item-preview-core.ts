@@ -9,8 +9,7 @@
 // `drawItemPreviewWith`, `renderItemSampleWith`), so it loads no parser itself. ui/item-preview.ts wraps it with
 // every kind and the shared configuration (`drawItemPreview`, `renderItemSample`).
 import { opsKind } from '../core/kinds/registry.js';
-import type { CoreContext } from '../core/context.js';
-import { nextIdPrefix } from '../core/context.js';
+import { nextIdPrefix, type CoreContext } from '../core/context-base.js';
 import { emptyMeta, type DiagramMeta } from '../core/meta/index.js';
 import { parseWith } from '../core/parse/dispatch.js';
 import { renderContext, type Kinds } from '../core/pipeline-core.js';
