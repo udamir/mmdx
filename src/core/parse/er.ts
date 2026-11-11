@@ -54,7 +54,8 @@ export function splitAttrComment(text: string): { head: string; comment: string 
   return { head: t, comment: '' };
 }
 
-const keysOf = (s: string | undefined): AttrKey[] => (s ? (s.split(/\s*,\s*/).map((k) => k.toUpperCase()) as AttrKey[]) : []);
+// split, then trimmed: `\s*,\s*` backtracks quadratically on a long run of spaces without a comma (regex fuzz, X11)
+const keysOf = (s: string | undefined): AttrKey[] => (s ? (s.split(',').map((k) => k.trim().toUpperCase()) as AttrKey[]) : []);
 
 /**
  * One attribute as typed in the editor: `type[?] name [PK|FK|UK, …] [(comment)]`, the comment in brackets (Mermaid's

@@ -1,5 +1,6 @@
 // Mermaid flowchart parser (the commonly used subset, A.9).
 // Line fields are 0-based whole lines; statements split by `;` share a line.
+import { escapeRegExp } from '../text/regexp.js';
 import type {
   BracketSpan, Direction, EdgeHead, EdgeLine, FlowConfig, FlowEdge, FlowGroup, FlowLink, FlowMention, FlowNode, FlowStatement, FlowchartModel,
   MermaidStyle, NodeShape,
@@ -832,7 +833,7 @@ export function renameClashingSubgraph(code: string, id: string): string {
   // `%%@ group` lines spell the id as the metadata writer does (encodeId: only ids with spaces, `%` or brackets are
   // URI-encoded), so a non-ASCII id is found too (B33)
   const enc = encodeId(id);
-  const meta = new RegExp(`^(\\s*%%@\\s+group\\s+)${enc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s+\\{)`);
+  const meta = new RegExp(`^(\\s*%%@\\s+group\\s+)${escapeRegExp(enc)}(\\s+\\{)`);
   for (let i = 0; i < L.length; i++) {
     const l = L[i] ?? '';
     if (meta.test(l)) L[i] = l.replace(meta, `$1${encodeId(nid)}$2`);

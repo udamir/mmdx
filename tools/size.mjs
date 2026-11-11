@@ -238,7 +238,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 261.6 kB (261.2 kB measured) 5.5: the toolbars and the ER table split into their parts (+0.1–0.3 kB of module boundaries)
     // 262 kB (261.6 kB measured) 5.5: the code panel split into its parts (+0.1 kB of module boundaries)
     // 262.7 kB (262.3 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
-    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 262.7 * KB);
+    // 263.2 kB (262.8 kB measured) 4.7: the group tree and escapeRegExp as shared modules (+0.1 kB)
+    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 263.2 * KB);
   }
 }
 

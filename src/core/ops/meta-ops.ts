@@ -1,6 +1,7 @@
 // Metadata-only (and small whole-document) operations of the editor, ported from prototype app.js as pure
 // functions: (code, meta, model, …) → { code, meta }. Each one clones the metadata first; the input is never
 // mutated. Prompts, confirmations, toasts and redraws stay in the editor (see the notes on each function).
+import { descendantsIn } from './tree.js';
 import { KIND_INFO } from '../kinds/info.js';
 import { maxOf, minOf } from '../geom.js';
 import { classOf, COPY_KEYS as KEY_COPY, PLACE_KEYS } from '../meta/keys.js';
@@ -170,26 +171,7 @@ export function groupHasPositions(model: DiagramModel, meta: DiagramMeta, ref: I
 
 /** Node and subgraph ids inside a subgraph (any depth). */
 export function groupDescendants(model: FlowchartModel, gid: string): { nodes: string[]; groups: string[] } {
-  const nodes: string[] = [], groups: string[] = [];
-  const seen = new Set<string>([gid]);
-  // depth-first in child order, as the prototype's recursive walk (iterative: nesting depth is user input)
-  const stack: { children: readonly string[]; i: number }[] = [{ children: model.groups.get(gid)?.children ?? [], i: 0 }];
-  while (stack.length) {
-    const top = stack[stack.length - 1]!;
-    if (top.i >= top.children.length) {
-      stack.pop();
-      continue;
-    }
-    const c = top.children[top.i++]!;
-    const g = model.groups.get(c);
-    if (g) {
-      if (seen.has(c)) continue;
-      seen.add(c);
-      groups.push(c);
-      stack.push({ children: g.children, i: 0 });
-    } else if (model.nodes.has(c)) nodes.push(c);
-  }
-  return { nodes, groups };
+  return descendantsIn(model.groups, (id) => model.nodes.has(id), gid);
 }
 
 /** Snapping of moved positions: 0 = exact (rounded); n = to the n-unit grid. */

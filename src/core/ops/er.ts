@@ -4,6 +4,7 @@
 // `||--o{` symbols); an alias is rewritten where Mermaid reads it (the first one written); ids are quoted where
 // Mermaid would not read them as one word (`erId`, E2). Subgraphs (11.17+): ⌘G writes `subgraph id ["Title"]` …
 // `end` around the selected tables and subgraphs, Ungroup and Delete remove the frame and keep what is in it.
+import { descendantsIn, groupChain } from './tree.js';
 import type { Cardinality, Direction, Entity, ErAttribute, ErGroup, ErModel, ErRel } from '../model.js';
 import { erId, erLabel, erQuoted } from '../parse/er-id.js';
 import { applySplices, type Splice } from '../parse/node-data.js';
@@ -313,19 +314,7 @@ export function setErGroupDirection(code: string, model: ErModel, gid: string, d
 
 /** Entity and subgraph ids inside a subgraph (any depth). */
 export function erDescendants(model: ErModel, gid: string): { nodes: string[]; groups: string[]; leaf: 'entity' } {
-  const nodes: string[] = [], groups: string[] = [];
-  const seen = new Set<string>([gid]);
-  const stack = [...(model.groups.get(gid)?.children ?? [])].reverse();
-  while (stack.length) {
-    const c = stack.pop()!;
-    if (model.groups.has(c)) {
-      if (seen.has(c)) continue;
-      seen.add(c);
-      groups.push(c);
-      stack.push(...[...model.groups.get(c)!.children].reverse());
-    } else if (model.entities.has(c)) nodes.push(c);
-  }
-  return { nodes, groups, leaf: 'entity' };
+  return { ...descendantsIn(model.groups, (id) => model.entities.has(id), gid), leaf: 'entity' };
 }
 
 /** The subgraph an entity or a subgraph is in (null: the top level). */
@@ -336,7 +325,7 @@ function groupable(model: ErModel, items: readonly ItemRef[]): string[] {
   const ids = items.filter((x) => (x.kind === 'entity' && model.entities.has(x.id)) || (x.kind === 'group' && model.groups.has(x.id))).map((x) => x.id);
   const sel = new Set(ids);
   const inSelected = (id: string): boolean => {
-    for (let p = erParentOf(model, id), n = 0; p && n <= model.groups.size; p = erParentOf(model, p), n++) if (sel.has(p)) return true;
+    for (const p of groupChain((x) => erParentOf(model, x), id)) if (sel.has(p)) return true;
     return false;
   };
   return [...new Set(ids)].filter((id) => !inSelected(id));

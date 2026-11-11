@@ -8,6 +8,8 @@
 // - a state's kind comes from its first mention: `state c <<choice>>` goes before the first line that mentions `c`;
 // - `click` exists only at the top level (the composite's lexer state has no `click`).
 // Texts keep the form in use (`state "Text" as id`, `id : text`); a state without one gets `state "Text" as id`.
+import { descendantsIn } from './tree.js';
+import { escapeRegExp } from '../text/regexp.js';
 import type { Direction, StateEdge, StateGroup, StateKind, StateModel, StateNode, StateNote } from '../model.js';
 import { encodeLabel } from '../parse/label.js';
 import { isPseudo, parseState, pseudoId } from '../parse/state.js';
@@ -89,20 +91,7 @@ const tok = (id: string): string => (isPseudo(id) ? '[*]' : id);
 
 /** Every state and composite inside a composite (any depth). */
 export function stateDescendants(model: StateModel, gid: string): { nodes: string[]; groups: string[] } {
-  const nodes: string[] = [], groups: string[] = [];
-  const seen = new Set<string>([gid]);
-  const stack = [...(model.groups.get(gid)?.children ?? [])].reverse();
-  while (stack.length) {
-    const c = stack.pop()!;
-    const g = model.groups.get(c);
-    if (g) {
-      if (seen.has(c)) continue;
-      seen.add(c);
-      groups.push(c);
-      stack.push(...[...g.children].reverse());
-    } else if (model.nodes.has(c)) nodes.push(c);
-  }
-  return { nodes, groups };
+  return descendantsIn(model.groups, (id) => model.nodes.has(id), gid);
 }
 
 /** The lines of every block of a composite (headers to `}`). */
@@ -239,7 +228,7 @@ export function relabelState(code: string, model: StateModel, id: string, label:
   if (g) {
     // `state X {` → `state "Title" as X {`
     const b = g.blocks[0]!;
-    const re = new RegExp(`^(\\s*state\\s+)${escape(id)}(\\s*\\{)`, 'i');
+    const re = new RegExp(`^(\\s*state\\s+)${escapeRegExp(id)}(\\s*\\{)`, 'i');
     const line = L[b.line] ?? '';
     if (!re.test(line)) return { code };
     L[b.line] = line.replace(re, `$1"${quoted(v)}" as ${id}$2`);
@@ -249,7 +238,6 @@ export function relabelState(code: string, model: StateModel, id: string, label:
   return { code: applyEdits(code, [{ at: first, del: 0, ins: [`${indentOf(L[first])}state "${quoted(v)}" as ${id}`] }]) };
 }
 
-const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
  * Sets a state's description rows (the texts after its title) as `id : row` lines after the title's statement; a
@@ -294,7 +282,7 @@ function compiled(source: string, flags = ''): RegExp {
   return re;
 }
 
-const isDescLine = (line: string, id: string): boolean => compiled(`^\\s*${escape(id)}(?::::\\S+)?\\s*:(?!::)`).test(line);
+const isDescLine = (line: string, id: string): boolean => compiled(`^\\s*${escapeRegExp(id)}(?::::\\S+)?\\s*:(?!::)`).test(line);
 
 /** Rewrites a transition's label (`a --> b : label`), adding or removing it. */
 export function relabelTransition(code: string, model: StateModel, edgeId: string, label: string): CodeResult {
@@ -339,7 +327,7 @@ export function setStateKind(code: string, model: StateModel, id: string, kind: 
   const n = model.nodes.get(id);
   if (!n || n.kind === 'start' || n.kind === 'end' || kind === 'start' || kind === 'end') return { code };
   const L = code.split('\n');
-  const decl = new RegExp(`^\\s*state\\s+${escape(id)}\\s*(?:<<(?:choice|fork|join)>>|\\[\\[(?:choice|fork|join)\\]\\])\\s*$`, 'i');
+  const decl = new RegExp(`^\\s*state\\s+${escapeRegExp(id)}\\s*(?:<<(?:choice|fork|join)>>|\\[\\[(?:choice|fork|join)\\]\\])\\s*$`, 'i');
   const decls = [...n.lines].filter((li) => decl.test(L[li] ?? ''));
   const edits: LineEdit[] = decls.map((li) => ({ at: li, del: 1, ins: [] }));
   const rest = [...n.lines].filter((li) => !decls.includes(li));
@@ -581,11 +569,11 @@ export function makeComposite(code: string, model: StateModel, items: readonly I
 }
 
 /** A state's own statement: a bare id, a declaration (with its class or its kind). */
-const declRe = (id: string): RegExp => compiled(`^\\s*(?:state\\s+)?${escape(id)}(?::::\\S+)?\\s*(?:<<\\w+>>|\\[\\[\\w+\\]\\])?\\s*$`);
+const declRe = (id: string): RegExp => compiled(`^\\s*(?:state\\s+)?${escapeRegExp(id)}(?::::\\S+)?\\s*(?:<<\\w+>>|\\[\\[\\w+\\]\\])?\\s*$`);
 /** A state's `click` line. */
-const clickRe = (id: string): RegExp => compiled(`^\\s*click\\s+${escape(id)}\\s`, 'i');
+const clickRe = (id: string): RegExp => compiled(`^\\s*click\\s+${escapeRegExp(id)}\\s`, 'i');
 
-const mentions = (line: string, id: string): boolean => compiled(`(^|[\\s>:,])${escape(id)}($|[\\s:,]|-->)`).test(line);
+const mentions = (line: string, id: string): boolean => compiled(`(^|[\\s>:,])${escapeRegExp(id)}($|[\\s:,]|-->)`).test(line);
 
 /** The lines of a scope: inside the composite's first block (region ignored). */
 function scopeRange(model: StateModel, s: StateScope): { start: number; end: number } | null {

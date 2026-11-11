@@ -3,6 +3,7 @@
 import { withKind, withOps } from '../../core/kinds/registry.js';
 import type { DiagramModel } from '../../core/model.js';
 import type { ItemKind, ItemRef } from '../../core/types.js';
+import { groupChain } from '../../core/ops/tree.js';
 
 /** Item key → the group it is directly in, per model. */
 const parentCache = new WeakMap<object, Map<string, string>>();
@@ -16,10 +17,13 @@ function groupParents(model: DiagramModel): Map<string, string> {
   return m;
 }
 
-/** The groups around an item, innermost first (at most 64: a broken tree never loops). */
+/** The groups around an item, innermost first (a group seen again, a broken tree, ends the walk). */
 function* ancestors(model: DiagramModel, it: ItemRef): Generator<string> {
   const up = groupParents(model);
-  for (let g = parentOf(model, it), guard = 0; g && guard < 64; g = up.get(`group:${g}`) ?? null, guard++) yield g;
+  const first = parentOf(model, it);
+  if (!first) return;
+  yield first;
+  yield* groupChain((g) => up.get(`group:${g}`), first);
 }
 
 /** The group an item is directly in (null: none). */

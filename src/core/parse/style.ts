@@ -27,7 +27,9 @@ export function parseStyleList(s: string, bad: (message: string) => void = () =>
     const colon = p.indexOf(':');
     const key = colon < 0 ? '' : p.slice(0, colon).trim();
     // `!important` is common in copied Mermaid styles and means nothing here
-    const val = colon < 0 ? '' : p.slice(colon + 1).trim().replace(/;$/, '').replace(/\s*!important$/i, '').trim();
+    const v0 = colon < 0 ? '' : p.slice(colon + 1).trim().replace(/;$/, '');
+    // a suffix test, not `\s*!important$`, which backtracks quadratically on a long run of spaces
+    const val = (/!important$/i.test(v0) ? v0.slice(0, -'!important'.length) : v0).trim();
     if (!key || !val) { bad(`invalid style "${p}" — expected property:value`); continue; }
     switch (key) {
       case 'fill':

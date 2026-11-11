@@ -31,7 +31,9 @@ export function frontmatterValues(lines: readonly string[]): Map<string, string>
     const indent = m[1]!.length;
     while (path.length && path[path.length - 1]!.indent >= indent) path.pop();
     const key = [...path.map((p) => p.key), m[2]!].join('.');
-    const v = m[3]!.replace(/\s+#.*$/, '').trim();
+    // a comment: from the first `#` after a space (a search, not `\s+#.*$`, which backtracks quadratically on spaces)
+    const value = m[3]!, hash = value.search(/\s#/);
+    const v = (hash < 0 ? value : value.slice(0, hash)).trim();
     if (v) out.set(key, v.replace(/^(["'])(.*)\1$/, '$2'));
     else path.push({ indent, key: m[2]! });
   }
