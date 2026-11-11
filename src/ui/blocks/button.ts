@@ -1,7 +1,7 @@
 // IconButton and ToggleButton (§5.2): an icon (or short text) button with an accessible name, a tooltip that
 // mirrors the label with its shortcut, and an optional pressed state. Pressed, disabled and hidden can follow
 // signals.
-import { h, icon as svgIcon } from '../h.js';
+import { h, icon as svgIcon } from '../kit/h.js';
 import { ariaKeys, read, Scope, tipText, type BlockHandle, type Value } from './block.js';
 
 export interface IconButtonProps {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { openMenu } from '../../src/ui/blocks/menu.js';
-import { PopoverManager, Toaster } from '../../src/ui/popover.js';
+import { PopoverManager, Toaster } from '../../src/ui/kit/popover.js';
 
 const setup = () => {
   const host = document.createElement('div');

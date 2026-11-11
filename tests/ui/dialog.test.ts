@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
-import { Dialogs } from '../../src/ui/dialog.js';
+import { Dialogs } from '../../src/ui/kit/dialog.js';
 import { createI18n } from '../../src/i18n.js';
 
 const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 0));

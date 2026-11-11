@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { CODE_EDITOR_CSS, createCodeEditor, lineLabels } from '../../src/ui/code-editor.js';
-import { highlightLine, highlightMetaLine } from '../../src/ui/highlight.js';
+import { CODE_EDITOR_CSS, createCodeEditor, lineLabels } from '../../src/ui/diagram/code-editor.js';
+import { highlightLine, highlightMetaLine } from '../../src/ui/diagram/highlight.js';
 
 afterEach(() => document.body.replaceChildren());
 

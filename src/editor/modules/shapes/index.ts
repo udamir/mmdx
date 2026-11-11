@@ -7,11 +7,11 @@
 // which calls `core.run('toggleShapesMenu', button)`.
 import { presetsFor } from '../../../core/ops/style-env.js';
 import type { ItemKind, Point } from '../../../core/types.js';
-import { h } from '../../../ui/h.js';
+import { h } from '../../../ui/kit/h.js';
 import { registerMessages } from '../../../i18n.js';
 import type { ShapePaletteHandle, ShapePaletteItem } from '../../../ui/blocks/shape-palette.js';
-import { drawItemPreview, previewKind, type PreviewKind } from '../../../ui/item-preview.js';
-import { fitPresetGrid } from '../../../ui/shape-preview.js';
+import { drawItemPreview, previewKind, type PreviewKind } from '../../../ui/diagram/item-preview.js';
+import { fitPresetGrid } from '../../../ui/diagram/shape-preview.js';
 import type { EditorCore } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { SHAPES_CSS } from './css.js';
@@ -29,7 +29,7 @@ const paletteOf = (core: EditorCore): PaletteSpec | undefined => editKind(core.m
 /** The block's chunk (with its CSS), loaded the first time a palette shows. */
 let paletteChunk: Promise<typeof import('../../../ui/blocks/shape-palette.js')> | null = null;
 export const loadShapePalette = (): Promise<typeof import('../../../ui/blocks/shape-palette.js')> =>
-  (paletteChunk ??= Promise.all([import('../../../ui/blocks/shape-palette.js'), import('../../../ui/messages/editor-media.js')]).then(([m, msg]) => {
+  (paletteChunk ??= Promise.all([import('../../../ui/blocks/shape-palette.js'), import('../../messages-media.js')]).then(([m, msg]) => {
     registerMessages(msg.EDITOR_MEDIA_MESSAGES);
     return m;
   }).catch((e: unknown) => {

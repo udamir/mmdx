@@ -1,9 +1,9 @@
 // <mmdx-editor> (§8.2, UC2): edit a diagram attached to a host page. The DiagramEditor class owns one EditorCore and
 // its feature modules; the custom element is a thin wrapper around it.
-import { EDITOR_MESSAGES } from '../ui/messages/editor.js';
+import { EDITOR_MESSAGES } from './messages.js';
 import { Owner } from '../reactive/owner.js';
 import { registerMessages } from '../i18n.js';
-import { isTextTarget } from '../ui/shortcuts.js';
+import { isTextTarget } from '../ui/kit/keys.js';
 import type { StaticVersion } from '../adapters/history.js';
 import type { HistoryAdapter, ImageStore, DocumentAdapter, StorageAdapter, ThemeSource } from '../ports.js';
 import type { WheelMode } from '../dom/viewport.js';
@@ -12,7 +12,7 @@ import { MmdxElement, readInlineSource, warnOnce, words, type AttrSpec, type Pat
 import { ensureBuiltinThemes } from '../platform/themes.js';
 import type { CoreContext } from '../core/context.js';
 import type { IconPack } from '../core/icons/types.js';
-import { h } from '../ui/h.js';
+import { h } from '../ui/kit/h.js';
 import { effect, untracked } from '../reactive/signal.js';
 import { DEFAULT_FEATURES, EditorCore, type EditorFeatures, type Gesture, type Mode } from './core.js';
 import type { EditorModule } from './module.js';

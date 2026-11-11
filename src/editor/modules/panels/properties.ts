@@ -2,7 +2,7 @@
 // picks the inspector for the current selection — the page and diagram settings when nothing is selected
 // (inspectors/canvas.ts), one item (inspectors/item.ts), several items (inspectors/bulk.ts). Every change is one
 // history step; the document ops live in editor/ops.
-import { h } from '../../../ui/h.js';
+import { h } from '../../../ui/kit/h.js';
 import type { Sel } from '../../core.js';
 import { bulkInspector, multiInspector } from './inspectors/bulk.js';
 import { canvasInspector } from './inspectors/canvas.js';

@@ -3,17 +3,17 @@
 // the width signal, double-click resets it, arrow keys step it). The look is the editor's right panel cards. Replaces
 // the card shells of editor/modules/panels/right-panels.ts (`.rpanel`, `.rp-head`), the editor's code panel and the
 // diff's panels (`.lpanel`, `.pane-side`, `.collapse-btn`); the grip replaces `attachPaneResizer` of ui/panes.ts.
-import { h } from '../h.js';
+import { h } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
 import type { Signal } from '../../reactive/signal.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
 import { createIconButton, type IconButtonHandle } from './button.js';
-import { keepFocus } from './focus.js';
-import { createGrip } from './grip.js';
-import { createOverlayScroll, OVERLAY_SCROLL_CSS } from './overlay-scroll.js';
+import { keepFocus } from '../kit/focus.js';
+import { createGrip } from '../kit/grip.js';
+import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../kit/overlay-scroll.js';
 
-export { createGrip, type GripOptions } from './grip.js';
+export { createGrip, type GripOptions } from '../kit/grip.js';
 
 export interface SidePanelResize {
   /** The panel's width in px; null means the CSS default. */

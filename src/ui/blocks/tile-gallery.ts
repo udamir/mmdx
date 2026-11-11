@@ -2,9 +2,9 @@
 // tile button, with an optional delete button beside it (never inside it) and a last "add" tile. The selected tile has
 // `aria-current`; arrow keys, Home and End move through the tiles with one tab stop (the selected tile), Delete on a
 // tile deletes it. One tile can be redrawn in place (`setTile`), keeping the focus on it.
-import { h } from '../h.js';
+import { h } from '../kit/h.js';
 import { read, Scope, type BlockHandle, type Value } from './block.js';
-import { keepFocus, rovingKeys } from './focus.js';
+import { keepFocus, rovingKeys } from '../kit/focus.js';
 
 export interface Tile {
   key: string;

@@ -2,12 +2,12 @@
 // of tiles (a pack can hold thousands of icons: only the rows in view are in the DOM), each tile naming its icon and
 // its pack's licence. The host supplies the packs, the search and the previews (the editor: the icon registry,
 // `searchIcons`, `iconImage`), so the block knows nothing about registries.
-import { h } from '../h.js';
+import { h } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
-import { gridKeys } from './grid-keys.js';
-import { createOverlayScroll, OVERLAY_SCROLL_CSS } from './overlay-scroll.js';
+import { gridKeys } from '../kit/grid-keys.js';
+import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../kit/overlay-scroll.js';
 
 export interface IconPickerPack {
   name: string;

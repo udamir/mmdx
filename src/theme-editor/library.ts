@@ -9,7 +9,7 @@ import { BASELINE, ThemeRegistry } from '../core/theme/registry.js';
 import { THEME_SCHEMA_VERSION, type ThemeFile } from '../core/theme/types.js';
 import { validateTheme } from '../core/theme/validate.js';
 import type { Translate } from '../ui/blocks/block.js';
-import type { Dialogs } from '../ui/dialog.js';
+import type { Dialogs } from '../ui/kit/dialog.js';
 import { signal } from '../reactive/signal.js';
 import type { Draft } from './draft.js';
 import type { Entry, ThemeEditorEventMap, ThemeEditorOptions } from './types.js';

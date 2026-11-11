@@ -6,7 +6,7 @@ import { ensure, tidy, cloneMeta } from '../../../../core/ops/meta-util.js';
 import { baseStyleOf, presetsFor } from '../../../../core/ops/style-env.js';
 import { STYLE_FIELDS } from '../../../../core/schema/style-fields.js';
 import type { ItemKind, ItemRef } from '../../../../core/types.js';
-import { h } from '../../../../ui/h.js';
+import { h } from '../../../../ui/kit/h.js';
 import { applyMeta, styleEnv } from '../../../ops/doc.js';
 import { animationOf, setAnimation } from '../../../ops/animation.js';
 import { groupResetState, resetSelectedGroup } from '../../../ops/group.js';

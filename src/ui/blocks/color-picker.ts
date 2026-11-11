@@ -2,10 +2,10 @@
 // and None — opened from a colour chip through the host's PopoverManager (Esc / outside click closes, the focus
 // returns to the chip) and placed beside its opener inside the viewport (below it, above when there is no room).
 // Arrow keys move through the swatches with one tab stop.
-import { h } from '../h.js';
-import type { PopoverManager } from '../popover.js';
+import { h } from '../kit/h.js';
+import type { PopoverManager } from '../kit/popover.js';
 import { Scope, type BlockHandle } from './block.js';
-import { rovingKeys } from './focus.js';
+import { rovingKeys } from '../kit/focus.js';
 
 export interface ColorPickerProps {
   /** Accessible name of the dialog ("Choose a colour for Fill"). */

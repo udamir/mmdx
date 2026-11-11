@@ -6,7 +6,7 @@
 // inline (the Shapes menu's text block, the toolbar's and Properties' icon, ⌘G, a node's connection handles).
 import type { Point } from '../../../core/types.js';
 import { dockButton } from '../../../ui/blocks/tool-dock.js';
-import { s } from '../../../ui/h.js';
+import { s } from '../../../ui/kit/h.js';
 
 import { editKind, withEdit } from '../../kinds/registry.js';
 import type { EditKind } from '../../kinds/types.js';

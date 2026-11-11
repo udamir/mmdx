@@ -27,5 +27,4 @@ editor/modules/sequence/index.ts → editor/modules/connect/geometry.ts [value] 
 editor/modules/shapes/drag.ts → editor/modules/connect/geometry.ts [value] (module → module shapes → connect)
 ui/blocks/emoji-picker.ts → emoji/data.ts [type] (block → data)
 ui/blocks/emoji-picker.ts → emoji/data.ts [value] (block → data)
-ui/blocks/focus.ts → dom/idle.ts [value] (block → dom)
 view/history.ts → diff/session.ts [type] (upward view → diff)

@@ -3,11 +3,11 @@
 // field over each item's name and terms (the shape's semantic and Mermaid names, aliases), and arrow-key movement
 // through the tiles. The host owns what an item is and does: a pointer press starts its drag (`onPointerDown`), a
 // click or Enter chooses it (`onPick`).
-import { h } from '../h.js';
+import { h } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
-import { gridKeys } from './grid-keys.js';
+import { gridKeys } from '../kit/grid-keys.js';
 
 export interface ShapePaletteItem {
   key: string;

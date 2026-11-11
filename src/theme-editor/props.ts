@@ -2,9 +2,9 @@
 // tile's gallery. An item style's fields come from the style schema; a page preset has its own.
 import { FIELD_DEFS, themeSection } from '../core/schema/style-fields.js';
 import { deepMerge } from '../core/theme/registry.js';
-import { h } from '../ui/h.js';
+import { h } from '../ui/kit/h.js';
 import { ROUTINGS } from './constants.js';
-import { RATIOS } from '../ui/page-ratios.js';
+import { RATIOS } from '../ui/diagram/page-ratios.js';
 import type { Env } from './env.js';
 import { fieldRow } from './fields.js';
 import type { LocalField, TileSel } from './types.js';

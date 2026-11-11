@@ -9,7 +9,8 @@ const ROOT = join(__dirname, '../..');
 const SRC = join(ROOT, 'src');
 const walk = (d: string): string[] => readdirSync(d).flatMap((n) => (statSync(join(d, n)).isDirectory() ? walk(join(d, n)) : n.endsWith('.ts') ? [join(d, n)] : []));
 const files = walk(SRC);
-const isCatalogue = (f: string): boolean => /[\\/]ui[\\/]messages[\\/]/.test(f) || /[\\/]ui[\\/]i18n\.ts$/.test(f);
+// the shared catalogues (src/i18n.ts, ui/messages/) and the products' own (A5: messages*.ts next to their code)
+const isCatalogue = (f: string): boolean => /[\\/]ui[\\/]messages[\\/]/.test(f) || /[\\/]src[\\/]i18n\.ts$/.test(f) || /[\\/](diff|editor|view|theme-editor)[\\/]messages[^\\/]*\.ts$/.test(f);
 
 /** Every `'key': 'text'` entry of the catalogues, with where it is. */
 function catalogue(): { key: string; at: string }[] {

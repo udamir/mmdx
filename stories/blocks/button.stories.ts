@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createIconButton, createToggleButton } from '../../src/ui/blocks/button.js';
-import { I_hand, I_pen, I_pointer, I_undo } from '../../src/ui/icons.js';
+import { I_hand, I_pen, I_pointer, I_undo } from '../../src/ui/kit/icons.js';
 import { signal } from '../../src/reactive/signal.js';
 import { chromeHost } from '../support.js';
 

@@ -4,12 +4,12 @@
 // (elements/diff/panels.ts). The block's element is a `display: contents` span, so the buttons sit directly in the
 // flow of the host's horizontal Toolbar (arrow keys, tooltip placement). The change colours come from the
 // `--mmdx-diff-*` tokens: the host adopts `DIFF_TOKENS` (ui/styles/diff.ts).
-import { h, icon } from '../h.js';
+import { h, icon } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
-import { I_palette } from '../icons.js';
+import { I_palette } from '../kit/icons.js';
 import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
-import { keepFocus } from './focus.js';
+import { keepFocus } from '../kit/focus.js';
 
 /** Icons of the change filters (each drawn in its highlight colour). */
 export const FILTER_ICONS: Record<'added' | 'removed' | 'content' | 'layout' | 'style' | 'dim', string> = {

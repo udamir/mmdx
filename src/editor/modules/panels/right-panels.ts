@@ -5,7 +5,7 @@
 // ~3016–3066).
 import { clearHighlight, hoverHighlight } from '../../../dom/highlight.js';
 import { createSidePanel } from '../../../ui/blocks/side-panel.js';
-import { h } from '../../../ui/h.js';
+import { h } from '../../../ui/kit/h.js';
 import type { EditorModule } from '../../module.js';
 import { LiveEdit } from '../../ops/live.js';
 import { LAYERS_CSS, layersCard } from './layers.js';

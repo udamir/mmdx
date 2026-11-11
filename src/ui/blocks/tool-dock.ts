@@ -3,10 +3,10 @@
 // to the right of the tools (`.vt-opts`, e.g. the pen options). Replaces the DOM and CSS of
 // `editor/modules/chrome/tool-dock.ts` and the diff's `vbar`; the class names are kept so the editor's tests and
 // styles still match. The host builds the buttons (`dockButton`) and owns their state.
-import { h } from '../h.js';
+import { h } from '../kit/h.js';
 import { read, Scope, type BlockHandle, type Value } from './block.js';
 import { createIconButton, type IconButtonHandle, type IconButtonProps } from './button.js';
-import { keepFocus } from './focus.js';
+import { keepFocus } from '../kit/focus.js';
 import { createToolbar, type ToolbarHandle, type ToolbarItem } from './toolbar.js';
 
 export interface ToolDockGroup {

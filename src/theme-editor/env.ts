@@ -3,8 +3,8 @@
 import type { CoreContext } from '../core/context.js';
 import type { DiagramType } from '../core/types.js';
 import type { Scope, Translate } from '../ui/blocks/block.js';
-import type { Dialogs } from '../ui/dialog.js';
-import type { PopoverManager } from '../ui/popover.js';
+import type { Dialogs } from '../ui/kit/dialog.js';
+import type { PopoverManager } from '../ui/kit/popover.js';
 import type { ReadSignal, Signal } from '../reactive/signal.js';
 import type { Draft } from './draft.js';
 import type { ThemeLibrary } from './library.js';

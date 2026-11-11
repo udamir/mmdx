@@ -5,8 +5,8 @@
 // View mode. Shortcuts V, C, I, L, Esc (back to the default tool). Provides `setTool` with the editor's rules.
 import { editKind } from '../../kinds/registry.js';
 import { dockBadge, dockButton } from '../../../ui/blocks/tool-dock.js';
-import { icon } from '../../../ui/h.js';
-import { I_code, I_layers, I_pointer, I_props, I_redo, I_shapes, I_undo } from '../../../ui/icons.js';
+import { icon } from '../../../ui/kit/h.js';
+import { I_code, I_layers, I_pointer, I_props, I_redo, I_shapes, I_undo } from '../../../ui/kit/icons.js';
 import { computed } from '../../../reactive/signal.js';
 import type { Tool } from '../../core.js';
 import type { EditorModule } from '../../module.js';

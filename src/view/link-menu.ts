@@ -3,7 +3,7 @@
 // on such an item in View mode opens a menu at the pointer listing them instead of following the first one, as
 // Mermaid's popup does. Shared by the viewer and the editor's View mode.
 import { openMenu } from '../ui/blocks/menu.js';
-import type { PopoverManager } from '../ui/popover.js';
+import type { PopoverManager } from '../ui/kit/popover.js';
 
 /** The links of the item under `target` when it has a menu of them (two or more), else null. */
 export function menuLinks(target: Element | null): { label: string; href: string }[] | null {

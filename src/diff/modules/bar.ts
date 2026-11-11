@@ -5,12 +5,12 @@
 // the view keys of elements/diff.ts.
 import { createIconButton } from '../../ui/blocks/button.js';
 import { createFilterToggles, FILTER_ICONS, FILTER_TOGGLES_CSS } from '../../ui/blocks/filter-toggles.js';
-import { keepFocus } from '../../ui/blocks/focus.js';
+import { keepFocus } from '../../ui/kit/focus.js';
 import { createSegmented, SEGMENTED_CSS, type SegmentedOption } from '../../ui/blocks/segmented.js';
 import { createToolbar, TOOLBAR_CSS, type ToolbarItem } from '../../ui/blocks/toolbar.js';
-import { h } from '../../ui/h.js';
-import { I_list } from '../../ui/icons.js';
-import type { Shortcut } from '../../ui/shortcuts.js';
+import { h } from '../../ui/kit/h.js';
+import { I_list } from '../../ui/kit/icons.js';
+import type { Shortcut } from '../../ui/kit/keys.js';
 import { untracked } from '../../reactive/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import type { ViewModule } from '../../view/module.js';

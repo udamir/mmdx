@@ -13,7 +13,7 @@ import { BUILTIN_IDS } from '../core/theme/builtin-ids.js';
 import { HOUSE, counterpartTheme } from '../core/theme/pairs.js';
 import type { ThemeRegistry } from '../core/theme/registry.js';
 import { computed, signal, type ReadSignal, type Signal } from '../reactive/signal.js';
-import { resolveUiScheme } from '../ui/styles/base.js';
+import { resolveUiScheme } from '../ui/kit/base.js';
 
 export type Scheme = 'light' | 'dark';
 export type UiOption = 'light' | 'dark' | 'auto';

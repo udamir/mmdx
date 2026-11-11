@@ -3,8 +3,8 @@
 // version in History mode; Portable Mermaid), the patch and the reports (Markdown, JSON). hostActions shows the
 // host's buttons (`DiffAction`, e.g. History's Restore and Back) at the end of the view params, top right. Replace
 // `openExport` and `renderActions` of elements/diff.ts.
-import { keepFocus } from '../../ui/blocks/focus.js';
-import { h } from '../../ui/h.js';
+import { keepFocus } from '../../ui/kit/focus.js';
+import { h } from '../../ui/kit/h.js';
 import { untracked, type ReadSignal } from '../../reactive/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import type { ViewModule } from '../../view/module.js';

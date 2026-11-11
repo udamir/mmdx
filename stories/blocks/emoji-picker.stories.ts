@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { loadEmoji } from '../../src/emoji/data.js';
 import { createEmojiPicker, EMOJI_PICKER_CSS } from '../../src/ui/blocks/emoji-picker.js';
-import { createI18n } from '../../src/ui/i18n.js';
+import { createI18n } from '../../src/i18n.js';
 import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; query: string };

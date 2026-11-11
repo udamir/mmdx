@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSidePanel } from '../../../src/ui/blocks/side-panel.js';
 import { createTabs } from '../../../src/ui/blocks/tabs.js';
-import { h } from '../../../src/ui/h.js';
+import { h } from '../../../src/ui/kit/h.js';
 import { signal } from '../../../src/reactive/signal.js';
 
 const key = (el: Element, k: string): KeyboardEvent => {

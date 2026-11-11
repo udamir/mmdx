@@ -4,9 +4,9 @@
 import type { Insets } from '../dom/canvas.js';
 import { Owner } from '../reactive/owner.js';
 import { observeSize } from '../dom/resize.js';
-import { h } from '../ui/h.js';
+import { h } from '../ui/kit/h.js';
 import { effect, signal, type Signal } from '../reactive/signal.js';
-import { adoptStyles } from '../ui/styles/base.js';
+import { adoptStyles } from '../ui/kit/base.js';
 import type { SlotName } from './types.js';
 
 const COMPACT_W = 560;

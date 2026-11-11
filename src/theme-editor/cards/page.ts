@@ -1,7 +1,7 @@
 // Appearance, font & page: whether the theme is light or dark (a label for pickers, not a switch between variants),
 // the linked theme of the other appearance, the font, and the page colours.
 import { createSegmented } from '../../ui/blocks/segmented.js';
-import { h } from '../../ui/h.js';
+import { h } from '../../ui/kit/h.js';
 import { signal } from '../../reactive/signal.js';
 import { FONTS } from '../constants.js';
 import type { Env } from '../env.js';

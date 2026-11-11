@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 // Shared story fixtures: the shipped examples and themes, and a shadow-root host for the chrome pieces
 // (they are styled for the components' shadow roots, through the --mmdx-* tokens).
-import { ALIASES, adoptStyles, BASE, TOKENS } from '../src/ui/styles/base.js';
+import { ALIASES, adoptStyles, BASE, TOKENS } from '../src/ui/kit/base.js';
 import { BUILTIN_THEMES } from '../src/core/theme/builtin.js';
 import type { ThemeFile } from '../src/core/theme/types.js';
 import type { VersionInfo } from '../src/core/diff/report.js';

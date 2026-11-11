@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createStyleToolbar, fitPresetGrid, shapePreview, TOOLBAR_KINDS, type ToolbarApi } from '../../src/ui/style-toolbar.js';
-import { createPageToolbar, type PageToolbarApi } from '../../src/ui/page-toolbar.js';
+import { createStyleToolbar, fitPresetGrid, shapePreview, TOOLBAR_KINDS, type ToolbarApi } from '../../src/ui/diagram/style-toolbar.js';
+import { createPageToolbar, type PageToolbarApi } from '../../src/ui/diagram/page-toolbar.js';
 
 function mount(kind: string, over: Partial<ToolbarApi> = {}, opts: Parameters<typeof createStyleToolbar>[2] = {}) {
   const host = document.createElement('div');
@@ -344,7 +344,7 @@ describe('page toolbar', () => {
 
 describe('toolbar CSS', () => {
   it('the Fill swatch class has one rule', async () => {
-    const { TOOLBAR_CSS } = await import('../../src/ui/styles/toolbar.js');
+    const { TOOLBAR_CSS } = await import('../../src/ui/diagram/toolbar-styles.js');
     expect(TOOLBAR_CSS.match(/^\.mtb-dot \{/gm)).toHaveLength(1);
   });
 });

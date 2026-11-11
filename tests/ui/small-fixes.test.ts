@@ -1,9 +1,9 @@
 // Theme editor and UI fixes of the codebase audit (task 1.24): B25, B26, B29, B37.
 import { describe, expect, it, vi } from 'vitest';
-import { CODE_TOKENS_CSS } from '../../src/ui/styles/code-tokens.js';
-import { RATIOS } from '../../src/ui/page-ratios.js';
+import { CODE_TOKENS_CSS } from '../../src/ui/diagram/code-tokens-styles.js';
+import { RATIOS } from '../../src/ui/diagram/page-ratios.js';
 import { FONTS } from '../../src/theme-editor/constants.js';
-import { FONTS as STYLE_FONTS } from '../../src/ui/fonts.js';
+import { FONTS as STYLE_FONTS } from '../../src/ui/diagram/fonts.js';
 
 describe('B25: one table of page ratios and fonts', () => {
   it('the theme editor offers A4 and the style pickers\' font stacks', () => {

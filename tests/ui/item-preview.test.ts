@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { getShared, instanceContext } from '../../src/platform/config.js';
 import { parseFlowchart } from '../../src/core/parse/flowchart.js';
 import { ALL_VIEW_KINDS } from '../../src/core/kinds/all.js';
-import { drawItemPreview, drawItemPreviewWith, ITEM_SAMPLES, renderItemSample, renderItemSampleWith, type PreviewKind } from '../../src/ui/item-preview.js';
-import { fitPresetGrid, shapePreview } from '../../src/ui/shape-preview.js';
+import { drawItemPreview, drawItemPreviewWith, ITEM_SAMPLES, renderItemSample, renderItemSampleWith, type PreviewKind } from '../../src/ui/diagram/item-preview.js';
+import { fitPresetGrid, shapePreview } from '../../src/ui/diagram/shape-preview.js';
 import { SHAPES } from '../../src/core/shapes/catalog.js';
 
 const theme = getShared().themes.get('default-light');

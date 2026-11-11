@@ -1,8 +1,8 @@
 // Tabs (§5.2): a tab list (`role=tablist`, `role=tab`, `aria-selected`) with arrow-key movement; the selected tab
 // is the only one in the Tab order. Extra elements (a close button) can follow the tabs.
-import { h } from '../h.js';
+import { h } from '../kit/h.js';
 import { read, Scope, type BlockHandle, type Value } from './block.js';
-import { keepFocus, rovingKeys } from './focus.js';
+import { keepFocus, rovingKeys } from '../kit/focus.js';
 
 export interface TabsProps<V extends string = string> {
   label: string;

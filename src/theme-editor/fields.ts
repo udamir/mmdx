@@ -4,7 +4,7 @@
 import { optionValue } from '../core/schema/style-fields.js';
 import { isColorLiteral } from '../core/validate.js';
 import { openColorPicker } from '../ui/blocks/color-picker.js';
-import { h } from '../ui/h.js';
+import { h } from '../ui/kit/h.js';
 import type { Env } from './env.js';
 import type { LocalField } from './types.js';
 import { isHex } from './util.js';

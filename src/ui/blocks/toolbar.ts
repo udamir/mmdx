@@ -1,9 +1,9 @@
 // Toolbar (§5.2): a floating bar of buttons, vertical or horizontal, with separators, arrow-key focus movement
 // (Home / End too) with a roving tab stop (the bar is one stop in the Tab order; a nested radio group keeps its own)
 // and the CSS tooltips of `data-tip` placed beside (vertical) or above (horizontal) the bar.
-import { h } from '../h.js';
+import { h } from '../kit/h.js';
 import { read, Scope, type BlockHandle, type Value } from './block.js';
-import { keepFocus, rovingKeys } from './focus.js';
+import { keepFocus, rovingKeys } from '../kit/focus.js';
 
 export type ToolbarItem = HTMLElement | 'sep' | null | undefined | false;
 

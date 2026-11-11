@@ -1,8 +1,8 @@
 // Segmented (§5.2): exclusive buttons (the diff's views, compare / version, the studio's mode switch) with a
 // compact `<select>` form that the host's container queries show instead of the buttons on narrow canvases.
-import { h } from '../h.js';
+import { h } from '../kit/h.js';
 import { read, Scope, type BlockHandle, type Value } from './block.js';
-import { keepFocus } from './focus.js';
+import { keepFocus } from '../kit/focus.js';
 
 export interface SegmentedOption<V extends string = string> {
   value: V;

@@ -1,7 +1,7 @@
 // <mmdx-studio> (§8.4, UC4): the standalone all-in-one app — editor, theme editor (dialog), file menu, examples
 // gallery, appearance toggle — the prototype's index.html, packaged as one element. The studio gives the editor the
 // open document's versions (an example's bundled history and the versions saved here), shown by the editor's History.
-import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../ui/blocks/overlay-scroll.js';
+import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../ui/kit/overlay-scroll.js';
 import { Owner } from '../reactive/owner.js';
 import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
 import type { ImageStore } from '../ports.js';
@@ -22,13 +22,13 @@ import { contentId, type StaticVersion } from '../adapters/history.js';
 import type { BlockHandle } from '../ui/blocks/block.js';
 import { createSegmented, type SegmentedOption, type SegmentedProps } from '../ui/blocks/segmented.js';
 import { MENU_CSS, openMenu } from '../ui/blocks/menu.js';
-import { h, icon } from '../ui/h.js';
+import { h, icon } from '../ui/kit/h.js';
 import { signal } from '../reactive/signal.js';
-import { I_close, I_eye, I_file, I_folder, I_palette, I_save } from '../ui/icons.js';
-import { logoMark } from '../ui/logo.js';
-import { PopoverManager, Toaster } from '../ui/popover.js';
-import { Dialogs, DIALOG_CSS } from '../ui/dialog.js';
-import { adoptStyles, ALIASES, BASE, resolveUiScheme, TOKENS, watchUiScheme } from '../ui/styles/base.js';
+import { I_close, I_eye, I_file, I_folder, I_palette, I_save } from '../ui/kit/icons.js';
+import { logoMark } from '../ui/kit/logo.js';
+import { PopoverManager, Toaster } from '../ui/kit/popover.js';
+import { Dialogs, DIALOG_CSS } from '../ui/kit/dialog.js';
+import { adoptStyles, ALIASES, BASE, resolveUiScheme, TOKENS, watchUiScheme } from '../ui/kit/base.js';
 
 /** The studio's mode switch: the editor's Edit and View, and Diff (its History, compared with the version before). */
 export type StudioMode = 'edit' | 'view' | 'diff';

@@ -1,8 +1,8 @@
 // Shapes-menu content of the edit kinds: the palette item type and the fixed icons the kinds' palettes use (prototype
 // app.js `PALETTE_ITEMS`, `blockIcon`, `NOTE_ICON`, `TABLE_ICON`). Icons are fixed constants built with createElementNS.
 import type { ItemKind } from '../../core/types.js';
-import { s } from '../../ui/h.js';
-import { shapePreview } from '../../ui/shape-preview.js';
+import { s } from '../../ui/kit/h.js';
+import { shapePreview } from '../../ui/diagram/shape-preview.js';
 
 export interface PaletteItem {
   key: string;

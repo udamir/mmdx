@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createIconButton } from '../../../src/ui/blocks/button.js';
 import { createToolDock, dockBadge, dockButton } from '../../../src/ui/blocks/tool-dock.js';
-import { I_code, I_hand, I_pen, I_pointer, I_redo, I_undo } from '../../../src/ui/icons.js';
+import { I_code, I_hand, I_pen, I_pointer, I_redo, I_undo } from '../../../src/ui/kit/icons.js';
 import { signal } from '../../../src/reactive/signal.js';
 
 const key = (el: Element, k: string): KeyboardEvent => {

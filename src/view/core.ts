@@ -16,11 +16,11 @@ import { CANVAS_CSS, DiagramCanvas, type CanvasOptions, type Insets } from '../d
 import { domImageSizes, onImageSize } from '../dom/image-sizes.js';
 import type { StrokeStore } from '../dom/pen.js';
 import { registerMessages, type I18n } from '../i18n.js';
-import { VIEW_MESSAGES } from '../ui/messages/view.js';
-import { PopoverManager, Toaster } from '../ui/popover.js';
-import { ShortcutRegistry } from '../ui/shortcuts.js';
+import { VIEW_MESSAGES } from './messages.js';
+import { PopoverManager, Toaster } from '../ui/kit/popover.js';
+import { ShortcutRegistry } from './keymap.js';
 import { effect, signal, untracked, type Signal } from '../reactive/signal.js';
-import { BASE, TOKENS, watchUiScheme } from '../ui/styles/base.js';
+import { BASE, TOKENS, watchUiScheme } from '../ui/kit/base.js';
 import type { HistoryLoader, HistorySession } from './history.js';
 import { ModuleHost, Scope } from './host.js';
 import type { ModuleScope, Registration, ViewModule } from './module.js';

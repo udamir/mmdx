@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../../src/adapters/storage.js';
 import { createPanelStack } from '../../../src/ui/blocks/panel-stack.js';
 import { createSidePanel } from '../../../src/ui/blocks/side-panel.js';
-import { h } from '../../../src/ui/h.js';
+import { h } from '../../../src/ui/kit/h.js';
 import { createI18n } from '../../../src/i18n.js';
 import { signal } from '../../../src/reactive/signal.js';
 

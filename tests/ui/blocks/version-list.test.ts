@@ -4,7 +4,7 @@ import type { VersionInfo } from '../../../src/ports.js';
 import { signal } from '../../../src/reactive/signal.js';
 import { ago, createVersionList, type VersionCounts, type VersionListProps } from '../../../src/ui/blocks/version-list.js';
 import { createI18n } from '../../../src/i18n.js';
-import { PopoverManager } from '../../../src/ui/popover.js';
+import { PopoverManager } from '../../../src/ui/kit/popover.js';
 
 const t = createI18n().t;
 const daysAgo = (n: number): string => new Date(Date.now() - n * 86400_000).toISOString();

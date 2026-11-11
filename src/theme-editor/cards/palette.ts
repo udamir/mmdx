@@ -1,8 +1,8 @@
 // The palette card: colour circles (the name is only a tooltip); click one to change it. In the baseline colours can
 // be added and removed (references to a removed colour keep its value); in a theme, a changed colour can go back to
 // the baseline's.
-import { h, icon } from '../../ui/h.js';
-import { I_plus } from '../../ui/icons.js';
+import { h, icon } from '../../ui/kit/h.js';
+import { I_plus } from '../../ui/kit/icons.js';
 import type { Env } from '../env.js';
 import { isHex, obj } from '../util.js';
 

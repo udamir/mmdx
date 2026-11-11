@@ -3,11 +3,11 @@
 // `section` between two entries inserts a separator (or a section header). Async exports that fail are reported
 // through `onError`. Replaces the export menus of editor/modules/chrome/view-params.ts, the viewer's `openExport`
 // (elements/viewer.ts) and the diff's `openExport` (elements/diff.ts).
-import { h, icon } from '../h.js';
+import { h, icon } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
-import { I_download } from '../icons.js';
+import { I_download } from '../kit/icons.js';
 import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
-import type { PopoverManager } from '../popover.js';
+import type { PopoverManager } from '../kit/popover.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
 import { attachMenu, type MenuEntry } from './menu.js';
 

@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../../src/adapters/storage.js';
-import { keepFocus, rovingKeys } from '../../../src/ui/blocks/focus.js';
+import { keepFocus, rovingKeys } from '../../../src/ui/kit/focus.js';
 import { createPanelStack } from '../../../src/ui/blocks/panel-stack.js';
 import { createSegmented } from '../../../src/ui/blocks/segmented.js';
 import { createSidePanel } from '../../../src/ui/blocks/side-panel.js';
 import { createTabs } from '../../../src/ui/blocks/tabs.js';
-import { h } from '../../../src/ui/h.js';
+import { h } from '../../../src/ui/kit/h.js';
 import { createI18n } from '../../../src/i18n.js';
 import { signal } from '../../../src/reactive/signal.js';
 

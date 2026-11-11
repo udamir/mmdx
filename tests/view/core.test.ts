@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
-import { h } from '../../src/ui/h.js';
+import { h } from '../../src/ui/kit/h.js';
 import { ViewCore } from '../../src/view/core.js';
 import { lazyModule, orderModules, type ViewModule } from '../../src/view/module.js';
 import { BaseScene, type CanvasArea } from '../../src/view/scene.js';

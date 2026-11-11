@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { PICKER_CATEGORIES, shapesIn } from '../../src/core/shapes/catalog.js';
 import { createShapePalette, SHAPE_PALETTE_CSS } from '../../src/ui/blocks/shape-palette.js';
-import { createI18n } from '../../src/ui/i18n.js';
-import { shapePreview } from '../../src/ui/shape-preview.js';
+import { createI18n } from '../../src/i18n.js';
+import { shapePreview } from '../../src/ui/diagram/shape-preview.js';
 import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; compact: boolean; query: string };

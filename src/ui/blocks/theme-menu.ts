@@ -2,11 +2,11 @@
 // then the themes grouped Light / Dark with the picked one ticked, and an optional "Edit themes…" entry. The theme
 // button is the view params' palette button with a caret, labelled with the theme currently drawn. Replaces the
 // theme menu of editor/modules/chrome/view-params.ts.
-import { h, icon } from '../h.js';
+import { h, icon } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
-import { I_chevronDown, I_palette } from '../icons.js';
+import { I_chevronDown, I_palette } from '../kit/icons.js';
 import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
-import type { PopoverManager } from '../popover.js';
+import type { PopoverManager } from '../kit/popover.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
 import { attachMenu, type MenuEntry } from './menu.js';
 

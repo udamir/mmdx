@@ -2,8 +2,8 @@ import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { diffDiagrams } from '../../src/core/diff/all.js';
 import { changeKey } from '../../src/core/diff/merge.js';
 import { CHANGE_LIST_CSS, createChangeList } from '../../src/ui/blocks/change-list.js';
-import { createI18n } from '../../src/ui/i18n.js';
-import { DIFF_TOKENS } from '../../src/ui/styles/diff.js';
+import { createI18n } from '../../src/i18n.js';
+import { DIFF_TOKENS } from '../../src/diff/styles.js';
 import { chromeHost, exampleHistory } from '../support.js';
 
 type Args = { example: string; ui: 'light' | 'dark' };

@@ -2,9 +2,9 @@
 // Save. The buttons follow the draft's signals.
 import { createIconButton } from '../ui/blocks/button.js';
 import { createToolbar } from '../ui/blocks/toolbar.js';
-import { h } from '../ui/h.js';
-import { I_redo, I_undo } from '../ui/icons.js';
-import { formatKeys } from '../ui/shortcuts.js';
+import { h } from '../ui/kit/h.js';
+import { I_redo, I_undo } from '../ui/kit/icons.js';
+import { formatKeys } from '../ui/kit/keys.js';
 import type { Env } from './env.js';
 import { derived } from './util.js';
 

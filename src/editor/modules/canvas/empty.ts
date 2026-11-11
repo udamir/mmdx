@@ -6,7 +6,7 @@ import { startDiagram } from '../../../core/ops/index.js';
 import { DIAGRAM_TYPES } from '../../../core/kinds/info.js';
 import { KIND_NAMES } from '../../../core/kinds/names.js';
 import type { DiagramType } from '../../../core/types.js';
-import { h, s } from '../../../ui/h.js';
+import { h, s } from '../../../ui/kit/h.js';
 import type { EditorCore } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 

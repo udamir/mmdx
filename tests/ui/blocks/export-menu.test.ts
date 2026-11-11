@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createExportMenu, exportMenuEntries, type ExportEntry } from '../../../src/ui/blocks/export-menu.js';
-import { h } from '../../../src/ui/h.js';
+import { h } from '../../../src/ui/kit/h.js';
 import { createI18n } from '../../../src/i18n.js';
-import { PopoverManager } from '../../../src/ui/popover.js';
+import { PopoverManager } from '../../../src/ui/kit/popover.js';
 import { signal } from '../../../src/reactive/signal.js';
 
 const t = createI18n().t;

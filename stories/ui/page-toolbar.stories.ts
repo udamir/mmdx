@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
-import { createPageToolbar, type PageToolbarApi, type SequenceLayoutState } from '../../src/ui/page-toolbar.js';
-import type { PaletteColor } from '../../src/ui/style-toolbar.js';
-import { TOOLBAR_CSS } from '../../src/ui/styles/toolbar.js';
+import { createPageToolbar, type PageToolbarApi, type SequenceLayoutState } from '../../src/ui/diagram/page-toolbar.js';
+import type { PaletteColor } from '../../src/ui/diagram/style-toolbar.js';
+import { TOOLBAR_CSS } from '../../src/ui/diagram/toolbar-styles.js';
 import { chromeHost } from '../support.js';
 
 type PageArgs = { type: 'flowchart' | 'sequence' | 'er'; ui: 'light' | 'dark' };

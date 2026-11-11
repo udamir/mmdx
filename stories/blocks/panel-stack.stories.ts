@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { createPanelStack, PANEL_STACK_CSS } from '../../src/ui/blocks/panel-stack.js';
 import { createSidePanel, SIDE_PANEL_CSS } from '../../src/ui/blocks/side-panel.js';
-import { createI18n } from '../../src/ui/i18n.js';
+import { createI18n } from '../../src/i18n.js';
 import { signal, type Signal } from '../../src/reactive/signal.js';
 import { chromeHost } from '../support.js';
 

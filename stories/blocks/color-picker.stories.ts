@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { COLOR_PICKER_CSS, createColorPicker, openColorPicker } from '../../src/ui/blocks/color-picker.js';
-import { h } from '../../src/ui/h.js';
-import { PopoverManager } from '../../src/ui/popover.js';
+import { h } from '../../src/ui/kit/h.js';
+import { PopoverManager } from '../../src/ui/kit/popover.js';
 import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; open: boolean };

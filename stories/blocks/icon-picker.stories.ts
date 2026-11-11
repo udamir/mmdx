@@ -5,7 +5,7 @@ import { searchIcons } from '../../src/core/icons/search.js';
 import type { IconifyJSON } from '../../src/core/icons/types.js';
 import { BUILTIN_ICONS } from '../../src/icons/builtin.js';
 import { createIconPicker, ICON_PICKER_CSS } from '../../src/ui/blocks/icon-picker.js';
-import { createI18n } from '../../src/ui/i18n.js';
+import { createI18n } from '../../src/i18n.js';
 import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; packs: 'three' | 'builtin'; remove: boolean };

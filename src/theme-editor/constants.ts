@@ -4,9 +4,9 @@ import { participantPresetShape, presetShape } from '../core/render/index.js';
 import { registerExtendedShapes } from '../core/extras.js';
 import { PARTICIPANT_SHAPES, pickerShapes } from '../core/shapes/catalog.js';
 import type { DiagramType } from '../core/types.js';
-import type { ToolbarControl } from '../ui/style-toolbar.js';
+import type { ToolbarControl } from '../ui/diagram/style-toolbar.js';
 import type { Obj } from './util.js';
-import { FONTS as STYLE_FONTS } from '../ui/fonts.js';
+import { FONTS as STYLE_FONTS } from '../ui/diagram/fonts.js';
 
 // the previews draw every catalogue shape, icons and rich labels: the geometry and the media kit, registered statically
 registerExtendedShapes();

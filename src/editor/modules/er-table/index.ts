@@ -17,8 +17,8 @@ import { el } from '../../../core/scene/build.js';
 import type { SceneNode } from '../../../core/scene/types.js';
 import { relativeColor } from '../../../core/theme/colors.js';
 import type { Rect } from '../../../core/types.js';
-import { h } from '../../../ui/h.js';
-import type { KindSpec, ToolbarApi, StyleToolbarHandle } from '../../../ui/style-toolbar.js';
+import { h } from '../../../ui/kit/h.js';
+import type { KindSpec, ToolbarApi, StyleToolbarHandle } from '../../../ui/diagram/style-toolbar.js';
 import type { Gesture } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { elementAt } from '../canvas/shared.js';
@@ -291,7 +291,7 @@ export const erTableModule: EditorModule = {
     };
     let tb: StyleToolbarHandle | null = null;
     let tbLoading: Promise<void> | null = null;
-    const ensureToolbar = (): Promise<void> => (tbLoading ??= import('../../../ui/style-toolbar.js').then(({ createStyleToolbar }) => {
+    const ensureToolbar = (): Promise<void> => (tbLoading ??= import('../../../ui/diagram/style-toolbar.js').then(({ createStyleToolbar }) => {
       if (destroyed || tb) return;
       tb = createStyleToolbar(wrap, api, { i18n: core.i18n, kinds: { attr: ATTR_SPEC } });
       tb.refresh();

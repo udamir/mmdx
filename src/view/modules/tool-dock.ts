@@ -3,7 +3,7 @@
 // pen options) in the left-dock slot; it is not shown while nothing is in it. The pan module adds the Hand tool
 // (H) and Esc back to it.
 import { createToolDock, dockButton, TOOL_DOCK_CSS, type ToolDockGroup } from '../../ui/blocks/tool-dock.js';
-import { I_hand } from '../../ui/icons.js';
+import { I_hand } from '../../ui/kit/icons.js';
 import type { ViewCore } from '../core.js';
 import type { ViewModule } from '../module.js';
 import type { DockItem } from '../types.js';

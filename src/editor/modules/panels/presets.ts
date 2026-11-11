@@ -8,8 +8,8 @@ import { currentPreset, isLocalPreset, nodeShapeOf, participantShapeOf, presetOf
 import { participantPresetShape, presetShape } from '../../../core/render/common.js';
 import { KIND_TO_COLL } from '../../../core/meta/types.js';
 import type { ItemRef } from '../../../core/types.js';
-import { h, icon } from '../../../ui/h.js';
-import { drawItemPreview, previewKind } from '../../../ui/item-preview.js';
+import { h, icon } from '../../../ui/kit/h.js';
+import { drawItemPreview, previewKind } from '../../../ui/diagram/item-preview.js';
 import type { EditorCore } from '../../core.js';
 import { applyMeta, styleEnv } from '../../ops/doc.js';
 

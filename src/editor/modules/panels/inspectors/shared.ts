@@ -5,7 +5,7 @@ import { layerDefs, layerOf } from '../../../../core/layers.js';
 import { setLayer, setStyle } from '../../../../core/ops/meta-ops.js';
 import { relativeColor } from '../../../../core/theme/colors.js';
 import type { ItemRef } from '../../../../core/types.js';
-import { h } from '../../../../ui/h.js';
+import { h } from '../../../../ui/kit/h.js';
 import type { EditorCore } from '../../../core.js';
 import { applyMeta } from '../../../ops/doc.js';
 import { canGroup } from '../../../ops/group.js';

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createDisclosure, DISCLOSURE_CSS } from '../../src/ui/blocks/disclosure.js';
-import { h } from '../../src/ui/h.js';
+import { h } from '../../src/ui/kit/h.js';
 import { signal } from '../../src/reactive/signal.js';
 import { chromeHost } from '../support.js';
 

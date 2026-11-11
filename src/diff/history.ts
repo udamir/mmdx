@@ -18,11 +18,11 @@ import type { ItemKind } from '../core/types.js';
 import { transitionFrom, type MorphState } from '../dom/morph.js';
 import { reducedMotion } from '../dom/motion.js';
 import { createPill, PILL_CSS } from '../ui/blocks/pill.js';
-import { h, icon } from '../ui/h.js';
+import { h, icon } from '../ui/kit/h.js';
 import { registerMessages } from '../i18n.js';
-import { DIFF_MESSAGES } from '../ui/messages/diff.js';
+import { DIFF_MESSAGES } from './messages.js';
 import { computed, effect, signal, untracked } from '../reactive/signal.js';
-import { DIFF_CSS, DIFF_TOKENS } from '../ui/styles/diff.js';
+import { DIFF_CSS, DIFF_TOKENS } from './styles.js';
 import type { ViewCore } from '../view/core.js';
 import type { HistorySession } from '../view/history.js';
 import type { ViewModule } from '../view/module.js';
@@ -42,7 +42,7 @@ import type { MenuEntry } from '../ui/blocks/menu.js';
 import { diffStageModule } from './modules/stage.js';
 import { DiffScene } from './scene.js';
 import { DiffSession, type DiffMode } from './session.js';
-import { I_close } from '../ui/icons.js';
+import { I_close } from '../ui/kit/icons.js';
 
 /** Swap: two arrows, left and right. */
 export const I_SWAP = 'M7 7h13M16 3l4 4-4 4M17 17H4M8 13l-4 4 4 4';

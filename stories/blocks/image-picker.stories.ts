@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { memoryImageStore } from '../../src/adapters/images.js';
 import { checkImageUrl } from '../../src/core/media/policy.js';
 import { createImagePicker, IMAGE_PICKER_CSS } from '../../src/ui/blocks/image-picker.js';
-import { createI18n } from '../../src/ui/i18n.js';
+import { createI18n } from '../../src/i18n.js';
 import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; upload: boolean; library: boolean };

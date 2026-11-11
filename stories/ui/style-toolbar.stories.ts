@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
-import { createStyleToolbar, TOOLBAR_KINDS, type PaletteColor, type ToolbarApi, type ToolbarControl } from '../../src/ui/style-toolbar.js';
-import { TOOLBAR_CSS } from '../../src/ui/styles/toolbar.js';
+import { createStyleToolbar, TOOLBAR_KINDS, type PaletteColor, type ToolbarApi, type ToolbarControl } from '../../src/ui/diagram/style-toolbar.js';
+import { TOOLBAR_CSS } from '../../src/ui/diagram/toolbar-styles.js';
 import { chromeHost } from '../support.js';
 
 type ToolbarArgs = {

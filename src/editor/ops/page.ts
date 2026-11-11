@@ -8,7 +8,7 @@ import type { EditorCore } from '../core.js';
 import { applyMeta } from './doc.js';
 
 /** Named proportions (the label is an i18n key when it starts with `ratio.`). */
-export { RATIOS } from '../../ui/page-ratios.js';
+export { RATIOS } from '../../ui/diagram/page-ratios.js';
 
 /** Page values in effect: theme < page preset < the diagram's own. */
 export const pageEff = (core: EditorCore): ReturnType<typeof effectivePage> => effectivePage(core.model.type, core.meta, core.result.theme);

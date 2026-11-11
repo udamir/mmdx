@@ -4,13 +4,13 @@
 // `drawerBelow` px of host width it becomes a drawer over the canvas showing one panel at a time (the one opened
 // last). Replaces the stack of editor/modules/panels/right-panels.ts (`.right-stack`, `.rp-split`, `layersH`) and the
 // diff's left stack (`leftPane`, `wireSplit` in elements/diff.ts).
-import { h } from '../h.js';
+import { h } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
 import { signal, untracked } from '../../reactive/signal.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
-import { keepFocus } from './focus.js';
-import { createGrip } from './grip.js';
+import { keepFocus } from '../kit/focus.js';
+import { createGrip } from '../kit/grip.js';
 
 /** What the stack remembers sizes in (the kernel's storage adapter fits). */
 export interface StackStorage {

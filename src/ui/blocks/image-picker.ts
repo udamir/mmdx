@@ -5,11 +5,11 @@
 // record gives it. The Library and Upload tabs show only when the host has them; a dropped or pasted file without an
 // upload is refused with `onRefused` (the host's toast).
 import type { ImageInfo, ImagePage } from '../../ports.js';
-import { h } from '../h.js';
+import { h } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
-import { createOverlayScroll, OVERLAY_SCROLL_CSS } from './overlay-scroll.js';
+import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../kit/overlay-scroll.js';
 import { createTabs, TABS_CSS } from './tabs.js';
 
 /** The picture types the file input offers. */

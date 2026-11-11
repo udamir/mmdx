@@ -4,12 +4,12 @@
 // select the layer's items while editing (a button) and highlight them while hovered or focused. Rows re-render on `update({ layers })`, keeping the focus on the same
 // control. Replaces the layers DOM of editor/modules/panels/layers.ts (`renderLayers`) and the viewer's View
 // settings popup (`viewSettings` in elements/viewer-popups.ts).
-import { h, icon } from '../h.js';
+import { h, icon } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
-import { I_eye, I_eyeOff, I_lock, I_unlock } from '../icons.js';
+import { I_eye, I_eyeOff, I_lock, I_unlock } from '../kit/icons.js';
 import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
-import { focusedIn, keepFocus } from './focus.js';
+import { focusedIn, keepFocus } from '../kit/focus.js';
 
 export interface LayerRow {
   id: string;

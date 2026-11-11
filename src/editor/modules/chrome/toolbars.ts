@@ -14,10 +14,10 @@ import { relativeColor } from '../../../core/theme/colors.js';
 import type { Direction, DiagramType } from '../../../core/model.js';
 import type { DiagramMeta } from '../../../core/meta/types.js';
 import type { ItemRef, Rect } from '../../../core/types.js';
-import type { PageToolbarApi, PageToolbarHandle, SequenceLayoutState } from '../../../ui/page-toolbar.js';
-import type { ArrangeOp, ToolbarApi, StyleToolbarHandle, StyleToolbarOptions } from '../../../ui/style-toolbar.js';
-import { TOOLBAR_CSS } from '../../../ui/styles/toolbar.js';
-import { h } from '../../../ui/h.js';
+import type { PageToolbarApi, PageToolbarHandle, SequenceLayoutState } from '../../../ui/diagram/page-toolbar.js';
+import type { ArrangeOp, ToolbarApi, StyleToolbarHandle, StyleToolbarOptions } from '../../../ui/diagram/style-toolbar.js';
+import { TOOLBAR_CSS } from '../../../ui/diagram/toolbar-styles.js';
+import { h } from '../../../ui/kit/h.js';
 import type { EditorCore, Sel, TextEditSession } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { saveItemAsPreset, presetPicker } from '../panels/presets.js';
@@ -299,7 +299,7 @@ export const toolbarsModule: EditorModule = {
     let styleArgs: [ToolbarApi, StyleToolbarOptions] | null = null;
     let styleLoading: Promise<void> | null = null;
     // the style toolbar code loads with the first selection (prefetched when the browser is idle)
-    const ensureStyleBar = (): Promise<void> => (styleLoading ??= import('../../../ui/style-toolbar.js').then(({ createStyleToolbar, SHAPE_PALETTE_CSS }) => {
+    const ensureStyleBar = (): Promise<void> => (styleLoading ??= import('../../../ui/diagram/style-toolbar.js').then(({ createStyleToolbar, SHAPE_PALETTE_CSS }) => {
       if (!styleArgs || style || destroyed) return;
       core.addCss([SHAPE_PALETTE_CSS]);
       style = createStyleToolbar(wrap, ...styleArgs);
@@ -523,7 +523,7 @@ export const toolbarsModule: EditorModule = {
     let page: PageToolbarHandle | null = null;
     let pageLoading: Promise<void> | null = null;
     // the page toolbar code loads the first time the page is selected (its badge): most sessions never open it
-    const ensurePageBar = (): Promise<void> => (pageLoading ??= import('../../../ui/page-toolbar.js').then(({ createPageToolbar }) => {
+    const ensurePageBar = (): Promise<void> => (pageLoading ??= import('../../../ui/diagram/page-toolbar.js').then(({ createPageToolbar }) => {
       if (!pageApi || page) return;
       page = createPageToolbar(wrap, pageApi, { i18n: core.i18n });
       scope.onDispose(() => page?.destroy());

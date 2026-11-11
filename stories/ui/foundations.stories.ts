@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
-import { icon } from '../../src/ui/h.js';
-import * as ICON_PATHS from '../../src/ui/icons.js';
-import { logoMark } from '../../src/ui/logo.js';
-import { shapePreview } from '../../src/ui/shape-preview.js';
-import { NODE_SHAPES, PARTICIPANT_SHAPES } from '../../src/ui/style-toolbar/kinds.js';
-import { Dialogs, DIALOG_CSS } from '../../src/ui/dialog.js';
-import { Toaster } from '../../src/ui/popover.js';
+import { icon } from '../../src/ui/kit/h.js';
+import * as ICON_PATHS from '../../src/ui/kit/icons.js';
+import { logoMark } from '../../src/ui/kit/logo.js';
+import { shapePreview } from '../../src/ui/diagram/shape-preview.js';
+import { NODE_SHAPES, PARTICIPANT_SHAPES } from '../../src/ui/diagram/style-toolbar/kinds.js';
+import { Dialogs, DIALOG_CSS } from '../../src/ui/kit/dialog.js';
+import { Toaster } from '../../src/ui/kit/popover.js';
 import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; size: number };

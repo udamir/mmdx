@@ -2,9 +2,9 @@
 // shortcut column, opened through the host's PopoverManager (one popover at a time, Esc / outside click closes, arrow
 // keys move, focus returns to the opener) and positioned against its opener, or at a point (a context menu), inside
 // the host element.
-import { h } from '../h.js';
-import type { PopoverManager } from '../popover.js';
-import { formatKeys } from '../shortcuts.js';
+import { h } from '../kit/h.js';
+import type { PopoverManager } from '../kit/popover.js';
+import { formatKeys } from '../kit/keys.js';
 import { ariaKeys, Scope, type BlockHandle } from './block.js';
 
 export interface MenuItem {

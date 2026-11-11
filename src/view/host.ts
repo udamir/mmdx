@@ -3,7 +3,8 @@
 // gives each module a Scope that records every registration — DOM, listeners, kernel events, actions, shortcuts,
 // effects, computeds, contributions — so it can be suspended, resumed and uninstalled with nothing left behind. It
 // holds the kernel's events and actions, which the kernel types per product (bus.ts).
-import type { Shortcut, ShortcutRegistry } from '../ui/shortcuts.js';
+import type { Shortcut } from '../ui/kit/keys.js';
+import type { ShortcutRegistry } from './keymap.js';
 import { Owner } from '../reactive/owner.js';
 import { computed, effect, signal, type ReadSignal } from '../reactive/signal.js';
 import { actionRegistry, eventBus } from './bus.js';

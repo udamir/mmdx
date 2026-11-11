@@ -7,10 +7,10 @@ import { BUILTIN_THEMES } from '../../src/core/theme/builtin.js';
 import type { ThemeFile } from '../../src/core/theme/types.js';
 import { ThemeEditor } from '../../src/theme-editor/editor.js';
 import type { ThemeEditorOptions } from '../../src/theme-editor/types.js';
-import { drawItemPreview } from '../../src/ui/item-preview.js';
+import { drawItemPreview } from '../../src/ui/diagram/item-preview.js';
 
-vi.mock('../../src/ui/item-preview.js', async (orig) => {
-  const m = await orig<typeof import('../../src/ui/item-preview.js')>();
+vi.mock('../../src/ui/diagram/item-preview.js', async (orig) => {
+  const m = await orig<typeof import('../../src/ui/diagram/item-preview.js')>();
   return { ...m, drawItemPreview: vi.fn(m.drawItemPreview) };
 });
 

@@ -1,7 +1,7 @@
 // Generic property field (prototype app `field`): one row per style key with label, control and × reset. The
 // control shows the item's own value, or the inherited one as placeholder; `set` writes (undefined = inherit).
 import { FIELD_DEFS, type FieldOption } from '../../../core/schema/style-fields.js';
-import { h } from '../../../ui/h.js';
+import { h } from '../../../ui/kit/h.js';
 import type { I18n } from '../../../i18n.js';
 
 export interface FieldTarget {

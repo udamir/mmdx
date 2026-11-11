@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import '../../src/viewer.js';
-import { instanceContext } from '../../src/config.js';
+import { instanceContext } from '../../src/platform/config.js';
 import { renderToSvg } from '../../src/core/pipeline.js';
 import { diffDiagrams } from '../../src/core/diff/all.js';
 import { ignoreFacets, type ItemChange } from '../../src/core/diff/index.js';

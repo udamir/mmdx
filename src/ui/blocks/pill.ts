@@ -2,8 +2,8 @@
 // History's "v3 → Working copy" with a swap tool and Back (Esc) — or what needs attention, with the action that
 // handles it (the editor's problems and remote-change bars). The text is a status region, so changes are announced;
 // tools are icon (or text) buttons between the text and the action.
-import { h, icon } from '../h.js';
-import { I_chevronLeft } from '../icons.js';
+import { h, icon } from '../kit/h.js';
+import { I_chevronLeft } from '../kit/icons.js';
 import { ariaKeys, read, Scope, tipText, type BlockHandle, type Translate, type Value } from './block.js';
 
 /** A button of the pill, between the text and its action (e.g. swap Before and After). */

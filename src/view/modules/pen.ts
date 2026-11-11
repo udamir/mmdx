@@ -5,7 +5,7 @@ import { reducedMotion } from '../../dom/motion.js';
 import { StrokeStore } from '../../dom/pen.js';
 import { dockButton } from '../../ui/blocks/tool-dock.js';
 import { createPenOptions, PEN_OPTIONS_CSS } from '../../ui/blocks/pen-options.js';
-import { I_pen } from '../../ui/icons.js';
+import { I_pen } from '../../ui/kit/icons.js';
 import type { ViewCore } from '../core.js';
 import type { ViewModule } from '../module.js';
 

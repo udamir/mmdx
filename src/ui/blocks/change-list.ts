@@ -7,12 +7,12 @@
 // host adopts `DIFF_TOKENS` (ui/styles/diff.ts).
 import type { Mark } from '../../core/diff/annotate.js';
 import type { FieldChange, ItemChange } from '../../core/diff/index.js';
-import { h, icon } from '../h.js';
+import { h, icon } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
 import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
 import { FILTER_ICONS } from './filter-toggles.js';
-import { keepFocus, rovingKeys } from './focus.js';
+import { keepFocus, rovingKeys } from '../kit/focus.js';
 
 export const kindLabel = (t: Translate, kind: string): string => t(`diff.kind.${kind}`);
 

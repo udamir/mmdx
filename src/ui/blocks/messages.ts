@@ -1,6 +1,6 @@
 // Messages (§5.2): Banner, a one-line status over the canvas, hidden while empty (the diff's "the diagram type changed"
 // line). The host places it (the top-center slot, the canvas overlay).
-import { h } from '../h.js';
+import { h } from '../kit/h.js';
 import { read, Scope, type BlockHandle, type Value } from './block.js';
 
 export const MESSAGES_CSS = /* css */ `

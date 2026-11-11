@@ -1,9 +1,9 @@
 // The action bar of an old version shown read-only (History, the `version` stage): over the selected items, like the
 // style toolbar, with Copy only — what is copied can be pasted into the document once History is closed.
 import { copyable } from '../../../core/ops/clipboard.js';
-import { h, icon } from '../../../ui/h.js';
-import { I_copy } from '../../../ui/icons.js';
-import { TOOLBAR_CSS } from '../../../ui/styles/toolbar.js';
+import { h, icon } from '../../../ui/kit/h.js';
+import { I_copy } from '../../../ui/kit/icons.js';
+import { TOOLBAR_CSS } from '../../../ui/diagram/toolbar-styles.js';
 import type { EditorModule } from '../../module.js';
 import { anchorRect, freeStrip } from './toolbars.js';
 

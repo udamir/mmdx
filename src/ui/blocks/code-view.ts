@@ -9,13 +9,13 @@
 // precomputed `ops`. The diff colours come from the `--mmdx-diff-*` tokens: in diff mode the host adopts
 // `DIFF_TOKENS` (ui/styles/diff.ts).
 import { diffLines, hunks, type LineOp } from '../../core/diff/text.js';
-import { h } from '../h.js';
-import { highlightLine, highlightMetaLine, tokenNodes } from '../highlight.js';
+import { h } from '../kit/h.js';
+import { highlightLine, highlightMetaLine, tokenNodes } from '../diagram/highlight.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
-import { CODE_TOKENS_CSS } from '../styles/code-tokens.js';
+import { CODE_TOKENS_CSS } from '../diagram/code-tokens-styles.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
-import { focusedIn, keepFocus } from './focus.js';
+import { focusedIn, keepFocus } from '../kit/focus.js';
 
 /** `mermaid`: Mermaid code; `meta`: `%%@` metadata lines. */
 export type CodeLanguage = 'mermaid' | 'meta';

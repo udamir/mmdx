@@ -1,7 +1,7 @@
 // Disclosure (§5.2): a collapsible section — a head button (`aria-expanded`, `aria-controls`) with a caret, a title
 // and an optional badge, over a body region that is filled the first time it opens (lazy content). The open state can
 // be a signal; the host keeps it (e.g. which cards of the theme editor stay open across re-renders).
-import { h } from '../h.js';
+import { h } from '../kit/h.js';
 import { untracked } from '../../reactive/signal.js';
 import { read, Scope, type BlockHandle, type Value } from './block.js';
 

@@ -4,12 +4,12 @@
 // smaller, and Fit becomes an icon. The bar is a toolbar with one tab stop (arrow keys move). `el` is the positioning
 // wrapper (`.bottom-bar`, kept: product CSS places and hides it); `part` stays on the visible bar (`.zoom`), the public
 // `::part(zoom-bar)` hook.
-import { h, icon } from '../h.js';
+import { h, icon } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_CHROME } from '../messages/blocks.js';
 import type { ReadSignal } from '../../reactive/signal.js';
 import { ariaKeys, read, Scope, tipText, type BlockHandle, type Translate, type Value } from './block.js';
-import { keepFocus, rovingKeys } from './focus.js';
+import { keepFocus, rovingKeys } from '../kit/focus.js';
 
 export interface ZoomBarProps {
   /** The view; the percentage follows `k`. */

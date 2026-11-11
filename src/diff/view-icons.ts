@@ -1,7 +1,7 @@
 // The icons of the diff's views (the diff bar): the same frame for every view — Before fills its left half with the
 // removed colour, After its right half with the added colour, Merged crosses a Before and an After frame, Side by side
 // sets them apart with a line between them. The fills follow the diff tokens (`.dx-fb`, `.dx-fa` in the diff bar's CSS).
-import { s } from '../ui/h.js';
+import { s } from '../ui/kit/h.js';
 import type { DiffViewName } from './session.js';
 
 const svg = (...children: SVGElement[]): SVGElement =>

@@ -3,12 +3,12 @@
 // `editor/modules/chrome/tool-dock.ts`) and the viewer / diff popup (`penOptions` in `elements/viewer-popups.ts`).
 // Re-renders itself after each change, keeping the focus on the same choice. The choices are props (defaults: the
 // values of dom/pen.ts's MagicPen, which a test keeps in step), so the block does not import the pen.
-import { h, icon } from '../h.js';
+import { h, icon } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
-import { I_eraser } from '../icons.js';
+import { I_eraser } from '../kit/icons.js';
 import { BLOCK_MESSAGES_CHROME } from '../messages/blocks.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
-import { keepFocus, rovingKeys } from './focus.js';
+import { keepFocus, rovingKeys } from '../kit/focus.js';
 
 /** What the pen options read and set (the editor's and viewer's MagicPen, the diff's shared ink). */
 export interface PenSettings {

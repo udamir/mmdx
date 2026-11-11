@@ -4,10 +4,10 @@
 // settings; a plain item takes a picture, which makes it an image item. Writes go through `setIcon`, `setImage` and
 // `setMedia` (a flowchart's node data) or the item's metadata (`mediaNodesInMeta`); the fit is metadata.
 import type { ItemRef } from '../../../../core/types.js';
-import { h, icon } from '../../../../ui/h.js';
-import { I_image, I_trash } from '../../../../ui/icons.js';
+import { h, icon } from '../../../../ui/kit/h.js';
+import { I_image, I_trash } from '../../../../ui/kit/icons.js';
 import { registerMessages } from '../../../../i18n.js';
-import { EDITOR_MEDIA_MESSAGES } from '../../../../ui/messages/editor-media.js';
+import { EDITOR_MEDIA_MESSAGES } from '../../../messages-media.js';
 import { editKind } from '../../../kinds/registry.js';
 import type { ItemMedia, MediaPatch } from '../../../kinds/types.js';
 import { mediaOf, setIconOf, setImageFit, setImageOf, setMediaOf } from '../../../ops/media.js';

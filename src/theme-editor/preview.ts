@@ -11,7 +11,7 @@ import { Scope } from '../ui/blocks/block.js';
 import { createToggleButton } from '../ui/blocks/button.js';
 import { createTabs } from '../ui/blocks/tabs.js';
 import { createZoomBar } from '../ui/blocks/zoom-bar.js';
-import { h } from '../ui/h.js';
+import { h } from '../ui/kit/h.js';
 import { signal, untracked, type ReadSignal, type Signal } from '../reactive/signal.js';
 import { DEFAULT_SAMPLES, TYPES } from './constants.js';
 import type { Env } from './env.js';

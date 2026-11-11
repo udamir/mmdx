@@ -3,7 +3,7 @@
 // <type>.<presets>.<name>.
 import { relativeColor } from '../core/theme/colors.js';
 import type { Rect } from '../core/types.js';
-import type { StyleToolbarHandle, ToolbarApi } from '../ui/style-toolbar.js';
+import type { StyleToolbarHandle, ToolbarApi } from '../ui/diagram/style-toolbar.js';
 import type { Env } from './env.js';
 import { fontName, isObj, obj } from './util.js';
 
