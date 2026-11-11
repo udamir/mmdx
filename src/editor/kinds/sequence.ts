@@ -18,7 +18,7 @@ import type { ItemRef } from '../../core/types.js';
 import type { SequenceGeometry } from '../../core/render/types.js';
 import type { EditorCore, Sel } from '../core.js';
 import { reparse } from '../../core/parse/dispatch.js';
-import { applyThenStyle, focusLabel, setPreset } from '../modules/shapes/drop.js';
+import { applyThenStyle, focusLabel, setPreset } from '../lib/shape-drop.js';
 import { NEW_IMAGE } from '../../core/ops/meta-media.js';
 import { metaMediaSource } from '../../core/media/meta-source.js';
 import { metaItemMedia } from './meta-media.js';

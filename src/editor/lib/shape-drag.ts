@@ -1,10 +1,10 @@
 // Dragging an item out of a menu onto the canvas (the Shapes palette, the icon picker; prototype `startPaletteDrag`):
 // a ghost follows the pointer; released over the canvas it adds there, released without moving (a click) it adds at
 // the canvas centre, released elsewhere (back over the menu) it does nothing.
-import type { Point } from '../../../core/types.js';
-import { h } from '../../../ui/kit/h.js';
-import type { EditorCore } from '../../core.js';
-import { elementsAt } from '../connect/geometry.js';
+import type { Point } from '../../core/types.js';
+import { h } from '../../ui/kit/h.js';
+import type { EditorCore } from '../core.js';
+import { elementsAt } from './geometry.js';
 
 /** Centre of the canvas in diagram coordinates (a click on a menu item). */
 export function canvasCenter(core: EditorCore): Point {

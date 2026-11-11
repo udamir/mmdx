@@ -11,7 +11,7 @@ import { s } from '../../../ui/kit/h.js';
 import { editKind, withEdit } from '../../kinds/registry.js';
 import type { EditKind } from '../../kinds/types.js';
 import type { EditorModule } from '../../module.js';
-import { canvasCenter, startMenuDrag } from '../shapes/drag.js';
+import { canvasCenter, startMenuDrag } from '../../lib/shape-drag.js';
 
 /** Dock icon (24 × 24 stroke paths, fixed). */
 const I_IMAGE = 'M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15.5 9.5h.01';

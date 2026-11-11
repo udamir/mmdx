@@ -8,7 +8,7 @@ import { cloneMeta, ensure as ensureIn } from '../../core/ops/meta-util.js';
 import { fixIdClash } from '../../core/ops/meta-ops.js';
 import { flowPresets } from '../../core/render/flow-presets.js';
 import type { Point, ItemRef } from '../../core/types.js';
-import { focusLabel } from '../modules/shapes/drop.js';
+import { focusLabel } from '../lib/shape-drop.js';
 import { applyDoc } from '../ops/doc.js';
 import { metaOnlyShapes, shapeDoc } from '../ops/shape.js';
 import { shapeIcon, type PaletteItem } from './palette.js';

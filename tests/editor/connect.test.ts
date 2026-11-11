@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, test, vi } from 'vitest';
 import { connectModule } from '../../src/editor/modules/connect/index.js';
-import { MAGNETS, projectToBox } from '../../src/editor/modules/connect/geometry.js';
+import { MAGNETS, projectToBox } from '../../src/editor/lib/geometry.js';
 import { click, drag, handle, lines, mount, press } from './connect.helpers.js';
 
 vi.spyOn(console, 'error').mockImplementation(() => undefined);

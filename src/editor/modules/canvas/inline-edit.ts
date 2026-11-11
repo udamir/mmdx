@@ -10,7 +10,7 @@ import type { Sel, TextEditSession } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { formatsAt, hasMarkup, toggleFormat, type TextFormat } from '../../ops/format.js';
 import { labelSpec } from '../../ops/label.js';
-import { itemEls } from './shared.js';
+import { itemEls } from '../../lib/canvas.js';
 
 export const INLINE_EDIT_CSS = /* css */ `
 .inline-edit { position: absolute; z-index: 30; box-sizing: border-box; resize: none; overflow: hidden; margin: 0;

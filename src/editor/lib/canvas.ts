@@ -1,12 +1,12 @@
 // Helpers shared by the canvas modules (selection, structure, inline text, copy style, empty state): what can be
 // selected by marquee / ⌘A, item labels for announcements, the selected-class marking and small DOM utilities.
-import { opsKind, withKind } from '../../../core/kinds/registry.js';
-import type { BoxGeom } from '../../../core/render/types.js';
-import { el, text } from '../../../core/scene/build.js';
-import type { SceneNode } from '../../../core/scene/types.js';
-import { itemKey, type ItemKind, type ItemRef } from '../../../core/types.js';
-import type { EditorCore, Sel } from '../../core.js';
-import { withEdit } from '../../kinds/registry.js';
+import { opsKind, withKind } from '../../core/kinds/registry.js';
+import type { BoxGeom } from '../../core/render/types.js';
+import { el, text } from '../../core/scene/build.js';
+import type { SceneNode } from '../../core/scene/types.js';
+import { itemKey, type ItemKind, type ItemRef } from '../../core/types.js';
+import type { EditorCore, Sel } from '../core.js';
+import { withEdit } from '../kinds/registry.js';
 
 /** Connector kinds: flowchart edges, ER relationships and sequence messages. */
 export const LINE_KINDS: ReadonlySet<ItemKind> = new Set(['edge', 'rel', 'message']);

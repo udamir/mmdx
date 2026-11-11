@@ -1,15 +1,15 @@
 // Hit-testing and port geometry of connections (prototype app.js `CONNECTABLE`, `canConnect`, `geomBoxOf`,
 // `targetAt`, `deepInside`, `projectToBox`, `MAGNETS`, `endpointBox`, `endpointId`).
-import { opsKind, withKind } from '../../../core/kinds/registry.js';
-import { currentPreset } from '../../../core/ops/style-env.js';
-import { outerBox, portPoint } from '../../../core/render/common.js';
-import type { Port } from '../../../core/render/types.js';
-import { shapeDef } from '../../../core/shapes/registry.js';
-import { onOutline } from '../../../core/shapes/outline.js';
-import type { Side } from '../../../core/style.js';
-import type { CenterBox, ItemKind, ItemRef, Point } from '../../../core/types.js';
-import type { EditorCore } from '../../core.js';
-import { withEdit } from '../../kinds/registry.js';
+import { opsKind, withKind } from '../../core/kinds/registry.js';
+import { currentPreset } from '../../core/ops/style-env.js';
+import { outerBox, portPoint } from '../../core/render/common.js';
+import type { Port } from '../../core/render/types.js';
+import { shapeDef } from '../../core/shapes/registry.js';
+import { onOutline } from '../../core/shapes/outline.js';
+import type { Side } from '../../core/style.js';
+import type { CenterBox, ItemKind, ItemRef, Point } from '../../core/types.js';
+import type { EditorCore } from '../core.js';
+import { withEdit } from '../kinds/registry.js';
 
 
 

@@ -21,10 +21,10 @@ import { h } from '../../../ui/kit/h.js';
 import type { KindSpec, ToolbarApi, StyleToolbarHandle } from '../../../ui/diagram/style-toolbar.js';
 import type { Gesture } from '../../core.js';
 import type { EditorModule } from '../../module.js';
-import { elementAt } from '../canvas/shared.js';
-import { freeStrip } from '../chrome/toolbars.js';
+import { elementAt } from '../../lib/canvas.js';
+import { freeStrip } from '../../lib/place.js';
 import { applyMeta, styleEnv } from '../../ops/doc.js';
-import { writeAttrLook } from './look.js';
+import { writeAttrLook } from '../../lib/er-look.js';
 
 export const ER_TABLE_CSS = /* css */ `
 .ed.table-edit .canvas .el { transition: opacity .15s; }

@@ -11,7 +11,7 @@ import { ATTR_PRESETS, attrLook } from '../../../core/render/er-presets.js';
 import { FONTS } from '../../../ui/diagram/fonts.js';
 import { h } from '../../../ui/kit/h.js';
 import { applyMeta } from '../../ops/doc.js';
-import { writeAttrLook } from '../er-table/look.js';
+import { writeAttrLook } from '../../lib/er-look.js';
 import { row, sect, type PanelCtx } from './inspectors/shared.js';
 
 /**

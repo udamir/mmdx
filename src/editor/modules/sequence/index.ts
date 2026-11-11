@@ -15,8 +15,8 @@ import type { SceneNode } from '../../../core/scene/types.js';
 import type { Point } from '../../../core/types.js';
 import type { EditorCore, Gesture, Hit, Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
-import { sizeBadge } from '../canvas/shared.js';
-import { elementsAt } from '../connect/geometry.js';
+import { sizeBadge } from '../../lib/canvas.js';
+import { elementsAt } from '../../lib/geometry.js';
 import { SEQUENCE_CSS } from './css.js';
 import { maxOf, minOf } from '../../../core/geom.js';
 

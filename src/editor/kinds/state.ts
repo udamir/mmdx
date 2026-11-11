@@ -20,7 +20,7 @@ import type { ItemRef, Point } from '../../core/types.js';
 import type { DiagramMeta } from '../../core/meta/types.js';
 import { OPS as STATE_OPS } from '../../core/kinds/state-ops.js';
 import type { EditorCore, Sel } from '../core.js';
-import { focusLabel } from '../modules/shapes/drop.js';
+import { focusLabel } from '../lib/shape-drop.js';
 import { blockIcon, noteIcon, shapeIcon, type PaletteItem } from './palette.js';
 import type { EditKind, PropControl } from './types.js';
 

@@ -15,7 +15,7 @@ import { clearHighlight, hoverHighlight } from '../../../dom/highlight.js';
 import type { Gesture, Hit, Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { menuLinks, openLinkMenu } from '../../../view/link-menu.js';
-import { connectionCount, elementAt, inArea, itemLabel, LINE_KINDS, markSelection, samePrimary, selectable, selKey, sizeBadge } from './shared.js';
+import { connectionCount, elementAt, inArea, itemLabel, LINE_KINDS, markSelection, samePrimary, selectable, selKey, sizeBadge } from '../../lib/canvas.js';
 
 const NOOP: Gesture = { move: () => undefined };
 

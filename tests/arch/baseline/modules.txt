@@ -9,7 +9,6 @@ editor/modules/canvas/paint.ts: store write ×1
 editor/modules/canvas/select.ts: bare core.on ×3
 editor/modules/canvas/select.ts: kernel DOM ×17
 editor/modules/canvas/select.ts: store write ×9
-editor/modules/canvas/shared.ts: kernel DOM ×4
 editor/modules/canvas/structure.ts: kernel DOM ×4
 editor/modules/canvas/structure.ts: store write ×2
 editor/modules/chrome/document.ts: kernel DOM ×1
@@ -18,11 +17,10 @@ editor/modules/chrome/panes.ts: kernel DOM ×1
 editor/modules/chrome/tool-dock.ts: bare computed ×2
 editor/modules/chrome/tool-dock.ts: bare core.on ×2
 editor/modules/chrome/toolbars.ts: bare core.on ×7
-editor/modules/chrome/toolbars.ts: kernel DOM ×4
+editor/modules/chrome/toolbars.ts: kernel DOM ×1
 editor/modules/chrome/toolbars.ts: store write ×4
 editor/modules/chrome/version-copy.ts: bare core.on ×4
 editor/modules/chrome/version-copy.ts: kernel DOM ×1
-editor/modules/connect/geometry.ts: kernel DOM ×1
 editor/modules/connect/index.ts: bare core.on ×1
 editor/modules/connect/index.ts: kernel DOM ×1
 editor/modules/er-table/index.ts: bare core.on ×4
@@ -40,7 +38,6 @@ editor/modules/panels/right-panels.ts: kernel DOM ×1
 editor/modules/sequence/index.ts: bare core.on ×1
 editor/modules/sequence/index.ts: kernel DOM ×1
 editor/modules/sequence/index.ts: store write ×2
-editor/modules/shapes/drag.ts: kernel DOM ×3
 editor/modules/shapes/index.ts: bare core.on ×2
 editor/modules/shapes/index.ts: kernel DOM ×1
 view/modules/canvas.ts: kernel DOM ×2

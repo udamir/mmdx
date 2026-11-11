@@ -16,7 +16,7 @@ import type { EditorCore, Gesture, Hit, Sel } from '../../core.js';
 import { editKind, withEdit } from '../../kinds/registry.js';
 import type { EditorModule } from '../../module.js';
 import { CONNECT_CSS } from './css.js';
-import { canConnect, deepInside, endpointBox, endpointId, geomBoxOf, MAGNETS, portOn, projectToBox, targetAt } from './geometry.js';
+import { canConnect, deepInside, endpointBox, endpointId, geomBoxOf, MAGNETS, portOn, projectToBox, targetAt } from '../../lib/geometry.js';
 
 interface Linking {
   a: Point;

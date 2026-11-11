@@ -17,7 +17,7 @@ import type { EditorActions, Sel } from '../../core.js';
 import { withEdit } from '../../kinds/registry.js';
 import type { EditorModule } from '../../module.js';
 import { canGroup as canGroupSel, groupResetState, resettableGroup, resetSelectedGroup } from '../../ops/group.js';
-import { items as nItems } from './shared.js';
+import { items as nItems } from '../../lib/canvas.js';
 
 /** The board's right-click menu is the Menu block. */
 export const STRUCTURE_CSS = MENU_CSS;

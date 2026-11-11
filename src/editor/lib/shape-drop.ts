@@ -1,9 +1,9 @@
 // Adding an item from the Shapes menu at a diagram point, with the prototype's placement rules
 // (prototype app.js `groupAt`, `dropPaletteItem`): the placement is the edit kind's `drop`, with these helpers.
-import type { ItemKind, Point } from '../../../core/types.js';
-import type { EditorCore, Sel } from '../../core.js';
-import type { PaletteItem } from '../../kinds/palette.js';
-import { withEdit } from '../../kinds/registry.js';
+import type { ItemKind, Point } from '../../core/types.js';
+import type { EditorCore, Sel } from '../core.js';
+import type { PaletteItem } from '../kinds/palette.js';
+import { withEdit } from '../kinds/registry.js';
 
 /** Opens the new item's text (inline editor, else the properties panel; prototype `focusLabel`). */
 export function focusLabel(core: EditorCore, it: Sel | null): void {

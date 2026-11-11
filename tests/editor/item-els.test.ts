@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // itemEls matches by selector (P22): ids with quotes, backslashes and line breaks still find their elements only.
 import { describe, expect, it } from 'vitest';
-import { itemEls } from '../../src/editor/modules/canvas/shared.js';
+import { itemEls } from '../../src/editor/lib/canvas.js';
 
 describe('itemEls', () => {
   it('finds an item by kind and id, whatever its id holds', () => {

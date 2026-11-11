@@ -13,7 +13,7 @@ import type { LiveEdit } from '../../../ops/live.js';
 import { pageEff } from '../../../ops/page.js';
 import { styleWithShapes } from '../../../ops/shape.js';
 import type { FieldTarget } from '../fields.js';
-import { presetPicker } from '../presets.js';
+import { presetPicker } from '../../../lib/presets.js';
 
 export interface PanelCtx {
   core: EditorCore;

@@ -5,7 +5,7 @@ import { h, icon } from '../../../ui/kit/h.js';
 import { I_copy } from '../../../ui/kit/icons.js';
 import { TOOLBAR_CSS } from '../../../ui/diagram/toolbar-styles.js';
 import type { EditorModule } from '../../module.js';
-import { anchorRect, freeStrip } from './toolbars.js';
+import { anchorRect, freeStrip } from '../../lib/place.js';
 
 const VERSION_COPY_CSS = /* css */ `
 .mtb.ver-copy { height: 44px; }

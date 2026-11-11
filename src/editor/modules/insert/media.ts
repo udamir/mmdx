@@ -20,7 +20,7 @@ import { reduceImage, imageSize } from '../../../dom/downscale.js';
 import type { EditorCore } from '../../core.js';
 import { editKind, withEdit } from '../../kinds/registry.js';
 import { mediaOf, mediaTargets, setIconOf, setImageOf } from '../../ops/media.js';
-import { canvasCenter } from '../shapes/drag.js';
+import { canvasCenter } from '../../lib/shape-drag.js';
 
 registerMessages(BLOCK_MESSAGES_MEDIA);
 registerMessages(EDITOR_MEDIA_MESSAGES);

@@ -2,16 +2,16 @@
 // one live preview per preset (theme presets, then "This diagram"), the item's preset highlighted and marked
 // "modified" when it has own changes; header actions Save as preset / Reset / Update; × deletes a local preset.
 // Used by the Properties panel and by the style toolbar's preset popover.
-import { deleteLocalPreset, ownLook, PRESET_KEYS, presetUsers, saveAsPreset, setStyle, suggestPresetName, updatePreset, } from '../../../core/ops/meta-ops.js';
-import { ensure, tidy, cloneMeta } from '../../../core/ops/meta-util.js';
-import { currentPreset, isLocalPreset, nodeShapeOf, participantShapeOf, presetOfItem, presetsFor } from '../../../core/ops/style-env.js';
-import { participantPresetShape, presetShape } from '../../../core/render/common.js';
-import { KIND_TO_COLL } from '../../../core/meta/types.js';
-import type { ItemRef } from '../../../core/types.js';
-import { h, icon } from '../../../ui/kit/h.js';
-import { drawItemPreview, previewKind } from '../../../ui/diagram/item-preview.js';
-import type { EditorCore } from '../../core.js';
-import { applyMeta, styleEnv } from '../../ops/doc.js';
+import { deleteLocalPreset, ownLook, PRESET_KEYS, presetUsers, saveAsPreset, setStyle, suggestPresetName, updatePreset, } from '../../core/ops/meta-ops.js';
+import { ensure, tidy, cloneMeta } from '../../core/ops/meta-util.js';
+import { currentPreset, isLocalPreset, nodeShapeOf, participantShapeOf, presetOfItem, presetsFor } from '../../core/ops/style-env.js';
+import { participantPresetShape, presetShape } from '../../core/render/common.js';
+import { KIND_TO_COLL } from '../../core/meta/types.js';
+import type { ItemRef } from '../../core/types.js';
+import { h, icon } from '../../ui/kit/h.js';
+import { drawItemPreview, previewKind } from '../../ui/diagram/item-preview.js';
+import type { EditorCore } from '../core.js';
+import { applyMeta, styleEnv } from '../ops/doc.js';
 
 const ICON_SAVE = 'M5 4.5h11l3 3V19a.5.5 0 0 1-.5.5h-13A.5.5 0 0 1 5 19zM8.5 4.5v4h6v-4M12 12.5v5M9.5 15h5';
 const ICON_RESET = 'M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4 4v4.5h4.5';

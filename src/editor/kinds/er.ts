@@ -9,7 +9,7 @@ import type { ErGeometry } from '../../core/render/types.js';
 import type { Point } from '../../core/types.js';
 import { cloneMeta, ensure as ensureIn } from '../../core/ops/meta-util.js';
 import type { EditorCore, Sel } from '../core.js';
-import { focusLabel } from '../modules/shapes/drop.js';
+import { focusLabel } from '../lib/shape-drop.js';
 import { tableIcon } from './palette.js';
 import type { EditKind, PropControl } from './types.js';
 
