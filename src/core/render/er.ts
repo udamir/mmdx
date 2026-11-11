@@ -746,21 +746,21 @@ function routeErRels(R: CompoundResult, c: ErRoute): void {
 
 /** The subgraph frames, outer first, with their titles. */
 function drawErFrames(groups: ReadonlyMap<string, GroupItem>, groupHidden: ReadonlySet<string>, ctx: RenderEnv['ctx'], family: string, K: MediaKit | null): SceneNode[] {
-const groupNodes: SceneNode[] = [];
-for (const G of [...groups.values()].sort((a, b) => a.depth - b.depth || a.g.order - b.g.order)) {
-  if (groupHidden.has(G.g.id) || !Number.isFinite(G.box.x)) continue;
-  const { box, st } = G;
-  const href = itemLink(ctx, G.m.link);
-  const parts = stackedShapeNodes('rect', box, st);
-  if (G.title && st.titleSize) {
-    const pad = st.pad ?? 0;
-    const ty = box.y - box.h / 2 + (st.padTop ?? pad) / 2;
-    const left = st.titleAlign === 'left';
-    const to = { size: st.titleSize, weight: st.titleWeight, color: href ? LINK_COLOR : st.titleColor, family: st.fontFamily || family, anchor: left ? ('start' as const) : ('middle' as const), lh: 1.25, underline: !!href };
-    const tx = left ? box.x - box.w / 2 + pad : box.x;
-    parts.push(...withLink(href, G.title.rich && K ? (K as MediaKit).richText(G.title.rich, tx, ty, { ...to, measure: ctx.measure }) : [textBlock(G.title.lines, tx, ty, to)]));
+  const groupNodes: SceneNode[] = [];
+  for (const G of [...groups.values()].sort((a, b) => a.depth - b.depth || a.g.order - b.g.order)) {
+    if (groupHidden.has(G.g.id) || !Number.isFinite(G.box.x)) continue;
+    const { box, st } = G;
+    const href = itemLink(ctx, G.m.link);
+    const parts = stackedShapeNodes('rect', box, st);
+    if (G.title && st.titleSize) {
+      const pad = st.pad ?? 0;
+      const ty = box.y - box.h / 2 + (st.padTop ?? pad) / 2;
+      const left = st.titleAlign === 'left';
+      const to = { size: st.titleSize, weight: st.titleWeight, color: href ? LINK_COLOR : st.titleColor, family: st.fontFamily || family, anchor: left ? ('start' as const) : ('middle' as const), lh: 1.25, underline: !!href };
+      const tx = left ? box.x - box.w / 2 + pad : box.x;
+      parts.push(...withLink(href, G.title.rich && K ? (K as MediaKit).richText(G.title.rich, tx, ty, { ...to, measure: ctx.measure }) : [textBlock(G.title.lines, tx, ty, to)]));
+    }
+    groupNodes.push(itemGroup('group', G.g.id, 'group', parts, linkAttr(href)));
   }
-  groupNodes.push(itemGroup('group', G.g.id, 'group', parts, linkAttr(href)));
-}
   return groupNodes;
 }
