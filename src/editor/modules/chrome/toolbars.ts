@@ -27,7 +27,7 @@ import { applyDoc, applyMeta, DIAGRAM_TYPES, FLOW_DIRS, setAutonumberOn, setFlow
 import { canGroup, groupResetState, resetSelectedGroup } from '../../ops/group.js';
 import { LiveEdit } from '../../ops/live.js';
 import { choosePagePreset, pageEff, RATIOS, setPageRatio, setPageSizeMode, setPageValue } from '../../ops/page.js';
-import { LINE_KINDS } from '../canvas/shared.js';
+import { itemEls, LINE_KINDS } from '../canvas/shared.js';
 import { formatsAt, hasMarkup, toggleFormat } from '../../ops/format.js';
 import { labelSpec } from '../../ops/label.js';
 import { animationOf, setAnimation } from '../../ops/animation.js';
@@ -51,7 +51,11 @@ const selKey = (sel: readonly ItemRef[]): string => sel.map((x) => `${x.kind}:${
 export function freeStrip(core: EditorCore): [number, number] {
   const wrap = core.dom.wrap;
   const wr = wrap.getBoundingClientRect();
-  const shown = (e: Element | null): e is HTMLElement => !!e && e instanceof HTMLElement && e.offsetParent !== null && getComputedStyle(e).visibility !== 'hidden' && getComputedStyle(e).display !== 'none';
+  const shown = (e: Element | null): e is HTMLElement => {
+    if (!(e instanceof HTMLElement) || e.offsetParent === null) return false;
+    const cs = getComputedStyle(e);
+    return cs.visibility !== 'hidden' && cs.display !== 'none';
+  };
   const dock = wrap.querySelector('.tool-dock'), stacks = core.stackInsets.peek();
   let lo = shown(dock) ? dock.getBoundingClientRect().right - wr.left : 0;
   if (stacks) lo = Math.max(lo, stacks.left);
@@ -70,7 +74,7 @@ export function anchorRect(core: EditorCore, s: Sel): Rect | null {
     x1 = Math.max(x1, r);
     y1 = Math.max(y1, b);
   };
-  const els = Array.from(core.dom.body.querySelectorAll('.el[data-id]')).filter((n) => n.getAttribute('data-id') === s.id && n.getAttribute('data-kind') === s.kind);
+  const els = itemEls(core, s);
   if (s.kind === 'edge' || s.kind === 'rel') {
     for (const e of els) {
       const parts = e.getAttribute('data-part') === 'label' ? [e] : Array.from(e.querySelectorAll('.hit'));

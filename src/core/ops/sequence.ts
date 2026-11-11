@@ -223,8 +223,8 @@ export function setParticipantType(code: string, model: SequenceModel, id: strin
 
 /** `Note over <over>: note` after line `afterLine` (else at the end). */
 export function addNote(code: string, _model: SequenceModel, { over, afterLine = null }: { over: string; afterLine?: number | null }): LineResult {
-  const at = afterLine != null ? afterLine + 1 : code.replace(/\s+$/, '').split('\n').length;
-  return { code: splice(code.replace(/\s+$/, '') + '\n', at, 0, [`  Note over ${over}: note`]), line: at };
+  const at = afterLine != null ? afterLine + 1 : code.trimEnd().split('\n').length;
+  return { code: splice(code.trimEnd() + '\n', at, 0, [`  Note over ${over}: note`]), line: at };
 }
 
 /** Line after which new sequence items go when nothing is above the drop point. */

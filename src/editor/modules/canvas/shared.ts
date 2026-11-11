@@ -157,10 +157,12 @@ export const selKey = (it: ItemRef | null | undefined): string => (it ? `${it.ki
 
 /** Item elements of the scene (`.el[data-kind][data-id]`) drawing one item (main element and parts). */
 export function itemEls(core: EditorCore, it: ItemRef): Element[] {
-  return Array.from(core.dom.body.querySelectorAll('.el[data-id]')).filter(
-    (n) => n.getAttribute('data-id') === it.id && n.getAttribute('data-kind') === it.kind,
-  );
+  // matched by the selector engine (P22: every item element read and filtered here)
+  return Array.from(core.dom.body.querySelectorAll(`.el[data-kind="${attrValue(it.kind)}"][data-id="${attrValue(it.id)}"]`));
 }
+
+/** A string as the value of a double-quoted attribute selector. */
+const attrValue = (v: string): string => v.replace(/["\\]/g, '\\$&').replace(/\n/g, '\\a ').replace(/\r/g, '\\d ');
 
 /** `.selected` on every item of a multi-selection (the core does it on draw; selection changes between draws). */
 export function markSelection(core: EditorCore): void {

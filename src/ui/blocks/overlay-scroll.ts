@@ -85,13 +85,21 @@ export function createOverlayScroll(host: HTMLElement): OverlayScrollHandle {
     for (const a of axes) place(a);
   };
 
-  host.addEventListener('pointermove', (ev) => {
-    hover = true;
+  // pointer moves read the layout once per frame (P22: per move, reads and writes interleaved)
+  let moveTarget: EventTarget | null = null, frame = 0;
+  const onMove = (): void => {
+    frame = 0;
     // over a thumb: it keeps its area
-    if (!dragging && !(ev.target instanceof Element && ev.target.classList.contains('mmdx-sthumb')))
-      for (const a of axes) area[a] = areaOf(ev.target, a);
+    if (!dragging && !(moveTarget instanceof Element && moveTarget.classList.contains('mmdx-sthumb')))
+      for (const a of axes) area[a] = areaOf(moveTarget, a);
     update();
     show(true);
+  };
+  host.addEventListener('pointermove', (ev) => {
+    hover = true;
+    moveTarget = ev.target;
+    if (typeof requestAnimationFrame !== 'function') onMove();
+    else frame ||= requestAnimationFrame(onMove);
   }, sig);
   host.addEventListener('pointerleave', () => {
     hover = false;
@@ -149,6 +157,7 @@ export function createOverlayScroll(host: HTMLElement): OverlayScrollHandle {
     update,
     destroy() {
       clearTimeout(hideTimer);
+      if (frame) cancelAnimationFrame(frame);
       ac.abort();
       thumb.y.remove();
       thumb.x.remove();

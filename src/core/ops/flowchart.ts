@@ -8,7 +8,7 @@ import type { ItemRef } from '../types.js';
 import { edgeText, nodeDataOf, nodeDef } from './connect.js';
 import { rewriteStatement, statementSplice, type StatementEdit } from './flow-statements.js';
 import { copyIds, uniqueId } from './ids.js';
-import { append, applyEdits, contentEnd, indentOf, splice, type LineEdit } from './lines.js';
+import { append, applyEdits, contentEnd, indentOf, lineStart, splice, type LineEdit } from './lines.js';
 
 /** An edge as its own statement with the link as written (`a -.->|"x"| b`), else as `edgeText` writes it. */
 export function linkOf(code: string, model: FlowchartModel, e: FlowEdge, from: string, to: string): string {
@@ -63,8 +63,7 @@ function rewrite(code: string, model: FlowchartModel, edits: ReadonlyMap<number,
 
 /** The splice that replaces whole line `li` (with its newline) by `ins` lines. */
 function lineSplice(code: string, li: number, ins: readonly string[]): Splice {
-  let from = 0;
-  for (let i = 0; i < li; i++) from = code.indexOf('\n', from) + 1;
+  const from = lineStart(code, li);
   const e = code.indexOf('\n', from);
   if (!ins.length) return e < 0 ? { from: Math.max(0, from - 1), to: code.length, text: '' } : { from, to: e + 1, text: '' };
   return { from, to: e < 0 ? code.length : e, text: ins.join('\n') };
@@ -225,7 +224,7 @@ export function groupFlow(code: string, model: FlowchartModel, items: readonly I
   if (pg?.endLine != null) edits.push({ at: pg.endLine, del: 0, ins: block });
   else edits.push({ at: contentEnd(L), del: 0, ins: block });
   let out = applyEdits(code, edits);
-  if (pg?.endLine == null) out = out.replace(/\s+$/, '') + '\n';
+  if (pg?.endLine == null) out = out.trimEnd() + '\n';
   return { code: out, select: { kind: 'group', id } };
 }
 
@@ -328,7 +327,7 @@ export function cloneFlow(code: string, model: FlowchartModel, items: readonly I
   // the copied edges keep their links as written (length, style, label)
   for (const e of model.edges) if (nodes.has(e.from) && nodes.has(e.to)) atEnd.push('  ' + linkOf(code, model, e, map[e.from]!, map[e.to]!));
   if (atEnd.length) edits.push({ at: end, del: 0, ins: atEnd });
-  return { code: applyEdits(target, edits).replace(/\s+$/, '') + '\n', map };
+  return { code: applyEdits(target, edits).trimEnd() + '\n', map };
 }
 
 /** Direction: the header's (`flowchart LR`). */

@@ -18,7 +18,7 @@ editor/modules/chrome/panes.ts: kernel DOM ×1
 editor/modules/chrome/tool-dock.ts: bare computed ×2
 editor/modules/chrome/tool-dock.ts: bare core.on ×2
 editor/modules/chrome/toolbars.ts: bare core.on ×7
-editor/modules/chrome/toolbars.ts: kernel DOM ×5
+editor/modules/chrome/toolbars.ts: kernel DOM ×4
 editor/modules/chrome/toolbars.ts: store write ×4
 editor/modules/chrome/version-copy.ts: bare core.on ×4
 editor/modules/chrome/version-copy.ts: kernel DOM ×1

@@ -281,7 +281,20 @@ export function setDescriptions(code: string, model: StateModel, id: string, row
   return { code: applyEdits(code, edits) };
 }
 
-const isDescLine = (line: string, id: string): boolean => new RegExp(`^\\s*${escape(id)}(?::::\\S+)?\\s*:(?!::)`).test(line);
+// the patterns of the ids an op looks for, compiled once each (P17: one per line per state); none is global, so a
+// pattern keeps no state between uses
+const patterns = new Map<string, RegExp>();
+function compiled(source: string, flags = ''): RegExp {
+  const key = `${flags}/${source}`;
+  let re = patterns.get(key);
+  if (!re) {
+    if (patterns.size > 512) patterns.clear();
+    patterns.set(key, (re = new RegExp(source, flags)));
+  }
+  return re;
+}
+
+const isDescLine = (line: string, id: string): boolean => compiled(`^\\s*${escape(id)}(?::::\\S+)?\\s*:(?!::)`).test(line);
 
 /** Rewrites a transition's label (`a --> b : label`), adding or removing it. */
 export function relabelTransition(code: string, model: StateModel, edgeId: string, label: string): CodeResult {
@@ -470,15 +483,17 @@ export function deleteState(code: string, model: StateModel, items: readonly Ite
     for (const li of textLines(x)) lines.add(li);
     for (const e of model.edges) if (e.from === id || e.to === id) lines.add(e.src);
     for (const note of model.notes) if (note.target === id) for (let li = note.line; li <= note.endLine; li++) lines.add(li);
+    // compiled once per state, not per line (P17)
+    const decl = declRe(id), click = clickRe(id);
     if (n) {
       for (const li of n.lines) {
         const t = L[li] ?? '';
         // its own statements: a bare id, a declaration, a link
-        if (new RegExp(`^\\s*(?:state\\s+)?${escape(id)}(?::::\\S+)?\\s*(?:<<\\w+>>|\\[\\[\\w+\\]\\])?\\s*$`).test(t) || /^\s*\[\*\]\s*$/.test(t) || new RegExp(`^\\s*click\\s+${escape(id)}\\s`, 'i').test(t)) lines.add(li);
+        if (decl.test(t) || /^\s*\[\*\]\s*$/.test(t) || click.test(t)) lines.add(li);
       }
     }
     // its `click` lines (a state's are not among the lines that mention it)
-    for (const li of L.keys()) if (new RegExp(`^\\s*click\\s+${escape(id)}\\s`, 'i').test(L[li] ?? '')) lines.add(li);
+    for (const li of L.keys()) if (click.test(L[li] ?? '')) lines.add(li);
   }
   const lists = listEdits(code, ids);
   for (const li of lists.lines) lines.delete(li);
@@ -537,10 +552,11 @@ export function makeComposite(code: string, model: StateModel, items: readonly I
     const n = model.nodes.get(r.id);
     const x = n ?? g!;
     for (const t of x.texts) if (inScope(t.line)) moved.add(t.line);
+    const decl = declRe(r.id);
     if (n)
       for (const li of n.lines) {
         const t = L[li] ?? '';
-        if (inScope(li) && (new RegExp(`^\\s*(?:state\\s+)?${escape(r.id)}(?::::\\S+)?\\s*(?:<<\\w+>>|\\[\\[\\w+\\]\\])?\\s*$`).test(t) || /^\s*\[\*\]\s*$/.test(t))) moved.add(li);
+        if (inScope(li) && (decl.test(t) || /^\s*\[\*\]\s*$/.test(t))) moved.add(li);
       }
   }
   for (const e of model.edges) if (inside.has(e.from) && inside.has(e.to) && inScope(e.src)) moved.add(e.src);
@@ -564,7 +580,12 @@ export function makeComposite(code: string, model: StateModel, items: readonly I
   return { code: applyEdits(code, edits), select: { kind: 'group', id } };
 }
 
-const mentions = (line: string, id: string): boolean => new RegExp(`(^|[\\s>:,])${escape(id)}($|[\\s:,]|-->)`).test(line);
+/** A state's own statement: a bare id, a declaration (with its class or its kind). */
+const declRe = (id: string): RegExp => compiled(`^\\s*(?:state\\s+)?${escape(id)}(?::::\\S+)?\\s*(?:<<\\w+>>|\\[\\[\\w+\\]\\])?\\s*$`);
+/** A state's `click` line. */
+const clickRe = (id: string): RegExp => compiled(`^\\s*click\\s+${escape(id)}\\s`, 'i');
+
+const mentions = (line: string, id: string): boolean => compiled(`(^|[\\s>:,])${escape(id)}($|[\\s:,]|-->)`).test(line);
 
 /** The lines of a scope: inside the composite's first block (region ignored). */
 function scopeRange(model: StateModel, s: StateScope): { start: number; end: number } | null {
@@ -603,7 +624,8 @@ export function ungroupState(code: string, model: StateModel, gid: string, rewir
   for (const e of model.edges) if (e.from === gid && e.to === gid) removed.add(e.src);
   for (const n of model.notes) if (n.target === gid || isInner(n.target)) for (let li = n.line; li <= n.endLine; li++) removed.add(li);
   for (const t of g.texts) removed.add(t.line);
-  for (const [li, l] of L.entries()) if (new RegExp(`^\\s*click\\s+${escape(gid)}\\s`, 'i').test(l) || (own(li) && /^\s*\[\*\]\s*$/.test(l))) removed.add(li);
+  const click = clickRe(gid);
+  for (const [li, l] of L.entries()) if (click.test(l) || (own(li) && /^\s*\[\*\]\s*$/.test(l))) removed.add(li);
   const added: string[] = [];
   if (rewire) {
     for (const a of into) for (const s of starts) if (!isPseudo(s.to)) added.push(`${tok(a.from)} --> ${s.to}${a.label ? ` : ${colonText(a.label)}` : ''}`);

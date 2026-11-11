@@ -67,33 +67,46 @@ export function seqLineAbove(core: EditorCore, y: number): number | null {
   return (best as { line: number } | null)?.line ?? null;
 }
 
-/** Height of the statement on line j (undefined: a non-visual line, keep scanning). */
-function seqAnchor(core: EditorCore, j: number): number | null | undefined {
-  const M = seqModel(core)!, gm = seqGeom(core)!;
-  const blk = M.items.find((x): x is SeqBlockStart => x.kind === 'blockStart' && (x.src === j || x.lines[x.lines.length - 1] === j));
-  if (blk) {
-    const b = gm.blocks.get(blk.id);
-    return b ? (b.y0 + b.y1) / 2 : null;
+/**
+ * The height of the statement on a line (undefined: a non-visual line, keep scanning), with the items indexed by line
+ * once (P22: every item scanned per line of a block resize); a line is the first item's in code order that is on it.
+ */
+function seqAnchors(M: SequenceModel, gm: SequenceGeometry): (j: number) => number | null | undefined {
+  const blocks = new Map<number, SeqBlockStart>(), items = new Map<number, SeqMessage | SeqNote>();
+  for (const x of M.items) {
+    if (x.kind === 'blockStart') {
+      for (const l of [x.src, x.lines[x.lines.length - 1]!]) if (!blocks.has(l)) blocks.set(l, x);
+    } else if ((x.kind === 'message' || x.kind === 'note') && !items.has(x.src)) items.set(x.src, x);
   }
-  const it = M.items.find((x): x is SeqMessage | SeqNote => x.src === j && (x.kind === 'message' || x.kind === 'note'));
-  if (!it) return undefined;
-  return (it.kind === 'message' ? gm.messages.get(it.id)?.y : gm.notes.get(it.id)?.y) ?? null;
+  return (j) => {
+    const blk = blocks.get(j);
+    if (blk) {
+      const b = gm.blocks.get(blk.id);
+      return b ? (b.y0 + b.y1) / 2 : null;
+    }
+    const it = items.get(j);
+    if (!it) return undefined;
+    return (it.kind === 'message' ? gm.messages.get(it.id)?.y : gm.notes.get(it.id)?.y) ?? null;
+  };
 }
 
 /** Heights where a block edge pulls in the next statement outside (`out`) or pushes out the last inside (`inn`). */
 export function edgeAnchors(core: EditorCore, id: string, edge: 'top' | 'bottom'): { out?: number | null; inn?: number | null } {
-  const M = seqModel(core);
+  const M = seqModel(core), gm = seqGeom(core);
   const it = M?.items.find((x) => x.kind === 'blockStart' && x.id === id);
-  if (!M || !it || it.kind !== 'blockStart') return {};
+  if (!M || !gm || !it || it.kind !== 'blockStart') return {};
   const L = core.code.split('\n');
   const s = it.src, e = it.lines[it.lines.length - 1]!;
-  const isBlockStartAt = (j: number): boolean => M.items.some((x) => x.kind === 'blockStart' && x.src === j);
+  const seqAnchor = seqAnchors(M, gm);
+  const startsAt = new Map<number, SeqBlockStart[]>();
+  for (const x of M.items) if (x.kind === 'blockStart') (startsAt.get(x.src) ?? startsAt.set(x.src, []).get(x.src)!).push(x);
+  const isBlockStartAt = (j: number): boolean => startsAt.has(j);
   const scan = (from: number, dir: number, stop: (t: string, j: number) => boolean): number | null => {
     for (let j = from; j >= 0 && j < L.length; j += dir) {
       const t = (L[j] ?? '').trim();
       if (!t || t.startsWith('%%')) continue;
       if (stop(t, j)) return null;
-      const a = seqAnchor(core, j);
+      const a = seqAnchor(j);
       if (a !== undefined) return a;
     }
     return null;
@@ -105,7 +118,7 @@ export function edgeAnchors(core: EditorCore, id: string, edge: 'top' | 'bottom'
       inn: scan(e - 1, -1, (t, j) => j <= s || /^(else|and|option)\b/.test(t)),
     };
   return {
-    out: scan(s - 1, -1, (t, j) => outerStop(t) || M.items.some((x) => x.kind === 'blockStart' && x.src === j && x.lines[x.lines.length - 1]! > s)),
+    out: scan(s - 1, -1, (t, j) => outerStop(t) || !!startsAt.get(j)?.some((x) => x.lines[x.lines.length - 1]! > s)),
     inn: scan(s + 1, +1, (t, j) => j >= e || /^(else|and|option)\b/.test(t)),
   };
 }

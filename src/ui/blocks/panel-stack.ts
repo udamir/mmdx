@@ -138,13 +138,14 @@ export function createPanelStack(props: PanelStackProps): PanelStackHandle {
     const t = p.t;
     const split = h('div', { class: 'mmdx-split', role: 'separator', 'aria-orientation': 'horizontal', tabindex: '0', title: t('panes.resize'), 'aria-label': t('panes.resize') });
     const lower = (): StackPanel | undefined => p.panels[i];
-    const setH = (px: number | null): void => {
+    // `quiet`: a drag tells the host once, when it ends (P22: onChange per pointer move)
+    const setH = (px: number | null, quiet = false): void => {
       const x = lower();
       if (!x) return;
       if (px === null) heights.delete(x.id);
       else heights.set(x.id, Math.round(px));
       applyHeights();
-      changed();
+      if (!quiet) changed();
     };
     const clamp = (px: number): number => Math.max(MIN_LOWER, Math.min((el.getBoundingClientRect().height || 1e4) - MIN_UPPER, px));
     let drag: AbortController | null = null;
@@ -164,9 +165,14 @@ export function createPanelStack(props: PanelStackProps): PanelStackHandle {
       root?.classList.add('resizing-rows');
       drag?.abort();
       const ac = (drag = new AbortController());
-      const move = (e: PointerEvent): void => setH(clamp(h0 - (e.clientY - y0)));
+      let moved = false;
+      const move = (e: PointerEvent): void => {
+        moved = true;
+        setH(clamp(h0 - (e.clientY - y0)), true);
+      };
       const up = (): void => {
         ac.abort();
+        if (moved) changed();
         split.classList.remove('dragging');
         root?.classList.remove('resizing-rows');
         saveHeights();

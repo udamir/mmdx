@@ -28,6 +28,9 @@ interface Entry {
   aliases: string[];
   keywords: string[];
   categories: string[];
+  /** The words of each alias and category, split once (P22: per entry per keystroke). */
+  aliasWords: string[][];
+  categoryWords: string[][];
 }
 
 const indexes = new WeakMap<IconifyJSON, Entry[]>();
@@ -39,7 +42,7 @@ function indexOf(data: IconifyJSON): Entry[] {
   const byIcon = new Map<string, Entry>();
   for (const [name, icon] of Object.entries(data.icons ?? {})) {
     if (!icon || icon.hidden) continue;
-    byIcon.set(name, { icon: name, words: words(name), aliases: [], keywords: [], categories: [] });
+    byIcon.set(name, { icon: name, words: words(name), aliases: [], keywords: [], categories: [], aliasWords: [], categoryWords: [] });
   }
   for (const [alias, a] of Object.entries(data.aliases ?? {})) {
     // an alias (of an alias…) is another name of its icon
@@ -55,6 +58,10 @@ function indexOf(data: IconifyJSON): Entry[] {
   for (const [cat, list] of Object.entries(data.categories ?? {}))
     if (Array.isArray(list)) for (const icon of list) byIcon.get(icon)?.categories.push(cat.toLowerCase());
   idx = [...byIcon.values()];
+  for (const e of idx) {
+    e.aliasWords = e.aliases.map(words);
+    e.categoryWords = e.categories.map(words);
+  }
   indexes.set(data, idx);
   return idx;
 }
@@ -76,19 +83,20 @@ function scoreWord(q: string, e: Entry): [number, IconHit['via']] {
   else if (e.icon.startsWith(q)) take(3, 'name');
   else if (e.words.some((w) => w === q)) take(2.6, 'name');
   else if (e.words.some((w) => w.startsWith(q))) take(2.3, 'name');
-  for (const a of e.aliases) {
+  e.aliases.forEach((a, i) => {
     if (a === q) take(3.9, 'alias');
     else if (a.startsWith(q)) take(2.9, 'alias');
-    else if (words(a).some((w) => w === q)) take(2.2, 'alias');
-  }
+    else if (e.aliasWords[i]!.includes(q)) take(2.2, 'alias');
+  });
   for (const k of e.keywords) {
     if (k === q) take(2.5, 'keyword');
     else if (k.startsWith(q)) take(2.1, 'keyword');
   }
-  for (const c of e.categories) {
-    if (c === q || words(c).some((w) => w === q)) take(2, 'category');
-    else if (words(c).some((w) => w.startsWith(q))) take(1.8, 'category');
-  }
+  e.categories.forEach((c, i) => {
+    const cw = e.categoryWords[i]!;
+    if (c === q || cw.includes(q)) take(2, 'category');
+    else if (cw.some((w) => w.startsWith(q))) take(1.8, 'category');
+  });
   if (!best[0] && q.length > 1 && subsequence(q, e.icon)) take(1, 'name');
   return best;
 }

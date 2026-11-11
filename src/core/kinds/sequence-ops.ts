@@ -1,6 +1,6 @@
 // The sequence ops kind: code order (participants trade places, items move within their blocks), positional ids and
 // the metadata that follows them.
-import { seqPresets } from '../render/sequence.js';
+import { seqPresets } from '../render/sequence-presets.js';
 import type { Presets } from './types.js';
 import { activationsOf } from '../ids.js';
 import type { ItemRef } from '../types.js';

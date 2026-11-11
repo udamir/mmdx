@@ -33,3 +33,17 @@ export function contentEnd(L: readonly string[]): number {
   return end;
 }
 
+
+// the last code's line offsets: an op asks for many lines of one code (P16: a scan from the top per line)
+let startsOf: string | null = null;
+let starts: number[] = [];
+
+/** The offset of the start of line `li` (the code's length past its last line). */
+export function lineStart(code: string, li: number): number {
+  if (code !== startsOf) {
+    starts = [0];
+    for (let i = code.indexOf('\n'); i >= 0; i = code.indexOf('\n', i + 1)) starts.push(i + 1);
+    startsOf = code;
+  }
+  return li < starts.length ? starts[li]! : code.length;
+}

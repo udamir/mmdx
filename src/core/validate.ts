@@ -52,9 +52,12 @@ export function isFiniteNumber(v: unknown): v is number {
 }
 
 /** Number or numeric string → number, else undefined. */
+// compiled once: toNumber runs per style key per render (P22)
+const NUMBER_RE = new RegExp(`^${NUM}(?:px)?$`, 'i');
+
 export function toNumber(v: unknown): number | undefined {
   if (isFiniteNumber(v)) return v;
-  if (typeof v === 'string' && v.trim() !== '' && new RegExp(`^${NUM}(?:px)?$`, 'i').test(v.trim())) {
+  if (typeof v === 'string' && v.trim() !== '' && NUMBER_RE.test(v.trim())) {
     const n = parseFloat(v);
     return Number.isFinite(n) ? n : undefined;
   }

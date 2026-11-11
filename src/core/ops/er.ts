@@ -9,7 +9,7 @@ import { erId, erLabel, erQuoted } from '../parse/er-id.js';
 import { applySplices, type Splice } from '../parse/node-data.js';
 import type { ItemRef } from '../types.js';
 import { copyIds, uniqueId } from './ids.js';
-import { append, contentEnd, indentOf } from './lines.js';
+import { append, contentEnd, indentOf, lineStart } from './lines.js';
 import type { CloneInto, CloneResult, CodeResult, ConnectResult, LineResult, RefusableResult, SelectResult } from './types.js';
 import { minOf } from '../geom.js';
 
@@ -51,13 +51,6 @@ function cut(code: string, start: number, end: number): Splice {
   while (code[e] === ' ' || code[e] === '\t') e++;
   return { from: start, to: e, text: '' };
 }
-
-/** The offset of the start of line `li`. */
-const lineStart = (code: string, li: number): number => {
-  let at = 0;
-  for (let k = 0; k < li && at >= 0; k++) at = code.indexOf('\n', at) + 1 || -1;
-  return at < 0 ? code.length : at;
-};
 
 /** Inserts lines before line `li` (or at the end of the content when `li` is null), ending with a newline. */
 function insertLines(code: string, li: number | null, lines: readonly string[]): string {

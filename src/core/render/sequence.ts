@@ -17,7 +17,7 @@
 // sequence diagrams, so only the tokens); emoji are text.
 import { ICON_TOKEN } from '../icons/names.js';
 import { ActivationTracker } from '../ids.js';
-import type { DiagramMeta, ItemMeta } from '../meta/types.js';
+import type { ItemMeta } from '../meta/types.js';
 import type { Participant, SeqBlockStart, SeqMessage, SeqNote, SequenceModel } from '../model.js';
 import { messageNumbers } from '../parse/sequence.js';
 import { el, g } from '../scene/build.js';
@@ -25,12 +25,11 @@ import type { SceneNode, TextRun } from '../scene/types.js';
 import { shapeDef } from '../shapes/registry.js';
 import type { StyleProps } from '../style.js';
 import type { FontSpec } from '../text/measure.js';
-import type { ResolvedTheme } from '../theme/types.js';
 import { textBlockWidth, wrap } from '../text/wrap.js';
 import { fmt } from '../scene/serialize.js';
 import {
   baseStyle, countBy, Defs, font, hiddenOf, itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle, metaNum, pickStyle,
-  presetOf, presets, shapeNodes, stackedShapeNodes, textBlock, urlRef, withLink, type RenderEnv, type SubResult, type TextOpts,
+  presetOf, shapeNodes, stackedShapeNodes, textBlock, urlRef, withLink, type RenderEnv, type SubResult, type TextOpts,
 } from './common.js';
 import { decorate, decorated, decoratedSize, decoration, lazyKit, type Decoration } from './decorate.js';
 import { assetBox, captionY, mediaAssetNodes, mediaLayout, type MediaBox, type MediaSource } from './media-node.js';
@@ -38,31 +37,12 @@ import { metaMediaSource } from '../ops/meta-media.js';
 import type { BoxGeom, RenderContext, SequenceGeometry } from './types.js';
 import type { Rect } from '../types.js';
 import { dashAttrs } from './dash.js';
+import { seqPresets } from './sequence-presets.js';
 import { minOf } from '../geom.js';
 
 /** A participant preset belongs to one shape (like node presets): its own "shape", else "for", else the box. */
 export { participantPresetShape } from './common.js';
 
-export interface SeqPresets {
-  participant: Record<string, StyleProps>;
-  message: Record<string, StyleProps>;
-  block: Record<string, StyleProps>;
-  activation: Record<string, StyleProps>;
-  box: Record<string, StyleProps>;
-  note: Record<string, StyleProps>;
-}
-
-export function seqPresets(T: ResolvedTheme, meta: DiagramMeta): SeqPresets {
-  const S = T.sequence;
-  return {
-    participant: presets(S.participantPresets, meta.styles['participant']),
-    message: presets(S.messagePresets, meta.styles['message']),
-    block: presets(S.blockPresets, meta.styles['block']),
-    activation: presets(S.activationPresets, meta.styles['activation']),
-    box: presets(S.boxPresets, meta.styles['box']),
-    note: presets(S.notePresets, meta.styles['note']),
-  };
-}
 
 interface Layout {
   gap: number;
