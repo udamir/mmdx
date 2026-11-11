@@ -13,8 +13,16 @@ import { mergeText } from './text.js';
 
 const one = (s: string): string => s.replace(/\s*\n\s*/g, ' ').trim();
 
+// the diff and its merge match the same two models (P11: matched twice per render)
+const matched = new WeakMap<MindmapModel, WeakMap<MindmapModel, Map<string, string>>>();
+
 /** Before id → after id of the nodes both versions have. */
 export function matchMindNodes(a: MindmapModel, b: MindmapModel): Map<string, string> {
+  const inner = matched.get(a) ?? matched.set(a, new WeakMap()).get(a)!;
+  return inner.get(b) ?? inner.set(b, matchNodes(a, b)).get(b)!;
+}
+
+function matchNodes(a: MindmapModel, b: MindmapModel): Map<string, string> {
   const out = new Map<string, string>(), taken = new Set<string>();
   const pair = (x: string, y: string): void => {
     out.set(x, y);
@@ -37,11 +45,14 @@ export function matchMindNodes(a: MindmapModel, b: MindmapModel): Map<string, st
     const hit = k !== undefined ? byKey.get(k) : undefined;
     if (hit && !taken.has(hit)) pair(n.id, hit);
   }
-  // (label, matched parent), then the label alone, in code order
+  // (label, matched parent), then the label alone, in code order; the after nodes bucketed by label (P11: a scan of
+  // every node per node)
+  const byLabel = new Map<string, MindNode[]>();
+  for (const m of b.nodes.values()) (byLabel.get(m.label) ?? byLabel.set(m.label, []).get(m.label)!).push(m);
   const free = (pred: (x: MindNode, y: MindNode) => boolean): void => {
     for (const n of a.nodes.values()) {
       if (out.has(n.id)) continue;
-      const hit = [...b.nodes.values()].find((m) => !taken.has(m.id) && m.label === n.label && pred(n, m));
+      const hit = byLabel.get(n.label)?.find((m) => !taken.has(m.id) && pred(n, m));
       if (hit) pair(n.id, hit.id);
     }
   };
@@ -49,6 +60,13 @@ export function matchMindNodes(a: MindmapModel, b: MindmapModel): Map<string, st
   free(() => true);
   return out;
 }
+
+/** Each node's place among its parent's children (a flat map's `indexOf` per node is quadratic). */
+const ranksOf = (m: MindmapModel): Map<string, number> => {
+  const out = new Map<string, number>();
+  for (const n of m.nodes.values()) n.children.forEach((c, i) => out.set(c, i));
+  return out;
+};
 
 const parentLabel = (m: MindmapModel, n: MindNode): string | undefined => (n.parent ? one(m.nodes.get(n.parent)?.label ?? '') : undefined);
 
@@ -58,6 +76,7 @@ export function diffMindmap(a: MindmapModel, b: MindmapModel, ma: DiagramMeta, m
   const presets = changedPresets(ma, mb, 'node');
   const map = matchMindNodes(a, b);
   const back = new Map([...map].map(([x, y]) => [y, x]));
+  const ra = ranksOf(a), rb = ranksOf(b);
   for (const nb of b.nodes.values()) {
     const ida = back.get(nb.id);
     const na = ida !== undefined ? a.nodes.get(ida) : undefined;
@@ -72,7 +91,7 @@ export function diffMindmap(a: MindmapModel, b: MindmapModel, ma: DiagramMeta, m
     // a new parent: the node moved
     const movedParent = (na.parent ? map.get(na.parent) : null) !== nb.parent;
     if (movedParent) field(f, 'layout', 'parent', parentLabel(a, na), parentLabel(b, nb));
-    else if (na.parent && a.nodes.get(na.parent)!.children.indexOf(na.id) !== b.nodes.get(nb.parent!)?.children.indexOf(nb.id)) field(f, 'layout', 'order', a.nodes.get(na.parent)!.children.indexOf(na.id) + 1, b.nodes.get(nb.parent!)!.children.indexOf(nb.id) + 1);
+    else if (na.parent && ra.get(na.id) !== rb.get(nb.id)) field(f, 'layout', 'order', ra.get(na.id)! + 1, rb.get(nb.id)! + 1);
     field(f, 'style', 'classes', na.classes.join(' ') || undefined, nb.classes.join(' ') || undefined);
     metaFields(f, ma.nodes?.[na.id], mb.nodes?.[nb.id], presets);
     items.push(finish('node', nb.id, one(nb.label), f, na.id));
@@ -92,17 +111,19 @@ export function mergeMindmap(env: MergeEnv, a: MindmapModel, b: MindmapModel): M
     nodes.set(id, { ...n, children: [...n.children], label: changed && na ? mergeText(na.label, n.label) : n.label });
   }
   const map = matchMindNodes(a, b);
-  const idOf = (beforeId: string): string | undefined => map.get(beforeId) ?? (gone.some((c) => c.id === beforeId) ? beforeId + REMOVED : undefined);
+  const ra = ranksOf(a);
+  const goneById = new Map(gone.map((c) => [c.id, c]));
+  const idOf = (beforeId: string): string | undefined => map.get(beforeId) ?? (goneById.has(beforeId) ? beforeId + REMOVED : undefined);
   // in code order, so a removed parent is in place before its removed children
   for (const na of a.nodes.values()) {
-    const c = gone.find((x) => x.id === na.id);
+    const c = goneById.get(na.id);
     if (!c) continue;
     const id = na.id + REMOVED;
     const parent = na.parent ? idOf(na.parent) ?? b.root : null;
     nodes.set(id, { ...na, id, written: null, parent, children: [] });
     const p = parent ? nodes.get(parent) : undefined;
     if (p) {
-      const at = Math.min(a.nodes.get(na.parent!)?.children.indexOf(na.id) ?? p.children.length, p.children.length);
+      const at = Math.min(ra.get(na.id) ?? p.children.length, p.children.length);
       p.children.splice(at, 0, id);
     }
     carryMeta(meta, ma, 'node', na.id, id);

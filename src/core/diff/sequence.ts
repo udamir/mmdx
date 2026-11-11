@@ -35,7 +35,7 @@ export function diffSequence(a: SequenceModel, b: SequenceModel, ma: DiagramMeta
 
   const msgs = (m: SequenceModel) => m.items.filter((x): x is SeqMessage => x.kind === 'message');
   const msgName = (x: SeqMessage) => `${x.from} → ${x.to}: ${x.text}`;
-  const m = align(msgs(a), msgs(b), (x) => `${x.from}|${x.to}|${x.text}|${x.arrow}|${x.central ?? ''}`, (x, y) => x.from === y.from && x.to === y.to);
+  const m = align(msgs(a), msgs(b), (x) => `${x.from}|${x.to}|${x.text}|${x.arrow}|${x.central ?? ''}`, (x) => `${x.from}\n${x.to}`);
   for (const [x, y] of m.pairs) {
     const f: FieldChange[] = [];
     field(f, 'content', 'text', x.text, y.text);
@@ -49,7 +49,7 @@ export function diffSequence(a: SequenceModel, b: SequenceModel, ma: DiagramMeta
   for (const x of m.onlyA) items.push(removed('message', x.id, msgName(x)));
 
   const notes = (s: SequenceModel) => s.items.filter((x): x is SeqNote => x.kind === 'note');
-  const n = align(notes(a), notes(b), (x) => `${x.pos}|${x.targets.join(',')}|${x.text}`, (x, y) => x.targets.join(',') === y.targets.join(','));
+  const n = align(notes(a), notes(b), (x) => `${x.pos}|${x.targets.join(',')}|${x.text}`, (x) => x.targets.join(','));
   for (const [x, y] of n.pairs) {
     const f: FieldChange[] = [];
     field(f, 'content', 'text', x.text, y.text);
@@ -61,7 +61,7 @@ export function diffSequence(a: SequenceModel, b: SequenceModel, ma: DiagramMeta
   for (const x of n.onlyA) items.push(removed('note', x.id, `Note: ${x.text}`));
 
   const blocks = (s: SequenceModel) => s.items.filter((x): x is SeqBlockStart => x.kind === 'blockStart');
-  const bl = align(blocks(a), blocks(b), (x) => `${x.block}|${x.label}`, (x, y) => x.block === y.block);
+  const bl = align(blocks(a), blocks(b), (x) => `${x.block}|${x.label}`, (x) => x.block);
   for (const [x, y] of bl.pairs) {
     const f: FieldChange[] = [];
     field(f, 'content', 'label', x.label, y.label);
@@ -80,13 +80,17 @@ export function mergeSequence(env: MergeEnv, a: SequenceModel, b: SequenceModel)
   const { diff, meta, byAfter, removed, mark } = env;
   const ma = env.before;
   const participants = [...b.participants];
+  // indexes, not scans in loops (P11)
+  const aParts = new Map(a.participants.map((p) => [p.id, p]));
+  const aItems = new Map(a.items.map((x) => [`${x.kind}:${'id' in x ? x.id : ''}`, x]));
+  const removedBy = new Map(removed.map((c) => [`${c.kind}:${c.id}`, c]));
   for (const [i, p] of participants.entries()) {
     const c = byAfter.get(`participant:${p.id}`);
-    const pa = a.participants.find((x) => x.id === p.id);
+    const pa = aParts.get(p.id);
     if (pa && changedField(c, 'label')) participants[i] = { ...p, label: mergeText(pa.label, p.label) };
   }
   for (const c of removed.filter((x) => x.kind === 'participant')) {
-    const p = a.participants.find((x) => x.id === c.id)!;
+    const p = aParts.get(c.id)!;
     const at = Math.min(a.participants.indexOf(p), participants.length);
     participants.splice(at, 0, { ...p, box: null, lines: new Set() });
     mark(c, p.id);
@@ -96,7 +100,7 @@ export function mergeSequence(env: MergeEnv, a: SequenceModel, b: SequenceModel)
     const kind = it.kind === 'blockStart' ? 'block' : it.kind;
     const c = byAfter.get(`${kind}:${it.id}`);
     if (c?.status !== 'changed') return it;
-    const prev = a.items.find((x) => x.kind === it.kind && x.id === (c.beforeId ?? it.id));
+    const prev = aItems.get(`${it.kind}:${c.beforeId ?? it.id}`);
     if (it.kind === 'message' && prev?.kind === 'message' && changedField(c, 'text')) return { ...it, text: mergeText(prev.text, it.text) };
     if (it.kind === 'note' && prev?.kind === 'note' && changedField(c, 'text')) return { ...it, text: mergeText(prev.text, it.text) };
     if (it.kind === 'blockStart' && prev?.kind === 'blockStart' && changedField(c, 'label')) return { ...it, label: mergeText(prev.label, it.label) };
@@ -115,7 +119,7 @@ export function mergeSequence(env: MergeEnv, a: SequenceModel, b: SequenceModel)
       const copy: SeqMessage | SeqNote = x.kind === 'message' ? { ...x, id: x.id + REMOVED, activate: false, deactivate: false } : { ...x, id: x.id + REMOVED };
       pending.set(anchor, [...(pending.get(anchor) ?? []), copy]);
       carryMeta(meta, ma, x.kind, x.id, x.id + REMOVED);
-      mark(removed.find((c) => `${c.kind}:${c.id}` === k)!, x.id + REMOVED);
+      mark(removedBy.get(k)!, x.id + REMOVED);
     } else anchor = afterOf.get(k) ?? anchor;
   }
   const merged: SeqItem[] = [...(pending.get(null) ?? [])];

@@ -90,10 +90,10 @@ export function renderDocumentWith(kinds: Kinds, doc: DiagramDocument, model: Di
   return { theme: picked.theme, themeId: picked.id, rctx, result, diagnostics: [...picked.diagnostics, ...(result.diagnostics ?? [])] };
 }
 
-/** Full pipeline from source text. Never throws on bad input. */
-export function renderSourceWith(kinds: Kinds, src: string, ctx: CoreContext, opts: PipelineOptions = {}): Rendered {
+/** Full pipeline from source text. Never throws on bad input. `parse` reads the code (a caller's memo: a diff parses each version once). */
+export function renderSourceWith(kinds: Kinds, src: string, ctx: CoreContext, opts: PipelineOptions = {}, parse: (code: string) => DiagramModel = (c) => parseWith(c, kinds)): Rendered {
   const split = splitSource(src);
-  const model = parseWith(split.doc.code, kinds);
+  const model = parse(split.doc.code);
   const tooLarge = model.diagnostics.some((d) => TOO_BIG_CODES.has(d.code));
   const r = renderDocumentWith(kinds, split.doc, model, ctx, opts);
   return {

@@ -92,7 +92,7 @@ export function diffState(a: StateModel, b: StateModel, ma: DiagramMeta, mb: Dia
     a.edges,
     b.edges,
     (e) => `${edgeKey(e, toAfter)}|${e.label}`,
-    (x, y) => edgeKey(x, toAfter) === edgeKey(y, (i) => i),
+    (e, side) => edgeKey(e, side === 'a' ? toAfter : (i) => i),
   );
   for (const [ea, eb] of pairs) {
     const f: FieldChange[] = [];
@@ -111,7 +111,7 @@ export function diffState(a: StateModel, b: StateModel, ma: DiagramMeta, mb: Dia
   for (const n of b.notes) slot(where(n, (i) => i))[1].push(n);
   const notePairs: [StateNote, StateNote][] = [], leftA: StateNote[] = [], leftB: StateNote[] = [];
   for (const [xs, ys] of slots.values()) {
-    const r = align(xs, ys, (n) => n.text, () => true);
+    const r = align(xs, ys, (n) => n.text, () => '');
     notePairs.push(...r.pairs);
     leftA.push(...r.onlyA);
     leftB.push(...r.onlyB);
@@ -204,9 +204,10 @@ export function mergeState(env: MergeEnv, a: StateModel, b: StateModel): StateMo
 
   const end = (id: string): string => idOf.get(id) ?? id;
   const exists = (id: string): boolean => nodes.has(id) || groups.has(id);
+  const aEdges = new Map(a.edges.map((e) => [e.id, e]));
   const edges: StateEdge[] = b.edges.map((e) => {
     const c = byAfter.get(`edge:${e.id}`);
-    const before = a.edges.find((x) => x.id === (c?.beforeId ?? e.id));
+    const before = aEdges.get(c?.beforeId ?? e.id);
     return before && changedField(c, 'label') ? { ...e, label: mergeText(before.label, e.label) } : e;
   });
   let index = Math.max(-1, maxOf(edges.map((e) => e.index))) + 1;
@@ -222,9 +223,10 @@ export function mergeState(env: MergeEnv, a: StateModel, b: StateModel): StateMo
     mark(c, id);
   }
 
+  const aNotes = new Map(a.notes.map((n) => [n.id, n]));
   const notes: StateNote[] = b.notes.map((n) => {
     const c = byAfter.get(`note:${n.id}`);
-    const before = a.notes.find((x) => x.id === (c?.beforeId ?? n.id));
+    const before = aNotes.get(c?.beforeId ?? n.id);
     return before && changedField(c, 'text') ? { ...n, text: mergeText(before.text, n.text) } : n;
   });
   for (const n of a.notes) {

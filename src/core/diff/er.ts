@@ -63,9 +63,9 @@ export function diffEr(a: ErModel, b: ErModel, ma: DiagramMeta, mb: DiagramMeta,
   for (const [id, ga] of a.groups) if (!b.groups.has(id)) items.push(removed('group', id, ga.label || id));
 
   const relName = (r: ErModel['rels'][number]) => `${r.from} — ${r.to}${r.label ? ` (${r.label})` : ''}`;
-  const bRels = new Map(b.rels.map((r) => [r.id, r]));
+  const bRels = new Map(b.rels.map((r) => [r.id, r])), aRels = new Map(a.rels.map((r) => [r.id, r]));
   for (const rb of b.rels) {
-    const ra = a.rels.find((r) => r.id === rb.id);
+    const ra = aRels.get(rb.id);
     if (!ra) {
       items.push(added('rel', rb.id, relName(rb)));
       continue;
@@ -92,7 +92,8 @@ export function mergeEr(env: MergeEnv, a: ErModel, b: ErModel): ErModel {
   for (const [id, g] of groups) if (changedField(byAfter.get(`group:${id}`), 'label')) g.label = mergeText(a.groups.get(id)?.label ?? '', g.label);
   // removed subgraphs, in their old parent (its after self when it is kept, else the removed one)
   const gone = removed.filter((x) => x.kind === 'group');
-  const groupId = (id: string | null): string | null => (id === null ? null : groups.has(id) ? id : gone.some((c) => c.id === id) ? id + REMOVED : null);
+  const goneIds = new Set(gone.map((c) => c.id));
+  const groupId = (id: string | null): string | null => (id === null ? null : groups.has(id) ? id : goneIds.has(id) ? id + REMOVED : null);
   for (const c of gone) {
     const g = a.groups.get(c.id)!;
     groups.set(c.id + REMOVED, { ...g, id: c.id + REMOVED, parent: null, children: [] });
@@ -119,13 +120,14 @@ export function mergeEr(env: MergeEnv, a: ErModel, b: ErModel): ErModel {
     mark(c, c.id + REMOVED);
   }
   const ent = (id: string) => (entities.has(id) || groups.has(id) ? id : id + REMOVED);
+  const aRels = new Map(a.rels.map((r) => [r.id, r]));
   const rels = b.rels.map((r) => {
     const c = byAfter.get(`rel:${r.id}`);
-    const ra = a.rels.find((x) => x.id === r.id);
+    const ra = aRels.get(r.id);
     return ra && changedField(c, 'label') ? { ...r, label: mergeText(ra.label, r.label) } : r;
   });
   for (const c of removed.filter((x) => x.kind === 'rel')) {
-    const r = a.rels.find((x) => x.id === c.id)!;
+    const r = aRels.get(c.id)!;
     rels.push({ ...r, id: c.id + REMOVED, from: ent(r.from), to: ent(r.to) });
     carryMeta(meta, ma, 'rel', c.id, c.id + REMOVED);
     mark(c, c.id + REMOVED);

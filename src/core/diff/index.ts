@@ -18,7 +18,6 @@ import { diag } from '../types.js';
 import { field } from './kit.js';
 import type { DiagramDiff, DiffIgnore, FieldChange, ItemChange } from './types.js';
 
-export { lcs } from './kit.js';
 
 export type { ChangeFacet, ChangeStatus, FieldChange, ItemChange, DiagramDiff, DiffIgnore } from './types.js';
 
@@ -61,9 +60,9 @@ export function diffModels(a: DiagramModel, b: DiagramModel, ma: DiagramMeta, mb
 }
 
 /** Diff of two sources (Mermaid with or without `%%@` lines), parsed with the given diagram kinds (component architecture §9.1): a bundle that loads kinds on demand passes the ones it loaded (a type without its parser diffs as unsupported). Never throws on bad input. `diffDiagrams` (core/diff/all.ts) parses with every kind. */
-export function diffDiagramsWith(kinds: Kinds, before: string, after: string): DiagramDiff {
+export function diffDiagramsWith(kinds: Kinds, before: string, after: string, parse: (code: string) => DiagramModel = (c) => parseWith(c, kinds)): DiagramDiff {
   const sa = splitSource(before), sb = splitSource(after);
-  return diffModels(parseWith(sa.doc.code, kinds), parseWith(sb.doc.code, kinds), sa.doc.meta, sb.doc.meta);
+  return diffModels(parse(sa.doc.code), parse(sb.doc.code), sa.doc.meta, sb.doc.meta);
 }
 
 /**

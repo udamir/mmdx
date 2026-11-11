@@ -58,8 +58,10 @@ export function diffFlowchart(a: FlowchartModel, b: FlowchartModel, ma: DiagramM
     return f;
   };
 
+  // indexes, not scans in loops (P11)
+  const renamedFrom = new Map([...renamed].map(([from, to]) => [to, from]));
   for (const [id, nb] of b.nodes) {
-    const beforeId = [...renamed].find(([, to]) => to === id)?.[0] ?? id;
+    const beforeId = renamedFrom.get(id) ?? id;
     const na = a.nodes.get(beforeId);
     items.push(na ? finish('node', id, nb.label || id, nodeFields(na, nb), beforeId) : added('node', id, nb.label || id));
   }
@@ -90,7 +92,7 @@ export function diffFlowchart(a: FlowchartModel, b: FlowchartModel, ma: DiagramM
     a.edges,
     b.edges,
     (e) => `${edgeKey(e, toAfter)}|${e.label}|${e.line}|${e.start}|${e.end}`,
-    (x, y) => edgeKey(x, toAfter) === edgeKey(y, (i) => i),
+    (e, side) => edgeKey(e, side === 'a' ? toAfter : (i) => i),
   );
   for (const [ea, eb] of pairs) {
     const f: FieldChange[] = [];
@@ -145,14 +147,15 @@ export function mergeFlowchart(env: MergeEnv, a: FlowchartModel, b: FlowchartMod
     carryMeta(meta, ma, 'node', c.id, c.id + REMOVED);
     mark(c, c.id + REMOVED);
   }
+  const aEdges = new Map(a.edges.map((e) => [e.id, e]));
   const edges: FlowEdge[] = b.edges.map((e) => {
     const c = byAfter.get(`edge:${e.id}`);
-    const before = a.edges.find((x) => x.id === (c?.beforeId ?? e.id));
+    const before = aEdges.get(c?.beforeId ?? e.id);
     return changedField(c, 'label') ? { ...e, label: mergeText(before?.label ?? '', e.label) } : e;
   });
   let index = 1e6;
   for (const c of removed.filter((x) => x.kind === 'edge')) {
-    const e = a.edges.find((x) => x.id === c.id)!;
+    const e = aEdges.get(c.id)!;
     const from = nodeId.get(e.from) ?? e.from, to = nodeId.get(e.to) ?? e.to;
     edges.push({ ...e, id: c.id + REMOVED, from, to, label: e.label, index: index++ });
     carryMeta(meta, ma, 'edge', c.id, c.id + REMOVED);

@@ -4,6 +4,7 @@ import { classOf, keyDef } from '../meta/keys.js';
 import type { DiagramMeta, ItemMeta } from '../meta/types.js';
 import type { MermaidStyle } from '../model.js';
 import type { ItemKind } from '../types.js';
+import { diffArrays } from './text.js';
 import type { ChangeFacet, FieldChange, ItemChange } from './types.js';
 
 export const FACETS: readonly ChangeFacet[] = ['content', 'layout', 'style'];
@@ -91,40 +92,48 @@ export function changedPresets(a: DiagramMeta, b: DiagramMeta, kind: string): Se
   return new Set([...Object.keys(A), ...Object.keys(B)].filter((n) => n in A && n in B && !same(A[n], B[n])));
 }
 
-/** Longest common subsequence of two key lists: index pairs, in order. */
-export function lcs<T>(a: readonly T[], b: readonly T[], eq: (x: T, y: T) => boolean = (x, y) => x === y): [number, number][] {
-  const n = a.length, m = b.length;
-  const t: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
-  for (let i = n - 1; i >= 0; i--)
-    for (let j = m - 1; j >= 0; j--) t[i]![j] = eq(a[i]!, b[j]!) ? t[i + 1]![j + 1]! + 1 : Math.max(t[i + 1]![j]!, t[i]![j + 1]!);
+/**
+ * The index pairs of a longest common subsequence of two key lists, from Myers' diff (core/diff/text.ts): linear
+ * memory and close to linear time for lists that mostly agree (P3: the O(n·m) table took 253 ms and 129 MB for 4000
+ * items).
+ */
+function anchorsOf(a: readonly string[], b: readonly string[]): [number, number][] {
   const out: [number, number][] = [];
-  for (let i = 0, j = 0; i < n && j < m; ) {
-    if (eq(a[i]!, b[j]!)) out.push([i++, j++]);
-    else if (t[i + 1]![j]! >= t[i]![j + 1]!) i++;
-    else j++;
+  let i = 0, j = 0;
+  for (const run of diffArrays(a, b)) {
+    const n = run.items.length;
+    if (run.op === 'same') for (let k = 0; k < n; k++) out.push([i + k, j + k]);
+    if (run.op !== 'add') i += n;
+    if (run.op !== 'del') j += n;
   }
   return out;
 }
 
 /**
- * Aligns two ordered lists: exact matches first (LCS on `key`), then, between two anchors, items that are `similar`
- * are paired in order (an edited message). Returns pairs plus what is left on each side.
+ * Aligns two ordered lists: exact matches first (a common subsequence of `key`), then, between two anchors, items of
+ * the same `group` are paired in order (an edited message). Returns pairs plus what is left on each side.
  */
-export function align<T>(a: readonly T[], b: readonly T[], key: (x: T) => string, similar: (x: T, y: T) => boolean): { pairs: [T, T][]; onlyA: T[]; onlyB: T[] } {
-  const anchors = lcs(a.map(key), b.map(key));
+export function align<T>(a: readonly T[], b: readonly T[], key: (x: T) => string, group: (x: T, side: 'a' | 'b') => string): { pairs: [T, T][]; onlyA: T[]; onlyB: T[] } {
+  const anchors = anchorsOf(a.map(key), b.map(key));
   const pairs: [T, T][] = [], onlyA: T[] = [], onlyB: T[] = [];
   let pi = 0, pj = 0;
+  // a gap's after items queued by group, so each before item takes the first free one of its group (P3)
   const gap = (i1: number, j1: number) => {
-    const ga = a.slice(pi, i1), gb = b.slice(pj, j1);
-    const used = new Set<number>();
-    for (const x of ga) {
-      const k = gb.findIndex((y, idx) => !used.has(idx) && similar(x, y));
-      if (k >= 0) {
-        used.add(k);
-        pairs.push([x, gb[k]!]);
-      } else onlyA.push(x);
+    const queues = new Map<string, { js: number[]; at: number }>();
+    for (let j = pj; j < j1; j++) {
+      const g = group(b[j]!, 'b');
+      (queues.get(g) ?? queues.set(g, { js: [], at: 0 }).get(g)!).js.push(j);
     }
-    gb.forEach((y, idx) => used.has(idx) || onlyB.push(y));
+    const used = new Set<number>();
+    for (let i = pi; i < i1; i++) {
+      const q = queues.get(group(a[i]!, 'a'));
+      const j = q && q.at < q.js.length ? q.js[q.at++]! : -1;
+      if (j >= 0) {
+        used.add(j);
+        pairs.push([a[i]!, b[j]!]);
+      } else onlyA.push(a[i]!);
+    }
+    for (let j = pj; j < j1; j++) if (!used.has(j)) onlyB.push(b[j]!);
   };
   for (const [i, j] of anchors) {
     gap(i, j);

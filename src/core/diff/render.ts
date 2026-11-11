@@ -1,7 +1,8 @@
 // Rendering a diff (§7.5): both versions, the merged picture, the filtered change list and one shared coordinate space, from two sources. `renderDiffToSvgWith` composes any view into one standalone SVG (exports, CI bots, SSR). Everything here renders with the given diagram kinds (component architecture §9.1: <mmdx-diff> loads the kinds of both versions on demand); the all-kinds wrappers are in all.ts, so a bundle that loads kinds ships none statically.
 import { diffKind } from '../kinds/registry.js';
 import type { CoreContext } from '../context-base.js';
-import { isSupported } from '../model.js';
+import { isSupported, type DiagramModel } from '../model.js';
+import { parseWith } from '../parse/dispatch.js';
 import { renderDocumentWith, renderSourceWith, type Kinds, type PipelineOptions, type Rendered } from '../pipeline-core.js';
 import { pageScene } from '../render/page.js';
 import { el, g, text } from '../scene/build.js';
@@ -67,7 +68,10 @@ const union = (a: Rect, b: Rect): Rect => {
 export function renderDiffWith(kinds: Kinds, before: string, after: string, ctx: CoreContext, o: DiffRenderOptions = {}): DiffRendered {
   const ignore = o.ignore ?? {};
   const hide = o.hide ?? {};
-  const raw = diffDiagramsWith(kinds, before, after);
+  // each code parsed once (P13): the diff and the two renders read the same models; only a style-less code is new
+  const models = new Map<string, DiagramModel>();
+  const parse = (code: string): DiagramModel => models.get(code) ?? models.set(code, parseWith(code, kinds)).get(code)!;
+  const raw = diffDiagramsWith(kinds, before, after, parse);
   const ignored = ignoreFacets(raw, ignore);
   const items = ignored.items.map((c) => (hide[c.status as 'added' | 'removed'] ? { ...c, status: 'unchanged' as const } : c));
   const diff: DiagramDiff = {
@@ -85,10 +89,10 @@ export function renderDiffWith(kinds: Kinds, before: string, after: string, ctx:
   if (layoutAligned) srcBefore = withLayoutOf(srcBefore, srcAfter);
   const { ignore: _i, hide: _h, ...pipe } = o;
   // both versions with one theme (a fair comparison): the forced one, else the after version's own
-  const ra = renderSourceWith(kinds, srcAfter, ctx, pipe);
+  const ra = renderSourceWith(kinds, srcAfter, ctx, pipe, parse);
   const theme = ra.themeId;
   const popts: PipelineOptions = { ...pipe, theme };
-  const rb = renderSourceWith(kinds, srcBefore, ctx, popts);
+  const rb = renderSourceWith(kinds, srcBefore, ctx, popts, parse);
 
   const pos = (c: ItemChange): { x: number; y: number } => {
     const s = c.status === 'removed' ? shapeOf(rb.result.geom, c.kind, c.beforeId ?? c.id) : shapeOf(ra.result.geom, c.kind, c.id);
