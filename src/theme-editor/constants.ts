@@ -4,7 +4,6 @@ import { participantPresetShape, presetShape } from '../core/render/index.js';
 import { registerExtendedShapes } from '../core/extras.js';
 import { PARTICIPANT_SHAPES, pickerShapes } from '../core/shapes/catalog.js';
 import type { DiagramType } from '../core/types.js';
-import type { ToolbarControl } from '../ui/diagram/style-toolbar.js';
 import type { Obj } from './util.js';
 import { FONTS as STYLE_FONTS } from '../ui/diagram/fonts.js';
 
@@ -104,6 +103,5 @@ export const LINE_KINDS = new Set(['edge', 'message', 'rel', 'lifeline', 'transi
 /** The text colour key of box-like kinds (contrast check on their fill). */
 export const TEXT_ON_FILL: Readonly<Record<string, string>> = { node: 'text', participant: 'text', note: 'text', entity: 'text', box: 'text', group: 'titleColor', block: 'labelColor', composite: 'titleColor' };
 export const ROUTINGS = ['curved', 'orthogonal', 'straight'];
-export const TOOLBAR_EXCLUDE: readonly ToolbarControl[] = ['link', 'lock', 'paint', 'delete', 'order', 'layer', 'editGroup', 'ungroup', 'group', 'activate', 'arrange', 'more', 'presets'];
 /** Top-level theme keys that change nothing drawn (tiles and the preview need not follow them). */
 export const UNDRAWN = new Set(['id', 'name', 'counterpart', 'schemaVersion', 'description']);

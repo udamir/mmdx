@@ -22,7 +22,6 @@ export function createStyleToolbar(host: HTMLElement, api: ToolbarApi, opts: Sty
   registerMessages(TOOLBAR_MESSAGES);
   registerMessages(TOOLBAR_MEDIA_MESSAGES);
   const t = (opts.i18n ?? createI18n()).t;
-  const exclude = new Set<string>(opts.exclude ?? []);
   const bar = h('div', { class: 'mtb', role: 'toolbar', 'aria-label': t('tb.label'), part: 'toolbar' });
   bar.hidden = true;
   host.append(bar);
@@ -54,8 +53,8 @@ export function createStyleToolbar(host: HTMLElement, api: ToolbarApi, opts: Sty
   };
 
   function groupsOf(sp: KindSpec): ToolbarControl[][] {
-    const gs = sp.groups.map((g) => g.filter((c) => !exclude.has(c))).filter((g) => g.length);
-    if (counter && !exclude.has('selection')) gs.unshift(['selection']);
+    const gs = sp.groups.map((g) => [...g]);
+    if (counter) gs.unshift(['selection']);
     if (opts.reset) gs.push(['reset']);
     return gs;
   }

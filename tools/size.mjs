@@ -354,7 +354,8 @@ const rows = [
   // 108.5 kB (108.1 kB measured) with Stage 2's A8 (the component shell)
   // 109 kB (108.6 kB measured) 4.3: the parser kit as modules of its own (frontmatter rule, kit, jison; +0.1 kB of module boundaries)
   // 109.6 kB (109.2 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
-  ['viewer (flowchart, more shapes)', ['src/viewer.ts', FLOW, SHAPES], 109.6],
+  // 110 kB (109.6 kB measured) two --mmdx tokens (halo, dot ring) in TOKENS for the toolbar CSS (A14)
+  ['viewer (flowchart, more shapes)', ['src/viewer.ts', FLOW, SHAPES], 110],
   // the built-in icon set, a lazy chunk of its own (T04 §4.7: at most 25 kB)
   ['built-in icons (lazy chunk)', [BUILTIN_ICONS], 25],
   // the History button is in the tool dock, which loads with the `history` control (246.5 kB while History imported the editor's chunk); 143 kB with the shape catalogue (142.4 kB measured); 138.9 kB once the shapes beyond the 17 load on demand (T02.9, 138.5 kB measured)
@@ -428,7 +429,8 @@ const rows = [
   // 83 kB (82.6 kB measured) with Stage 2's A7 (the kernel's owner methods, claim and contributeAll, the HistoryHost port)
   // 84.2 kB (83.8 kB measured) with Stage 2's A8 (the component shell)
   // 85.1 kB (84.7 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
-  ['viewer (first mindmap)', ['src/viewer.ts', kindChunk('mindmap')], 85.1],
+  // 85.5 kB (85.1 kB measured) two --mmdx tokens (halo, dot ring) in TOKENS for the toolbar CSS (A14)
+  ['viewer (first mindmap)', ['src/viewer.ts', kindChunk('mindmap')], 85.5],
   // the first mindmap in the editor (T08, 225.7 kB measured): its kinds and the mindmap module's gestures
   // 227.9 kB with state diagrams (T09, 227.5 kB measured)
   // 232.7 kB with media in every kind and the sequence and ER fixes (T10, T11, 232.3 kB measured)

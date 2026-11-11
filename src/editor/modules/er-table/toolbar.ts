@@ -4,7 +4,7 @@ import type { AttrHighlight } from '../../../core/meta/types.js';
 import type { ErAttribute } from '../../../core/model.js';
 import { addLocalColor, removeLocalColor } from '../../../core/ops/palette.js';
 import { ATTR_PRESETS, attrLook } from '../../../core/render/er-presets.js';
-import { relativeColor } from '../../../core/theme/colors.js';
+import { themeStyleTarget } from '../../../ui/diagram/style-toolbar/theme-target.js';
 import type { Rect } from '../../../core/types.js';
 import type { KindSpec, ToolbarApi } from '../../../ui/diagram/style-toolbar.js';
 import { h } from '../../../ui/kit/h.js';
@@ -63,7 +63,6 @@ export function attrToolbarApi(c: TableContext): ToolbarApi {
     }
     if (Object.keys(lookPatch).length) setLook(lookPatch);
   };
-  const palette = (): { name: string; value: string }[] => Object.entries(core.result.theme.palette ?? {}).map(([name, value]) => ({ name, value }));
   return {
     selection: () => (st.table && st.sel.length && editing() && !st.editor ? { kind: 'attr', id: `${st.table}#${st.sel[0]}` } : null),
     editable: () => editing(),
@@ -76,7 +75,7 @@ export function attrToolbarApi(c: TableContext): ToolbarApi {
     },
     effRaw,
     set,
-    palette,
+    ...themeStyleTarget(() => core.result.theme),
     localPalette: () => Object.entries(core.meta.styles['palette'] ?? {}).flatMap(([name, v]) => (typeof v['color'] === 'string' ? [{ name, value: v['color'] }] : [])),
     addLocalColor: (hex) => {
       const res = addLocalColor(core.meta, hex);
@@ -84,9 +83,6 @@ export function attrToolbarApi(c: TableContext): ToolbarApi {
       return res.name;
     },
     removeLocalColor: (name) => void applyMeta(core, t('history.paletteRemove'), removeLocalColor(core.meta, name)),
-    customColor: (hex) => relativeColor(hex, core.result.theme.palette),
-    themeFont: () => core.result.theme.font,
-    themeFontName: () => (core.result.theme.font.split(',')[0] ?? '').replace(/['"]/g, '').trim(),
     anchorRect: () => {
       let r: Rect | null = null;
       for (const i of st.sel) {

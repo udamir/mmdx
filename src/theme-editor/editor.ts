@@ -39,7 +39,7 @@ import { TOOLBAR_CSS } from '../ui/diagram/toolbar-styles.js';
 import { card } from './cards/card.js';
 import { pageCard } from './cards/page.js';
 import { paletteCard } from './cards/palette.js';
-import { SHAPE_TABS, TOOLBAR_EXCLUDE, UNDRAWN } from './constants.js';
+import { SHAPE_TABS, UNDRAWN } from './constants.js';
 import { Draft } from './draft.js';
 import type { Env, GalleryRef } from './env.js';
 import { disableIfReadOnly, renderErrors } from './fields.js';
@@ -166,7 +166,7 @@ export class ThemeEditor {
 
     this.layout(); // before the toolbar: it scopes its listeners to the root node of its host
     // the canvas's floating style toolbar, editing the selected tile's style
-    this.toolbar = createStyleToolbar(this.body, styleApi(this.env, () => this.toolbar), { exclude: TOOLBAR_EXCLUDE, reset: true, i18n: this.i18n });
+    this.toolbar = createStyleToolbar(this.body, styleApi(this.env, () => this.toolbar), { reset: true, i18n: this.i18n });
     const sig = { signal: this.ac.signal };
     this.main.addEventListener('scroll', () => this.toolbar.place(), sig);
     this.main.addEventListener('pointerdown', (ev) => {

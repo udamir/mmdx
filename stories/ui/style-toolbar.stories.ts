@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
-import { createStyleToolbar, TOOLBAR_KINDS, type PaletteColor, type ToolbarApi, type ToolbarControl } from '../../src/ui/diagram/style-toolbar.js';
+import { createStyleToolbar, TOOLBAR_KINDS, type PaletteColor, type ToolbarApi} from '../../src/ui/diagram/style-toolbar.js';
 import { TOOLBAR_CSS } from '../../src/ui/diagram/toolbar-styles.js';
 import { chromeHost } from '../support.js';
 
@@ -100,8 +100,10 @@ function styleToolbar(a: ToolbarArgs): HTMLElement {
         }
       : {}),
   };
-  const exclude: ToolbarControl[] = a.themeEditorMode ? ['more', 'lock', 'link'] : [];
-  const tb = createStyleToolbar(stage, api, { exclude, reset: a.themeEditorMode });
+  // the theme editor's tiles have no item actions: their controls stay off
+  if (a.themeEditorMode) for (const k of ['del', 'isLocked', 'toggleLock', 'copy', 'canCopy', 'duplicate'] as const) delete api[k];
+  else api.linkable = () => true;
+  const tb = createStyleToolbar(stage, api, { reset: a.themeEditorMode });
   tb.refresh();
   // placement needs the host in the document
   requestAnimationFrame(() => tb.place());

@@ -9,7 +9,6 @@ import { copyable } from '../../../core/ops/clipboard.js';
 import { canSavePreset, resetCurve, resetItemStyle, setStyle, SIZE_KEY, TEXT_KEY, WEIGHT_KEY } from '../../../core/ops/style-ops.js';
 import { newLayer, setLayer } from '../../../core/ops/palette.js';
 import { baseStyleOf, effectiveValue, presetsFor } from '../../../core/ops/style-env.js';
-import { relativeColor } from '../../../core/theme/colors.js';
 import type { ArrangeOp, ToolbarApi } from '../../../ui/diagram/style-toolbar.js';
 import type { Sel, TextEditSession } from '../../core.js';
 import { saveItemAsPreset, presetPicker } from '../../lib/presets.js';
@@ -24,6 +23,7 @@ import { animationOf, setAnimation } from '../../ops/animation.js';
 import { selectionKey as selKey, type BarContext } from './bar-context.js';
 import type { OrderSlider } from './order-slider.js';
 import type { PaletteApi } from './palette-api.js';
+import { themeStyleTarget } from '../../../ui/diagram/style-toolbar/theme-target.js';
 
 /** Keys of a box's look (border, fill, corners): not a connector's. */
 const BOX_LOOK: ReadonlySet<string> = new Set(['fill', 'fillOpacity', 'stroke', 'strokeWidth', 'strokeOpacity', 'radius', 'dash', 'shape', 'stack']);
@@ -137,10 +137,8 @@ export function styleToolbarApi({ core, t, live, primary, multi }: BarContext, p
     effRaw,
     set: setOverride,
     commit: () => live.flush(),
+    ...themeStyleTarget(() => core.result.theme),
     ...pal,
-    customColor: (hex) => relativeColor(hex, core.result.theme.palette),
-    themeFont: () => core.result.theme.font,
-    themeFontName: () => (core.result.theme.font.split(',')[0] ?? '').replace(/['"]/g, '').trim(),
     animation: () => {
       const s = primary();
       return s && !multi() ? animationOf(core, s) : null;
@@ -175,6 +173,7 @@ export function styleToolbarApi({ core, t, live, primary, multi }: BarContext, p
     hBounds: () => freeStrip(core),
     orderTitle: () => editKind(core.model.type)?.orderTitle,
     diagramType: () => core.model.type,
+    linkable: () => true,
     isLocked: () => {
       const s = primary();
       return !!s && !!core.getM(s.kind, s.id).locked;

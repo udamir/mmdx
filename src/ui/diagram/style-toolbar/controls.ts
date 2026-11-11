@@ -147,13 +147,14 @@ function build(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLElement {
       return button('align', svgIcon(ICON[cur] ? cur : 'center'), t('tb.textPos'));
     }
     case 'link': {
+      if (!api.linkable?.()) return h('span');
       const b = button('link', svgIcon('link'), t('tb.link'));
       if (e('link')) b.classList.add('active');
       return b;
     }
     case 'textColor': {
       const col = str(e(sp.text ?? 'text')) || '#1f1f1f';
-      const halo = s('rect', { x: '4.5', y: '19', width: '15', height: '4', rx: '1.4', fill: 'none', 'stroke-width': '1.6', style: 'stroke:var(--halo)' });
+      const halo = s('rect', { x: '4.5', y: '19', width: '15', height: '4', rx: '1.4', fill: 'none', 'stroke-width': '1.6', style: 'stroke:var(--mmdx-halo)' });
       const bar1 = s('rect', { x: '5', y: '19.5', width: '14', height: '3', rx: '1', 'stroke-width': '0.6' });
       bar1.setAttribute('fill', col);
       bar1.setAttribute('stroke', col);
@@ -164,9 +165,9 @@ function build(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLElement {
       const w = Math.min(5, Math.max(1.5, (num(e('strokeWidth')) ?? 0) * 1.4 || 2));
       const dash = str(e('dash'));
       const el = s('svg', { viewBox: '0 0 24 24', width: '24', height: '24', 'aria-hidden': 'true' });
-      const a = s('circle', { cx: '12', cy: '12', r: '8', fill: 'none', 'stroke-width': String(w + 3), style: 'stroke:var(--halo)' });
+      const a = s('circle', { cx: '12', cy: '12', r: '8', fill: 'none', 'stroke-width': String(w + 3), style: 'stroke:var(--mmdx-halo)' });
       const b = s('circle', { cx: '12', cy: '12', r: '8', fill: 'none', 'stroke-width': String(w + 1) });
-      b.setAttribute('stroke', isNone(col) ? 'var(--faint)' : str(col));
+      b.setAttribute('stroke', isNone(col) ? 'var(--mmdx-faint)' : str(col));
       if (dash && dash !== 'none') {
         // a ring of round dots (dotted) or short dashes (dashed) along the circle, whatever the border's width: the
         // item's own dash pattern at this size would stand out from the ring as spikes
@@ -192,7 +193,7 @@ function build(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLElement {
       const lw = Math.min(5, (num(e('width')) ?? 1.5) + 1);
       const dash = str(e('dash'));
       const el = s('svg', { viewBox: '0 0 24 24', width: '24', height: '24', 'aria-hidden': 'true' });
-      const a = s('path', { d: 'M4 20L20 4', 'stroke-width': String(lw + 2), 'stroke-linecap': 'round', style: 'stroke:var(--halo)' });
+      const a = s('path', { d: 'M4 20L20 4', 'stroke-width': String(lw + 2), 'stroke-linecap': 'round', style: 'stroke:var(--mmdx-halo)' });
       const b = s('path', { d: 'M4 20L20 4', 'stroke-width': String(lw), 'stroke-linecap': 'round' });
       b.setAttribute('stroke', col || 'currentColor');
       if (dash && dash !== 'none') {
@@ -280,7 +281,8 @@ function build(c: ToolbarControl, sp: KindSpec, x: StyleCtx): HTMLElement {
       }, { disabled: !can });
     }
     case 'more':
-      return button('more', svgIcon('more'), t('tb.more'), true);
+      // the ⋮ menu holds the item actions: a host without them (the theme editor) has none
+      return api.copy || api.duplicate || api.del || api.savePreset ? button('more', svgIcon('more'), t('tb.more'), true) : h('span');
     case 'tableStyle':
       return button('tableStyle', svgIcon('table'), t('tb.tableStyle'));
     case 'italic':

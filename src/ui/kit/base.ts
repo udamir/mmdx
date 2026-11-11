@@ -19,6 +19,7 @@ export const TOKENS = /* css */ `
   --mmdx-shadow-card: 0 10px 30px rgba(20,30,60,.16), 0 1px 3px rgba(20,30,60,.08);
   --mmdx-shadow-raised: 0 1px 3px rgba(0,0,0,.18);
   --mmdx-swatch-ring: rgba(0,0,0,.14); --mmdx-backdrop: rgba(10,12,20,.32);
+  --mmdx-halo: transparent; --mmdx-dot-ring: rgba(0,0,0,.15);
   --mmdx-z-popover: 1000;
   --mmdx-focus: 0 0 0 2px var(--mmdx-accent);
   color-scheme: light;
@@ -35,6 +36,7 @@ export const TOKENS = /* css */ `
   --mmdx-ok: #5fd38a;
   --mmdx-float: #353b47; --mmdx-float-2: #434a58; --mmdx-float-line: rgba(255,255,255,.1);
   --mmdx-shadow: 0 2px 8px rgba(0,0,0,.4); --mmdx-shadow-lg: 0 8px 28px rgba(0,0,0,.5);
+  --mmdx-halo: rgba(255,255,255,.5); --mmdx-dot-ring: rgba(255,255,255,.35);
 }
 `;
 
@@ -51,9 +53,8 @@ export const ALIASES = /* css */ `
   --warn-ink: var(--mmdx-warn); --warn-bg: var(--mmdx-warn-bg); --warn-line: var(--mmdx-warn-line);
   --float: var(--mmdx-float); --float-2: var(--mmdx-float-2); --float-line: var(--mmdx-float-line);
   --font: var(--mmdx-font); --toggle-off: var(--mmdx-faint);
-  --halo: transparent; --dot-ring: rgba(0,0,0,.15);
+  --halo: var(--mmdx-halo); --dot-ring: var(--mmdx-dot-ring);
 }
-:host([data-ui="dark"]) { --halo: rgba(255,255,255,.5); --dot-ring: rgba(255,255,255,.35); }
 `;
 
 export const BASE = /* css */ `

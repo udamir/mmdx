@@ -98,10 +98,11 @@ export interface LayerChoice {
 export type ArrangeOp = 'left' | 'hcenter' | 'right' | 'top' | 'vcenter' | 'bottom' | 'hdist' | 'vdist';
 
 /**
- * What the toolbar needs from its host. The same contract as the prototype's `api` object (prototype app.js wires
- * it for the canvas, theme-editor.js for the theme tiles). Optional members switch their controls off.
+ * What every host of the toolbar gives it (A14): the selection, the effective style and its writer, the palettes and
+ * the theme font, and where the bar goes. The theme editor's tiles are a StyleTarget alone; the editor's canvas adds
+ * the optional ports below. A control whose port is absent stays off — there is no exclude list.
  */
-export interface ToolbarApi {
+export interface StyleTarget {
   /** The item the toolbar edits (null: hidden). */
   selection(): ToolbarSelection | null;
   /** Edit mode with a supported diagram. */
@@ -141,8 +142,6 @@ export interface ToolbarApi {
   edgeEnds?(): { start?: string | undefined; end?: string | undefined };
   /** The selected connector's arrow in the code, which the arrow popover changes (sequence messages); null: none. */
   codeArrow?(): ToolbarCodeArrow | null;
-  /** One-click actions of the selected item's type (the `actions` control): none, the control stays off. */
-  itemActions?(): readonly ToolbarAction[];
   /** A connector's animation (dashes flowing along it); absent or null: its type has none to set. */
   animation?(): 'off' | 'fast' | 'slow' | null;
   setAnimation?(a: 'off' | 'fast' | 'slow'): void;
@@ -151,74 +150,109 @@ export interface ToolbarApi {
   /** Free horizontal strip of the host [left, right] (not over side panels). */
   hBounds?(): [number, number];
   diagramType?(): string | null | undefined;
-  /** i18n key of the order button's title (default `tb.order`). */
-  orderTitle?(): string | undefined;
-  // item actions
-  isLocked?(): boolean;
-  toggleLock?(): void;
-  isPainting?(): boolean;
-  togglePaint?(): void;
-  canGroup?(): { ok: boolean; reason?: string };
-  group?(): void;
-  ungroup?(): void;
-  arrange?(op: ArrangeOp): void;
-  activation?(): { participant: string; removed?: boolean; reason?: string } | null;
-  toggleActivation?(): void;
-  groupEditing?(): string | null | undefined;
-  editGroup?(): void;
-  del?(): void;
-  /**
-   * The text formats of a label that can be rich (a markdown string): of the selected words while its text is edited,
-   * else of the whole label. Absent or null: Bold is a switch of the item's style.
-   */
-  textFormats?(): Readonly<Record<TextFormat, boolean>> | null;
-  /** Toggles a format on the selected words while the text is edited, else on the whole label. */
-  textFormat?(f: TextFormat): void;
-  /** Part of the label's text is selected: the controls that only style a whole label (font, size, alignment, link, text colour) are off. */
-  textPartial?(): boolean;
-  /** The label's text is being edited: the text format controls keep its focus and selection. */
-  textEditing?(): boolean;
-  order?(): { index: number; count: number; labels: readonly [string, string] | readonly string[] } | null;
-  orderPreview?(index: number): void;
-  orderCommit?(): void;
-  layers?(): LayerChoice[];
-  currentLayer?(): string | null;
-  setLayer?(id: string): void;
-  newLayer?(): void;
-  /** Fills the preset picker: preview tiles into `grid`, header buttons into `actions`; `done` closes. */
-  renderPresets?(grid: HTMLElement, done: () => void, actions: HTMLElement): void;
-  preset?(): string;
-  presets?(): string[];
-  setPreset?(name: string): void;
   canReset?(): boolean;
   reset?(): void;
-  copy?(): void;
-  duplicate?(): void;
-  canCopy?(): boolean;
-  savePreset?(): void;
-  canSavePreset?(): boolean;
-  /**
-   * "Reset positions in this group" in the ⋮ menu: null leaves it out (not a group, or the type has no such action),
-   * false shows it disabled (no hand-placed positions inside), true enabled.
-   */
-  groupPositions?(): boolean | null;
-  resetGroupPositions?(): void;
   /** "All properties…": opens the full property list. */
   inspect?(): void;
   bendCount?(): number;
   hasOwnCurve?(): boolean;
   resetCurve?(): void;
-  // icons and images (T05)
-  /** The selected item's icon and image (null: it takes none, the controls stay off). */
-  media?(): ToolbarMedia | null;
-  /** Opens the image tool for the selection (change the image): its tabs the library, an upload, a URL and an icon. */
-  pickImage?(anchor: HTMLElement): void;
-  setMedia?(patch: ToolbarMediaPatch): void;
 }
 
+/** Actions on the selected items of a document (the editor's canvas): link, lock, paint, delete, copy, the ⋮ menu. */
+export interface ItemPort {
+  /** The selection can carry a link (the Link control). */
+  linkable(): boolean;
+  isLocked(): boolean;
+  toggleLock(): void;
+  isPainting(): boolean;
+  togglePaint(): void;
+  del(): void;
+  copy(): void;
+  duplicate(): void;
+  canCopy(): boolean;
+  /** One-click actions of the selected item's type (the `actions` control): none, the control stays off. */
+  itemActions(): readonly ToolbarAction[];
+  activation(): { participant: string; removed?: boolean; reason?: string } | null;
+  toggleActivation(): void;
+}
+
+/** Aligning and distributing a multi-selection. */
+export interface ArrangePort {
+  arrange(op: ArrangeOp): void;
+}
+
+/** Groups: make one, take one apart, edit one's items, reset the positions inside one. */
+export interface GroupingPort {
+  canGroup(): { ok: boolean; reason?: string };
+  group(): void;
+  ungroup(): void;
+  groupEditing(): string | null | undefined;
+  editGroup(): void;
+  /**
+   * "Reset positions in this group" in the ⋮ menu: null leaves it out (not a group, or the type has no such action),
+   * false shows it disabled (no hand-placed positions inside), true enabled.
+   */
+  groupPositions(): boolean | null;
+  resetGroupPositions(): void;
+}
+
+/** The layer an item is on. */
+export interface LayersPort {
+  layers(): LayerChoice[];
+  currentLayer(): string | null;
+  setLayer(id: string): void;
+  newLayer(): void;
+}
+
+/** The drawing order of the selection (the order slider). */
+export interface OrderPort {
+  order(): { index: number; count: number; labels: readonly [string, string] | readonly string[] } | null;
+  /** i18n key of the order button's title (default `tb.order`). */
+  orderTitle(): string | undefined;
+  orderPreview(index: number): void;
+  orderCommit(): void;
+}
+
+/** Rich labels (markdown strings): formats of the selected words while the text is edited, else of the whole label. */
+export interface TextFormatPort {
+  /** The formats in effect; null: Bold is a switch of the item's style. */
+  textFormats(): Readonly<Record<TextFormat, boolean>> | null;
+  /** Toggles a format on the selected words while the text is edited, else on the whole label. */
+  textFormat(f: TextFormat): void;
+  /** Part of the label's text is selected: the controls that only style a whole label (font, size, alignment, link, text colour) are off. */
+  textPartial(): boolean;
+  /** The label's text is being edited: the text format controls keep its focus and selection. */
+  textEditing(): boolean;
+}
+
+/** Icons and images (T05). */
+export interface MediaPort {
+  /** The selected item's icon and image (null: it takes none, the controls stay off). */
+  media(): ToolbarMedia | null;
+  /** Opens the image tool for the selection (change the image): its tabs the library, an upload, a URL and an icon. */
+  pickImage(anchor: HTMLElement): void;
+  setMedia(patch: ToolbarMediaPatch): void;
+}
+
+/** Style presets: pick one, save the selection's look as one. */
+export interface PresetsPort {
+  /** Fills the preset picker: preview tiles into `grid`, header buttons into `actions`; `done` closes. */
+  renderPresets(grid: HTMLElement, done: () => void, actions: HTMLElement): void;
+  preset(): string;
+  presets(): string[];
+  setPreset(name: string): void;
+  savePreset(): void;
+  canSavePreset(): boolean;
+}
+
+/**
+ * What the toolbar needs from its host: a StyleTarget, plus whichever capability ports the host has (each member
+ * optional: a missing one switches its control off). The same contract as the prototype's `api` object.
+ */
+export interface ToolbarApi extends StyleTarget, Partial<ItemPort>, Partial<ArrangePort>, Partial<GroupingPort>, Partial<LayersPort>, Partial<OrderPort>, Partial<TextFormatPort>, Partial<MediaPort>, Partial<PresetsPort> {}
+
 export interface StyleToolbarOptions {
-  /** Controls to leave out (the theme editor has no layers, order, links…). */
-  exclude?: readonly ToolbarControl[];
   /** Adds a "back to the inherited style" button at the end. */
   reset?: boolean;
   /** Per-kind overrides of the button sets. */

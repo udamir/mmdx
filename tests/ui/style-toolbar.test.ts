@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createStyleToolbar, fitPresetGrid, shapePreview, TOOLBAR_KINDS, type ToolbarApi } from '../../src/ui/diagram/style-toolbar.js';
 import { createPageToolbar, type PageToolbarApi } from '../../src/ui/diagram/page-toolbar.js';
 
-function mount(kind: string, over: Partial<ToolbarApi> = {}, opts: Parameters<typeof createStyleToolbar>[2] = {}) {
+function mount(kind: string, over: Partial<ToolbarApi> = {}, opts: Parameters<typeof createStyleToolbar>[2] = {}, without: readonly (keyof ToolbarApi)[] = []) {
   const host = document.createElement('div');
   document.body.append(host);
   const style: Record<string, unknown> = { fill: '#ffffff', stroke: '#333333', fontSize: 14, fontWeight: 400, color: '#111111' };
@@ -25,8 +25,10 @@ function mount(kind: string, over: Partial<ToolbarApi> = {}, opts: Parameters<ty
     del: vi.fn(),
     toggleLock: vi.fn(),
     isLocked: () => false,
+    linkable: () => true,
     ...over,
   };
+  for (const k of without) delete api[k];
   const tb = createStyleToolbar(host, api, opts);
   tb.refresh();
   return { host, tb, api, set, style };
@@ -47,7 +49,8 @@ describe('style toolbar', () => {
     // optional api members switch their controls off (no paint / order / layer / presets here)
     const edge = mount('edge');
     expect(controls(edge.tb.el)).toEqual(['line', 'arrows', 'routing', 'font', 'size', 'bold', 'textColor', 'more']);
-    const theme = mount('node', {}, { exclude: ['more', 'lock', 'link'], reset: true });
+    // a host with no item actions (the theme editor's tiles): no link, lock or ⋮ menu (A14: no exclude list)
+    const theme = mount('node', {}, { reset: true }, ['del', 'toggleLock', 'isLocked', 'linkable']);
     expect(controls(theme.tb.el)).toEqual(['shape', 'font', 'size', 'bold', 'align', 'textColor', 'border', 'fill', 'reset']);
     expect(TOOLBAR_KINDS['multi']!.groups.flat()).toContain('arrange');
   });
