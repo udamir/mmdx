@@ -5,7 +5,7 @@ import type { Messages } from '../i18n.js';
 
 export const BLOCK_MESSAGES_MEDIA: Messages = {
   // shape palette
-  'palette.search': 'Search shapes', 'palette.searchPlaceholder': 'Search shapes…', 'palette.recent': 'Recently used',
+  'palette.search': 'Search shapes', 'palette.searchPlaceholder': 'Search shapes…',
   'palette.results': 'Results', 'palette.none': 'No shapes match “{q}”', 'palette.shapes': 'Shapes',
   // icon picker
   'icons.title': 'Choose an icon…', 'icons.search': 'Search icons', 'icons.searchPlaceholder': 'Search icons',

@@ -1,8 +1,8 @@
 // ShapePalette (T05 §4.2): the categorised shape palette of the editor's Shapes menu and, compact, the style
 // toolbar's shape picker. Sections with headings, a grid of small previews (or a list of icons and names), a search
-// field over each item's name and terms (the shape's semantic and Mermaid names, aliases), a row of recently used
-// items, and arrow-key movement through the tiles. The host owns what an item is and does: a pointer press starts its
-// drag (`onPointerDown`), a click or Enter chooses it (`onPick`), hovering may open a submenu (`onHover`).
+// field over each item's name and terms (the shape's semantic and Mermaid names, aliases), and arrow-key movement
+// through the tiles. The host owns what an item is and does: a pointer press starts its drag (`onPointerDown`), a
+// click or Enter chooses it (`onPick`).
 import { h } from '../h.js';
 import { registerMessages } from '../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
@@ -34,8 +34,6 @@ export interface ShapePaletteProps {
   layout?: 'grid' | 'list';
   /** Tiles per row in the grid layout (default 6). */
   cols?: number;
-  /** Keys of the recently used items, newest first (a row above the sections; unknown keys are skipped). */
-  recent?: readonly string[];
   /** The item that is on (the toolbar: the node's shape). */
   current?: string | null;
   /** Show the search field (default true). */
@@ -46,8 +44,6 @@ export interface ShapePaletteProps {
   onPointerDown?(item: ShapePaletteItem, ev: PointerEvent, el: HTMLElement): void;
   /** The item was chosen: a click (hosts without `onPointerDown`), or Enter / Space. */
   onPick?(item: ShapePaletteItem, ev: MouseEvent): void;
-  /** The pointer entered an item (preset submenus). */
-  onHover?(item: ShapePaletteItem, el: HTMLElement): void;
 }
 
 export interface ShapePaletteHandle extends BlockHandle<ShapePaletteProps> {
@@ -130,7 +126,6 @@ export function createShapePalette(props: ShapePaletteProps): ShapePaletteHandle
     b.addEventListener('click', (ev) => {
       if (!p.onPointerDown || ev.detail === 0) p.onPick?.(it, ev);
     }, { signal: scope.signal });
-    if (p.onHover) b.addEventListener('pointerenter', () => p.onHover?.(it, b), { signal: scope.signal });
     tiles.push(b);
     tileItems.push(it);
     return b;
@@ -157,9 +152,6 @@ export function createShapePalette(props: ShapePaletteProps): ShapePaletteHandle
       if (hits.length) out.push(...section(t('palette.results'), hits));
       else out.push(h('div', { class: 'sp-none', role: 'status' }, t('palette.none', { q: query.trim() })));
     } else {
-      const all = new Map(p.sections.flatMap((s) => s.items.map((it) => [it.key, it] as const)));
-      const recent = (p.recent ?? []).map((k) => all.get(k)).filter((x): x is ShapePaletteItem => !!x);
-      if (recent.length) out.push(...section(t('palette.recent'), recent));
       for (const s of p.sections) out.push(...section(s.title, s.items));
     }
     body.replaceChildren(...out);

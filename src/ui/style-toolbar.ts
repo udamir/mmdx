@@ -4,7 +4,7 @@
 // the page toolbar are in ui/toolbar-kit.ts.
 
 export { createStyleToolbar } from './style-toolbar/toolbar.js';
-export { bulkSpec, NODE_SHAPES, PARTICIPANT_SHAPES, TOOLBAR_KINDS } from './style-toolbar/kinds.js';
+export { bulkSpec, TOOLBAR_KINDS } from './style-toolbar/kinds.js';
 export type {
   ArrangeOp, KindSpec, LayerChoice, PaletteColor, SelectionType, ToolbarMedia, ToolbarMediaPatch, StyleToolbarHandle, StyleToolbarOptions, ToolbarApi, ToolbarControl, ToolbarSelection,
 } from './style-toolbar/types.js';

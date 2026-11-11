@@ -17,8 +17,6 @@ import type { EditorModule } from '../../module.js';
 import { CONNECT_CSS } from './css.js';
 import { canConnect, deepInside, endpointBox, endpointId, geomBoxOf, MAGNETS, portOn, projectToBox, targetAt } from './geometry.js';
 
-export { MAGNETS, canConnect, deepInside, geomBoxOf, projectToBox, targetAt } from './geometry.js';
-
 interface Linking {
   a: Point;
   b: Point;

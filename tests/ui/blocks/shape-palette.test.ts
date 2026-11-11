@@ -14,11 +14,11 @@ const SECTIONS = [
 ];
 
 describe('ShapePalette', () => {
-  it('sections with headings, a recent row first, tooltips and accessible names', () => {
-    const p = createShapePalette({ t, sections: SECTIONS, recent: ['cylinder', 'gone'] });
+  it('sections with headings, tooltips and accessible names', () => {
+    const p = createShapePalette({ t, sections: SECTIONS });
     document.body.append(p.el);
-    expect([...p.el.querySelectorAll('.sp-head')].map((x) => x.textContent)).toEqual(['Recently used', 'Basic', 'Technical']);
-    const first = p.el.querySelector<HTMLElement>('.sp-tile')!;
+    expect([...p.el.querySelectorAll('.sp-head')].map((x) => x.textContent)).toEqual(['Basic', 'Technical']);
+    const first = p.el.querySelector<HTMLElement>('.sp-tile[data-key="cylinder"]')!;
     expect(first.dataset['key']).toBe('cylinder');
     expect(first.getAttribute('aria-label')).toBe('Database');
     expect(first.title).toBe('Database · cylinder');

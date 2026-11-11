@@ -15,7 +15,7 @@ function palette(a: Args): HTMLElement {
   const { host, root } = chromeHost([SHAPE_PALETTE_CSS, CSS], { ui: a.ui });
   const { t } = createI18n();
   const p = createShapePalette({
-    t, title: 'Shapes', compact: a.compact, recent: ['cylinder', 'diamond', 'doc'],
+    t, title: 'Shapes', compact: a.compact,
     sections: PICKER_CATEGORIES.map((c) => ({
       title: TITLES[c] ?? c,
       items: shapesIn(c).map((d) => ({ key: d.id, label: d.name, tip: `${d.name} · ${d.mermaid ?? 'mmdx only'}`, terms: [d.id, d.title ?? '', d.mermaid ?? '', ...d.aliases], icon: () => shapePreview(d.id, a.compact ? 24 : 32) })),

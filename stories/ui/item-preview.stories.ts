@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { getShared } from '../../src/config.js';
 import { drawItemPreview, type PreviewKind } from '../../src/ui/item-preview.js';
-import { NODE_SHAPES, PARTICIPANT_SHAPES } from '../../src/ui/style-toolbar.js';
+import { NODE_SHAPES, PARTICIPANT_SHAPES } from '../../src/ui/style-toolbar/kinds.js';
 import type { ResolvedTheme } from '../../src/core/theme/types.js';
 import { THEME_IDS } from '../support.js';
 

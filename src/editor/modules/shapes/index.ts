@@ -19,11 +19,8 @@ import { canvasCenter, startMenuDrag } from './drag.js';
 import { styleWithShapes } from '../../ops/shape.js';
 import { dropPaletteItem } from './drop.js';
 import { editKind } from '../../kinds/registry.js';
-import type { PaletteSpec } from '../../kinds/palette.js';
-import { isItem, paletteItem, type PaletteItem } from './items.js';
-
-export { dropPaletteItem } from './drop.js';
-export { paletteItem } from './items.js';
+import { isItem, type PaletteItem, type PaletteSpec } from '../../kinds/palette.js';
+import { paletteItem } from './items.js';
 
 /** The palette of the current diagram type. */
 const paletteOf = (core: EditorCore): PaletteSpec | undefined => editKind(core.model.type)?.palette;

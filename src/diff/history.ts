@@ -40,11 +40,11 @@ import type { MenuEntry } from '../ui/blocks/menu.js';
 import { diffStageModule } from './modules/stage.js';
 import { DiffScene } from './scene.js';
 import { DiffSession, type DiffMode } from './session.js';
+import { I_close } from '../ui/icons.js';
 
 /** Swap: two arrows, left and right. */
 export const I_SWAP = 'M7 7h13M16 3l4 4-4 4M17 17H4M8 13l-4 4 4 4';
 
-export const I_CLOSE = 'M6 6l12 12M18 6L6 18';
 
 /** The History pill's own look: the pair as coloured chips with a swap between them, or the viewed version. */
 export const HISTORY_PILL_CSS = /* css */ `
@@ -124,8 +124,6 @@ export function withWorkingCopy(history: HistorySource, current: () => string, m
 }
 
 export interface HistoryController {
-  readonly session: DiffSession;
-  readonly api: HistorySession;
   close(): void;
   /** Compares the newest change (the studio's Diff): the working copy or the newest version with the one before. */
   compareNewest(): void;
@@ -398,7 +396,7 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
       const pill = createPill({
         text, t, label: t('history.label'), content: h('span', { class: 'dx-pill-body' }, pair, version),
         // back to the document as it is; the version panel stays (closing it leaves History)
-        action: { label: t('history.back'), keys: 'escape', icon: I_CLOSE, onClick: () => showDocument() },
+        action: { label: t('history.back'), keys: 'escape', icon: I_close, onClick: () => showDocument() },
       });
       scope.shortcut({ id: 'history-swap', keys: ['x'], label: t('history.swap'), group: t('history.label'), when: { stage: ['history'] }, run: () => (shown.peek() === 'compare' ? (swap(), true) : false) });
       scope.slot('top-center').append(pill.el);
@@ -555,5 +553,5 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
   };
   core.historySession.set(api);
   core.emit('mmdx-history-open', {});
-  return { session, api, close, compareNewest };
+  return { close, compareNewest };
 }

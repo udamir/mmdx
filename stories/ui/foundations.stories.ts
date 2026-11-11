@@ -3,7 +3,7 @@ import { icon } from '../../src/ui/h.js';
 import * as ICON_PATHS from '../../src/ui/icons.js';
 import { logoMark } from '../../src/ui/logo.js';
 import { shapePreview } from '../../src/ui/shape-preview.js';
-import { NODE_SHAPES, PARTICIPANT_SHAPES } from '../../src/ui/style-toolbar.js';
+import { NODE_SHAPES, PARTICIPANT_SHAPES } from '../../src/ui/style-toolbar/kinds.js';
 import { Dialogs, DIALOG_CSS } from '../../src/ui/dialog.js';
 import { Toaster } from '../../src/ui/popover.js';
 import { chromeHost } from '../support.js';
