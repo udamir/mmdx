@@ -3,6 +3,9 @@
 // (the sanitizer's cleaners, the diff's facets, "Reset style", "Style off", Auto layout, Copy style, the media keys,
 // the colour keys) is derived from META_KEYS; a key is added here once, with its class, or not at all.
 //
+// Each key's value type (a colour, a number, a dash…) comes from its cleaner, so the renderer's validation, the
+// colour resolution and the style picks read the same table (X6, task 4.1).
+//
 // Classes: `layout` (where and how big: positions, sizes, ports, waypoints, layer, the image frame), `content` (what
 // it shows: picture, icon, link, names), `look` (style), `state` (folding, locks, hiding). Fail closed: a key with no
 // entry is 'unknown' — the sanitizer keeps it as written (a newer writer's data) and every operation keeps it too.
@@ -10,30 +13,36 @@ import { cleanDash, cleanFontFamily, isColorValue, isFiniteNumber } from '../val
 
 /** Returned by a cleaner when the value is not acceptable. */
 export const DROP: unique symbol = Symbol('drop');
-export type Cleaner = (v: unknown) => unknown;
+export type Cleaner = ((v: unknown) => unknown) & { readonly type?: ValueType };
+
+/** What a key's value is, for the renderer's validation (render/common.ts) and the style editors. */
+export type ValueType = 'color' | 'number' | 'dash' | 'weight' | 'font' | 'bool' | 'stack' | 'enum' | 'text';
+
+/** A cleaner that says what it accepts. */
+const typed = (type: ValueType, f: (v: unknown) => unknown): Cleaner => Object.assign(f, { type });
 
 // eslint-disable-next-line no-control-regex
 const CONTROL = /[\u0000-\u001f\u007f]/g;
 
-const num = (min: number, max: number): Cleaner => (v) => (isFiniteNumber(v) && v >= min && v <= max ? v : DROP);
-const int = (min: number, max: number): Cleaner => (v) => (Number.isInteger(v) && (v as number) >= min && (v as number) <= max ? v : DROP);
-export const bool: Cleaner = (v) => (typeof v === 'boolean' ? v : DROP);
-const oneOf = (...xs: string[]): Cleaner => (v) => (typeof v === 'string' && xs.includes(v) ? v : DROP);
-export const color: Cleaner = (v) => (isColorValue(v) ? v : DROP);
+const num = (min: number, max: number): Cleaner => typed('number', (v) => (isFiniteNumber(v) && v >= min && v <= max ? v : DROP));
+const int = (min: number, max: number): Cleaner => typed('number', (v) => (Number.isInteger(v) && (v as number) >= min && (v as number) <= max ? v : DROP));
+export const bool: Cleaner = typed('bool', (v) => (typeof v === 'boolean' ? v : DROP));
+const oneOf = (...xs: string[]): Cleaner => typed('enum', (v) => (typeof v === 'string' && xs.includes(v) ? v : DROP));
+export const color: Cleaner = typed('color', (v) => (isColorValue(v) ? v : DROP));
 // Plain text (names, preset and layer ids): any string, minus control characters.
-const text = (max: number): Cleaner => (v) => (typeof v === 'string' && v.length <= max ? v.replace(CONTROL, '') : DROP);
+const text = (max: number): Cleaner => typed('text', (v) => (typeof v === 'string' && v.length <= max ? v.replace(CONTROL, '') : DROP));
 // Names that select a shape or an arrow marker (and may end up in a marker id): identifier-like only.
-const ident: Cleaner = (v) => (typeof v === 'string' && /^[A-Za-z][\w-]{0,39}$/.test(v) ? v : DROP);
+const ident: Cleaner = typed('text', (v) => (typeof v === 'string' && /^[A-Za-z][\w-]{0,39}$/.test(v) ? v : DROP));
 // Keep the stored spelling ("6,4" stays "6,4") once it is known to be numbers only; renderers normalise it.
-const dash: Cleaner = (v) => (cleanDash(v) !== undefined ? v : DROP);
-const font: Cleaner = (v) => (cleanFontFamily(v) !== undefined ? v : DROP);
-const weight: Cleaner = (v) =>
+const dash: Cleaner = typed('dash', (v) => (cleanDash(v) !== undefined ? v : DROP));
+const font: Cleaner = typed('font', (v) => (cleanFontFamily(v) !== undefined ? v : DROP));
+const weight: Cleaner = typed('weight', (v) =>
   (isFiniteNumber(v) && v >= 1 && v <= 1000) ||
   (typeof v === 'string' && /^(?:normal|bold|bolder|lighter|[1-9]\d{0,2}|1000)$/.test(v))
     ? v
-    : DROP;
-const stack: Cleaner = (v) => (typeof v === 'boolean' || (Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 10) ? v : DROP);
-const ratio: Cleaner = (v) => (typeof v === 'string' && (v === '' || /^\d+(?:\.\d+)?:\d+(?:\.\d+)?$/.test(v)) ? v : DROP);
+    : DROP);
+const stack: Cleaner = typed('stack', (v) => (typeof v === 'boolean' || (Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 10) ? v : DROP));
+const ratio: Cleaner = typed('text', (v) => (typeof v === 'string' && (v === '' || /^\d+(?:\.\d+)?:\d+(?:\.\d+)?$/.test(v)) ? v : DROP));
 const points: Cleaner = (v) =>
   Array.isArray(v) &&
   v.length <= 200 &&
@@ -66,14 +75,16 @@ export interface KeyDef {
   copy?: true;
   /** Not a change a reviewer sees: the diff skips it (a lock, the format version). */
   diffIgnore?: true;
-  /** A colour (a literal or a palette reference): theme resolution resolves it. */
-  color?: true;
+  /** A style property (`StyleProps`): the renderer picks it from an item's metadata (`pickStyle`). */
+  style?: true;
 }
 
 const look = (clean: Cleaner, more: Partial<KeyDef> = {}): KeyDef => ({ clean, class: 'look', ...more });
 const lay = (clean: Cleaner, more: Partial<KeyDef> = {}): KeyDef => ({ clean, class: 'layout', ...more });
 const copy = (clean: Cleaner, more: Partial<KeyDef> = {}): KeyDef => look(clean, { copy: true, ...more });
-const colour = (clean: Cleaner = color, more: Partial<KeyDef> = {}): KeyDef => look(clean, { color: true, ...more });
+const colour = (clean: Cleaner = color, more: Partial<KeyDef> = {}): KeyDef => look(clean, more);
+/** A style property (`StyleProps`). */
+const sty = (d: KeyDef): KeyDef => ({ ...d, style: true });
 
 /**
  * Every key the sanitizer knows. Copy style's keys come first, in the order it writes them (that order reaches the
@@ -82,21 +93,21 @@ const colour = (clean: Cleaner = color, more: Partial<KeyDef> = {}): KeyDef => l
 export const META_KEYS = {
   // ---- Copy style's look
   preset: copy(text(200)),
-  fill: colour(color, { copy: true }), stroke: colour(color, { copy: true }), strokeWidth: copy(num(0, 100)), text: colour(color, { copy: true }),
-  fontSize: copy(FONT_SIZE), fontWeight: copy(weight), radius: copy(SIZE), stack: copy(stack), dash: copy(dash), shape: copy(ident),
-  color: colour(color, { copy: true }), width: copy(num(0, 100)), arrow: copy(ident),
+  fill: sty(colour(color, { copy: true })), stroke: sty(colour(color, { copy: true })), strokeWidth: sty(copy(num(0, 100))), text: sty(colour(color, { copy: true })),
+  fontSize: sty(copy(FONT_SIZE)), fontWeight: sty(copy(weight)), radius: sty(copy(SIZE)), stack: sty(copy(stack)), dash: sty(copy(dash)), shape: sty(copy(ident)),
+  color: sty(colour(color, { copy: true })), width: sty(copy(num(0, 100))), arrow: sty(copy(ident)),
   // labelColor may be null: "no own colour, follow the line"
-  labelColor: colour((v) => (v === null ? v : color(v)), { copy: true }),
-  labelSize: copy(FONT_SIZE), curve: copy(num(-100, 100)), titleSize: copy(FONT_SIZE), titleColor: colour(color, { copy: true }),
-  titleAlign: copy(oneOf('left', 'center', 'right')), titleWeight: copy(weight), fillOpacity: copy(UNIT), strokeOpacity: copy(UNIT),
-  fontFamily: copy(font), align: copy(oneOf('left', 'center', 'right')), valign: copy(oneOf('top', 'middle', 'bottom')), wrap: copy(bool),
-  attrSize: copy(FONT_SIZE), attrColor: colour(color, { copy: true }), mode: copy(oneOf('compact', 'table')), showTypes: copy(bool),
+  labelColor: sty(colour(typed('color', (v) => (v === null ? v : color(v))), { copy: true })),
+  labelSize: sty(copy(FONT_SIZE)), curve: sty(copy(num(-100, 100))), titleSize: sty(copy(FONT_SIZE)), titleColor: sty(colour(color, { copy: true })),
+  titleAlign: sty(copy(oneOf('left', 'center', 'right'))), titleWeight: sty(copy(weight)), fillOpacity: sty(copy(UNIT)), strokeOpacity: sty(copy(UNIT)),
+  fontFamily: sty(copy(font)), align: sty(copy(oneOf('left', 'center', 'right'))), valign: sty(copy(oneOf('top', 'middle', 'bottom'))), wrap: sty(copy(bool)),
+  attrSize: sty(copy(FONT_SIZE)), attrColor: sty(colour(color, { copy: true })), mode: copy(oneOf('compact', 'table')), showTypes: copy(bool),
   showComments: copy(bool), pkUnderline: copy(bool), labelOnLine: copy(bool), showTag: copy(bool),
   routing: copy(oneOf('curved', 'orthogonal', 'straight')), startArrow: copy(ident), endArrow: copy(ident),
 
   // ---- more look
-  padX: look(SIZE), padY: look(SIZE), padTop: look(SIZE), lineH: look(num(0, 10)), replyDash: look(dash), for: look(ident),
-  pad: look(SIZE, { canvas: 'layout' }), margin: look(SIZE, { canvas: 'layout' }), gap: look(SIZE, { canvas: 'layout' }), rowH: look(SIZE, { canvas: 'layout' }),
+  padX: look(SIZE), padY: look(SIZE), padTop: sty(look(SIZE)), lineH: look(num(0, 10)), replyDash: look(dash), for: look(ident),
+  pad: sty(look(SIZE, { canvas: 'layout' })), margin: look(SIZE, { canvas: 'layout' }), gap: look(SIZE, { canvas: 'layout' }), rowH: look(SIZE, { canvas: 'layout' }),
   // an item's icon beside its label (render/decorate.ts): where the leading icon token is drawn, its size and colour
   iconPos: look(oneOf('l', 't', 'b')), iconSize: look(num(1, 512)), iconColor: colour(),
   // a mindmap branch's colour (a section of the theme)
@@ -147,7 +158,10 @@ export function classOf(k: string, where: 'item' | 'canvas' = 'item'): KeyClass 
 }
 
 /** The keys with a flag set, in table order. */
-const flagged = (f: 'page' | 'place' | 'media' | 'copy' | 'color'): readonly MetaKey[] => NAMES.filter((k) => DEFS[k]![f]);
+const flagged = (f: 'page' | 'place' | 'media' | 'copy' | 'style'): readonly MetaKey[] => NAMES.filter((k) => DEFS[k]![f]);
+
+/** A key's value type (from its cleaner); undefined for keys not in META_KEYS and for structured values (points). */
+export const valueType = (k: string): ValueType | undefined => keyDef(k)?.clean.type;
 
 /** The keys of a class (on items, or with `canvas` on the page), in table order. */
 export const keysOf = (c: KeyClass, where: 'item' | 'canvas' = 'item'): readonly MetaKey[] => NAMES.filter((k) => classOf(k, where) === c);
@@ -155,7 +169,9 @@ export const keysOf = (c: KeyClass, where: 'item' | 'canvas' = 'item'): readonly
 /** The cleaners by key (meta/sanitize.ts). */
 export const CLEANERS: Readonly<Record<string, Cleaner>> = Object.fromEntries(NAMES.map((k) => [k, DEFS[k]!.clean]));
 /** Keys whose value is a colour (literal or palette reference). Theme resolution and the colour resolver use it too. */
-export const COLOR_KEYS: ReadonlySet<string> = new Set(flagged('color'));
+export const COLOR_KEYS: ReadonlySet<string> = new Set(NAMES.filter((k) => valueType(k) === 'color'));
+/** The style properties (`StyleProps`) an item's metadata gives the renderer (render/common.ts `pickStyle`). */
+export const STYLE_KEYS: readonly MetaKey[] = flagged('style');
 /** Manual positions and sizes: what Auto layout forgets. */
 export const PLACE_KEYS: readonly MetaKey[] = flagged('place');
 /** Every key of an image or icon item. */

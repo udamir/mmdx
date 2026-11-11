@@ -8,16 +8,17 @@
 //                      when the palette colour is a grey: the hue is then kept as is).
 // Anything else ("none", "transparent", rgba(...)) passes through unchanged.
 import { COLOR_KEYS } from '../meta/keys.js';
-import { isColorLiteral } from '../validate.js';
+import { COLOR_REL, HEX_COLOR, isColorLiteral } from '../validate.js';
 import type { ResolvedTheme } from './types.js';
 
 export type Palette = Readonly<Record<string, string>>;
 export type Rgb = [number, number, number];
 export type Hsl = [number, number, number];
 
-// 3, 4, 6 or 8 digits, as validate.ts accepts; the alpha digits are not part of the colour here (B39)
-const HEX = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
-const REL = /^@([\w-]+)~(=?[+-]?[\d.]+),([+-]?[\d.]+),([+-]?[\d.]+)$/;
+// the one colour grammar (validate.ts): hex of 3, 4, 6 or 8 digits (the alpha digits are not part of the colour
+// here, B39) and the relative palette reference
+const HEX = HEX_COLOR;
+const REL = COLOR_REL;
 
 export const isColorRef = (v: unknown): v is string => typeof v === 'string' && (v[0] === '@' || REL.test(v));
 export const refName = (v: unknown): string | null => (typeof v === 'string' && v[0] === '@' ? v.slice(1).split('~')[0]! : null);

@@ -2,6 +2,7 @@
 // `baseStyle`, `effValue`, `nodeShapeOf`, `participantShapeOf`): theme < shape default < diagram `_base` < preset
 // < the item's own metadata. Pure: everything comes in through a StyleEnv instead of the prototype's globals.
 import type { DiagramMeta } from '../meta/types.js';
+import { COLOR_KEYS } from '../meta/keys.js';
 import type { DiagramModel } from '../model.js';
 import { own } from '../own.js';
 import { withOps } from '../kinds/registry.js';
@@ -33,7 +34,6 @@ export interface StyleEnv {
 
 export type { Presets };
 
-const COLOR_KEYS = new Set(['fill', 'stroke', 'text', 'color', 'labelColor', 'titleColor', 'attrColor']);
 
 /** Theme presets plus the diagram's own, for an item kind of the current diagram type (undefined: no presets). */
 export function presetsFor(env: StyleEnv, kind: ItemKind): Presets | undefined {

@@ -8,6 +8,7 @@ import { mergeLayers, type Side, type StyleProps } from '../style.js';
 import type { FontSpec } from '../text/measure.js';
 import type { CenterBox, ItemKind, Point, Rect } from '../types.js';
 import { cleanDash, cleanFontFamily, resolveContentUrl, safeUrl, toNumber, type SafeUrl } from '../validate.js';
+import { STYLE_KEYS, valueType } from '../meta/keys.js';
 import { hash } from '../layout/hash.js';
 import type { LayeredOptions, LayoutEdge, LayoutNode } from '../layout/layered.js';
 import type { HiddenSets, Port, RenderContext, RenderOptions } from './types.js';
@@ -15,31 +16,28 @@ import { shapeDef, shapeIdOf } from '../shapes/registry.js';
 
 // ---- style ----------------------------------------------------------------------------------------------------
 
-/** Style keys holding colours: resolved through `ctx.color` (palette refs, diagram palette, validation). */
-const COLOR_KEYS = new Set(['fill', 'stroke', 'text', 'color', 'labelColor', 'titleColor', 'attrColor']);
-const NUM_KEYS = new Set([
-  'strokeWidth', 'fillOpacity', 'strokeOpacity', 'radius', 'fontSize', 'padX', 'padY', 'minW', 'minH', 'maxW', 'w', 'h',
-  'titleSize', 'pad', 'padTop', 'width', 'labelSize', 'curve', 'labelAt', 'attrSize',
-]);
-const DASH_KEYS = new Set(['dash', 'replyDash']);
-const WEIGHT_KEYS = new Set(['fontWeight', 'titleWeight']);
-const BOOL_KEYS = new Set(['labelOnLine', 'showTag', 'showTypes', 'showComments', 'pkUnderline', 'wrap']);
 const WEIGHT = /^(?:normal|bold|bolder|lighter|[1-9]00)$/;
 
-/** Validates one style layer: colours resolved, numbers parsed, dashes and fonts checked; bad values dropped. */
+/**
+ * Validates one style layer by each key's value type (META_KEYS, X6): colours resolved through `ctx.color` (palette
+ * refs, diagram palette, validation), numbers parsed, dashes and fonts checked; bad values dropped. A key the
+ * registry does not know (a theme-only key) keeps a plain value.
+ */
 function cleanLayer(ctx: RenderContext, layer: object): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(layer)) {
     if (v === undefined || v === null || v === '') continue;
     let c: unknown;
-    if (COLOR_KEYS.has(k)) c = ctx.color(v);
-    else if (NUM_KEYS.has(k)) c = toNumber(v);
-    else if (DASH_KEYS.has(k)) c = cleanDash(v);
-    else if (k === 'fontFamily') c = cleanFontFamily(v);
-    else if (WEIGHT_KEYS.has(k)) c = typeof v === 'number' && Number.isFinite(v) ? v : typeof v === 'string' && WEIGHT.test(v) ? v : undefined;
-    else if (BOOL_KEYS.has(k)) c = typeof v === 'boolean' ? v : undefined;
-    else if (k === 'stack') c = typeof v === 'boolean' ? v : toNumber(v);
-    else c = typeof v === 'object' ? undefined : v;
+    switch (valueType(k)) {
+      case 'color': c = ctx.color(v); break;
+      case 'number': c = toNumber(v); break;
+      case 'dash': c = cleanDash(v); break;
+      case 'font': c = cleanFontFamily(v); break;
+      case 'weight': c = typeof v === 'number' && Number.isFinite(v) ? v : typeof v === 'string' && WEIGHT.test(v) ? v : undefined; break;
+      case 'bool': c = typeof v === 'boolean' ? v : undefined; break;
+      case 'stack': c = typeof v === 'boolean' ? v : toNumber(v); break;
+      default: c = typeof v === 'object' ? undefined : v;
+    }
     if (c !== undefined) out[k] = c;
   }
   return out;
@@ -53,12 +51,6 @@ function cleanLayer(ctx: RenderContext, layer: object): Record<string, unknown> 
 export function mergeStyle(ctx: RenderContext, ...layers: (object | null | undefined)[]): StyleProps {
   return mergeLayers<StyleProps>(...layers.map((l) => (l ? (cleanLayer(ctx, l) as Partial<StyleProps>) : null)));
 }
-
-const STYLE_KEYS = [
-  'fill', 'stroke', 'strokeWidth', 'text', 'fontSize', 'fontWeight', 'radius', 'stack', 'dash', 'shape', 'color', 'width',
-  'arrow', 'labelColor', 'labelSize', 'curve', 'titleSize', 'titleColor', 'titleAlign', 'titleWeight', 'pad', 'padTop',
-  'fillOpacity', 'strokeOpacity', 'fontFamily', 'align', 'valign', 'wrap', 'attrSize', 'attrColor',
-] as const;
 
 /** The style keys of an item's metadata (plus kind-specific `extra` keys). */
 export function pickStyle(m: object | undefined, extra: readonly string[] = []): Record<string, unknown> {

@@ -3,15 +3,20 @@
 // can reach the scene. Anything that is not a well-formed value is dropped (callers report a diagnostic).
 // The SVG serializer escapes attribute values as a second line of defence.
 
-const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+/** A hex colour: 3, 4, 6 or 8 digits (the alpha digits included). The one colour grammar (X6): theme/colors.ts reads it too. */
+export const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const NUM = String.raw`[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?`;
 const PCT = String.raw`${NUM}%?`;
 const FUNC = new RegExp(
   String.raw`^(?:rgba?|hsla?)\(\s*${PCT}(?:\s*[,\s]\s*${PCT}){2}(?:\s*[,/]\s*${PCT})?\s*\)$`,
   'i',
 );
+/** The relative adjustment of a palette reference: `~±h,±s,±l` (or `~=h,±s,±l`, an absolute hue). */
+const REL_ADJUST = String.raw`~(=?[+-]?[\d.]+),([+-]?[\d.]+),([+-]?[\d.]+)`;
+/** A palette reference with a relative adjustment, `@name~±h,±s,±l` / `@name~=h,±s,±l`: the name and the three parts. */
+export const COLOR_REL = new RegExp(String.raw`^@([\w-]+)${REL_ADJUST}$`);
 /** Palette reference: `@name` or `@name~±h,±s,±l` / `@name~=h,±s,±l`. */
-export const COLOR_REF = /^@[\w-]+(?:~=?[+-]?[\d.]+,[+-]?[\d.]+,[+-]?[\d.]+)?$/;
+export const COLOR_REF = new RegExp(String.raw`^@[\w-]+(?:${REL_ADJUST})?$`);
 
 /** CSS named colours (level 4). Kept complete so stock Mermaid diagrams keep their colours. */
 const NAMED = new Set(
@@ -37,7 +42,7 @@ export function isColorLiteral(v: unknown): v is string {
   if (typeof v !== 'string') return false;
   const s = v.trim();
   if (!s || s.length > 64) return false;
-  if (HEX.test(s) || FUNC.test(s)) return true;
+  if (HEX_COLOR.test(s) || FUNC.test(s)) return true;
   const l = s.toLowerCase();
   return l === 'none' || l === 'transparent' || l === 'currentcolor' || NAMED.has(l);
 }
