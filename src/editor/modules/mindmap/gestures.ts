@@ -347,13 +347,11 @@ export function activateMindmap(scope: ModuleScope<EditorCore>): () => void {
       if (!M || !gm) return;
       const p = { x: p0.x + dx, y: p0.y + dy };
       drag = { id, p, copy, drop: dropAt(M, gm, id, p) };
-      core.dragging = true;
       core.drawOverlay();
     },
     end() {
       const d = drag;
       drag = null;
-      core.dragging = false;
       const M = mindModel(core), gm = mindGeom(core);
       core.drawOverlay();
       if (!d?.drop || !M || !gm) return;
@@ -388,7 +386,6 @@ export function activateMindmap(scope: ModuleScope<EditorCore>): () => void {
     },
     cancel() {
       drag = null;
-      core.dragging = false;
       core.drawOverlay();
     },
   });

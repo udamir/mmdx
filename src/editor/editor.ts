@@ -3,7 +3,6 @@
 import { EDITOR_MESSAGES } from './messages.js';
 import { Owner } from '../reactive/owner.js';
 import { registerMessages } from '../i18n.js';
-import { isTextTarget } from '../ui/kit/keys.js';
 import type { StaticVersion } from '../adapters/history.js';
 import type { HistoryAdapter, ImageStore, DocumentAdapter, StorageAdapter, ThemeSource } from '../ports.js';
 import type { WheelMode } from '../dom/viewport.js';
@@ -13,7 +12,7 @@ import type { CoreContext } from '../core/context.js';
 import type { IconPack } from '../core/icons/types.js';
 import { h } from '../ui/kit/h.js';
 import { effect, untracked } from '../reactive/signal.js';
-import { DEFAULT_FEATURES, EditorCore, type EditorFeatures, type Gesture, type Mode } from './core.js';
+import { DEFAULT_FEATURES, EditorCore, type EditorFeatures, type Mode } from './core.js';
 import type { EditorModule } from './module.js';
 import { DEFAULT_MODULES } from './modules/index.js';
 import { DocStore, type ChangeReason } from './store.js';
@@ -92,7 +91,6 @@ export class DiagramEditor {
   private unsubscribe: (() => void) | null = null;
   /** The latest remote update that arrived during a gesture or a transaction; applied when it ends. */
   private pendingRemote: { src: string; version: string } | null = null;
-  private gesture: { g: Gesture; x: number; y: number; p0: { x: number; y: number }; moved: boolean; id: number; last: { x: number; y: number } } | null = null;
   private destroyed = false;
   /** The adapter's latest load (resolved without an adapter). */
   private loading: Promise<void> = Promise.resolve();
@@ -173,8 +171,7 @@ export class DiagramEditor {
       root.classList.add(`tool-${t}`);
     }));
 
-    this.wirePointer();
-    this.wireKeys();
+    core.input.wire({ signal: this.ac.signal, owner: this.owner, onIdle: () => this.applyPendingRemote() });
     this.addBaseShortcuts();
 
     // what History needs from the document (component architecture §8.2)
@@ -478,7 +475,7 @@ export class DiagramEditor {
 
   /** A gesture is running or a transaction is open: the store holds an uncommitted state. */
   private get busy(): boolean {
-    return !!this.gesture || this.store.inTransaction;
+    return this.core.input.active || this.store.inTransaction;
   }
 
   private applyPendingRemote(): void {
@@ -554,152 +551,6 @@ export class DiagramEditor {
     }, this.o.autosave);
   }
 
-  // ---- input ------------------------------------------------------------------------------------------------------
-
-  private wirePointer(): void {
-    const core = this.core;
-    const svg = core.dom.svg;
-    const sig = { signal: this.ac.signal };
-    svg.addEventListener('pointerdown', (ev) => {
-      if (ev.button !== 0 && ev.button !== 1) return;
-      core.dom.root.focus({ preventScroll: true });
-      const panning = core.mode.peek() !== 'edit' || core.tool.peek() === 'hand' || core.spaceDown || ev.button === 1;
-      if (panning && !(ev.target as Element).closest('[data-handle]')) {
-        ev.preventDefault();
-        core.viewport.startPan(ev);
-        return;
-      }
-      const hit = core.hitTest(ev);
-      const g = core.startGesture(ev, hit);
-      if (!g) {
-        ev.preventDefault();
-        core.viewport.startPan(ev);
-        return;
-      }
-      ev.preventDefault();
-      try {
-        svg.setPointerCapture(ev.pointerId);
-      } catch {
-        // capture is best-effort
-      }
-      this.gesture = { g, x: ev.clientX, y: ev.clientY, p0: hit.p, moved: false, id: ev.pointerId, last: { x: ev.clientX, y: ev.clientY } };
-    }, sig);
-    // A drag previews once per animation frame (P1): each move renders the whole diagram, so the moves of one frame
-    // are coalesced to the last one; the release applies it first, a cancel drops it. Gestures compute from the
-    // pointer's offset since the press, never from the frame they are drawn in.
-    let frame = 0;
-    let pendingMove: { dx: number; dy: number; ev: PointerEvent } | null = null;
-    const flushMove = (): void => {
-      if (frame) cancelAnimationFrame(frame);
-      frame = 0;
-      const m = pendingMove;
-      pendingMove = null;
-      if (m && this.gesture) this.gesture.g.move(m.dx, m.dy, m.ev);
-    };
-    const dropMove = (): void => {
-      if (frame) cancelAnimationFrame(frame);
-      frame = 0;
-      pendingMove = null;
-    };
-    this.owner.add(dropMove);
-    core.flushPreview = flushMove;
-    svg.addEventListener('pointermove', (ev) => {
-      core.pointer = { clientX: ev.clientX, clientY: ev.clientY };
-      const d = this.gesture;
-      if (!d || d.id !== ev.pointerId) return;
-      if (!d.moved && Math.hypot(ev.clientX - d.x, ev.clientY - d.y) < (d.g.threshold ?? 3)) return;
-      if (!d.moved) {
-        d.moved = true;
-        core.dragging = true;
-        core.dom.root.classList.add('dragging');
-      }
-      d.last = { x: ev.clientX, y: ev.clientY };
-      const p = core.toDiagram(ev);
-      pendingMove = { dx: p.x - d.p0.x, dy: p.y - d.p0.y, ev };
-      if (!frame) frame = requestAnimationFrame(flushMove);
-    }, sig);
-    // Whether each of the last two presses dragged: the browser counts a drag towards a double-click too (a quick press
-    // and a drag, or two quick drags), and that double-click must not edit the text or enter the group of what moved.
-    let dragged: [boolean, boolean] = [false, false];
-    const finish = (ev: PointerEvent, cancelled: boolean): void => {
-      const d = this.gesture;
-      if (!d || d.id !== ev.pointerId) return;
-      if (cancelled) dropMove();
-      else flushMove();
-      this.gesture = null;
-      core.dragging = false;
-      core.dom.root.classList.remove('dragging');
-      dragged = [dragged[1], d.moved];
-      if (cancelled) d.g.cancel?.();
-      else if (d.moved) {
-        // a quick release can come before the pointer's last move was delivered: the item ends where it was let go
-        if (ev.clientX !== d.last.x || ev.clientY !== d.last.y) {
-          const p = core.toDiagram(ev);
-          d.g.move(p.x - d.p0.x, p.y - d.p0.y, ev);
-        }
-        d.g.end?.(ev);
-      } else {
-        d.g.cancel?.();
-        d.g.click?.(ev);
-      }
-      core.drawOverlay();
-      this.applyPendingRemote();
-    };
-    /** Cancels the running gesture (Esc, undo, a load, a stage or mode switch); true when there was one. */
-    const cancel = (): boolean => {
-      const d = this.gesture;
-      if (!d) return false;
-      dropMove();
-      this.gesture = null;
-      core.dragging = false;
-      core.dom.root.classList.remove('dragging');
-      d.g.cancel?.();
-      core.drawOverlay();
-      return true;
-    };
-    core.cancelPointer = () => void cancel();
-    this.owner.add(() => (core.cancelPointer = null));
-    svg.addEventListener('pointerup', (ev) => finish(ev, false), sig);
-    svg.addEventListener('pointercancel', (ev) => finish(ev, true), sig);
-    svg.addEventListener('lostpointercapture', (ev) => {
-      if (this.gesture?.id === ev.pointerId && this.gesture.moved) finish(ev, true);
-    }, sig);
-    svg.addEventListener('dblclick', (ev) => {
-      if (!dragged[0] && !dragged[1]) return;
-      ev.stopImmediatePropagation();
-      ev.preventDefault();
-    }, { capture: true, signal: this.ac.signal });
-    // Esc during a gesture cancels it (one level of the Esc chain, A.11)
-    core.dom.root.addEventListener('keydown', (ev) => {
-      if (ev.key !== 'Escape' || !cancel()) return;
-      this.applyPendingRemote();
-      ev.stopPropagation();
-      ev.preventDefault();
-    }, { capture: true, signal: this.ac.signal });
-  }
-
-  private wireKeys(): void {
-    const core = this.core;
-    const root = core.dom.root;
-    const sig = { signal: this.ac.signal };
-    root.addEventListener('keydown', (ev) => {
-      if (ev.key === ' ' && !ev.repeat && core.mode.peek() === 'edit' && !isTyping(ev)) {
-        core.spaceDown = true;
-        root.classList.add('space-pan');
-      }
-    }, sig);
-    root.addEventListener('keyup', (ev) => {
-      if (ev.key === ' ') {
-        core.spaceDown = false;
-        root.classList.remove('space-pan');
-      }
-    }, sig);
-    root.addEventListener('focusout', () => {
-      core.spaceDown = false;
-      root.classList.remove('space-pan');
-    }, sig);
-  }
-
   private addBaseShortcuts(): void {
     const core = this.core;
     core.shortcuts.add(
@@ -719,5 +570,3 @@ export class DiagramEditor {
   }
 }
 
-// a text field, a select or editable text takes the key (B31: Space in a <select> armed space-pan)
-const isTyping = (ev: KeyboardEvent): boolean => isTextTarget(ev.composedPath()[0] ?? ev.target);

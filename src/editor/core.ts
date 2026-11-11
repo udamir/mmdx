@@ -7,6 +7,7 @@
 // shell, module host and canvas come from it — and adds the document store, the selection, gestures and overlay
 // painters. What the canvas shows is the StoreScene (src/editor/scene.ts); `draw()` invalidates it.
 import type { ImageStore, StorageAdapter, ThemeSource } from '../ports.js';
+import { InputService } from './services/input.js';
 import type { CoreContext } from '../core/context.js';
 import type { IconPack } from '../core/icons/types.js';
 import { normalizeMeta, splitSource, type DiagramDocument } from '../core/meta/index.js';
@@ -292,14 +293,24 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   tableView: string | null = null;
   /** Item under the pointer (connection dots on hover). */
   hover: Sel | null = null;
+  /** The pointer loop and Space-to-pan (A10c: what it tracks is read here, written only by it). */
+  readonly input: InputService<Hit> = new InputService<Hit>(this);
   /** A gesture is running. */
-  dragging = false;
-  /** Cancels the running pointer gesture, if any (set by the editor's pointer wiring). */
-  cancelPointer: (() => void) | null = null;
+  get dragging(): boolean {
+    return this.input.dragging;
+  }
   /** Space is held: drag pans. */
-  spaceDown = false;
+  get spaceDown(): boolean {
+    return this.input.spaceDown;
+  }
   /** Last pointer position (client coordinates), for paste-at-pointer and menus. */
-  pointer: { clientX: number; clientY: number } | null = null;
+  get pointer(): { clientX: number; clientY: number } | null {
+    return this.input.pointer;
+  }
+  /** Cancels the running pointer gesture, if any. */
+  cancelPointer(): void {
+    this.input.cancelGesture();
+  }
   /** The item clipboard (UI state, never saved): copies carry their content (§9), so History can fill it too. */
   clipboard: ClipboardData | null = null;
   /**
@@ -315,8 +326,10 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   private rendered: Rendered | null = null;
   private readonly gestures: GestureSource[] = [];
   private readonly painters: OverlayPainter[] = [];
-  /** Applies a drag's move still waiting for its animation frame (the editor's pointer loop sets it; P1). */
-  flushPreview: () => void = () => {};
+  /** Applies a drag's move still waiting for its animation frame (the pointer loop's; P1). */
+  flushPreview(): void {
+    this.input.flushMove();
+  }
   private readonly domCache: CoreDom;
 
   constructor(host: HTMLElement, o: EditorCoreOptions) {
