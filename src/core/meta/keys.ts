@@ -166,6 +166,14 @@ export const valueType = (k: string): ValueType | undefined => keyDef(k)?.clean.
 /** The keys of a class (on items, or with `canvas` on the page), in table order. */
 export const keysOf = (c: KeyClass, where: 'item' | 'canvas' = 'item'): readonly MetaKey[] => NAMES.filter((k) => classOf(k, where) === c);
 
+/**
+ * The keys of an ER attribute's highlight (an entity's `attrs`: attribute name → look), each with its cleaner. `attrs`
+ * itself is the one structured key outside META_KEYS: the sanitizer cleans it entry by entry with these.
+ */
+export const ATTR_KEYS = {
+  color, bold: bool, italic: bool, underline: bool, fontFamily: font, fontSize: FONT_SIZE, preset: text(200),
+} as const satisfies Record<string, Cleaner>;
+
 /** The cleaners by key (meta/sanitize.ts). */
 export const CLEANERS: Readonly<Record<string, Cleaner>> = Object.fromEntries(NAMES.map((k) => [k, DEFS[k]!.clean]));
 /** Keys whose value is a colour (literal or palette reference). Theme resolution and the colour resolver use it too. */

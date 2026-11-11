@@ -2,14 +2,14 @@
 // Every value read from a `%%@` line, a legacy sidecar or a theme file goes through `sanitizeStyleObject` before
 // anything can render it. Known keys are checked by key; a value that fails is dropped and reported. Unknown keys
 // are kept as they are: no renderer reads them, so they never reach the SVG, and a newer writer's data survives.
-import { bool, CLEANERS, color, DROP, type Cleaner } from './keys.js';
+import { ATTR_KEYS, CLEANERS, DROP, type Cleaner } from './keys.js';
 import { setOwn } from '../own.js';
 import { diag } from '../types.js';
 import type { Diagnostic } from '../types.js';
 import { COLLECTIONS, emptyMeta } from './types.js';
 import type { Collection, DiagramMeta } from './types.js';
 
-const ATTR_CLEANERS: Record<string, Cleaner> = { color, bold: bool, underline: bool };
+const ATTR_CLEANERS: Readonly<Record<string, Cleaner>> = ATTR_KEYS;
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 

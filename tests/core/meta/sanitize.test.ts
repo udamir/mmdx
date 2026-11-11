@@ -99,3 +99,12 @@ describe('icon and image keys (T10 §4.6)', () => {
     expect(cleanStyleValue('iconColor', '#fff')).toBe('#fff');
   });
 });
+
+describe('ER attribute highlights (META_KEYS coverage, task 4.2)', () => {
+  it('every highlight key is checked: italic, font family, font size and preset too', () => {
+    const r = sanitizeStyleObject({ attrs: { id: { italic: 'yes', fontFamily: 'Inter";x', fontSize: -3, preset: 'pk', bold: true, fontSize2: 1 } } });
+    expect(r.value).toEqual({ attrs: { id: { preset: 'pk', bold: true, fontSize2: 1 } } });
+    expect(r.dropped.sort()).toEqual(['attrs.id.fontFamily', 'attrs.id.fontSize', 'attrs.id.italic']);
+    expect(sanitizeStyleObject({ attrs: { id: { italic: true, fontFamily: 'Inter', fontSize: 13 } } }).dropped).toEqual([]);
+  });
+});
