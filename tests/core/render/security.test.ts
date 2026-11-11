@@ -20,7 +20,8 @@ const ELEMENTS = new Set(['svg', 'defs', 'g', 'path', 'rect', 'ellipse', 'circle
 /** Parses the SVG as XML and checks every element and attribute against the allowlists. */
 function assertSafe(svg: string): void {
   expect(svg).not.toMatch(/<img/i);
-  expect(svg).not.toMatch(/<[^>]*\son\w+\s*=/i); // no event handler attribute in any tag
+  // no event handler attribute in any tag (attribute values blanked first: escaped text in an aria-label is not one)
+  expect(svg.replace(/"[^"]*"/g, '""')).not.toMatch(/<[^>]*\son\w+\s*=/i);
   expect(svg.toLowerCase()).not.toContain('javascript:');
   const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
   expect(doc.getElementsByTagName('parsererror').length, svg.slice(0, 300)).toBe(0);
@@ -180,5 +181,25 @@ describe('images (T03)', () => {
     // both ways were taken
     expect(drawn).toBeGreaterThan(0);
     expect(drawn).toBeLessThan(1000);
+  });
+});
+
+describe('the media paths added since the last review (G34)', () => {
+  const BAD = 'javascript:alert(1)';
+  // every diagram type that takes a picture, as code (flowchart node data) or metadata (state, mindmap, participants)
+  const CASES: [string, string][] = [
+    ['flowchart image node', `flowchart LR\n  A@{ img: "${BAD}", label: "${XSS}" }\n`],
+    ['flowchart icon node', `flowchart LR\n  A@{ icon: "${XSS}" }\n`],
+    ['state image', `stateDiagram-v2\n  A\n%%@ node A {"img":"${BAD}"}\n`],
+    ['mindmap image', `mindmap\n  root\n    A\n%%@ node A {"img":"${BAD}"}\n`],
+    ['participant image', `sequenceDiagram\n  participant P\n  P->>P: hi\n%%@ participant P {"img":"${BAD}"}\n`],
+    ['rich label', `flowchart LR\n  A["\`**${XSS}** _x_\`"]\n`],
+    ['rich label with an icon token', `flowchart LR\n  A["fa:${XSS} text"]\n`],
+  ];
+  it.each(CASES)('%s: only allowed elements and attributes, no forbidden URL', (_, src) => {
+    const { svg } = renderProd(src);
+    assertSafe(svg);
+    expect(svg).not.toMatch(/javascript:/i);
+    expect(svg).not.toMatch(/<img/i);
   });
 });
