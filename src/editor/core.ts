@@ -450,7 +450,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       // the same item stays selected from version to version while it is there
       const model = reparse(doc.code);
       this.needKind(doc.code);
-      this.versionSel = cur ? this.versionSel.filter((r) => itemExists(model, r, doc.meta)) : [];
+      this.versionSel = cur ? this.versionSel.filter((r) => itemExists(model, r)) : [];
       this.version.set({ id: v.id, source: v.source, doc, model });
     } else {
       this.version.set(null);

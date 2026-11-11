@@ -1,12 +1,12 @@
 // DocStore (§6.1, §6.3): the document state of one editor instance — source snapshots, derived model, history with
-// transactions. UI state lives beside it (EditorUi) and is never saved into the document.
+// transactions. UI state lives beside it (on the editor core) and is never saved into the document.
 import { joinSource, normalizeMeta, splitSource, type DiagramDocument } from '../core/meta/index.js';
 import type { DiagramMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
 import { elementExists } from '../core/ops/ids.js';
 import { reparse } from '../core/kinds/registry.js';
 import { kindsVersion } from './kinds/loader.js';
-import type { Diagnostic, ItemRef } from '../core/types.js';
+import type { ItemRef } from '../core/types.js';
 import { computed, signal, type ReadSignal } from '../ui/signal.js';
 
 export type ChangeReason = 'op' | 'code' | 'undo' | 'redo' | 'load' | 'remote';
@@ -30,7 +30,6 @@ export interface StoreOptions {
   onIdle?: () => void;
 }
 
-const clone = <T>(v: T): T => (v === undefined ? v : (JSON.parse(JSON.stringify(v)) as T));
 
 /**
  * Snapshot history (the prototype's, which handles code edits uniformly) with explicit transactions instead of a
@@ -39,9 +38,8 @@ const clone = <T>(v: T): T => (v === undefined ? v : (JSON.parse(JSON.stringify(
 export class DocStore {
   /** Mermaid code without %%@ lines. */
   readonly code = signal('');
-  /** Metadata. Mutated in place by gestures inside a transaction, then `touch()`ed; replaced on load. */
+  /** Metadata. Mutated in place by gestures inside a transaction (set again when it ends); replaced on load. */
   readonly meta = signal<DiagramMeta>({ canvas: {}, styles: {} }, () => false);
-  readonly metaDiagnostics = signal<Diagnostic[]>([]);
   readonly selection = signal<ItemRef[]>([], sameRefs);
   readonly model: ReadSignal<DiagramModel>;
   readonly canUndo = signal(false);
@@ -92,7 +90,6 @@ export class DocStore {
     const split = splitSource(src);
     this.code.set(split.doc.code);
     this.meta.set(normalizeMeta(split.doc.meta));
-    this.metaDiagnostics.set(split.diagnostics);
     const now = this.source();
     if (opts.history === 'push' && before && before !== now) {
       this.pushHistory({ source: before, selection: beforeSel, label: 'Reload' });
@@ -120,15 +117,6 @@ export class DocStore {
       return;
     }
     this.mutate(label, () => this.code.set(code), 'code');
-  }
-
-  /** Replaces code and metadata together (most ops return both). */
-  apply(next: Snapshot, label: string, selection?: ItemRef[]): void {
-    this.mutate(label, () => {
-      if (next.code !== this.code.peek()) this.code.set(next.code);
-      this.meta.set(next.meta);
-      if (selection) this.selection.set(selection);
-    });
   }
 
   /** Runs `f`, which may mutate `meta.peek()` in place; one history step. */
@@ -234,7 +222,7 @@ export class DocStore {
 
   /** Does the item still exist in the current model? */
   exists(r: ItemRef): boolean {
-    return itemExists(this.model.peek(), r, this.meta.peek());
+    return itemExists(this.model.peek(), r);
   }
 
   private restore(e: HistoryEntry, reason: ChangeReason): void {
@@ -262,11 +250,6 @@ export class DocStore {
     this.revision.update((n) => n + 1);
     this.opts.onChange?.(this.source(), reason);
   }
-
-  /** Deep copy of the current snapshot, for ops that build the next state functionally. */
-  snapshot(): Snapshot {
-    return { code: this.code.peek(), meta: clone(this.meta.peek()) };
-  }
 }
 
 function sameRefs(a: readonly ItemRef[], b: readonly ItemRef[]): boolean {
@@ -274,6 +257,6 @@ function sameRefs(a: readonly ItemRef[], b: readonly ItemRef[]): boolean {
 }
 
 /** Item existence for selection repair after undo / reload. */
-export function itemExists(model: DiagramModel, r: ItemRef, _meta?: DiagramMeta): boolean {
+export function itemExists(model: DiagramModel, r: ItemRef): boolean {
   return elementExists(model, r);
 }
