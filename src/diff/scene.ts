@@ -6,6 +6,8 @@
 // area back (extra canvases destroyed, the main canvas back in place, no morph). Replaces the canvas half of
 // elements/diff.ts (`buildStage`, `buildPlain`, `makeCanvas`, `applySelection`, `focusSelected`).
 import { annotate, focusRect, shapeOf, type DiffView } from '../core/diff/annotate.js';
+import { createStatusBox, STATUS_BOX_CSS, type StatusBoxHandle } from '../ui/blocks/status-box.js';
+import { Owner } from '../reactive/owner.js';
 import { changeKey } from '../core/diff/merge.js';
 import { renderedOf, type DiffRendered } from '../core/diff/render.js';
 import type { Rendered } from '../core/pipeline-core.js';
@@ -46,7 +48,7 @@ export interface DiffSceneOptions {
 type Kind = 'single' | 'side' | 'plain';
 
 /** The CSS a DiffScene needs besides the diff tokens and canvas styles (its banner). */
-export const DIFF_SCENE_CSS: readonly string[] = [MESSAGES_CSS, /* css */ `
+export const DIFF_SCENE_CSS: readonly string[] = [MESSAGES_CSS, STATUS_BOX_CSS, /* css */ `
 .dx-stage.host-look { gap: 0; background: transparent; }
 .dx-stage.host-look.single, .dx-stage.host-look.side { left: 0; right: 0; }
 /* side by side under the panels: the panes split at the middle of the area between the panel stacks */
@@ -74,13 +76,16 @@ export class DiffScene extends BaseScene {
   /** The stage element while attached (panes, banner, messages). */
   stage: HTMLElement | null = null;
   private msg: HTMLElement | null = null;
+  /** Loading, nothing to compare, a failed load with Retry. */
+  private status: StatusBoxHandle | null = null;
   private banner: { el: HTMLElement; destroy(): void } | null = null;
   private panes: HTMLElement[] = [];
   private second: { canvas: DiagramCanvas; unlink: () => void; ink: { store: StrokeStore; off: () => void } | null } | null = null;
   private morph: Morph | null = null;
   /** The picture shown before the scene was pushed (History: a version, the document): its first picture morphs from it. */
   private carry: MorphState | null = null;
-  private offs: (() => void)[] = [];
+  /** What an attach set up (listeners, effects), let go when the scene is detached; a new one per attach. */
+  private owner = new Owner('diff scene');
   /** What is painted: a repaint only does what changed (a view switch animates). */
   private painted: { kind: Kind | null; D: DiffRendered | null; plain: Rendered | null; dim: boolean; view: DiffViewName | null; pair: string } = { kind: null, D: null, plain: null, dim: false, view: null, pair: '' };
 
@@ -132,7 +137,8 @@ export class DiffScene extends BaseScene {
 
   override detach(): void {
     const area = this.area;
-    for (const off of this.offs.splice(0).reverse()) off();
+    this.owner.dispose();
+    this.owner = new Owner('diff scene');
     if (area) {
       area.main.setInsets(null);
       this.dropSecond();
@@ -144,6 +150,8 @@ export class DiffScene extends BaseScene {
     this.banner?.destroy();
     this.banner = null;
     this.stage?.remove();
+    this.status?.destroy();
+    this.status = null;
     this.stage = this.msg = null;
     this.panes = [];
     this.painted = { kind: null, D: null, plain: null, dim: false, view: null, pair: '' };
@@ -163,42 +171,39 @@ export class DiffScene extends BaseScene {
 
   private setup(area: CanvasArea): void {
     const s = this.session;
-    this.msg = h('div', { class: 'msg' });
+    this.status = createStatusBox({ kind: null });
+    this.msg = h('div', { class: 'msg' }, this.status.el);
     this.banner = createBanner({ text: s.banner });
     this.stage = h('div', { class: 'dx-stage', part: 'canvas' }, this.banner.el, this.msg);
-    if (this.o.hostLook) this.offs.push(this.core.on('view', () => this.placeBadges()), this.core.on('draw', () => this.placeBadges()));
+    if (this.o.hostLook) {
+      this.owner.add(this.core.on('view', () => this.placeBadges()));
+      this.owner.add(this.core.on('draw', () => this.placeBadges()));
+    }
     area.el.prepend(this.stage);
     this.layout('single');
     const label = this.o.label;
     if (label)
-      this.offs.push(effect(() => {
+      this.owner.add(effect(() => {
         const text = label();
         this.stage?.setAttribute('role', 'img');
         this.stage?.setAttribute('aria-label', text);
       }));
     // the picture: a new render, a view switch, History mode, the dim setting
-    this.offs.push(effect(() => {
+    this.owner.add(effect(() => {
       const viewOnly = s.viewOnly(), D = s.rendered(), plain = s.plain(), view = s.view(), dim = s.dim(), status = s.status();
       untracked(() => this.draw(viewOnly, D, plain, view, dim, status?.kind ?? null));
     }));
     // the selection: marked in every canvas, brought into view
-    this.offs.push(effect(() => {
+    this.owner.add(effect(() => {
       const key = s.selected();
       untracked(() => this.applySelection(key !== null));
     }));
     // loading, nothing to compare, a failed load (with Retry)
-    this.offs.push(effect(() => {
+    this.owner.add(effect(() => {
       const st = s.status();
-      untracked(() => {
-        const box = this.msg;
-        if (!box) return;
-        if (!st) box.replaceChildren();
-        else if (st.kind === 'error') {
-          const retry = st.retry ? h('button', { type: 'button' }, this.core.i18n.t('diff.history.retry')) : null;
-          retry?.addEventListener('click', () => void s.reload());
-          box.replaceChildren(h('div', { class: 'error', role: 'alert' }, h('div', null, st.text), retry));
-        } else box.replaceChildren(h('div', null, st.text));
-      });
+      untracked(() => this.status?.update(st
+        ? { kind: st.kind, text: st.text, retryLabel: this.core.i18n.t('diff.history.retry'), ...(st.kind === 'error' && st.retry ? { onRetry: () => void s.reload() } : { onRetry: undefined }) }
+        : { kind: null }));
     }));
   }
 

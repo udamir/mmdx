@@ -57,8 +57,7 @@ export const DIFF_CSS = /* css */ `
 .dx-stage .pane.after .pane-title b { color: var(--mmdx-diff-add); }
 .dx-stage > .mmdx-banner { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 5; max-width: calc(100% - 32px); }
 .dx-stage .msg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--mmdx-muted); pointer-events: none; }
-.dx-stage .msg .error { pointer-events: auto; max-width: 560px; padding: 12px 14px; background: var(--mmdx-danger-bg); color: var(--mmdx-text); border: 1px solid var(--mmdx-danger); border-radius: var(--mmdx-radius); }
-.dx-stage .msg .error button { margin-top: 8px; }
+.dx-stage .msg .error { pointer-events: auto; }
 .dx-stage .el[data-link] { cursor: pointer; }
 
 /* ---- inside the canvases ---- */

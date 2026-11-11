@@ -1,0 +1,3 @@
+# Blocks missing their CSS export, story or test — baseline (2026-11-11, A5); may only shrink. See tools/check-layers.mjs.
+# button: the kit's base sheet (ui/kit/base.ts BASE) styles every button, so the block has no sheet of its own.
+button: css

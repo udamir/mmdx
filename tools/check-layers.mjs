@@ -194,13 +194,31 @@ export function moduleViolations(root) {
 export function manualCleanupArrays(root) {
   const SRC = join(root, 'src');
   const out = [];
-  const re = /\b(?:const|let|readonly)\s+(offs|cleanups|disposers|unsubs|destroyHooks)\s*:\s*\(\(\)\s*=>\s*void\)\[\]\s*=/g;
+  const re = /\b(?:const|let|readonly|private|protected)\s+(offs|cleanups|disposers|unsubs|destroyHooks)\s*:\s*\(\(\)\s*=>\s*void\)\[\]\s*=/g;
   for (const f of walk(SRC)) {
     const r = relative(SRC, f).split('\\').join('/');
     if (r === 'reactive/owner.ts') continue;
     for (const m of readFileSync(f, 'utf8').matchAll(re)) out.push(`${r}: ${m[1]}`);
   }
   return out.sort();
+}
+
+/**
+ * The block contract (A1, A5): every block in ui/blocks/ (but block.ts and messages.ts) exports its CSS (`*_CSS`), has
+ * a story (stories/blocks/<name>.stories.ts) and a test (tests/ui/blocks/<name>.test.ts). `name: missing what`.
+ */
+export function blockContractGaps(root) {
+  const dir = join(root, 'src/ui/blocks');
+  const out = [];
+  for (const f of readdirSync(dir).filter((n) => n.endsWith('.ts') && n !== 'block.ts' && n !== 'messages.ts').sort()) {
+    const name = f.slice(0, -3);
+    const missing = [];
+    if (!/export const [A-Z_]+_CSS\b/.test(readFileSync(join(dir, f), 'utf8'))) missing.push('css');
+    if (!existsSync(join(root, 'stories/blocks', `${name}.stories.ts`))) missing.push('story');
+    if (!existsSync(join(root, 'tests/ui/blocks', `${name}.test.ts`))) missing.push('test');
+    if (missing.length) out.push(`${name}: ${missing.join(', ')}`);
+  }
+  return out;
 }
 
 /**

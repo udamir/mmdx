@@ -12,5 +12,7 @@ export const MODULE_RULES: Record<string, RegExp>;
 export function moduleViolations(root: string): string[];
 /** Hand-kept arrays of undo functions outside reactive/owner.ts: `file: name`. */
 export function manualCleanupArrays(root: string): string[];
+/** Blocks missing their CSS export, story or test: `name: what`. */
+export function blockContractGaps(root: string): string[];
 export function compareBaseline(found: string[], baseline: string[]): { added: string[]; fixed: string[] };
 export function readBaseline(file: string): string[];

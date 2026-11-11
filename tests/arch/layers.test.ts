@@ -3,7 +3,7 @@
 // fails, and so does a fixed one until its line is removed from the baseline in the same change.
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { compareBaseline, coreLayerOf, edgeViolation, importCycles, layerViolations, manualCleanupArrays, moduleViolations, readBaseline } from '../../tools/check-layers.mjs';
+import { blockContractGaps, compareBaseline, coreLayerOf, edgeViolation, importCycles, layerViolations, manualCleanupArrays, moduleViolations, readBaseline } from '../../tools/check-layers.mjs';
 
 const ROOT = join(__dirname, '../..');
 const BASE = join(__dirname, 'baseline');
@@ -27,6 +27,14 @@ describe('layers', () => {
     expect(edgeViolation({ from: 'core/render/flowchart.ts', to: 'core/parse/dispatch.ts', kind: 'value' })).toBeNull();
     expect([coreLayerOf('types.ts'), coreLayerOf('kinds/registry.ts'), coreLayerOf('meta/keys.ts'), coreLayerOf('parse/er.ts'), coreLayerOf('layout/tree.ts')]).toEqual([0, 1, 2, 3, 4]);
     expect([coreLayerOf('render/er.ts'), coreLayerOf('ops/er.ts'), coreLayerOf('diff/er.ts'), coreLayerOf('kinds/er-ops.ts'), coreLayerOf('kinds/all.ts')]).toEqual([5, 6, 7, 8, 9]);
+  });
+});
+
+describe('blocks (A1, A5)', () => {
+  it('every block exports its CSS and has a story and a test, beyond the baseline', () => {
+    const r = compareBaseline(blockContractGaps(ROOT), readBaseline(join(BASE, 'blocks.txt')));
+    expect(r.added, 'blocks missing their CSS export, story or test').toEqual([]);
+    expect(r.fixed, 'fixed — remove these lines from tests/arch/baseline/blocks.txt').toEqual([]);
   });
 });
 
