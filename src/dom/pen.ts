@@ -248,5 +248,3 @@ function pathOf(pts: readonly { x: number; y: number }[]): string {
   return `${d}L${l.x} ${l.y}`;
 }
 
-/** What the pen options read and set. */
-export type PenSettings = Pick<StrokeStore, 'color' | 'size' | 'fade' | 'setColor' | 'setSize' | 'setFade' | 'clear'>;

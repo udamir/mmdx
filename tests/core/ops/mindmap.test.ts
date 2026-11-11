@@ -119,14 +119,6 @@ describe('mindmap ops', () => {
     expect(lines(mm.code).slice(8, 11)).toEqual(['      a_2[Alpha]', '        a1', '        a2']);
   });
 
-  it('icons as label tokens; an ::icon line is replaced', () => {
-    expect(lines(OPS.setMindIcon(SRC, M, 'a', 'fa:book').code)[2]).toBe('    a[fa:fa-book Alpha]');
-    const src = 'mindmap\n  root\n    a[Alpha]\n    ::icon(fa fa-book)\n    b';
-    const r = OPS.setMindIcon(src, P(src), 'a', 'tabler:user', (t) => t.startsWith('tabler:'));
-    expect(r.code).toBe('mindmap\n  root\n    a[tabler:user Alpha]\n    b');
-    expect(OPS.setMindIcon(r.code, P(r.code), 'a', null, (t) => t.startsWith('tabler:')).code).toBe(src.replace('\n    ::icon(fa fa-book)', ''));
-  });
-
   it('colorBy in the frontmatter: depth written, branch (the default) removed with what it leaves empty', () => {
     const d = OPS.setMindColorBy(SRC, 'depth').code;
     expect(d.startsWith('---\nconfig:\n  mindmap:\n    colorBy: depth\n---\nmindmap\n')).toBe(true);
@@ -174,8 +166,6 @@ describe('mindmap ops: stock Mermaid 12.2 and 11.17 parses every output over the
         add(`delete ${n.id}`, OPS.deleteMind(code, m, [ref]));
         add(`lift ${n.id}`, OPS.liftMind(code, m, n.id));
         add(`clone ${n.id}`, OPS.cloneMind(code, m, [ref]));
-        add(`icon ${n.id}`, OPS.setMindIcon(code, m, n.id, 'fa:book'));
-        add(`no icon ${n.id}`, OPS.setMindIcon(code, m, n.id, null));
         add(`paste ${n.id}`, OPS.pasteMindText(code, m, n.id, '- a\n  - b (c)\n- "d"'));
         if (m.root) add(`to root ${n.id}`, OPS.reparentMind(code, m, n.id, m.root, 0));
       }

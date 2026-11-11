@@ -2,7 +2,7 @@
 import type { IconLookup } from '../icons/types.js';
 import type { CanvasMeta, DiagramMeta } from '../meta/types.js';
 import type { SceneNode } from '../scene/types.js';
-import type { FontSpec, TextMeasurer } from '../text/measure.js';
+import type { TextMeasurer } from '../text/measure.js';
 import type { Diagnostic, ItemKind, Point, Rect } from '../types.js';
 import type { ImagePolicy, LinkPolicy, UrlResolver } from '../validate.js';
 
@@ -167,12 +167,5 @@ export interface RenderResult {
   /** The diagram's own accessible title and description (`accTitle`, `accDescr`): the SVG's `<title>` and `<desc>`. */
   a11y?: { title?: string; desc?: string };
 }
-
-/** Shared font helper: the family a style asks for, else the theme font. */
-export const fontOf = (size: number, weight: number | string | undefined, family: string): FontSpec => ({
-  size,
-  weight: weight ?? 400,
-  family,
-});
 
 export type { DiagramMeta };

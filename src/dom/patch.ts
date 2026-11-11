@@ -150,5 +150,3 @@ function update(el: Element, prev: SceneNode | null, n: SceneNode): void {
   else if (n.t === 'g' || n.t === 'marker' || n.t === 'pattern' || n.t === 'clipPath') patchChildren(el, n.children);
 }
 
-/** The scene node an element was last patched from (hit-testing reads `item` from it). */
-export const sceneOf = (el: Element): SceneNode | undefined => bound.get(el)?.node;

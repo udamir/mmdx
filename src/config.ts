@@ -50,8 +50,6 @@ export interface Config {
   mermaid?: MermaidLike | (() => Promise<MermaidLike>);
   /** Font files for PNG export (§7.4): family name → URL or bytes. */
   fonts?: Record<string, string | ArrayBuffer>;
-  /** Logs ops and exposes getState() (dev). */
-  debug?: boolean;
 }
 
 interface Shared {
@@ -65,7 +63,6 @@ interface Shared {
   themeSource: ThemeSource | undefined;
   mermaid: Config['mermaid'];
   fonts: Record<string, string | ArrayBuffer>;
-  debug: boolean;
 }
 
 let shared: Shared | null = null;
@@ -82,7 +79,6 @@ function defaults(): Shared {
     themeSource: undefined,
     mermaid: undefined,
     fonts: {},
-    debug: false,
   };
 }
 
@@ -105,7 +101,6 @@ export function configure(c: Config): void {
     mermaidIcons = '';
   }
   if (c.fonts) s.fonts = { ...s.fonts, ...c.fonts };
-  if (c.debug !== undefined) s.debug = c.debug;
 }
 
 export function getShared(): Shared {

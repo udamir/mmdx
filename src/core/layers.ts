@@ -12,9 +12,6 @@ import type { ItemKind, ItemRef } from './types.js';
 
 export const DEFAULT_LAYER = 'default';
 
-/** Kinds that can sit on a layer (processes / activations cannot). */
-export type LayerKind = Exclude<ItemKind, 'activation'>;
-
 export interface LayerDef extends LayerMeta {
   id: string;
   name: string;

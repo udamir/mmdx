@@ -101,7 +101,6 @@ Each attribute sets the `ViewerOptions` option of the same name in camelCase (`t
 | — | `themeSource` | `ThemeSource` | `configure({ themeSource })` | Where themes the page has not loaded come from |
 | — | — | `ctx: Partial<CoreContext>` | the shared context | `DiagramViewer` option only, read when the viewer is created |
 | — | — | `iconPacks: IconPack[]` | — | `DiagramViewer` option only: icon packs of this viewer over the shared ones (see [Icons](/guide/icons#registering-packs)); read when the viewer is created |
-| — | — | `rehydrate: 'auto' \| 'adopt'` | — | `DiagramViewer` option, deprecated and ignored: server-rendered SVG is always replaced by the first client render |
 
 Read-only properties of the element: `instance` (the `DiagramViewer`, `null` while not connected), `diagnostics` (the last render's `Diagnostic[]`) and `historySession` (while History is open).
 

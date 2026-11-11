@@ -6,12 +6,11 @@ import { maxOf, minOf } from '../geom.js';
 import { classOf, COPY_KEYS as KEY_COPY, PLACE_KEYS } from '../meta/keys.js';
 import type { DiagramMeta, ItemMeta } from '../meta/types.js';
 import { COLLECTIONS, KIND_TO_COLL } from '../meta/types.js';
-import type { Direction, DiagramModel, FlowchartModel, SequenceModel } from '../model.js';
+import type { Direction, DiagramModel, FlowchartModel } from '../model.js';
 import { own, setOwn } from '../own.js';
 import { renameClashingSubgraph } from '../parse/flowchart.js';
-import { remapSequenceMeta } from './remap.js';
 import { DEFAULT_LAYER } from '../layers.js';
-import { reparse, withOps } from '../kinds/registry.js';
+import { withOps } from '../kinds/registry.js';
 import { pagePresets } from '../render/page.js';
 import type { BoxGeom, GeometryIndex } from '../render/types.js';
 import type { ResolvedTheme } from '../theme/types.js';
@@ -681,24 +680,9 @@ export function setPagePreset(meta: DiagramMeta, id: string | null): MetaResult 
 
 // ---- positional ids follow code changes ----------------------------------------------------------------------------
 
-/** Sequence metadata moved to the items' new positional ids (the ops kind's `remapMeta`; kept for its callers). */
-export const remapSeqMeta = (oldModel: SequenceModel, oldCode: string, newModel: SequenceModel, newCode: string, meta: DiagramMeta): DiagramMeta =>
-  remapSequenceMeta(meta, oldModel, oldCode, newModel, newCode);
-
 /** Metadata carried over to new positional ids after a code change (types with stable ids: unchanged). */
 export function remapMeta(oldModel: DiagramModel, oldCode: string, model: DiagramModel, newCode: string, meta: DiagramMeta): DiagramMeta {
   if (!model.type || model.type !== oldModel.type) return meta;
   return withOps(model, (k, m) => k.remapMeta?.(meta, oldModel as typeof m, oldCode, m, newCode)) ?? meta;
 }
 
-/**
- * After any rewrite of the Mermaid code (an op, or typing in the code panel): the new model, with sequence metadata
- * carried over to the new positional ids (prototype `applyCode`).
- */
-export function afterCodeChange(oldModel: DiagramModel, oldCode: string, newCode: string, meta: DiagramMeta): { model: DiagramModel; meta: DiagramMeta } {
-  const model = reparse(newCode);
-  return { model, meta: remapMeta(oldModel, oldCode, model, newCode, meta) };
-}
-
-/** Collections an item kind can have metadata in (for callers iterating every item collection). */
-export const ITEM_COLLECTIONS = COLLECTIONS.filter((c) => c !== 'layers');

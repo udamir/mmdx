@@ -109,9 +109,9 @@ const sheetCache = new Map<string, CSSStyleSheet>();
 
 /**
  * Adopts the given CSS into a shadow root through constructable stylesheets (no inline <style> needed under CSP),
- * with a <style nonce> fallback for engines without adoptedStyleSheets.
+ * with a <style> fallback for engines without adoptedStyleSheets.
  */
-export function adoptStyles(root: ShadowRoot, css: readonly string[], nonce?: string): void {
+export function adoptStyles(root: ShadowRoot, css: readonly string[]): void {
   const supported = typeof CSSStyleSheet !== 'undefined' && 'adoptedStyleSheets' in root && 'replaceSync' in CSSStyleSheet.prototype;
   if (supported) {
     root.adoptedStyleSheets = css.map((c) => {
@@ -127,7 +127,6 @@ export function adoptStyles(root: ShadowRoot, css: readonly string[], nonce?: st
   }
   for (const c of css) {
     const el = document.createElement('style');
-    if (nonce) el.nonce = nonce;
     el.textContent = c;
     root.append(el);
   }

@@ -14,8 +14,6 @@ import type { SelectResult } from './types.js';
 /** `off`, Mermaid's default speed (`fast`), or `slow`. */
 export type EdgeAnimation = 'off' | 'fast' | 'slow';
 
-export const EDGE_ANIMATIONS: readonly EdgeAnimation[] = ['off', 'fast', 'slow'];
-
 /** An edge's animation as Mermaid draws it: `animation` names the speed, `animate: true` alone is fast. */
 export function flowEdgeAnimation(model: FlowchartModel, edgeId: string): EdgeAnimation | null {
   const e = model.edges.find((x) => x.id === edgeId);

@@ -28,7 +28,6 @@ export interface TextSceneOptions {
   /** The element that carries the aspect ratio (`--mmdx-aspect`) and the `fit="none"` size. */
   stage: HTMLElement;
   onRendered(r: Rendered, durationMs: number): void;
-  onFallback(): void;
   onError(diags: Diagnostic[]): void;
   /** Parsers and renderers of the diagram kinds (default: loaded on first use). */
   kinds?: KindsProvider;
@@ -201,7 +200,6 @@ export class TextScene extends BaseScene {
     this.area?.main.clear();
     this.bounds.set(null);
     this.o.stage.hidden = true;
-    this.o.onFallback();
     const mode = this.o.fallback();
     if (mode === 'error') return this.showError(r.diagnostics, text);
     if (mode === 'source') {
@@ -234,7 +232,6 @@ export class TextScene extends BaseScene {
     const t = this.core.i18n.t;
     this.o.stage.hidden = true;
     this.bounds.set(null);
-    this.o.onFallback();
     const bad = new Set(diags.map((d) => d.range?.line).filter((l): l is number => l !== undefined));
     const pre = h('pre', null, ...source.split('\n').slice(0, 2000).map((l, i) => h('span', { class: bad.has(i) ? 'bad' : '' }, l || ' ')));
     const copy = h('button', {

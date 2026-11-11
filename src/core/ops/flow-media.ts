@@ -32,10 +32,6 @@ export interface FlowMedia {
   constraint?: string;
 }
 
-/** Icon node frames and positions Mermaid knows. */
-export const ICON_FORMS = ['square', 'circle', 'rounded'] as const;
-export const MEDIA_POS = ['t', 'b'] as const;
-
 /** Size of a new icon node's icon and a new image node's picture (Mermaid Chart's defaults). */
 export const ICON_NODE_H = 60;
 export const IMAGE_NODE_SIZE = 200;

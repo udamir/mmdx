@@ -77,5 +77,3 @@ export function createI18n(locale = 'en', extra: Messages = {}): I18n {
 export const isMac = (): boolean =>
   typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
-/** `⌘` on Apple platforms, `Ctrl` elsewhere (§13). */
-export const modKey = (): string => (isMac() ? '⌘' : 'Ctrl+');

@@ -5,7 +5,7 @@
 // before its inner starts and ends are rewired), Delete asks whether a composite's contents go with it. Icons are
 // label tokens, images metadata `img` (no Mermaid syntax), other shapes metadata `shape`.
 import type { Direction, StateKind, StateModel } from '../../core/model.js';
-import { isPseudo, parseState, pseudoId } from '../../core/parse/state.js';
+import { isPseudo, parseState } from '../../core/parse/state.js';
 import {
   addEnd, addNote, addRegion, addStart, addState, canMakeComposite, connectState, deleteState, innerPseudo, makeComposite, reconnectState, relabelNote,
   relabelState, relabelTransition, scopeOf, setCompositeDirection, setDescriptions, setNoteSide, setStateKind, stateFragment, ungroupState, type StateScope,
@@ -312,9 +312,6 @@ export const EDIT: EditKind<StateModel, StateGeometry> = {
   },
   shapesLabel: 'tools.stateShapes',
 };
-
-/** A start pseudo-state of a scope (for tests and the module). */
-export const startOf = (scope: StateScope): string => pseudoId(scope.g, scope.r, false);
 
 // the type's view and ops kinds: the editor loads all three in one chunk (editor/kinds/loader.ts)
 export { VIEW } from '../../core/kinds/state.js';

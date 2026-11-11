@@ -33,5 +33,3 @@ export function contentEnd(L: readonly string[]): number {
   return end;
 }
 
-export const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-

@@ -112,11 +112,6 @@ export interface LayerMeta {
   [extra: string]: unknown;
 }
 
-export interface PaletteEntry {
-  color: string;
-  [extra: string]: unknown;
-}
-
 export type Collection =
   | 'layers' | 'groups' | 'nodes' | 'edges' | 'participants' | 'messages' | 'notes' | 'blocks' | 'boxes'
   | 'activations' | 'entities' | 'rels';

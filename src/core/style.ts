@@ -73,8 +73,6 @@ export interface StyleProps {
   label?: string;
 }
 
-export type StyleKey = keyof StyleProps;
-
 /** Merges style layers left → right; `undefined` / `null` / `''` do not override (prototype `mergeStyle`). */
 export function mergeLayers<T extends object>(...layers: (Partial<T> | null | undefined)[]): T {
   const out: Record<string, unknown> = {};

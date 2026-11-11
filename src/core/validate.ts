@@ -32,8 +32,6 @@ const NAMED = new Set(
   ).split(' '),
 );
 
-export const isNamedColor = (v: string): boolean => NAMED.has(v.toLowerCase());
-
 /** A concrete CSS colour the serializer may emit: hex, rgb()/hsl() with numbers only, a named colour, `none`, `transparent`, `currentColor`. */
 export function isColorLiteral(v: unknown): v is string {
   if (typeof v !== 'string') return false;
@@ -47,10 +45,6 @@ export function isColorLiteral(v: unknown): v is string {
 /** A colour value as it may be stored (literal or palette reference). */
 export function isColorValue(v: unknown): v is string {
   return isColorLiteral(v) || (typeof v === 'string' && COLOR_REF.test(v.trim()));
-}
-
-export function cleanColor(v: unknown): string | undefined {
-  return isColorValue(v) ? v.trim() : undefined;
 }
 
 export function isFiniteNumber(v: unknown): v is number {

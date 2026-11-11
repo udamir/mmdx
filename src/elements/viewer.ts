@@ -52,8 +52,6 @@ export interface ViewerOptions {
   schemeToggle?: boolean;
   /** The `compact` preset (§7.6): smaller, icon-only chrome; automatic below a host size by default. */
   compact?: boolean | 'auto';
-  /** @deprecated Ignored (server-rendered SVG is always replaced by the first client render). */
-  rehydrate?: 'auto' | 'adopt';
   themeSource?: ThemeSource;
   storage?: StorageAdapter;
   ctx?: Partial<CoreContext>;
@@ -133,7 +131,6 @@ export class DiagramViewer {
         if (warn.length) core.emit('mmdx-error', { diagnostics: warn });
         core.emit('mmdx-render', { bounds: r.result.bounds, type: r.model.type, durationMs });
       },
-      onFallback: () => undefined,
       onError: (diagnostics) => core.emit('mmdx-error', { diagnostics }),
     });
     core.provide('documentModel', () => this.scene.rendered?.model ?? null);

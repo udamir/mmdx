@@ -4,11 +4,6 @@
 import type { SequenceModel } from './model.js';
 import type { ItemKind } from './types.js';
 
-export const messageId = (n: number): string => `m${n}`;
-export const noteId = (n: number): string => `n${n}`;
-export const blockId = (n: number): string => `b${n}`;
-export const boxId = (n: number): string => `box${n}`;
-
 export const activationId = (participant: string, n: number): string => `${participant}:${n}`;
 
 /**

@@ -10,7 +10,6 @@ import { descendantsOf, MIND_DELIMS, MIND_SHAPES, mindKeys, parseMindmap } from 
 import { labelText } from '../parse/label.js';
 import { setOwn } from '../own.js';
 import type { ItemRef } from '../types.js';
-import { withIconToken, type IsIconToken } from './icon-token.js';
 import type { CloneResult, CodeResult, LineResult, MoveResult, RefusableResult } from './types.js';
 
 /** The text of a new node. */
@@ -69,23 +68,6 @@ export function setMindShape(code: string, model: MindmapModel, id: string, shap
   return { code: rewrite(code, n, mindStatement({ written: n.written, label: n.label, shape: s, md: n.md, quoted: n.quote === 'str' })) };
 }
 
-/**
- * An icon (`pack:name`) as a token at the start of the node's text, or none (null): an `::icon()` line the node has
- * goes, since the token replaces it.
- */
-export function setMindIcon(code: string, model: MindmapModel, id: string, icon: string | null, isIcon?: IsIconToken): CodeResult {
-  const n = model.nodes.get(id);
-  if (!n) return { code };
-  const label = withIconToken(n.label, icon, isIcon) || (icon ? '' : n.label);
-  let out = relabelMind(code, model, id, label || MIND_NEW).code;
-  if (n.icon) {
-    const L = out.split('\n');
-    for (let i = n.endLine; i > n.line; i--) if (/^\s*::icon\(/i.test(L[i] ?? '')) L.splice(i, 1);
-    out = L.join('\n');
-  }
-  return { code: out };
-}
-
 // ---- blocks of lines --------------------------------------------------------------------------------------------
 
 /** The last line of a node's subtree. */
@@ -121,7 +103,6 @@ const within = (model: MindmapModel, id: string, of: string): boolean => {
   }
   return false;
 };
-
 
 // ---- adding -------------------------------------------------------------------------------------------------------
 

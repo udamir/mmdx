@@ -4,7 +4,6 @@
 import { opsKind, registerKinds, registerOps, viewKind } from '../../core/kinds/registry.js';
 import type { OpsKind } from '../../core/kinds/ops-types.js';
 import type { ViewKind } from '../../core/kinds/types.js';
-import { DIAGRAM_TYPES } from '../../core/kinds/info.js';
 import type { DiagramType } from '../../core/types.js';
 import { signal } from '../../ui/signal.js';
 import { editKind, registerEditKinds } from './registry.js';
@@ -52,5 +51,3 @@ export function loadEditorKind(t: DiagramType): Promise<void> {
   return p;
 }
 
-/** Loads every type's kinds (hosts that switch types often, the type chooser). */
-export const loadAllEditorKinds = (): Promise<void> => Promise.all(DIAGRAM_TYPES.map(loadEditorKind)).then(() => undefined);

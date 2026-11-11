@@ -176,8 +176,6 @@ function mindCases(code: string, m: DiagramModel): Case[] {
     add(`delete ${id}`, (x) => MM.deleteMind(code, x as never, [sel]));
     add(`lift ${id}`, (x) => MM.liftMind(code, x as never, id));
     add(`clone ${id}`, (x) => MM.cloneMind(code, x as never, [sel]));
-    add(`icon ${id}`, (x) => MM.setMindIcon(code, x as never, id, 'fa:book'));
-    add(`no icon ${id}`, (x) => MM.setMindIcon(code, x as never, id, null));
     add(`paste ${id}`, (x) => MM.pasteMindText(code, x as never, id, '- a\n  - b (c)\n- d'));
     add(`reparent ${id} to root`, (x) => MM.reparentMind(code, x as never, id, m.root!, 0));
     add(`copy ${id} to last`, (x) => MM.reparentMind(code, x as never, id, ids[ids.length - 1]!, 0, true));
@@ -210,7 +208,6 @@ function stateCases(code: string, m: DiagramModel): Case[] {
     add(`end after ${id}`, (x) => ST.addEnd(code, x as never, id));
     add(`clone ${id}`, (x) => ST.cloneState(code, x as never, [sel]));
     add(`group ${id}`, (x) => ST.makeComposite(code, x as never, [sel], 'New group'));
-    add(`link ${id}`, (x) => ST.setStateLink(code, x as never, id, 'https://example.com/a'));
     for (const to of [...nodes, ...groups].slice(0, 12)) add(`connect ${id} ${to}`, (x) => ST.connectState(code, x as never, id, to, 'go: now'));
   }
   for (const g of groups) {

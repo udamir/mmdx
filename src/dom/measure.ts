@@ -43,22 +43,3 @@ export function createCanvasMeasurer(maxEntries = 20000): TextMeasurer | null {
     },
   };
 }
-
-/**
- * Resolves once the fonts a theme names are loaded (or failed), so layout measures real glyphs. Calls `onLate`
- * when a font finishes loading after the first render — the caller re-renders once.
- */
-export function whenFontsReady(families: readonly string[], onLate: () => void): Promise<void> {
-  if (typeof document === 'undefined' || !document.fonts) return Promise.resolve();
-  const fonts = document.fonts;
-  const pending = families.some((f) => {
-    try {
-      return !fonts.check(`16px ${f}`);
-    } catch {
-      return false;
-    }
-  });
-  if (!pending) return Promise.resolve();
-  void fonts.ready.then(onLate);
-  return Promise.resolve();
-}

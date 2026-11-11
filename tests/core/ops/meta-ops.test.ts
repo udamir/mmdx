@@ -3,8 +3,8 @@ import type { DiagramMeta } from '../../../src/core/meta/types.js';
 import { emptyMeta } from '../../../src/core/meta/types.js';
 import { parse } from '../../../src/core/parse/index.js';
 import {
-  addLocalColor, afterCodeChange, alignItems, canSavePreset, copyStyle, deleteLocalPreset, deleteSeq, effectiveValue, fixIdClash, lockedItems,
-  moveItem, moveItems, newDiagram, newLayer, normalizePresetName, pasteStyle, pinAutoNodes, presetUsers, remapSeqMeta, removeLocalColor,
+  addLocalColor, alignItems, canSavePreset, copyStyle, deleteLocalPreset, deleteSeq, effectiveValue, fixIdClash, lockedItems,
+  moveItem, moveItems, newDiagram, newLayer, normalizePresetName, pasteStyle, pinAutoNodes, presetUsers, remapMeta, removeLocalColor,
   resetCurve, resetItemStyle, resetLayout, saveAsPreset, setAutonumber, setDirection, setLayer, setPage, setPagePreset, setStyle,
   startDiagram, suggestPresetName, unlockAll, updatePreset, usedIds, type StyleEnv,
 } from '../../../src/core/ops/index.js';
@@ -228,10 +228,11 @@ describe('document-level ops', () => {
     const m0 = seq(S);
     const md = meta({ messages: { m1: { color: '#111' }, m2: { color: '#222' } }, activations: { 'B:1': { fill: '#333' } } });
     const del = deleteSeq(S, m0, [{ kind: 'message', id: 'm1' }]).code;
-    const r = afterCodeChange(m0, S, del, md);
-    expect(r.meta.messages).toEqual({ m1: { color: '#222' } });
-    expect(r.meta.activations).toEqual({ 'B:1': { fill: '#333' } });
-    expect(remapSeqMeta(m0, S, m0, S, md)).toEqual(md);
-    expect(usedIds(r.model).messages).toEqual(new Set(['m1', 'm2', 'm3']));
+    const model = parse(del);
+    const r = remapMeta(m0, S, model, del, md);
+    expect(r.messages).toEqual({ m1: { color: '#222' } });
+    expect(r.activations).toEqual({ 'B:1': { fill: '#333' } });
+    expect(remapMeta(m0, S, m0, S, md)).toEqual(md);
+    expect(usedIds(model).messages).toEqual(new Set(['m1', 'm2', 'm3']));
   });
 });

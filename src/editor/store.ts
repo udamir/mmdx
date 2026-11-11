@@ -17,11 +17,6 @@ export interface HistoryEntry {
   label: string;
 }
 
-export interface Snapshot {
-  code: string;
-  meta: DiagramMeta;
-}
-
 export interface StoreOptions {
   /** History byte budget (default 5 MB). */
   historyBytes?: number;
@@ -29,7 +24,6 @@ export interface StoreOptions {
   /** The outermost transaction ended (committed, rolled back or abandoned by a load). */
   onIdle?: () => void;
 }
-
 
 /**
  * Snapshot history (the prototype's, which handles code edits uniformly) with explicit transactions instead of a

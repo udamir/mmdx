@@ -45,7 +45,6 @@ Call it before creating elements. Most values are copied into a component when i
 | `iconPacks`, `builtinIcons` | On each render: packs registered later reach every component (one shared icon registry) |
 | `mermaid` | On the first render with stock Mermaid; a later call replaces it from the next such render (the icon packs are registered with it again) |
 | `fonts` | On each PNG export |
-| `debug` | Not read in this version |
 
 A component can override the shared values for itself: the `ctx` option of the viewer, editor, theme editor and diff takes a `Partial<CoreContext>` (`themes`, `measure`, `linkPolicy`, `imagePolicy`, `resolveUrl`, `icons`, `locale`, `idPrefix`), the `iconPacks` option of the viewer, editor and diff adds icon packs of the component's own over the shared ones, and the `themeSource` property of `<mmdx-viewer>` and `<mmdx-diff>` takes precedence over the shared `themeSource`. `ctx` is read only when the component is created.
 
@@ -70,8 +69,6 @@ interface Config {
   mermaid?: MermaidLike | (() => Promise<MermaidLike>);
   /** Font files for PNG export: family name → URL or bytes. */
   fonts?: Record<string, string | ArrayBuffer>;
-  /** Logs ops and exposes getState() (dev). */
-  debug?: boolean;
 }
 ```
 
@@ -86,9 +83,8 @@ interface Config {
 | `resolveUrl` | [`UrlResolver`](/api/core#urlresolver) | none: URLs as written |
 | `iconPacks` | [`IconPack`](/api/core#iconpack)`[]` | none (the built-in set only) |
 | `builtinIcons` | `boolean` | `true` |
-| `mermaid` | `MermaidLike \| (() => Promise<MermaidLike>)` | `import('mermaid')` (the optional peer dependency) |
+| `mermaid` | `MermaidLike \| (() => Promise<MermaidLike>)` | `mermaid` imported at run time where it resolves (Node, an import map) |
 | `fonts` | `Record<string, string \| ArrayBuffer>` | `{}` |
-| `debug` | `boolean` | `false` |
 
 #### `themes`
 
@@ -128,15 +124,11 @@ Whether the built-in Tabler subset is registered under `tabler` (default `true`)
 
 #### `mermaid`
 
-The stock Mermaid used for diagram types mmdx does not draw itself (the viewer's `fallback="mermaid"`, the default) and for the editor's Plain Mermaid preview. Before a render it receives the component's icon packs through `registerIconPacks` (the built-in set as `tabler` included), each time the set of packs changed. Pass a `MermaidLike` instance or a loader that resolves to one; without it, the first such render runs `import('mermaid')`, which needs the optional `mermaid` package installed. The instance is resolved on first use and kept until `configure({ mermaid })` sets another. Renders go through one queue shared by all components (Mermaid keeps global configuration), in a detached container, with `securityLevel: 'strict'`, Mermaid's `dark` or `default` theme following the component's scheme, the `classic` look and the `dagre` layout — given explicitly, since Mermaid 12 changed their defaults (`redux-color`, `neo`, ELK), so the fallback looks the same with Mermaid 10, 11 or 12. `configure({ mermaid })` after a fallback render replaces the instance: the next render uses the new one.
+The stock Mermaid used for diagram types mmdx does not draw itself (the viewer's `fallback="mermaid"`, the default) and for the editor's Plain Mermaid preview. Before a render it receives the component's icon packs through `registerIconPacks` (the built-in set as `tabler` included), each time the set of packs changed. Pass a `MermaidLike` instance or a loader that resolves to one; without it, the first such render imports `mermaid` at run time, which works where the module resolves without a bundler (Node, an import map); a bundled app passes `() => import('mermaid')`. A failed load is tried again on the next render. The instance is resolved on first use and kept until `configure({ mermaid })` sets another. Renders go through one queue shared by all components (Mermaid keeps global configuration), in a detached container, with `securityLevel: 'strict'`, Mermaid's `dark` or `default` theme following the component's scheme, the `classic` look and the `dagre` layout — given explicitly, since Mermaid 12 changed their defaults (`redux-color`, `neo`, ELK), so the fallback looks the same with Mermaid 10, 11 or 12. `configure({ mermaid })` after a fallback render replaces the instance: the next render uses the new one.
 
 #### `fonts`
 
 Font files embedded into PNG exports, keyed by font family name: a URL (fetched at export time) or the font's bytes. An export embeds the families the SVG uses and finds here; generic families (`sans-serif`, `system-ui`…) are skipped, and families without a source, with a name outside letters, digits, spaces, `.`, `_` and `-`, or whose file fails to load are left to the machine's local fonts. Fonts from several `configure()` calls are merged.
-
-#### `debug`
-
-Declared for development (logging operations and exposing a state getter). In this version the flag is stored but no component reads it.
 
 ### `MermaidLike`
 

@@ -73,9 +73,6 @@ export const focusRect = (s: ItemShape): Rect => (s.t === 'rect' ? s.r : s.label
 /** The highlight colour of a change: its status, or its first changed facet. */
 export const markOf = (c: ItemChange): Mark => (c.status === 'added' ? 'added' : c.status === 'removed' ? 'removed' : c.facets[0] ?? 'content');
 
-/** Every filter a change belongs to: its status, or each facet it changed in. */
-export const marksOf = (c: ItemChange): Mark[] => (c.status === 'added' ? ['added'] : c.status === 'removed' ? ['removed'] : c.facets.length ? [...c.facets] : ['content']);
-
 /** Badge text: `+`, `−`, or the initials of the changed facets (`C`, `L`, `S`). */
 export const badgeOf = (c: ItemChange): string => (c.status === 'added' ? '+' : c.status === 'removed' ? '−' : c.facets.map((f) => f[0]!.toUpperCase()).join(''));
 

@@ -36,7 +36,6 @@ Call it before the elements are created (before they are connected); a later cal
 | `fonts` | `Record<string, string \| ArrayBuffer>` | — | Font files embedded into PNG exports: family name → URL or bytes. Without them, PNG export uses locally installed fonts |
 | `mermaid` | a Mermaid instance or `() => Promise<…>` | `mermaid` imported at run time where it resolves (Node, an import map); a bundled app passes `() => import('mermaid')` | Stock Mermaid for diagram types mmdx does not draw and for the editor's "Plain Mermaid" preview |
 | `measure` | `TextMeasurer` | a canvas measurer (static estimate where no canvas exists) | How text is measured for layout |
-| `debug` | `boolean` | `false` | A development flag |
 
 Stock Mermaid always runs with `securityLevel: 'strict'`, through one queue shared by all instances. mmdx gives it its theme (`default` or `dark`, following the component's scheme), its look (`classic`) and its layout (`dagre`) explicitly, so Mermaid 10 to 12 draw alike: Mermaid 12 changed these defaults (the `redux-color` theme, the `neo` look, the ELK layout).
 

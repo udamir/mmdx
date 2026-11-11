@@ -87,13 +87,6 @@ function scopeEnd(model: StateModel, L: readonly string[], s: StateScope): { at:
 /** The written token of an id (`[*]` for a pseudo-state). */
 const tok = (id: string): string => (isPseudo(id) ? '[*]' : id);
 
-/** The composites holding an item, innermost first. */
-function ancestors(model: StateModel, id: string): string[] {
-  const out: string[] = [];
-  for (let p = scopeOf(model, id).g; p && out.length <= model.groups.size; p = model.groups.get(p)?.parent ?? null) out.push(p);
-  return out;
-}
-
 /** Every state and composite inside a composite (any depth). */
 export function stateDescendants(model: StateModel, gid: string): { nodes: string[]; groups: string[] } {
   const nodes: string[] = [], groups: string[] = [];
@@ -395,20 +388,6 @@ export function addRegion(code: string, model: StateModel, gid: string): SelectR
   const indent = indentOf(L[b.line]) + '  ';
   const id = uniqueId(model, 's');
   return { code: applyEdits(code, [{ at: b.endLine, del: 0, ins: [`${indent}--`, `${indent}${id}`] }]), select: { kind: 'node', id } };
-}
-
-/** `click id href "url"` (at the top level, where Mermaid reads `click`), replacing the item's links; null removes it. */
-export function setStateLink(code: string, model: StateModel, id: string, url: string | null): CodeResult {
-  // `click [*]` reads as a link of no state
-  if (isPseudo(id)) return { code };
-  const L = code.split('\n');
-  const re = new RegExp(`^\\s*click\\s+${escape(id)}\\s`, 'i');
-  const edits: LineEdit[] = [];
-  L.forEach((l, i) => {
-    if (re.test(l)) edits.push({ at: i, del: 1, ins: [] });
-  });
-  if (url) edits.push({ at: contentEnd(L), del: 0, ins: [`${rootIndent(model, L)}click ${id} href "${url.replace(/"/g, '%22')}"`] });
-  return { code: applyEdits(code, edits) };
 }
 
 // ---- deleting -----------------------------------------------------------------------------------------------------
@@ -779,4 +758,3 @@ export function remapStateNotes<T>(notes: Readonly<Record<string, T>> | undefine
 }
 
 /** The composites holding an item, innermost first. */
-export { ancestors as stateAncestorsOf };

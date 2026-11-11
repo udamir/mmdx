@@ -3,9 +3,6 @@ import type { Point } from './types.js';
 
 export const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
 
-/** One decimal, like the prototype's `round` (use `fmt` from scene/serialize for output strings). */
-export const round = (v: number): number => Math.round(v * 10) / 10;
-
 /** Point at parameter t on the cubic Bézier p0 → p3. */
 export function bezierPoint(p0: Point, p1: Point, p2: Point, p3: Point, t: number): Point {
   const u = 1 - t;

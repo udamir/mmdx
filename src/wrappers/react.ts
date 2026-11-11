@@ -11,8 +11,6 @@ interface ReactLike {
   useImperativeHandle(ref: unknown, init: () => unknown, deps?: unknown[]): void;
 }
 
-type EventProps = Record<`onMmdx${string}`, ((ev: CustomEvent) => void) | undefined>;
-
 /** React's names for standard attributes. */
 const STANDARD_ATTRS: Readonly<Record<string, string>> = { className: 'class', htmlFor: 'for', tabIndex: 'tabindex' };
 
@@ -92,4 +90,3 @@ export function createReactWrappers(React: ReactLike): MmdxReactComponents {
   };
 }
 
-export type { EventProps };

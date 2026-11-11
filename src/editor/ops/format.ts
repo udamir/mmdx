@@ -7,8 +7,6 @@ import { loadedMediaKit } from '../../core/media/kit.js';
 
 export type TextFormat = 'b' | 'i' | 'u' | 's';
 
-export const TEXT_FORMATS: readonly TextFormat[] = ['b', 'i', 'u', 's'];
-
 export type TextFormats = Readonly<Record<TextFormat, boolean>>;
 
 /** The marks a format is written with. */

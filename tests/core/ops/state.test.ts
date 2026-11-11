@@ -45,7 +45,6 @@ for (const file of ['order-lifecycle.mmdx', 'traffic-light.mmdx']) {
       add(`end after ${id}`, ST.addEnd(code, m, id));
       add(`clone ${id}`, ST.cloneState(code, m, [sel]));
       add(`group ${id}`, ST.makeComposite(code, m, [sel], 'New group'));
-      add(`link ${id}`, ST.setStateLink(code, m, id, 'https://example.com/a'));
     }
     for (const from of targets) for (const to of targets) add(`connect ${from} ${to}`, ST.connectState(code, m, from, to, 'go: now'));
     for (const g of groups) {

@@ -16,7 +16,7 @@
 // draw warns `seq.bad-type`. Its `properties` icon (`{"icon": "https://…"}`, Mermaid's undocumented corner image) is
 // the participant's image unless its metadata has one (render/sequence.ts).
 import type {
-  BlockKind, MessageHead, Participant, SeqBlockStart, SeqBox, SeqItem, SeqLink, SeqMessage, SeqNumbering, SequenceModel,
+  BlockKind, MessageHead, Participant, SeqBlockStart, SeqBox, SeqItem, SeqMessage, SeqNumbering, SequenceModel,
 } from '../model.js';
 import { diag } from '../types.js';
 import { isColorLiteral } from '../validate.js';
@@ -528,5 +528,3 @@ export function messageNumbers(model: Pick<SequenceModel, 'items' | 'numbering'>
   return out;
 }
 
-/** A participant's links as the viewer's menu shows them. */
-export const participantLinks = (p: Pick<Participant, 'links'>): readonly SeqLink[] => p.links ?? [];
