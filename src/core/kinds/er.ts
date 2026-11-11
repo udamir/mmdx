@@ -3,7 +3,6 @@
 // machinery (frames around a hover highlight, layers, presets, ⌘G / Ungroup, "Reset positions in this group") serves
 // them.
 import type { ErModel } from '../model.js';
-import type { ErGeometry } from '../render/types.js';
 import type { ItemRef } from '../types.js';
 import { emptyEr, parseER } from '../parse/er.js';
 import { renderER } from '../render/er.js';
@@ -16,7 +15,7 @@ export function erAncestors(model: ErModel, id: string): string[] {
   return out;
 }
 
-export const VIEW: ViewKind<ErModel, ErGeometry> = {
+export const VIEW: ViewKind<ErModel> = {
   type: 'er',
   parse: parseER,
   empty: emptyEr,

@@ -5,7 +5,7 @@
 // them without this geometry, which the viewer loads on demand, T02.9).
 import { el, text } from '../scene/build.js';
 import type { SceneNode, SvgAttrs } from '../scene/types.js';
-import { box, detail, ink, P, paint, penShape, rectOutline } from './draw.js';
+import { box, detail, ink, P, paint, penShape } from './draw.js';
 import { Pen } from './pen.js';
 import { CHOICE, FORK, FR_CIRC, NOTE, SM_CIRC } from './state.js';
 import type { ShapeBody } from './types.js';

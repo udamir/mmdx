@@ -3,7 +3,6 @@
 // mutated. Prompts, confirmations, toasts and redraws stay in the editor (see the notes on each function).
 import { KIND_INFO } from '../kinds/info.js';
 import { maxOf, minOf } from '../geom.js';
-import { activationsOf } from '../ids.js';
 import { classOf, COPY_KEYS as KEY_COPY, PLACE_KEYS } from '../meta/keys.js';
 import type { DiagramMeta, ItemMeta } from '../meta/types.js';
 import { COLLECTIONS, KIND_TO_COLL } from '../meta/types.js';

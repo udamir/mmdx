@@ -8,7 +8,7 @@ import { memoryStorage } from '../../src/adapters/storage.js';
 import { memoryImageStore, type ImageStore } from '../../src/adapters/images.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
 import { loadBuiltinIcons } from '../../src/core/icons/registry.js';
-import { press, pev } from './connect.helpers.js';
+import { pev } from './connect.helpers.js';
 import { stockParse } from '../helpers/mermaid.js';
 
 vi.spyOn(console, 'error').mockImplementation(() => undefined);

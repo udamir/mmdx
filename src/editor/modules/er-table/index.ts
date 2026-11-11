@@ -19,7 +19,7 @@ import { relativeColor } from '../../../core/theme/colors.js';
 import type { Rect } from '../../../core/types.js';
 import { h } from '../../../ui/h.js';
 import type { KindSpec, ToolbarApi, StyleToolbarHandle } from '../../../ui/style-toolbar.js';
-import type { EditorCore, Gesture } from '../../core.js';
+import type { Gesture } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { elementAt } from '../canvas/shared.js';
 import { freeStrip } from '../chrome/toolbars.js';

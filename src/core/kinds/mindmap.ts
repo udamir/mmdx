@@ -1,12 +1,11 @@
 // The mindmap view kind: what drawing a mindmap needs (the viewer loads it on demand, core bundles it in ALL_KINDS).
 import type { MindmapModel } from '../model.js';
-import type { MindmapGeometry } from '../render/types.js';
 import type { ItemRef } from '../types.js';
 import { descendantsOf, emptyMindmap, parseMindmap } from '../parse/mindmap.js';
 import { renderMindmap } from '../render/mindmap.js';
 import type { ViewKind } from './types.js';
 
-export const VIEW: ViewKind<MindmapModel, MindmapGeometry> = {
+export const VIEW: ViewKind<MindmapModel> = {
   type: 'mindmap',
   parse: parseMindmap,
   empty: emptyMindmap,

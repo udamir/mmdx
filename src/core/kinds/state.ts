@@ -4,7 +4,6 @@
 // layers, presets, diff facets) serves them. The chunk registers the five shapes a state diagram draws (core/shapes/
 // state.ts), so its first render needs nothing else.
 import type { StateModel } from '../model.js';
-import type { StateGeometry } from '../render/types.js';
 import type { ItemRef } from '../types.js';
 import { emptyState, parseState } from '../parse/state.js';
 import { renderState } from '../render/state.js';
@@ -20,7 +19,7 @@ export function stateAncestors(model: StateModel, id: string): string[] {
   return out;
 }
 
-export const VIEW: ViewKind<StateModel, StateGeometry> = {
+export const VIEW: ViewKind<StateModel> = {
   type: 'state',
   parse: parseState,
   empty: emptyState,

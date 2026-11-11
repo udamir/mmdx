@@ -4,7 +4,7 @@
 // prototype app.js (`copyStyle`, `pasteStyle`, `setPainting`); the look rules live in `core/ops/meta-ops.ts`.
 import { copyStyle as copyStyleOp, pasteStyle as pasteStyleOp, type StyleClip } from '../../../core/ops/index.js';
 import type { ItemKind } from '../../../core/types.js';
-import type { EditorCore, Gesture, Sel } from '../../core.js';
+import type { Gesture, Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 
 export const PAINT_CSS = /* css */ `

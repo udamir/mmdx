@@ -5,7 +5,7 @@ import { elementProperties } from '../elements/base.js';
 
 interface ReactLike {
   createElement(type: string, props: Record<string, unknown> | null, ...children: unknown[]): unknown;
-  forwardRef<T, P>(render: (props: P, ref: unknown) => unknown): unknown;
+  forwardRef<P>(render: (props: P, ref: unknown) => unknown): unknown;
   useRef<T>(v: T | null): { current: T | null };
   useLayoutEffect(f: () => void | (() => void), deps?: unknown[]): void;
   useImperativeHandle(ref: unknown, init: () => unknown, deps?: unknown[]): void;

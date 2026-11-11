@@ -17,7 +17,7 @@ import { registerMessages, type I18n } from '../ui/i18n.js';
 import { VIEW_MESSAGES } from '../ui/messages/view.js';
 import { PopoverManager, Toaster } from '../ui/popover.js';
 import { ShortcutRegistry } from '../ui/shortcuts.js';
-import { computed, effect, signal, untracked, type ReadSignal, type Signal } from '../ui/signal.js';
+import { effect, signal, untracked, type Signal } from '../ui/signal.js';
 import { BASE, TOKENS, watchUiScheme } from '../ui/styles/base.js';
 import type { HistoryLoader, HistorySession } from './history.js';
 import { ModuleHost, Scope } from './host.js';

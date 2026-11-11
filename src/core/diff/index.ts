@@ -16,7 +16,7 @@ import type { Kinds } from '../kinds/types.js';
 import { parseWith } from '../parse/dispatch.js';
 import { diag } from '../types.js';
 import { field } from './kit.js';
-import type { ChangeFacet, DiagramDiff, DiffIgnore, FieldChange, ItemChange } from './types.js';
+import type { DiagramDiff, DiffIgnore, FieldChange, ItemChange } from './types.js';
 
 export { lcs } from './kit.js';
 

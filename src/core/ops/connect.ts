@@ -1,12 +1,11 @@
 // Rewrites Mermaid source when connections are re-attached or created on the canvas (prototype connect.js).
 // Pure functions: (code, model, …) → new code plus where the change landed. The caller re-parses afterwards.
 import type { EdgeHead, EdgeLine, FlowNode, FlowchartModel, NodeShape } from '../model.js';
-import { encodeLabel, labelText } from '../parse/label.js';
+import { labelText } from '../parse/label.js';
 import { applySplices } from '../parse/node-data.js';
 import { resolveShape } from '../shapes/registry.js';
 import { lineOf, rewriteStatement, statementSplice } from './flow-statements.js';
 import type { ConnectResult, LineResult } from './types.js';
-import { indentOf } from './lines.js';
 
 export interface NodeDefInput {
   id: string;

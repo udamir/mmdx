@@ -12,8 +12,7 @@ import { el } from '../../../core/scene/build.js';
 import type { SceneNode } from '../../../core/scene/types.js';
 import type { ItemKind, ItemRef } from '../../../core/types.js';
 import { clearHighlight, hoverHighlight } from '../../../dom/highlight.js';
-import { h } from '../../../ui/h.js';
-import type { EditorCore, Gesture, Hit, Sel } from '../../core.js';
+import type { Gesture, Hit, Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { menuLinks, openLinkMenu } from '../../../view/link-menu.js';
 import { connectionCount, elementAt, inArea, itemLabel, LINE_KINDS, markSelection, samePrimary, selectable, selKey, sizeBadge } from './shared.js';
@@ -331,7 +330,7 @@ export const canvasSelectModule: EditorModule = {
     offs.push(core.addGestureSource({
       id: 'canvas-resize',
       priority: 100,
-      down(ev, hit) {
+      down(_ev, hit) {
         if (!editing() || readOnly() || hit.handle?.getAttribute('data-handle') !== 'resize') return null;
         return resizeGesture();
       },

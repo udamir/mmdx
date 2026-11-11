@@ -85,6 +85,7 @@ export const insertModule: EditorModule = {
         run: () => {
           if (!offersImage(kind())) return false;
           addImage();
+          return true;
         },
       },
       { id: 'insert-emoji', keys: ['mod+;'], label: t('help.emoji'), group: t('help.tools'), editOnly: true, hintOnly: true },

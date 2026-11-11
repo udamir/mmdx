@@ -18,7 +18,6 @@ import { own, ownOr } from '../core/own.js';
 import { opsKind, registeredKinds, reparse, withKind, withOps } from '../core/kinds/registry.js';
 import { detectType } from '../core/parse/dispatch.js';
 import { editorHasKind, loadEditorKind } from './kinds/loader.js';
-import { parse } from '../core/parse/index.js';
 import type { ClipboardData } from '../core/ops/clipboard.js';
 import { remapMeta } from '../core/ops/meta-ops.js';
 import { currentPreset, type StyleEnv } from '../core/ops/style-env.js';

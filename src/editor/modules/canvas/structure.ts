@@ -12,7 +12,7 @@ import {
 } from '../../../core/ops/index.js';
 import type { ItemRef } from '../../../core/types.js';
 import { MENU_CSS, openMenu, type MenuItem } from '../../../ui/blocks/menu.js';
-import type { EditorActions, EditorCore, Sel } from '../../core.js';
+import type { EditorActions, Sel } from '../../core.js';
 import { withEdit } from '../../kinds/registry.js';
 import type { EditorModule } from '../../module.js';
 import { canGroup as canGroupSel, groupResetState, resettableGroup, resetSelectedGroup } from '../../ops/group.js';

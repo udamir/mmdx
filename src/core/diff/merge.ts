@@ -29,7 +29,6 @@ export interface Merged {
   status: Map<string, ItemChange>;
 }
 
-const clone = <T extends object>(o: T): T => ({ ...o });
 
 function mergeMeta(a: DiagramMeta, b: DiagramMeta): DiagramMeta {
   const styles: DiagramMeta['styles'] = {};

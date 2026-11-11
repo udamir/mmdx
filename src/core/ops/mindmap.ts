@@ -12,7 +12,6 @@ import { setOwn } from '../own.js';
 import type { ItemRef } from '../types.js';
 import { withIconToken, type IsIconToken } from './icon-token.js';
 import type { CloneResult, CodeResult, LineResult, MoveResult, RefusableResult } from './types.js';
-import { maxOf } from '../geom.js';
 
 /** The text of a new node. */
 export const MIND_NEW = 'New idea';
@@ -123,8 +122,6 @@ const within = (model: MindmapModel, id: string, of: string): boolean => {
   return false;
 };
 
-/** The line a new last node of the map goes after (the last node's lines, else the header). */
-const lastLine = (model: MindmapModel): number => Math.max(model.header, maxOf([...model.nodes.values()].map((n) => n.endLine)));
 
 // ---- adding -------------------------------------------------------------------------------------------------------
 

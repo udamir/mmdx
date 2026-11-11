@@ -1,13 +1,11 @@
 // The sequence view kind: what drawing a sequence needs (the viewer loads it on demand, core bundles it in ALL_KINDS).
-import { activationsOf } from '../ids.js';
 import type { SequenceModel } from '../model.js';
-import type { SequenceGeometry } from '../render/types.js';
 import type { ItemRef } from '../types.js';
 import { emptySequence, parseSequence } from '../parse/sequence.js';
-import { renderSequence, seqPresets } from '../render/sequence.js';
-import type { Presets, ViewKind } from './types.js';
+import { renderSequence } from '../render/sequence.js';
+import type { ViewKind } from './types.js';
 
-export const VIEW: ViewKind<SequenceModel, SequenceGeometry> = {
+export const VIEW: ViewKind<SequenceModel> = {
   type: 'sequence',
   parse: parseSequence,
   empty: emptySequence,

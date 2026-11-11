@@ -263,6 +263,7 @@ export const shapesModule: EditorModule = {
       run: () => {
         if (!core.has('toggleShapesMenu')) return false;
         core.run('toggleShapesMenu');
+        return true;
       },
     });
 

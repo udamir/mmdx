@@ -137,7 +137,7 @@ export function align<T>(a: readonly T[], b: readonly T[], key: (x: T) => string
 }
 
 /** Removed + added nodes with the same label and shape (one candidate each way) are a rename. */
-export function renames<T>(goneIds: string[], newIds: string[], sig: (side: 'a' | 'b', id: string) => string): Map<string, string> {
+export function renames(goneIds: string[], newIds: string[], sig: (side: 'a' | 'b', id: string) => string): Map<string, string> {
   const bySig = (ids: string[], side: 'a' | 'b') => {
     const m = new Map<string, string[]>();
     for (const id of ids) m.set(sig(side, id), [...(m.get(sig(side, id)) ?? []), id]);

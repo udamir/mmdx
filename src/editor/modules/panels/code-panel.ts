@@ -34,7 +34,6 @@ function codeIssues(core: EditorCore): Issue[] {
   const M = core.model, code = core.code;
   if (!M.type && blankCode(code)) return [];
   const out: Issue[] = [];
-  const t = core.i18n.t;
   const diags: Diagnostic[] = core.result.diagnostics.filter((d) => d.source !== 'meta' && d.severity !== 'info');
   for (const d of diags) {
     const it: Issue = { line: d.range ? d.range.line + 1 : null, msg: d.message };

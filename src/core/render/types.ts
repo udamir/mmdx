@@ -5,7 +5,6 @@ import type { SceneNode } from '../scene/types.js';
 import type { FontSpec, TextMeasurer } from '../text/measure.js';
 import type { Diagnostic, ItemKind, Point, Rect } from '../types.js';
 import type { ImagePolicy, LinkPolicy, UrlResolver } from '../validate.js';
-import type { ResolvedTheme } from '../theme/types.js';
 
 /** Everything a renderer needs from its environment; instance-scoped, never global. */
 export interface RenderContext {

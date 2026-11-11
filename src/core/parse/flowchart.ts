@@ -1,7 +1,7 @@
 // Mermaid flowchart parser (the commonly used subset, A.9).
 // Line fields are 0-based whole lines; statements split by `;` share a line.
 import type {
-  BracketSpan, Direction, EdgeHead, EdgeLine, FlowConfig, FlowEdge, FlowGroup, FlowLink, FlowMention, FlowNode, FlowNodeData, FlowStatement, FlowchartModel,
+  BracketSpan, Direction, EdgeHead, EdgeLine, FlowConfig, FlowEdge, FlowGroup, FlowLink, FlowMention, FlowNode, FlowStatement, FlowchartModel,
   MermaidStyle, NodeShape,
 } from '../model.js';
 import { EXTENDED_NAMES } from '../shapes/names.js';

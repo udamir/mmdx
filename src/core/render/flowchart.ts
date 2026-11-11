@@ -4,7 +4,7 @@
 import { layered, type LayoutEdge, type LayoutNode } from '../layout/layered.js';
 import { ancestorsOf, layoutCompound, type CompoundContainer, type CompoundNode, type CompoundResult } from '../layout/compound.js';
 import { polylineCrosses, routeAround } from '../layout/route.js';
-import type { DiagramMeta, ItemMeta } from '../meta/types.js';
+import type { ItemMeta } from '../meta/types.js';
 import type { FlowEdge, FlowGroup, FlowNode, FlowchartModel, MermaidStyle } from '../model.js';
 import { el, g, title as tooltip } from '../scene/build.js';
 import type { SceneNode, TextRun } from '../scene/types.js';
@@ -16,13 +16,12 @@ import type { IconResolver } from '../text/rich.js';
 import type { FontSpec } from '../text/measure.js';
 import type { CenterBox, Point } from '../types.js';
 import {
-  assignPorts, baseStyle, cachedLayout, type PortLink, metaNum, metaPoints, type RenderEnv, type SubResult, byLine, countBy, Defs, edgePath, firstLine, font, haloLabel, hiddenOf, isSide, itemGroup,
-  itemLink, LINK_COLOR, linkAttr, mergeStyle, outerBox, pickStyle, presetOf, presets, shapeNodes, sideToward, stackedShapeNodes,
+  assignPorts, cachedLayout, type PortLink, metaNum, metaPoints, type RenderEnv, type SubResult, byLine, countBy, Defs, edgePath, firstLine, font, haloLabel, hiddenOf, isSide, itemGroup,
+  itemLink, LINK_COLOR, linkAttr, mergeStyle, outerBox, pickStyle, presetOf, sideToward, stackedShapeNodes,
   textBlock, urlRef, withLink,
 } from './common.js';
 import type { BoxGeom, EdgeGeom, FlowGeometry, Port } from './types.js';
 import { onOutline } from '../shapes/outline.js';
-import type { ResolvedTheme } from '../theme/types.js';
 import { shapeDef } from '../shapes/registry.js';
 import type { ShapeDef } from '../shapes/types.js';
 import type { Rect } from '../types.js';
@@ -30,7 +29,7 @@ import type { Rect } from '../types.js';
 // the presets and the edge metadata lookup live apart, so code that needs only them (the portable export, the editor's
 // base) does not load the renderer
 export { edgeMeta, edgePreset, flowPresets, groupPreset, nodePreset, presetShape, type FlowPresets } from './flow-presets.js';
-import { edgeMeta, edgePreset, flowPresets, groupPreset, nodePreset, type FlowPresets } from './flow-presets.js';
+import { edgeMeta, edgePreset, flowPresets, groupPreset, nodePreset } from './flow-presets.js';
 import { edgeStyleLayers, flowNodeShape, groupStyleLayers, nodeStyleLayers } from './flow-style.js';
 import { dashAttrs } from './dash.js';
 import { assetBox, captionY, mediaAssetNodes, mediaLayout, mediaPort, type MediaBox, type MediaSource } from './media-node.js';

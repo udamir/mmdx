@@ -10,7 +10,7 @@
 // first mention (`state c <<choice>>` after `a --> c` is ignored), its composite and region from the last mention
 // inside a composite, its title from the first text the code gives it and its description rows from the others; one
 // start and one end pseudo-state per scope (`[*]start`, `X/[*]end`, `X/2/[*]start` in X's second region).
-import type { Direction, MermaidStyle, StateBlock, StateEdge, StateGroup, StateKind, StateModel, StateNode, StateNote, StateText } from '../model.js';
+import type { Direction, MermaidStyle, StateBlock, StateEdge, StateGroup, StateKind, StateModel, StateNode } from '../model.js';
 import type { DiagnosticFix } from '../types.js';
 import { diag } from '../types.js';
 import { frontmatterValues } from './frontmatter.js';

@@ -82,7 +82,6 @@ export interface SetSourceOptions {
 export class DiagramEditor {
   readonly core: EditorCore;
   readonly store: DocStore;
-  private readonly shadow: ShadowRoot;
   private readonly o: EditorOptions;
   private readonly cleanups: (() => void)[] = [];
   private readonly ac = new AbortController();
@@ -108,7 +107,7 @@ export class DiagramEditor {
     this.core.fileName = v;
   }
 
-  constructor(private readonly host: HTMLElement, options: EditorOptions = {}) {
+  constructor(host: HTMLElement, options: EditorOptions = {}) {
     registerMessages(EDITOR_MESSAGES);
     registerMessages(TOOLBAR_MESSAGES);
     this.o = { ...options };
@@ -135,7 +134,6 @@ export class DiagramEditor {
     });
     this.core.uploadImage = options.uploadImage ?? null;
     this.core.images = options.images ?? null;
-    this.shadow = this.core.shadow;
     const core = this.core;
     const root = core.root;
     this.cleanups.push(() => core.destroy());
