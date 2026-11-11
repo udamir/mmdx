@@ -166,7 +166,7 @@ describe('DiffSession', () => {
     const { s } = session();
     await s.load({ history: versions });
     for (const v of versions) await s.sourceOf(v.id);
-    const sources = (s as unknown as { sources: { size: number; get(k: string): unknown } }).sources;
+    const sources = s.store.sources;
     expect(sources.size).toBe(16);
     expect(sources.get(s.pair.head!)).toBeDefined();
     expect(sources.get(s.pair.base!)).toBeDefined();

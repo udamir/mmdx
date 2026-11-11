@@ -7,26 +7,27 @@
 // `<mmdx-diff>` dispatches them as `mmdx-*` and History can route them as `mmdx-history-*`. Replaces the data, loading,
 // rendering and export half of elements/diff.ts.
 // Every load starts a generation: a list, a page, a source, a render or a change count that arrives for an older one is dropped.
+// The session is a facade (A13c): the versions, their sources and counts are a VersionStore, the exports a
+// DiffExporter, and what is shown one `shown` model (nothing, a version as it is, a comparison).
 import { contentId, staticHistory, type StaticVersion } from '../adapters/history.js';
 import type { DiffExportKind, DiffExportOptions, DiffFilter, DiffPair, DiffViewName } from '../view/history.js';
 import { type HistoryAdapter } from '../ports.js';
-import { getShared } from '../platform/config.js';
 import type { CoreContext } from '../core/context.js';
 import type { DiffView } from '../core/diff/annotate.js';
-import { diffDiagramsWith, type DiagramDiff as DiffResult, type DiffIgnore, type ItemChange } from '../core/diff/index.js';
+import type { DiagramDiff as DiffResult, DiffIgnore, ItemChange } from '../core/diff/index.js';
 import { changeKey } from '../core/diff/merge.js';
-import { diffSvg, renderDiffWith, type DiffHide, type DiffRendered, type DiffSvgOptions } from '../core/diff/render.js';
-import { diffReport, sourcePart, unifiedDiff, type VersionInfo } from '../core/diff/report.js';
-import { renderSourceWith, standaloneSvg, type PipelineOptions, type Rendered } from '../core/pipeline-core.js';
-import type { DiagramModel } from '../core/model.js';
-import { parseWith } from '../core/parse/dispatch.js';
+import { renderDiffWith, type DiffHide, type DiffRendered } from '../core/diff/render.js';
+import { sourcePart, type VersionInfo } from '../core/diff/report.js';
+import { renderSourceWith, type PipelineOptions, type Rendered } from '../core/pipeline-core.js';
 import { Lru } from '../core/text/measure.js';
 import type { Diagnostic } from '../core/types.js';
-import { nextIdle } from '../dom/idle.js';
 import { loadedKinds, renderShapes } from '../platform/kinds.js';
 import type { Translate } from '../ui/blocks/block.js';
 import { batch, computed, signal, type ReadSignal, type Signal } from '../reactive/signal.js';
+import { DiffExporter } from './exporter.js';
 import { loadKindsOf } from './kinds.js';
+import type { Shown } from './shown.js';
+import { VersionStore, type Counts } from './version-store.js';
 
 /** How long the document must rest before History follows it (a working copy row, a comparison that shows it). */
 const SOURCE_DEBOUNCE_MS = 150;
@@ -75,18 +76,19 @@ export interface DiffSessionOptions {
   dim?: boolean;
 }
 
-const EMPTY_COUNTS: DiffResult['counts'] = { added: 0, removed: 0, changed: 0, content: 0, layout: 0, style: 0 };
 const now = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
 export class DiffSession {
   // ---- versions
-  readonly versions: Signal<readonly VersionInfo[]> = signal<readonly VersionInfo[]>([]);
+  /** The versions, their sources and change counts. */
+  readonly store: VersionStore;
+  readonly versions: Signal<readonly VersionInfo[]>;
   /** Older versions can be loaded (`loadMore`). */
-  readonly hasMore = signal(false);
+  readonly hasMore: Signal<boolean>;
   /** A history was given (the version panel is available); two sources are a two-version history without it. */
-  readonly hasHistory = signal(false);
+  readonly hasHistory: Signal<boolean>;
   /** Bumped when a version's change count arrives (`counts(id)`). */
-  readonly countsRev = signal(0);
+  readonly countsRev: Signal<number>;
   readonly base = signal<string | null>(null);
   readonly head = signal<string | null>(null);
   readonly viewing = signal<string | null>(null);
@@ -95,6 +97,8 @@ export class DiffSession {
   readonly versionsShown = signal(false);
   /** True while one version is shown as it is (no diff, no diff controls). */
   readonly viewOnly: ReadSignal<boolean>;
+  /** What is shown: nothing, the viewed version as it is (History mode), or the compared pair. */
+  readonly shown: ReadSignal<Shown>;
 
   // ---- view, filters, selection
   readonly view: Signal<DiffViewName>;
@@ -117,18 +121,8 @@ export class DiffSession {
   readonly unsupported: ReadSignal<boolean>;
 
   private readonly o: DiffSessionOptions;
+  private readonly exporter: DiffExporter;
   private src: DiffSource | null = null;
-  private adapter: HistoryAdapter | null = null;
-  private unsubscribe: (() => void) | null = null;
-  private nextPage: string | undefined;
-  /** Versions' sources: the latest read, and always the shown ones (P12: every version read stayed). */
-  private readonly sources = new Lru<string, Promise<string>>(16, 16, (id) => this.shows(id));
-  /** Versions' parsed codes: a version's count and the next one's read the same model (P12: parsed twice). */
-  private readonly models = new Lru<string, DiagramModel>(16);
-  private readonly countMap = new Map<string, DiffResult['counts'] | null>();
-  /** The versions whose counts a row asked for (counts(): computed for the rows shown, P12). */
-  private readonly countsAsked = new Set<string>();
-  private countQueue: Promise<void> = Promise.resolve();
   private readonly cache = new Lru<string, DiffRendered>(8);
   /** Versions whose source changed since the last flush (sourceChanged, debounced). */
   private readonly changedSources = new Set<string>();
@@ -138,12 +132,13 @@ export class DiffSession {
   private refreshSeq = 0;
   /** The version `plain` renders. */
   private plainOf: string | null = null;
-  private more: Promise<void> | null = null;
   private refreshHandle: ReturnType<typeof setTimeout> | 0 = 0;
   private destroyed = false;
 
   constructor(o: DiffSessionOptions) {
     this.o = o;
+    this.store = new VersionStore({ gen: () => this.loadSeq, destroyed: () => this.destroyed, shows: (id) => this.shows(id), loadError: (e) => this.loadError(e) });
+    ({ versions: this.versions, hasMore: this.hasMore, hasHistory: this.hasHistory, countsRev: this.countsRev } = this.store);
     this.mode = signal<DiffMode>(o.mode ?? 'compare');
     this.view = signal<DiffViewName>(o.view ?? 'merged');
     this.dim = signal(o.dim ?? true);
@@ -151,6 +146,11 @@ export class DiffSession {
     this.ignore = signal<DiffIgnore>(f.ignore);
     this.hide = signal<DiffHide>(f.hide);
     this.viewOnly = computed(() => this.hasHistory() && this.versionsShown() && this.mode() === 'history');
+    this.shown = computed((): Shown => {
+      if (this.viewOnly()) return { kind: 'version', id: this.viewing() };
+      const base = this.base(), head = this.head();
+      return base && head ? { kind: 'compare', base, head } : { kind: 'none' };
+    });
     this.unsupported = computed(() => {
       const D = this.rendered();
       return !!D && !this.viewOnly() && (D.before.model.type === null || D.after.model.type === null) && !D.raw.typeChanged;
@@ -160,6 +160,14 @@ export class DiffSession {
       if (!D || this.viewOnly()) return '';
       return this.unsupported() ? o.t('diff.banner.unsupported') : D.raw.typeChanged ? o.t('diff.banner.typeChanged') : '';
     });
+    this.exporter = new DiffExporter({
+      shown: this.shown, base: this.base, head: this.head, viewing: this.viewing, rendered: this.rendered, view: this.view, dim: this.dim, ignore: this.ignore, versions: this.versions,
+      viewedPicture: () => {
+        const plain = this.plain.peek();
+        return plain && this.plainOf === this.viewing.peek() ? plain : null;
+      },
+      sourceOf: (id) => this.sourceOf(id),
+    }, o);
   }
 
   private static filterState(list: readonly DiffFilter[] | undefined): { ignore: DiffIgnore; hide: DiffHide } {
@@ -198,12 +206,8 @@ export class DiffSession {
    * Change counts of a version against the one before it (undefined: not computed yet; null: the first). Asking
    * starts the count in idle time; `countsRev` bumps when it arrives.
    */
-  counts(id: string): DiffResult['counts'] | null | undefined {
-    if (!this.countMap.has(id) && !this.countsAsked.has(id)) {
-      this.countsAsked.add(id);
-      this.queueCounts([id]);
-    }
-    return this.countMap.get(id);
+  counts(id: string): Counts | null | undefined {
+    return this.store.counts(id);
   }
 
   /** The version is in the shown pair or viewed. */
@@ -227,14 +231,10 @@ export class DiffSession {
     this.refreshSeq++;
     if (this.refreshHandle) clearTimeout(this.refreshHandle);
     this.refreshHandle = 0;
-    this.more = null;
     const t = this.o.t;
-    this.sources.clear();
-    this.models.clear();
-    this.countMap.clear();
-    this.countsAsked.clear();
+    const store = this.store;
+    store.reset();
     this.cache.clear();
-    this.countQueue = Promise.resolve();
     batch(() => {
       this.selected.set(null);
       this.rendered.set(null);
@@ -242,24 +242,19 @@ export class DiffSession {
     });
     try {
       if ('history' in s) {
-        this.adapter = Array.isArray(s.history) ? staticHistory(s.history as readonly StaticVersion[]) : (s.history as HistoryAdapter);
+        const adapter = Array.isArray(s.history) ? staticHistory(s.history as readonly StaticVersion[]) : (s.history as HistoryAdapter);
+        store.adapter = adapter;
         batch(() => {
           this.hasHistory.set(true);
           this.status.set({ kind: 'loading', text: t('diff.history.loading') });
         });
-        const page = await this.adapter.list();
+        const page = await adapter.list();
         if (seq !== this.loadSeq || this.destroyed) return;
-        this.nextPage = page.next;
-        batch(() => {
-          this.versions.set(page.versions);
-          this.hasMore.set(!!page.next);
-        });
-        this.unsubscribe?.();
-        this.unsubscribe = this.adapter.subscribe?.(() => void this.reloadHistory()) ?? null;
+        store.setPage(page.versions, page.next);
+        store.watch(() => void store.reloadHistory());
       } else {
         this.hasHistory.set(false);
-        this.unsubscribe?.();
-        this.unsubscribe = null;
+        store.unwatch();
         const [before, after] = await Promise.all([s.before, s.after]);
         if (seq !== this.loadSeq || this.destroyed) return;
         if (before === null || after === null) {
@@ -273,12 +268,8 @@ export class DiffSession {
           { id: contentId(`1\n${after}`), message: t('diff.view.after'), source: after },
           { id: contentId(`0\n${before}`), message: t('diff.view.before'), source: before },
         ];
-        this.adapter = staticHistory(list);
-        this.nextPage = undefined;
-        batch(() => {
-          this.versions.set(list.map(({ source: _s, ...v }) => v));
-          this.hasMore.set(false);
-        });
+        store.adapter = staticHistory(list);
+        store.setPage(list.map(({ source: _s, ...v }) => v), undefined);
       }
     } catch (e) {
       if (seq !== this.loadSeq || this.destroyed) return;
@@ -287,7 +278,7 @@ export class DiffSession {
     }
     if (this.o.pick === false && 'history' in s) {
       this.status.set(null);
-      this.queueCounts();
+      store.queueCounts();
       return;
     }
     const ids = this.versions.peek().map((v) => v.id);
@@ -301,7 +292,7 @@ export class DiffSession {
     });
     await this.refresh();
     if (seq !== this.loadSeq || this.destroyed) return;
-    this.queueCounts();
+    store.queueCounts();
   }
 
   /** Loads the same source again (Retry). */
@@ -330,7 +321,7 @@ export class DiffSession {
     const gen = this.loadSeq;
     const at = (): number => this.versions.peek().findIndex((v) => v.id === id);
     if (at() < 0) return;
-    if (!this.versions.peek()[at() + 1] && this.nextPage) {
+    if (!this.versions.peek()[at() + 1] && this.hasMore.peek()) {
       try {
         await this.loadMore();
       } catch (e) {
@@ -464,42 +455,12 @@ export class DiffSession {
 
   /** Older versions of a paged history (one request at a time; rejects when the page fails to load). */
   loadMore(): Promise<void> {
-    const adapter = this.adapter, cursor = this.nextPage;
-    if (!adapter || !cursor) return Promise.resolve();
-    if (this.more) return this.more;
-    const gen = this.loadSeq;
-    let p: Promise<void> | null = null;
-    p = (async () => {
-      try {
-        const page = await adapter.list(cursor);
-        if (gen !== this.loadSeq || this.destroyed) return;
-        const known = new Set(this.versions.peek().map((v) => v.id));
-        this.nextPage = page.next;
-        batch(() => {
-          this.versions.set([...this.versions.peek(), ...page.versions.filter((v) => !known.has(v.id))]);
-          this.hasMore.set(!!page.next);
-        });
-        this.queueCounts();
-      } finally {
-        if (this.more === p) this.more = null;
-      }
-    })();
-    this.more = p;
-    return p;
+    return this.store.loadMore();
   }
 
   /** A version's source (cached per load). */
   sourceOf(id: string | null): Promise<string> {
-    if (!id || !this.adapter) return Promise.resolve('');
-    let p = this.sources.get(id);
-    if (!p) {
-      p = this.adapter.load(id);
-      this.sources.set(id, p);
-      p.catch(() => {
-        if (this.sources.get(id) === p) this.sources.delete(id);
-      });
-    }
-    return p;
+    return this.store.sourceOf(id);
   }
 
   /**
@@ -521,36 +482,13 @@ export class DiffSession {
     const p = this.pair;
     let refresh = false;
     for (const id of ids) {
-      this.sources.delete(id);
-      this.countMap.delete(id);
-      for (const [i, v] of this.versions.peek().entries()) if (this.versions.peek()[i + 1]?.id === id) this.countMap.delete(v.id);
-      // asked again by the rows that show them
-      this.countsAsked.clear();
+      this.store.forget(id);
       // only the renders that show this version
       this.cache.deleteWhere((k) => k.split('|', 2).includes(id));
       if (p.base === id || p.head === id || p.viewing === id) refresh = true;
     }
-    const a = this.adapter;
-    // History's working copy: its row is updated here; any other history is read again
-    if (a && 'workingCopy' in a && typeof a.workingCopy === 'function') void this.updateWorkingCopy(a.workingCopy as () => Promise<VersionInfo | null>, ids);
-    else void this.reloadHistory();
+    this.store.refreshList(ids);
     if (refresh) this.scheduleRefresh();
-  }
-
-  /** Puts the working copy's row in the version list, or takes it out, without reading the history again. */
-  private async updateWorkingCopy(row: () => Promise<VersionInfo | null>, ids: readonly string[]): Promise<void> {
-    const gen = this.loadSeq;
-    let working: VersionInfo | null;
-    try {
-      working = await row();
-    } catch (e) {
-      if (gen === this.loadSeq && !this.destroyed) this.loadError(e);
-      return;
-    }
-    if (gen !== this.loadSeq || this.destroyed) return;
-    const rest = this.versions.peek().filter((v) => !ids.includes(v.id));
-    this.versions.set(working && ids.includes(working.id) ? [working, ...rest] : rest);
-    this.queueCounts();
   }
 
   /** The theme, the display settings or the registered themes changed: render again. */
@@ -572,87 +510,22 @@ export class DiffSession {
 
   /** Standalone SVG of a view (default: the current one), or of the viewed version in History mode. */
   toSvg(o: DiffExportOptions = {}): string {
-    if (this.viewOnly.peek()) {
-      // the viewed version once it is rendered, never the previous one under its name
-      const plain = this.plain.peek();
-      return plain && this.plainOf === this.viewing.peek() ? standaloneSvg(plain) : '';
-    }
-    const D = this.rendered.peek();
-    if (!D) return '';
-    const view = o.view ?? this.view.peek();
-    const t = this.o.t;
-    const label = (id: string | null, fallback: string): string => (id ? `${fallback} · ${id}` : fallback);
-    const so: DiffSvgOptions = {
-      view: view === 'merged' && !D.merged ? 'after' : view, dim: this.dim.peek(), highlights: o.highlights ?? true, legend: o.legend ?? true,
-      scheme: o.scheme ?? this.o.scheme(),
-      titles: { before: label(this.base.peek(), t('diff.view.before')), after: label(this.head.peek(), t('diff.view.after')) },
-    };
-    return diffSvg(D, so);
+    return this.exporter.toSvg(o);
   }
 
-  async toPng(o: DiffExportOptions = {}): Promise<Blob> {
-    const svg = this.toSvg(o);
-    if (!svg) throw new Error('Nothing rendered');
-    const m = /viewBox="[\d.-]+ [\d.-]+ ([\d.]+) ([\d.]+)"/.exec(svg);
-    const { fontsMissing, svgToPng, imagesMissing } = await import('../dom/export.js');
-    const bg = this.rendered.peek()?.after.result.page.background;
-    const res = await svgToPng(svg, Number(m?.[1] ?? 800), Number(m?.[2] ?? 600), { scale: Math.min(4, Math.max(1, o.scale ?? 2)), fonts: getShared().fonts, ...(bg && bg !== 'transparent' ? { background: bg } : {}) });
-    // the diff reports what its PNG drew without too, as the viewer and the editor do
-    if (res.missingFonts.length) this.o.emit('mmdx-error', { diagnostics: [fontsMissing(res.missingFonts)] });
-    if (res.missingImages) this.o.emit('mmdx-error', { diagnostics: [imagesMissing(res.missingImages)] });
-    return res.blob;
+  toPng(o: DiffExportOptions = {}): Promise<Blob> {
+    return this.exporter.toPng(o);
   }
 
   /** Builds an export and offers it to the host (`mmdx-export`, cancelable), else downloads it. */
-  async exportAs(kind: DiffExportKind, o: DiffExportOptions = {}): Promise<void> {
-    const name = this.fileName(kind, o);
-    let data: string | Blob;
-    let type = 'text/plain';
-    const D = this.rendered.peek();
-    switch (kind) {
-      case 'svg':
-        data = this.toSvg(o);
-        if (!data) return;
-        type = 'image/svg+xml';
-        break;
-      case 'png':
-        data = await this.toPng(o);
-        break;
-      case 'mmdx':
-      case 'mmd': {
-        const src = await this.versionSource(o.version);
-        data = kind === 'mmd' ? await this.portable(src) : src;
-        break;
-      }
-      case 'diff': {
-        if (!D) return;
-        const [a, b] = await Promise.all([this.sourceOf(this.base.peek()), this.sourceOf(this.head.peek())]);
-        data = unifiedDiff(a, b, { name: `${this.o.name()}.mmdx`, ...(o.filtered === false ? {} : { ignore: this.ignore.peek() }) });
-        type = 'text/x-diff';
-        break;
-      }
-      case 'json':
-      case 'md': {
-        if (!D) return;
-        const info = (id: string | null): VersionInfo | undefined => (id ? this.versions.peek().find((v) => v.id === id) : undefined);
-        const before = info(this.base.peek()), after = info(this.head.peek());
-        data = diffReport(o.filtered === false ? D.raw : D.diff, { format: kind === 'md' ? 'markdown' : 'json', name: this.o.name(), ...(before ? { before } : {}), ...(after ? { after } : {}) });
-        type = kind === 'md' ? 'text/markdown' : 'application/json';
-        break;
-      }
-      default:
-        return;
-    }
-    if (!this.o.emit('mmdx-export', { kind, name, data }, true)) return;
-    const { download } = await import('../dom/export.js');
-    download(name, data, type);
+  exportAs(kind: DiffExportKind, o: DiffExportOptions = {}): Promise<void> {
+    return this.exporter.exportAs(kind, o);
   }
 
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
-    this.unsubscribe?.();
-    this.unsubscribe = null;
+    this.store.destroy();
     if (this.refreshHandle) clearTimeout(this.refreshHandle);
     this.refreshHandle = 0;
     if (this.sourceTimer) clearTimeout(this.sourceTimer);
@@ -663,7 +536,7 @@ export class DiffSession {
 
   /** Renders the shown pair (or the viewed version) and emits `mmdx-compare` / `mmdx-render`. */
   async refresh(): Promise<void> {
-    if (this.destroyed || !this.adapter) return;
+    if (this.destroyed || !this.store.adapter) return;
     const seq = ++this.refreshSeq, gen = this.loadSeq;
     const stale = (): boolean => seq !== this.refreshSeq || gen !== this.loadSeq || this.destroyed;
     const t0 = now();
@@ -767,101 +640,6 @@ export class DiffSession {
   /** A load that leaves what is shown as it is failed (a page of the history read again): `mmdx-error` only. */
   private loadError(e: unknown): void {
     this.o.emit('mmdx-error', { diagnostics: [{ severity: 'error', code: 'load.failed', message: e instanceof Error ? e.message : String(e) }] });
-  }
-
-  /** Reads the first page of the history again (it changed); older pages loaded already stay. */
-  private async reloadHistory(): Promise<void> {
-    const adapter = this.adapter;
-    if (!adapter) return;
-    const gen = this.loadSeq;
-    let page: Awaited<ReturnType<HistoryAdapter['list']>>;
-    try {
-      page = await adapter.list();
-    } catch (e) {
-      if (gen === this.loadSeq && !this.destroyed) this.loadError(e);
-      return;
-    }
-    if (gen !== this.loadSeq || this.destroyed) return;
-    const old = this.versions.peek();
-    const last = page.versions.at(-1);
-    const from = last && page.next ? old.findIndex((v) => v.id === last.id) : -1;
-    const tail = from >= 0 ? old.slice(from + 1).filter((v) => !page.versions.some((n) => n.id === v.id)) : [];
-    if (!tail.length) this.nextPage = page.next;
-    batch(() => {
-      this.versions.set([...page.versions, ...tail]);
-      this.hasMore.set(!!this.nextPage);
-    });
-    this.queueCounts();
-  }
-
-  /**
-   * Change counts of the versions asked for (all asked so far: a newer page may give the last one its older
-   * version) against the one before each, one at a time in idle time (§8.6).
-   */
-  private queueCounts(ids: Iterable<string> = this.countsAsked): void {
-    if (!this.hasHistory.peek()) return;
-    const seq = this.loadSeq;
-    const list = this.versions.peek();
-    const want = new Set(ids);
-    for (let i = 0; i < list.length; i++) {
-      const v = list[i]!, older = list[i + 1];
-      if (!want.has(v.id) || this.countMap.has(v.id)) continue;
-      if (!older) {
-        if (!this.nextPage) {
-          this.countMap.set(v.id, null);
-          this.countsRev.update((n) => n + 1);
-        }
-        continue;
-      }
-      this.countQueue = this.countQueue.then(() => nextIdle(500)).then(async () => {
-        if (seq !== this.loadSeq || this.destroyed || this.countMap.has(v.id)) return;
-        const stale = (): boolean => seq !== this.loadSeq || this.destroyed;
-        let counts: DiffResult['counts'];
-        try {
-          const [a, b] = await Promise.all([this.sourceOf(older.id), this.sourceOf(v.id)]);
-          if (stale()) return;
-          await loadKindsOf(a, b);
-          if (stale()) return;
-          const kinds = loadedKinds();
-          counts = diffDiagramsWith(kinds, a, b, (code) => this.models.get(code) ?? (this.models.set(code, parseWith(code, kinds)), this.models.get(code)!)).counts;
-        } catch {
-          counts = { ...EMPTY_COUNTS };
-        }
-        if (stale()) return;
-        this.countMap.set(v.id, counts);
-        this.countsRev.update((n) => n + 1);
-      });
-    }
-  }
-
-  private fileName(kind: DiffExportKind, o: DiffExportOptions): string {
-    const stem = this.o.name();
-    const safe = (s: string | null): string => (s ?? '').replace(/[^\w.-]+/g, '_');
-    const viewOnly = this.viewOnly.peek();
-    if (kind === 'mmdx' || kind === 'mmd') return `${stem}-${safe(this.exportVersionId(o.version))}.${kind}`;
-    if (viewOnly && (kind === 'svg' || kind === 'png')) return `${stem}-${safe(this.viewing.peek())}.${kind}`;
-    const view = kind === 'svg' || kind === 'png' ? `-${o.view ?? this.view.peek()}` : '';
-    return `${stem}-${safe(this.base.peek())}..${safe(this.head.peek())}${view}.${kind}`;
-  }
-
-  /**
-   * The version a source export writes — one answer for its name and its content (B23): `before` / `after` the
-   * comparison's ends, `viewed` the version shown, none: the version shown when one is, else the after version.
-   */
-  private exportVersionId(which: DiffExportOptions['version']): string | null {
-    if (which === 'before') return this.base.peek();
-    if (which === 'after') return this.head.peek();
-    return which === 'viewed' || this.viewOnly.peek() ? this.viewing.peek() : this.head.peek();
-  }
-
-  private versionSource(which: DiffExportOptions['version']): Promise<string> {
-    return this.sourceOf(this.exportVersionId(which));
-  }
-
-  private async portable(src: string): Promise<string> {
-    const [{ toPortableMermaid }] = await Promise.all([import('../core/export/portable.js'), loadKindsOf(src)]);
-    const r = await renderShapes(() => renderSourceWith(loadedKinds(), src, this.o.ctx));
-    return toPortableMermaid(r.doc.code, r.doc.meta, r.model, r.theme, r.rctx.color);
   }
 }
 
