@@ -4,7 +4,7 @@
 // Component architecture §4: the viewer is the view kernel (ViewCore) with a TextScene (source text → async render)
 // and the viewer's modules — the editor's chrome (tool dock, zoom bar with help, view params), every piece behind a
 // control of the `controls` attribute.
-import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
+import { MmdxElement, readInlineSource, warnOnce, words, type AttrSpec, type Patch } from './base.js';
 import { fetchText } from '../adapters/fetch-text.js';
 import type { ThemeSource } from '../adapters/themes.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
@@ -347,8 +347,7 @@ export class DiagramViewer {
         return;
       }
     } else {
-      const script = this.host.querySelector(':scope > script[type="text/mermaid"], :scope > script[type="text/x-mermaid"]');
-      text = dedent((script?.textContent ?? this.host.getAttribute('data-source') ?? '').replace(/<\\\/(script)/gi, '</$1'));
+      text = readInlineSource(this.host) ?? '';
     }
     this.scene.setText(text);
     this.core.fire('document');
@@ -470,13 +469,7 @@ function sameOption(a: unknown, b: unknown): boolean {
   return Object.is(a, b);
 }
 
-/** Removes the common indentation of an inline `<script type="text/mermaid">` block. */
-export function dedent(s: string): string {
-  const lines = s.replace(/^\s*\n/, '').replace(/\s+$/, '').split('\n');
-  let ind = Infinity;
-  for (const l of lines) if (l.trim()) ind = Math.min(ind, /^[ \t]*/.exec(l)![0].length);
-  return Number.isFinite(ind) && ind > 0 ? lines.map((l) => l.slice(ind)).join('\n') : lines.join('\n');
-}
+export { dedent } from './base.js';
 
 export function defineViewer(name = 'mmdx-viewer'): void {
   if (typeof customElements !== 'undefined' && !customElements.get(name)) customElements.define(name, class extends MmdxViewerElement {});

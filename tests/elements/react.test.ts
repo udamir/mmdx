@@ -17,7 +17,7 @@ afterEach(() => document.body.replaceChildren());
 /** One mounted component: render() re-renders it with new props, as React would (layout effects after each render). */
 function fakeReact() {
   let refs: { current: unknown }[] = [], ri = 0;
-  let effects: { deps?: unknown[]; cleanup?: (() => void) | void }[] = [], ei = 0;
+  let effects: { deps?: unknown[] | undefined; cleanup?: (() => void) | void }[] = [], ei = 0;
   let node: HTMLElement | null = null;
   const pending: (() => void)[] = [];
   const React = {

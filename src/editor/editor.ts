@@ -7,7 +7,7 @@ import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import type { ImageStore } from '../adapters/images.js';
 import type { WheelMode } from '../dom/viewport.js';
 import { TOOLBAR_MESSAGES } from '../ui/messages/toolbar.js';
-import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from '../elements/base.js';
+import { MmdxElement, readInlineSource, warnOnce, words, type AttrSpec, type Patch } from '../elements/base.js';
 import type { DocumentAdapter } from '../adapters/documents.js';
 import type { StorageAdapter } from '../adapters/storage.js';
 import type { ThemeSource } from '../adapters/themes.js';
@@ -742,8 +742,8 @@ export class MmdxEditorElement extends MmdxElement<EditorOptions, DiagramEditor>
 
   protected create(o: EditorOptions): DiagramEditor {
     if (o.value === undefined && !o.adapter) {
-      const script = this.querySelector(':scope > script[type="text/mermaid"]');
-      if (script?.textContent) o.value = script.textContent.replace(/^\s*\n/, '');
+      const inline = readInlineSource(this);
+      if (inline) o.value = inline;
     }
     return new DiagramEditor(this, o);
   }

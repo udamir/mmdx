@@ -36,6 +36,36 @@ export function warnOnce(msg: string): void {
   console.warn(`[mmdx] ${msg}`);
 }
 
+// ---- inline sources: <script type="text/mermaid"> ----------------------------------------------------------------
+
+/**
+ * Text safe inside `<script type="text/mermaid">` (B17): `</script` would end the element, and `<!--` followed by
+ * `<script` would make the parser swallow the rest of the page, so `<!--`, `<script` and `</script` are broken with a
+ * backslash. `readInlineSource` takes the backslashes out again.
+ */
+export const scriptSafe = (s: string): string => s.replace(/<(!--|\/?script)/gi, '<\\$1');
+
+/** The reverse of `scriptSafe`. */
+export const scriptUnsafe = (s: string): string => s.replace(/<\\(!--|\/?script)/gi, '<$1');
+
+/** Removes the common indentation of an inline `<script type="text/mermaid">` block. */
+export function dedent(s: string): string {
+  const lines = s.replace(/^\s*\n/, '').trimEnd().split('\n');
+  let ind = Infinity;
+  for (const l of lines) if (l.trim()) ind = Math.min(ind, /^[ \t]*/.exec(l)![0].length);
+  return Number.isFinite(ind) && ind > 0 ? lines.map((l) => l.slice(ind)).join('\n') : lines.join('\n');
+}
+
+/**
+ * The source written inside an element (`<script type="text/mermaid">` or `text/x-mermaid`, else a `data-source`
+ * attribute): scriptSafe reversed and the common indentation removed — the same for the viewer and the editor (B17).
+ */
+export function readInlineSource(host: Element): string | null {
+  const script = host.querySelector(':scope > script[type="text/mermaid"], :scope > script[type="text/x-mermaid"]');
+  const raw = script?.textContent ?? host.getAttribute('data-source');
+  return raw == null ? null : dedent(scriptUnsafe(raw));
+}
+
 /** A space-separated list attribute (`controls`, `features`): the named entries; `none` is the empty list. */
 export const words = (v: string): string[] => (v === 'none' ? [] : v.split(/[\s,]+/).filter(Boolean));
 

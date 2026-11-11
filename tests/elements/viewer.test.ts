@@ -451,3 +451,25 @@ describe('host full screen', () => {
     el.remove();
   });
 });
+
+describe('inline sources round-trip (B17)', () => {
+  it('scriptSafe breaks </script, <script and <!--; the viewer and the editor read the text back as written', async () => {
+    const { scriptSafe, readInlineSource } = await import('../../src/elements/base.js');
+    const src = 'flowchart LR\n  a["</script> <!--<script> x"] --> b';
+    const safe = scriptSafe(src);
+    expect(safe).not.toMatch(/<\/script|<script|<!--/i);
+    const host = document.createElement('div');
+    host.innerHTML = `<script type="text/mermaid">\n    ${safe.split('\n').join('\n    ')}\n  </script>`;
+    expect(readInlineSource(host)).toBe(src);
+  });
+
+  it('the editor element opens an inline source as the viewer does', async () => {
+    const { defineEditor } = await import('../../src/editor/editor.js');
+    defineEditor();
+    const el = document.createElement('mmdx-editor');
+    el.innerHTML = '<script type="text/mermaid">\n    flowchart LR\n      a["<\\/script>"] --> b\n  </script>';
+    document.body.append(el);
+    expect((el as unknown as { getSource(): string }).getSource()).toContain('flowchart LR\n  a["</script>"] --> b');
+    el.remove();
+  });
+});

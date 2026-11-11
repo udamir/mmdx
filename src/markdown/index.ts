@@ -13,6 +13,9 @@ import { detectType } from '../core/parse/index.js';
 import { renderSource, standaloneSvg } from '../core/pipeline.js';
 import { escAttr } from '../core/scene/serialize.js';
 import type { ThemeFile } from '../core/theme/types.js';
+import { scriptSafe } from '../elements/base.js';
+
+export { scriptSafe };
 
 export interface MmdxMarkdownOptions {
   /** Force a theme for every diagram (default: each diagram's own, then baseline). */
@@ -30,8 +33,6 @@ export interface MmdxMarkdownOptions {
   iconPacks?: readonly IconPack[];
 }
 
-/** Text safe inside <script type="text/mermaid">: only `</script` needs breaking; the viewer reverses it. */
-export const scriptSafe = (s: string): string => s.replace(/<\/(script)/gi, '<\\/$1');
 
 /** The HTML for one diagram: `<mmdx-viewer …><svg data-mmdx-ssr …/><script type="text/mermaid">…</script></mmdx-viewer>`. */
 export function diagramHtml(source: string, opts: MmdxMarkdownOptions = {}, ctx: CoreContext = opts.ctx ?? createContext()): string {
