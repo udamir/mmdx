@@ -161,7 +161,7 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
     const room = loopRoom.get(x.e.id) ?? 0;
     return across(model.direction) ? { w: x.w, h: x.h + 2 * room } : { w: x.w + 2 * room, h: x.h };
   };
-  const CR = model.groups.size ? compoundLayout() : null;
+  const CR = model.groups.size ? erCompoundLayout(model, ctx, ents, groups, layoutSize) : null;
   const missing = [...ents.values()].filter((x) => Number.isNaN(x.x) || Number.isNaN(x.y));
   if (!CR && missing.length) {
     const ln: LayoutNode[] = missing.map((x) => ({ id: x.e.id, ...layoutSize(x), path: [] }));
@@ -180,16 +180,6 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
   }
 
   // ---- relations: to entities and to subgraphs (their frames)
-  interface RelItem {
-    r: ErRel;
-    m: ItemMeta;
-    st: StyleProps;
-    preset: string;
-    hidden: boolean;
-    points: [number, number][];
-    a: CenterBox;
-    b: CenterBox;
-  }
   const boxOf = (id: string): CenterBox | undefined => {
     const en = ents.get(id);
     if (en) return outerBox(en, en.st.stack);
@@ -247,7 +237,7 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
       pts: x.points.length ? x.points : [[rx + 56, b.y - dy - 22], [rx + 56, b.y + dy + 22]],
     };
   };
-  if (CR) routeAroundGroups(CR);
+  if (CR) routeErRels(CR, { groups, groupHidden, ents, vis, routed, autoEnd, routingOf, ports, replacePorts: () => (ports = placePorts()) });
 
   const relNodes: SceneNode[] = [], labelNodes: SceneNode[] = [], entNodes: SceneNode[] = [];
   const relGeom = new Map<string, EdgeGeom>();
@@ -318,22 +308,7 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
   }
 
   // ---- subgraph frames, outer first
-  const groupNodes: SceneNode[] = [];
-  for (const G of [...groups.values()].sort((a, b) => a.depth - b.depth || a.g.order - b.g.order)) {
-    if (groupHidden.has(G.g.id) || !Number.isFinite(G.box.x)) continue;
-    const { box, st } = G;
-    const href = itemLink(ctx, G.m.link);
-    const parts = stackedShapeNodes('rect', box, st);
-    if (G.title && st.titleSize) {
-      const pad = st.pad ?? 0;
-      const ty = box.y - box.h / 2 + (st.padTop ?? pad) / 2;
-      const left = st.titleAlign === 'left';
-      const to = { size: st.titleSize, weight: st.titleWeight, color: href ? LINK_COLOR : st.titleColor, family: st.fontFamily || family, anchor: left ? ('start' as const) : ('middle' as const), lh: 1.25, underline: !!href };
-      const tx = left ? box.x - box.w / 2 + pad : box.x;
-      parts.push(...withLink(href, G.title.rich && K ? (K as MediaKit).richText(G.title.rich, tx, ty, { ...to, measure: ctx.measure }) : [textBlock(G.title.lines, tx, ty, to)]));
-    }
-    groupNodes.push(itemGroup('group', G.g.id, 'group', parts, linkAttr(href)));
-  }
+  const groupNodes = drawErFrames(groups, groupHidden, ctx, family, K);
 
   const lineOf = (x: Ent): number => firstLine(x.e.defLine, x.e.lines);
   // a table being edited (table view, larger than its card) is drawn over its neighbours
@@ -384,125 +359,6 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
   const a11y = a11yOf(model);
   if (a11y) out.a11y = a11y;
   return out;
-
-  /**
-   * The compound layout's input (T11.6): entities as nodes (a hand-placed one fixed), subgraphs as containers (a frame
-   * placed by hand fixed, a kept top-left after "Reset positions"), relationships as edges (to a subgraph: its frame).
-   * A subgraph's `direction` is honoured unless a relationship from outside reaches an entity inside (Mermaid's rule).
-   */
-  function compoundLayout(): CompoundResult {
-    const parentOf = (id: string): string | null => model.entities.get(id)?.parent ?? model.groups.get(id)?.parent ?? null;
-    const within = (id: string, gid: string): boolean => {
-      const seen = new Set<string>();
-      for (let p: string | null = id; p && !seen.has(p); p = parentOf(p)) {
-        if (p === gid) return true;
-        seen.add(p);
-      }
-      return false;
-    };
-    const crossed = (gid: string): boolean => model.rels.some((r) => r.from !== gid && r.to !== gid && within(r.from, gid) !== within(r.to, gid));
-    const containers: CompoundContainer[] = [];
-    for (const G of groups.values()) {
-      const { g: gr, st, title, m: gm } = G;
-      const pad = st.pad ?? 14, padTop = st.padTop ?? pad;
-      const c: CompoundContainer = { id: gr.id, parent: gr.parent && groups.has(gr.parent) ? gr.parent : null, order: gr.line, pad };
-      if (gr.dir && !crossed(gr.id)) c.dir = gr.dir;
-      c.title = { w: G.titleW, h: title && st.titleSize ? padTop : pad };
-      const fx = metaNum(gm.x), fy = metaNum(gm.y), fw = metaNum(gm.w), fh = metaNum(gm.h);
-      if (fx !== undefined && fy !== undefined && fw && fh) c.fixed = { x: fx, y: fy, w: fw, h: fh };
-      else if (fx !== undefined && fy !== undefined) c.at = { x: fx, y: fy };
-      containers.push(c);
-    }
-    const cn: CompoundNode[] = [];
-    for (const x of ents.values()) {
-      const e = x.e;
-      const line = firstLine(e.defLine, e.lines);
-      const c: CompoundNode = { id: e.id, ...layoutSize(x), parent: e.parent && groups.has(e.parent) ? e.parent : null, order: Number.isFinite(line) ? line : e.order };
-      if (Number.isFinite(x.x) && Number.isFinite(x.y)) c.fixed = { x: x.x, y: x.y };
-      if (x.hidden) c.hidden = true;
-      cn.push(c);
-    }
-    const ce: CompoundEdge[] = model.rels.filter((r) => r.from !== r.to).map((r) => ({ id: r.id, from: r.from, to: r.to }));
-    const R = layoutCompound({ nodes: cn, containers, edges: ce }, { dir: model.direction, rankSep: 90, nodeSep: 60, padding: 14, margin: 60, placedGap: 80, cache: ctx.layoutCache });
-    for (const x of ents.values()) {
-      if (!R.auto.has(x.e.id)) continue;
-      const p = R.nodes.get(x.e.id)!;
-      x.x = p.x;
-      x.y = p.y;
-      x.auto = true;
-    }
-    for (const G of groups.values()) {
-      const r = R.containers.get(G.g.id);
-      if (r) G.box = { x: r.x + r.w / 2, y: r.y + r.h / 2, w: r.w, h: r.h, ...(metaNum(G.m.w) && metaNum(G.m.h) ? { fixed: true } : {}) };
-    }
-    return R;
-  }
-
-  /**
-   * A relationship between auto-placed ends must not cross a subgraph that holds neither end (T07.3, as the flowchart):
-   * through the points the layout kept free for it, else around the subgraphs in the way; the ports are placed again
-   * facing the first and last bend point. Relationships with bend points of their own are left alone.
-   */
-  function routeAroundGroups(R: CompoundResult): void {
-    const frames: { id: string; r: Rect }[] = [];
-    for (const [id, G] of groups) if (!groupHidden.has(id) && Number.isFinite(G.box.x)) frames.push({ id, r: { x: G.box.x - G.box.w / 2, y: G.box.y - G.box.h / 2, w: G.box.w, h: G.box.h } });
-    const holders = (id: string): string[] => (R.containers.has(id) ? [id, ...ancestorsOf(R.parent, id)] : ancestorsOf(R.parent, id));
-    const drawn = (x: RelItem, pts: readonly (readonly [number, number])[]): Point[] | null => {
-      const pp = ports.get(x.r.id), path = pp && edgePath(pp.a, pp.b, { routing: routingOf(x), curve: x.st.curve, points: pts });
-      return path ? Array.from({ length: 41 }, (_, i) => path.at(i / 40)) : null;
-    };
-    const straight = memoBy((x: RelItem) => drawn(x, [])); // sampled once for both passes (P7)
-    const asPairs = (pts: readonly Point[]): [number, number][] => pts.map((q) => [q.x, q.y]);
-    // tables too: a relationship to a subgraph or across one would otherwise cut through the tables between
-    const boxes: { id: string; r: Rect }[] = [];
-    for (const [id, x] of ents) if (!x.hidden && Number.isFinite(x.x)) boxes.push({ id, r: { x: x.x - x.w / 2, y: x.y - x.h / 2, w: x.w, h: x.h } });
-    const inGroup = (id: string, gid: string): boolean => groups.has(gid) && (ents.get(id)?.e.parent === gid || ancestorsOf(R.parent, id).includes(gid));
-    const todo = vis.filter((x) => !x.points.length && autoEnd(x.r.from) && autoEnd(x.r.to));
-    const obstacles = new Map<RelItem, Rect[]>();
-    for (const x of todo) {
-      const skip = new Set([...holders(x.r.from), ...holders(x.r.to)]);
-      const obs = frames.filter((f) => !skip.has(f.id)).map((f) => f.r);
-      const line = straight(x);
-      if (line) {
-        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-        for (const q of line) {
-          x0 = Math.min(x0, q.x);
-          y0 = Math.min(y0, q.y);
-          x1 = Math.max(x1, q.x);
-          y1 = Math.max(y1, q.y);
-        }
-        const near = { x: x0 - 60, y: y0 - 60, w: x1 - x0 + 120, h: y1 - y0 + 120 };
-        for (const b of boxes)
-          if (b.id !== x.r.from && b.id !== x.r.to && !inGroup(b.id, x.r.from) && !inGroup(b.id, x.r.to) && b.r.x < near.x + near.w && b.r.x + b.r.w > near.x && b.r.y < near.y + near.h && b.r.y + b.r.h > near.y) obs.push(b.r);
-      }
-      obstacles.set(x, obs);
-    }
-    for (const x of todo) {
-      const obs = obstacles.get(x)!;
-      const line = obs.length ? straight(x) : null;
-      if (!line || !polylineCrosses(line, obs)) continue;
-      const hint = R.edges.get(x.r.id)?.points ?? [];
-      const viaHint = hint.length ? drawn(x, asPairs(hint)) : null;
-      if (viaHint && !polylineCrosses(viaHint, obs)) {
-        routed.set(x.r.id, asPairs(hint));
-        continue;
-      }
-      const pp = ports.get(x.r.id);
-      const around = pp && routeAround(pp.a, pp.b, obs, 14);
-      if (around) routed.set(x.r.id, asPairs(around));
-    }
-    if (!routed.size) return;
-    ports = placePorts();
-    for (const x of todo) {
-      if (!routed.has(x.r.id)) continue;
-      const obs = obstacles.get(x)!;
-      const line = drawn(x, routed.get(x.r.id)!);
-      if (!line || !polylineCrosses(line, obs)) continue;
-      const pp = ports.get(x.r.id);
-      const around = pp && routeAround(pp.a, pp.b, obs, 24);
-      if (around) routed.set(x.r.id, asPairs(around));
-    }
-  }
 }
 
 /** Title of a card: link > `__title` highlight (colour, bold, underline; Q7) > style. */
@@ -737,4 +593,174 @@ function tableLayout(ctx: RenderContext, e: Entity, st: StyleProps, m: ItemMeta,
       return out;
     },
   };
+}
+
+
+interface RelItem {
+  r: ErRel;
+  m: ItemMeta;
+  st: StyleProps;
+  preset: string;
+  hidden: boolean;
+  points: [number, number][];
+  a: CenterBox;
+  b: CenterBox;
+}
+
+/**
+ * The compound layout's input (T11.6): entities as nodes (a hand-placed one fixed), subgraphs as containers (a frame
+ * placed by hand fixed, a kept top-left after "Reset positions"), relationships as edges (to a subgraph: its frame).
+ * A subgraph's `direction` is honoured unless a relationship from outside reaches an entity inside (Mermaid's rule).
+ */
+function erCompoundLayout(model: ErModel, ctx: RenderEnv['ctx'], ents: ReadonlyMap<string, Ent>, groups: ReadonlyMap<string, GroupItem>, layoutSize: (x: Ent) => { w: number; h: number }): CompoundResult {
+  const parentOf = (id: string): string | null => model.entities.get(id)?.parent ?? model.groups.get(id)?.parent ?? null;
+  const within = (id: string, gid: string): boolean => {
+    const seen = new Set<string>();
+    for (let p: string | null = id; p && !seen.has(p); p = parentOf(p)) {
+      if (p === gid) return true;
+      seen.add(p);
+    }
+    return false;
+  };
+  const crossed = (gid: string): boolean => model.rels.some((r) => r.from !== gid && r.to !== gid && within(r.from, gid) !== within(r.to, gid));
+  const containers: CompoundContainer[] = [];
+  for (const G of groups.values()) {
+    const { g: gr, st, title, m: gm } = G;
+    const pad = st.pad ?? 14, padTop = st.padTop ?? pad;
+    const c: CompoundContainer = { id: gr.id, parent: gr.parent && groups.has(gr.parent) ? gr.parent : null, order: gr.line, pad };
+    if (gr.dir && !crossed(gr.id)) c.dir = gr.dir;
+    c.title = { w: G.titleW, h: title && st.titleSize ? padTop : pad };
+    const fx = metaNum(gm.x), fy = metaNum(gm.y), fw = metaNum(gm.w), fh = metaNum(gm.h);
+    if (fx !== undefined && fy !== undefined && fw && fh) c.fixed = { x: fx, y: fy, w: fw, h: fh };
+    else if (fx !== undefined && fy !== undefined) c.at = { x: fx, y: fy };
+    containers.push(c);
+  }
+  const cn: CompoundNode[] = [];
+  for (const x of ents.values()) {
+    const e = x.e;
+    const line = firstLine(e.defLine, e.lines);
+    const c: CompoundNode = { id: e.id, ...layoutSize(x), parent: e.parent && groups.has(e.parent) ? e.parent : null, order: Number.isFinite(line) ? line : e.order };
+    if (Number.isFinite(x.x) && Number.isFinite(x.y)) c.fixed = { x: x.x, y: x.y };
+    if (x.hidden) c.hidden = true;
+    cn.push(c);
+  }
+  const ce: CompoundEdge[] = model.rels.filter((r) => r.from !== r.to).map((r) => ({ id: r.id, from: r.from, to: r.to }));
+  const R = layoutCompound({ nodes: cn, containers, edges: ce }, { dir: model.direction, rankSep: 90, nodeSep: 60, padding: 14, margin: 60, placedGap: 80, cache: ctx.layoutCache });
+  for (const x of ents.values()) {
+    if (!R.auto.has(x.e.id)) continue;
+    const p = R.nodes.get(x.e.id)!;
+    x.x = p.x;
+    x.y = p.y;
+    x.auto = true;
+  }
+  for (const G of groups.values()) {
+    const r = R.containers.get(G.g.id);
+    if (r) G.box = { x: r.x + r.w / 2, y: r.y + r.h / 2, w: r.w, h: r.h, ...(metaNum(G.m.w) && metaNum(G.m.h) ? { fixed: true } : {}) };
+  }
+  return R;
+}
+
+type Ports = ReturnType<typeof assignPorts>;
+
+/** What routing around subgraphs reads, and how it places the ports again (5.8, R1). */
+interface ErRoute {
+  groups: ReadonlyMap<string, GroupItem>;
+  groupHidden: ReadonlySet<string>;
+  ents: ReadonlyMap<string, Ent>;
+  vis: readonly RelItem[];
+  routed: Map<string, [number, number][]>;
+  autoEnd: (id: string) => boolean;
+  routingOf: (x: RelItem) => string;
+  ports: Ports;
+  /** Places the ports again (facing the new bend points) and returns them. */
+  replacePorts(): Ports;
+}
+
+/**
+ * A relationship between auto-placed ends must not cross a subgraph that holds neither end (T07.3, as the flowchart):
+ * through the points the layout kept free for it, else around the subgraphs in the way; the ports are placed again
+ * facing the first and last bend point. Relationships with bend points of their own are left alone.
+ */
+function routeErRels(R: CompoundResult, c: ErRoute): void {
+  const { groups, groupHidden, ents, vis, routed, autoEnd, routingOf } = c;
+  let ports = c.ports;
+  const frames: { id: string; r: Rect }[] = [];
+  for (const [id, G] of groups) if (!groupHidden.has(id) && Number.isFinite(G.box.x)) frames.push({ id, r: { x: G.box.x - G.box.w / 2, y: G.box.y - G.box.h / 2, w: G.box.w, h: G.box.h } });
+  const holders = (id: string): string[] => (R.containers.has(id) ? [id, ...ancestorsOf(R.parent, id)] : ancestorsOf(R.parent, id));
+  const drawn = (x: RelItem, pts: readonly (readonly [number, number])[]): Point[] | null => {
+    const pp = ports.get(x.r.id), path = pp && edgePath(pp.a, pp.b, { routing: routingOf(x), curve: x.st.curve, points: pts });
+    return path ? Array.from({ length: 41 }, (_, i) => path.at(i / 40)) : null;
+  };
+  const straight = memoBy((x: RelItem) => drawn(x, [])); // sampled once for both passes (P7)
+  const asPairs = (pts: readonly Point[]): [number, number][] => pts.map((q) => [q.x, q.y]);
+  // tables too: a relationship to a subgraph or across one would otherwise cut through the tables between
+  const boxes: { id: string; r: Rect }[] = [];
+  for (const [id, x] of ents) if (!x.hidden && Number.isFinite(x.x)) boxes.push({ id, r: { x: x.x - x.w / 2, y: x.y - x.h / 2, w: x.w, h: x.h } });
+  const inGroup = (id: string, gid: string): boolean => groups.has(gid) && (ents.get(id)?.e.parent === gid || ancestorsOf(R.parent, id).includes(gid));
+  const todo = vis.filter((x) => !x.points.length && autoEnd(x.r.from) && autoEnd(x.r.to));
+  const obstacles = new Map<RelItem, Rect[]>();
+  for (const x of todo) {
+    const skip = new Set([...holders(x.r.from), ...holders(x.r.to)]);
+    const obs = frames.filter((f) => !skip.has(f.id)).map((f) => f.r);
+    const line = straight(x);
+    if (line) {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const q of line) {
+        x0 = Math.min(x0, q.x);
+        y0 = Math.min(y0, q.y);
+        x1 = Math.max(x1, q.x);
+        y1 = Math.max(y1, q.y);
+      }
+      const near = { x: x0 - 60, y: y0 - 60, w: x1 - x0 + 120, h: y1 - y0 + 120 };
+      for (const b of boxes)
+        if (b.id !== x.r.from && b.id !== x.r.to && !inGroup(b.id, x.r.from) && !inGroup(b.id, x.r.to) && b.r.x < near.x + near.w && b.r.x + b.r.w > near.x && b.r.y < near.y + near.h && b.r.y + b.r.h > near.y) obs.push(b.r);
+    }
+    obstacles.set(x, obs);
+  }
+  for (const x of todo) {
+    const obs = obstacles.get(x)!;
+    const line = obs.length ? straight(x) : null;
+    if (!line || !polylineCrosses(line, obs)) continue;
+    const hint = R.edges.get(x.r.id)?.points ?? [];
+    const viaHint = hint.length ? drawn(x, asPairs(hint)) : null;
+    if (viaHint && !polylineCrosses(viaHint, obs)) {
+      routed.set(x.r.id, asPairs(hint));
+      continue;
+    }
+    const pp = ports.get(x.r.id);
+    const around = pp && routeAround(pp.a, pp.b, obs, 14);
+    if (around) routed.set(x.r.id, asPairs(around));
+  }
+  if (!routed.size) return;
+  ports = c.replacePorts();
+  for (const x of todo) {
+    if (!routed.has(x.r.id)) continue;
+    const obs = obstacles.get(x)!;
+    const line = drawn(x, routed.get(x.r.id)!);
+    if (!line || !polylineCrosses(line, obs)) continue;
+    const pp = ports.get(x.r.id);
+    const around = pp && routeAround(pp.a, pp.b, obs, 24);
+    if (around) routed.set(x.r.id, asPairs(around));
+  }
+}
+
+/** The subgraph frames, outer first, with their titles. */
+function drawErFrames(groups: ReadonlyMap<string, GroupItem>, groupHidden: ReadonlySet<string>, ctx: RenderEnv['ctx'], family: string, K: MediaKit | null): SceneNode[] {
+const groupNodes: SceneNode[] = [];
+for (const G of [...groups.values()].sort((a, b) => a.depth - b.depth || a.g.order - b.g.order)) {
+  if (groupHidden.has(G.g.id) || !Number.isFinite(G.box.x)) continue;
+  const { box, st } = G;
+  const href = itemLink(ctx, G.m.link);
+  const parts = stackedShapeNodes('rect', box, st);
+  if (G.title && st.titleSize) {
+    const pad = st.pad ?? 0;
+    const ty = box.y - box.h / 2 + (st.padTop ?? pad) / 2;
+    const left = st.titleAlign === 'left';
+    const to = { size: st.titleSize, weight: st.titleWeight, color: href ? LINK_COLOR : st.titleColor, family: st.fontFamily || family, anchor: left ? ('start' as const) : ('middle' as const), lh: 1.25, underline: !!href };
+    const tx = left ? box.x - box.w / 2 + pad : box.x;
+    parts.push(...withLink(href, G.title.rich && K ? (K as MediaKit).richText(G.title.rich, tx, ty, { ...to, measure: ctx.measure }) : [textBlock(G.title.lines, tx, ty, to)]));
+  }
+  groupNodes.push(itemGroup('group', G.g.id, 'group', parts, linkAttr(href)));
+}
+  return groupNodes;
 }
