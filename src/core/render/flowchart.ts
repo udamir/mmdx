@@ -19,6 +19,7 @@ import {
   assignPorts, cachedLayout, type PortLink, metaNum, metaPoints, type RenderEnv, type SubResult, byLine, countBy, Defs, edgePath, firstLine, font, haloLabel, hiddenOf, isSide, itemGroup,
   itemLink, LINK_COLOR, linkAttr, mergeStyle, outerBox, pickStyle, presetOf, sideToward, stackedShapeNodes,
   textBlock, urlRef, withLink,
+  memoBy,
 } from './common.js';
 import type { BoxGeom, EdgeGeom, FlowGeometry, Port } from './types.js';
 import { onOutline } from '../shapes/outline.js';
@@ -663,6 +664,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
       const path = edgePath(onShape(x.e.from, x.a, pp.a), onShape(x.e.to, x.b, pp.b), { ...routingOf(x), points: pts });
       return Array.from({ length: 41 }, (_, i) => path.at(i / 40));
     };
+    const straight = memoBy((x: EdgeItem) => drawn(x, [])); // sampled once for both passes (P7)
     const ends = (x: EdgeItem): [Point, Point] | null => {
       const pp = ports.get(x.e.id);
       return pp ? [onShape(x.e.from, x.a, pp.a), onShape(x.e.to, x.b, pp.b)] : null;
@@ -678,7 +680,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     for (const x of todo) {
       const obs = obstaclesOf(x);
       if (parentOf(x.e.from) !== parentOf(x.e.to)) {
-        const line = drawn(x, []);
+        const line = straight(x);
         if (line) {
           let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
           for (const q of line) {
@@ -703,7 +705,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     }
     for (const x of todo) {
       const obs = obstacles.get(x)!;
-      const line = obs.length ? drawn(x, []) : null;
+      const line = obs.length ? straight(x) : null;
       if (!line || !polylineCrosses(line, obs)) continue;
       const hint = R.edges.get(x.e.id)?.points ?? [];
       const viaHint = hint.length ? drawn(x, asPairs(hint)) : null;

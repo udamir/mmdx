@@ -8,6 +8,7 @@ import { mergeLayers, type Side, type StyleProps } from '../style.js';
 import type { FontSpec } from '../text/measure.js';
 import type { CenterBox, Diagnostic, ItemKind, Point, Rect } from '../types.js';
 import { cleanDash, cleanFontFamily, resolveContentUrl, safeUrl, toNumber, type SafeUrl } from '../validate.js';
+import { hash } from '../layout/hash.js';
 import type { LayeredOptions, LayoutEdge, LayoutNode } from '../layout/layered.js';
 import type { CanvasMeta, DiagramMeta } from '../meta/types.js';
 import type { ResolvedTheme } from '../theme/types.js';
@@ -493,9 +494,58 @@ function pathThrough(p1: Port, p2: Port, pts: Point[], routing: string, curve: n
   const cum = [0];
   for (let i = 1; i < dense.length; i++) cum.push(cum[i - 1]! + Math.hypot(dense[i]!.x - dense[i - 1]!.x, dense[i]!.y - dense[i - 1]!.y));
   const total = cum[cum.length - 1] || 1;
-  const atLen = (L: number): Point => polylinePoint(dense, Math.max(0, Math.min(1, L / total)));
+  const atLen = (L: number): Point => pointAlong(dense, cum, Math.max(0, Math.min(1, L / total)) * cum[cum.length - 1]!);
   const mids = vAt.slice(0, -1).map((ia, i) => atLen((cum[ia]! + cum[vAt[i + 1]!]!) / 2));
   return { d, at: (t) => atLen(t * total), mids };
+}
+
+/** `f` computed once per argument. */
+export function memoBy<K, V>(f: (k: K) => V): (k: K) => V {
+  const m = new Map<K, V>();
+  return (k) => {
+    if (!m.has(k)) m.set(k, f(k));
+    return m.get(k) as V;
+  };
+}
+
+/** The point `L` along a polyline whose running lengths are `cum`: a binary search (P22: `at` is called per sample). */
+function pointAlong(pts: readonly Point[], cum: readonly number[], L: number): Point {
+  if (pts.length < 2) return pts[0] ? { x: pts[0].x, y: pts[0].y } : { x: 0, y: 0 };
+  let lo = 1, hi = pts.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (cum[mid]! >= L) hi = mid;
+    else lo = mid + 1;
+  }
+  const a = pts[lo - 1]!, b = pts[lo]!, s = cum[lo]! - cum[lo - 1]!;
+  const k = s ? (L - cum[lo - 1]!) / s : 0;
+  return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k };
+}
+
+/**
+ * The boxes placed so far in a coarse grid, to ask whether a rect overlaps any (P22: a label tried against every
+ * state and label is quadratic). Overlap is strict, as touching boxes do not cover each other.
+ */
+export function boxGrid(cell = 160): { add(b: CenterBox): void; hits(r: Rect): boolean } {
+  const cells = new Map<string, CenterBox[]>();
+  const big: CenterBox[] = [];
+  const range = (lo: number, hi: number): [number, number] => [Math.floor(lo / cell), Math.floor(hi / cell)];
+  const over = (r: Rect, b: CenterBox): boolean => r.x < b.x + b.w / 2 && r.x + r.w > b.x - b.w / 2 && r.y < b.y + b.h / 2 && r.y + r.h > b.y - b.h / 2;
+  return {
+    add(b) {
+      if (![b.x, b.y, b.w, b.h].every(Number.isFinite)) return;
+      const [x0, x1] = range(b.x - b.w / 2, b.x + b.w / 2), [y0, y1] = range(b.y - b.h / 2, b.y + b.h / 2);
+      if ((x1 - x0 + 1) * (y1 - y0 + 1) > 64) return void big.push(b);
+      for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) (cells.get(`${cx},${cy}`) ?? cells.set(`${cx},${cy}`, []).get(`${cx},${cy}`)!).push(b);
+    },
+    hits(r) {
+      for (const b of big) if (over(r, b)) return true;
+      const [x0, x1] = range(r.x, r.x + r.w), [y0, y1] = range(r.y, r.y + r.h);
+      if ((x1 - x0 + 1) * (y1 - y0 + 1) > 4096) return [...cells.values()].some((l) => l.some((b) => over(r, b)));
+      for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) for (const b of cells.get(`${cx},${cy}`) ?? []) if (over(r, b)) return true;
+      return false;
+    },
+  };
 }
 
 function edgePathPlain(p1: Port, p2: Port, routing: string, curve: number, radius: number): Omit<EdgePath, 'mids'> {
@@ -627,7 +677,7 @@ export function cachedLayout(
 ): Map<string, Point> {
   const cache = ctx.layoutCache;
   if (!cache) return run();
-  const key = JSON.stringify([nodes, edges, opts]);
+  const key = 'layered' + hash(JSON.stringify([nodes, edges, opts]));
   const hit = cache.get(key);
   if (hit) return hit;
   const pos = run();

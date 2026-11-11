@@ -50,7 +50,7 @@ const resolvers = new WeakMap<CoreContext, { theme: ResolvedTheme; palette: stri
 /** The render context for one theme and diagram palette, with the instance's bounded layout cache. */
 export function renderContext(ctx: CoreContext, theme: ResolvedTheme, doc: DiagramDocument): RenderContext {
   let cache = layoutCaches.get(ctx);
-  if (!cache) layoutCaches.set(ctx, (cache = new Lru(64)));
+  if (!cache) layoutCaches.set(ctx, (cache = new Lru(64, 8192)));
   // resolved themes are not changed in place (the registry makes a new one), so the object tells a theme apart
   const palette = diagramPaletteOf(doc.meta.styles), key = JSON.stringify(palette);
   let c = resolvers.get(ctx);

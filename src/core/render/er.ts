@@ -22,6 +22,7 @@ import {
   assignPorts, baseStyle, byLine, cachedLayout, countBy, crowFoot, edgePath, firstLine, font, haloLabel, hiddenOf, isSide,
   itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle, metaNum, metaPoints, outerBox, pickStyle, presetOf,
   sideToward, stackedShapeNodes, textBlock, withLink, type PortLink, type RenderEnv, type SubResult,
+  memoBy,
 } from './common.js';
 import type { BoxGeom, EdgeGeom, ErGeometry, Port, RenderContext } from './types.js';
 import { dashAttrs } from './dash.js';
@@ -490,11 +491,10 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
     for (const [id, G] of groups) if (!groupHidden.has(id) && Number.isFinite(G.box.x)) frames.push({ id, r: { x: G.box.x - G.box.w / 2, y: G.box.y - G.box.h / 2, w: G.box.w, h: G.box.h } });
     const holders = (id: string): string[] => (R.containers.has(id) ? [id, ...ancestorsOf(R.parent, id)] : ancestorsOf(R.parent, id));
     const drawn = (x: RelItem, pts: readonly (readonly [number, number])[]): Point[] | null => {
-      const pp = ports.get(x.r.id);
-      if (!pp) return null;
-      const path = edgePath(pp.a, pp.b, { routing: routingOf(x), curve: x.st.curve, points: pts });
-      return Array.from({ length: 41 }, (_, i) => path.at(i / 40));
+      const pp = ports.get(x.r.id), path = pp && edgePath(pp.a, pp.b, { routing: routingOf(x), curve: x.st.curve, points: pts });
+      return path ? Array.from({ length: 41 }, (_, i) => path.at(i / 40)) : null;
     };
+    const straight = memoBy((x: RelItem) => drawn(x, [])); // sampled once for both passes (P7)
     const asPairs = (pts: readonly Point[]): [number, number][] => pts.map((q) => [q.x, q.y]);
     // tables too: a relationship to a subgraph or across one would otherwise cut through the tables between
     const boxes: { id: string; r: Rect }[] = [];
@@ -505,7 +505,7 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
     for (const x of todo) {
       const skip = new Set([...holders(x.r.from), ...holders(x.r.to)]);
       const obs = frames.filter((f) => !skip.has(f.id)).map((f) => f.r);
-      const line = drawn(x, []);
+      const line = straight(x);
       if (line) {
         let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
         for (const q of line) {
@@ -522,7 +522,7 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
     }
     for (const x of todo) {
       const obs = obstacles.get(x)!;
-      const line = obs.length ? drawn(x, []) : null;
+      const line = obs.length ? straight(x) : null;
       if (!line || !polylineCrosses(line, obs)) continue;
       const hint = R.edges.get(x.r.id)?.points ?? [];
       const viaHint = hint.length ? drawn(x, asPairs(hint)) : null;

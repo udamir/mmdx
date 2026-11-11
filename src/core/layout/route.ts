@@ -2,7 +2,8 @@
 // line as drawn (sample points) and the containers in the way, `routeAround` finds the shortest polyline between the
 // two ends that keeps outside every obstacle grown by a margin (a visibility graph over the grown boxes' corners,
 // Dijkstra), whose inner points become the connector's bend points. Kind-independent and deterministic (ties go to the
-// lower index). Containers are few, so the graph is small; a line that crosses nothing is never routed.
+// lower index). The graph grows from the obstacles the line meets, so it stays small; a line that crosses nothing is never
+// routed.
 import type { Point, Rect } from '../types.js';
 
 /** Whether segment a–b passes through the inside of r (touching its border does not count). */
@@ -39,22 +40,48 @@ const inside = (p: Point, r: Rect): boolean => p.x > r.x && p.x < r.x + r.w && p
 /**
  * The bend points of the shortest way from `a` to `b` around the obstacles grown by `margin` (null: no way around, or
  * none needed). An obstacle holding an end is left out (the end is inside it already).
+ *
+ * The graph holds only the obstacles the way meets (P7: a renderer passes every box near the line): those across the
+ * straight line, then any the way found crosses, until it crosses none. That way is the shortest among all the
+ * obstacles too, since more obstacles only make a way longer.
  */
 export function routeAround(a: Point, b: Point, obstacles: readonly Rect[], margin = 16): Point[] | null {
   const grown = obstacles.map((r) => grow(r, margin)).filter((r) => !inside(a, r) && !inside(b, r));
   if (!grown.length) return null;
   // the walls a leg must not cross: the grown boxes less a little, so a leg along a grown box's side is fine
   const walls = grown.map((r) => grow(r, -1));
+  const used = new Set<number>();
+  walls.forEach((w, i) => segmentCrosses(a, b, w, 0) && used.add(i));
+  if (!used.size) return null;
+  for (;;) {
+    const ids = [...used].sort((x, y) => x - y);
+    const path = shortestWay(a, b, ids.map((i) => grown[i]!), ids.map((i) => walls[i]!));
+    if (!path) return null;
+    const pts = [a, ...path, b];
+    let more = false;
+    walls.forEach((w, i) => {
+      if (used.has(i)) return;
+      for (let k = 1; k < pts.length; k++)
+        if (segmentCrosses(pts[k - 1]!, pts[k]!, w, 0)) {
+          used.add(i);
+          more = true;
+          return;
+        }
+    });
+    if (!more) return path.length ? path : null;
+  }
+}
+
+/** Dijkstra over the visibility graph of the grown boxes' corners (dense: O(V²) with V = 2 + 4 × boxes). */
+function shortestWay(a: Point, b: Point, grown: readonly Rect[], walls: readonly Rect[]): Point[] | null {
   const clear = (p: Point, q: Point): boolean => {
     for (const w of walls) if (segmentCrosses(p, q, w, 0)) return false;
     return true;
   };
-  if (clear(a, b)) return null;
   const V: Point[] = [a, b];
   for (const r of grown)
     for (const c of [{ x: r.x, y: r.y }, { x: r.x + r.w, y: r.y }, { x: r.x + r.w, y: r.y + r.h }, { x: r.x, y: r.y + r.h }])
       if (!walls.some((w) => inside(c, w))) V.push(c);
-  // Dijkstra over the visibility graph (dense: O(V²) with V = 2 + 4 × obstacles)
   const n = V.length;
   const dist = new Array<number>(n).fill(Infinity), prev = new Array<number>(n).fill(-1), done = new Array<boolean>(n).fill(false);
   dist[0] = 0;
@@ -75,5 +102,5 @@ export function routeAround(a: Point, b: Point, obstacles: readonly Rect[], marg
   if (dist[1] === Infinity) return null;
   const path: Point[] = [];
   for (let v = prev[1]!; v > 0; v = prev[v]!) path.unshift(V[v]!);
-  return path.length ? path : null;
+  return path;
 }

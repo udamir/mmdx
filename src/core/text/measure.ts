@@ -17,7 +17,22 @@ export interface TextMeasurer {
 /** Bounded LRU used by measurers and layout caches (the prototype's caches were unbounded). */
 export class Lru<K, V> {
   private readonly map = new Map<K, V>();
-  constructor(private readonly max: number) {}
+  private max: number;
+  /** @param limit the most `reserve` grows it to */
+  constructor(private readonly base: number, private readonly limit = base) {
+    this.max = base;
+  }
+  /**
+   * Sizes the cache for the diagram being drawn: at least the base, at most the limit. A layout that walks its
+   * entries in a fixed order thrashes a smaller cache (each miss evicts the next entry it needs).
+   */
+  reserve(n: number): void {
+    this.max = Math.max(this.base, Math.min(n, this.limit));
+    for (const k of this.map.keys()) {
+      if (this.map.size <= this.max) break;
+      this.map.delete(k);
+    }
+  }
   get(k: K): V | undefined {
     const v = this.map.get(k);
     if (v !== undefined) {

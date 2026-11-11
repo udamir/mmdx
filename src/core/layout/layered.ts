@@ -211,9 +211,15 @@ export function layered(nodes: readonly LayoutNode[], edges: readonly LayoutEdge
       }
       return [bc.get(id)!, id];
     };
+    // each id's keys once, not per comparison (P22); past its path a key stays the id's own
+    const keys = new Map(L.map((id) => [id, Array.from({ length: Math.min(6, pathOf(id).length + 1) }, (_, d) => key(id, d))]));
+    const keyAt = (id: string, d: number): [number, string] => {
+      const k = keys.get(id)!;
+      return k[Math.min(d, k.length - 1)]!;
+    };
     L.sort((x, y) => {
       for (let d = 0; d < 6; d++) {
-        const [kx, ix] = key(x, d), [ky, iy] = key(y, d);
+        const [kx, ix] = keyAt(x, d), [ky, iy] = keyAt(y, d);
         if (ix === iy) {
           if (d >= Math.max(pathOf(x).length, pathOf(y).length)) break;
           continue;

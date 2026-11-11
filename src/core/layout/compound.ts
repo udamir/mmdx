@@ -45,6 +45,7 @@
 import { layered, type LayeredOptions, type LayoutEdge, type LayoutNode } from './layered.js';
 import type { Point, Rect } from '../types.js';
 import { maxOf } from '../geom.js';
+import { hash } from './hash.js';
 
 export type CompoundDir = 'TB' | 'BT' | 'LR' | 'RL';
 
@@ -97,6 +98,8 @@ export interface CompoundInput {
 export interface ScopeCache {
   get(k: string): Map<string, Point> | undefined;
   set(k: string, v: Map<string, Point>): void;
+  /** Room for this many entries (a diagram's scopes, twice: a diff renders two versions). */
+  reserve?(n: number): void;
 }
 
 export interface CompoundOptions extends Omit<LayeredOptions, 'groupGap'> {
@@ -203,9 +206,9 @@ export function layoutCompound(input: CompoundInput, opts: CompoundOptions = {})
   // ---- 1. the tree
   const C = new Map<string, CompoundContainer>();
   for (const c of input.containers) if (!C.has(c.id)) C.set(c.id, c);
-  const N = new Map<string, CompoundNode>();
+  const N = new Map<string, CompoundNode>(), parent = new Map<string, string | null>();
   for (const n of input.nodes) if (!N.has(n.id) && !C.has(n.id)) N.set(n.id, n);
-  const parent = new Map<string, string | null>();
+  cache?.reserve?.(2 * (C.size + 1));
   for (const c of C.values()) parent.set(c.id, c.parent != null && C.has(c.parent) && c.parent !== c.id ? c.parent : null);
   // cut cycles: walking up from each container, a container met twice goes to the top level
   for (const c of C.values()) {
@@ -389,7 +392,7 @@ export function layoutCompound(input: CompoundInput, opts: CompoundOptions = {})
     }
     const le: LayoutEdge[] = edges.map((e) => ({ from: host.get(e.from) ?? e.from, to: host.get(e.to) ?? e.to, minlen: e.minlen ?? 1 }));
     const lo = { dir, rankSep, nodeSep };
-    const key = cache ? JSON.stringify(['compound', ln, le, lo]) : '';
+    const key = cache ? 'compound' + hash(JSON.stringify([ln, le, lo])) : '';
     let pos = cache?.get(key);
     let routes: Map<number, Point[]>;
     if (pos) routes = decodeRoutes(pos);

@@ -30,7 +30,7 @@ export interface RenderContext {
    */
   imageSizes?: ImageSizes;
   /** Bounded cache for auto-layout results (keyed by the layout input); optional. */
-  layoutCache?: { get(k: string): Map<string, Point> | undefined; set(k: string, v: Map<string, Point>): void };
+  layoutCache?: { get(k: string): Map<string, Point> | undefined; set(k: string, v: Map<string, Point>): void; reserve?(n: number): void };
 }
 
 /** Natural image sizes by URL (see `RenderContext.imageSizes`). */

@@ -320,3 +320,32 @@ describe('per-scope cache (T07.4)', () => {
     expect(ms).toBeLessThan(50);
   });
 });
+
+describe('the layout cache across many scopes (P6)', () => {
+  /** `n` containers in a row, three nodes each. */
+  const many = (n: number): CompoundInput => {
+    const containers: CompoundContainer[] = Array.from({ length: n }, (_, i) => box(`c${i}`));
+    const nodes: CompoundNode[] = [];
+    const edges: CompoundEdge[] = [];
+    for (let i = 0; i < n * 3; i++) {
+      nodes.push(node(`n${i}`, `c${Math.floor(i / 3)}`));
+      if (i % 3) edges.push(edge(`n${i - 1}`, `n${i}`));
+    }
+    return { containers, nodes, edges };
+  };
+
+  it('a re-render of 80 subgraphs lays out no scope (the cache grows with the diagram)', () => {
+    const cache = new Lru<string, Map<string, Point>>(64, 8192);
+    const first = layoutCompound(many(80), { cache });
+    expect(first.stats.laidOut).toBe(81);
+    expect(layoutCompound(many(80), { cache }).stats.laidOut).toBe(0);
+  });
+
+  it('keys are short digests, not the layout input', () => {
+    const keys: string[] = [];
+    const cache = { get: () => undefined, set: (k: string) => void keys.push(k) };
+    layoutCompound(many(3), { cache });
+    expect(keys.length).toBe(4);
+    for (const k of keys) expect(k.length).toBeLessThan(40);
+  });
+});

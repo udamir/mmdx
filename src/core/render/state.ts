@@ -23,6 +23,8 @@ import { byShapeId, shapeDef } from '../shapes/registry.js';
 import {
   assignPorts, baseStyle, countBy, Defs, edgePath, font, haloLabel, hiddenOf, isSide, itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle,
   metaNum, metaPoints, pickStyle, presetOf, sideToward, stackedShapeNodes, textBlock, urlRef, withLink, type PortLink, type RenderEnv, type SubResult,
+  boxGrid,
+  memoBy,
 } from './common.js';
 import { DECO_GAP, decorate, decoratedSize, decoration, lazyKit, type Decoration } from './decorate.js';
 import { assetBox, captionY, mediaAssetNodes, mediaLayout, mediaPort, type MediaBox } from './media-node.js';
@@ -379,7 +381,9 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
   // ---- transitions
   const edgeNodes: SceneNode[] = [], labelNodes: SceneNode[] = [];
   const edgeGeom = new Map<string, EdgeGeom>();
-  const placedLabels: CenterBox[] = [];
+  // the visible states and the labels placed so far, for a label's place along its line
+  const taken = boxGrid();
+  for (const [nid, N] of nodes) if (!hiddenNodes.has(nid)) taken.add(N);
   for (const x of visibleEdges) {
     const { e, m: em, st } = x;
     let pa: Port, pb: Port, pts: readonly (readonly [number, number])[];
@@ -417,13 +421,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
       const set = metaNum(em.labelAt);
       let lp = path.at(set ?? 0.5);
       if (set === undefined) {
-        const covers = (p: Point): boolean => {
-          const r = { x: p.x - L.w / 2 - 2, y: p.y - lh / 2 - 2, w: L.w + 4, h: lh + 4 };
-          const hit = (b: CenterBox): boolean => Number.isFinite(b.x) && r.x < b.x + b.w / 2 && r.x + r.w > b.x - b.w / 2 && r.y < b.y + b.h / 2 && r.y + r.h > b.y - b.h / 2;
-          for (const [nid, N] of nodes) if (!hiddenNodes.has(nid) && hit(N)) return true;
-          for (const b of placedLabels) if (hit(b)) return true;
-          return false;
-        };
+        const covers = (p: Point): boolean => taken.hits({ x: p.x - L.w / 2 - 2, y: p.y - lh / 2 - 2, w: L.w + 4, h: lh + 4 });
         for (const t of [0.5, 0.4, 0.6, 0.3, 0.7, 0.25, 0.75]) {
           const q = path.at(t);
           if (!covers(q)) {
@@ -439,7 +437,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
         : [haloLabel(L.lines, lx, ly, lo)];
       labelNodes.push(itemGroup('edge', e.id, 'elabel', withLink(href, label), { 'data-part': 'label', 'data-from': e.from, 'data-to': e.to, ...linkAttr(href) }, 'label'));
       labelBox = { x: lx, y: ly, w: L.w, h: lh };
-      placedLabels.push(labelBox);
+      taken.add(labelBox);
     }
     const auto = routed.get(e.id);
     edgeGeom.set(e.id, { a: pa, b: pb, label: labelBox, points: x.points, mids: auto && !x.points.length ? [path.at(0.5)] : path.mids, d: path.d });
@@ -640,6 +638,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
       const path = edgePath(onShape(x.e.from, x.a, pp.a), onShape(x.e.to, x.b, pp.b), { ...routingOf(x), points: pts });
       return Array.from({ length: 41 }, (_, i) => path.at(i / 40));
     };
+    const straight = memoBy((x: EdgeItem) => drawn(x, [])); // sampled once for both passes (P7)
     const ends = (x: EdgeItem): [Point, Point] | null => {
       const pp = ports.get(x.e.id);
       return pp ? [onShape(x.e.from, x.a, pp.a), onShape(x.e.to, x.b, pp.b)] : null;
@@ -651,7 +650,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
       const skip = new Set([...holders(x.e.from), ...holders(x.e.to)]);
       const obs = frames.filter((f) => !skip.has(f.id)).map((f) => f.r);
       // the states near the line, other than its ends and what an end composite holds
-      const line = drawn(x, []);
+      const line = straight(x);
       if (line) {
         let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
         for (const q of line) {
@@ -669,7 +668,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
     }
     for (const x of todo) {
       const obs = obstacles.get(x)!;
-      const line = obs.length ? drawn(x, []) : null;
+      const line = obs.length ? straight(x) : null;
       if (!line || !polylineCrosses(line, obs)) continue;
       const hint = R.edges.get(x.e.id)?.points ?? [];
       const viaHint = hint.length ? drawn(x, asPairs(hint)) : null;

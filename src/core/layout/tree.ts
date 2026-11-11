@@ -11,6 +11,7 @@
 // input (ids, sizes, order, collapsed), so an edit lays out its own branch and its ancestors only.
 import type { Point } from '../types.js';
 import { maxOf, minOf } from '../geom.js';
+import { hash } from './hash.js';
 
 export interface TreeNode {
   id: string;
@@ -36,7 +37,7 @@ export interface TreeOptions {
   /** Gap between the root's branches. */
   branchGap?: number;
   /** Cache of subtree frames (keyed by the subtree's input). */
-  cache?: { get(k: string): Map<string, Point> | undefined; set(k: string, v: Map<string, Point>): void };
+  cache?: { get(k: string): Map<string, Point> | undefined; set(k: string, v: Map<string, Point>): void; reserve?(n: number): void };
 }
 
 export interface TreeResult {
@@ -61,17 +62,6 @@ interface Frame {
 }
 
 const KEY = '\u0000';
-
-/** A 64-bit FNV-1a digest of a string (two 32-bit halves): a subtree's key stays short however deep it is. */
-function hash(s: string): string {
-  let a = 0x811c9dc5, b = 0x01000193 ^ s.length;
-  for (let i = 0; i < s.length; i++) {
-    const c = s.charCodeAt(i);
-    a = Math.imul(a ^ c, 0x01000193);
-    b = Math.imul(b ^ c, 0x5bd1e995) ^ (b >>> 15);
-  }
-  return (a >>> 0).toString(36) + (b >>> 0).toString(36);
-}
 
 /** The vertical shift that puts contour `b` below contour `a` with `gap` between every pair of bands sharing x. */
 function clearance(a: readonly Band[], b: readonly Band[], gap: number): number {
@@ -109,6 +99,8 @@ export function layoutTree(root: string, nodes: ReadonlyMap<string, TreeNode>, o
   const sigs = new Map<string, string>();
   const accepted = new Map<string, TreeNode[]>();
   const onPath = new Set<string>();
+  // one entry per subtree, for both versions of a diff
+  o.cache?.reserve?.(2 * nodes.size);
 
   /** The subtree's input as a string (its cache key); a node reached twice (bad input) is a leaf. */
   const sig = (n: TreeNode): string => {
