@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { changeKey } from '../../src/core/diff/merge.js';
-import { DiffScene } from '../../src/diff/scene.js';
+import { DiffScene, sceneHost } from '../../src/diff/scene.js';
 import { DiffSession } from '../../src/diff/session.js';
 import { DiagramCanvas } from '../../src/dom/canvas.js';
 import { Morph } from '../../src/dom/morph.js';
@@ -40,7 +40,7 @@ function mount(): { core: ViewCore; session: DiffSession; scene: DiffScene } {
     ctx: core.ctx, t: core.i18n.t, emit: (type, detail, cancelable) => core.emit(type, detail, cancelable),
     renderOptions: () => ({ theme: core.shownTheme() }), scheme: () => 'light', name: () => 'diagram',
   });
-  const scene = new DiffScene(core, session, { reducedMotion: () => true });
+  const scene = new DiffScene(sceneHost(core), session, { reducedMotion: () => true });
   return { core, session, scene };
 }
 

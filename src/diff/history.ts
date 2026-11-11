@@ -41,7 +41,7 @@ import { diffExportModule } from './modules/export.js';
 import { changeListModule, codeDiffModule, versionsModule, type VersionControls } from './modules/panels.js';
 import type { MenuEntry } from '../ui/blocks/menu.js';
 import { diffStageModule } from './modules/stage.js';
-import { DiffScene } from './scene.js';
+import { DiffScene, sceneHost } from './scene.js';
 import { DiffSession, type DiffMode } from './session.js';
 import { I_close } from '../ui/kit/icons.js';
 
@@ -164,7 +164,7 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
   const tab = signal<DiffMode>(o.compare ? 'compare' : 'history');
   const sceneLabel = computed(() => (shown() === 'version' ? t('diff.labelVersion', { id: label(viewing()) }) : t('history.label')));
   // the Back pill names the viewed version: no title of it over the picture
-  const scene = new DiffScene(core, session, { reducedMotion, label: sceneLabel, canvas: () => ({ panOnDrag: true }), versionTitle: false, hostLook: ownScene });
+  const scene = new DiffScene(sceneHost(core), session, { reducedMotion, label: sceneLabel, canvas: () => ({ panOnDrag: true }), versionTitle: false, hostLook: ownScene });
 
   let closed = false;
   /** Bumped by every pick: a version that loads after a newer pick is not shown. */
@@ -178,8 +178,7 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
   /** A copy of the picture on the canvas, to morph from (null with reduced motion). */
   const snapshot = (): MorphState | null => {
     if (reducedMotion() || typeof requestAnimationFrame === 'undefined') return null;
-    const c = core.canvas;
-    return { defs: [...c.defs.children].map((n) => n.cloneNode(true) as Element), content: c.content.cloneNode(true) as Element };
+    return core.canvas.snapshot();
   };
   /** Runs `f`, which repaints the host's scene (another version, the document, or back from a comparison), animated. */
   const animated = (f: () => void): void => {
@@ -205,13 +204,7 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
    * Runs a scene switch that moves the canvas (into the comparison's pane, or back): the view moves with it, so the
    * picture stays where it is on screen, and holds while the panels slide (a comparison then glides to its fit).
    */
-  const inPlace = (f: () => void): void => {
-    const c = core.canvas;
-    const before = c.svg.getBoundingClientRect(), view = c.saveView();
-    f();
-    const after = c.svg.getBoundingClientRect();
-    c.restoreView({ ...view, auto: false, tx: view.tx + before.left - after.left, ty: view.ty + before.top - after.top });
-  };
+  const inPlace = (f: () => void): void => core.canvas.preservePlacement(f);
   const enterDiff = (): void => {
     if (diff) return;
     morph?.finish();

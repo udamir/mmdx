@@ -406,6 +406,11 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     return this.shell.insets();
   }
 
+  /** Width of the tool dock (0 while it is not shown). */
+  dockWidth(): number {
+    return this.shell.dockWidth();
+  }
+
   // ---- modules ----------------------------------------------------------------------------------------------------
 
   /** Installs modules (ordered by `after`); `enabled` and `when` are re-evaluated by `refreshModules()`. */

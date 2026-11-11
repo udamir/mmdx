@@ -11,6 +11,7 @@ import type { Rect } from '../core/types.js';
 import { Owner } from '../reactive/owner.js';
 import type { SceneNode } from '../core/scene/types.js';
 import { patchChildren } from './patch.js';
+import type { MorphState } from './morph.js';
 import type { StrokeStore } from './pen.js';
 import { Viewport, type ViewState, type WheelMode } from './viewport.js';
 import { signal, type Signal } from '../reactive/signal.js';
@@ -326,6 +327,22 @@ export class DiagramCanvas {
     }
     v.auto = false;
     v.set({ k: s.k, tx: s.tx, ty: s.ty });
+  }
+
+  /** A copy of the picture shown (its defs and content), for a morph from it to the next picture (a scene switch). */
+  snapshot(): MorphState {
+    return { defs: [...this.defs.children].map((n) => n.cloneNode(true) as Element), content: this.content.cloneNode(true) as Element };
+  }
+
+  /**
+   * Runs `f`, which moves the svg (into another pane, or back): the view moves with it, so the picture stays where it is
+   * on screen.
+   */
+  preservePlacement(f: () => void): void {
+    const before = this.svg.getBoundingClientRect(), view = this.saveView();
+    f();
+    const after = this.svg.getBoundingClientRect();
+    this.restoreView({ ...view, auto: false, tx: view.tx + before.left - after.left, ty: view.ty + before.top - after.top });
   }
 
   /** Client point → diagram coordinates. */

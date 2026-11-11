@@ -25,7 +25,7 @@ import { computed, effect, signal, untracked } from '../reactive/signal.js';
 import { DIFF_CSS, DIFF_HOST_CSS, DIFF_TOKENS } from '../diff/styles.js';
 import { ViewCore } from '../view/core.js';
 import { diffModules, type DiffAction } from '../diff/modules/index.js';
-import { DiffScene } from '../diff/scene.js';
+import { DiffScene, sceneHost } from '../diff/scene.js';
 import { DIFF_FILTERS, DIFF_VIEWS, DiffSession, type DiffMode, type DiffSource } from '../diff/session.js';
 import { type DiffExportKind, type DiffExportOptions, type DiffFilter, type DiffPair, type DiffViewName } from '../view/history.js';
 
@@ -164,7 +164,7 @@ export class DiagramDiff {
       const D = session.rendered();
       return D ? t('diff.label', { added: D.diff.counts.added, removed: D.diff.counts.removed, changed: D.diff.counts.changed }) : t('diff.empty.nothing');
     });
-    this.scene = new DiffScene(core, session, { reducedMotion, label, canvas: () => ({ wheel: this.o.wheel ?? 'always' }) });
+    this.scene = new DiffScene(sceneHost(core), session, { reducedMotion, label, canvas: () => ({ wheel: this.o.wheel ?? 'always' }) });
 
     // what view settings and the export of the version read
     const shown = (): Rendered | null => (session.viewOnly.peek() ? session.plain.peek() : session.rendered.peek()?.after) ?? null;

@@ -4,7 +4,8 @@
 // shows one version as it is. The selected change is marked (`dx-selected`) and brought into view; the pen's
 // strokes are painted into every canvas the scene creates. Only paints while attached: `detach()` gives the canvas
 // area back (extra canvases destroyed, the main canvas back in place, no morph). Replaces the canvas half of
-// elements/diff.ts (`buildStage`, `buildPlain`, `makeCanvas`, `applySelection`, `focusSelected`).
+// elements/diff.ts (`buildStage`, `buildPlain`, `makeCanvas`, `applySelection`, `focusSelected`). The scene sees its
+// host through the narrow `SceneHost` port (`sceneHost(core)` for a ViewCore), not the kernel.
 import { annotate, focusRect, shapeOf, type DiffView } from '../core/diff/annotate.js';
 import { createStatusBox, STATUS_BOX_CSS, type StatusBoxHandle } from '../ui/blocks/status-box.js';
 import { Owner } from '../reactive/owner.js';
@@ -20,6 +21,7 @@ import { createBanner, MESSAGES_CSS } from '../ui/blocks/messages.js';
 import { ago } from '../ui/kit/format.js';
 import { h } from '../ui/kit/h.js';
 import { effect, untracked, type ReadSignal } from '../reactive/signal.js';
+import type { I18n } from '../i18n.js';
 import type { ViewCore } from '../view/core.js';
 import { BaseScene, type CanvasArea } from '../view/scene.js';
 import type { DiffSession } from './session.js';
@@ -29,6 +31,33 @@ const NS = 'http://www.w3.org/2000/svg';
 const STATE_OF: Record<DiffView, number> = { before: 0, merged: 1, after: 2 };
 /** Margins a selected change is brought inside (clear of the tool dock and the bars). */
 const FOCUS_MARGINS: Insets = { left: 56, top: 8, right: 8, bottom: 56 };
+
+/** What a DiffScene needs of the component it is shown in. */
+export interface SceneHost {
+  readonly i18n: I18n;
+  /** The pen's strokes (painted into the canvases the scene adds). */
+  readonly strokes: ReadSignal<StrokeStore | null>;
+  addCss(css: readonly string[]): void;
+  /** Insets of the canvas area covered by the host's panel stacks and tool dock. */
+  insets(): Insets;
+  /** Width of the host's tool dock (0 while it is not shown). */
+  dockWidth(): number;
+  /** Pan, zoom or the insets changed (`view`), or a picture was drawn (`draw`). */
+  on(event: 'view' | 'draw', f: () => void): () => void;
+  /** The scene drew a picture (the host's `draw` event). */
+  drew(): void;
+}
+
+/** A ViewCore as a DiffScene's host. */
+export const sceneHost = (core: ViewCore): SceneHost => ({
+  i18n: core.i18n,
+  strokes: core.strokes,
+  addCss: (css) => core.addCss(css),
+  insets: () => core.insets(),
+  dockWidth: () => core.dockWidth(),
+  on: (event, f) => core.on(event, f),
+  drew: () => core.fire('draw'),
+});
 
 export interface DiffSceneOptions {
   reducedMotion: () => boolean;
@@ -90,7 +119,7 @@ export class DiffScene extends BaseScene {
   /** What is painted: a repaint only does what changed (a view switch animates). */
   private painted: { kind: Kind | null; D: DiffRendered | null; plain: Rendered | null; dim: boolean; view: DiffViewName | null; pair: string } = { kind: null, D: null, plain: null, dim: false, view: null, pair: '' };
 
-  constructor(private readonly core: ViewCore, readonly session: DiffSession, private readonly o: DiffSceneOptions) {
+  constructor(private readonly core: SceneHost, readonly session: DiffSession, private readonly o: DiffSceneOptions) {
     super();
   }
 
@@ -113,8 +142,7 @@ export class DiffScene extends BaseScene {
       const top = Math.max(c.top, 34);
       return pane === 0 ? { ...all, right: 8, top } : { ...all, left: 8, top };
     }
-    const dock = this.core.slots['left-dock'].querySelector<HTMLElement>('.tool-dock');
-    const w = dock && !dock.hidden ? dock.offsetWidth : 0;
+    const w = this.core.dockWidth();
     return { left: w ? 12 + w + 8 : 8, right: 8, top: this.painted.kind === 'side' ? 34 : 8, bottom: 52 };
   }
 
@@ -238,7 +266,7 @@ export class DiffScene extends BaseScene {
       this.paintDiff(D, kind, view as DiffView, dim, pair, p.kind !== kind || switched, switched);
     } else if (status === 'empty' && p.kind) this.clearStage();
     else return;
-    this.core.fire('draw');
+    this.core.drew();
   }
 
   /** `switched`: another pair than the one shown (or a version shown alone before): the picture animates to it. */

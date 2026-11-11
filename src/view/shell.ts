@@ -61,6 +61,8 @@ export interface Shell {
    * layout boxes (offsets), not the painted ones, so a panel still sliding in counts where it will be.
    */
   insets(): Insets;
+  /** Width of the tool dock (what is shown in the left-dock slot); 0 while nothing is. */
+  dockWidth(): number;
   setCompact(c: boolean | 'auto'): void;
   destroy(): void;
 }
@@ -165,6 +167,11 @@ export function createShell(host: HTMLElement, shadow: ShadowRoot, o: ShellOptio
       for (const e of [...shown(slots['left-stack']), ...shown(slots['left-dock'])]) l = Math.max(l, e.offsetLeft + e.offsetWidth);
       for (const e of shown(slots['right-stack'])) if (w) r = Math.max(r, w - e.offsetLeft);
       return { left: l + 8, right: r + 8, top: 56, bottom: 56 };
+    },
+    dockWidth() {
+      let w = 0;
+      for (const e of slots['left-dock'].children) if (e instanceof HTMLElement && !e.hidden) w = Math.max(w, e.offsetWidth);
+      return w;
     },
     setCompact(c) {
       compactOption = c;
