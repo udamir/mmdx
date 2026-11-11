@@ -48,8 +48,6 @@ export interface ToolbarMedia {
   h?: number;
   constraint?: string;
   fit?: string;
-  /** The Icon button is offered (the type can set this item's icon). */
-  canIcon: boolean;
 }
 
 /** A change of an icon or image item's layout keys (null removes one). */

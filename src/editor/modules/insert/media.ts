@@ -31,7 +31,7 @@ export const MEDIA_CSS = /* css */ `
   box-shadow: 0 10px 34px rgba(20, 30, 60, .18); }
 `;
 
-const RECENT_ICONS = 'icons.recent', RECENT_EMOJI = 'emoji.recent', TONE = 'emoji.tone';
+const RECENT_EMOJI = 'emoji.recent', TONE = 'emoji.tone';
 
 const remember = (core: EditorCore, key: string, v: string, n: number): void => {
   const list = (core.storage.get<string[]>(key) ?? []).filter((x) => typeof x === 'string' && x !== v);
@@ -94,62 +94,38 @@ const spot = (core: EditorCore, at?: Point): Point => {
   return { x: core.snapV(p.x), y: core.snapV(p.y) };
 };
 
-// ---- icon picker -----------------------------------------------------------------------------------------------------
+// ---- the image tool's Icon tab --------------------------------------------------------------------------------------
 
-export function openIconPicker(core: EditorCore, anchor: HTMLElement | null): void {
-  if (anchor && core.popovers.isOpenFor(anchor)) return core.popovers.close();
-  const targets = mediaTargets(core, 'icon');
-  if (!targets.length) return core.toast(core.i18n.t('media.selectIcon'));
-  const picker = iconPicker(core, targets);
-  openPop(core, picker.el, anchor, () => picker.destroy());
-}
-
-/** The icon picker for `targets` (a pick or a removal sets their icon and closes the popover). */
-function iconPicker(core: EditorCore, targets: readonly ItemRef[], compact = false): { el: HTMLElement; focus(): void; destroy(): void } {
-  const t = core.i18n.t;
+/** The icon picker for `targets` (a pick sets their icon and closes the popover). */
+function iconPicker(core: EditorCore, targets: readonly ItemRef[]): { el: HTMLElement; focus(): void; destroy(): void } {
   core.addCss([ICON_PICKER_CSS, MEDIA_CSS]);
   const reg = core.ctx.icons;
   const ink = inkOf(core);
-  const current = targets.length === 1 ? mediaOf(core, targets[0]!)?.icon ?? null : null;
-  const hasIcon = targets.some((r) => !!mediaOf(core, r)?.icon);
-  const close = (): void => core.popovers.close(true);
-  const choose = (name: string): void => {
-    remember(core, RECENT_ICONS, name, 16);
-    setIconOf(core, targets, name);
-  };
   const picker = createIconPicker({
-    t,
-    compact,
+    t: core.i18n.t,
     packs: () => reg.packList().map((p) => ({
       name: p.name, title: p.info?.name ?? p.name, loaded: p.loaded, failed: p.failed, builtin: p.builtin,
       ...(p.info?.license?.title ? { license: p.info.license.title } : {}),
     })),
-    find: (q, pack) => {
-      if (q) return searchIcons(reg, q, { ...(pack ? { packs: [pack] } : {}), limit: 600 }).map((x) => x.name);
+    find: (q) => {
+      if (q) return searchIcons(reg, q, { limit: 600 }).map((x) => x.name);
       const out: string[] = [];
-      for (const name of pack ? [pack] : reg.packNames()) {
+      for (const name of reg.packNames()) {
         const icons = reg.packData(name)?.icons ?? {};
         for (const [n, ic] of Object.entries(icons)) if (!ic.hidden) out.push(`${name}:${n}`);
       }
       return out;
     },
     preview: (name) => iconImage(reg, name, { color: ink, size: 28 }).href,
-    load: (pack) => reg.load(pack),
-    recent: core.storage.get<string[]>(RECENT_ICONS) ?? [],
-    current,
+    current: targets.length === 1 ? mediaOf(core, targets[0]!)?.icon ?? null : null,
     onPick: (name) => {
-      choose(name);
-      close();
+      setIconOf(core, targets, name);
+      core.popovers.close(true);
     },
-    onRemove: hasIcon ? () => {
-      setIconOf(core, targets, null);
-      close();
-    } : null,
   });
-  // the built-in set is a lazy chunk: listed once it is in
+  // the packs are lazy chunks: listed once they are in (there are no pack filters to load one by)
   const off = reg.onChange(() => picker.refresh());
-  // the built-in set; in the compact form, which has no pack filters to load a pack by, every pack
-  for (const p of reg.packList()) if ((p.builtin || compact) && !p.loaded && !p.failed) void reg.load(p.name);
+  for (const p of reg.packList()) if (!p.loaded && !p.failed) void reg.load(p.name);
   return {
     el: picker.el,
     focus: () => picker.focus(),
@@ -175,7 +151,7 @@ export function openImageTool(core: EditorCore, anchor: HTMLElement | null, o: {
   // becomes an icon node)
   const media = targets.map((r) => mediaOf(core, r));
   const iconTargets = !insert && kind?.setIcon ? targets : [];
-  const icons = iconTargets.length ? iconPicker(core, iconTargets, true) : null;
+  const icons = iconTargets.length ? iconPicker(core, iconTargets) : null;
   // a tab of the image tool, not a dialog of its own
   icons?.el.setAttribute('role', 'group');
   const tab = o.tab ?? (icons && media.every((m) => m?.node === 'icon') ? 'icon' : undefined);

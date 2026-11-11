@@ -28,8 +28,6 @@ export { paletteItem } from './items.js';
 /** The palette of the current diagram type. */
 const paletteOf = (core: EditorCore): PaletteSpec | undefined => editKind(core.model.type)?.palette;
 
-/** `subShape` while the grid palette (ER table presets) is open. */
-const GRID = '#grid';
 
 /** The block's chunk (with its CSS), loaded the first time a palette shows. */
 let paletteChunk: Promise<typeof import('../../../ui/blocks/shape-palette.js')> | null = null;
@@ -63,7 +61,8 @@ export const shapesModule: EditorModule = {
     root.append(menu, sub);
     let anchor: HTMLElement | null = null;
     let builtFor: string | null = null;
-    let subShape: string | null = null;
+    /** The grid palette (ER table presets) is open beside the menu. */
+    let gridOpen = false;
 
     const markAnchor = (on: boolean): void => {
       anchor?.classList.toggle('on', on);
@@ -148,7 +147,7 @@ export const shapesModule: EditorModule = {
 
     const hideSub = (): void => {
       sub.hidden = true;
-      subShape = null;
+      gridOpen = false;
     };
 
     const setMenu = (open: boolean): void => {
@@ -187,8 +186,8 @@ export const shapesModule: EditorModule = {
 
     const showTablePresets = (): void => {
       const gi = gridItem();
-      if (!gi || (subShape === GRID && !sub.hidden)) return;
-      subShape = GRID;
+      if (!gi || (gridOpen && !sub.hidden)) return;
+      gridOpen = true;
       sub.hidden = false;
       markAnchor(true);
       sub.replaceChildren(h('div', { class: 'mtb-label' }, paletteOf(core)?.title ?? ''));
@@ -213,7 +212,7 @@ export const shapesModule: EditorModule = {
     };
 
     const hideTablePresets = (): void => {
-      if (subShape !== GRID) return;
+      if (!gridOpen) return;
       hideSub();
       markAnchor(false);
     };
@@ -225,7 +224,7 @@ export const shapesModule: EditorModule = {
       }
       if (core.mode.peek() !== 'edit') return;
       if (paletteOf(core)?.mode === 'grid') {
-        if (!sub.hidden && subShape === GRID) hideTablePresets();
+        if (!sub.hidden && gridOpen) hideTablePresets();
         else showTablePresets();
       } else {
         focusOnOpen = menu.hidden && !a;
@@ -273,7 +272,7 @@ export const shapesModule: EditorModule = {
       const keep = path.includes(menu) || path.includes(sub) || (!!anchor && path.includes(anchor));
       if (keep) return;
       if (!menu.hidden) setMenu(false);
-      else if (subShape === GRID) hideTablePresets();
+      else if (gridOpen) hideTablePresets();
     }, { capture: true });
     // Esc closes the menu first (before it clears the selection or changes the tool)
     scope.listen(root, 'keydown', (ev) => {
@@ -301,7 +300,7 @@ export const shapesModule: EditorModule = {
         if (paletteOf(core)?.mode === 'menu') build();
         else setMenu(false);
       }
-      if (subShape) {
+      if (gridOpen) {
         hideSub();
         markAnchor(!menu.hidden);
       }

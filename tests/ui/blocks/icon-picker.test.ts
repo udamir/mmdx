@@ -31,20 +31,18 @@ const make = (o: Partial<Parameters<typeof createIconPicker>[0]> = {}) => {
   const find = (q: string, pack: string | null): string[] =>
     (pack ? [pack] : Object.keys(P.icons)).flatMap((p) => (P.icons[p] ?? []).map((n) => `${p}:${n}`)).filter((n) => !q || n.split(':')[1]!.includes(q));
   const onPick = vi.fn();
-  const picker = createIconPicker({ t, packs: () => P.list, find, preview: () => 'data:image/svg+xml,%3Csvg%3E%3C/svg%3E', load: vi.fn(P.load), onPick, ...o });
+  const picker = createIconPicker({ t, packs: () => P.list, find, preview: () => 'data:image/svg+xml,%3Csvg%3E%3C/svg%3E', onPick, ...o });
   document.body.append(picker.el);
   return { picker, onPick, P };
 };
 const tiles = (el: HTMLElement): string[] => [...el.querySelectorAll('.ip-rows .ip-tile')].map((b) => b.getAttribute('aria-label')!);
 
 describe('IconPicker', () => {
-  it('a dialog with a labelled search; chips per pack; the placeholder names the packs', () => {
+  it('a dialog with a labelled search over the icons', () => {
     const { picker } = make();
     expect(picker.el.getAttribute('role')).toBe('dialog');
     expect(picker.el.getAttribute('aria-label')).toBe('Choose an icon…');
-    expect([...picker.el.querySelectorAll('.ip-chip')].map((b) => b.textContent)).toEqual(['All', 'Tabler Icons', 'SVG Logos', 'azure']);
-    expect(picker.el.querySelector<HTMLInputElement>('.ip-search')!.placeholder).toBe('Search icons, SVG Logos, azure and more');
-    expect(picker.el.querySelector<HTMLElement>('.ip-hint')!.hidden).toBe(true);
+    expect(picker.el.querySelector<HTMLInputElement>('.ip-search')!.getAttribute('aria-label')).toBeTruthy();
   });
 
   it('virtualised: only the rows in view are tiles; search narrows; Enter picks the first', () => {
@@ -59,11 +57,10 @@ describe('IconPicker', () => {
     expect(picker.el.querySelector('.ip-none')!.textContent).toBe('No icons match “nothing”');
   });
 
-  it('hover and focus show the name and the licence; arrows move through the grid', () => {
+  it('a tile names its icon and licence; arrows move through the grid', () => {
     const { picker } = make();
     const first = picker.el.querySelector<HTMLElement>('.ip-rows .ip-tile')!;
-    first.dispatchEvent(new Event('pointerenter'));
-    expect(picker.el.querySelector('.ip-info')!.textContent).toBe('tabler:user · Licence: MIT');
+    expect(first.title).toBe('tabler:user · Licence: MIT');
     first.focus();
     first.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     expect((document.activeElement as HTMLElement).dataset['i']).toBe('7');
@@ -71,26 +68,8 @@ describe('IconPicker', () => {
     expect((document.activeElement as HTMLElement).dataset['i']).toBe(String(7 + 7 * 6));
   });
 
-  it('an unloaded pack loads when its chip is chosen', async () => {
-    const { picker, P } = make();
-    const chip = [...picker.el.querySelectorAll<HTMLElement>('.ip-chip')].find((b) => b.textContent === 'azure')!;
-    expect(chip.classList.contains('unloaded')).toBe(true);
-    chip.click();
-    expect(picker.el.querySelector('.ip-none')!.textContent).toBe('Loading azure…');
-    await new Promise((r) => setTimeout(r, 0));
-    expect(P.list[2]!.loaded).toBe(true);
-    expect(tiles(picker.el)).toEqual(['azure:computer-vision', 'azure:storage']);
-  });
-
-  it('recents, the current icon, Remove icon; the built-in-only hint', () => {
-    const onRemove = vi.fn();
-    const { picker } = make({ recent: ['logos:aws'], current: 'tabler:car', onRemove });
-    expect([...picker.el.querySelectorAll('.ip-row .ip-tile')].map((b) => b.getAttribute('aria-label'))).toEqual(['logos:aws']);
+  it('the current icon is marked', () => {
+    const { picker } = make({ current: 'tabler:car' });
     expect(picker.el.querySelector('.ip-tile.on')!.getAttribute('aria-label')).toBe('tabler:car');
-    picker.el.querySelector<HTMLButtonElement>('.ip-foot button')!.click();
-    expect(onRemove).toHaveBeenCalled();
-    const only = createIconPicker({ t, packs: () => [{ name: 'tabler', title: 'Tabler', loaded: true, builtin: true }], find: () => [], preview: () => '', load: async () => undefined, onPick: () => undefined, docsUrl: 'https://example.com/icons' });
-    expect(only.el.querySelector<HTMLElement>('.ip-hint')!.hidden).toBe(false);
-    expect(only.el.querySelector('.ip-hint a')!.getAttribute('href')).toBe('https://example.com/icons');
   });
 });

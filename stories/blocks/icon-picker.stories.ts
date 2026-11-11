@@ -33,13 +33,10 @@ function picker(a: Args): HTMLElement {
     find: (q, pack) => (q ? searchIcons(reg, q, { ...(pack ? { packs: [pack] } : {}), limit: 600 }).map((x) => x.name)
       : (pack ? [pack] : reg.packNames()).flatMap((n) => Object.keys(reg.packData(n)?.icons ?? {}).map((i) => `${n}:${i}`))),
     preview: (name) => iconImage(reg, name, { color: ink, size: 28 }).href,
-    load: (pack) => reg.load(pack),
-    recent: ['tabler:user', 'logos:aws'],
     onPick: (name) => console.log('pick', name),
-    onRemove: a.remove ? () => console.log('remove') : null,
-    docsUrl: 'https://udamir.github.io/mmdx/guide/icons',
   });
   reg.onChange(() => p.refresh());
+  for (const x of reg.packList()) if (!x.loaded) void reg.load(x.name);
   const pop = document.createElement('div');
   pop.className = 'mmdx-pop';
   pop.append(p.el);
@@ -54,8 +51,8 @@ const meta: Meta<Args> = {
     docs: {
       description: {
         component:
-          '`createIconPicker` (T05): "Choose an icon…" — a search over the registered packs (`searchIcons`), a chip per pack (an unloaded one loads when chosen), ' +
-          'recent icons, a virtualised grid of 48 px tiles with arrow keys, and the icon\'s name and licence on hover and focus. The host supplies packs, search and previews.',
+          '`createIconPicker` (T05; the image tool\'s Icon tab): a search over the registered packs (`searchIcons`) above a virtualised grid of tiles with arrow keys, ' +
+          'each naming its icon and its pack\'s licence. The host supplies packs, search and previews.',
       },
     },
   },

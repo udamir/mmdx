@@ -1,7 +1,7 @@
 // The insert dock (T05 §4.1): Image beside Shapes in the tool dock, shown when the diagram type's edit kind offers it
 // (`addImage` / `setImage`), with its shortcut and help entry. Like a shape, the button is dragged onto the canvas (or
 // clicked: the middle of it) and adds an image item with the placeholder — an empty URL, chosen afterwards from the
-// toolbar or Properties; a picture pasted or dropped on the canvas goes to the host's `uploadImage`. Only the button and the shortcuts are eager: the pickers (icon picker, image tool, emoji picker)
+// toolbar or Properties; a picture pasted or dropped on the canvas goes to the host's `uploadImage`. Only the button and the shortcuts are eager: the pickers (the image tool with its Icon tab, the emoji picker)
 // are a lazy chunk (`./media.ts`), loaded the first time one opens. Text, icons, containers and connectors are made
 // inline (the Shapes menu's text block, the toolbar's and Properties' icon, ⌘G, a node's connection handles).
 import type { Point } from '../../../core/types.js';
@@ -44,7 +44,6 @@ export const insertModule: EditorModule = {
     }, chunkFailed);
 
     // ---- actions --------------------------------------------------------------------------------------------------
-    scope.provide('openIconPicker', (anchor) => media((m) => m.openIconPicker(core, anchor ?? null)));
     scope.provide('openImageTool', (anchor, opts) => media((m) => m.openImageTool(core, anchor ?? null, opts ?? {})));
     scope.provide('pickEmoji', (anchor, onPick, onClose) => media((m) => m.pickEmoji(core, anchor, onPick, onClose)));
     /** An image item with the placeholder at a point (a type that only sets images: the image tool for the selection). */

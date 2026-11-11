@@ -60,9 +60,6 @@ export const TOOLBAR_CSS = /* css */ `
 .mtb-choice:hover { background: var(--float-2); }
 .mtb-choice.on { background: var(--accent-2); color: var(--accent); }
 .mtb-words .mtb-choice { font-size: 12px; }
-.mtb-btn.has-icon { position: relative; }
-.mtb-has { position: absolute; right: 5px; top: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); pointer-events: none; }
-.mtb-msize { display: flex; align-items: center; gap: 2px; color: var(--muted); font-size: 12px; padding-left: 6px; }
 .mtb-list { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow: auto; }
 .mtb-item { border: 0; background: none; text-align: left; padding: 6px 8px; border-radius: 8px; font-size: 13px; }
 .mtb-item:hover:not(:disabled), .mtb-item:focus-visible { background: var(--float-2); }

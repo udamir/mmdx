@@ -194,8 +194,6 @@ export interface EditorActions {
   plainMermaid(): Promise<void>;
   refreshToolbar(): void;
   // insert dock (T05)
-  /** Opens the icon picker beside `anchor`: it sets the selected items' icon. */
-  openIconPicker(anchor?: HTMLElement | null): void;
   /** Opens the image tool beside `anchor`: `insert` adds an image item, else it sets the selected item's image; `file` is uploaded at once. */
   /** The image tool, on its Library, Upload, URL or Icon tab (`tab`; default: an icon node's Icon, else the library when the host has one). */
   openImageTool(anchor?: HTMLElement | null, opts?: { insert?: boolean; file?: File; at?: { x: number; y: number }; tab?: 'library' | 'upload' | 'url' | 'icon' }): void;

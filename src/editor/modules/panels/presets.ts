@@ -2,7 +2,6 @@
 // one live preview per preset (theme presets, then "This diagram"), the item's preset highlighted and marked
 // "modified" when it has own changes; header actions Save as preset / Reset / Update; × deletes a local preset.
 // Used by the Properties panel and by the style toolbar's preset popover.
-import { withOps } from '../../../core/kinds/registry.js';
 import { deleteLocalPreset, ownLook, PRESET_KEYS, presetUsers, saveAsPreset, setStyle, suggestPresetName, updatePreset, } from '../../../core/ops/meta-ops.js';
 import { ensure, tidy, cloneMeta } from '../../../core/ops/meta-util.js';
 import { currentPreset, isLocalPreset, nodeShapeOf, participantShapeOf, presetOfItem, presetsFor } from '../../../core/ops/style-env.js';
@@ -12,8 +11,7 @@ import type { ItemRef } from '../../../core/types.js';
 import { h, icon } from '../../../ui/h.js';
 import { drawItemPreview, previewKind } from '../../../ui/item-preview.js';
 import type { EditorCore } from '../../core.js';
-import { applyDoc, applyMeta, styleEnv } from '../../ops/doc.js';
-import { shapeDoc } from '../../ops/shape.js';
+import { applyMeta, styleEnv } from '../../ops/doc.js';
 
 const ICON_SAVE = 'M5 4.5h11l3 3V19a.5.5 0 0 1-.5.5h-13A.5.5 0 0 1 5 19zM8.5 4.5v4h6v-4M12 12.5v5M9.5 15h5';
 const ICON_RESET = 'M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4 4v4.5h4.5';
@@ -64,8 +62,6 @@ export interface PresetPickerOptions {
   cols?: number;
   /** Header element for Save as preset / Reset / Update. */
   actions?: HTMLElement | null;
-  /** From the shape menu: the presets of that shape; picking also gives the node that shape. */
-  shape?: string | null;
   /** Called after a change was applied (the toolbar closes its popover). */
   after?: () => void;
   /** Items of the same kind that take the picked preset (a bulk edit; default: the item alone). */
@@ -78,9 +74,7 @@ export function presetPicker(core: EditorCore, grid: HTMLElement, ref: ItemRef, 
   const env = styleEnv(core);
   const { kind, id } = ref;
   const cols = opts.cols ?? 2;
-  const forShape = opts.shape ?? null;
   const nodeShape = kind === 'node' ? nodeShapeOf(env, id) : null;
-  const sameShape = !forShape || forShape === nodeShape;
   const ownPreset = env.meta[KIND_TO_COLL[kind]]?.[id]?.preset;
   // several items (bulk) with different presets: no tile is theirs
   const presetOf = (r: ItemRef): string => {
@@ -88,15 +82,15 @@ export function presetPicker(core: EditorCore, grid: HTMLElement, ref: ItemRef, 
     return typeof v === 'string' ? v : '';
   };
   const samePreset = !opts.targets || opts.targets.every((r) => presetOf(r) === presetOf(ref));
-  const own = sameShape && samePreset ? (typeof ownPreset === 'string' ? ownPreset : '') : null;
+  const own = samePreset ? (typeof ownPreset === 'string' ? ownPreset : '') : null;
   // the item has its own changes on top of its preset: that preset's tile is marked "modified"
-  const modified = sameShape && Object.keys(ownLook(env.meta, ref)).length > 0;
-  const auto = !forShape && (kind === 'node' || kind === 'edge' || kind === 'group');
+  const modified = Object.keys(ownLook(env.meta, ref)).length > 0;
+  const auto = kind === 'node' || kind === 'edge' || kind === 'group';
   const autoName = auto ? currentPreset(env, ref) : '';
   grid.style.setProperty('--pp-cols', String(cols));
   const P = presetsFor(env, kind) ?? {};
-  // nodes / participants: only the presets of the item's shape (or of the shape picked in the shape menu)
-  const shape = kind === 'node' ? forShape ?? nodeShape : kind === 'participant' ? participantShapeOf(env, id) : null;
+  // nodes / participants: only the presets of the item's shape
+  const shape = kind === 'node' ? nodeShape : kind === 'participant' ? participantShapeOf(env, id) : null;
   const shapeOf = (p: string): string | undefined => {
     const st = P[p];
     if (!st) return undefined;
@@ -108,7 +102,7 @@ export function presetPicker(core: EditorCore, grid: HTMLElement, ref: ItemRef, 
   const done = (): void => opts.after?.();
   const tile = (name: string, isLocal: boolean): void => {
     const pic = h('div', { class: 'pp-pic', 'aria-hidden': 'true' });
-    const caption = name || (auto ? (autoName && !own ? t('presets.autoArrow', { name: autoName }) : t('presets.auto')) : forShape ? t('presets.shapeDefault', { shape: forShape }) : t('presets.default'));
+    const caption = name || (auto ? (autoName && !own ? t('presets.autoArrow', { name: autoName }) : t('presets.auto')) : t('presets.default'));
     const isOn = name === own;
     const b = h('button', {
       type: 'button',
@@ -120,26 +114,13 @@ export function presetPicker(core: EditorCore, grid: HTMLElement, ref: ItemRef, 
     b.addEventListener('click', () => {
       const out = cloneMeta(core.meta);
       const targets = opts.targets?.filter((x) => x.kind === kind) ?? [ref];
-      const reshape: ItemRef[] = [];
       for (const target of targets) {
         const m = ensure(out, kind, target.id);
         if (name) m.preset = name;
         else delete m.preset;
-        // from the shape menu: the node takes that shape too (unless the preset draws it already)
-        if (forShape && !(name && P[name]?.shape === forShape)) {
-          const codeShape = withOps(core.model, (k, mm) => k.codeShape?.(mm, { kind: 'node', id: target.id })) ?? 'rect';
-          if (forShape === codeShape && !P[name]?.shape) delete m.shape;
-          else {
-            m.shape = forShape;
-            reshape.push(target);
-          }
-        }
         tidy(out, kind, target.id);
       }
-      // the shape goes to the code where the type keeps shapes there
-      const doc = forShape && reshape.length ? shapeDoc(core, reshape, forShape, { code: core.code, meta: out }) : null;
-      if (doc) applyDoc(core, t('history.preset'), doc, null);
-      else applyMeta(core, t('history.preset'), { meta: out });
+      applyMeta(core, t('history.preset'), { meta: out });
       done();
     });
     if (isLocal) {
@@ -165,7 +146,7 @@ export function presetPicker(core: EditorCore, grid: HTMLElement, ref: ItemRef, 
     for (const n of local) tile(n, true);
   }
   // the item's own changes → a preset: icon buttons in the picker's header
-  if (!forShape && opts.actions) {
+  if (opts.actions) {
     const acts = opts.actions;
     acts.replaceChildren();
     const save = h('button', { type: 'button', class: 'pp-act', disabled: !modified, title: modified ? t('presets.saveTip') : t('presets.saveTipOff'), 'aria-label': t('presets.saveTitle') }, icon(ICON_SAVE, 17));

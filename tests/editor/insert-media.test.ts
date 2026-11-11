@@ -78,27 +78,13 @@ describe('insert dock', () => {
   });
 });
 
-describe('icons', () => {
-  test('without a selection the picker does not open: a toast asks for one', async () => {
-    const e = mount('flowchart LR\n  A --> B\n');
-    await settle();
-    e.core.run('openIconPicker', null);
-    await settle();
-    expect($('.ins-pop')).toBeNull();
-    expect(host.shadowRoot!.textContent).toContain('Select an item to give it an icon');
-  });
-
-  test('an icon is an image node\'s source: a plain node takes none; a picture gives way to the chosen icon', async () => {
+describe('icons: the image tool\'s Icon tab', () => {
+  test('a picture gives way to the chosen icon (an icon is an image node\'s source)', async () => {
     const e = mount('flowchart LR\n  A["Car"] --> B\n  n5["Photo"]\n  n5@{ img: "https://example.com/a.png", h: 200, w: 200, pos: "b", constraint: "on" }\n');
     await settle();
     const before = e.core.code;
-    e.core.select([{ kind: 'node', id: 'A' }]);
-    e.core.run('openIconPicker', null);
-    await settle();
-    expect($('.ip')).toBeNull();
-    expect(e.core.code).toBe(before);
     e.core.select([{ kind: 'node', id: 'n5' }]);
-    e.core.run('openIconPicker', null);
+    e.core.run('openImageTool', null, { tab: 'icon' });
     await settle();
     input($<HTMLInputElement>('.ip-search')!, 'car');
     $<HTMLButtonElement>('.ip-tile[aria-label="tabler:car"]')!.click();
@@ -110,11 +96,11 @@ describe('icons', () => {
     await valid(e.core.code);
   });
 
-  test('selection mode on an icon node: its icon key', async () => {
+  test('on an icon node: its icon is marked, a pick replaces it', async () => {
     const e = mount('flowchart LR\n  n4["User"]\n  n4@{ icon: "tabler:user", form: "rounded", pos: "b", h: 60 }');
     await settle();
     e.core.select([{ kind: 'node', id: 'n4' }]);
-    e.core.run('openIconPicker', null);
+    e.core.run('openImageTool', null, {});
     await settle();
     expect($('.ip-tile.on')?.getAttribute('aria-label') ?? 'tabler:user').toBe('tabler:user');
     input($<HTMLInputElement>('.ip-search')!, 'car');
@@ -123,21 +109,17 @@ describe('icons', () => {
     await valid(e.core.code);
   });
 
-  test('pack chips: a registered pack that is not loaded loads when its chip is chosen', async () => {
+  test('a registered pack that is not loaded yet loads when the Icon tab opens', async () => {
     const loader = vi.fn(async () => ({ prefix: 'demo', icons: { gear: { body: '<path d="M1 1h10v10z"/>' } }, info: { name: 'Demo', license: { title: 'CC0' } } }));
     ed = new DiagramEditor(host, { value: 'flowchart LR\n  A["A"]\n  A@{ icon: "tabler:user" }\n', storage: memoryStorage(), iconPacks: [{ name: 'demo', loader }] });
     await settle();
     ed.core.select([{ kind: 'node', id: 'A' }]);
-    ed.core.run('openIconPicker', null);
-    await settle();
-    expect($('.ip-hint')!.hidden).toBe(true);
-    expect($<HTMLInputElement>('.ip-search')!.placeholder).toBe('Search icons, demo and more');
-    const chip = $$('.ip-chip').find((b) => b.textContent === 'demo')!;
-    expect(chip.classList.contains('unloaded')).toBe(true);
-    chip.click();
+    ed.core.run('openImageTool', null, { tab: 'icon' });
     await settle();
     expect(loader).toHaveBeenCalledTimes(1);
-    expect($$('.ip-rows .ip-tile').map((b) => b.getAttribute('aria-label'))).toEqual(['demo:gear']);
+    input($<HTMLInputElement>('.ip-search')!, 'gear');
+    expect($$('.ip-rows .ip-tile').map((b) => b.getAttribute('aria-label'))).toContain('demo:gear');
+    expect($('.ip-tile[aria-label="demo:gear"]')!.title).toBe('demo:gear · Licence: CC0');
   });
 });
 
@@ -350,8 +332,8 @@ describe('selection toolbar and Properties', () => {
     expect([...$$('.imp [role=tab]')].map((b) => b.textContent)).toEqual(['URL', 'Icon']);
     expect($('.imp [role=tab][aria-selected=true]')!.textContent).toBe('Icon');
     // the compact icon picker: the search and the icons, no pack filters, texts or footer
-    expect($('.imp [data-panel=icon] .ip')!.classList.contains('ip-compact')).toBe(true);
-    expect($<HTMLElement>('.imp [data-panel=icon] .ip')!.style.getPropertyValue('--ip-tile')).toBe('32px');
+    expect($('.imp [data-panel=icon] .ip .ip-search')).not.toBeNull();
+    expect($('.imp [data-panel=icon] .ip .ip-chips, .imp [data-panel=icon] .ip .ip-foot, .imp [data-panel=icon] .ip .ip-hint')).toBeNull();
     expect($<HTMLElement>('.imp [data-panel=url]')!.hidden).toBe(true);
     e.core.popovers.close();
     bar.querySelector<HTMLButtonElement>('[data-c="media"]')!.click();
