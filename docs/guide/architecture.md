@@ -112,7 +112,21 @@ Each diagram type (flowchart, sequence, ER, mindmap, state) plugs in through its
 
 A type's per-type code stays in its own files (`parse/<type>.ts`, `render/<type>.ts`, `ops/<type>.ts`, `diff/<type>.ts`, its editor module); the kinds bring it together. The kinds' contract (what each kind holds) is in `src/core/kind`. Loaded kinds are registered (`src/core/kinds/registry.ts`, `src/editor/kinds/registry.ts`), and the generic helpers find a model's kind there: a model only exists once its type's parser ran, so a missing kind is a bug and the lookup fails closed (`requireKind`; the diff reports it as `kind.not-loaded`). Where each type's view and diff kinds are is one manifest, `KIND_MODULES` in `src/platform/kinds.ts`, whose loaders share one load in flight per chunk.
 
-The editor loads a type's view, ops and edit kinds in one chunk the first time a document of that type is shown (`src/editor/kinds/loader.ts`): an editor of flowcharts never downloads the sequence and ER code. The document draws once they arrive, and `whenLoaded()` waits for them.
+The editor loads a type's view, ops and edit kinds in one chunk the first time a document of that type is shown (`src/editor/kinds/loader.ts`): an editor of flowcharts never downloads the sequence and ER code. The document draws once they arrive, and `whenLoaded()` waits for them. A type's own editor modules (the ER table editing, the sequence gestures) are installed by kind: `when: { kind: ['er'] }` installs a module, and loads its code, only while the document is of that type.
+
+What the types have in common is written once, in kits the kinds use:
+
+| Kit | Where | What it holds |
+|---|---|---|
+| Metadata keys | `src/core/meta/keys.ts` | `META_KEYS`: every `%%@` key's cleaner, class (layout, content, look, state) and value type; the sanitizer, the diff's facets, Reset style, Copy style, the colour keys and the renderer's style validation read it. `tests/arch/meta-keys.test.ts` checks every declared, edited and rendered key against it |
+| Item capabilities | `src/core/item-caps.ts` | `ITEM_CAPS`: which item kinds are lines, connectors, positional (their id is their place in the code) or containers |
+| Parser kit | `src/core/parse/kit.ts`, `jison.ts`, `frontmatter.ts` | An offset's line, a label's text, a directive's keys; the jison lexers' preprocessing and first-match step (ER, state); one frontmatter rule |
+| Graph render kit | `src/core/render/graph-kit.ts`, `title.ts` | Hidden groups, group depth, the bounds accumulator, the title above a diagram, the accessibility line |
+| Ops kit | `src/core/kinds/ops-kit.ts` | A kind's lookups from a declaration of its collections; pinning auto-placed items; "Reset positions in this group" |
+| Diff kit | `src/core/diff/kit.ts`, `merge.ts` | Items matched by id or aligned by position; class and Mermaid-style fields; removed items kept in the merged picture |
+| Group trees | `src/core/ops/tree.ts` | What a group holds at any depth, and the groups around an item, with one cycle guard |
+
+Each type's theme section (`OpsKind.theme.slots`) says where its item kinds take their theme styles; `tests/core/theme/sections.test.ts` checks every theme file against it.
 
 ## Folder map
 
