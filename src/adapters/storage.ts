@@ -38,27 +38,33 @@ export function localStorageAdapter(namespace = 'mmdx.'): StorageAdapter {
   if (!ls) return memoryStorage();
   const store = ls;
   const fallback = memoryStorage();
+  // a write localStorage refused (quota, private mode) is kept in memory, and the memory copy wins while it is
+  // there: an older value in localStorage must not come back (B18)
   return {
     get<T>(key: string): T | undefined {
+      const mem = fallback.get<T>(key);
+      if (mem !== undefined) return mem;
       try {
         const raw = store.getItem(namespace + key);
-        return raw === null ? fallback.get<T>(key) : (JSON.parse(raw) as T);
+        return raw === null ? undefined : (JSON.parse(raw) as T);
       } catch {
-        return fallback.get<T>(key);
+        return undefined;
       }
     },
     set(key, value) {
       try {
         store.setItem(namespace + key, JSON.stringify(value));
+        fallback.remove(key);
       } catch {
         fallback.set(key, value);
       }
     },
     remove(key) {
+      fallback.remove(key);
       try {
         store.removeItem(namespace + key);
       } catch {
-        fallback.remove(key);
+        // nothing stored there to remove
       }
     },
   };

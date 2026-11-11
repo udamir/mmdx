@@ -15,6 +15,7 @@ import type { IconPack } from '../core/icons/types.js';
 import { splitSource } from '../core/meta/index.js';
 import { standaloneSvg } from '../core/pipeline-core.js';
 import { summarize } from '../core/summary.js';
+import { effect } from '../ui/signal.js';
 import type { Diagnostic, Rect } from '../core/types.js';
 import type { WheelMode } from '../dom/viewport.js';
 import { h } from '../ui/h.js';
@@ -123,10 +124,8 @@ export class DiagramViewer {
       msg: this.msg,
       stage: core.area,
       onRendered: (r, durationMs) => {
-        const s = summarize(r.model);
-        // the diagram's own accessible title and description (`accTitle`, `accDescr`) come before the generated summary
         const a11y = r.result.a11y;
-        core.root.setAttribute('aria-label', this.o.label ?? a11y?.title ?? core.i18n.t(s.key, s.params));
+        this.syncLabel();
         if (a11y?.desc) core.root.setAttribute('aria-description', a11y.desc);
         else core.root.removeAttribute('aria-description');
         core.root.classList.toggle('can-pan', core.canvas.interaction === 'pan-zoom');
@@ -148,8 +147,9 @@ export class DiagramViewer {
     core.pushScene(this.scene);
     this.installModules();
     // a picture while the diagram shows; the code panel must stay readable for screen readers
-    core.on('panels', () => this.syncRole());
-    core.panels.set({ ...core.panels.peek() });
+    // however the panels change (a toggle, a set restored from storage: no `panels` event, B19)
+    const offRole = effect(() => this.syncRole(core.panels()));
+    this.ac.signal.addEventListener('abort', offRole);
 
     const ssr = host.querySelector(':scope > svg[data-mmdx-ssr]');
     if (ssr instanceof SVGSVGElement) this.scene.adoptSsr(ssr, host, this.ac.signal);
@@ -189,13 +189,16 @@ export class DiagramViewer {
     if (changed('theme')) core.themes.attr.set(this.o.theme ?? null);
     if (changed('themeDark')) core.themes.attrDark.set(this.o.themeDark ?? null);
     if (changed('compact')) core.setCompact(this.o.compact ?? 'auto');
-    if (changed('interactive')) core.canvas.setInteraction(this.o.interactive === false ? 'static' : 'pan-zoom');
+    if (changed('interactive')) {
+      core.canvas.setInteraction(this.o.interactive === false ? 'static' : 'pan-zoom');
+      core.root.classList.toggle('can-pan', core.canvas.interaction === 'pan-zoom');
+    }
     if (changed('wheel')) core.canvas.setOptions({ wheel: this.o.wheel ?? 'ctrl' });
     if (changed('labels') || changed('hoverHighlight')) core.display.set({ ...core.display.peek(), labels: this.o.labels !== false, hoverHighlight: this.o.hoverHighlight !== false });
     if (changed('layers')) core.visibleLayers.set(this.o.layers);
     if (changed('history')) core.history.set(this.o.history ?? null);
     if (changed('fullscreen')) core.hostFullscreen.set(this.o.fullscreen ?? null);
-    if (changed('label') && this.o.label && this.scene.rendered) core.root.setAttribute('aria-label', this.o.label);
+    if (changed('label')) this.syncLabel();
     // the modules follow the controls (each one re-evaluates what it shows)
     if (changed('controls') || changed('interactive')) core.refreshModules();
     if (changed('src') || changed('source') || changed('loader')) void this.load();
@@ -325,9 +328,17 @@ export class DiagramViewer {
     this.core.useModules(list);
   }
 
-  private syncRole(): void {
-    this.core.root.setAttribute('role', this.core.panels.peek()['code-view'] ? 'group' : 'img');
-    this.core.root.classList.toggle('pinned', Object.values(this.core.panels.peek()).some(Boolean));
+  private syncRole(panels: Readonly<Record<string, boolean>>): void {
+    this.core.root.setAttribute('role', panels['code-view'] ? 'group' : 'img');
+    this.core.root.classList.toggle('pinned', Object.values(panels).some(Boolean));
+  }
+
+  /** The accessible name: the host's `label`, else the diagram's `accTitle`, else the generated summary (B20). */
+  private syncLabel(): void {
+    const r = this.scene.rendered;
+    if (!r) return;
+    const s = summarize(r.model);
+    this.core.root.setAttribute('aria-label', this.o.label ?? r.result.a11y?.title ?? this.core.i18n.t(s.key, s.params));
   }
 
   private async load(): Promise<void> {

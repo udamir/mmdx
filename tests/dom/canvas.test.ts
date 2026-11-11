@@ -126,6 +126,33 @@ describe('DiagramCanvas', () => {
     expect(a.svg.classList.contains('pen-on')).toBe(false);
   });
 
+  it('changing auto erase reschedules the strokes already counting down (B21)', () => {
+    vi.useFakeTimers();
+    try {
+      const store = new StrokeStore(memoryStorage(), () => true);
+      store.setFade(5000);
+      const a = new DiagramCanvas(null, { interaction: 'pan-zoom' });
+      sized(a.svg);
+      a.attachInk(store);
+      store.setActive(true);
+      ptr('pointerdown', 10, 10, a.svg);
+      ptr('pointermove', 40, 40, a.svg);
+      ptr('pointerup', 40, 40, a.svg);
+      // off: the stroke stays
+      store.setFade(0);
+      vi.advanceTimersByTime(6000);
+      expect(store.hasStrokes()).toBe(true);
+      // 10 s from now, not 5 s and again at 10 s
+      store.setFade(10000);
+      vi.advanceTimersByTime(6000);
+      expect(store.hasStrokes()).toBe(true);
+      vi.advanceTimersByTime(5000);
+      expect(store.hasStrokes()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   describe('a gesture is shown by CSS and written when it rests', () => {
     // a browser's box of an element includes its CSS transform: the svg's box at 400 × 300, scaled by its transform
     const box = function (this: Element): DOMRect {

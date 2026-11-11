@@ -49,6 +49,7 @@ export class StrokeStore {
   private surfaces: InkSurface[] = [];
   private nextId = 1;
   private readonly timers = new Set<ReturnType<typeof setTimeout>>();
+  private readonly fadeTimers = new Map<Stroke, ReturnType<typeof setTimeout>>();
   private readonly listeners = new Set<() => void>();
 
   constructor(private readonly storage: StorageAdapter, private readonly reducedMotion: () => boolean = () => false) {
@@ -99,7 +100,7 @@ export class StrokeStore {
       this.strokes.push(stroke);
       this.paintAll();
       this.changed();
-      if (this.fade) this.later(() => this.expire(stroke), this.fade);
+      this.countDown(stroke);
     };
     c.svg.addEventListener('pointerup', end, { signal: ac.signal });
     c.svg.addEventListener('pointercancel', end, { signal: ac.signal });
@@ -134,7 +135,8 @@ export class StrokeStore {
   setFade(ms: number): void {
     this.fade = pick<number>(PEN_FADES, ms, this.fade);
     this.persist();
-    if (this.fade) for (const s of this.strokes) this.later(() => this.expire(s), this.fade);
+    // every stroke counts down anew from the new time, or stops counting with auto erase off (B21)
+    for (const s of this.strokes) this.countDown(s);
   }
 
   hasStrokes(): boolean {
@@ -164,6 +166,7 @@ export class StrokeStore {
   destroy(): void {
     for (const t of this.timers) clearTimeout(t);
     this.timers.clear();
+    this.fadeTimers.clear();
     this.surfaces = [];
     this.listeners.clear();
   }
@@ -188,6 +191,24 @@ export class StrokeStore {
     p.setAttribute('stroke-width', String(s.size));
     p.setAttribute('data-sid', String(s.id));
     return p;
+  }
+
+  /** A stroke's auto-erase countdown, one per stroke: (re)started with the current time, or cancelled when it is off. */
+  private countDown(stroke: Stroke): void {
+    const t = this.fadeTimers.get(stroke);
+    if (t !== undefined) {
+      clearTimeout(t);
+      this.timers.delete(t);
+      this.fadeTimers.delete(stroke);
+    }
+    if (!this.fade) return;
+    const next = setTimeout(() => {
+      this.timers.delete(next);
+      this.fadeTimers.delete(stroke);
+      this.expire(stroke);
+    }, this.fade);
+    this.timers.add(next);
+    this.fadeTimers.set(stroke, next);
   }
 
   private later(f: () => void, ms: number): void {

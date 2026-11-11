@@ -473,3 +473,30 @@ describe('inline sources round-trip (B17)', () => {
     el.remove();
   });
 });
+
+describe('viewer state sync (B19, B20)', () => {
+  const mount = (opts: ConstructorParameters<typeof DiagramViewer>[1]): { host: HTMLElement; v: DiagramViewer } => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    return { host, v: new DiagramViewer(host, { lazy: false, ...opts }) };
+  };
+  it('a code panel restored from storage makes the root a group and pinned', async () => {
+    const storage = memoryStorage();
+    storage.set('viewer.panels', { 'code-view': true });
+    const { host } = mount({ source: 'flowchart LR\n  a --> b', controls: ['code'], storage });
+    const root = (): Element => host.shadowRoot!.querySelector('.root')!;
+    await vi.waitFor(() => expect(root().getAttribute('role')).toBe('group'));
+    expect(root().classList.contains('pinned')).toBe(true);
+  });
+
+  it('removing the label gives the diagram\'s own name back; interactive follows at run time', async () => {
+    const { host, v } = mount({ source: 'flowchart LR\n  accTitle: The flow\n  a --> b', label: 'Host label' });
+    const root = (): Element => host.shadowRoot!.querySelector('.root')!;
+    await vi.waitFor(() => expect(root().getAttribute('aria-label')).toBe('Host label'));
+    v.set({ label: undefined });
+    expect(root().getAttribute('aria-label')).toBe('The flow');
+    expect(root().classList.contains('can-pan')).toBe(true);
+    v.set({ interactive: false });
+    expect(root().classList.contains('can-pan')).toBe(false);
+  });
+});
