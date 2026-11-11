@@ -1,6 +1,7 @@
 // <mmdx-studio> (§8.4, UC4): the standalone all-in-one app — editor, theme editor (dialog), file menu, examples
 // gallery, appearance toggle — the prototype's index.html, packaged as one element. The studio gives the editor the
 // open document's versions (an example's bundled history and the versions saved here), shown by the editor's History.
+import { fileStem } from '../ui/kit/format.js';
 import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../ui/kit/overlay-scroll.js';
 import { ComponentShell } from '../view/component-shell.js';
 import { Owner } from '../reactive/owner.js';
@@ -298,7 +299,7 @@ export class DiagramStudio {
   private open(src: string, name: string, opts: { markSaved?: boolean; key?: string | undefined } = {}): void {
     if (this.destroyed) return;
     this.openSeq++;
-    this.name = name.replace(/\.(mmdx|mmd|md|txt)$/i, '') || 'diagram';
+    this.name = fileStem(name);
     this.docKey = opts.key ?? `file:${this.name}`;
     this.bundled = [];
     this.editorEl.instance?.toggleHistory(false);

@@ -11,3 +11,14 @@ export const ago = (iso: string | undefined, locale: string): string => {
   if (s < 86400 * 60) return rtf.format(-Math.round(s / 86400), 'day');
   return rtf.format(-Math.round(s / (86400 * 30)), 'month');
 };
+
+/**
+ * A document's name from a file name, a path or a URL (exports, titles, X12): its last segment without the query and
+ * the hash, and without a document extension (`.mmdx`, `.mmd`, `.md`, `.markdown`, `.txt`, `.json`); `fallback` when
+ * nothing is left.
+ */
+export function fileStem(name: string | null | undefined, fallback = 'diagram'): string {
+  const last = (name ?? '').split(/[?#]/)[0]!.split(/[/\\]/).pop() ?? '';
+  return last.replace(/\.(mmdx|mmd|md|markdown|txt|json)$/i, '') || fallback;
+}
+

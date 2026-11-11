@@ -4,6 +4,7 @@
 // leaves out: metadata images and shapes, T10 §4.6), the Plain Mermaid compare modal, Auto layout and
 // opening files (`features.open`: picker and drag-and-drop; `.mmdx`, `.mmd`, `.md` first mermaid block, `.txt`, `.json`
 // legacy sidecar). Every export first dispatches a cancelable `mmdx-export` event ({ kind, name, data }).
+import { fileStem } from '../../../ui/kit/format.js';
 import { getShared } from '../../../platform/config.js';
 import { renderWithMermaid } from '../../../platform/mermaid.js';
 import { mmdxOnlyContent, toPortableMermaid, type MmdxOnly } from '../../../core/export/portable.js';
@@ -11,7 +12,7 @@ import { joinSource, mergeLegacySidecar, pruneMeta } from '../../../core/meta/in
 import { usedIds } from '../../../core/ops/ids.js';
 import { resetLayout } from '../../../core/ops/positions.js';
 import { standaloneSvg } from '../../../core/pipeline-core.js';
-import { download, reportMissingImages, svgToPng } from '../../../dom/export.js';
+import { download, fontsMissing, reportMissingImages, svgToPng } from '../../../dom/export.js';
 import type { Diagnostic } from '../../../core/types.js';
 import { h } from '../../../ui/kit/h.js';
 import type { EditorCore } from '../../core.js';
@@ -60,8 +61,7 @@ export async function buildExport(core: EditorCore, kind: ExportKind): Promise<E
   if (kind === 'svg') return { name: `${name}.svg`, data: svg, type: 'image/svg+xml' };
   const w = Number(/width="([\d.]+)"/.exec(svg)?.[1] ?? 0), hh = Number(/height="([\d.]+)"/.exec(svg)?.[1] ?? 0);
   const png = await svgToPng(svg, w, hh, { scale: 2, fonts: getShared().fonts });
-  if (png.missingFonts.length)
-    core.emit('mmdx-error', { diagnostics: [{ severity: 'warning', code: 'export.font-missing', message: `No font file for ${png.missingFonts.join(', ')}: local fonts were used`, params: { fonts: png.missingFonts.join(', ') } }] });
+  if (png.missingFonts.length) core.emit('mmdx-error', { diagnostics: [fontsMissing(png.missingFonts)] });
   if (png.missingImages) reportMissingImages(core, png.missingImages);
   return { name: `${name}.png`, data: png.blob, type: 'image/png' };
 }
@@ -139,7 +139,7 @@ export function autoLayout(core: EditorCore): void {
 /** Replaces the document (an undoable step), like the prototype's `setSource` after opening a file. */
 function loadDocument(core: EditorCore, src: string, name?: string): void {
   if (!core.emit('mmdx-op', { type: 'doc.open', code: src }, true)) return;
-  if (name) core.uiState.fileName.set(name.replace(/\.(mmdx|mmd|md|txt|json)$/i, '') || core.fileName);
+  if (name) core.uiState.fileName.set(fileStem(name, core.fileName));
   core.loadSource(src, { history: 'push', reason: 'load', markSaved: false });
   core.select([]);
 }

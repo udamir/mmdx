@@ -61,6 +61,14 @@ export const imagesMissing = (n: number): Diagnostic => ({
   params: { n },
 });
 
+/** A PNG drawn with local fonts for these families (no font file was configured for them, X12): one report everywhere. */
+export const fontsMissing = (fonts: readonly string[]): Diagnostic => ({
+  severity: 'warning',
+  code: 'export.font-missing',
+  message: `No font file for ${fonts.join(', ')}: local fonts were used`,
+  params: { fonts: fonts.join(', ') },
+});
+
 /** Tells the user (the export toast) and the host (`mmdx-error`) that a PNG lacks `n` images. */
 export function reportMissingImages(core: { toast(msg: string): void; emit(type: string, detail: unknown): boolean; i18n: I18n }, n: number): void {
   core.toast(core.i18n.t('export.imagesMissing', { n }));

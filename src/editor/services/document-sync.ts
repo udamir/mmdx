@@ -2,6 +2,7 @@
 // adapter's version, conflicts resolved in a dialog), remote updates (applied when clean, else the Reload / Keep mine
 // bar; one arriving during an edit waits for it to end) and autosave. Split out of DiagramEditor, which keeps the
 // public API and delegates.
+import { fileStem } from '../../ui/kit/format.js';
 import { h } from '../../ui/kit/h.js';
 import type { BlockHandle } from '../../ui/blocks/block.js';
 import type { PillProps } from '../../ui/blocks/pill.js';
@@ -97,7 +98,7 @@ export class DocumentSync {
       const r = await a.load();
       if (this.destroyed || this.adapter !== a) return;
       this.version = r.version;
-      if (r.name) this.core.uiState.fileName.set(r.name.replace(/\.(mmdx|mmd|md|txt)$/i, ''));
+      if (r.name) this.core.uiState.fileName.set(fileStem(r.name, ''));
       this.host.setSource(r.source, { history: 'reset' });
       this.unsubscribe?.();
       this.unsubscribe = a.subscribe?.((src, version) => {

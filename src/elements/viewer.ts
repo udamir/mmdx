@@ -4,6 +4,7 @@
 // Component architecture §4: the viewer is the view kernel (ViewCore) with a TextScene (source text → async render)
 // and the viewer's modules — the editor's chrome (tool dock, zoom bar with help, view params), every piece behind a
 // control of the `controls` attribute.
+import { fileStem } from '../ui/kit/format.js';
 import { MmdxElement, readInlineSource, warnOnce, words, type AttrSpec, type Patch } from './base.js';
 import type { HistoryEventMap } from '../view/history.js';
 import { applyKernelPatch, KERNEL_OPTION_KEYS } from '../view/kernel-options.js';
@@ -233,9 +234,9 @@ export class DiagramViewer {
     const r = this.scene.rendered;
     if (!r) throw new Error('Nothing rendered');
     const b = r.result.bounds;
-    const { svgToPng, reportMissingImages } = await import('../dom/export.js');
+    const { fontsMissing, svgToPng, reportMissingImages } = await import('../dom/export.js');
     const res = await svgToPng(this.toSvg(), b.w, b.h, { scale: opts.scale ?? 2, fonts: getShared().fonts });
-    if (res.missingFonts.length) this.core.emit('mmdx-error', { diagnostics: [{ severity: 'info', code: 'export.font-missing', message: `Fonts not embedded (no font source): ${res.missingFonts.join(', ')}` }] });
+    if (res.missingFonts.length) this.core.emit('mmdx-error', { diagnostics: [fontsMissing(res.missingFonts)] });
     if (res.missingImages) reportMissingImages(this.core, res.missingImages);
     return res.blob;
   }
@@ -251,7 +252,7 @@ export class DiagramViewer {
 
   /** The file name stem of exports. */
   get fileName(): string {
-    return (this.o.src?.split('/').pop() ?? 'diagram').replace(/\.(mmdx?|md|txt)$/i, '') || 'diagram';
+    return fileStem(this.o.src);
   }
 
   /** Opens or closes the History of the diagram; `compare` opens on the newest change compared. */
