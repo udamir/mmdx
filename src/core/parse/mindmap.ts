@@ -6,7 +6,8 @@
 // skipped (mmdx goes on at the next line, so a half-typed node does not swallow the rest of the map).
 import type { MindmapConfig, MindmapModel, MindNode, MindShape } from '../model.js';
 import { diag } from '../types.js';
-import { frontmatterValues } from './frontmatter.js';
+import { frontmatterAt, frontmatterValues } from './frontmatter.js';
+import { initKey, initSection, lineIndex, textOnly } from './kit.js';
 import { cleanLabel, markdownText } from './label.js';
 import { ItemBudget, stripControl } from './limits.js';
 
@@ -188,20 +189,16 @@ function mindConfig(v: ReadonlyMap<string, string>): MindmapConfig {
 
 function initValues(t: string): Map<string, string> {
   const out = new Map<string, string>();
-  const body = /["']?mindmap["']?\s*:\s*\{([^}]*)\}/.exec(t)?.[1] ?? '';
+  const body = initSection(t, 'mindmap');
   for (const k of ['colorBy', 'maxNodeWidth']) {
-    const m = new RegExp(`["']?${k}["']?\\s*:\\s*(?:["']([^"']*)["']|([\\w.]+))`).exec(body);
-    if (m) out.set(`config.mindmap.${k}`, m[1] ?? m[2] ?? '');
+    const v = initKey(body, k);
+    if (v !== undefined) out.set(`config.mindmap.${k}`, v);
   }
   return out;
 }
 
 // ---- parser -------------------------------------------------------------------------------------------------------
 
-// eslint-disable-next-line no-control-regex
-const CONTROL_BUT_NL = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/g;
-/** Text without control characters (line breaks stay). */
-const textOnly = (s: string): string => s.replace(CONTROL_BUT_NL, '');
 
 /** Lines Mermaid's mindmap has no syntax for (it draws them as nodes): `classDef x …`, `style id a:b`. */
 const NOT_MINDMAP = /^(?:classDef\s+\S+|style\s+\S+\s+\S*:)/;
@@ -211,39 +208,22 @@ interface Raw {
   level: number;
 }
 
-/** 0-based line of an offset (counting from a known line and offset). */
-function lineCounter(src: string): (at: number) => number {
-  let li = 0, off = 0;
-  return (at) => {
-    if (at < off) {
-      li = 0;
-      off = 0;
-    }
-    for (let i = off; i < at && i < src.length; i++) if (src.charCodeAt(i) === 10) li++;
-    off = Math.max(off, Math.min(at, src.length));
-    return li;
-  };
-}
-
 export function parseMindmap(code: string): MindmapModel {
   const model = emptyMindmap();
   const D = model.diagnostics;
   const budget = new ItemBudget(D);
   const src = code.replace(/\r/g, ' ');
-  const lineAt = lineCounter(src);
+  const lineAt = lineIndex(src);
   const settings = new Map<string, string>();
 
   // frontmatter: kept in the code, read for the settings that change the drawing
   let pos = 0;
   {
     const lines = src.split('\n');
-    let i = 0;
-    while (i < lines.length && !lines[i]!.trim()) i++;
-    if (i < lines.length && /^---\s*$/.test(lines[i]!.trim())) {
-      let j = i + 1;
-      while (j < lines.length && !/^---\s*$/.test(lines[j]!.trim())) j++;
-      for (const [k, v] of frontmatterValues(lines.slice(i + 1, j))) settings.set(k, v);
-      for (let k = 0; k <= Math.min(j, lines.length - 1); k++) pos += lines[k]!.length + 1;
+    const fm = frontmatterAt(lines);
+    if (fm) {
+      for (const [k, v] of frontmatterValues(lines.slice(fm.start + 1, fm.end))) settings.set(k, v);
+      for (let k = 0; k <= fm.end; k++) pos += lines[k]!.length + 1;
     }
     for (const l of lines) if (/^\s*%%\{/.test(l)) for (const [k, v] of initValues(l)) settings.set(k, v);
   }

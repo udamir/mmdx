@@ -2,6 +2,20 @@
 // the parsers that read settings from it (flowchart: title, curve, wrapping; mindmap: colorBy, maxNodeWidth; ER: title),
 // and the fix that moves a `title` statement into it.
 
+// ---- the fence and the span (one rule for every reader, X2) ------------------------------------------------------
+
+/** `---` … `---` before anything else (blank lines allowed before it): its body, and where the code after it starts. */
+const FRONTMATTER = /^\s*---[^\S\n]*\n([\s\S]*?)\n[^\S\n]*---[^\S\n]*(?:\n|$)/;
+
+/** A frontmatter line: `---`, maybe indented, maybe with spaces after (the rule every reader uses). */
+export const isFrontmatterFence = (line: string): boolean => /^\s*---\s*$/.test(line);
+
+/** The frontmatter at the start of the code: its lines and the offset just after its closing line; null: none. */
+export function frontmatterSpan(code: string): { lines: string[]; end: number } | null {
+  const m = FRONTMATTER.exec(code);
+  return m ? { lines: m[1]!.split('\n'), end: m[0].length } : null;
+}
+
 /**
  * The frontmatter's and `%%{init}%%`'s settings that change what the content means: `title`, and in `config`
  * `flowchart.curve`, `htmlLabels`, `markdownAutoWrap`, `flowchart.wrappingWidth`. A small reader for the YAML Mermaid
@@ -28,8 +42,8 @@ export function frontmatterValues(lines: readonly string[]): Map<string, string>
 export function frontmatterAt(lines: readonly string[]): { start: number; end: number } | null {
   let start = 0;
   while (start < lines.length && !lines[start]!.trim()) start++;
-  if (start >= lines.length || !/^\s*---\s*$/.test(lines[start]!)) return null;
-  for (let end = start + 1; end < lines.length; end++) if (/^\s*---\s*$/.test(lines[end]!)) return { start, end };
+  if (start >= lines.length || !isFrontmatterFence(lines[start]!)) return null;
+  for (let end = start + 1; end < lines.length; end++) if (isFrontmatterFence(lines[end]!)) return { start, end };
   return null;
 }
 

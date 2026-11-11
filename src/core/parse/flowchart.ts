@@ -8,7 +8,8 @@ import { EXTENDED_NAMES } from '../shapes/names.js';
 import { namedShapes, registerShapeNames, resolveShape } from '../shapes/registry.js';
 import { encodeId } from '../meta/index.js';
 import { diag } from '../types.js';
-import { frontmatterValues, titleToFrontmatter } from './frontmatter.js';
+import { frontmatterValues, isFrontmatterFence, titleToFrontmatter } from './frontmatter.js';
+import { initKey, initSection } from './kit.js';
 
 export { titleToFrontmatter } from './frontmatter.js';
 import { cleanLabel, encodeLabel, isMarkdownString, markdownText } from './label.js';
@@ -164,15 +165,14 @@ const mdText = (raw: string): string | null => (isMarkdownString(raw) ? markdown
 /** Settings of an `%%{init: {…}}%%` directive (JSON-ish: keys and values, quoted or not), as frontmatter keys. */
 function initValues(t: string): Map<string, string> {
   const out = new Map<string, string>();
-  const at = (k: string): RegExpExecArray | null => new RegExp(`["']?${k}["']?\\s*:\\s*(?:["']([^"']*)["']|([\\w.]+))`).exec(t);
-  const flow = /["']?flowchart["']?\s*:\s*\{([^}]*)\}/.exec(t)?.[1] ?? '';
+  const flow = initSection(t, 'flowchart');
   for (const k of ['curve', 'htmlLabels', 'wrappingWidth']) {
-    const m = new RegExp(`["']?${k}["']?\\s*:\\s*(?:["']([^"']*)["']|([\\w.]+))`).exec(flow);
-    if (m) out.set(`config.flowchart.${k}`, m[1] ?? m[2] ?? '');
+    const v = initKey(flow, k);
+    if (v !== undefined) out.set(`config.flowchart.${k}`, v);
   }
   for (const k of ['htmlLabels', 'markdownAutoWrap']) {
-    const m = at(k);
-    if (m && !out.has(`config.flowchart.${k}`)) out.set(`config.${k}`, m[1] ?? m[2] ?? '');
+    const v = initKey(t, k);
+    if (v !== undefined && !out.has(`config.flowchart.${k}`)) out.set(`config.${k}`, v);
   }
   return out;
 }
@@ -696,11 +696,11 @@ function readFlowchart(code: string): FlowchartModel {
         model.direction = ((h[3] ?? 'TB').toUpperCase().replace('TD', 'TB')) as Direction;
         if (h[2]) D.push(diag('warning', 'flow.elk', 'ELK layout hints are not supported — the built-in layout is used', li));
         stmts = stmts.slice(1); // `graph TD; A-->B` keeps the statements after the header
-      } else if (/^---/.test(t0)) {
+      } else if (isFrontmatterFence(t0)) {
         // front matter: only before the header; kept in the code, read for the title and the settings that change the content
         let elk = false;
         const fm: string[] = [];
-        while (++li < lines.length && !/^---/.test((lines[li] ?? '').trim())) {
+        while (++li < lines.length && !isFrontmatterFence(lines[li] ?? '')) {
           if (ELK_HINT.test(lines[li] ?? '')) elk = true;
           fm.push(lines[li] ?? '');
         }

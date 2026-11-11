@@ -14,9 +14,10 @@ import type { Direction, MermaidStyle, StateBlock, StateEdge, StateGroup, StateK
 import type { DiagnosticFix } from '../types.js';
 import { diag } from '../types.js';
 import { frontmatterValues } from './frontmatter.js';
-import { decodeLabel } from './label.js';
 import { guardParse, ItemBudget, LexBudget, stripControl } from './limits.js';
 import { LineScan } from './line-scan.js';
+import { firstMatch, lexRule, prepareSource, type LexRule } from './jison.js';
+import { labelText, lineIndex, stripQuotes } from './kit.js';
 import { parseStyleList } from './style.js';
 import { minOf } from '../geom.js';
 
@@ -38,39 +39,6 @@ export function pseudoId(scope: string | null, region: number, end: boolean): st
 
 /** Is the id a pseudo-state's (`[*]start`, `X/[*]end`…)? */
 export const isPseudo = (id: string): boolean => /(?:^|\/)\[\*\](?:start|end)$/.test(id);
-
-// ---- source as Mermaid's lexer sees it ----------------------------------------------------------------------------
-
-/**
- * The code as Mermaid's preprocessing hands it to the lexer, with every offset kept: the frontmatter, `%%{…}%%`
- * directives and `%%` comment lines blanked; `#\w+;` entities as one run without `#` and `;` (Mermaid encodes them
- * before lexing); a line break added at the end. Returns the frontmatter lines too.
- */
-function lexView(code: string): { src: string; front: string[] } {
-  const chars = code.replace(/\r/g, ' ').split('');
-  const blank = (s: number, e: number): void => {
-    for (let i = s; i < e; i++) if (chars[i] !== '\n') chars[i] = ' ';
-  };
-  const text = (): string => chars.join('');
-  let front: string[] = [];
-  // frontmatter: `---` … `---` before anything else
-  const fm = /^\s*---[^\S\n]*\n([\s\S]*?)\n[^\S\n]*---[^\S\n]*(?:\n|$)/.exec(text());
-  if (fm) {
-    front = fm[1]!.split('\n');
-    blank(0, fm[0].length);
-  }
-  // directives, then whole comment lines
-  for (const m of text().matchAll(/%%\{[\s\S]*?\}%%/g)) blank(m.index, m.index + m[0].length);
-  for (const m of text().matchAll(/^[^\S\n]*%%(?!\{)[^\n]*$/gm)) blank(m.index, m.index + m[0].length);
-  // `style …:#…;` / `classDef …:#…;`: Mermaid drops the last `;` before it encodes entities
-  for (const m of text().matchAll(/(?:style|classDef).*:\S*#.*;/g)) chars[m.index + m[0].length - 1] = ' ';
-  // entities: `#9829;` → one run (the text is read back from the code, where it is decoded)
-  for (const m of text().matchAll(/#\w+;/g)) {
-    chars[m.index] = 'ﬂ';
-    chars[m.index + m[0].length - 1] = '¶';
-  }
-  return { src: text() + '\n', front };
-}
 
 // ---- lexer --------------------------------------------------------------------------------------------------------
 
@@ -98,19 +66,9 @@ interface Act {
   throws?: string;
 }
 
-/**
- * A lexer rule: a sticky RegExp, or a `test` giving the match length at a position (-1: none) where the RegExp
- * would re-read the line at every token (B1). `scan`: how far a failed attempt of the RegExp may read (to the end of
- * the line, or of the source); it is charged that much against the step budget.
- */
-interface Rule {
-  re: RegExp;
-  act: Act;
-  test?: (L: LineScan, pos: number) => number;
-  scan?: 'line' | 'all';
-}
+type Rule = LexRule<Act>;
 
-const R = (re: string, act: Act, more: Partial<Rule> = {}): Rule => ({ re: new RegExp(re, 'iy'), act, ...more });
+const R = (re: string, act: Act, more: Partial<Rule> = {}): Rule => lexRule(re, act, more);
 // `.*direction\s+TB[^\n]*` in Mermaid's lexer, answered from a per-line index
 const DIRS = (): Rule[] =>
   (['TB', 'BT', 'RL', 'LR'] as const).map((d) => R(`.*direction\\s+${d}[^\\n]*`, { tok: `dir_${d}` }, { test: (L, pos) => L.direction(pos, d) }));
@@ -241,24 +199,7 @@ class Lexer {
       if (this.done) return { t: 'EOF', v: '', s: this.pos, e: this.pos };
       if (this.pos >= this.src.length) this.done = true;
       const rules = CONDITIONS[this.stack[this.stack.length - 1]!] ?? CONDITIONS['INITIAL']!;
-      let hit: { m: string; act: Act } | null = null;
-      for (const i of rules) {
-        const r = RULES[i]!;
-        this.budget.step();
-        let m: string | null;
-        if (r.test) {
-          const n = r.test(this.L, this.pos);
-          m = n < 0 ? null : this.src.slice(this.pos, this.pos + n);
-        } else {
-          r.re.lastIndex = this.pos;
-          m = r.re.exec(this.src)?.[0] ?? null;
-          if (r.scan) this.budget.step(m !== null ? m.length : r.scan === 'line' ? this.L.lineEnd(this.pos) - this.pos : this.src.length - this.pos);
-        }
-        if (m !== null) {
-          hit = { m, act: r.act };
-          break;
-        }
-      }
+      const hit = firstMatch(RULES, rules, this.src, this.pos, this.L, this.budget);
       if (!hit) {
         if (this.pos >= this.src.length) return { t: 'EOF', v: '', s: this.pos, e: this.pos };
         throw new LexError(this.pos, 'lexical', 'Mermaid cannot read this text');
@@ -530,7 +471,7 @@ class Grammar {
 }
 
 const trimColon = (v: string): string => (v.startsWith(':') ? v.slice(1).trim() : v.trim());
-const unquote = (v: string): string => v.replace(/^"+|"+$/g, '');
+const unquote = stripQuotes;
 /** The offsets of a DESCR's text (after the colon, trimmed) in the source. */
 function textAt(src: string, at: readonly [number, number]): [number, number] {
   const v = src.slice(at[0], at[1]);
@@ -542,23 +483,7 @@ function textAt(src: string, at: readonly [number, number]): [number, number] {
 
 // ---- parser -------------------------------------------------------------------------------------------------------
 
-/** Line starts, for an offset's line. */
-function lineIndex(src: string): (at: number) => number {
-  const starts = [0];
-  for (let i = 0; i < src.length; i++) if (src.charCodeAt(i) === 10) starts.push(i + 1);
-  return (at) => {
-    let lo = 0, hi = starts.length - 1;
-    while (lo < hi) {
-      const mid = (lo + hi + 1) >> 1;
-      if (starts[mid]! <= at) lo = mid;
-      else hi = mid - 1;
-    }
-    return lo;
-  };
-}
-
-/** A label as Mermaid shows it: entity codes decoded, `<br>` as a line break, control characters out. */
-const textOf = (raw: string): string => stripControl(decodeLabel(raw).replace(/\n/g, '\uE000')).replace(/\uE000/g, '\n');
+const textOf = labelText;
 
 /** Never throws: a source past the lexer's limits gives an empty model with `doc.too-complex`. */
 export function parseState(code: string): StateModel {
@@ -569,7 +494,7 @@ function readState(code: string): StateModel {
   const model = emptyState();
   const D = model.diagnostics;
   const budget = new ItemBudget(D);
-  const { src, front } = lexView(typeof code === 'string' ? code : '');
+  const { src, front } = prepareSource(typeof code === 'string' ? code : '');
   const orig = (typeof code === 'string' ? code : '') + '\n';
   const lineAt = lineIndex(src);
   const raw = (at: readonly [number, number]): string => orig.slice(at[0], at[1]);

@@ -6,6 +6,7 @@ import type { DiagramType } from '../types.js';
 import { diag } from '../types.js';
 import { KIND_INFO, typeOfHeader } from '../kinds/info.js';
 import { MAX_SOURCE_LENGTH, tooLargeDiagnostic } from './limits.js';
+import { isFrontmatterFence } from './frontmatter.js';
 import { registeredKinds } from '../kinds/registry.js';
 
 
@@ -17,9 +18,9 @@ function headerLine(code: string): string | null {
     if (nl < 0) nl = code.length;
     const t = code.slice(pos, nl).trim();
     pos = nl + 1;
-    if (inFront) { if (t.startsWith('---')) inFront = false; continue; }
+    if (inFront) { if (isFrontmatterFence(t)) inFront = false; continue; }
     if (!t || t.startsWith('%%')) continue;
-    if (first && t.startsWith('---')) { inFront = true; first = false; continue; }
+    if (first && isFrontmatterFence(t)) { inFront = true; first = false; continue; }
     return t;
   }
   return null;

@@ -19,9 +19,10 @@
 import type { AttrKey, Cardinality, Direction, Entity, ErAttribute, ErEntityStmt, ErGroup, ErModel, ErRel, MermaidStyle } from '../model.js';
 import { diag } from '../types.js';
 import { frontmatterValues, titleToFrontmatter } from './frontmatter.js';
-import { decodeLabel } from './label.js';
-import { guardParse, ItemBudget, LexBudget, stripControl } from './limits.js';
+import { guardParse, ItemBudget, LexBudget } from './limits.js';
 import { LineScan } from './line-scan.js';
+import { firstMatch, lexRule, prepareSource, type LexRule } from './jison.js';
+import { labelText, lineIndex, unquotePair } from './kit.js';
 import { parseStyleList } from './style.js';
 import { minOf } from '../geom.js';
 
@@ -71,36 +72,6 @@ export function emptyEr(): ErModel {
   return { type: 'er', direction: 'TB', entities: new Map(), rels: [], groups: new Map(), classDefs: {}, undefinedClasses: [], headerLine: -1, diagnostics: [] };
 }
 
-// ---- source as Mermaid's lexer sees it ----------------------------------------------------------------------------
-
-/**
- * The code as Mermaid's preprocessing hands it to the lexer, with every offset kept: the frontmatter, `%%{…}%%`
- * directives and `%%` comment lines blanked; `#\w+;` entities as one run of non-ASCII placeholders around the name
- * (Mermaid encodes them before lexing; the text is read back from the code); the last `;` of a `style` / `classDef`
- * line with a colour dropped, as Mermaid does. Returns the frontmatter lines too.
- */
-function lexView(code: string): { src: string; front: string[] } {
-  const chars = code.replace(/\r/g, ' ').split('');
-  const blank = (s: number, e: number): void => {
-    for (let i = s; i < e; i++) if (chars[i] !== '\n') chars[i] = ' ';
-  };
-  const text = (): string => chars.join('');
-  let front: string[] = [];
-  const fm = /^\s*---[^\S\n]*\n([\s\S]*?)\n[^\S\n]*---[^\S\n]*(?:\n|$)/.exec(text());
-  if (fm) {
-    front = fm[1]!.split('\n');
-    blank(0, fm[0].length);
-  }
-  for (const m of text().matchAll(/%%\{[\s\S]*?\}%%/g)) blank(m.index, m.index + m[0].length);
-  for (const m of text().matchAll(/^[^\S\n]*%%(?!\{)[^\n]*$/gm)) blank(m.index, m.index + m[0].length);
-  for (const m of text().matchAll(/(?:style|classDef).*:\S*#.*;/g)) chars[m.index + m[0].length - 1] = ' ';
-  for (const m of text().matchAll(/#\w+;/g)) {
-    chars[m.index] = 'ﬂ';
-    chars[m.index + m[0].length - 1] = '¶';
-  }
-  return { src: text() + '\n', front };
-}
-
 // ---- lexer --------------------------------------------------------------------------------------------------------
 
 interface Tok {
@@ -119,19 +90,9 @@ interface Act {
   v?: string;
 }
 
-/**
- * A lexer rule: a sticky RegExp, or a `test` giving the match length at a position (-1: none) where the RegExp
- * would re-read the line at every token (B1). `scan`: a RegExp that may read to the end of the line before failing;
- * its attempts are charged that much against the step budget.
- */
-interface Rule {
-  re: RegExp;
-  act: Act;
-  test?: (L: LineScan, pos: number) => number;
-  scan?: boolean;
-}
+type Rule = LexRule<Act>;
 
-const R = (re: string, act: Act, more: Partial<Rule> = {}): Rule => ({ re: new RegExp(re, 'iy'), act, ...more });
+const R = (re: string, act: Act, more: Partial<Rule> = {}): Rule => lexRule(re, act, more);
 const CARD = (re: string, v: Cardinality | 'md-parent'): Rule => R(re, { tok: 'CARD', v });
 // `.*direction\s+TB[^\n]*` in Mermaid's lexer, answered from a per-line index
 const DIR = (d: Direction): Rule => R(`.*direction\\s+${d}[^\\n]*`, { tok: 'DIR', v: d }, { test: (L, pos) => L.direction(pos, d) });
@@ -159,7 +120,7 @@ const RULES: Rule[] = [
   /* 21 */ R(':', { tok: 'COLON' }),
   /* 22 */ R('\\s+', {}),
   /* 23 */ R('\\b((?:PK)|(?:FK)|(?:UK))\\b', { tok: 'KEY' }),
-  /* 24 */ R('([^\\s]*)[~].*[~]([^\\s]*)', { tok: 'AWORD' }, { scan: true }),
+  /* 24 */ R('([^\\s]*)[~].*[~]([^\\s]*)', { tok: 'AWORD' }, { scan: 'line' }),
   /* 25 */ R(AWORD, { tok: 'AWORD' }),
   /* 26 */ R('[`]', { begin: 'block_bq' }),
   /* 27 */ R('[^`]+', { tok: 'AWORD' }),
@@ -238,24 +199,7 @@ function lex(src: string): { toks: Tok[]; bad: number[] } {
   let pos = 0;
   while (pos < src.length) {
     const cond = stack[stack.length - 1]!;
-    let hit: { m: string; act: Act } | null = null;
-    for (const i of CONDITIONS[cond] ?? CONDITIONS['INITIAL']!) {
-      const r = RULES[i]!;
-      budget.step();
-      let m: string | null;
-      if (r.test) {
-        const n = r.test(L, pos);
-        m = n < 0 ? null : src.slice(pos, pos + n);
-      } else {
-        r.re.lastIndex = pos;
-        m = r.re.exec(src)?.[0] ?? null;
-        if (r.scan) budget.step(m === null ? L.lineEnd(pos) - pos : m.length);
-      }
-      if (m !== null) {
-        hit = { m, act: r.act };
-        break;
-      }
-    }
+    const hit = firstMatch(RULES, CONDITIONS[cond] ?? CONDITIONS['INITIAL']!, src, pos, L, budget);
     if (!hit) {
       bad.push(pos++);
       continue;
@@ -286,8 +230,8 @@ export const lexLine = (line: string): { t: string; text: string }[] => lex(`${l
 
 const NAME_TOKENS = new Set(['TEXT', 'NUM', 'ENTITY_NAME', 'DECIMAL', 'ENTITY_ONE']);
 /** A label as Mermaid shows it: entity codes decoded, `<br>` as a line break, control characters out. */
-const textOf = (raw: string): string => stripControl(decodeLabel(raw).replace(/\n/g, '\uE000')).replace(/\uE000/g, '\n');
-const unquote = (s: string): string => (s.length >= 2 && s.startsWith('"') && s.endsWith('"') ? s.slice(1, -1) : s);
+const textOf = labelText;
+const unquote = unquotePair;
 
 interface OpenGroup {
   g: ErGroup;
@@ -304,18 +248,8 @@ function readER(code: string): ErModel {
   const D = model.diagnostics;
   const budget = new ItemBudget(D);
   const orig = (typeof code === 'string' ? code : '') + '\n';
-  const { src, front } = lexView(typeof code === 'string' ? code : '');
-  const starts = [0];
-  for (let i = 0; i < src.length; i++) if (src[i] === '\n') starts.push(i + 1);
-  const lineAt = (at: number): number => {
-    let lo = 0, hi = starts.length - 1;
-    while (lo < hi) {
-      const mid = (lo + hi + 1) >> 1;
-      if (starts[mid]! <= at) lo = mid;
-      else hi = mid - 1;
-    }
-    return lo;
-  };
+  const { src, front } = prepareSource(typeof code === 'string' ? code : '');
+  const lineAt = lineIndex(src), starts = lineAt.starts;
   const raw = (t: Tok): string => orig.slice(t.s, t.e);
   const { toks, bad } = lex(src);
   const badLines = new Set<number>();
