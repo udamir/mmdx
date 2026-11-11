@@ -39,7 +39,7 @@ export function toBase64(buf: ArrayBuffer | Uint8Array): string {
 }
 
 /** Every font-family attribute value used in an SVG document string. */
-export function usedFonts(svg: string): string {
+function usedFonts(svg: string): string {
   const out = new Set<string>();
   for (const m of svg.matchAll(/font-family="([^"]*)"/g)) for (const f of (m[1] ?? '').replace(/&quot;|&#39;/g, '').split(',')) out.add(f.trim());
   return [...out].join(',');

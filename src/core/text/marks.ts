@@ -25,7 +25,7 @@ export interface MarkedRun {
 
 export const hasMarks = (s: string): boolean => ANY.test(s);
 export const stripMarks = (s: string): string => s.replace(ALL, '');
-export const isMarkChar = (ch: string): boolean => ch === MARK.DEL_OPEN || ch === MARK.DEL_CLOSE || ch === MARK.INS_OPEN || ch === MARK.INS_CLOSE;
+const isMarkChar = (ch: string): boolean => ch === MARK.DEL_OPEN || ch === MARK.DEL_CLOSE || ch === MARK.INS_OPEN || ch === MARK.INS_CLOSE;
 
 /** `s` marked as removed words (empty stays empty). */
 export const deleted = (s: string): string => (s ? MARK.DEL_OPEN + s + MARK.DEL_CLOSE : s);

@@ -16,7 +16,7 @@ export type ImageFit = 'contain' | 'cover' | 'stretch';
 const ASPECT: Record<ImageFit, string> = { contain: 'xMidYMid meet', cover: 'xMidYMid slice', stretch: 'none' };
 
 /** Why an image is not shown, for the placeholder and the diagnostic (English; `reason` is the i18n key's parameter). */
-export const BLOCKED_TEXT: Record<ImageBlockReason, string> = {
+const BLOCKED_TEXT: Record<ImageBlockReason, string> = {
   invalid: 'The image URL is not valid',
   protocol: 'Images from this kind of URL are not allowed',
   'data-off': 'Embedded images are disabled',

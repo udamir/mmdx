@@ -4,7 +4,7 @@
 import type { SequenceModel } from './model.js';
 import type { ItemKind } from './types.js';
 
-export const activationId = (participant: string, n: number): string => `${participant}:${n}`;
+const activationId = (participant: string, n: number): string => `${participant}:${n}`;
 
 /**
  * The item kinds whose ids are positions (B30): messages, notes, blocks and boxes are numbered in source order,

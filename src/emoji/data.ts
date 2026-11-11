@@ -32,7 +32,7 @@ const LOADERS: Readonly<Record<string, () => Promise<Raw>>> = {
 };
 
 /** The skin tone modifiers (light … dark); tone 0 is the default yellow. */
-export const SKIN_TONES = ['\u{1F3FB}', '\u{1F3FC}', '\u{1F3FD}', '\u{1F3FE}', '\u{1F3FF}'] as const;
+const SKIN_TONES = ['\u{1F3FB}', '\u{1F3FC}', '\u{1F3FD}', '\u{1F3FE}', '\u{1F3FF}'] as const;
 
 /** An emoji in skin tone `tone` (1–5; 0 or an emoji without tones: as it is): the modifier after the first code point. */
 export function withTone(e: string, tone: number, tones = true): string {

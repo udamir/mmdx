@@ -14,7 +14,7 @@ import type { IconData, IconForm, IconifyInfo, IconifyJSON, IconLookup, IconMiss
 /** A failed pack load is tried again after this long (ms). */
 export const ICON_RETRY_MS = 30_000;
 /** The built-in set's pack name: Tabler's own prefix, so files stay portable to any Mermaid that registers Tabler. */
-export const BUILTIN_PACK = 'tabler';
+const BUILTIN_PACK = 'tabler';
 
 const LOADING: IconResult = { status: 'loading' };
 const missing = (reason: IconMissing): IconResult => ({ status: 'missing', reason });
@@ -25,7 +25,7 @@ let decoder: IconDecoder | null = null;
 let decoderLoad: Promise<unknown> | null = null;
 
 /** Makes the decoder available synchronously (SSR, Node, the editor: `createIconRegistry` calls it). */
-export function useIconDecoder(d: IconDecoder): void {
+function useIconDecoder(d: IconDecoder): void {
   decoder = d;
 }
 

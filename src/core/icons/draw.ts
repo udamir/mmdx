@@ -15,7 +15,7 @@ import type { IconData, IconForm, IconLookup, IconMissing } from './types.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 /** The placeholder's colour when the renderer gives none (the image placeholder's grey). */
-export const ICON_PLACEHOLDER_COLOR = '#8a9099';
+const ICON_PLACEHOLDER_COLOR = '#8a9099';
 
 const colorOf = (c: string | undefined): string | undefined => (c && c.toLowerCase() !== 'currentcolor' && isColorLiteral(c) ? c.trim() : undefined);
 const num = (n: number): string => String(Math.round(n * 1e4) / 1e4);
@@ -46,7 +46,7 @@ export function iconUrl(icon: IconData, color?: string, size?: number): SafeImag
 
 const placeholders = new Map<string, SafeImageUrl>();
 /** The "?" drawn for an icon that is not available: a dashed rounded square with a question mark. */
-export function iconPlaceholderUrl(color?: string): SafeImageUrl {
+function iconPlaceholderUrl(color?: string): SafeImageUrl {
   const c = colorOf(color) ?? ICON_PLACEHOLDER_COLOR;
   let u = placeholders.get(c);
   if (!u) {
