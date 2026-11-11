@@ -10,7 +10,7 @@ import { polylineCrosses } from '../../../src/core/layout/route.js';
 import { splitSource } from '../../../src/core/meta/index.js';
 import type { DiagramMeta } from '../../../src/core/meta/types.js';
 import type { StateModel } from '../../../src/core/model.js';
-import { resetLayout } from '../../../src/core/ops/meta-ops.js';
+import { resetLayout } from '../../../src/core/ops/positions.js';
 import { parse } from '../../../src/core/parse/index.js';
 import { render } from '../../../src/core/render/index.js';
 import type { BoxGeom, StateGeometry } from '../../../src/core/render/types.js';

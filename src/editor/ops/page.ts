@@ -1,7 +1,7 @@
 // Page ops of the editor (no UI): the page values in effect, page presets, fit / custom page size and proportions,
 // each applied as one history step. Shared by the Properties panel and the page toolbar.
 import type { DiagramMeta } from '../../core/meta/types.js';
-import { setPage, setPagePreset } from '../../core/ops/meta-ops.js';
+import { setPage, setPagePreset } from '../../core/ops/document.js';
 import { cloneMeta } from '../../core/ops/meta-util.js';
 import { effectivePage, ratioOf } from '../../core/render/page.js';
 import type { EditorCore } from '../core.js';

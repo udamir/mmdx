@@ -11,7 +11,8 @@ import { hexToRgb } from '../../../src/core/theme/colors.js';
 import { COLOR_REF, COLOR_REL, HEX_COLOR } from '../../../src/core/validate.js';
 import { joinSource, splitSource } from '../../../src/core/meta/index.js';
 import { emptyMeta, type DiagramMeta } from '../../../src/core/meta/types.js';
-import { resetItemStyle, resetLayout } from '../../../src/core/ops/meta-ops.js';
+import { resetItemStyle } from '../../../src/core/ops/style-ops.js';
+import { resetLayout } from '../../../src/core/ops/positions.js';
 
 const meta = (m: Partial<DiagramMeta>): DiagramMeta => ({ ...emptyMeta(), ...m });
 

@@ -71,7 +71,7 @@ export interface KeyDef {
   place?: true;
   /** One of an image or icon item's keys (core/ops/meta-media.ts). */
   media?: true;
-  /** Copy style copies it (the format painter's look; core/ops/meta-ops.ts). */
+  /** Copy style copies it (the format painter's look; core/ops/style-ops.ts). */
   copy?: true;
   /** Not a change a reviewer sees: the diff skips it (a lock, the format version). */
   diffIgnore?: true;

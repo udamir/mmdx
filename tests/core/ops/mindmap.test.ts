@@ -8,7 +8,7 @@ import { splitSource } from '../../../src/core/meta/index.js';
 import type { DiagramMeta } from '../../../src/core/meta/types.js';
 import type { MindmapModel } from '../../../src/core/model.js';
 import * as OPS from '../../../src/core/ops/mindmap.js';
-import { remapMeta } from '../../../src/core/ops/meta-ops.js';
+import { remapMeta } from '../../../src/core/ops/document.js';
 import { parseMindmap } from '../../../src/core/parse/mindmap.js';
 import type { ItemRef } from '../../../src/core/types.js';
 import { stockParse } from '../../helpers/mermaid.js';

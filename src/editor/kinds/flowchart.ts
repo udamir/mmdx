@@ -5,7 +5,7 @@ import { deleteFlow, groupFlow, relabelFlowEdge, relabelFlowNode, relabelGroup, 
 import type { FlowGeometry } from '../../core/render/types.js';
 import type { Sel, EditorCore } from '../core.js';
 import { cloneMeta, ensure as ensureIn } from '../../core/ops/meta-util.js';
-import { fixIdClash } from '../../core/ops/meta-ops.js';
+import { fixIdClash } from '../../core/ops/flowchart.js';
 import { flowPresets } from '../../core/render/flow-presets.js';
 import type { Point, ItemRef } from '../../core/types.js';
 import { focusLabel } from '../lib/shape-drop.js';

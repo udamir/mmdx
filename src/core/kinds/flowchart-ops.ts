@@ -3,7 +3,7 @@ import { edgeMeta, edgePreset, flowPresets, groupPreset, nodePreset } from '../r
 import { minOf } from '../geom.js';
 import type { FlowchartModel } from '../model.js';
 import { cloneFlow, deleteFlow, setFlowDirection } from '../ops/flowchart.js';
-import { groupDescendants } from '../ops/meta-ops.js';
+import { groupDescendants } from '../ops/flowchart.js';
 import { tidy } from '../ops/meta-util.js';
 import type { FlowGeometry } from '../render/types.js';
 import type { ItemRef } from '../types.js';

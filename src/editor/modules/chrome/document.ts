@@ -9,7 +9,7 @@ import { renderWithMermaid } from '../../../platform/mermaid.js';
 import { mmdxOnlyContent, toPortableMermaid, type MmdxOnly } from '../../../core/export/portable.js';
 import { joinSource, mergeLegacySidecar, pruneMeta } from '../../../core/meta/index.js';
 import { usedIds } from '../../../core/ops/ids.js';
-import { resetLayout } from '../../../core/ops/meta-ops.js';
+import { resetLayout } from '../../../core/ops/positions.js';
 import { standaloneSvg } from '../../../core/pipeline-core.js';
 import { download, reportMissingImages, svgToPng } from '../../../dom/export.js';
 import type { Diagnostic } from '../../../core/types.js';

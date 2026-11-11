@@ -4,7 +4,7 @@
 // highlight).
 import { DEFAULT_LAYER, effectiveLayers, layerDefs, layerItems, layerOf } from '../../../core/layers.js';
 import type { LayerMeta } from '../../../core/meta/types.js';
-import { newLayer, setLayer } from '../../../core/ops/meta-ops.js';
+import { newLayer, setLayer } from '../../../core/ops/palette.js';
 import { cloneMeta } from '../../../core/ops/meta-util.js';
 import { ownOr } from '../../../core/own.js';
 import { clearHighlight, highlightItems } from '../../../dom/highlight.js';

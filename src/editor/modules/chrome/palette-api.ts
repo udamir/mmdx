@@ -1,6 +1,6 @@
 // The diagram palette (A.7 row 88) both toolbars show: the theme's colours and the diagram's own, "+" adds a colour
 // to the diagram, Alt-click removes one.
-import { addLocalColor, removeLocalColor } from '../../../core/ops/meta-ops.js';
+import { addLocalColor, removeLocalColor } from '../../../core/ops/palette.js';
 import { applyMeta } from '../../ops/doc.js';
 import type { BarContext } from './bar-context.js';
 

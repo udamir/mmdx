@@ -712,3 +712,16 @@ export function addSeqMessageAt(code: string, model: SequenceModel, from: string
   L.splice(at, 0, `${indent}${from}->>${to}: message`);
   return { code: L.join('\n'), line: at };
 }
+
+/** Sequence: `autonumber` numbers the messages — a line after the header. */
+export function setAutonumber(code: string, on: boolean): CodeResult {
+  const L = code.split('\n');
+  const i = L.findIndex((l) => /^\s*autonumber\b/.test(l));
+  if (!on && i >= 0) L.splice(i, 1);
+  else if (on && i < 0) {
+    const hd = L.findIndex((l) => /^\s*sequenceDiagram\b/.test(l));
+    if (hd < 0) return { code };
+    L.splice(hd + 1, 0, '  autonumber');
+  } else return { code };
+  return { code: L.join('\n') };
+}

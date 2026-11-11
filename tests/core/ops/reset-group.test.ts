@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DiagramMeta } from '../../../src/core/meta/types.js';
 import { emptyMeta } from '../../../src/core/meta/types.js';
-import { groupHasPositions, resetGroupPositions } from '../../../src/core/ops/meta-ops.js';
+import { groupHasPositions, resetGroupPositions } from '../../../src/core/ops/positions.js';
 import { parse as parseAny } from '../../../src/core/parse/index.js';
 import { flow, geomOf, seq } from './helpers.js';
 

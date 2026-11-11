@@ -9,7 +9,7 @@ import { own, ownOr } from '../own.js';
 import type { BoxGeom, GeometryIndex } from '../render/types.js';
 import type { ItemKind, ItemRef } from '../types.js';
 import { cloneMeta } from './meta-util.js';
-import { remapMeta } from './meta-ops.js';
+import { remapMeta } from './document.js';
 import { moveStatement } from './reorder.js';
 import type { DocResult } from './types.js';
 

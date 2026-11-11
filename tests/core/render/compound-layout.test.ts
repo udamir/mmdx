@@ -9,7 +9,7 @@ import { polylineCrosses } from '../../../src/core/layout/route.js';
 import { splitSource } from '../../../src/core/meta/index.js';
 import type { DiagramMeta } from '../../../src/core/meta/types.js';
 import type { FlowchartModel } from '../../../src/core/model.js';
-import { resetLayout } from '../../../src/core/ops/meta-ops.js';
+import { resetLayout } from '../../../src/core/ops/positions.js';
 import { parse } from '../../../src/core/parse/index.js';
 import { render, renderSvgString } from '../../../src/core/render/index.js';
 import type { BoxGeom, FlowGeometry } from '../../../src/core/render/types.js';

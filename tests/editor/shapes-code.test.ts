@@ -9,7 +9,7 @@ import { codePanelModule } from '../../src/editor/modules/panels/code-panel.js';
 import { panesModule } from '../../src/editor/modules/chrome/panes.js';
 import { labelSpec } from '../../src/editor/ops/label.js';
 import { styleWithShapes } from '../../src/editor/ops/shape.js';
-import { setStyle } from '../../src/core/ops/meta-ops.js';
+import { setStyle } from '../../src/core/ops/style-ops.js';
 
 let host: HTMLElement;
 let ed: DiagramEditor | null = null;

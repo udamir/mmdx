@@ -24,7 +24,7 @@ import { detectType } from '../core/parse/dispatch.js';
 import { editorHasKind, loadEditorKind } from './kinds/loader.js';
 import type { DiagramType } from '../core/types.js';
 import type { ClipboardData } from '../core/ops/clipboard.js';
-import { remapMeta } from '../core/ops/meta-ops.js';
+import { remapMeta } from '../core/ops/document.js';
 import { currentPreset, type StyleEnv } from '../core/ops/style-env.js';
 import type { Rendered } from '../core/pipeline-core.js';
 import type { BoxGeom, GeometryIndex } from '../core/render/types.js';

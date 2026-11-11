@@ -5,6 +5,11 @@ import { cleanLabel, encodeLabel, labelText } from '../parse/label.js';
 import { applySplices, editBlock, type Splice } from '../parse/node-data.js';
 import { resolveShape } from '../shapes/registry.js';
 import type { ItemRef } from '../types.js';
+import type { DiagramMeta } from '../meta/types.js';
+import { own, setOwn } from '../own.js';
+import { renameClashingSubgraph } from '../parse/flowchart.js';
+import { descendantsIn } from './tree.js';
+import { cloneMeta } from './meta-util.js';
 import { edgeText, nodeDataOf, nodeDef } from './connect.js';
 import { rewriteStatement, statementSplice, type StatementEdit } from './flow-statements.js';
 import { copyIds, uniqueId } from './ids.js';
@@ -15,7 +20,7 @@ export function linkOf(code: string, model: FlowchartModel, e: FlowEdge, from: s
   const link = e.stmt !== undefined && e.seg !== undefined ? model.statements[e.stmt]?.links[e.seg] : undefined;
   return link ? `${from} ${code.slice(link.idEnd ?? link.start, link.end)} ${to}` : edgeText(e, from, to);
 }
-import type { CloneInto, CloneResult, CodeResult, SelectResult } from './types.js';
+import type { CloneInto, CloneResult, CodeResult, DocResult, SelectResult } from './types.js';
 
 type StatementKind = 'class' | 'ref' | 'other' | 'stmt';
 const statementKind = (t: string): StatementKind =>
@@ -337,4 +342,30 @@ export function setFlowDirection(code: string, dir: Direction): CodeResult {
   if (i < 0) return { code };
   L[i] = L[i]!.replace(/^(\s*)(flowchart|graph)\b(\s+(TB|TD|BT|LR|RL)\b)?/i, (_m, sp: string, kw: string) => `${sp}${kw} ${dir}`);
   return { code: L.join('\n') };
+}
+
+// ---- subgraphs: contents and the id clash fix ------------------------------------------------------------------------
+
+/** Node and subgraph ids inside a subgraph (any depth). */
+export function groupDescendants(model: FlowchartModel, gid: string): { nodes: string[]; groups: string[] } {
+  return descendantsIn(model.groups, (id) => model.nodes.has(id), gid);
+}
+
+/**
+ * Gives a subgraph whose id clashes with a node a free id `<id>_group` (the parser's diagnostic fix), moving its
+ * `%%@ group` metadata along. The editor toasts "Subgraph renamed to <id> — its title is unchanged".
+ */
+export function fixIdClash(code: string, meta: DiagramMeta, model: FlowchartModel, id: string): DocResult {
+  const d = model.diagnostics.find((x) => x.code === 'flow.id-clash' && x.params?.['id'] === id);
+  const nid = d?.params?.['newId'];
+  if (typeof nid !== 'string') return { code, meta };
+  const next = renameClashingSubgraph(code, id);
+  if (next === code) return { code, meta };
+  const out = cloneMeta(meta);
+  const g = own(out.groups, id);
+  if (out.groups && g) {
+    setOwn(out.groups, nid, g);
+    delete out.groups[id];
+  }
+  return { code: next, meta: out, selection: [{ kind: 'group', id: nid }] };
 }

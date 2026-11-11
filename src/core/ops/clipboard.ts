@@ -16,7 +16,7 @@ import type { GeometryIndex } from '../render/types.js';
 import type { DiagramType, ItemKind, ItemRef, Point } from '../types.js';
 import { elementExists, takenIds, usedIds } from './ids.js';
 import { boxOfItem, cloneJson, cloneMeta, collOf, ensure, getM, uniqueRefs } from './meta-util.js';
-import { pinAutoNodes } from './meta-ops.js';
+import { pinAutoNodes } from './positions.js';
 import type { CloneResult, DocResult } from './types.js';
 
 /** The copied items as a document of their own (what a paste uses when the target no longer has them). */

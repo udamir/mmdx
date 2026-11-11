@@ -2,7 +2,7 @@
 // underline, colour) styled at once, and delete.
 import type { AttrHighlight } from '../../../core/meta/types.js';
 import type { ErAttribute } from '../../../core/model.js';
-import { addLocalColor, removeLocalColor } from '../../../core/ops/meta-ops.js';
+import { addLocalColor, removeLocalColor } from '../../../core/ops/palette.js';
 import { ATTR_PRESETS, attrLook } from '../../../core/render/er-presets.js';
 import { relativeColor } from '../../../core/theme/colors.js';
 import type { Rect } from '../../../core/types.js';

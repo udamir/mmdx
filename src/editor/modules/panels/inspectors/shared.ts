@@ -2,7 +2,8 @@
 // targets over item metadata, several items and the page settings, the layer row, the preset tiles, the multi-selection
 // actions and the geometry field defaults.
 import { layerDefs, layerOf } from '../../../../core/layers.js';
-import { setLayer, setStyle } from '../../../../core/ops/meta-ops.js';
+import { setStyle } from '../../../../core/ops/style-ops.js';
+import { setLayer } from '../../../../core/ops/palette.js';
 import { relativeColor } from '../../../../core/theme/colors.js';
 import type { ItemRef } from '../../../../core/types.js';
 import { h } from '../../../../ui/kit/h.js';

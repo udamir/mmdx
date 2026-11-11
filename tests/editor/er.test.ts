@@ -11,7 +11,7 @@ import { DiagramEditor } from '../../src/editor/editor.js';
 import { DEFAULT_MODULES } from '../../src/editor/modules/index.js';
 import { editKind } from '../../src/editor/kinds/registry.js';
 import { createConnection } from '../../src/editor/modules/connect/index.js';
-import { moveItem } from '../../src/core/ops/meta-ops.js';
+import { moveItem } from '../../src/core/ops/positions.js';
 import { currentPreset } from '../../src/core/ops/style-env.js';
 import { updateRel } from '../../src/core/ops/er.js';
 import { stockParse } from '../helpers/mermaid.js';

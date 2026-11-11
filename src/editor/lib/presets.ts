@@ -2,7 +2,7 @@
 // one live preview per preset (theme presets, then "This diagram"), the item's preset highlighted and marked
 // "modified" when it has own changes; header actions Save as preset / Reset / Update; × deletes a local preset.
 // Used by the Properties panel and by the style toolbar's preset popover.
-import { deleteLocalPreset, ownLook, PRESET_KEYS, presetUsers, saveAsPreset, setStyle, suggestPresetName, updatePreset, } from '../../core/ops/meta-ops.js';
+import { deleteLocalPreset, ownLook, PRESET_KEYS, presetUsers, saveAsPreset, setStyle, suggestPresetName, updatePreset } from '../../core/ops/style-ops.js';
 import { ensure, tidy, cloneMeta } from '../../core/ops/meta-util.js';
 import { currentPreset, isLocalPreset, nodeShapeOf, participantShapeOf, presetOfItem, presetsFor } from '../../core/ops/style-env.js';
 import { participantPresetShape, presetShape } from '../../core/render/common.js';

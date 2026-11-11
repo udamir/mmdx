@@ -1,7 +1,7 @@
 // Grouping rules of the editor (no UI): whether the selection can be grouped, and why not; "Reset positions in this
 // group" for the selected group (T07).
 import { withOps } from '../../core/kinds/registry.js';
-import { groupHasPositions, resetGroupPositions } from '../../core/ops/meta-ops.js';
+import { groupHasPositions, resetGroupPositions } from '../../core/ops/positions.js';
 import type { ItemRef } from '../../core/types.js';
 import type { EditorCore } from '../core.js';
 import { withEdit } from '../kinds/registry.js';
