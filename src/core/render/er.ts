@@ -6,13 +6,15 @@
 // `<title>` / `<desc>`. Subgraphs (11.17+, T11.6) are laid out with the compound layout (T07: each subgraph in its own
 // direction, Mermaid's rule for it) and drawn as the flowchart draws its subgraphs; relationships between auto-placed
 // ends go around the subgraphs that hold neither end. A diagram without subgraphs keeps the earlier layered layout.
+import { a11yOf, Bounds, depthOf, EMPTY_META, hiddenGroups, str } from './graph-kit.js';
+import { diagramTitle } from './title.js';
 import { ancestorsOf, layoutCompound, type CompoundContainer, type CompoundEdge, type CompoundNode, type CompoundResult } from '../layout/compound.js';
 import { layered, type LayoutEdge, type LayoutNode } from '../layout/layered.js';
 import { polylineCrosses, routeAround } from '../layout/route.js';
 import { mediaKit, type MediaKit } from '../media/kit.js';
 import type { AttrHighlight, ItemMeta } from '../meta/types.js';
 import type { Direction, Entity, ErGroup, ErModel, ErRel, MermaidStyle } from '../model.js';
-import { el, g, text } from '../scene/build.js';
+import { el, text } from '../scene/build.js';
 import type { SceneNode, SvgAttrs, TextRun } from '../scene/types.js';
 import type { StyleProps } from '../style.js';
 import { textBlockWidth } from '../text/wrap.js';
@@ -78,8 +80,6 @@ interface GroupItem {
   depth: number;
 }
 
-const NO_META: ItemMeta = {};
-const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
 const pos = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined);
 const across = (d: Direction): boolean => d === 'LR' || d === 'RL';
 
@@ -114,23 +114,13 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
     t.rich && K ? (K as MediaKit).runsBlockWidth(t.rich, font(size, weight, fam), ctx.measure) : textBlockWidth(t.lines, font(size, weight, fam), ctx.measure);
 
   // ---- hidden by layers: a hidden subgraph hides what is in it
-  const groupHidden = new Set<string>();
-  for (const gr of model.groups.values()) {
-    if (!hidden.group.has(gr.id)) continue;
-    const stack = [gr.id];
-    while (stack.length) {
-      const id = stack.pop()!;
-      if (groupHidden.has(id)) continue;
-      groupHidden.add(id);
-      for (const c of model.groups.get(id)?.children ?? []) if (model.groups.has(c)) stack.push(c);
-    }
-  }
+  const groupHidden = hiddenGroups(model.groups, hidden.group);
 
   // ---- entities: styles (theme < diagram base < preset < `classDef default` < classes < `style` < own) and cards
   const defaultClass = model.classDefs['default'];
   const ents = new Map<string, Ent>();
   for (const e of model.entities.values()) {
-    const m = meta.entities?.[e.id] ?? NO_META;
+    const m = meta.entities?.[e.id] ?? EMPTY_META;
     const preset = entityPreset(e, meta, P);
     const classes = e.classes.filter((c) => !presetOf(P.entity, c) && c !== 'default').map((c) => entityCode(model.classDefs[c]));
     const st = mergeStyle(ctx, E.entity, baseStyle(meta, 'entity'), presetOf(P.entity, preset), entityCode(defaultClass), ...classes, entityCode(e.style), pickStyle(m, ENTITY_KEYS));
@@ -145,20 +135,16 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
   }
 
   // ---- subgraphs: styles and titles (their boxes come from the layout)
-  const depthOf = (gr: ErGroup): number => {
-    let d = 0;
-    for (let p = gr.parent; p && d <= model.groups.size; p = model.groups.get(p)?.parent ?? null) d++;
-    return d;
-  };
+  const depth = depthOf(model.groups);
   const groups = new Map<string, GroupItem>();
   for (const gr of model.groups.values()) {
-    const gm = meta.groups?.[gr.id] ?? NO_META;
+    const gm = meta.groups?.[gr.id] ?? EMPTY_META;
     const preset = erGroupPreset(gr, meta, P);
     const classes = gr.classes.filter((c) => !presetOf(P.group, c) && c !== 'default').map((c) => groupCode(model.classDefs[c]));
     const st = mergeStyle(ctx, T.flowchart.group, baseStyle(meta, 'group'), presetOf(P.group, preset), ...classes, groupCode(gr.style), pickStyle(gm));
     const size = st.titleSize ?? 14, fam = st.fontFamily || family;
     const title = gr.label.trim() && size > 0 ? titleOf(gr.label, true, size, st.titleWeight, fam) : null;
-    groups.set(gr.id, { g: gr, m: gm, st, preset, title, titleW: title ? titleWidth(title, size, st.titleWeight, fam) : 0, box: { x: NaN, y: NaN, w: 0, h: 0 }, depth: depthOf(gr) });
+    groups.set(gr.id, { g: gr, m: gm, st, preset, title, titleW: title ? titleWidth(title, size, st.titleWeight, fam) : 0, box: { x: NaN, y: NaN, w: 0, h: 0 }, depth: depth(gr.id) });
   }
 
   // ---- auto layout: the compound layout with subgraphs, else the layered layout of the earlier renderer. A table
@@ -166,7 +152,7 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
   const loopRoom = new Map<string, number>();
   for (const r of model.rels) {
     if (r.from !== r.to || hidden.rel.has(r.id) || !ents.has(r.from)) continue;
-    const st = mergeStyle(ctx, E.rel, baseStyle(meta, 'rel'), presetOf(P.rel, relPreset(r, meta)), pickStyle(meta.rels?.[r.id] ?? NO_META));
+    const st = mergeStyle(ctx, E.rel, baseStyle(meta, 'rel'), presetOf(P.rel, relPreset(r, meta)), pickStyle(meta.rels?.[r.id] ?? EMPTY_META));
     const size = st.labelSize ?? 13, lines = r.label && !opts.hideLabels ? r.label.split('\n') : [];
     const lw = lines.reduce((w, l) => Math.max(w, ctx.measure.width(l, font(size, 400, st.fontFamily || family))), 0);
     loopRoom.set(r.from, Math.max(loopRoom.get(r.from) ?? 0, 62 + (across(model.direction) ? (lines.length ? lines.length * size * 1.25 + 4 : 0) : lw + 4)));
@@ -213,7 +199,7 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
   const endHidden = (id: string): boolean => !!ents.get(id)?.hidden || groupHidden.has(id);
   const rels: RelItem[] = [];
   for (const r of model.rels) {
-    const m = meta.rels?.[r.id] ?? NO_META;
+    const m = meta.rels?.[r.id] ?? EMPTY_META;
     const preset = relPreset(r, meta);
     const st = mergeStyle(ctx, E.rel, baseStyle(meta, 'rel'), presetOf(P.rel, preset), pickStyle(m), str(m.routing) ? { routing: m.routing } : null);
     const a = boxOf(r.from), b = boxOf(r.to);
@@ -357,15 +343,10 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
     entNodes.push(itemGroup('entity', id, 'entity', [...stackedShapeNodes('rect', x, x.st), ...x.draw(x.x, x.y)], linkAttr(x.href)));
   }
 
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  const grow = (b: CenterBox): void => {
-    x0 = Math.min(x0, b.x - b.w / 2);
-    y0 = Math.min(y0, b.y - b.h / 2);
-    x1 = Math.max(x1, b.x + b.w / 2);
-    y1 = Math.max(y1, b.y + b.h / 2);
-  };
+  const box = new Bounds();
+  const grow = (b: CenterBox): void => box.grow(b);
   for (const x of ents.values()) if (!x.hidden) grow(x);
-  for (const G of groups.values()) if (!groupHidden.has(G.g.id) && Number.isFinite(G.box.x)) grow(G.box);
+  for (const G of groups.values()) if (!groupHidden.has(G.g.id)) grow(G.box);
   // loops reach out of their entity's box (with their labels)
   for (const x of rels)
     if (!x.hidden && x.r.from === x.r.to) {
@@ -376,31 +357,10 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
       }
       if (ge?.label) grow(ge.label);
     }
-  if (x0 === Infinity) {
-    x0 = 0;
-    y0 = 0;
-    x1 = 400;
-    y1 = 300;
-  }
   const pad = env.pad + 20;
-  const bounds: Rect = { x: x0 - pad, y: y0 - pad, w: x1 - x0 + pad * 2, h: y1 - y0 + pad * 2 };
+  const bounds: Rect = box.rect(pad);
   // the title (frontmatter, or a `title` statement), above the diagram
-  const titleNodes: SceneNode[] = [];
-  const titleText = (model.title ?? '').trim();
-  if (titleText) {
-    const tl = titleText.split('\n');
-    const size = 22, blockH = tl.length * size * 1.3;
-    const tw = textBlockWidth(tl, font(size, 600, family), ctx.measure);
-    bounds.y -= blockH + 14;
-    bounds.h += blockH + 14;
-    if (tw + 2 * pad > bounds.w) {
-      bounds.x -= (tw + 2 * pad - bounds.w) / 2;
-      bounds.w = tw + 2 * pad;
-    }
-    titleNodes.push(g({ class: 'title', 'data-part': 'title' }, [
-      textBlock(tl, bounds.x + bounds.w / 2, bounds.y + pad + blockH / 2, { size, weight: 600, color: ctx.color('@title') ?? '#333', family }),
-    ], { key: 'title' }));
-  }
+  const titleNodes = diagramTitle(bounds, model.title, ctx, family, pad);
 
   const geom: ErGeometry = {
     type: 'er',
@@ -421,7 +381,8 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
   };
   if (groups.size) presetsUsed.group = countBy([...groups.values()].map((G) => G.preset || '(none)'));
   const out: SubResult = { defs: [], body: [...titleNodes, ...groupNodes, ...relNodes, ...entNodes, ...labelNodes], bounds, geom, presetsUsed };
-  if (model.accTitle || model.accDescr) out.a11y = { ...(model.accTitle ? { title: model.accTitle } : {}), ...(model.accDescr ? { desc: model.accDescr } : {}) };
+  const a11y = a11yOf(model);
+  if (a11y) out.a11y = a11y;
   return out;
 
   /**
