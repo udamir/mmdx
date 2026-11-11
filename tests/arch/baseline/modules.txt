@@ -21,8 +21,8 @@ editor/modules/chrome/version-copy.ts: bare core.on ×4
 editor/modules/chrome/version-copy.ts: kernel DOM ×1
 editor/modules/connect/index.ts: bare core.on ×1
 editor/modules/connect/index.ts: kernel DOM ×1
-editor/modules/er-table/index.ts: bare core.on ×4
-editor/modules/er-table/index.ts: kernel DOM ×11
+editor/modules/er-table/index.ts: kernel DOM ×1
+editor/modules/er-table/row-editor.ts: kernel DOM ×1
 editor/modules/insert/index.ts: kernel DOM ×3
 editor/modules/insert/media.ts: kernel DOM ×3
 editor/modules/mindmap/gestures.ts: bare core.on ×1

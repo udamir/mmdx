@@ -196,7 +196,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 262.7 kB (262.3 kB measured) with Stage 2's A7 (the kernel's owner methods, claim and contributeAll, the HistoryHost port)
     // 263.2 kB (262.8 kB measured) with Stage 2's A9 (the elements' schema and kernel options)
     // 264 kB (263.6 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
-    report('editor (first state)', b.size(b.base) + b.size(lazy(b, 'src/editor/kinds/state.ts', b.base)), 264 * KB);
+    // 264.7 kB (264.3 kB measured) 5.5: the toolbars and the ER table split into their parts (+0.1–0.3 kB of module boundaries)
+    report('editor (first state)', b.size(b.base) + b.size(lazy(b, 'src/editor/kinds/state.ts', b.base)), 264.7 * KB);
     // the insert dock's lazy chunks (T05): the pickers (icon picker, image tool, emoji picker and their glue), the shape palette block, the Connector and Container tools, the English emoji data (§4.5: at most 30 kB)
     const loaded = new Set([...b.base, ...lazy(b, 'src/editor/kinds/flowchart.ts', b.base)]);
     // 13.2 kB with the image tool's Icon tab, the overlay scrollbars of its grids and its place by the toolbar (12.8 kB measured)
@@ -218,7 +219,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 259.8 kB (259.4 kB measured) with Stage 2's A8 (the component shell)
     // 260.8 kB (260.4 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
     // 261.2 kB (260.8 kB measured) 5.3/5.4: DocumentSync and the canvas selection split into five files (+0.1 kB of module boundaries)
-    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 261.2 * KB);
+    // 261.6 kB (261.2 kB measured) 5.5: the toolbars and the ER table split into their parts (+0.1–0.3 kB of module boundaries)
+    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 261.6 * KB);
   }
 }
 
