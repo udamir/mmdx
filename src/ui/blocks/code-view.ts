@@ -10,7 +10,7 @@
 // `DIFF_TOKENS` (ui/styles/diff.ts).
 import { diffLines, hunks, type LineOp } from '../../core/diff/text.js';
 import { h } from '../h.js';
-import { highlightLine, highlightMetaLine } from '../highlight.js';
+import { highlightLine, highlightMetaLine, tokenNodes } from '../highlight.js';
 import { registerMessages } from '../i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
 import { CODE_TOKENS_CSS } from '../styles/code-tokens.js';
@@ -101,7 +101,7 @@ export const CODE_VIEW_CSS = CODE_VIEW_OWN_CSS + CODE_TOKENS_CSS;
 export function highlighted(line: string, language: CodeLanguage): (HTMLElement | string)[] {
   if (!line) return [' '];
   const tokens = language === 'meta' ? highlightMetaLine(line) : highlightLine(line);
-  return tokens.map(([cls, text]) => (cls ? h('span', { class: cls }, text) : text));
+  return tokenNodes(tokens);
 }
 
 export interface CodeViewHandle extends BlockHandle<CodeViewProps> {

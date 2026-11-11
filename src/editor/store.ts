@@ -96,7 +96,7 @@ export class DocStore {
     this.last = now;
     if (opts.markSaved !== false) this.saved = now;
     this.selection.set(this.selection.peek().filter((r) => this.exists(r)));
-    this.sync(opts.reason ?? 'load');
+    this.sync(opts.reason ?? 'load', now);
     if (abandoned) this.opts.onIdle?.();
   }
 
@@ -158,7 +158,7 @@ export class DocStore {
       this.pushHistory({ source: start.source, selection: start.selection, label });
       this.future = [];
       this.last = now;
-      this.sync(reason);
+      this.sync(reason, now);
     } else this.revision.update((n) => n + 1);
     this.opts.onIdle?.();
   }
@@ -209,9 +209,10 @@ export class DocStore {
     this.restore(next, 'redo');
   }
 
-  markSaved(source = this.source()): void {
-    this.saved = source;
-    this.dirty.set(this.source() !== this.saved);
+  markSaved(source?: string): void {
+    const now = this.source();
+    this.saved = source ?? now;
+    this.dirty.set(now !== this.saved);
   }
 
   /** Does the item still exist in the current model? */
@@ -225,7 +226,7 @@ export class DocStore {
     this.meta.set(normalizeMeta(split.doc.meta));
     this.last = this.source();
     this.selection.set(e.selection.filter((r) => this.exists(r)));
-    this.sync(reason);
+    this.sync(reason, this.last);
   }
 
   private pushHistory(e: HistoryEntry): void {
@@ -237,12 +238,13 @@ export class DocStore {
     }
   }
 
-  private sync(reason: ChangeReason): void {
+  /** After a change: `now` is the source it left (serialised once per change, P14). */
+  private sync(reason: ChangeReason, now: string): void {
     this.canUndo.set(this.history.length > 0);
     this.canRedo.set(this.future.length > 0);
-    this.dirty.set(this.source() !== this.saved);
+    this.dirty.set(now !== this.saved);
     this.revision.update((n) => n + 1);
-    this.opts.onChange?.(this.source(), reason);
+    this.opts.onChange?.(now, reason);
   }
 }
 

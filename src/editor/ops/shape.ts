@@ -4,6 +4,7 @@
 // (a preset outranks the code). Shapes older files keep only in metadata move to the code on edit and through the
 // `flow.meta-shape` fix — never on a plain save.
 import type { DiagramMeta } from '../../core/meta/types.js';
+import type { DiagramModel } from '../../core/model.js';
 import { reparse } from '../../core/kinds/registry.js';
 import { cloneMeta, ensure, getM, tidy } from '../../core/ops/meta-util.js';
 import { currentPreset, presetsFor } from '../../core/ops/style-env.js';
@@ -28,10 +29,16 @@ export function shapeDoc(core: EditorCore, refs: readonly ItemRef[], shape: stri
   let code = base.code;
   const meta = cloneMeta(base.meta);
   let handled = false;
+  // each code parsed once (P18: twice per item), the current one not at all
+  let parsed: { code: string; model: DiagramModel } | null = base.code === core.code ? { code: core.code, model: core.model } : null;
+  const modelOf = (c: string): DiagramModel => {
+    if (parsed?.code !== c) parsed = { code: c, model: reparse(c) };
+    return parsed.model;
+  };
   for (const ref of refs) {
     const want = shape ?? str(getM(meta, ref.kind, ref.id).shape);
     if (!want) continue;
-    const model = reparse(code);
+    const model = modelOf(code);
     const res = withEdit(model, (k, m) => k.setShape?.(code, m, ref, want)) ?? null;
     if (!res) {
       // a shape the code cannot hold (or a type that keeps shapes in metadata): metadata, as before
@@ -44,7 +51,7 @@ export function shapeDoc(core: EditorCore, refs: readonly ItemRef[], shape: stri
     handled = true;
     code = res.code;
     // a preset that draws another shape outranks the code: the item keeps the shape in metadata then
-    const env = { model: reparse(code), meta, theme: core.result.theme };
+    const env = { model: modelOf(code), meta, theme: core.result.theme };
     const ps = str(presetsFor(env, ref.kind)?.[currentPreset(env, ref)]?.shape);
     const m = ensure(meta, ref.kind, ref.id);
     if (ps && shapeIdOf(ps) !== shapeIdOf(want)) m.shape = want;

@@ -94,3 +94,38 @@ describe('createCodeEditor', () => {
     expect(CODE_EDITOR_CSS).not.toMatch(/var\(--(?!mmdx-|gutter)/);
   });
 });
+
+describe('highlighting per keystroke (P10)', () => {
+  const type = (ta: HTMLTextAreaElement, v: string): void => {
+    ta.value = v;
+    ta.dispatchEvent(new Event('input'));
+  };
+
+  it('re-highlights only the lines between the unchanged first and last ones', () => {
+    const seen: string[] = [];
+    const hl = (line: string) => (seen.push(line), highlightLine(line));
+    const lines = Array.from({ length: 50 }, (_, i) => `  n${i} --> n${i + 1}`);
+    const ed = createCodeEditor({ value: ['flowchart LR', ...lines].join('\n'), highlightLine: hl });
+    const code = ed.el.querySelector('code')!;
+    expect(seen.length).toBe(51);
+    seen.length = 0;
+    const edited = ['flowchart LR', ...lines];
+    edited[20] = '  n19 --> X';
+    type(ed.textarea, edited.join('\n'));
+    expect(seen).toEqual(['  n19 --> X']);
+    // a new line, and one removed
+    seen.length = 0;
+    edited.splice(30, 0, '  extra');
+    edited.splice(5, 1);
+    type(ed.textarea, edited.join('\n'));
+    expect(seen.length).toBeLessThan(30);
+    expect(code.textContent).toBe(edited.join('\n') + '\n');
+    expect(code.children.length).toBe(edited.length);
+    // refresh draws every line again
+    seen.length = 0;
+    ed.refresh();
+    expect(seen.length).toBe(edited.length);
+    expect(code.textContent).toBe(edited.join('\n') + '\n');
+    ed.destroy();
+  });
+});

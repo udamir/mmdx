@@ -55,6 +55,39 @@ function codeIssues(core: EditorCore): Issue[] {
   return out;
 }
 
+/** One row of the Problems list: the issue, a click to its line, its fix. */
+function problemRow(it: Issue, t: EditorCore['i18n']['t'], goto: (line: number) => void): HTMLElement {
+  const item = h('button', { type: 'button', class: 'pb-item', disabled: it.line == null },
+    h('span', { class: 'pb-line1' },
+      h('span', { class: 'pb-ic', 'aria-hidden': 'true' }, '!'),
+      it.line != null ? h('span', { class: 'pb-ln' }, String(it.line)) : null,
+      it.meta ? h('span', { class: 'pb-tag' }, t('problems.metaTag')) : null,
+      h('span', { class: 'pb-msg' }, it.msg)));
+  if (it.line != null) {
+    const line = it.line;
+    item.title = it.meta ? t('problems.gotoMeta', { line }) : t('problems.goto', { line });
+    item.addEventListener('click', () => goto(line));
+  }
+  const row = h('div', { class: 'pb-row', role: 'listitem' }, item);
+  if (it.fix) {
+    const fix = it.fix;
+    row.append(h('button', { type: 'button', class: 'pb-fix', onclick: () => fix.run() }, t('problems.fix', { label: fix.label })));
+  }
+  return row;
+}
+
+// each metadata line's check, kept while the line is there to read (P10: three per line per pass)
+const checked = new Map<string, string | null>();
+function metaError(l: string): string | null {
+  let e = checked.get(l);
+  if (e === undefined) {
+    if (checked.size > 4096) checked.clear();
+    const r = checkMetaLine(l);
+    checked.set(l, (e = r && 'error' in r ? r.error : null));
+  }
+  return e;
+}
+
 const marksOf = (list: readonly Issue[]): Map<number, string[]> => {
   const marks = new Map<number, string[]>();
   for (const it of list) if (it.line != null) (marks.get(it.line) ?? marks.set(it.line, []).get(it.line)!).push(it.msg);
@@ -194,7 +227,10 @@ export const codePanelModule: EditorModule = {
     let problemsOpen = true;
     const allIssues = (): Issue[] => [...codeIssueList, ...metaIssueList.map((x) => ({ ...x, meta: true }))];
 
+    // a draw gathers the code's and the metadata's issues, then shows them once (P10: twice per live edit)
+    let holdProblems = false;
     const renderProblems = (): void => {
+      if (holdProblems) return;
       codeEd.setMarkers(marksOf(codeIssueList));
       metaEd?.setMarkers(marksOf(metaIssueList));
       const issues = allIssues();
@@ -213,25 +249,7 @@ export const codePanelModule: EditorModule = {
         kids.push(head);
         if (problemsOpen) {
           const list = h('div', { class: 'pb-list', role: 'list' });
-          for (const it of issues.slice(0, 100)) {
-            const item = h('button', { type: 'button', class: 'pb-item', disabled: it.line == null },
-              h('span', { class: 'pb-line1' },
-                h('span', { class: 'pb-ic', 'aria-hidden': 'true' }, '!'),
-                it.line != null ? h('span', { class: 'pb-ln' }, String(it.line)) : null,
-                it.meta ? h('span', { class: 'pb-tag' }, t('problems.metaTag')) : null,
-                h('span', { class: 'pb-msg' }, it.msg)));
-            if (it.line != null) {
-              const line = it.line;
-              item.title = it.meta ? t('problems.gotoMeta', { line }) : t('problems.goto', { line });
-              item.addEventListener('click', () => (it.meta ? gotoMetaLine(line) : gotoCodeLine(line)));
-            }
-            const row = h('div', { class: 'pb-row', role: 'listitem' }, item);
-            if (it.fix) {
-              const fix = it.fix;
-              row.append(h('button', { type: 'button', class: 'pb-fix', onclick: () => fix.run() }, t('problems.fix', { label: fix.label })));
-            }
-            list.append(row);
-          }
+          for (const it of issues.slice(0, 100)) list.append(problemRow(it, t, (line) => (it.meta ? gotoMetaLine(line) : gotoCodeLine(line))));
           kids.push(list);
         }
       }
@@ -430,7 +448,7 @@ export const codePanelModule: EditorModule = {
       if (!force && metaEd && core.shadow.activeElement === metaEd.textarea) return;
       const lines = metaToLines(core.meta);
       const known = new Set(lines);
-      const bad = metaText.split('\n').filter((l) => !known.has(l) && checkMetaLine(l) && 'error' in checkMetaLine(l)!);
+      const bad = metaText.split('\n').filter((l) => !known.has(l) && metaError(l) !== null);
       const next = [...lines, ...bad].join('\n');
       if (next === metaText && !force) return;
       metaText = next;
@@ -478,8 +496,8 @@ export const codePanelModule: EditorModule = {
       const out: Issue[] = [];
       if (metaBroken) out.push({ line: null, msg: t('code.keepHiddenMeta') });
       metaText.split('\n').forEach((l, i) => {
-        const r = checkMetaLine(l);
-        if (r && 'error' in r) out.push({ line: i + 1, msg: r.error });
+        const error = metaError(l);
+        if (error !== null) out.push({ line: i + 1, msg: error });
       });
       metaIssueList = out;
       renderProblems();
@@ -565,13 +583,13 @@ export const codePanelModule: EditorModule = {
       revSeen = rev;
       themeSeen = theme;
       codeIssueList = codeIssues(core);
-      if (metaTimer === undefined) {
-        const lines = metaToLines(core.meta).join('\n');
-        if (lines !== metaKey) {
-          metaKey = lines;
-          writeMetaText();
-        }
+      holdProblems = true;
+      const lines = metaTimer === undefined ? metaToLines(core.meta).join('\n') : metaKey;
+      if (lines !== metaKey) {
+        metaKey = lines;
+        writeMetaText();
       }
+      holdProblems = false;
       renderProblems();
     };
     cleanups.push(core.on('draw', onDraw));

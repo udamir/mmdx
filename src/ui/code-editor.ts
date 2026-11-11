@@ -3,7 +3,7 @@
 // Ported from prototype/editor.js without innerHTML: highlighting produces tokens that become text nodes and spans.
 // The design names CodeMirror; v1 keeps this dependency-free editor behind a small API so it can be swapped later.
 
-import { HIDDEN_LINE, highlightLine, type LineHighlighter } from './highlight.js';
+import { HIDDEN_LINE, highlightLine, tokenNodes, type LineHighlighter } from './highlight.js';
 import { CODE_TOKENS_CSS } from './styles/code-tokens.js';
 import { maxOf } from '../core/geom.js';
 
@@ -176,23 +176,29 @@ export function createCodeEditor(opts: CodeEditorOptions = {}): CodeEditor {
     wrap.style.height = `${hgt}px`;
   };
 
+  // one element per line; a keystroke re-highlights the lines between the unchanged first and last ones (P10)
+  let shown: string[] = [];
   const renderCode = (): void => {
+    const lines = ta.value.split('\n');
+    let pre = 0, suf = 0;
+    while (pre < lines.length && pre < shown.length && lines[pre] === shown[pre]) pre++;
+    while (suf < lines.length - pre && suf < shown.length - pre && lines[lines.length - 1 - suf] === shown[shown.length - 1 - suf]) suf++;
+    const rows = codeEl.children;
+    for (let i = shown.length - suf - 1; i >= pre; i--) rows[i]!.remove();
     const f = document.createDocumentFragment();
-    for (const line of ta.value.split('\n')) {
-      for (const [cls, text] of hl(line)) {
-        if (!cls) f.append(text);
-        else {
-          const s = document.createElement('span');
-          s.className = cls;
-          s.textContent = text;
-          f.append(s);
-        }
-      }
-      f.append('\n');
+    for (let i = pre; i < lines.length - suf; i++) {
+      const row = document.createElement('span');
+      row.append(...tokenNodes(hl(lines[i]!)), '\n');
+      f.append(row);
     }
-    codeEl.replaceChildren(f);
+    codeEl.insertBefore(f, rows[pre] ?? null);
+    shown = lines;
   };
-  const render = (): void => {
+  const render = (full = false): void => {
+    if (full) {
+      shown = [];
+      codeEl.replaceChildren();
+    }
     renderCode();
     renderGutter();
     fit();
@@ -241,7 +247,7 @@ export function createCodeEditor(opts: CodeEditorOptions = {}): CodeEditor {
     set readOnly(v: boolean) {
       ta.readOnly = v;
     },
-    refresh: render,
+    refresh: () => render(true),
     setMarkers(m) {
       markers = m ?? new Map();
       renderGutter(true);

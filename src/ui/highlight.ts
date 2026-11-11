@@ -24,6 +24,17 @@ const RULES: readonly (readonly [string, RegExp])[] = [
   ['space', /\s+/y],
 ];
 
+/** Tokens as DOM nodes: a span per classed token, plain text as text (never markup). */
+export function tokenNodes(tokens: readonly Token[]): (HTMLElement | string)[] {
+  return tokens.map(([cls, text]) => {
+    if (!cls) return text;
+    const s = document.createElement('span');
+    s.className = cls;
+    s.textContent = text;
+    return s;
+  });
+}
+
 /** A `%% - N hidden` line of a filtered code view. */
 export const HIDDEN_LINE = /^%% - (\d+) hidden$/;
 
