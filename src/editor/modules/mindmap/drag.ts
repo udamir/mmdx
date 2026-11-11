@@ -152,10 +152,10 @@ export function installMindmapDrag(scope: ModuleScope<EditorCore>, st: MindDragS
       };
       if (sameSpot) {
         const meta = withSide(M, M, id);
-        core.setMeta('Switch side', meta);
+        core.setMeta(core.i18n.t('history.switchSide'), meta);
         return;
       }
-      applyAt(core, res, d.copy ? 'Copy node' : 'Move node', false, withSide);
+      applyAt(core, res, core.i18n.t(d.copy ? 'history.copyNode' : 'history.moveNode'), false, withSide);
     },
     cancel() {
       st.drag = null;
@@ -177,7 +177,7 @@ export function installMindmapDrag(scope: ModuleScope<EditorCore>, st: MindDragS
           move: () => undefined,
           click: () => {
             if (type === 'mm-fold') toggleFold(core, id);
-            else applyAt(core, addMindChild(core.code, M, id), 'Add node', true);
+            else applyAt(core, addMindChild(core.code, M, id), core.i18n.t('history.addNode'), true);
           },
         };
       }

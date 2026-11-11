@@ -107,7 +107,7 @@ export function installMindmapKeys(scope: ModuleScope<EditorCore>): void {
         at = Math.max(n.endLine, maxOf(descendantsOf(N, n.id).map((d) => N.nodes.get(d)!.endLine))) + 1;
       }
     }
-    core.applyCode({ code: res.code }, 'Paste', { select: sel });
+    core.applyCode({ code: res.code }, core.i18n.t('history.paste'), { select: sel });
     return true;
   };
 
@@ -140,12 +140,12 @@ export function installMindmapKeys(scope: ModuleScope<EditorCore>): void {
 
   const keys = mindmapKeys(core);
   Object.assign(keys, {
-    child: keyOp((M, id) => addMindChild(core.code, M, id), 'Add node', true),
-    sibling: keyOp((M, id) => addMindSibling(core.code, M, id), 'Add node', true),
-    outdent: keyOp((M, id) => outdentMind(core.code, M, id), 'Move node'),
-    indent: keyOp((M, id) => indentMind(core.code, M, id), 'Move node'),
-    up: keyOp((M, id) => moveMind(core.code, M, id, -1), 'Move node'),
-    down: keyOp((M, id) => moveMind(core.code, M, id, 1), 'Move node'),
+    child: keyOp((M, id) => addMindChild(core.code, M, id), core.i18n.t('history.addNode'), true),
+    sibling: keyOp((M, id) => addMindSibling(core.code, M, id), core.i18n.t('history.addNode'), true),
+    outdent: keyOp((M, id) => outdentMind(core.code, M, id), core.i18n.t('history.moveNode')),
+    indent: keyOp((M, id) => indentMind(core.code, M, id), core.i18n.t('history.moveNode')),
+    up: keyOp((M, id) => moveMind(core.code, M, id, -1), core.i18n.t('history.moveNode')),
+    down: keyOp((M, id) => moveMind(core.code, M, id, 1), core.i18n.t('history.moveNode')),
     walk,
     edit: (ev: KeyboardEvent): boolean => {
       const t = target(ev);

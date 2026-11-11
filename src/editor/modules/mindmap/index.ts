@@ -27,19 +27,20 @@ export const mindmapModule: EditorModule = {
     const keys = mindmapKeys(core);
     const run = (name: string) => (ev: KeyboardEvent): boolean => keys[name]?.(ev) ?? false;
     const G = 'Mindmap';
+    const t = core.i18n.t;
     scope.shortcut(
-      { id: 'mm-child', keys: ['tab'], label: 'Add a child to the selected node', group: G, editOnly: true, run: run('child') },
-      { id: 'mm-sibling', keys: ['enter'], label: 'Add a sibling after the selected node (on the root: a child)', group: G, editOnly: true, run: run('sibling') },
-      { id: 'mm-outdent', keys: ['shift+tab', 'alt+arrowleft'], label: 'Move the node out of its parent', group: G, editOnly: true, run: run('outdent') },
-      { id: 'mm-indent', keys: ['alt+arrowright'], label: 'Move the node under the one above it', group: G, editOnly: true, run: run('indent') },
-      { id: 'mm-up', keys: ['alt+arrowup'], label: 'Move the node up among its siblings', group: G, editOnly: true, run: run('up') },
-      { id: 'mm-down', keys: ['alt+arrowdown'], label: 'Move the node down among its siblings', group: G, editOnly: true, run: run('down') },
-      { id: 'mm-walk', keys: ['arrowleft', 'arrowright', 'arrowup', 'arrowdown'], label: 'Select the parent, a child or a sibling', group: G, editOnly: true, readOnly: true, run: run('walk') },
-      { id: 'mm-edit', keys: ['f2'], label: 'Edit the node’s text', group: G, editOnly: true, run: run('edit') },
-      { id: 'mm-fold', keys: ['space'], label: 'Fold or unfold the selected branch', group: G, editOnly: true, hintOnly: true },
-      { id: 'mm-lift', keys: ['shift+delete', 'shift+backspace'], label: 'Delete the node, keep its children', group: G, editOnly: true, run: run('lift') },
-      { id: 'mm-duplicate', keys: ['mod+d'], label: 'Duplicate the selected branches', group: G, editOnly: true, run: run('duplicate') },
-      { id: 'mm-paste', keys: ['mod+v'], label: 'Paste branches or indented text under the selected node', group: G, editOnly: true, run: run('paste') },
+      { id: 'mm-child', keys: ['tab'], label: t('help.mm.child'), group: G, editOnly: true, run: run('child') },
+      { id: 'mm-sibling', keys: ['enter'], label: t('help.mm.sibling'), group: G, editOnly: true, run: run('sibling') },
+      { id: 'mm-outdent', keys: ['shift+tab', 'alt+arrowleft'], label: t('help.mm.outdent'), group: G, editOnly: true, run: run('outdent') },
+      { id: 'mm-indent', keys: ['alt+arrowright'], label: t('help.mm.indent'), group: G, editOnly: true, run: run('indent') },
+      { id: 'mm-up', keys: ['alt+arrowup'], label: t('help.mm.up'), group: G, editOnly: true, run: run('up') },
+      { id: 'mm-down', keys: ['alt+arrowdown'], label: t('help.mm.down'), group: G, editOnly: true, run: run('down') },
+      { id: 'mm-walk', keys: ['arrowleft', 'arrowright', 'arrowup', 'arrowdown'], label: t('help.mm.walk'), group: G, editOnly: true, readOnly: true, run: run('walk') },
+      { id: 'mm-edit', keys: ['f2'], label: t('help.mm.edit'), group: G, editOnly: true, run: run('edit') },
+      { id: 'mm-fold', keys: ['space'], label: t('help.mm.fold'), group: G, editOnly: true, hintOnly: true },
+      { id: 'mm-lift', keys: ['shift+delete', 'shift+backspace'], label: t('help.mm.lift'), group: G, editOnly: true, run: run('lift') },
+      { id: 'mm-duplicate', keys: ['mod+d'], label: t('help.mm.duplicate'), group: G, editOnly: true, run: run('duplicate') },
+      { id: 'mm-paste', keys: ['mod+v'], label: t('help.mm.paste'), group: G, editOnly: true, run: run('paste') },
     );
     // the gestures load with the first mindmap, however the document becomes one: an effect on its type, not the
     // `model` event, which does not fire when the kind was already loaded (a second editor on the page, B42)

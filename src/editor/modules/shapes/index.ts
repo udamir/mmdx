@@ -109,7 +109,7 @@ export const shapesModule: EditorModule = {
         placeMenu();
         if (focusOnOpen) palette.focus();
         focusOnOpen = false;
-      }, (e: unknown) => core.toast(`Could not load the shapes: ${e instanceof Error ? e.message : String(e)}`, { error: true }));
+      }, (e: unknown) => core.toast(core.i18n.t('shapes.loadFailed', { e: e instanceof Error ? e.message : String(e) }), { error: true }));
     };
     let focusOnOpen = false;
 
@@ -254,7 +254,7 @@ export const shapesModule: EditorModule = {
       addShape(core, kind, opts ?? {});
     }));
     core.shortcuts.add({
-      id: 'shapes-menu', keys: ['s'], label: 'Shapes menu', group: 'Tools', editOnly: true,
+      id: 'shapes-menu', keys: ['s'], label: core.i18n.t('help.shapesMenu'), group: 'Tools', editOnly: true,
       run: () => {
         if (!core.has('toggleShapesMenu')) return false;
         core.run('toggleShapesMenu');

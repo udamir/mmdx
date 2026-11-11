@@ -122,6 +122,7 @@ export function applyActivation(core: EditorCore): void {
     core.toast(r.reason);
     return;
   }
-  core.applyCode(r, r.removed ? 'Remove process' : 'Show as process', { select: sel });
-  core.toast(r.removed ? `Process on ${r.participant ?? ''} removed` : `${r.participant ?? ''} is now active between the two messages`);
+  const t = core.i18n.t;
+  core.applyCode(r, t(r.removed ? 'history.removeProcess' : 'history.showProcess'), { select: sel });
+  core.toast(t(r.removed ? 'seq.processOff' : 'seq.processOn', { p: r.participant ?? '' }));
 }

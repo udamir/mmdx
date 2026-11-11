@@ -104,8 +104,8 @@ function lifelineDrag(core: EditorCore, st: SeqState, hit: Hit, srcId: string): 
           core.toast(r.reason);
           return;
         }
-        core.applyCode(r, 'Add process', { select: null });
-        core.toast(`Process added on ${srcId}`);
+        core.applyCode(r, core.i18n.t('history.addProcess'), { select: null });
+        core.toast(core.i18n.t('seq.processAdded', { p: srcId }));
         return;
       }
       if (!L?.target) return;
@@ -113,7 +113,7 @@ function lifelineDrag(core: EditorCore, st: SeqState, hit: Hit, srcId: string): 
       const N = parse(r.code);
       const msg = N.type === 'sequence' ? N.items.find((x): x is SeqMessage => x.kind === 'message' && x.src === r.line) : undefined;
       const sel: Sel | null = msg ? { kind: 'message', id: msg.id } : null;
-      if (core.applyCode(r, 'Add message', { select: sel ? [sel] : null }) && sel) focusLabel(core, sel);
+      if (core.applyCode(r, core.i18n.t('history.addMessage'), { select: sel ? [sel] : null }) && sel) focusLabel(core, sel);
     },
     cancel: done,
   };
@@ -180,8 +180,8 @@ function actEndDrag(core: EditorCore, st: SeqState, msgId: string, pid: string):
         core.toast(r.reason);
         return;
       }
-      core.applyCode(r, r.removed ? 'Remove process' : 'Add process', { select: null });
-      core.toast(r.removed ? `Process removed from ${pid}` : `Process added on ${pid}`);
+      core.applyCode(r, core.i18n.t(r.removed ? 'history.removeProcess' : 'history.addProcess'), { select: null });
+      core.toast(core.i18n.t(r.removed ? 'seq.processRemoved' : 'seq.processAdded', { p: pid }));
     },
     cancel() {
       st.actPreview = null;
@@ -221,7 +221,7 @@ function actEdgeDrag(core: EditorCore, st: SeqState, id: string, edge: 'top' | '
         return;
       }
       if (r.code === core.code) return;
-      core.applyCode(r, 'Resize process', { select: null });
+      core.applyCode(r, core.i18n.t('history.resizeProcess'), { select: null });
       // keep the process selected: the one on that participant whose moved edge is nearest the target arrow
       const gn = seqGeom(core);
       let pick: { id: string; dist: number } | null = null;
@@ -278,7 +278,7 @@ function blockEdgeDrag(core: EditorCore, st: SeqState, hit: Hit, startId: string
     },
     end() {
       st.active = false;
-      if (began) core.commit('Resize block');
+      if (began) core.commit(core.i18n.t('history.resizeBlock'));
       if (reason) core.toast(reason);
     },
     cancel() {
@@ -318,7 +318,7 @@ function noteEdgeDrag(core: EditorCore, st: SeqState, hit: Hit, id: string, edge
     },
     end() {
       st.active = false;
-      if (began) core.commit('Stretch note');
+      if (began) core.commit(core.i18n.t('history.stretchNote'));
     },
     cancel() {
       st.active = false;

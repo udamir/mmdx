@@ -39,7 +39,7 @@ export const insertModule: EditorModule = {
     const t = core.i18n.t;
     const kind = (): EditKind | undefined => editKind(core.model.type);
     const editing = (): boolean => core.mode.peek() === 'edit' && !core.version.peek();
-    const chunkFailed = (e: unknown): void => core.toast(`Could not load the editor's pickers: ${e instanceof Error ? e.message : String(e)}`, { error: true });
+    const chunkFailed = (e: unknown): void => core.toast(core.i18n.t('insert.pickersFailed', { e: e instanceof Error ? e.message : String(e) }), { error: true });
     const media = (f: (m: MediaChunk) => void): void => void loadMedia().then((m) => {
       if (!core.isDestroyed) f(m);
     }, chunkFailed);

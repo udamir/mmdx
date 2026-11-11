@@ -55,7 +55,7 @@ export function styleToolbarApi({ core, t, live, primary, multi }: BarContext, p
           return;
         }
         const r = toggleFormat(spec.value, 0, 0, f);
-        core.applyCode(spec.apply(r.text, spec.markdown || hasMarkup(r.text)), 'Format text', { select: [s] });
+        core.applyCode(spec.apply(r.text, spec.markdown || hasMarkup(r.text)), t('history.formatText'), { select: [s] });
       },
     };
   };

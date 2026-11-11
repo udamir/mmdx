@@ -126,4 +126,22 @@ export const EDITOR_MESSAGES: Messages = {
   'media.noUpload': 'Images can be added by URL; uploading is not configured here', 'media.noImages': 'Images cannot be added to this diagram type',
   'history.icon': 'Icon', 'history.image': 'Image', 'history.media': 'Icon & image',
   // ---- markdown labels (T06)
+  // ---- moved out of the modules (R13): shortcut labels, history labels and toasts of the kind modules
+  'help.mm.child': 'Add a child to the selected node', 'help.mm.sibling': 'Add a sibling after the selected node (on the root: a child)',
+  'help.mm.outdent': 'Move the node out of its parent', 'help.mm.indent': 'Move the node under the one above it',
+  'help.mm.up': 'Move the node up among its siblings', 'help.mm.down': 'Move the node down among its siblings',
+  'help.mm.walk': 'Select the parent, a child or a sibling', 'help.mm.edit': 'Edit the node’s text',
+  'help.mm.fold': 'Fold or unfold the selected branch', 'help.mm.lift': 'Delete the node, keep its children',
+  'help.mm.duplicate': 'Duplicate the selected branches', 'help.mm.paste': 'Paste branches or indented text under the selected node',
+  'help.table.escape': 'Clear the attribute selection, then leave the table', 'help.table.delete': 'Delete the selected attributes',
+  'help.table.selectAll': 'Select every attribute of the table',
+  'help.table.editRow': 'Edit the selected attribute (the empty row: a new one)',
+  'help.table.moveRows': 'Move the selected attributes up / down', 'help.table.rows': 'Select the previous / next attribute',
+  'history.addProcess': 'Add process', 'seq.processAdded': 'Process added on {p}', 'history.addMessage': 'Add message',
+  'history.resizeProcess': 'Resize process', 'history.resizeBlock': 'Resize block', 'history.stretchNote': 'Stretch note',
+  'history.paste': 'Paste', 'shapes.loadFailed': 'Could not load the shapes: {e}', 'help.shapesMenu': 'Shapes menu',
+  'insert.pickersFailed': 'Could not load the editor\'s pickers: {e}', 'history.formatText': 'Format text',
+  'history.removeProcess': 'Remove process', 'history.showProcess': 'Show as process', 'seq.processRemoved': 'Process removed from {p}',
+  'seq.processOff': 'Process on {p} removed', 'seq.processOn': '{p} is now active between the two messages', 'history.switchSide': 'Switch side',
+  'history.copyNode': 'Copy node', 'history.moveNode': 'Move node', 'history.addNode': 'Add node',
 };
