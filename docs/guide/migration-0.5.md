@@ -45,6 +45,8 @@ const mine: EditorModule = { /* … */ };
 | `whenLoaded()` also waits for the editor modules a document's type loads (the ER table editing, the sequence gestures load with their type now) | Nothing, unless a host timed something against it |
 | ER attribute highlights in `%%@` metadata: `italic`, `fontFamily`, `fontSize` and `preset` are checked like `color`, `bold` and `underline` (a bad value is dropped and reported) | Hand-written metadata with invalid values |
 | The page's `background`, `border`, `grid` and an item's `iconColor` resolve palette references (`@accent`) like the other colours | Themes or metadata that used a palette reference there and relied on it being ignored |
+| Message keys: one key per concept — `tb.cat.*` and `shapes.cat.*` are `palette.cat.*`; `tb.fit`, `props.fit` are `image.fit`; `tb.aspect`, `props.aspect` are `image.aspect`; `props.imageUrl` is `image.url`; `tb.changeImage`, `props.changeImage` are `image.change`; `tb.resetGroup`, `props.resetGroup` are `group.resetPositions`; `tb.resetGroupNone`, `props.resetGroupNone`, `groupReset.nothing` are `group.resetNone` | A host's translation catalog (`i18n` messages) with the old keys: rename them |
+| The editor's View mode follows links like the viewer: no link opens while drawing with the pen, and a click counts as a pan after 4 px | Nothing, unless a host relied on the editor's 3 px |
 
 ## New in 0.5
 

@@ -8,6 +8,7 @@ import { h, icon } from '../../../../ui/kit/h.js';
 import { I_image, I_trash } from '../../../../ui/kit/icons.js';
 import { registerMessages } from '../../../../i18n.js';
 import { EDITOR_MEDIA_MESSAGES } from '../../../messages-media.js';
+import { BLOCK_MESSAGES_MEDIA } from '../../../../ui/messages/blocks-media.js';
 import { editKind } from '../../../kinds/registry.js';
 import type { ItemMedia, MediaPatch } from '../../../kinds/types.js';
 import { mediaOf, setIconOf, setImageFit, setImageOf, setMediaOf, takesImages, takesMedia } from '../../../ops/media.js';
@@ -15,6 +16,7 @@ import { row, sect, type PanelCtx } from './shared.js';
 import { isFaPack, splitIconName } from '../../../../core/icons/names.js';
 
 registerMessages(EDITOR_MEDIA_MESSAGES);
+registerMessages(BLOCK_MESSAGES_MEDIA);
 
 /** A small icon button (the preset section's look): its name is its title. */
 const iconButton = (path: string, name: string, act: string): HTMLButtonElement =>
@@ -88,20 +90,20 @@ function nodeMedia(p: PanelCtx, host: HTMLElement, ref: ItemRef, m: ItemMedia): 
   sect(host, t('props.image'));
   const current = m.node === 'icon'
     ? h('code', { class: 'hint' }, m.icon ?? '')
-    : m.image ? h('input', { type: 'text', readOnly: true, 'aria-label': t('props.imageUrl'), value: m.image }) : h('span', { class: 'hint' }, t('props.imageNone'));
+    : m.image ? h('input', { type: 'text', readOnly: true, 'aria-label': t('image.url'), value: m.image }) : h('span', { class: 'hint' }, t('props.imageNone'));
   // Change image (the image tool, on the tab of its source: Library, Upload, URL or Icon) and Remove image, as icons
-  const change = iconButton(I_image, t('props.changeImage'), 'change');
+  const change = iconButton(I_image, t('image.change'), 'change');
   change.addEventListener('click', () => core.run('openImageTool', change, { insert: false }));
   const rm = iconButton(I_trash, t('props.removeImage'), 'remove');
   rm.addEventListener('click', () => void (m.node === 'icon' ? setIconOf(core, [ref], null) : setImageOf(core, [ref], null)));
-  host.append(row(m.node === 'icon' ? t('props.icon') : t('props.imageUrl'), current, change, rm));
+  host.append(row(m.node === 'icon' ? t('props.icon') : t('image.url'), current, change, rm));
   if (m.node === 'icon') host.append(row(t('props.iconForm'), choice(t('props.iconForm'), ['', 'square', 'circle', 'rounded'], m.form ?? '', (v) => t(`media.form.${v || 'none'}`), (v) => void setMediaOf(core, [ref], { form: v || null }))));
   layoutRows(p, host, ref, m);
   if (m.node !== 'image') return;
-  const lock = h('input', { type: 'checkbox', 'aria-label': t('props.aspect') });
+  const lock = h('input', { type: 'checkbox', 'aria-label': t('image.aspect') });
   lock.checked = m.constraint === 'on';
   lock.addEventListener('change', () => void setMediaOf(core, [ref], { constraint: lock.checked ? 'on' : null }));
-  host.append(row(t('props.aspect'), lock));
+  host.append(row(t('image.aspect'), lock));
   const fit = core.getM(ref.kind, ref.id)['imgFit'];
-  host.append(row(t('props.fit'), choice(t('props.fit'), ['contain', 'cover', 'stretch'], typeof fit === 'string' ? fit : 'contain', (v) => t(`media.fit.${v}`), (v) => setImageFit(core, [ref], v))));
+  host.append(row(t('image.fit'), choice(t('image.fit'), ['contain', 'cover', 'stretch'], typeof fit === 'string' ? fit : 'contain', (v) => t(`media.fit.${v}`), (v) => setImageFit(core, [ref], v))));
 }

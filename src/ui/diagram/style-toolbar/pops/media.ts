@@ -32,7 +32,7 @@ export function mediaPop(f: Fill): void {
   if (m.node === 'icon') {
     pop.append(popLabel(t('tb.iconForm')), choiceRow(['', 'square', 'circle', 'rounded'], m.form ?? '', (v) => set({ form: v || null }), (v) => framePreview(v, 28), (v) => t(`tb.form.${v || 'none'}`)));
   } else {
-    pop.append(popLabel(t('tb.fit')), texts(['contain', 'cover', 'stretch'], m.fit ?? 'contain', (v) => t(`tb.fit.${v}`), (v) => set({ fit: v })));
+    pop.append(popLabel(t('image.fit')), texts(['contain', 'cover', 'stretch'], m.fit ?? 'contain', (v) => t(`tb.fit.${v}`), (v) => set({ fit: v })));
   }
   pop.append(popLabel(t('tb.labelPos')), choiceRow(['t', 'b'], m.pos ?? 'b', (v) => set({ pos: v }), (v) => svgIcon(v === 't' ? 'labelTop' : 'labelBottom'), (v) => t(v === 't' ? 'tb.labelAbove' : 'tb.labelBelow')));
 }

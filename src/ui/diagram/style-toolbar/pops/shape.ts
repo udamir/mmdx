@@ -32,12 +32,12 @@ export function shapePop(f: Fill): void {
     const inMenu = new Set(SHAPE_MENU.flatMap((s) => s.ids));
     let sections: { title: string; items: ShapePaletteItem[] }[];
     if (sp.shapes.every((s) => inMenu.has(s))) {
-      sections = SHAPE_MENU.map((s) => ({ title: t(`tb.cat.${s.cat}`), items: s.ids.filter((id) => has.has(id)).map(item) })).filter((s) => s.items.length);
+      sections = SHAPE_MENU.map((s) => ({ title: t(`palette.cat.${s.cat}`), items: s.ids.filter((id) => has.has(id)).map(item) })).filter((s) => s.items.length);
     } else {
       const byTitle = new Map<string, ShapePaletteItem[]>();
       for (const shape of sp.shapes) {
         const def = knownShape(shape);
-        const title = def && def.id === shape ? t(`tb.cat.${def.category}`) : '';
+        const title = def && def.id === shape ? t(`palette.cat.${def.category}`) : '';
         let items = byTitle.get(title);
         if (!items) byTitle.set(title, (items = []));
         items.push(item(shape));

@@ -4,6 +4,7 @@
 import { DIAGRAM_TYPES } from '../kinds/info.js';
 import { PARTICIPANT_SHAPES, pickerShapes } from '../shapes/catalog.js';
 import type { DiagramType, ItemKind } from '../types.js';
+import { ROUTINGS } from '../style.js';
 
 export type FieldType = 'color' | 'number' | 'select' | 'range' | 'bool' | 'toggle';
 /** A select option: a value, or [value, label]. */
@@ -36,7 +37,7 @@ export const FIELD_DEFS: Readonly<Record<string, FieldDef>> = {
   arrow: { label: 'Arrow head', type: 'select', options: ['open', 'filled', 'arrow', 'none'] },
   labelColor: { label: 'Label colour', type: 'color' }, labelSize: { label: 'Label size', type: 'number' },
   curve: { label: 'Curvature', type: 'range', min: 0, max: 2, step: 0.05 },
-  routing: { label: 'Routing', type: 'select', options: ['curved', 'orthogonal', 'straight'] },
+  routing: { label: 'Routing', type: 'select', options: ROUTINGS },
   titleSize: { label: 'Title size', type: 'number' }, titleColor: { label: 'Title colour', type: 'color' },
   titleAlign: { label: 'Title align', type: 'select', options: ['center', 'left'] },
   titleWeight: { label: 'Title weight', type: 'select', options: ['400', '600', '700'] },

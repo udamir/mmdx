@@ -49,7 +49,7 @@ const shapeItem = (def: ShapeDef): PaletteItem => ({
 
 /** The Shapes menu: Mermaid Chart's sections (shared with the toolbar's shape picker). */
 const SECTIONS = SHAPE_MENU.map(({ cat, ids }) => ({
-  title: `shapes.cat.${cat}`,
+  title: `palette.cat.${cat}`,
   items: ids.map(shapeById).filter((d): d is ShapeDef => !!d).map(shapeItem),
 }));
 

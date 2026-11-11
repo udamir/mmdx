@@ -33,7 +33,6 @@ export const TOOLBAR_MESSAGES: Messages = {
   'tb.resetCurveNone': 'The line has no bend points or curvature change', 'tb.resetCurveOne': 'Remove the bend point and the curvature change',
   'tb.resetCurveMany': 'Remove the {n} bend points and the curvature change', 'tb.resetCurveCurve': 'Remove the bend points and the curvature change',
   'tb.copy': 'Copy', 'tb.duplicate': 'Duplicate', 'tb.deleteItem': 'Delete', 'tb.savePreset': 'Save as preset', 'tb.resetStyle': 'Reset style',
-  'tb.resetGroup': 'Reset positions in this group', 'tb.resetGroupNone': 'Nothing to reset — the group has no hand-placed positions',
   'tb.allProps': 'All properties…', 'tb.themePalette': 'Theme palette', 'tb.none': 'None',
   'tb.customColor': 'Custom colour… (adapts to other themes)', 'tb.thisDiagram': 'This diagram',
   'tb.localColor': "{value} — this diagram's colour (Alt-click or Delete removes it)", 'tb.addColor': "Add a colour to this diagram's palette (not the theme)",

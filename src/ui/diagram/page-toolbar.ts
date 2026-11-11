@@ -6,6 +6,7 @@
 // toolbar.
 import { TOOLBAR_MESSAGES } from '../messages/toolbar.js';
 import type { Rect } from '../../core/types.js';
+import { ROUTINGS } from '../../core/style.js';
 import { h, s } from '../kit/h.js';
 import { createI18n, registerMessages, type I18n } from '../../i18n.js';
 import { accentHex, barKeys, createPopHost, localColors, popLabel, slider as kitSlider, swatches, type PaletteColor } from '../kit/toolbar-kit.js';
@@ -96,7 +97,6 @@ const ICON: Readonly<Record<string, string>> = {
   plus: '<path d="M12 5v14M5 12h14" stroke-width="2.2"/>',
 };
 const DIR_ROT: Readonly<Record<string, number>> = { TB: 0, LR: -90, BT: 180, RL: 90 };
-const ROUTINGS = ['curved', 'orthogonal', 'straight'] as const;
 
 function icon(body: string, size = 22): SVGSVGElement {
   const el = s('svg', { viewBox: '0 0 24 24', width: String(size), height: String(size), fill: 'none', stroke: 'currentColor', 'stroke-width': '1.7', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' }) as SVGSVGElement;

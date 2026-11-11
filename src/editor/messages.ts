@@ -118,9 +118,8 @@ export const EDITOR_MESSAGES: Messages = {
   'history.lock': 'Lock', 'history.unlock': 'Unlock',
   // ---- "Reset positions in this group" (T07): the group's ⋮ menu, the board menu, Properties
   'history.resetGroup': 'Reset positions in this group', 'groupReset.done': 'Positions in the group reset',
-  'groupReset.nothing': 'Nothing to reset — the group has no hand-placed positions', 'groupReset.select': 'Select a group to reset the positions in it',
-  'props.resetGroup': 'Reset positions in this group', 'props.resetGroupTip': 'Forget the hand-placed positions inside the group; auto layout arranges its contents again',
-  'props.resetGroupNone': 'Nothing to reset — the group has no hand-placed positions',
+  'group.resetNone': 'Nothing to reset — the group has no hand-placed positions', 'groupReset.select': 'Select a group to reset the positions in it',
+  'group.resetPositions': 'Reset positions in this group', 'props.resetGroupTip': 'Forget the hand-placed positions inside the group; auto layout arranges its contents again',
   // ---- insert dock (T05); the strings of its lazy parts are in editor-media.ts
   'tools.image': 'Image — a picture by its URL, or an icon', 'help.image': 'Image', 'help.emoji': 'Emoji while editing text', 'props.emoji': 'Insert emoji (⌘/Ctrl+;)',
   'media.noUpload': 'Images can be added by URL; uploading is not configured here', 'media.noImages': 'Images cannot be added to this diagram type',

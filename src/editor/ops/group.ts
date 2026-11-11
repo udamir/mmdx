@@ -41,7 +41,7 @@ export function resetSelectedGroup(core: EditorCore): boolean {
     return false;
   }
   if (!groupHasPositions(core.model, core.meta, ref)) {
-    core.toast(t('groupReset.nothing'));
+    core.toast(t('group.resetNone'));
     return false;
   }
   const res = resetGroupPositions(core.model, core.meta, core.geom, ref);

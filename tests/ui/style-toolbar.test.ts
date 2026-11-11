@@ -347,7 +347,7 @@ describe('page toolbar', () => {
 
 describe('toolbar CSS', () => {
   it('the Fill swatch class has one rule', async () => {
-    const { TOOLBAR_CSS } = await import('../../src/ui/diagram/toolbar-styles.js');
-    expect(TOOLBAR_CSS.match(/^\.mtb-dot \{/gm)).toHaveLength(1);
+    const { STYLE_TOOLBAR_CSS } = await import('../../src/ui/diagram/toolbar-styles.js');
+    expect(STYLE_TOOLBAR_CSS.match(/^\.mtb-dot \{/gm)).toHaveLength(1);
   });
 });

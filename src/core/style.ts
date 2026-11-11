@@ -4,6 +4,8 @@
 
 export type ArrowType = 'none' | 'open' | 'filled' | 'arrow' | 'circle' | 'dot' | 'cross' | 'default';
 export type Routing = 'curved' | 'orthogonal' | 'straight';
+/** The connector routings, in the order the pickers show them (one list: the toolbars, the theme editor, the schema, the metadata check). */
+export const ROUTINGS: readonly Routing[] = ['curved', 'orthogonal', 'straight'];
 export type Side = 't' | 'b' | 'l' | 'r';
 export type TextAlign = 'left' | 'center' | 'right';
 export type VAlign = 'top' | 'middle' | 'bottom';

@@ -195,7 +195,7 @@ export function itemInspector(p: PanelCtx, host: HTMLElement, kind: ItemKind, id
     // "Reset positions in this group" (T07), where the type offers it; off when nothing inside is placed by hand
     const can = groupResetState(core, ref);
     if (can !== null) {
-      const rb = h('button', { type: 'button', class: 'reset-group', title: t(can ? 'props.resetGroupTip' : 'props.resetGroupNone') }, t('props.resetGroup'));
+      const rb = h('button', { type: 'button', class: 'reset-group', title: t(can ? 'props.resetGroupTip' : 'group.resetNone') }, t('group.resetPositions'));
       rb.disabled = !can;
       rb.addEventListener('click', () => void resetSelectedGroup(core));
       host.append(h('div', { class: 'btnrow' }, rb));

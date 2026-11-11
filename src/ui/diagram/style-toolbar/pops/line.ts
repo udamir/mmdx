@@ -4,7 +4,8 @@ import { h } from '../../../kit/h.js';
 import { choiceRow, popLabel, slider } from '../../../kit/toolbar-kit.js';
 import { num, str } from '../controls.js';
 import { animationPreview, arrowPreview, codeArrowPreview, dashPreview, routingPreview } from '../icons.js';
-import { ARROWS, DASHES, ROUTINGS } from '../kinds.js';
+import { ARROWS, DASHES } from '../kinds.js';
+import { ROUTINGS } from '../../../../core/style.js';
 import { colors, type Fill } from './common.js';
 
 /** A slider whose release ends one undo step (`api.commit`). */

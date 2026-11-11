@@ -4,10 +4,8 @@ import type { Messages } from '../../i18n.js';
 
 export const TOOLBAR_MEDIA_MESSAGES: Messages = {
   'tb.mediaImage': 'Picture settings — fit, aspect ratio, label position', 'tb.mediaIcon': 'Icon settings — frame, label position',
-  'tb.changeImage': 'Change image', 'tb.changeImageIcon': 'Change image — now the icon {name}',
-  'tb.labelPos': 'Label position', 'tb.iconForm': 'Icon frame', 'tb.fit': 'Fit', 'tb.aspect': 'Keep aspect ratio',
-  'tb.imageUrl': 'Image URL', 'tb.cat.basic': 'Basic', 'tb.cat.process': 'Process', 'tb.cat.technical': 'Technical',
-  'tb.cat.annotation': 'Annotation', 'tb.cat.figure': 'Figures', 'tb.cat.media': 'Media',
+  'tb.changeImageIcon': 'Change image — now the icon {name}',
+  'tb.labelPos': 'Label position', 'tb.iconForm': 'Icon frame',
   'tb.form.none': 'No frame', 'tb.form.square': 'Square', 'tb.form.circle': 'Circle', 'tb.form.rounded': 'Rounded',
   'tb.fit.contain': 'Contain', 'tb.fit.cover': 'Cover', 'tb.fit.stretch': 'Stretch', 'tb.labelAbove': 'Above', 'tb.labelBelow': 'Below',
 };

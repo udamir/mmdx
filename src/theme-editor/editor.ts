@@ -35,7 +35,7 @@ import { effect, signal, untracked } from '../reactive/signal.js';
 import { createStyleToolbar, type StyleToolbarHandle } from '../ui/diagram/style-toolbar.js';
 import { ALIASES, adoptStyles, BASE, TOKENS } from '../ui/kit/base.js';
 import { THEME_EDITOR_CSS } from './styles.js';
-import { TOOLBAR_CSS } from '../ui/diagram/toolbar-styles.js';
+import { STYLE_TOOLBAR_CSS } from '../ui/diagram/toolbar-styles.js';
 import { card } from './cards/card.js';
 import { pageCard } from './cards/page.js';
 import { paletteCard } from './cards/palette.js';
@@ -112,7 +112,7 @@ export class ThemeEditor {
     this.ctx = shell.ctx;
     this.storage = shell.storage;
     this.shadow = shell.shadow;
-    adoptStyles(this.shadow, [TOKENS, ALIASES, BASE, DIALOG_CSS, TOOLBAR_CSS, BAR_CSS, ZOOM_BAR_CSS, TABS_CSS, SEGMENTED_CSS, MENU_CSS, DISCLOSURE_CSS, TILE_GALLERY_CSS, COLOR_PICKER_CSS, THEME_EDITOR_CSS]);
+    adoptStyles(this.shadow, [TOKENS, ALIASES, BASE, DIALOG_CSS, STYLE_TOOLBAR_CSS, BAR_CSS, ZOOM_BAR_CSS, TABS_CSS, SEGMENTED_CSS, MENU_CSS, DISCLOSURE_CSS, TILE_GALLERY_CSS, COLOR_PICKER_CSS, THEME_EDITOR_CSS]);
     const t = this.i18n.t;
     this.readPrefs();
 

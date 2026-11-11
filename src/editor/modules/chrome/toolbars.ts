@@ -6,7 +6,7 @@
 import type { Rect } from '../../../core/types.js';
 import type { PageToolbarApi, PageToolbarHandle } from '../../../ui/diagram/page-toolbar.js';
 import type { ToolbarApi, StyleToolbarHandle, StyleToolbarOptions } from '../../../ui/diagram/style-toolbar.js';
-import { TOOLBAR_CSS } from '../../../ui/diagram/toolbar-styles.js';
+import { STYLE_TOOLBAR_CSS } from '../../../ui/diagram/toolbar-styles.js';
 import { h } from '../../../ui/kit/h.js';
 import type { Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
@@ -19,7 +19,7 @@ import { paletteApi } from './palette-api.js';
 import { styleToolbarApi } from './style-api.js';
 
 export const TOOLBARS_CSS = /* css */ `
-${TOOLBAR_CSS}
+${STYLE_TOOLBAR_CSS}
 .page-badge { position: absolute; left: 0; top: 0; z-index: 5; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--muted);
   font-size: 11px; font-weight: 600; letter-spacing: .02em; padding: 2px 8px; line-height: 16px; cursor: pointer; white-space: nowrap; }
 .page-badge[hidden] { display: none; }

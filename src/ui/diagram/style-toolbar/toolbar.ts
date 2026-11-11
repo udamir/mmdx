@@ -11,6 +11,7 @@ import { h } from '../../kit/h.js';
 import { createI18n, registerMessages } from '../../../i18n.js';
 import { TOOLBAR_MESSAGES } from '../../messages/toolbar.js';
 import { TOOLBAR_MEDIA_MESSAGES } from '../../messages/toolbar-media.js';
+import { BLOCK_MESSAGES_MEDIA } from '../../messages/blocks-media.js';
 import { barKeys, createPopHost } from '../../kit/toolbar-kit.js';
 import { control, type StyleCtx } from './controls.js';
 import { bulkSpec, TOOLBAR_KINDS } from './kinds.js';
@@ -21,6 +22,8 @@ import type { KindSpec, StyleToolbarHandle, StyleToolbarOptions, ToolbarApi, Too
 export function createStyleToolbar(host: HTMLElement, api: ToolbarApi, opts: StyleToolbarOptions = {}): StyleToolbarHandle {
   registerMessages(TOOLBAR_MESSAGES);
   registerMessages(TOOLBAR_MEDIA_MESSAGES);
+  // the shape categories and the picture's Fit / aspect / change are the media blocks' (one key each)
+  registerMessages(BLOCK_MESSAGES_MEDIA);
   const t = (opts.i18n ?? createI18n()).t;
   const bar = h('div', { class: 'mtb', role: 'toolbar', 'aria-label': t('tb.label'), part: 'toolbar' });
   bar.hidden = true;

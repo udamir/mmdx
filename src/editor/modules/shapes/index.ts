@@ -29,8 +29,10 @@ const paletteOf = (core: EditorCore): PaletteSpec | undefined => editKind(core.m
 /** The block's chunk (with its CSS), loaded the first time a palette shows. */
 let paletteChunk: Promise<typeof import('../../../ui/blocks/shape-palette.js')> | null = null;
 const loadShapePalette = (): Promise<typeof import('../../../ui/blocks/shape-palette.js')> =>
-  (paletteChunk ??= Promise.all([import('../../../ui/blocks/shape-palette.js'), import('../../messages-media.js')]).then(([m, msg]) => {
+  (paletteChunk ??= Promise.all([import('../../../ui/blocks/shape-palette.js'), import('../../messages-media.js'), import('../../../ui/messages/blocks-media.js')]).then(([m, msg, blocks]) => {
     registerMessages(msg.EDITOR_MEDIA_MESSAGES);
+    // the shape categories (`palette.cat.*`) are the media blocks'
+    registerMessages(blocks.BLOCK_MESSAGES_MEDIA);
     return m;
   }).catch((e: unknown) => {
     paletteChunk = null;

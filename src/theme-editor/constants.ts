@@ -102,6 +102,5 @@ export const SHAPE_TABS: Readonly<Record<string, ShapeTabs>> = {
 export const LINE_KINDS = new Set(['edge', 'message', 'rel', 'lifeline', 'transition']);
 /** The text colour key of box-like kinds (contrast check on their fill). */
 export const TEXT_ON_FILL: Readonly<Record<string, string>> = { node: 'text', participant: 'text', note: 'text', entity: 'text', box: 'text', group: 'titleColor', block: 'labelColor', composite: 'titleColor' };
-export const ROUTINGS = ['curved', 'orthogonal', 'straight'];
 /** Top-level theme keys that change nothing drawn (tiles and the preview need not follow them). */
 export const UNDRAWN = new Set(['id', 'name', 'counterpart', 'schemaVersion', 'description']);

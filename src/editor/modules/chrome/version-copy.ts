@@ -3,7 +3,7 @@
 import { copyable } from '../../../core/ops/clipboard.js';
 import { h, icon } from '../../../ui/kit/h.js';
 import { I_copy } from '../../../ui/kit/icons.js';
-import { TOOLBAR_CSS } from '../../../ui/diagram/toolbar-styles.js';
+import { STYLE_TOOLBAR_CSS } from '../../../ui/diagram/toolbar-styles.js';
 import type { EditorModule } from '../../module.js';
 import { anchorRect, freeStrip } from '../../lib/place.js';
 
@@ -14,7 +14,7 @@ const VERSION_COPY_CSS = /* css */ `
 
 export const versionCopyModule: EditorModule = {
   id: 'version-copy',
-  css: [TOOLBAR_CSS, VERSION_COPY_CSS],
+  css: [STYLE_TOOLBAR_CSS, VERSION_COPY_CSS],
   when: { stage: ['version'] },
   install(scope) {
     const core = scope.core;

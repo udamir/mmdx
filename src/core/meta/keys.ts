@@ -10,6 +10,7 @@
 // it shows: picture, icon, link, names), `look` (style), `state` (folding, locks, hiding). Fail closed: a key with no
 // entry is 'unknown' — the sanitizer keeps it as written (a newer writer's data) and every operation keeps it too.
 import { cleanDash, cleanFontFamily, isColorValue, isFiniteNumber } from '../validate.js';
+import { ROUTINGS } from '../style.js';
 
 /** Returned by a cleaner when the value is not acceptable. */
 export const DROP: unique symbol = Symbol('drop');
@@ -103,7 +104,7 @@ export const META_KEYS = {
   fontFamily: sty(copy(font)), align: sty(copy(oneOf('left', 'center', 'right'))), valign: sty(copy(oneOf('top', 'middle', 'bottom'))), wrap: sty(copy(bool)),
   attrSize: sty(copy(FONT_SIZE)), attrColor: sty(colour(color, { copy: true })), mode: copy(oneOf('compact', 'table')), showTypes: copy(bool),
   showComments: copy(bool), pkUnderline: copy(bool), labelOnLine: copy(bool), showTag: copy(bool),
-  routing: copy(oneOf('curved', 'orthogonal', 'straight')), startArrow: copy(ident), endArrow: copy(ident),
+  routing: copy(oneOf(...ROUTINGS)), startArrow: copy(ident), endArrow: copy(ident),
 
   // ---- more look
   padX: look(SIZE), padY: look(SIZE), padTop: sty(look(SIZE)), lineH: look(num(0, 10)), replyDash: look(dash), for: look(ident),

@@ -6,13 +6,15 @@ import type { Messages } from '../../i18n.js';
 export const BLOCK_MESSAGES_MEDIA: Messages = {
   // shape palette
   'palette.search': 'Search shapes', 'palette.searchPlaceholder': 'Search shapes…',
+  'palette.cat.basic': 'Basic', 'palette.cat.process': 'Process', 'palette.cat.technical': 'Technical', 'palette.cat.annotation': 'Annotation',
+  'palette.cat.figure': 'Figures', 'palette.cat.media': 'Media',
   'palette.results': 'Results', 'palette.none': 'No shapes match “{q}”', 'palette.shapes': 'Shapes',
   // icon picker
   'icons.title': 'Choose an icon…', 'icons.search': 'Search icons', 'icons.searchPlaceholder': 'Search icons',
   'icons.none': 'No icons match “{q}”', 'icons.empty': 'No icons in this pack', 'icons.grid': 'Icons',
   'icons.license': 'Licence: {license}',
   // image tool
-  'image.title': 'Image', 'image.url': 'Image URL', 'image.urlPlaceholder': 'https://…', 'image.add': 'Add image', 'image.replace': 'Replace image',
+  'image.title': 'Image', 'image.url': 'Image URL', 'image.change': 'Change image', 'image.fit': 'Fit', 'image.aspect': 'Keep aspect ratio', 'image.urlPlaceholder': 'https://…', 'image.add': 'Add image', 'image.replace': 'Replace image',
   'image.remove': 'Remove image', 'image.drop': 'Drop an image here, paste it, or', 'image.choose': 'choose a file',
   'image.types': 'PNG, JPEG, GIF, WebP, SVG or AVIF', 'image.uploading': 'Uploading {name}…', 'image.uploadFailed': 'Upload failed: {msg}',
   'image.notImage': '{name} is not an image', 'image.big': '{name} is {w} × {h} px.', 'image.reduce': 'Reduce to {n} px', 'image.asIs': 'Upload as is',

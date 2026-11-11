@@ -1,7 +1,7 @@
 // Floating style toolbar (`ui/style-toolbar`), page toolbar (`ui/page-toolbar`) and preset pickers, ported from the
 // prototype's styles.css (`.mtb*`, `.pp-*`, `.page-mtb`). Uses the --mmdx-* tokens (A14: no longer the prototype's
 // variable names through ALIASES), so it needs TOKENS only. Shared by <mmdx-editor> and <mmdx-theme-editor>.
-export const TOOLBAR_CSS = /* css */ `
+export const STYLE_TOOLBAR_CSS = /* css */ `
 .mtb { position: absolute; left: 0; top: 0; z-index: 35; display: flex; align-items: stretch; background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line);
   border-radius: 16px; box-shadow: 0 6px 24px rgba(20, 30, 60, .14), 0 1px 3px rgba(20, 30, 60, .08); height: 52px; padding: 0 4px; user-select: none; color: var(--mmdx-text); }
 .mtb[hidden] { display: none; }

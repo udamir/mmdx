@@ -3,7 +3,7 @@
 import { FIELD_DEFS, themeSection } from '../core/schema/style-fields.js';
 import { deepMerge } from '../core/theme/registry.js';
 import { h } from '../ui/kit/h.js';
-import { ROUTINGS } from './constants.js';
+import { ROUTINGS } from '../core/style.js';
 import { RATIOS } from '../ui/diagram/page-ratios.js';
 import type { Env } from './env.js';
 import { fieldRow } from './fields.js';

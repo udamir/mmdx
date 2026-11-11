@@ -60,8 +60,8 @@ export function morePop(f: Fill): void {
   // a group's "Reset positions in this group" (T07), where the type offers it
   const gp = api.resetGroupPositions ? api.groupPositions?.() : null;
   if (gp != null) {
-    act('reset', t('tb.resetGroup'), '', () => api.resetGroupPositions?.(), gp);
-    if (!gp) list.lastElementChild?.setAttribute('title', t('tb.resetGroupNone'));
+    act('reset', t('group.resetPositions'), '', () => api.resetGroupPositions?.(), gp);
+    if (!gp) list.lastElementChild?.setAttribute('title', t('group.resetNone'));
   }
   act('more', t('tb.allProps'), '', () => api.inspect?.(), !!api.inspect);
   pop.append(list);

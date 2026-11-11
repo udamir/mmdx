@@ -13,7 +13,6 @@ export const NODE_SHAPES: readonly string[] = pickerShapes().map((d) => d.id);
 export const PARTICIPANT_SHAPES: readonly string[] = PARTICIPANTS.map(([n]) => n);
 export const DASHES: readonly (readonly [string, string])[] = [['none', 'solid'], ['6 4', 'dashed'], ['1.5 4', 'dotted']];
 export const ARROWS = ['none', 'open', 'filled', 'arrow', 'circle', 'dot', 'cross'] as const;
-export const ROUTINGS = ['curved', 'orthogonal', 'straight'] as const;
 
 type MutableSpec = { groups: ToolbarControl[][] } & Omit<KindSpec, 'groups'>;
 
