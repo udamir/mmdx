@@ -5,7 +5,7 @@
 import { createZoomBar, ZOOM_BAR_CSS } from '../../ui/blocks/zoom-bar.js';
 import { signal, untracked } from '../../reactive/signal.js';
 import type { ViewCore } from '../core.js';
-import type { HostFullscreen } from '../types.js';
+import type { HostFullscreen } from '../../ports.js';
 import type { ViewModule } from '../module.js';
 
 const canFullscreen = (host: HTMLElement): boolean =>

@@ -5,7 +5,7 @@
 // stack, and the canvas insets.
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
-import type { StorageAdapter } from '../../src/adapters/storage.js';
+import type { StorageAdapter } from '../../src/ports.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
 import { panesModule } from '../../src/editor/modules/chrome/panes.js';
 import { codePanelModule } from '../../src/editor/modules/panels/code-panel.js';

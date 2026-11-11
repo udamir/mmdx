@@ -6,8 +6,7 @@
 //
 // "Follow light / dark" clears the pick. Picking a dark theme does not switch the chrome to dark. The chrome scheme:
 // an explicit `ui` (light / dark), else the user's remembered toggle, else the page's.
-import type { StorageAdapter } from '../adapters/storage.js';
-import type { ThemeSource } from '../adapters/themes.js';
+import type { StorageAdapter, ThemeSource } from '../ports.js';
 import { getShared } from '../platform/config.js';
 import { ensureBuiltinThemes } from '../platform/themes.js';
 import { BUILTIN_IDS } from '../core/theme/builtin-ids.js';

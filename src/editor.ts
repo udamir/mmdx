@@ -16,5 +16,6 @@ export { configure, type Config } from './platform/config.js';
 export { registerThemes, registerBuiltinThemes } from './platform/themes.js';
 export type { IconPack, IconifyJSON } from './core/icons/types.js';
 export * from './adapters/documents.js';
+export type { DocumentAdapter, DocumentSaveResult, LoadResult } from './ports.js';
 
 defineEditor();

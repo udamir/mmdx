@@ -1,7 +1,7 @@
 // Magic pen (A.2 row 26): freehand strokes over the diagram that fade a few seconds after they are drawn.
 // Strokes live in the canvases' ink layer (never in the diagram or its metadata), in diagram coordinates, so they stay
 // on the right spot while panning or zooming.
-import type { StorageAdapter } from '../adapters/storage.js';
+import type { StorageAdapter } from '../ports.js';
 
 export const PEN_COLORS = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#007aff', '#af52de', '#1a1a1a'] as const;
 export const PEN_SIZES = [2, 4, 7] as const;

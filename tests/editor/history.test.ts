@@ -2,7 +2,7 @@
 // History in the editor (component architecture §8.2, R11): open History, copy an item of an old version, go Back,
 // paste it into the current document — even though the document no longer has it.
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { HistoryAdapter } from '../../src/adapters/history.js';
+import type { HistoryAdapter } from '../../src/ports.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
 import { loadKind } from '../../src/view/kinds.js';

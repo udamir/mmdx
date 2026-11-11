@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { memoryThemeStore, type ThemeStore } from '../../src/adapters/themes.js';
+import { memoryThemeStore } from '../../src/adapters/themes.js';
+import { type ThemeStore } from '../../src/ports.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { getShared } from '../../src/platform/config.js';
 import { BUILTIN_THEMES } from '../../src/core/theme/builtin.js';

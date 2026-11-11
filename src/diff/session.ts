@@ -7,7 +7,8 @@
 // `<mmdx-diff>` dispatches them as `mmdx-*` and History can route them as `mmdx-history-*`. Replaces the data, loading,
 // rendering and export half of elements/diff.ts.
 // Every load starts a generation: a list, a page, a source, a render or a change count that arrives for an older one is dropped.
-import { contentId, staticHistory, type HistoryAdapter, type StaticVersion } from '../adapters/history.js';
+import { contentId, staticHistory, type StaticVersion } from '../adapters/history.js';
+import { type HistoryAdapter } from '../ports.js';
 import { getShared } from '../platform/config.js';
 import type { CoreContext } from '../core/context.js';
 import type { DiffView } from '../core/diff/annotate.js';

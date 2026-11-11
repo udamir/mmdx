@@ -3,7 +3,7 @@
 // updates wait for them, a load / undo / stage or mode switch cancels them, autosave waits, and the adapter's
 // subscription follows the adapter.
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { DocumentAdapter } from '../../src/adapters/documents.js';
+import type { DocumentAdapter } from '../../src/ports.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import type { EditorCore } from '../../src/editor/core.js';
 import { DiagramEditor, type EditorOptions } from '../../src/editor/editor.js';

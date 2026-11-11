@@ -1,7 +1,7 @@
 // App-level shared configuration (§8): configure() sets defaults every instance reads; each instance can override.
 // This is the one deliberate shared object (§1 goal 2): read-only after creation of each instance's context. The
 // themes every component lists are in platform/themes.ts, the stock Mermaid bridge in platform/mermaid.ts.
-import type { ThemeSource } from '../adapters/themes.js';
+import type { ThemeSource, MermaidLike } from '../ports.js';
 import { createContextWith, type CoreContext } from '../core/context-base.js';
 import { IconRegistry } from '../core/icons/registry.js';
 import type { IconPack } from '../core/icons/types.js';
@@ -11,7 +11,6 @@ import { createStaticMeasurer, type TextMeasurer } from '../core/text/measure.js
 import { DEFAULT_IMAGE_POLICY, DEFAULT_LINK_POLICY, type ImagePolicy, type LinkPolicy, type UrlResolver } from '../core/validate.js';
 import { createCanvasMeasurer } from '../dom/measure.js';
 import { createI18n, type I18n, type Messages } from '../i18n.js';
-import type { MermaidLike } from '../ports.js';
 
 export interface Config {
   themes?: ThemeRegistry;

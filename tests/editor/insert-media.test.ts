@@ -5,7 +5,8 @@
 // (Alt-click replace), the selection toolbar's media controls and the Properties sections.
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
-import { memoryImageStore, type ImageStore } from '../../src/adapters/images.js';
+import { memoryImageStore } from '../../src/adapters/images.js';
+import { type ImageStore } from '../../src/ports.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
 import { loadBuiltinIcons } from '../../src/core/icons/registry.js';
 import { pev } from './connect.helpers.js';

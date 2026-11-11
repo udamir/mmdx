@@ -11,7 +11,8 @@
 // copy follows the document.
 // Session events reach the host as `mmdx-history-*`. Loaded on first use: the viewer and the editor bundles never
 // contain the diff.
-import { staticHistory, type HistoryAdapter, type StaticVersion, type VersionInfo } from '../adapters/history.js';
+import { staticHistory, type StaticVersion } from '../adapters/history.js';
+import { type HistoryAdapter, type VersionInfo } from '../ports.js';
 import { Owner } from '../reactive/owner.js';
 import type { ItemKind } from '../core/types.js';
 import { transitionFrom, type MorphState } from '../dom/morph.js';

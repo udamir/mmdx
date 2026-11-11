@@ -2,7 +2,8 @@
 // loading a pair or a history, the filters, the selection, the view, History mode and the events it emits.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import type { HistoryAdapter, StaticVersion } from '../../src/adapters/history.js';
+import type { StaticVersion } from '../../src/adapters/history.js';
+import type { HistoryAdapter } from '../../src/ports.js';
 import { createContext } from '../../src/core/context.js';
 import { changeKey } from '../../src/core/diff/merge.js';
 import type { FlowGeometry } from '../../src/core/render/types.js';

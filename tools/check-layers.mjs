@@ -100,7 +100,7 @@ export function edgeViolation(e) {
   const mod = (r) => /^editor\/modules\/([^/]+)\//.exec(r)?.[1];
   if (lt > lf) return `upward ${af} → ${at}`;
   if (PRODUCTS.has(af) && PRODUCTS.has(at) && af !== at) return `product → product ${af} → ${at}`;
-  if (/^ui\/blocks\//.test(e.from) && !/^(ui|reactive)\//.test(e.to) && e.to !== 'i18n.ts' && !/^core\/(types|diff|text|icons|shapes|model)/.test(e.to) && at !== 'adapters') return `block → ${at}`;
+  if (/^ui\/blocks\//.test(e.from) && !/^(ui|reactive)\//.test(e.to) && e.to !== 'i18n.ts' && e.to !== 'ports.ts' && !/^core\/(types|diff|text|icons|shapes|model)/.test(e.to) && at !== 'adapters') return `block → ${at}`;
   if (at === 'reactive' && af === 'core') return 'core → reactive (core holds no state)';
   if (mod(e.from) && mod(e.to) && mod(e.from) !== mod(e.to)) return `module → module ${mod(e.from)} → ${mod(e.to)}`;
   if (/^editor\/kinds\//.test(e.from) && /^editor\/modules\//.test(e.to)) return 'editor kinds → editor module';

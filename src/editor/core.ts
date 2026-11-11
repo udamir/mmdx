@@ -6,9 +6,7 @@
 // Component architecture §4.1: EditorCore extends the view kernel (ViewCore) — services, theme, chrome scheme,
 // shell, module host and canvas come from it — and adds the document store, the selection, gestures and overlay
 // painters. What the canvas shows is the StoreScene (src/editor/scene.ts); `draw()` invalidates it.
-import type { ImageStore } from '../adapters/images.js';
-import type { StorageAdapter } from '../adapters/storage.js';
-import type { ThemeSource } from '../adapters/themes.js';
+import type { ImageStore, StorageAdapter, ThemeSource } from '../ports.js';
 import type { CoreContext } from '../core/context.js';
 import type { IconPack } from '../core/icons/types.js';
 import { normalizeMeta, splitSource, type DiagramDocument } from '../core/meta/index.js';

@@ -6,9 +6,8 @@
 // control of the `controls` attribute.
 import { MmdxElement, readInlineSource, warnOnce, words, type AttrSpec, type Patch } from './base.js';
 import { fetchText } from '../adapters/fetch-text.js';
-import type { ThemeSource } from '../adapters/themes.js';
-import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
-import type { StorageAdapter } from '../adapters/storage.js';
+import type { ThemeSource, HistoryAdapter, StorageAdapter, HostFullscreen } from '../ports.js';
+import type { StaticVersion } from '../adapters/history.js';
 import { getShared } from '../platform/config.js';
 import type { CoreContext } from '../core/context.js';
 import type { IconPack } from '../core/icons/types.js';
@@ -22,7 +21,6 @@ import { h } from '../ui/h.js';
 import { VIEWER_CSS } from '../ui/styles/viewer.js';
 import { ViewCore } from '../view/core.js';
 import type { HistorySession } from '../view/history.js';
-import type { HostFullscreen } from '../view/types.js';
 import { lazyModule, type ViewModule } from '../view/module.js';
 import { VIEWER_MODULES } from '../view/modules/viewer.js';
 import { TextScene, type FallbackMode, type FitMode } from '../view/scenes/text.js';

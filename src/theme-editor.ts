@@ -9,6 +9,7 @@ export { configure, type Config } from './platform/config.js';
 export { registerThemes, registerBuiltinThemes } from './platform/themes.js';
 export * from './adapters/themes.js';
 export * from './adapters/storage.js';
+export type { SaveResult, StorageAdapter, ThemeSource, ThemeStore } from './ports.js';
 export { BUILTIN_THEMES } from './core/theme/builtin.js';
 export type { ThemeFile, ThemeInfo } from './core/theme/types.js';
 

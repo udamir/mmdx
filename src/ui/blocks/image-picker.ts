@@ -4,7 +4,7 @@
 // reason in words). Images are always referenced by URL (no embedding): a library picture's or an uploaded file's
 // record gives it. The Library and Upload tabs show only when the host has them; a dropped or pasted file without an
 // upload is refused with `onRefused` (the host's toast).
-import type { ImageInfo, ImagePage } from '../../adapters/images.js';
+import type { ImageInfo, ImagePage } from '../../ports.js';
 import { h } from '../h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';

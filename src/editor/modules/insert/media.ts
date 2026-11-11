@@ -15,7 +15,7 @@ import { EDITOR_MEDIA_MESSAGES } from '../../../ui/messages/editor-media.js';
 import { createEmojiPicker, EMOJI_PICKER_CSS } from '../../../ui/blocks/emoji-picker.js';
 import { createIconPicker, ICON_PICKER_CSS } from '../../../ui/blocks/icon-picker.js';
 import { createImagePicker, IMAGE_PICKER_CSS, type ImageTab } from '../../../ui/blocks/image-picker.js';
-import type { ImageInfo } from '../../../adapters/images.js';
+import type { ImageInfo } from '../../../ports.js';
 import { reduceImage, imageSize } from '../../../dom/downscale.js';
 import type { EditorCore } from '../../core.js';
 import { editKind, withEdit } from '../../kinds/registry.js';

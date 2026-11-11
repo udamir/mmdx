@@ -5,7 +5,8 @@
 // wraps it.
 import { memoryThemeStore } from '../adapters/themes.js';
 import { Owner } from '../reactive/owner.js';
-import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
+import { localStorageAdapter, memoryStorage } from '../adapters/storage.js';
+import { type StorageAdapter } from '../ports.js';
 import { getShared, instanceContext } from '../platform/config.js';
 import { ensureBuiltinThemes } from '../platform/themes.js';
 import type { CoreContext } from '../core/context.js';

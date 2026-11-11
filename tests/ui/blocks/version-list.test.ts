@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { VersionInfo } from '../../../src/adapters/history.js';
+import type { VersionInfo } from '../../../src/ports.js';
 import { signal } from '../../../src/reactive/signal.js';
 import { ago, createVersionList, type VersionCounts, type VersionListProps } from '../../../src/ui/blocks/version-list.js';
 import { createI18n } from '../../../src/i18n.js';

@@ -2,7 +2,7 @@
 // (asking about unsaved changes), save (validated, conflict-checked, light / dark links kept mutual), create,
 // duplicate, import, export, revert, delete and publish. Dialogs, toasts, downloads and events go through the ports
 // the editor passes in.
-import type { ThemeStore } from '../adapters/themes.js';
+import type { ThemeStore } from '../ports.js';
 import type { CoreContext } from '../core/context.js';
 import { BUILTIN_THEMES } from '../core/theme/builtin.js';
 import { BASELINE, ThemeRegistry } from '../core/theme/registry.js';

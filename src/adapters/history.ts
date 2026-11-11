@@ -1,17 +1,6 @@
 // History adapters (diff §8.6): where <mmdx-diff> reads the versions of a diagram. The component never writes
 // history; it lists versions (newest first, optionally paged) and loads the source of the ones it shows.
-import type { VersionInfo } from '../core/diff/report.js';
-
-export type { VersionInfo };
-
-export interface HistoryAdapter {
-  /** Newest first. May page: pass `next` from the previous page as `cursor`. */
-  list(cursor?: string): Promise<{ versions: VersionInfo[]; next?: string }>;
-  /** The source of one version (untrusted: validated like any source). */
-  load(id: string): Promise<string>;
-  /** Calls `cb` when the history changed (a new version was saved); returns an unsubscribe. */
-  subscribe?(cb: () => void): () => void;
-}
+import type { HistoryAdapter, VersionInfo } from '../ports.js';
 
 /** A version with its source, for `staticHistory`. */
 export type StaticVersion = VersionInfo & { source: string };

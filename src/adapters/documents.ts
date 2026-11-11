@@ -1,20 +1,5 @@
 // DocumentAdapter (§8.2): how the editor loads and saves its document. The host implements it for its backend.
-
-export interface LoadResult {
-  source: string;
-  name?: string;
-  version?: string;
-}
-
-export type DocumentSaveResult = { version?: string } | { conflict: { source: string; version: string } };
-
-export interface DocumentAdapter {
-  load(): Promise<LoadResult>;
-  /** Always `.mmdx` content (§5.1). */
-  save(source: string, ctx: { version?: string }): Promise<DocumentSaveResult>;
-  /** Live updates from the host (another tab or user). Returns an unsubscribe function. */
-  subscribe?(cb: (source: string, version: string) => void): () => void;
-}
+import type { DocumentAdapter } from '../ports.js';
 
 /** A document held in memory (tests, demos); `conflictOn` simulates a concurrent edit. */
 export function memoryDocumentAdapter(initial: string, name = 'diagram'): DocumentAdapter & { readonly current: string; setRemote(src: string): void } {

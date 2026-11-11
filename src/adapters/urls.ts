@@ -3,8 +3,6 @@
 // a base — the folder of the document the diagram comes from.
 import type { UrlResolver } from '../core/validate.js';
 
-export type { ContentUrlKind, UrlResolver } from '../core/validate.js';
-
 /**
  * Resolves relative image and link URLs (`img/logo.png`, `../guide.md`, `/files/a.png`) against `base`; absolute URLs
  * (with a scheme), protocol-relative ones (`//host/…`) and fragments (`#part`) stay as written, and so does a URL the

@@ -2,44 +2,7 @@
 // (its Upload tab, a picture pasted or dropped on the canvas). The editor never embeds a file: a picture is referenced
 // by its record's `url` — a URL, or a host reference the `resolveUrl` hook maps to one — and the image policy checks it
 // as any image URL.
-
-/** A picture in the host's image store. */
-export interface ImageInfo {
-  id: string;
-  /** What the diagram references (written into the code or the metadata): a URL, or a host reference `resolveUrl` maps to one. */
-  url: string;
-  /** A small version for the library's grid (a URL the browser loads as is; default: `url`, resolved). */
-  thumb?: string;
-  /** The file name or a title, shown and searched in the library. */
-  name?: string;
-  /** The pixel size, when the host knows it. */
-  w?: number;
-  h?: number;
-  /** The MIME type and the size in bytes. */
-  type?: string;
-  size?: number;
-  /** ISO date of the upload. */
-  date?: string;
-}
-
-/** One page of pictures, newest first; `next` asks for the next one. */
-export interface ImagePage {
-  images: ImageInfo[];
-  next?: string;
-}
-
-export interface ImageStore {
-  /** Pictures, newest first. May page (pass `next` back as `cursor`) and filter by `query` (a name; a store may ignore it). */
-  list(o?: { cursor?: string; query?: string }): Promise<ImagePage>;
-  /** One picture's record. */
-  get(id: string): Promise<ImageInfo>;
-  /** Stores a file and resolves to its record (throw to refuse it: the message is shown). */
-  put(file: Blob, o?: { name?: string }): Promise<ImageInfo>;
-  /** Removes a picture from the store (diagrams that reference it keep the reference). */
-  delete?(id: string): Promise<void>;
-  /** Calls `cb` when the store changed (a picture added or removed elsewhere); returns an unsubscribe. */
-  subscribe?(cb: () => void): () => void;
-}
+import type { ImageInfo, ImageStore } from '../ports.js';
 
 /** A `data:` URL of a blob (the memory store's pictures). */
 async function dataUrl(blob: Blob): Promise<string> {

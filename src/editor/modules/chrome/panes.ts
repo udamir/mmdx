@@ -7,7 +7,7 @@
 //
 // The kernel's `panelStacks` module (view/modules/panels.ts) does the same for the viewer and the diff, under
 // per-product keys. These stacks stay while History shows a comparison (its panels go into them, at the same widths).
-import type { StorageAdapter } from '../../../adapters/storage.js';
+import type { StorageAdapter } from '../../../ports.js';
 import { createPanelStack, PANEL_STACK_CSS, type PanelStackHandle, type StackStorage } from '../../../ui/blocks/panel-stack.js';
 import { SIDE_PANEL_CSS } from '../../../ui/blocks/side-panel.js';
 import { TABS_CSS } from '../../../ui/blocks/tabs.js';

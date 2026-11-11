@@ -1,24 +1,8 @@
 // Theme sources and stores (§8.3). Read: viewer, editor and theme editor share a ThemeSource. Write: the theme
 // editor saves through a ThemeStore. The library never talks to a backend by itself.
+import type { StorageAdapter, ThemeSource, ThemeStore } from '../ports.js';
 import { BASE_THEME_ID } from '../core/theme/builtin-ids.js';
 import type { ThemeFile, ThemeInfo } from '../core/theme/types.js';
-import type { StorageAdapter } from './storage.js';
-
-export interface ThemeSource {
-  list(): Promise<ThemeInfo[]>;
-  get(id: string): Promise<ThemeFile>;
-  subscribe?(cb: () => void): () => void;
-}
-
-export type SaveResult = { version: string } | { conflict: ThemeFile };
-
-export interface ThemeStore extends ThemeSource {
-  save(theme: ThemeFile, opts: { version?: string }): Promise<SaveResult>;
-  delete?(id: string): Promise<void>;
-  publish?(id: string): Promise<void>;
-  /** Number of diagrams that use the theme, when the host can tell. */
-  usage?(id: string): Promise<number>;
-}
 
 const info = (t: ThemeFile, version?: string): ThemeInfo => {
   const i: ThemeInfo = {

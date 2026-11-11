@@ -1,10 +1,5 @@
 // UI preference storage (§8.2 `storage`, A.12). Never holds the document itself.
-
-export interface StorageAdapter {
-  get<T>(key: string): T | undefined;
-  set(key: string, value: unknown): void;
-  remove(key: string): void;
-}
+import type { StorageAdapter } from '../ports.js';
 
 /** In-memory storage: tests, sandboxed iframes, hosts that persist nothing. */
 export function memoryStorage(initial: Record<string, unknown> = {}): StorageAdapter {

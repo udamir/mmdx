@@ -5,7 +5,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { StaticVersion } from '../../src/adapters/history.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
-import type { ThemeSource } from '../../src/adapters/themes.js';
+import type { ThemeSource } from '../../src/ports.js';
 import { BUILTIN_THEMES } from '../../src/core/theme/builtin.js';
 import type { ThemeFile } from '../../src/core/theme/types.js';
 import { defineEditor, type MmdxEditorElement } from '../../src/editor/editor.js';

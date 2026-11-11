@@ -6,8 +6,7 @@
 // Edits change a draft (tiles and the sample preview follow); Save validates it, writes it through the ThemeStore and
 // registers it in the shared ThemeRegistry so open viewers and editors pick it up. Export downloads a .theme.json.
 // Behind the element is the ThemeEditor class (theme-editor/editor.ts), which can also be mounted into any element.
-import type { ThemeSource, ThemeStore } from '../adapters/themes.js';
-import type { StorageAdapter } from '../adapters/storage.js';
+import type { ThemeSource, ThemeStore, StorageAdapter } from '../ports.js';
 import { BASELINE } from '../core/theme/registry.js';
 import { TYPES } from '../theme-editor/constants.js';
 import { ThemeEditor } from '../theme-editor/editor.js';

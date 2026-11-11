@@ -6,7 +6,7 @@
 // (`refreshCounts()`). Replaces `historyRows` and `ago` of
 // elements/diff/panels.ts (same DOM and classes). The pick colours come from the `--mmdx-diff-*` tokens: the host
 // adopts `DIFF_TOKENS` (ui/styles/diff.ts).
-import type { VersionInfo } from '../../adapters/history.js';
+import type { VersionInfo } from '../../ports.js';
 import type { DiagramDiff } from '../../core/diff/index.js';
 import { h, icon } from '../h.js';
 import type { PopoverManager } from '../popover.js';

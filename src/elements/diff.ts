@@ -9,9 +9,8 @@
 import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
 import { Owner } from '../reactive/owner.js';
 import { fetchText } from '../adapters/fetch-text.js';
-import type { ThemeSource } from '../adapters/themes.js';
-import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
-import type { StorageAdapter } from '../adapters/storage.js';
+import type { ThemeSource, HistoryAdapter, StorageAdapter } from '../ports.js';
+import type { StaticVersion } from '../adapters/history.js';
 import type { CoreContext } from '../core/context.js';
 import type { IconPack } from '../core/icons/types.js';
 import type { DiagramDiff as DiffResult, ItemChange } from '../core/diff/index.js';

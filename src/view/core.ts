@@ -3,10 +3,11 @@
 // keymap) and the shared state (mode, stage, chrome scheme, theme, display, panels, tool, compact), and puts together
 // the shell with its named slots (shell.ts), the scene stack with the canvas area (scene.ts), the events and actions
 // (bus.ts) and the module host (host.ts). Products are compositions: a kernel, a scene source and a set of modules.
-import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
+import { localStorageAdapter, memoryStorage } from '../adapters/storage.js';
+import { type StorageAdapter } from '../ports.js';
 import { Owner } from '../reactive/owner.js';
-import type { ThemeSource } from '../adapters/themes.js';
-import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
+import type { ThemeSource, HistoryAdapter, HostFullscreen } from '../ports.js';
+import type { StaticVersion } from '../adapters/history.js';
 import { getShared, instanceContext } from '../platform/config.js';
 import type { CoreContext } from '../core/context.js';
 import type { IconPack } from '../core/icons/types.js';
@@ -26,7 +27,7 @@ import type { ModuleScope, Registration, ViewModule } from './module.js';
 import { SceneStack, type CanvasArea, type SceneSource } from './scene.js';
 import { createShell, SHELL_CSS, type Shell } from './shell.js';
 import { schemeState, themeLoader, ThemeState, type Scheme, type SchemeState, type UiOption } from './theme.js';
-import type { Display, DockItem, ExportFormat, HostFullscreen, Mode, PanelItem, SlotName, Stage, Tool, ViewActions, ViewEvents } from './types.js';
+import type { Display, DockItem, ExportFormat, Mode, PanelItem, SlotName, Stage, Tool, ViewActions, ViewEvents } from './types.js';
 
 export { SHELL_CSS };
 
