@@ -1,6 +1,7 @@
 // The text outline of a mindmap (the core's `outline`: for screen readers and copying): its tree.
 import type { MindmapModel } from '../model.js';
 import type { OutlineItem } from '../kind/types.js';
+import type { ExtrasKind } from '../kind/extras-types.js';
 
 const one = (s: string): string => s.replace(/\s*\n\s*/g, ' ').trim();
 
@@ -28,3 +29,5 @@ export function outlineMindmap(model: MindmapModel): OutlineItem[] {
   }
   return [top];
 }
+
+export const EXTRAS: ExtrasKind<MindmapModel> = { type: 'mindmap', outline: outlineMindmap };

@@ -41,6 +41,7 @@ BaseModel (type): { diagnostics }
 BlockKind (type): = 'loop' | 'alt' | 'opt' | 'par' | 'critical' | 'break' | 'rect'
 BracketSpan (type): { start, text, end, open, close }
 BUILTIN_THEMES: readonly ThemeFile[]
+BuiltinType (type): = 'flowchart' | 'sequence' | 'er' | 'mindmap' | 'state'
 CanvasMeta (type): { v?, preset?, layout?, w?, h?, x?, y?, background?, border?, grid?, pad?, routing?, ratio?, gap?, rowH?, mirror?, blockSpan?, margin?, blockTags?, mindLayout?, composites? }
 Cardinality (type): = 'zero-one' | 'one' | 'zero-many' | 'one-many'
 CenterBox (type): { x, y, w, h }
@@ -71,7 +72,7 @@ DiagramDiff (type): { type, typeChanged, items, doc, counts, diagnostics? }
 DiagramDocument (type): { code, meta }
 DiagramMeta (type): { canvas, styles, layers?, groups?, nodes?, edges?, participants?, messages?, notes?, blocks?, boxes?, activations?, entities?, rels?, unknown? }
 DiagramModel (type): = FlowchartModel | SequenceModel | ErModel | MindmapModel | StateModel | UnsupportedModel
-DiagramType (type): = 'flowchart' | 'sequence' | 'er' | 'mindmap' | 'state'
+DiagramType (type): = BuiltinType | (string & {})
 DIFF_COLORS: Record<"light" | "dark", DiffColors>
 diffDiagrams: (before: string, after: string) => DiagramDiff
 diffDiagramsWith: (kinds: Partial<Record<DiagramType, ViewKind<SupportedModel>>>, before: string, after: string, parse?: (code: string) => DiagramModel) => DiagramDiff

@@ -7,7 +7,8 @@
 //
 // One instance per CoreContext: no module state, no storage, no network. Loading belongs to a ThemeSource, browser
 // edits to a ThemeStore (§8.3); they hand files to `register`.
-import type { DiagramType, Diagnostic } from '../types.js';
+import type { BuiltinType, Diagnostic } from '../types.js';
+import { DIAGRAM_TYPES } from '../kinds/info.js';
 import { BASE_THEME_ID, currentThemeId } from './builtin-ids.js';
 import { resolveThemeColors } from './colors.js';
 import type { ResolvedTheme, ThemeFile, ThemeInfo } from './types.js';
@@ -15,7 +16,7 @@ import { validateTheme } from './validate.js';
 
 /** The base theme (Default Light): every other theme extends it. */
 /** The empty section of each diagram type: every key present (ResolvedTheme), filled by the theme file. */
-const SECTION_DEFAULTS: { readonly [T in DiagramType]: () => ResolvedTheme[T] } = {
+const SECTION_DEFAULTS: { readonly [T in BuiltinType]: () => ResolvedTheme[T] } = {
   flowchart: () => ({ node: {}, nodePresets: {}, group: {}, groupPresets: {}, edge: {}, edgePresets: {}, pagePresets: {} }),
   sequence: () => ({
     participant: {}, participantPresets: {}, lifeline: {}, activation: {}, activationPresets: {}, message: {},
@@ -183,7 +184,7 @@ export class ThemeRegistry {
     const palette = m.palette ?? {};
     const t = resolveThemeColors(m, palette, basePalette);
     const font = t.font ?? this.#files.get(BASELINE)?.font ?? DEFAULT_FONT;
-    return {
+    const out: ResolvedTheme = {
       id: t.id,
       name: t.name || t.id,
       appearance: t.appearance === 'dark' ? 'dark' : 'light',
@@ -197,5 +198,9 @@ export class ThemeRegistry {
       mindmap: { ...SECTION_DEFAULTS.mindmap(), ...t.mindmap },
       state: { ...SECTION_DEFAULTS.state(), ...t.state },
     };
+    // a kind plugin's section (A11e): as the theme file has it, {} when it has none
+    const file = t as unknown as Record<string, unknown>, more = out as unknown as Record<string, unknown>;
+    for (const type of DIAGRAM_TYPES) if (!Object.hasOwn(SECTION_DEFAULTS, type)) more[type] = { ...(file[type] as object | undefined) };
+    return out;
   }
 }

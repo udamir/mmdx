@@ -8,7 +8,7 @@ import type { DiagramMeta } from '../../../core/meta/types.js';
 import type { Rect } from '../../../core/types.js';
 import type { PageToolbarApi, SequenceLayoutState } from '../../../ui/diagram/page-toolbar.js';
 import type { EditorCore } from '../../core.js';
-import { applyMeta, DIAGRAM_TYPES, FLOW_DIRS, setAutonumberOn, setFlowDirection, switchDiagramType } from '../../ops/doc.js';
+import { applyMeta, diagramTypeChoices, FLOW_DIRS, setAutonumberOn, setFlowDirection, switchDiagramType } from '../../ops/doc.js';
 import { choosePagePreset, pageEff, RATIOS, setPageRatio, setPageSizeMode, setPageValue } from '../../ops/page.js';
 import type { BarContext } from './bar-context.js';
 import type { PaletteApi } from './palette-api.js';
@@ -22,7 +22,7 @@ export function pageToolbarApi({ core, t, live }: BarContext, pal: PaletteApi, r
   };
   return {
     visible: () => core.pageSelected.peek() && core.mode.peek() === 'edit' && !!core.model.type && !core.selection().length,
-    types: () => DIAGRAM_TYPES.map(([v, k]) => [v, t(k)] as const),
+    types: () => diagramTypeChoices().map(([v, k]) => [v, t(k)] as const),
     diagramType: () => core.model.type,
     direction: () => withEdit(core.model, (k, m) => k.direction?.(m)) ?? null,
     directions: () => FLOW_DIRS.map(([v, k]) => [v, t(k)] as const),

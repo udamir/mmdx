@@ -4,7 +4,7 @@ import type { Kinds } from '../kind/types.js';
 import type { DiagramModel, UnsupportedModel } from '../model.js';
 import type { DiagramType } from '../types.js';
 import { diag } from '../types.js';
-import { KIND_INFO, typeOfHeader } from '../kinds/info.js';
+import { DIAGRAM_TYPES, kindInfo, typeOfHeader } from '../kinds/info.js';
 import { MAX_SOURCE_LENGTH, tooLargeDiagnostic } from './limits.js';
 import { isFrontmatterFence } from './frontmatter.js';
 import { registeredKinds } from '../kinds/registry.js';
@@ -33,14 +33,14 @@ export function detectType(code: string): DiagramType | null {
 }
 
 /** `"flowchart", "sequenceDiagram" or "erDiagram"`: the headers of every type, for the unsupported message. */
-const HEADERS = ((names: string[]): string => `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`)(
-  Object.values(KIND_INFO).map((k) => `"${k.starter.trim().split(/\s/)[0]}"`),
+const headers = (): string => ((names: string[]): string => `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`)(
+  DIAGRAM_TYPES.map((t) => `"${kindInfo(t)!.starter.trim().split(/\s/)[0]}"`),
 );
 
 function unsupported(code: string): UnsupportedModel {
   const m: UnsupportedModel = {
     type: null,
-    diagnostics: [diag('error', 'type.unsupported', `Unsupported diagram: start with ${HEADERS}.`)],
+    diagnostics: [diag('error', 'type.unsupported', `Unsupported diagram: start with ${headers()}.`)],
   };
   const kw = /^[A-Za-z][\w-]*/.exec(headerLine(code) ?? '');
   if (kw) m.keyword = kw[0];

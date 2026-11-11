@@ -4,7 +4,7 @@
 // (`typeChooser` click handler, `placeEmptyHint`, `centerView`).
 import { startDiagram } from '../../../core/ops/index.js';
 import { DIAGRAM_TYPES } from '../../../core/kinds/info.js';
-import { KIND_NAMES } from '../../../core/kinds/names.js';
+import { kindUi } from '../../../ui/diagram/kind-ui.js';
 import type { DiagramType } from '../../../core/types.js';
 import { h, s } from '../../../ui/kit/h.js';
 import type { EditorCore } from '../../core.js';
@@ -26,24 +26,12 @@ export const EMPTY_CSS = /* css */ `
 .tc-card:hover, .tc-card:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-2); }
 `;
 
-type Shape = [string, Record<string, string>];
-const P = (d: string, extra: Record<string, string> = {}): Shape => ['path', { d, ...extra }];
-const R = (x: number, y: number, w: number, hh: number, rx: number): Shape => ['rect', { x: String(x), y: String(y), width: String(w), height: String(hh), rx: String(rx) }];
-
-/** The chooser's pictograms (fixed, trusted geometry from the prototype). */
-const ICONS: Record<DiagramType, Shape[]> = {
-  flowchart: [R(4, 22, 26, 18, 4), P('M48 18l14 13-14 13-14-13z'), R(66, 6, 26, 16, 8), R(66, 42, 26, 16, 3), P('M30 31h4M62 31l3-17h1M62 31l3 18h1', { 'stroke-linecap': 'round' })],
-  sequence: [R(6, 4, 24, 12, 3), R(66, 4, 24, 12, 3), P('M18 16v44M78 16v44', { 'stroke-dasharray': '3 3' }), P('M18 28h56M70 24l4 4-4 4M78 44H22M26 40l-4 4 4 4', { 'stroke-linecap': 'round' })],
-  er: [R(4, 6, 34, 40, 4), P('M4 16h34M10 24h20M10 32h16'), R(58, 18, 34, 40, 4), P('M58 28h34M64 36h20M64 44h16M38 26h10v12h10M52 34l6 4-6 4', { 'stroke-linecap': 'round' })],
-  mindmap: [R(34, 24, 28, 16, 8), P('M34 32C26 32 26 14 18 14M34 32C26 32 26 50 18 50M62 32C70 32 70 14 78 14M62 32C70 32 70 50 78 50', { 'stroke-linecap': 'round' }), P('M4 14h14M4 50h14M78 14h14M78 50h14', { 'stroke-linecap': 'round' })],
-  // start dot → state → end ring, a composite frame around the state
-  state: [['circle', { cx: '8', cy: '32', r: '4', fill: 'currentColor' }], P('M12 32h10M19 29l3 3-3 3', { 'stroke-linecap': 'round' }), R(24, 10, 48, 44, 8), P('M24 20h48'), R(32, 26, 32, 18, 6), P('M72 32h10M79 29l3 3-3 3', { 'stroke-linecap': 'round' }), ['circle', { cx: '88', cy: '32', r: '5' }], ['circle', { cx: '88', cy: '32', r: '2', fill: 'currentColor' }]],
-};
-const CARDS: [DiagramType, string, string][] = DIAGRAM_TYPES.map((t) => [t, KIND_NAMES[t].name, KIND_NAMES[t].blurb]);
+/** The chooser's cards: every registered type (a kind plugin's too), with its name and one line about it. */
+const cards = (): [DiagramType, string, string][] => DIAGRAM_TYPES.map((t) => [t, kindUi(t).names.name, kindUi(t).names.blurb]);
 
 const pictogram = (t: DiagramType): SVGElement =>
   s('svg', { viewBox: '0 0 96 64', width: '96', height: '64', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linejoin': 'round', 'aria-hidden': 'true' },
-    ...ICONS[t].map(([tag, attrs]) => s(tag, attrs)));
+    ...(kindUi(t).card ?? []).map(([tag, attrs]) => s(tag, attrs)));
 
 /** No diagram at all (empty Mermaid, or only comments): offer the diagram types instead of an error. */
 const isBlank = (core: EditorCore): boolean => !core.model.type && !core.code.split('\n').some((l) => l.trim() && !l.trim().startsWith('%%'));
@@ -71,7 +59,7 @@ export const canvasEmptyModule: EditorModule = {
     const chooser = h('div', { class: 'type-chooser edit-only', role: 'dialog', 'aria-label': 'Start a diagram', hidden: true },
       h('div', { class: 'tc-title' }, 'Start a diagram'),
       h('div', { class: 'tc-sub' }, 'The Mermaid code is empty — pick a diagram type to edit it visually.'),
-      h('div', { class: 'tc-cards' }, ...CARDS.map(([t, title, sub]) =>
+      h('div', { class: 'tc-cards' }, ...cards().map(([t, title, sub]) =>
         h('button', { type: 'button', class: 'tc-card', dataset: { start: t } }, pictogram(t), h('b', null, title), h('span', null, sub)))));
     chooser.addEventListener('click', (ev) => {
       const b = ev.target instanceof Element ? ev.target.closest('[data-start]') : null;

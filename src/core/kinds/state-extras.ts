@@ -2,6 +2,7 @@
 // outgoing transitions, composites with their contents, notes.
 import type { StateModel } from '../model.js';
 import type { OutlineItem } from '../kind/types.js';
+import type { ExtrasKind } from '../kind/extras-types.js';
 
 const one = (s: string): string => s.replace(/\s*\n\s*/g, ' ').trim();
 
@@ -28,3 +29,5 @@ export function outlineState(model: StateModel): OutlineItem[] {
   const top = [...[...model.nodes.values()].filter((n) => !n.parent).map((n) => ({ id: n.id, order: n.order })), ...[...model.groups.values()].filter((g) => !g.parent).map((g) => ({ id: g.id, order: g.order }))];
   return top.sort((a, b) => a.order - b.order).map((x) => item(x.id));
 }
+
+export const EXTRAS: ExtrasKind<StateModel> = { type: 'state', outline: outlineState };

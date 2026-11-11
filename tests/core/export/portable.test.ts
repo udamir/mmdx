@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { mmdxOnlyContent, toPortableMermaid, stripMetaLines, PORTABLE_MARKER } from '../../../src/core/export/portable.js';
+// the style lines come from each type's extras kind (core's entry registers them all)
+import '../../../src/core/kinds/all-extras.js';
 import { splitSource } from '../../../src/core/meta/index.js';
 import { emptyMeta } from '../../../src/core/meta/types.js';
 import { parse } from '../../../src/core/parse/index.js';

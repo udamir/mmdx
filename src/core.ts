@@ -2,7 +2,7 @@
 // Every export is listed by name (A15): what this entry gives is what is written here, reviewed in
 // tests/arch/__snapshots__/exports.txt (the names) and api-report.txt (their shapes).
 export {
-  type CenterBox, diag, type Diagnostic, type DiagnosticFix, diagnosticText, type DiagramType, ITEM_KINDS, itemKey,
+  type BuiltinType, type CenterBox, diag, type Diagnostic, type DiagnosticFix, diagnosticText, type DiagramType, ITEM_KINDS, itemKey,
   type ItemKey, type ItemKind, type ItemRef, parseItemKey, type Point, type Rect, type Severity, type SourceRange,
 } from './core/types.js';
 export {
@@ -43,6 +43,8 @@ export type { IconRegistry, IconRegistryOptions, IconPackInfo } from './core/ico
 export type { IconPack, IconifyJSON, IconifyIcon, IconifyAlias, IconifyInfo, IconData, IconResult, IconMissing, IconForm, IconSnapshot } from './core/icons/types.js';
 export { layerDefs, hiddenByLayers, DEFAULT_LAYER } from './core/layers.js';
 export { starterSource, type StarterType } from './core/starter.js';
+// core's outline and portable export read every type's extras kind
+import './core/kinds/all-extras.js';
 export { outline, summarize } from './core/outline.js';
 export {
   ignoreFacets, withoutStyle, withLayoutOf, diffReport, unifiedDiff, diffWords, diffLines, mergeText, changeKey, FACETS,

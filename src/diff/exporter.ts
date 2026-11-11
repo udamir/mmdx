@@ -7,7 +7,8 @@ import type { DiffIgnore } from '../core/diff/index.js';
 import { diffSvg, type DiffRendered, type DiffSvgOptions } from '../core/diff/render.js';
 import { diffReport, unifiedDiff, type VersionInfo } from '../core/diff/report.js';
 import { renderSourceWith, standaloneSvg, type Rendered } from '../core/pipeline-core.js';
-import { loadedKinds, renderShapes } from '../platform/kinds.js';
+import { loadedKinds, loadExtrasKind, renderShapes } from '../platform/kinds.js';
+import { detectType } from '../core/parse/dispatch.js';
 import type { Translate } from '../ui/blocks/block.js';
 import type { ReadSignal } from '../reactive/signal.js';
 import type { DiffExportKind, DiffExportOptions, DiffViewName } from '../view/history.js';
@@ -143,7 +144,8 @@ export class DiffExporter {
   }
 
   private async portable(src: string): Promise<string> {
-    const [{ toPortableMermaid }] = await Promise.all([import('../core/export/portable.js'), loadKindsOf(src)]);
+    const type = detectType(src);
+    const [{ toPortableMermaid }] = await Promise.all([import('../core/export/portable.js'), loadKindsOf(src), type ? loadExtrasKind(type) : null]);
     const r = await renderShapes(() => renderSourceWith(loadedKinds(), src, this.o.ctx));
     return toPortableMermaid(r.doc.code, r.doc.meta, r.model, r.theme, r.rctx.color);
   }

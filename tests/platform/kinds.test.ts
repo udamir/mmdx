@@ -1,7 +1,8 @@
 // One in-flight load per chunk (A4, B37): concurrent callers share it, a settled one is forgotten (a failed load is
 // tried again).
 import { describe, expect, it } from 'vitest';
-import { KIND_MODULES, loadOnce } from '../../src/platform/kinds.js';
+import { kindModules, loadOnce } from '../../src/platform/kinds.js';
+import { KIND_INFO } from '../../src/core/kinds/info.js';
 
 describe('loadOnce', () => {
   it('shares one load between concurrent callers and runs none once it is done', async () => {
@@ -28,10 +29,12 @@ describe('loadOnce', () => {
     expect(runs).toBe(2);
   });
 
-  it('the manifest names a view and a diff kind for every type', () => {
-    for (const m of Object.values(KIND_MODULES)) {
+  it('the manifest names a view, a diff and an extras kind for every built-in type', () => {
+    for (const t of Object.keys(KIND_INFO)) {
+      const m = kindModules(t)!;
       expect(typeof m.view).toBe('function');
       expect(typeof m.diff).toBe('function');
+      expect(typeof m.extras).toBe('function');
     }
   });
 });

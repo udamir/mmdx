@@ -1,7 +1,7 @@
 // Theme file validation (§8.3, §12). Theme JSON may come from a store the host does not control: every style value
 // goes through the same validators as `%%@` metadata, fonts must be family names, palette entries must be colour
 // literals. Invalid values are dropped with a diagnostic; unknown keys are kept (renderers never read them).
-import { DIAGRAM_TYPES } from '../kinds/info.js';
+import { isDiagramType } from '../kinds/info.js';
 import { sanitizeStyleObject } from '../meta/sanitize.js';
 import { setOwn } from '../own.js';
 import { currentThemeId } from './builtin-ids.js';
@@ -69,8 +69,6 @@ function cleanSection(v: unknown, path: string, out: Diagnostic[]): Record<strin
   return res;
 }
 
-/** One theme section per diagram type. */
-const SECTIONS: ReadonlySet<string> = new Set(DIAGRAM_TYPES);
 
 /**
  * Validates and cleans a theme file. `theme` is null when the input cannot be a theme at all (not an object, no
@@ -135,7 +133,8 @@ export function validateTheme(input: unknown): { theme: ThemeFile | null; diagno
         break;
       }
       default:
-        if (SECTIONS.has(k)) {
+        // one section per diagram type (a kind plugin's too, once it is registered)
+        if (isDiagramType(k)) {
           const c = cleanSection(v, k, diagnostics);
           if (c) out[k] = c;
         } else out[k] = clone(v);

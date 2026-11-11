@@ -19,25 +19,15 @@ import type { ResolvedTheme } from '../../core/theme/types.js';
 import type { DiagramType, ItemKind, Rect } from '../../core/types.js';
 import { patchChildren } from '../../dom/patch.js';
 import { maxOf, minOf } from '../../core/geom.js';
+import { kindUi, type PreviewKind } from './kind-ui.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
-export type PreviewKind =
-  | 'node' | 'group' | 'edge' | 'participant' | 'message' | 'note' | 'block' | 'box' | 'lifeline' | 'activation' | 'entity' | 'rel'
-  // mindmap: the root, a node, a branch, a section's colours (a section preset is its number)
-  | 'mm-root' | 'mm-node' | 'mm-branch' | 'mm-section'
-  // state diagram: a state, the pseudo-states and bars, a composite, a composite colour (its number), a note, a transition
-  | 'st-state' | 'st-start' | 'st-end' | 'st-choice' | 'st-fork' | 'st-composite' | 'st-composite-color' | 'st-note' | 'st-transition';
+export type { PreviewKind } from './kind-ui.js';
 
-/** The preview of an item kind in a diagram type whose items look unlike the flowchart's of the same kind. */
-const TYPE_PREVIEWS: Partial<Record<DiagramType, Partial<Record<ItemKind, PreviewKind>>>> = {
-  mindmap: { node: 'mm-node' },
-  state: { node: 'st-state', group: 'st-composite', edge: 'st-transition', note: 'st-note' },
-};
-
-/** The sample an item kind of a diagram type is previewed with. */
+/** The sample an item kind of a diagram type is previewed with (the type's KindUi `previews`, else the flowchart's look). */
 export const previewKind = (type: DiagramType | null | undefined, kind: ItemKind): PreviewKind =>
-  (type ? TYPE_PREVIEWS[type]?.[kind] : undefined) ?? (kind as PreviewKind);
+  (type ? kindUi(type).previews?.[kind] : undefined) ?? (kind as PreviewKind);
 
 type Sample = (preset: string | undefined, shape?: string) => [string, Partial<DiagramMeta>];
 

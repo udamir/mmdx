@@ -13,7 +13,7 @@ import { createTabs } from '../ui/blocks/tabs.js';
 import { createZoomBar } from '../ui/blocks/zoom-bar.js';
 import { h } from '../ui/kit/h.js';
 import { signal, untracked, type ReadSignal, type Signal } from '../reactive/signal.js';
-import { DEFAULT_SAMPLES, TYPES } from './constants.js';
+import { defaultSample, TYPES } from './constants.js';
 import type { Env } from './env.js';
 import type { ThemeSamples } from './types.js';
 
@@ -44,7 +44,7 @@ export function createPreview(env: Env, side: HTMLElement, p: PreviewProps): Pre
   let shownType: DiagramType | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   scope.add(() => clearTimeout(timer));
-  const sample = (type: DiagramType): string => p.samples.peek()[type] ?? p.hostSamples()?.[type] ?? DEFAULT_SAMPLES[type];
+  const sample = (type: DiagramType): string => p.samples.peek()[type] ?? p.hostSamples()?.[type] ?? defaultSample(type);
 
   const box = h('div', { class: 'te-pbox' });
   const canvas = new DiagramCanvas(box, { interaction: 'pan-zoom', wheel: 'always', panOnDrag: true, svgClass: 'vw-svg' });
@@ -78,7 +78,7 @@ export function createPreview(env: Env, side: HTMLElement, p: PreviewProps): Pre
     clearTimeout(timer);
     const type = p.type.peek();
     timer = setTimeout(() => {
-      const def = p.hostSamples()?.[type] ?? DEFAULT_SAMPLES[type];
+      const def = p.hostSamples()?.[type] ?? defaultSample(type);
       store(type, ta.value.trim() === def.trim() ? undefined : ta.value);
     }, 200);
   });

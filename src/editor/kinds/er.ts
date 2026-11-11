@@ -110,3 +110,4 @@ export const EDIT: EditKind<ErModel, ErGeometry> = {
 // the type's view and ops kinds: the editor loads all three in one chunk (editor/kinds/loader.ts)
 export { VIEW } from '../../core/kinds/er.js';
 export { OPS } from '../../core/kinds/er-ops.js';
+export { EXTRAS } from '../../core/kinds/er-extras.js';

@@ -1,22 +1,45 @@
 // Diagram kinds loaded on demand (§R5, A4): a page of flowcharts never downloads the sequence and ER code. One manifest
-// (KIND_MODULES) says where each type's view and diff kinds are; every loader — the viewer's, the diff's and History's,
+// (`kindModules`) says where each type's view, diff and extras kinds are, a kind plugin adds its own
+// (`registerKindModules`, A11e); every loader — the viewer's, the diff's and History's,
 // the editor's chunks (editor/kinds/loader.ts) — shares one in-flight load per chunk (`loadOnce`). A loaded kind is
 // registered for the generic
 // helpers (core/kinds/registry.ts). The geometry of the shapes beyond the 17 loads the same way, the first time a
 // render draws one of them (T02.9).
-import { diffKind, registerDiffs, registerKinds, registeredKinds, viewKind } from '../core/kinds/registry.js';
+import { diffKind, extrasKind, registerDiffs, registerExtras, registerKinds, registeredKinds, viewKind } from '../core/kinds/registry.js';
+import type { ExtrasKind } from '../core/kind/extras-types.js';
 import type { DiffKind } from '../core/kind/diff-types.js';
 import type { Kinds, ViewKind } from '../core/kind/types.js';
 import { collectMisses } from '../core/shapes/misses.js';
 import type { DiagramType } from '../core/types.js';
 
-/** Where each type's kinds are: its view kind (parser, renderer) and its diff kind. */
-export const KIND_MODULES: { readonly [T in DiagramType]: { view(): Promise<{ VIEW: ViewKind }>; diff(): Promise<{ DIFF: DiffKind }> } } = {
-  flowchart: { view: () => import('../core/kinds/flowchart.js'), diff: () => import('../core/kinds/flowchart-diff.js') },
-  sequence: { view: () => import('../core/kinds/sequence.js'), diff: () => import('../core/kinds/sequence-diff.js') },
-  er: { view: () => import('../core/kinds/er.js'), diff: () => import('../core/kinds/er-diff.js') },
-  mindmap: { view: () => import('../core/kinds/mindmap.js'), diff: () => import('../core/kinds/mindmap-diff.js') },
-  state: { view: () => import('../core/kinds/state.js'), diff: () => import('../core/kinds/state-diff.js') },
+/** Where a type's kinds are: its view kind (parser, renderer), its diff kind and its extras (outline, portable styles). */
+export interface KindModules {
+  view(): Promise<{ VIEW: ViewKind }>;
+  diff?(): Promise<{ DIFF: DiffKind }>;
+  extras?(): Promise<{ EXTRAS: ExtrasKind }>;
+}
+
+const MODULES = new Map<DiagramType, KindModules>(Object.entries({
+  flowchart: { view: () => import('../core/kinds/flowchart.js'), diff: () => import('../core/kinds/flowchart-diff.js'), extras: () => import('../core/kinds/flowchart-extras.js') },
+  sequence: { view: () => import('../core/kinds/sequence.js'), diff: () => import('../core/kinds/sequence-diff.js'), extras: () => import('../core/kinds/sequence-extras.js') },
+  er: { view: () => import('../core/kinds/er.js'), diff: () => import('../core/kinds/er-diff.js'), extras: () => import('../core/kinds/er-extras.js') },
+  mindmap: { view: () => import('../core/kinds/mindmap.js'), diff: () => import('../core/kinds/mindmap-diff.js'), extras: () => import('../core/kinds/mindmap-extras.js') },
+  state: { view: () => import('../core/kinds/state.js'), diff: () => import('../core/kinds/state-diff.js'), extras: () => import('../core/kinds/state-extras.js') },
+} satisfies Record<string, KindModules>));
+
+/** Where a kind plugin's kinds are (A11e); a type registered again takes the new modules. */
+export function registerKindModules(type: DiagramType, modules: KindModules): void {
+  MODULES.set(type, modules);
+}
+
+/** Where a type's kinds are (undefined: nobody registered it). */
+export const kindModules = (t: DiagramType): KindModules | undefined => MODULES.get(t);
+
+/** A type's modules; a type nobody registered fails as a load error (the document shows as unsupported). */
+const modulesOf = (t: DiagramType): KindModules => {
+  const m = MODULES.get(t);
+  if (!m) throw new Error(`no kind modules for "${t}"`);
+  return m;
 };
 
 const inFlight = new Map<string, Promise<void>>();
@@ -44,11 +67,19 @@ export const loadedKinds = (): Kinds => registeredKinds();
 export const hasKind = (t: DiagramType): boolean => !!viewKind(t);
 
 export const loadKind = (t: DiagramType): Promise<void> =>
-  loadOnce(`view:${t}`, () => hasKind(t), () => KIND_MODULES[t].view().then(({ VIEW }) => void registerKinds({ [t]: VIEW })));
+  loadOnce(`view:${t}`, () => hasKind(t), async () => void registerKinds({ [t]: (await modulesOf(t).view()).VIEW }));
 
 /** Loads a type's diff kind (resolves at once when it is loaded). */
 export const loadDiffKind = (t: DiagramType): Promise<void> =>
-  loadOnce(`diff:${t}`, () => !!diffKind(t), () => KIND_MODULES[t].diff().then(({ DIFF }) => void registerDiffs({ [t]: DIFF })));
+  loadOnce(`diff:${t}`, () => !!diffKind(t), async () => {
+    const diff = modulesOf(t).diff;
+    if (!diff) throw new Error(`"${t}" has no diff kind`);
+    registerDiffs({ [t]: (await diff()).DIFF });
+  });
+
+/** Loads a type's extras (outline, portable styles; resolves at once when they are loaded, or when the type has none). */
+export const loadExtrasKind = (t: DiagramType): Promise<void> =>
+  loadOnce(`extras:${t}`, () => !!extrasKind(t) || !modulesOf(t).extras, async () => void registerExtras({ [t]: (await modulesOf(t).extras!()).EXTRAS }));
 
 
 // ---- shapes ----

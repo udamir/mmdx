@@ -1,6 +1,7 @@
 // The text outline of a er (the core's `outline`: for screen readers and copying).
 import type { ErModel } from '../model.js';
 import type { OutlineItem } from '../kind/types.js';
+import type { ExtrasKind } from '../kind/extras-types.js';
 
 const one = (s: string): string => s.replace(/\s*\n\s*/g, ' ').trim();
 
@@ -16,3 +17,5 @@ export function outlineEr(model: ErModel): OutlineItem[] {
   }
   return out;
 }
+
+export const EXTRAS: ExtrasKind<ErModel> = { type: 'er', outline: outlineEr };

@@ -3,7 +3,7 @@
 // `border`, `gap`, `rowH`, `mirror`, `blockSpan`) are declared here statically.
 import { DIAGRAM_TYPES } from '../kinds/info.js';
 import { PARTICIPANT_SHAPES, pickerShapes } from '../shapes/catalog.js';
-import type { DiagramType, ItemKind } from '../types.js';
+import type { BuiltinType, DiagramType, ItemKind } from '../types.js';
 import { ROUTINGS } from '../style.js';
 
 export type FieldType = 'color' | 'number' | 'select' | 'range' | 'bool' | 'toggle';
@@ -106,7 +106,7 @@ export interface ThemeSection {
   pageFields?: readonly string[];
 }
 
-const SECTION_UI: Readonly<Record<DiagramType, ThemeSection>> = {
+const SECTION_UI: Readonly<Record<BuiltinType, ThemeSection>> = {
   flowchart: { title: 'Flowchart', routing: true, items: [
     { key: 'node', label: 'Node', fields: STYLE_FIELDS.node, presets: 'nodePresets' },
     { key: 'group', label: 'Group (subgraph)', fields: STYLE_FIELDS.group, presets: 'groupPresets' },
@@ -146,11 +146,22 @@ const SECTION_UI: Readonly<Record<DiagramType, ThemeSection>> = {
   ] },
 };
 
-/** What the theme editor shows, per diagram type (in UI order): base style of each item type (+ its named presets). */
-export const THEME_SECTIONS: readonly (ThemeSection & { type: DiagramType })[] = DIAGRAM_TYPES.map((type) => ({ type, ...SECTION_UI[type] }));
+/**
+ * What the theme editor shows, per diagram type (in UI order): base style of each item type (+ its named presets).
+ * The built-in types', then the kind plugins' (`registerThemeSection`; live: a registered section is added).
+ */
+export const THEME_SECTIONS: readonly (ThemeSection & { type: DiagramType })[] = DIAGRAM_TYPES.filter((t) => Object.hasOwn(SECTION_UI, t)).map((type) => ({ type, ...SECTION_UI[type as BuiltinType] }));
 
-/** The theme editor section of a diagram type. */
-export const themeSection = (type: DiagramType): ThemeSection => SECTION_UI[type];
+/** A kind plugin's theme editor section (A11e), after the built-in ones; registering a type again replaces it. */
+export function registerThemeSection(type: DiagramType, section: ThemeSection): void {
+  const list = THEME_SECTIONS as (ThemeSection & { type: DiagramType })[];
+  const at = list.findIndex((s) => s.type === type);
+  if (at >= 0) list[at] = { type, ...section };
+  else list.push({ type, ...section });
+}
+
+/** The theme editor section of a diagram type (an empty one for a type that declares none). */
+export const themeSection = (type: DiagramType): ThemeSection => THEME_SECTIONS.find((s) => s.type === type) ?? { title: type, items: [], routing: true };
 
 /** The stored key of a field (`pshape` → `shape`). */
 export const fieldKey = (name: string): string => FIELD_DEFS[name]?.key ?? name;

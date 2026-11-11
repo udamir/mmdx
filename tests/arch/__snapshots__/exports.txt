@@ -41,6 +41,7 @@ BUILTIN_THEMES
 BaseModel (type)
 BlockKind (type)
 BracketSpan (type)
+BuiltinType (type)
 CanvasMeta (type)
 Cardinality (type)
 CenterBox (type)

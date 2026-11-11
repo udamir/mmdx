@@ -1,26 +1,13 @@
-// Text alternative (§13): an outline of the diagram for screen readers and copying.
-import { outlineEr } from './kinds/er-outline.js';
-import { outlineFlowchart } from './kinds/flowchart-outline.js';
-import { outlineMindmap } from './kinds/mindmap-outline.js';
-import { outlineState } from './kinds/state-outline.js';
-import { outlineSequence } from './kinds/sequence-outline.js';
-import type { DiagramModel, SupportedModel } from './model.js';
+// Text alternative (§13): an outline of the diagram for screen readers and copying, from the type's extras kind (core
+// registers every type's: core/kinds/all-extras.ts).
+import { KINDS } from './kinds/registry.js';
+import type { DiagramModel } from './model.js';
 import type { OutlineItem } from './kind/types.js';
-import type { DiagramType } from './types.js';
 
 export { summarize } from './summary.js';
 export type { OutlineItem, Summary } from './kind/types.js';
 
-/** Nodes with their outgoing connections; messages in order; tables with columns and relationships; a mindmap's tree. */
+/** Nodes with their outgoing connections; messages in order; tables with columns and relationships; a mindmap's tree. Fails closed (KindNotLoaded) for a type whose extras are not registered. */
 export function outline(model: DiagramModel): OutlineItem[] {
-  return model.type ? (OUTLINES[model.type] as (m: SupportedModel) => OutlineItem[])(model) : [];
+  return model.type ? KINDS.require('extras', model.type).outline(model) : [];
 }
-
-/** Each type's outline (core only: the components never draw one). */
-const OUTLINES: { readonly [T in DiagramType]: (model: Extract<SupportedModel, { type: T }>) => OutlineItem[] } = {
-  flowchart: outlineFlowchart,
-  sequence: outlineSequence,
-  er: outlineEr,
-  mindmap: outlineMindmap,
-  state: outlineState,
-};

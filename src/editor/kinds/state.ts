@@ -313,3 +313,4 @@ export const EDIT: EditKind<StateModel, StateGeometry> = {
 // the type's view and ops kinds: the editor loads all three in one chunk (editor/kinds/loader.ts)
 export { VIEW } from '../../core/kinds/state.js';
 export { OPS } from '../../core/kinds/state-ops.js';
+export { EXTRAS } from '../../core/kinds/state-extras.js';

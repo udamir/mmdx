@@ -229,3 +229,4 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
 // the type's view and ops kinds: the editor loads all three in one chunk (editor/kinds/loader.ts)
 export { VIEW } from '../../core/kinds/flowchart.js';
 export { OPS } from '../../core/kinds/flowchart-ops.js';
+export { EXTRAS } from '../../core/kinds/flowchart-extras.js';

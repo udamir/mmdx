@@ -7,7 +7,7 @@ import { cloneMeta } from '../../../../core/ops/meta-util.js';
 import { pagePresets, ratioOf } from '../../../../core/render/page.js';
 import { h, icon } from '../../../../ui/kit/h.js';
 import { I_lock, I_unlock } from '../../../../ui/kit/icons.js';
-import { applyMeta, DIAGRAM_TYPES, FLOW_DIRS, setAutonumberOn, setFlowDirection, switchDiagramType } from '../../../ops/doc.js';
+import { applyMeta, diagramTypeChoices, FLOW_DIRS, setAutonumberOn, setFlowDirection, switchDiagramType } from '../../../ops/doc.js';
 import { choosePagePreset, pageEff, RATIOS, setPageRatio, setPageSizeMode, setPageValue } from '../../../ops/page.js';
 import { field } from '../fields.js';
 import { editKind } from '../../../kinds/registry.js';
@@ -120,7 +120,7 @@ export function canvasInspector(p: PanelCtx, host: HTMLElement): void {
     host.append(row(label, sel));
   };
   if (!M.type) return;
-  selRow(t('page.type'), DIAGRAM_TYPES.map(([v, k]) => [v, t(k)] as const), M.type, (v) => void switchDiagramType(core, v as DiagramType));
+  selRow(t('page.type'), diagramTypeChoices().map(([v, k]) => [v, t(k)] as const), M.type, (v) => void switchDiagramType(core, v as DiagramType));
   const kind = editKind(M.type);
   const dir = kind?.direction?.(M);
   if (dir) selRow(t('page.direction'), FLOW_DIRS.map(([v, k]) => [v, t(k)] as const), dir, (v) => setFlowDirection(core, v as Direction));

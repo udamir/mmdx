@@ -122,3 +122,4 @@ export const EDIT: EditKind<MindmapModel, MindmapGeometry> = {
 // the type's view and ops kinds: the editor loads all three in one chunk (editor/kinds/loader.ts)
 export { VIEW } from '../../core/kinds/mindmap.js';
 export { OPS } from '../../core/kinds/mindmap-ops.js';
+export { EXTRAS } from '../../core/kinds/mindmap-extras.js';

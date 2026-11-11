@@ -1,9 +1,10 @@
 // Fixed data of the theme editor: fonts, sample diagrams, shape tabs, field option lists.
-import { DIAGRAM_TYPES } from '../core/kinds/info.js';
+import { DIAGRAM_TYPES, kindInfo } from '../core/kinds/info.js';
 import { participantPresetShape, presetShape } from '../core/render/index.js';
 import { registerExtendedShapes } from '../core/extras.js';
 import { PARTICIPANT_SHAPES, pickerShapes } from '../core/shapes/catalog.js';
-import type { DiagramType } from '../core/types.js';
+import type { BuiltinType, DiagramType } from '../core/types.js';
+import { kindUi } from '../ui/diagram/kind-ui.js';
 import type { Obj } from './util.js';
 import { FONTS as STYLE_FONTS } from '../ui/diagram/fonts.js';
 
@@ -13,7 +14,7 @@ registerExtendedShapes();
 /** A theme's font: the style pickers' fonts (one table, ui/fonts.ts, B25) without "the theme's font". */
 export const FONTS: readonly (readonly [string, string])[] = STYLE_FONTS.filter(([v]) => v !== '');
 
-export const DEFAULT_SAMPLES: Readonly<Record<DiagramType, string>> = {
+export const DEFAULT_SAMPLES: Readonly<Record<BuiltinType, string>> = {
   flowchart: `flowchart TB
   subgraph svc ["Services"]
     api["API gateway"]:::core --> auth["Auth"]:::analytics
@@ -82,6 +83,10 @@ export const DEFAULT_SAMPLES: Readonly<Record<DiagramType, string>> = {
   Failed --> Cart : retry
   note right of Failed : the card was declined`,
 };
+
+/** A type's sample: the built-in types' above, a kind plugin's from its KindUi, else its starter source. */
+export const defaultSample = (type: DiagramType): string =>
+  (Object.hasOwn(DEFAULT_SAMPLES, type) ? DEFAULT_SAMPLES[type as BuiltinType] : undefined) ?? kindUi(type).sample ?? kindInfo(type)?.starter ?? '';
 export const TYPES: readonly DiagramType[] = DIAGRAM_TYPES;
 
 // from the shape catalogue: flowchart shapes by category (Basic, Process, Technical, Annotation), with their names

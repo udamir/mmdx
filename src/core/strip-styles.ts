@@ -1,5 +1,5 @@
 // Mermaid without styling: the structure only, for reading and copying (viewer code view) and for diff views.
-import { KIND_INFO } from './kinds/info.js';
+import { kindInfo } from './kinds/info.js';
 import { detectType } from './parse/dispatch.js';
 
 /** Mermaid style statements (`classDef`, `class`, `style`, `linkStyle`). */
@@ -19,7 +19,7 @@ const withoutShorthand = (line: string): string =>
  */
 export function stripMermaidStyles(code: string): string {
   const type = detectType(code);
-  if (type && !KIND_INFO[type].styleStatements) return code.trimEnd();
+  if (type && !kindInfo(type)?.styleStatements) return code.trimEnd();
   return code
     .split('\n')
     .filter((l) => !STYLE_LINE.test(l))

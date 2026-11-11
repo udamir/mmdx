@@ -281,3 +281,4 @@ export const EDIT: EditKind<SequenceModel, SequenceGeometry> = {
 // the type's view and ops kinds: the editor loads all three in one chunk (editor/kinds/loader.ts)
 export { VIEW } from '../../core/kinds/sequence.js';
 export { OPS } from '../../core/kinds/sequence-ops.js';
+export { EXTRAS } from '../../core/kinds/sequence-extras.js';

@@ -1,6 +1,7 @@
 // The text outline of a sequence (the core's `outline`: for screen readers and copying).
 import type { SequenceModel } from '../model.js';
 import type { OutlineItem } from '../kind/types.js';
+import type { ExtrasKind } from '../kind/extras-types.js';
 import { messageNumbers } from '../parse/sequence.js';
 
 const one = (s: string): string => s.replace(/\s*\n\s*/g, ' ').trim();
@@ -19,3 +20,5 @@ export function outlineSequence(model: SequenceModel): OutlineItem[] {
   }
   return out;
 }
+
+export const EXTRAS: ExtrasKind<SequenceModel> = { type: 'sequence', outline: outlineSequence };

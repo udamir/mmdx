@@ -20,7 +20,7 @@ import { readDocumentFiles } from '../editor/modules/chrome/document.js';
 import { download } from '../dom/export.js';
 import type { WheelMode } from '../dom/viewport.js';
 import { DIAGRAM_TYPES } from '../core/kinds/info.js';
-import { KIND_NAMES } from '../core/kinds/names.js';
+import { kindUi } from '../ui/diagram/kind-ui.js';
 import { starterSource, type StarterType } from '../core/starter.js';
 import type { BlockHandle } from '../ui/blocks/block.js';
 import { createSegmented, type SegmentedOption, type SegmentedProps } from '../ui/blocks/segmented.js';
@@ -344,7 +344,7 @@ export class DiagramStudio {
     });
     openMenu({
       popovers: this.pops, opener, label: 'New diagram', align: 'left', within: this.host,
-      entries: DIAGRAM_TYPES.map((t) => item(KIND_NAMES[t].title, t)).map((e) => ({ label: e.label, run: () => void e.run() })),
+      entries: DIAGRAM_TYPES.map((t) => item(kindUi(t).names.title, t)).map((e) => ({ label: e.label, run: () => void e.run() })),
     });
   }
 

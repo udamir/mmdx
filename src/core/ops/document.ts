@@ -1,6 +1,6 @@
 // The document as a whole (R9, task 5.7): a new diagram or a type switch, the direction (rows 52, 85), page settings
 // (rows 63, 64, 86), and positional metadata following code changes.
-import { KIND_INFO } from '../kinds/info.js';
+import { starterSource } from '../starter.js';
 import type { DiagramMeta } from '../meta/types.js';
 import type { Direction, DiagramModel } from '../model.js';
 import { withOps } from '../kinds/registry.js';
@@ -18,12 +18,12 @@ import type { CodeResult, MetaResult } from './types.js';
  * (the editor confirms first, and resets the file name and view). Returns the new document.
  */
 export function newDiagram(type: DiagramType): { code: string; meta: DiagramMeta } {
-  return { code: KIND_INFO[type].starter, meta: { canvas: {}, styles: {} } };
+  return { code: starterSource(type), meta: { canvas: {}, styles: {} } };
 }
 
 /** Empty Mermaid (no header): the chosen type is written as the first line; theme and layout settings stay. */
 export function startDiagram(code: string, type: DiagramType): CodeResult {
-  return { code: KIND_INFO[type].starter + code.replace(/^\s+/, '') };
+  return { code: starterSource(type) + code.replace(/^\s+/, '') };
 }
 
 /**

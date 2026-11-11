@@ -6,7 +6,7 @@ import type { EdgeAnimation } from '../../core/ops/flow-edge.js';
 import type { MediaPatch } from '../../core/ops/flow-media.js';
 import type { CodeResult, ConnectResult, RefusableResult, SelectResult } from '../../core/ops/types.js';
 import type { GeometryIndex } from '../../core/render/types.js';
-import type { Diagnostic, ItemKind, ItemRef } from '../../core/types.js';
+import type { DiagramType, Diagnostic, ItemKind, ItemRef } from '../../core/types.js';
 import type { Point } from '../../core/types.js';
 import type { EditorCore, Sel } from '../core.js';
 import type { PaletteItem, PaletteSpec } from './palette.js';
@@ -173,4 +173,4 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   readonly geom?: G;
 }
 
-export type EditKinds = Partial<Record<NonNullable<SupportedModel['type']>, EditKind>>;
+export type EditKinds = Partial<Record<DiagramType, EditKind>>;

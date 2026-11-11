@@ -5,11 +5,12 @@
 import type { DiagramModel, SupportedModel } from '../model.js';
 import type { DiagramType } from '../types.js';
 import type { DiffKind, DiffKinds } from '../kind/diff-types.js';
+import type { ExtrasKind, ExtrasKinds } from '../kind/extras-types.js';
 import type { OpsKind, OpsKinds } from '../kind/ops-types.js';
 import type { Kinds, ViewKind } from '../kind/types.js';
 
-/** Which part of a type's code: the view kind (parse, render), the ops kind (the editor's edits) or the diff kind. */
-export type KindLayer = 'view' | 'ops' | 'diff';
+/** Which part of a type's code: the view kind (parse, render), the ops kind (the editor's edits), the diff kind or the extras (outline, portable styles). */
+export type KindLayer = 'view' | 'ops' | 'diff' | 'extras';
 
 /** A kind asked for that is not loaded (A4: lookups fail closed). */
 export class KindNotLoaded extends Error {
@@ -24,6 +25,7 @@ class KindSet {
   readonly view: Kinds = {};
   readonly ops: OpsKinds = {};
   readonly diff: DiffKinds = {};
+  readonly extras: ExtrasKinds = {};
 
   /** A layer's kind of a type; throws KindNotLoaded when it is not loaded. */
   require<L extends KindLayer>(layer: L, type: DiagramType): NonNullable<KindSet[L][DiagramType]> {
@@ -115,3 +117,16 @@ export function withDiff<R>(model: DiagramModel, f: (kind: DiffKind, model: Supp
   if (!model.type) return undefined;
   return f(KINDS.require('diff', model.type), model);
 }
+
+// ---- extras kinds (core's outline and portable export) ----
+
+const extras: ExtrasKinds = KINDS.extras;
+
+/** Makes the extras kinds available to `outline()` and the portable export; returns the same set. */
+export function registerExtras<K extends ExtrasKinds>(kinds: K): K {
+  for (const k of Object.values(kinds)) if (k) extras[k.type] = k;
+  return kinds;
+}
+
+/** The extras kind of a type, when it is loaded. */
+export const extrasKind = (type: DiagramType | null | undefined): ExtrasKind | undefined => (type ? extras[type] : undefined);

@@ -6,11 +6,12 @@ import type { Direction, DiagramType } from '../../core/model.js';
 import { setAutonumber } from '../../core/ops/sequence.js';
 import { newDiagram, setDirection } from '../../core/ops/document.js';
 import type { StyleEnv } from '../../core/ops/style-env.js';
-import { KIND_INFO } from '../../core/kinds/info.js';
+import { DIAGRAM_TYPES as TYPES, kindInfo } from '../../core/kinds/info.js';
 import type { MetaResult } from '../../core/ops/types.js';
 import type { EditorCore, Sel } from '../core.js';
 
-export const DIAGRAM_TYPES: readonly (readonly [DiagramType, string])[] = Object.values(KIND_INFO).map((k) => [k.type, k.label] as const);
+/** The diagram types with their names' i18n keys (the type pickers; registered kinds too). */
+export const diagramTypeChoices = (): (readonly [DiagramType, string])[] => TYPES.map((t) => [t, kindInfo(t)!.label] as const);
 export const FLOW_DIRS: readonly (readonly [Direction, string])[] = [['TB', 'dir.TB'], ['LR', 'dir.LR'], ['BT', 'dir.BT'], ['RL', 'dir.RL']];
 
 /** The style environment (model, metadata, active theme, colour resolver) of the current document. */
@@ -40,7 +41,7 @@ export function applyDoc(core: EditorCore, label: string, doc: { code: string; m
 export async function switchDiagramType(core: EditorCore, type: DiagramType): Promise<void> {
   const t = core.i18n.t;
   if (type === core.model.type) return;
-  const label = t(KIND_INFO[type].label);
+  const label = t(kindInfo(type)?.label ?? type);
   if (core.model.type && !(await core.dialogs.confirm(t('type.switchTitle', { type: label }), t('type.switchMsg', { type: label.toLowerCase() }), { ok: t('type.switchOk'), danger: true }))) return;
   const doc = newDiagram(type);
   const group = core.enteredGroup.peek(), page = core.pageSelected.peek();
