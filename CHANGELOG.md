@@ -14,6 +14,10 @@ The codebase audit: correctness and safety fixes, hot paths, and the layers the 
 - React wrapper: a prop is set as a property when the element has that property.
 - `@mmdx/studio/editor` no longer exports `EditorCore`. Editor modules of a host see the core through `EditorModuleApi`; `EditorModule` is a module of that API.
 
+### Added
+
+- Editor modules: `scope.gesture(source)` and `scope.painter(painter)` register a gesture source or an overlay painter, muted while the module is suspended and removed on uninstall; `EditorModuleApi.docType`, the diagram type of the document as a signal; `scope.canvas(type, f, options)` takes listener options. A guide: [Extending the editor](https://udamir.github.io/mmdx/guide/editor-modules).
+
 ## 0.4.0 — 2026-11-10
 
 Mindmaps, state diagrams, icons and images.
