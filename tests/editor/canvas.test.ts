@@ -162,6 +162,7 @@ describe('canvas selection', () => {
     pid++;
     pointer(core.dom.svg, 'pointerdown', p0.x, p0.y);
     pointer(core.dom.svg, 'pointermove', p0.x - 60, p0.y + 20);
+    core.flushPreview(); // the move draws on the next frame
     expect(core.dom.overlay.querySelector('.marquee')!.classList.contains('crossing')).toBe(true);
     pointer(core.dom.svg, 'pointerup', p0.x - 60, p0.y + 20);
   });
@@ -458,6 +459,7 @@ describe('canvas selection', () => {
     pid++;
     pointer(handle, 'pointerdown', hx, hy);
     pointer(core.dom.svg, 'pointermove', hx + 40, hy + 20);
+    core.flushPreview(); // the move draws on the next frame
     const m = core.getM('node', 'B');
     expect(core.dom.overlay.querySelector('.size-badge-text')?.textContent).toBe(`${m.w} × ${m.h}`);
     pointer(core.dom.svg, 'pointerup', hx + 40, hy + 20);

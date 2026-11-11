@@ -64,7 +64,11 @@ function startDrag(ed: DiagramEditor): { move(dx: number): void; release(): void
   const core = ed.core;
   const c = center(core, 'A');
   pointer(nodeEl(core, 'A'), 'pointerdown', c.x, c.y);
-  const move = (dx: number): void => pointer(core.dom.svg, 'pointermove', c.x + dx, c.y);
+  // each move as its own frame (the editor draws a drag once per animation frame)
+  const move = (dx: number): void => {
+    pointer(core.dom.svg, 'pointermove', c.x + dx, c.y);
+    core.flushPreview();
+  };
   move(20);
   move(40);
   return { move, release: () => pointer(core.dom.svg, 'pointerup', c.x + 40, c.y) };

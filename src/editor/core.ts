@@ -308,7 +308,8 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   private rendered: Rendered | null = null;
   private readonly gestures: GestureSource[] = [];
   private readonly painters: OverlayPainter[] = [];
-  private drawQueued = 0;
+  /** Applies a drag's move still waiting for its animation frame (the editor's pointer loop sets it; P1). */
+  flushPreview: () => void = () => {};
   private readonly domCache: CoreDom;
 
   constructor(host: HTMLElement, o: EditorCoreOptions) {
@@ -581,10 +582,6 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
    * scene owns the canvas (History), the store scene only becomes dirty and repaints in full when it is back.
    */
   draw(): void {
-    if (this.drawQueued) {
-      cancelAnimationFrame(this.drawQueued);
-      this.drawQueued = 0;
-    }
     this.storeScene.invalidate();
   }
 
@@ -597,15 +594,6 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     this.decorate();
     this.drawOverlay();
     this.fire('draw');
-  }
-
-  /** Draws on the next animation frame (coalesces bursts, e.g. typing). */
-  drawSoon(): void {
-    if (this.drawQueued) return;
-    this.drawQueued = requestAnimationFrame(() => {
-      this.drawQueued = 0;
-      this.draw();
-    });
   }
 
   /** Marks multi-selected items and the inline-edited item on the scene (classes only). */

@@ -64,6 +64,7 @@ function drag(core: EditorCore, target: Element, from: { x: number; y: number },
   const at = (p: { x: number; y: number }) => ({ bubbles: true, composed: true, cancelable: true, clientX: p.x, clientY: p.y, button: 0, pointerId: pid });
   target.dispatchEvent(new PointerEvent('pointerdown', at(from)));
   for (let i = 1; i <= 4; i++) core.dom.svg.dispatchEvent(new PointerEvent('pointermove', at({ x: from.x + ((to.x - from.x) * i) / 4, y: from.y + ((to.y - from.y) * i) / 4 })));
+  core.flushPreview(); // the moves draw on the next frame
   during?.();
   core.dom.svg.dispatchEvent(new PointerEvent('pointerup', at(to)));
 }

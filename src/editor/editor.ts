@@ -592,6 +592,25 @@ export class DiagramEditor {
       }
       this.gesture = { g, x: ev.clientX, y: ev.clientY, p0: hit.p, moved: false, id: ev.pointerId, last: { x: ev.clientX, y: ev.clientY } };
     }, sig);
+    // A drag previews once per animation frame (P1): each move renders the whole diagram, so the moves of one frame
+    // are coalesced to the last one; the release applies it first, a cancel drops it. Gestures compute from the
+    // pointer's offset since the press, never from the frame they are drawn in.
+    let frame = 0;
+    let pendingMove: { dx: number; dy: number; ev: PointerEvent } | null = null;
+    const flushMove = (): void => {
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      const m = pendingMove;
+      pendingMove = null;
+      if (m && this.gesture) this.gesture.g.move(m.dx, m.dy, m.ev);
+    };
+    const dropMove = (): void => {
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      pendingMove = null;
+    };
+    this.cleanups.push(dropMove);
+    core.flushPreview = flushMove;
     svg.addEventListener('pointermove', (ev) => {
       core.pointer = { clientX: ev.clientX, clientY: ev.clientY };
       const d = this.gesture;
@@ -604,7 +623,8 @@ export class DiagramEditor {
       }
       d.last = { x: ev.clientX, y: ev.clientY };
       const p = core.toDiagram(ev);
-      d.g.move(p.x - d.p0.x, p.y - d.p0.y, ev);
+      pendingMove = { dx: p.x - d.p0.x, dy: p.y - d.p0.y, ev };
+      if (!frame) frame = requestAnimationFrame(flushMove);
     }, sig);
     // Whether each of the last two presses dragged: the browser counts a drag towards a double-click too (a quick press
     // and a drag, or two quick drags), and that double-click must not edit the text or enter the group of what moved.
@@ -612,6 +632,8 @@ export class DiagramEditor {
     const finish = (ev: PointerEvent, cancelled: boolean): void => {
       const d = this.gesture;
       if (!d || d.id !== ev.pointerId) return;
+      if (cancelled) dropMove();
+      else flushMove();
       this.gesture = null;
       core.dragging = false;
       core.dom.root.classList.remove('dragging');
@@ -635,6 +657,7 @@ export class DiagramEditor {
     const cancel = (): boolean => {
       const d = this.gesture;
       if (!d) return false;
+      dropMove();
       this.gesture = null;
       core.dragging = false;
       core.dom.root.classList.remove('dragging');
