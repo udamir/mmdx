@@ -12,7 +12,7 @@ import { withEdit } from '../kinds/registry.js';
 export { LINE_KINDS } from '../../core/item-caps.js';
 
 /** Box kinds connectors attach to: flowchart nodes, ER tables and sequence participants. */
-export const CONNECTOR_ENDS: ReadonlySet<ItemKind> = new Set(['node', 'entity', 'participant']);
+const CONNECTOR_ENDS: ReadonlySet<ItemKind> = new Set(['node', 'entity', 'participant']);
 
 /** An item a marquee or ⌘A can select: its box, and for a connector the drawn line and its label. */
 export interface Selectable {
@@ -59,7 +59,7 @@ export function selectable(core: EditorCore): Selectable[] {
 }
 
 /** The points along an SVG path of M / L / H / V / C / Q / Z commands (absolute, as the renderer writes them), curves sampled. */
-export function flattenPath(d: string): [number, number][] {
+function flattenPath(d: string): [number, number][] {
   const out: [number, number][] = [];
   let x = 0, y = 0, sx = 0, sy = 0;
   for (const [, cmd, args] of d.matchAll(/([MLHVCQZ])([^MLHVCQZ]*)/gi)) {

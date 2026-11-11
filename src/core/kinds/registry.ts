@@ -20,7 +20,7 @@ export class KindNotLoaded extends Error {
 }
 
 /** The kinds registered so far, by layer (one set for the page). */
-export class KindSet {
+class KindSet {
   readonly view: Kinds = {};
   readonly ops: OpsKinds = {};
   readonly diff: DiffKinds = {};

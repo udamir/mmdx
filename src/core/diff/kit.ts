@@ -69,7 +69,7 @@ export function metaFields(out: FieldChange[], a: ItemMeta | undefined, b: ItemM
   if (preset && A.preset === preset && presetDefsChanged.has(preset)) field(out, 'style', `preset "${preset}" definition`, 'old', 'new');
 }
 
-export function mermaidStyleOf(classes: readonly string[] | undefined, own: MermaidStyle | undefined, defs: Record<string, MermaidStyle>): MermaidStyle | undefined {
+function mermaidStyleOf(classes: readonly string[] | undefined, own: MermaidStyle | undefined, defs: Record<string, MermaidStyle>): MermaidStyle | undefined {
   const s: MermaidStyle = {};
   for (const c of classes ?? []) Object.assign(s, defs[c]);
   Object.assign(s, own);

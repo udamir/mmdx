@@ -13,7 +13,7 @@ import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../kit/overlay-scroll.j
 import { createTabs, TABS_CSS } from './tabs.js';
 
 /** The picture types the file input offers. */
-export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml', 'image/avif'] as const;
+const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml', 'image/avif'] as const;
 
 /** Where an image comes from: the host's library, an upload, a URL — or an icon instead of a picture. */
 export type ImageTab = 'library' | 'upload' | 'url' | 'icon';

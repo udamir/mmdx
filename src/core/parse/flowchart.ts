@@ -46,7 +46,7 @@ const PIPE = /^\s*\|([^|]*)\|/;
 const EDGE_ID = /^([A-Za-z0-9_][\w-]*)@(?=[<ox]?[-=.])/;
 const HEADER = /^(flowchart|graph)(-elk)?\b\s*(TB|TD|BT|LR|RL)?/i;
 /** Mermaid's curve names (`flowchart.curve`, `linkStyle … interpolate`, an edge's `curve`). */
-export const FLOW_CURVES: readonly string[] = ['basis', 'bumpX', 'bumpY', 'cardinal', 'catmullRom', 'linear', 'monotoneX', 'monotoneY', 'natural', 'step', 'stepAfter', 'stepBefore'];
+const FLOW_CURVES: readonly string[] = ['basis', 'bumpX', 'bumpY', 'cardinal', 'catmullRom', 'linear', 'monotoneX', 'monotoneY', 'natural', 'step', 'stepAfter', 'stepBefore'];
 const ELK_HINT = /\b(?:layout\s*:\s*["']?elk|defaultRenderer["']?\s*:\s*["']?elk)/i;
 
 /** The statements of a line split at `;` (outside quotes and brackets), trimmed, each with its offset in the line. */
@@ -797,7 +797,7 @@ function readFlowchart(code: string): FlowchartModel {
  * The `flow.shape-name` fix: every shape name Mermaid rejects (`lean_r`, `parallelogram`, an uppercase name) becomes
  * the shape's shortName, in place.
  */
-export function fixShapeNames(code: string): string {
+function fixShapeNames(code: string): string {
   const model = parseFlowchart(code);
   const splices: Splice[] = [];
   for (const n of model.nodes.values())

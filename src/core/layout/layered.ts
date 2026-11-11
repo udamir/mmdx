@@ -43,7 +43,7 @@ export interface LayeredRoutes {
 }
 
 /** Longest edge, in ranks (Mermaid's `---->` adds one rank per extra dash; nobody needs 50). */
-export const MAX_MINLEN = 50;
+const MAX_MINLEN = 50;
 /** Virtual nodes over all edges; past this, long edges are no longer split. */
 export const MAX_VIRTUAL = 20_000;
 

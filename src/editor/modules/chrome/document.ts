@@ -146,7 +146,7 @@ function loadDocument(core: EditorCore, src: string, name?: string): void {
 
 const isJson = (f: File): boolean => /\.json$/i.test(f.name);
 /** A file that can be a document: a diagram, Markdown or text file, or a `.json` layout sidecar — never an image. */
-export const isDocumentFile = (f: File): boolean => /\.(mmdx|mmd|md|markdown|txt|json)$/i.test(f.name) && !/^image\//.test(f.type ?? '');
+const isDocumentFile = (f: File): boolean => /\.(mmdx|mmd|md|markdown|txt|json)$/i.test(f.name) && !/^image\//.test(f.type ?? '');
 
 /** The text of a Markdown file is its first ```mermaid block (other files are taken as they are). */
 export function extractMermaid(text: string, fileName: string): string {

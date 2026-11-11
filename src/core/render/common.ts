@@ -292,7 +292,7 @@ export function stackedShapeNodes(shape: string | undefined, b: CenterBox, st: S
 const NORMAL: Record<Side, Point> = { t: { x: 0, y: -1 }, b: { x: 0, y: 1 }, l: { x: -1, y: 0 }, r: { x: 1, y: 0 } };
 export const isSide = (s: unknown): s is Side => s === 't' || s === 'b' || s === 'l' || s === 'r';
 
-export function pickSides(a: CenterBox, b: CenterBox, prefer: 'v' | 'h' | null = null): [Side, Side] {
+function pickSides(a: CenterBox, b: CenterBox, prefer: 'v' | 'h' | null = null): [Side, Side] {
   const dx = b.x - a.x, dy = b.y - a.y;
   const gapX = Math.abs(dx) - (a.w + b.w) / 2;
   const gapY = Math.abs(dy) - (a.h + b.h) / 2;

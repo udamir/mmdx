@@ -23,7 +23,7 @@ import { items as nItems } from '../../lib/canvas.js';
 export const STRUCTURE_CSS = MENU_CSS;
 
 /** Clipboard MIME type of the editor's own format (§8.2); `web ` prefix = custom format of the async clipboard API. */
-export const MMDX_CLIPBOARD_TYPE = 'web application/x-mmdx+json';
+const MMDX_CLIPBOARD_TYPE = 'web application/x-mmdx+json';
 
 /** A Mermaid fragment for the copied items, so pasting into other apps produces useful text (§8.2). */
 export function mermaidFragment(model: DiagramModel, code: string, refs: readonly ItemRef[]): string {

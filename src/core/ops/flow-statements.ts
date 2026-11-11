@@ -19,7 +19,7 @@ export interface StatementEdit {
 const NONE: ReadonlySet<string> = new Set();
 
 /** A link with a new label: the arrow as written (length, heads, edge id) and the label in pipes (a markdown string stays one); '' drops it. */
-export function relabelLink(code: string, link: FlowLink, label: string, md = false): string {
+function relabelLink(code: string, link: FlowLink, label: string, md = false): string {
   const id = link.idEnd !== undefined ? code.slice(link.start, link.idEnd) : '';
   return `${id}${link.arrow}${label ? `|${labelText(label, md)}|` : ''}`;
 }

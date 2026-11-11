@@ -12,7 +12,7 @@ import { cleanLabel, markdownText } from './label.js';
 import { ItemBudget, stripControl } from './limits.js';
 
 /** Mermaid's default `maxNodeWidth`. */
-export const MIND_WRAP = 200;
+const MIND_WRAP = 200;
 
 export function emptyMindmap(): MindmapModel {
   return { type: 'mindmap', root: null, nodes: new Map(), colorBy: 'branch', maxNodeWidth: MIND_WRAP, config: {}, header: -1, indentUnit: '  ', diagnostics: [] };

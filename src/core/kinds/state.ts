@@ -13,7 +13,7 @@ import type { ViewKind } from '../kind/types.js';
 registerStateShapes();
 
 /** The composites holding a state or a composite, innermost first. */
-export function stateAncestors(model: StateModel, id: string): string[] {
+function stateAncestors(model: StateModel, id: string): string[] {
   const out: string[] = [];
   for (let p = model.nodes.get(id)?.parent ?? model.groups.get(id)?.parent ?? null; p && out.length <= model.groups.size; p = model.groups.get(p)?.parent ?? null) out.push(p);
   return out;

@@ -49,7 +49,7 @@ interface NodeItem extends CenterBox {
 const WRAP_WIDTH = 200;
 
 /** Mermaid's curve names as the routings mmdx draws: `linear` straight, the steps orthogonal, the rest curved. */
-export function curveRouting(curve: string | undefined): string | undefined {
+function curveRouting(curve: string | undefined): string | undefined {
   if (!curve) return undefined;
   if (curve === 'linear') return 'straight';
   return curve.startsWith('step') ? 'orthogonal' : 'curved';

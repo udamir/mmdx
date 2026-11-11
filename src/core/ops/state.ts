@@ -37,7 +37,7 @@ export const quoted = (t: string): string => encodeLabel(t.trim());
  * Text after a colon (`id : text`, `a --> b : text`): Mermaid ends it at `;`, `::` and a colon at its end, and at a
  * line break, so those are written as entity codes.
  */
-export function colonText(t: string): string {
+function colonText(t: string): string {
   return encodeLabel(t.trim())
     .replace(/;/g, '#59;')
     .replace(/#(?=(?:quot|\d{1,7});)/g, '#')
@@ -157,7 +157,7 @@ function noteLines(indent: string, target: string, side: 'left' | 'right', text:
 // ---- transitions --------------------------------------------------------------------------------------------------
 
 /** Where a transition between two items is written (null: it cannot be, with the reason). */
-export function transitionScope(model: StateModel, from: string, to: string): StateScope | string {
+function transitionScope(model: StateModel, from: string, to: string): StateScope | string {
   const a = model.nodes.get(from), b = model.nodes.get(to);
   if (a?.kind === 'end') return 'An end has no outgoing transitions';
   if (b?.kind === 'start') return 'A start has no incoming transitions';
@@ -643,7 +643,7 @@ export const innerPseudo = (model: StateModel, gid: string): number =>
  * with their kinds and texts, composites as blocks with their regions, the transitions between them (a pseudo-state
  * of a copied composite inside its block, one of the top level as the copies' own), and their notes.
  */
-export function stateStatements(model: StateModel, items: readonly ItemRef[], map: Readonly<Record<string, string>>, indent = '  '): string[] {
+function stateStatements(model: StateModel, items: readonly ItemRef[], map: Readonly<Record<string, string>>, indent = '  '): string[] {
   const set = new Set<string>();
   for (const it of items)
     if (it.kind === 'node' || it.kind === 'group') {

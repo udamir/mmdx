@@ -47,7 +47,7 @@ export function checkStatement(length: number): void {
   if (length > MAX_STATEMENT_LENGTH) throw new TooComplex('statement');
 }
 
-export function tooComplexDiagnostic(): Diagnostic {
+function tooComplexDiagnostic(): Diagnostic {
   return diag('error', 'doc.too-complex', 'the diagram source is too complex to read (a line or statement is too long) — it is not shown', undefined, {
     params: { limit: MAX_STATEMENT_LENGTH },
   });

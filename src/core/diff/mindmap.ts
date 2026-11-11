@@ -18,7 +18,7 @@ const one = (s: string): string => s.replace(/\s*\n\s*/g, ' ').trim();
 const matched = new WeakMap<MindmapModel, WeakMap<MindmapModel, Map<string, string>>>();
 
 /** Before id → after id of the nodes both versions have. */
-export function matchMindNodes(a: MindmapModel, b: MindmapModel): Map<string, string> {
+function matchMindNodes(a: MindmapModel, b: MindmapModel): Map<string, string> {
   const inner = matched.get(a) ?? matched.set(a, new WeakMap()).get(a)!;
   return inner.get(b) ?? inner.set(b, matchNodes(a, b)).get(b)!;
 }

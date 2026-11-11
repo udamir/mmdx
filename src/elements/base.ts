@@ -1,6 +1,6 @@
 // Importing an element module must not throw outside a browser (SSR frameworks import components on the server;
 // Node build scripts import entry points). Elements extend this instead of HTMLElement directly.
-export const ElementBase: typeof HTMLElement =
+const ElementBase: typeof HTMLElement =
   typeof HTMLElement !== 'undefined' ? HTMLElement : (class {} as unknown as typeof HTMLElement);
 
 /** Options to change; one set to `undefined` goes back to its default. */
@@ -46,7 +46,7 @@ export function warnOnce(msg: string): void {
 export const scriptSafe = (s: string): string => s.replace(/<(!--|\/?script)/gi, '<\\$1');
 
 /** The reverse of `scriptSafe`. */
-export const scriptUnsafe = (s: string): string => s.replace(/<\\(!--|\/?script)/gi, '<$1');
+const scriptUnsafe = (s: string): string => s.replace(/<\\(!--|\/?script)/gi, '<$1');
 
 /** Removes the common indentation of an inline `<script type="text/mermaid">` block. */
 export function dedent(s: string): string {

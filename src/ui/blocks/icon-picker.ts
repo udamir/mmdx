@@ -43,7 +43,7 @@ export interface IconPickerHandle extends BlockHandle<IconPickerProps> {
 }
 
 /** A tile's side. */
-export const ICON_TILE = 32;
+const ICON_TILE = 32;
 const ROWS = 6;
 
 export const ICON_PICKER_CSS = /* css */ `${OVERLAY_SCROLL_CSS}

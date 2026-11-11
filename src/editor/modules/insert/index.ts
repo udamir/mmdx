@@ -18,12 +18,12 @@ import { canvasCenter, startMenuDrag } from '../../lib/shape-drag.js';
 const I_IMAGE = 'M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15.5 9.5h.01';
 
 /** Shortcut of the Image tool (I is Properties). */
-export const INSERT_KEYS = { image: 'g' } as const;
+const INSERT_KEYS = { image: 'g' } as const;
 
 type MediaChunk = typeof import('./media.js');
 let chunk: Promise<MediaChunk> | null = null;
 /** The pickers' chunk (icon picker, image tool, emoji picker, with their CSS). */
-export const loadMedia = (): Promise<MediaChunk> =>
+const loadMedia = (): Promise<MediaChunk> =>
   (chunk ??= import('./media.js').catch((e: unknown) => {
     chunk = null;
     throw e;

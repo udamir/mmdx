@@ -16,7 +16,7 @@ import { PopoverManager } from '../ui/kit/popover.js';
 import { schemeState, type Scheme, type SchemeState, type UiOption } from './theme.js';
 
 /** Local storage where there is one, else memory (UI preferences only, never the document). */
-export const defaultStorage = (): StorageAdapter => (typeof localStorage !== 'undefined' ? localStorageAdapter() : memoryStorage());
+const defaultStorage = (): StorageAdapter => (typeof localStorage !== 'undefined' ? localStorageAdapter() : memoryStorage());
 
 export interface ComponentShellOptions {
   /** The product (`viewer`, `editor`, `diff`, `studio`, `theme-editor`): the key its preferences are kept under. */

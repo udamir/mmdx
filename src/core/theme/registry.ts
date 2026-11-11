@@ -32,9 +32,9 @@ const SECTION_DEFAULTS: { readonly [T in DiagramType]: () => ResolvedTheme[T] } 
 
 export const BASELINE = BASE_THEME_ID;
 /** Longest `extends` chain followed above a theme before it is rooted on baseline. */
-export const MAX_EXTENDS_DEPTH = 5;
+const MAX_EXTENDS_DEPTH = 5;
 /** Font used when not even the baseline theme names one (default-light.theme.json's font). */
-export const DEFAULT_FONT = "'Open Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
+const DEFAULT_FONT = "'Open Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
 const DEFAULT_PAD = 16;
 
 type Obj = Record<string, unknown>;

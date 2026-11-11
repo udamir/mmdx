@@ -253,6 +253,6 @@ function sameRefs(a: readonly ItemRef[], b: readonly ItemRef[]): boolean {
 }
 
 /** Item existence for selection repair after undo / reload. */
-export function itemExists(model: DiagramModel, r: ItemRef): boolean {
+function itemExists(model: DiagramModel, r: ItemRef): boolean {
   return elementExists(model, r);
 }

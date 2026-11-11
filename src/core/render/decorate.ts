@@ -33,9 +33,9 @@ export type IconPos = 'l' | 't' | 'b';
 /** The gap between an asset and the text (and between two assets). */
 export const DECO_GAP = 6;
 /** An image's box while its natural size is not known, and the largest side a natural size is drawn at. */
-export const DECO_IMAGE = { w: 96, h: 72, max: 160 };
+const DECO_IMAGE = { w: 96, h: 72, max: 160 };
 /** An icon above or below the text: 1.75 em. */
-export const decoIconSize = (fontSize: number): number => Math.round(fontSize * 1.75);
+const decoIconSize = (fontSize: number): number => Math.round(fontSize * 1.75);
 
 const POS = new Set<string>(['l', 't', 'b']);
 const FITS = new Set<string>(['contain', 'cover', 'stretch']);

@@ -5,7 +5,7 @@ import { h } from './h.js';
 import type { I18n, Messages } from '../../i18n.js';
 
 /** English strings of the dialogs (a host catalog overrides them). */
-export const DIALOG_MESSAGES: Messages = {
+const DIALOG_MESSAGES: Messages = {
   'dialog.ok': 'OK',
   'dialog.cancel': 'Cancel',
   'dialog.enterName': 'Enter a name',

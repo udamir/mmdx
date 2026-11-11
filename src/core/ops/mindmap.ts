@@ -23,7 +23,7 @@ const isMindShape = (s: string): s is MindShape => (MIND_SHAPES as readonly stri
 const DECODES = /#quot;|#\d+;|&(?:amp|lt|gt);|<\/?br\b|^["`]|`$/i;
 
 /** Can the text stand alone on its line (a bare node: its id and its text)? */
-export function bareText(label: string): boolean {
+function bareText(label: string): boolean {
   return !!label && label === label.trim() && !/[()[\]{}\n]/.test(label) && !/^(?:::|%%|mindmap\b|-\))/i.test(label) && !DECODES.test(label);
 }
 
@@ -31,7 +31,7 @@ export function bareText(label: string): boolean {
 const plainText = (label: string): boolean => !!label && label === label.trim() && !/[()[\]{}\n"]/.test(label) && !DECODES.test(label);
 
 /** A node statement: `id((text))`, a bare line, or the default shape with quotes (`(-"a (b)"-)`). */
-export function mindStatement(o: { written: string | null; label: string; shape: MindShape; md?: boolean; quoted?: boolean }): string {
+function mindStatement(o: { written: string | null; label: string; shape: MindShape; md?: boolean; quoted?: boolean }): string {
   const id = o.written ?? '';
   if (o.shape === 'mm-default') {
     if (!o.md && !o.quoted && !id && bareText(o.label)) return o.label;
@@ -80,7 +80,7 @@ export function subtreeEnd(model: MindmapModel, id: string, skip?: string): numb
 }
 
 /** The indentation of a node's children (its first child's, else one step deeper than the node). */
-export function childIndent(model: MindmapModel, id: string): string {
+function childIndent(model: MindmapModel, id: string): string {
   const n = model.nodes.get(id);
   if (!n) return model.indentUnit;
   const first = n.children.map((c) => model.nodes.get(c)).find((c) => c && c.indent > n.indent);

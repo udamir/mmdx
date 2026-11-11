@@ -46,7 +46,7 @@ const pictogram = (t: DiagramType): SVGElement =>
     ...ICONS[t].map(([tag, attrs]) => s(tag, attrs)));
 
 /** No diagram at all (empty Mermaid, or only comments): offer the diagram types instead of an error. */
-export const isBlank = (core: EditorCore): boolean => !core.model.type && !core.code.split('\n').some((l) => l.trim() && !l.trim().startsWith('%%'));
+const isBlank = (core: EditorCore): boolean => !core.model.type && !core.code.split('\n').some((l) => l.trim() && !l.trim().startsWith('%%'));
 
 /** Centres the page in the free part of the canvas at zoom `k` at most (a new diagram is not blown up). */
 function centerView(core: EditorCore, k = 1): void {

@@ -90,7 +90,7 @@ export interface WorkingCopyAdapter extends HistoryAdapter {
   workingCopy(): Promise<VersionInfo | null>;
 }
 
-export function withWorkingCopy(history: HistorySource, current: () => string, message: string): WorkingCopyAdapter {
+function withWorkingCopy(history: HistorySource, current: () => string, message: string): WorkingCopyAdapter {
   const base = Array.isArray(history) ? staticHistory(history as readonly StaticVersion[]) : (history as HistoryAdapter);
   let newestSource: { id: string; source: Promise<string> } | null = null;
   const sourceOfNewest = (id: string): Promise<string> => {

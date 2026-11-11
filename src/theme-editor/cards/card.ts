@@ -18,7 +18,7 @@ export interface CardOptions {
 }
 
 /** How many of the theme's own values a card shows. */
-export function changedCount(env: Env, key: string): number {
+function changedCount(env: Env, key: string): number {
   const raw = env.draft.current() ?? {};
   if (key === 'palette') return Object.keys(obj(raw['palette'])).length;
   if (key === 'page') return ['appearance', 'font'].filter((k) => raw[k] !== undefined).length + Object.keys(obj(raw['canvas'])).length;

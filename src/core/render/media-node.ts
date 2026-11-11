@@ -14,9 +14,9 @@ import { shapeNodes } from './common.js';
 import type { MediaSource, Port, RenderEnv } from './types.js';
 
 /** Mermaid's icon size when `h` / `w` are not given, the padding of an icon's frame and the gap before a caption. */
-export const ICON_SIZE = 48, FRAME_PAD = 8, CAPTION_GAP = 8;
+const ICON_SIZE = 48, FRAME_PAD = 8, CAPTION_GAP = 8;
 /** An image node's box while its size is not known. */
-export const IMAGE_SIZE = 96;
+const IMAGE_SIZE = 96;
 const FORMS = new Set(['square', 'circle', 'rounded']);
 const FITS = new Set(['contain', 'cover', 'stretch']);
 const clampSize = (v: number): number => Math.max(8, Math.min(4000, v));

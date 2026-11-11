@@ -318,7 +318,7 @@ export function erDescendants(model: ErModel, gid: string): { nodes: string[]; g
 }
 
 /** The subgraph an entity or a subgraph is in (null: the top level). */
-export const erParentOf = (model: ErModel, id: string): string | null => model.entities.get(id)?.parent ?? model.groups.get(id)?.parent ?? null;
+const erParentOf = (model: ErModel, id: string): string | null => model.entities.get(id)?.parent ?? model.groups.get(id)?.parent ?? null;
 
 /** The selected tables and subgraphs, without those inside another selected subgraph. */
 function groupable(model: ErModel, items: readonly ItemRef[]): string[] {
