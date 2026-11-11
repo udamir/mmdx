@@ -8,4 +8,3 @@
 422	diff/history.ts › openHistory
 415	core/layout/compound.ts › layoutCompound
 371	core/parse/state.ts › readState
-350	editor/modules/mindmap/gestures.ts › activateMindmap

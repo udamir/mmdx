@@ -23,8 +23,7 @@ editor/modules/er-table/index.ts: kernel DOM ×1
 editor/modules/er-table/row-editor.ts: kernel DOM ×1
 editor/modules/insert/index.ts: kernel DOM ×3
 editor/modules/insert/media.ts: kernel DOM ×3
-editor/modules/mindmap/gestures.ts: bare core.on ×1
-editor/modules/mindmap/gestures.ts: kernel DOM ×1
+editor/modules/mindmap/keys.ts: kernel DOM ×1
 editor/modules/panels/code-panel.ts: kernel DOM ×1
 editor/modules/panels/code-problems.ts: kernel DOM ×1
 editor/modules/panels/layers.ts: bare computed ×3
