@@ -287,8 +287,8 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
     this.owner.add(() => target.removeEventListener(type, wrapped, opts));
   }
 
-  canvas(type: string, f: (ev: never) => void): void {
-    this.listen(this.core.canvas.svg, type, f);
+  canvas(type: string, f: (ev: never) => void, opts?: AddEventListenerOptions): void {
+    this.listen(this.core.canvas.svg, type, f, opts);
   }
 
   on<K extends keyof EventsOf<C>>(ev: K, cb: (d: EventsOf<C>[K]) => void): void {

@@ -140,7 +140,8 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
 // core 128.8, theme-editor 176, editor 216.4 and diff 95.2 kB with Stage 2's A8 (the component shell)
 // core 128.8, theme-editor 176, editor 216.9 and diff 95.2 kB with Stage 2's A9 (the elements' schema and kernel options)
 // core 128.8, theme-editor 176, editor 217.6 and diff 95.2 kB A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
-for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor', 217.6], ['diff', 95.2]]) {
+// core 128.8, theme-editor 176, editor 218.1 and diff 95.2 kB 5.3/5.4: DocumentSync and the canvas selection split into five files (+0.1 kB of module boundaries)
+for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor', 218.1], ['diff', 95.2]]) {
   const b = await bundle(entry);
   report(entry, b.size(b.base), budget * KB);
   if (entry === 'editor') {
@@ -163,7 +164,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 249.4 kB (249.0 kB measured) with Stage 2's A7 (the kernel's owner methods, claim and contributeAll, the HistoryHost port)
     // 249.9 kB (249.5 kB measured) with Stage 2's A9 (the elements' schema and kernel options)
     // 250.6 kB (250.2 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
-    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 250.6 * KB);
+    // 251 kB (250.6 kB measured) 5.3/5.4: DocumentSync and the canvas selection split into five files (+0.1 kB of module boundaries)
+    for (const k of ['flowchart', 'sequence', 'er']) report(`editor (first ${k})`, b.size(b.base) + b.size(lazy(b, `src/editor/kinds/${k}.ts`, b.base)), 251 * KB);
     {
       // a mindmap: its kinds and the mindmap module's gestures, both loaded with the first mindmap (T08: 228.3 kB measured; the view, ops and edit kinds with the geometry of bang and cloud and the media kit, which its edit kind registers as the flowchart's does, and the drag, handles and keys of the outline)
       const kind = lazy(b, 'src/editor/kinds/mindmap.ts', b.base);
@@ -180,7 +182,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
       // 249.7 kB (249.3 kB measured) with Stage 2's A7 (the kernel's owner methods, claim and contributeAll, the HistoryHost port)
       // 250.2 kB (249.8 kB measured) with Stage 2's A9 (the elements' schema and kernel options)
       // 250.9 kB (250.5 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
-      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 250.9 * KB);
+      // 251.3 kB (250.9 kB measured) 5.3/5.4: DocumentSync and the canvas selection split into five files (+0.1 kB of module boundaries)
+      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 251.3 * KB);
     }
     // a state diagram: its view, ops and edit kinds in one chunk loaded with the first state diagram (T09: 240.5 kB measured; the parser, compound layout, renderer, state shapes, ops, palette and Properties controls)
     // 249.4 kB with media in every kind and the sequence and ER fixes (T10, T11: 249 kB measured)
@@ -214,7 +217,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 259.3 kB (258.9 kB measured) with Stage 2's A6 (the module host's replaces, default providers and sheets given back)
     // 259.8 kB (259.4 kB measured) with Stage 2's A8 (the component shell)
     // 260.8 kB (260.4 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
-    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 260.8 * KB);
+    // 261.2 kB (260.8 kB measured) 5.3/5.4: DocumentSync and the canvas selection split into five files (+0.1 kB of module boundaries)
+    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 261.2 * KB);
   }
 }
 
@@ -331,7 +335,8 @@ const rows = [
   // 211.9 kB (211.5 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
   // 212.6 kB (212.2 kB measured) with Stage 2's A7 (the kernel's owner methods, claim and contributeAll, the HistoryHost port)
   // 213.8 kB (213.4 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
-  ['editor', ['src/editor.ts'], 213.8],
+  // 214.3 kB (213.9 kB measured) 5.3/5.4: DocumentSync and the canvas selection split into five files (+0.1 kB of module boundaries)
+  ['editor', ['src/editor.ts'], 214.3],
   // 184.2 kB measured; 197.8 kB with the shape catalogue (197.3 kB measured); 198.2 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 197.8 kB measured: the same code as before, in more chunks, each compressed on its own)
   // 199.2 kB with media in the scene (T03, 198.8 kB measured); 201.9 kB with the icon registry (T04, 201.5 kB measured)
   // 206.9 kB with the insert dock (T05, 206.5 kB measured: the editor's part, and the flowchart's icon and image node ops and palette sections)
@@ -346,7 +351,8 @@ const rows = [
   // 249.3 kB (248.9 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
   // 250 kB (249.6 kB measured) with Stage 2's A7 (the kernel's owner methods, claim and contributeAll, the HistoryHost port)
   // 251.2 kB (250.8 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
-  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart.ts'], 251.2],
+  // 251.6 kB (251.2 kB measured) 5.3/5.4: DocumentSync and the canvas selection split into five files (+0.1 kB of module boundaries)
+  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart.ts'], 251.6],
   // the first mindmap (T08, 70.8 kB measured): the viewer and the mindmap's kind chunk (parser, tidy tree layout, renderer)
   // 72 kB with state diagrams (T09, 71.6 kB measured: the viewer's +0.5 kB)
   // 75.1 kB with media in every kind and the sequence and ER fixes (T10, T11, 74.7 kB measured)
@@ -368,7 +374,8 @@ const rows = [
   // 245.2 kB (244.8 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
   // 245.9 kB (245.5 kB measured) with Stage 2's A7 (the kernel's owner methods, claim and contributeAll, the HistoryHost port)
   // 247.1 kB (246.7 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
-  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap.ts', 'src/editor/modules/mindmap/gestures.ts'], 247.1],
+  // 247.5 kB (247.1 kB measured) 5.3/5.4: DocumentSync and the canvas selection split into five files (+0.1 kB of module boundaries)
+  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap.ts', 'src/editor/modules/mindmap/gestures.ts'], 247.5],
   // the first state diagram (T09, 85.6 kB measured): the viewer and the state's kind chunk (parser, compound layout, renderer, shapes)
   // 89.1 kB with media in every kind and the sequence and ER fixes (T10, T11, 88.7 kB measured)
   // 89.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (89.5 kB measured)
@@ -387,7 +394,8 @@ const rows = [
   // 258.4 kB (258.0 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
   // 259.1 kB (258.7 kB measured) with Stage 2's A7 (the kernel's owner methods, claim and contributeAll, the HistoryHost port)
   // 260.3 kB (259.9 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
-  ['editor (first state)', ['src/editor.ts', 'src/editor/kinds/state.ts'], 260.3],
+  // 260.7 kB (260.3 kB measured) 5.3/5.4: DocumentSync and the canvas selection split into five files (+0.1 kB of module boundaries)
+  ['editor (first state)', ['src/editor.ts', 'src/editor/kinds/state.ts'], 260.7],
   // the English emoji data (T05 §4.5: at most 30 kB), a lazy chunk of its own
   ['emoji data, English (lazy chunk)', ['src/emoji/en.ts'], 30],
   // 240.2 kB with the shape catalogue (239.7 kB measured); 236.2 kB once the shapes beyond the 17 load on demand (T02.9, 235.8 kB measured)
@@ -404,7 +412,8 @@ const rows = [
   // 261.2 kB (260.8 kB measured) with Stage 2's A6 (the module host's replaces, default providers and sheets given back)
   // 261.8 kB (261.4 kB measured) with Stage 2's A9 (the elements' schema and kernel options)
   // 262.7 kB (262.3 kB measured) A10g: the editor's group tree, kind loader, version source and host services as their own modules (+0.6–0.8 kB)
-  ['editor + History opened', ['src/editor.ts', ...HISTORY], 262.7],
+  // 263.1 kB (262.7 kB measured) 5.3/5.4: DocumentSync and the canvas selection split into five files (+0.1 kB of module boundaries)
+  ['editor + History opened', ['src/editor.ts', ...HISTORY], 263.1],
   // 125.2 kB while the entry re-exported the all-kinds diff
   // 92.5 kB once the per-type diffs left the entry for the diff kinds (90.9 kB measured); 94.6 kB before; 91.5 kB with the shapes on demand (T02.9, 91.1 kB measured)
   // 92.5 kB with media in the scene (T03, 92.1 kB measured); 95.1 kB with the icon registry (T04, 94.7 kB measured)

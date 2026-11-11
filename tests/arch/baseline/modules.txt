@@ -5,8 +5,10 @@ diff/modules/stage.ts: kernel DOM ×4
 editor/modules/canvas/empty.ts: bare core.on ×3
 editor/modules/canvas/empty.ts: kernel DOM ×6
 editor/modules/canvas/inline-edit.ts: kernel DOM ×4
-editor/modules/canvas/select.ts: bare core.on ×3
-editor/modules/canvas/select.ts: kernel DOM ×17
+editor/modules/canvas/nudge.ts: kernel DOM ×1
+editor/modules/canvas/select-gestures.ts: kernel DOM ×1
+editor/modules/canvas/select-pointer.ts: kernel DOM ×2
+editor/modules/canvas/select.ts: kernel DOM ×1
 editor/modules/canvas/structure.ts: kernel DOM ×4
 editor/modules/chrome/document.ts: kernel DOM ×1
 editor/modules/chrome/panes.ts: bare computed ×1

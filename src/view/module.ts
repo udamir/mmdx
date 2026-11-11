@@ -66,7 +66,7 @@ export interface ModuleScope<C = unknown> {
   listen<K extends keyof HTMLElementEventMap>(target: EventTarget, type: K, f: (ev: HTMLElementEventMap[K]) => void, opts?: AddEventListenerOptions): void;
   listen(target: EventTarget, type: string, f: (ev: Event) => void, opts?: AddEventListenerOptions): void;
   /** A listener on the main canvas's picture (`<svg>`), muted while suspended, removed on uninstall. */
-  canvas<K extends keyof SVGElementEventMap>(type: K, f: (ev: SVGElementEventMap[K]) => void): void;
+  canvas<K extends keyof SVGElementEventMap>(type: K, f: (ev: SVGElementEventMap[K]) => void, opts?: AddEventListenerOptions): void;
   /** A kernel event listener, muted while suspended, removed on uninstall. */
   on<K extends keyof EventsOf<C>>(ev: K, cb: (d: EventsOf<C>[K]) => void): void;
   /** Provides an action: muted while suspended (the previous provider answers), removed on uninstall. */

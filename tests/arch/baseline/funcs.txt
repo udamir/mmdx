@@ -1,6 +1,5 @@
 # Functions over 300 lines — baseline (2026-11-11, e726eb1): <lines>	<file › name>; each may only shrink.
 727	core/render/flowchart.ts › renderFlowchart
-659	editor/modules/canvas/select.ts › install
 651	core/render/sequence.ts › renderSequence
 623	editor/modules/chrome/toolbars.ts › install
 605	core/render/state.ts › renderState
