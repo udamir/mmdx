@@ -27,16 +27,14 @@ import type { StyleProps } from '../style.js';
 import type { FontSpec } from '../text/measure.js';
 import { textBlockWidth, wrap } from '../text/wrap.js';
 import { fmt } from '../scene/serialize.js';
-import {
-  baseStyle, countBy, Defs, font, hiddenOf, itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle, metaNum, pickStyle,
-  presetOf, shapeNodes, stackedShapeNodes, textBlock, urlRef, withLink, type RenderEnv, type SubResult, type TextOpts,
-} from './common.js';
+import { baseStyle, countBy, Defs, font, hiddenOf, itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle, metaNum, pickStyle, presetOf, shapeNodes, stackedShapeNodes, textBlock, urlRef, withLink, type TextOpts } from './common.js';
+import { type RenderEnv, type SubResult, type MediaSource } from './types.js';
 import { decorate, decorated, decoratedSize, decoration, lazyKit, type Decoration } from './decorate.js';
-import { assetBox, captionY, mediaAssetNodes, mediaLayout, type MediaBox, type MediaSource } from './media-node.js';
-import { metaMediaSource } from '../ops/meta-media.js';
+import { assetBox, captionY, mediaAssetNodes, mediaLayout, type MediaBox } from './media-node.js';
+import { metaMediaSource } from '../media/meta-source.js';
 import type { BoxGeom, RenderContext, SequenceGeometry } from './types.js';
 import type { Rect } from '../types.js';
-import { dashAttrs } from './dash.js';
+import { dashAttrs } from '../shapes/dash.js';
 import { seqPresets } from './sequence-presets.js';
 import { minOf } from '../geom.js';
 

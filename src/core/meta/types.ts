@@ -116,6 +116,9 @@ export type Collection =
   | 'layers' | 'groups' | 'nodes' | 'edges' | 'participants' | 'messages' | 'notes' | 'blocks' | 'boxes'
   | 'activations' | 'entities' | 'rels';
 
+/** Ids that exist in the model, per collection. Collections without a set are left alone. */
+export type MetaIds = Partial<Record<Collection, ReadonlySet<string>>>;
+
 export const COLLECTIONS: readonly Collection[] = [
   'layers', 'groups', 'nodes', 'edges', 'participants', 'messages', 'notes', 'blocks', 'boxes', 'activations',
   'entities', 'rels',

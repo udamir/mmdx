@@ -5,8 +5,9 @@
 // Chart does; existing node data is changed in place by the node data writer (parse/node-data.ts), so other keys,
 // quotes and spacing stay as written.
 import type { FlowchartModel, FlowNode } from '../model.js';
-import { applySplices, editBlock, type DataValue, type NodeDataBlock, type Splice } from '../parse/node-data.js';
-import { faOnly, leadingIcon, withIconToken, type IsIconToken } from './icon-token.js';
+import { applySplices, editBlock, type Splice } from '../parse/node-data.js';
+import { type DataValue, type NodeDataBlock } from '../model.js';
+import { faOnly, leadingIcon, withIconToken, type IsIconToken } from '../icons/icon-token.js';
 import { nodeDef } from './connect.js';
 import { relabelFlowNode } from './flowchart.js';
 import { parseFlowchart } from '../parse/flowchart.js';
@@ -37,7 +38,7 @@ export const ICON_NODE_H = 60;
 export const IMAGE_NODE_SIZE = 200;
 
 /** Whether a label token is an icon (the registry decides: registered packs and Font Awesome's form). */
-export { iconToken, leadingIcon, withIconToken, type IsIconToken } from './icon-token.js';
+export { iconToken, leadingIcon, withIconToken, type IsIconToken } from '../icons/icon-token.js';
 
 /** A node's icon and image. */
 export function flowMedia(model: FlowchartModel, id: string, isIcon: IsIconToken = faOnly): FlowMedia | null {

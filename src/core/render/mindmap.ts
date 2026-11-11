@@ -20,13 +20,11 @@ import { fmt } from '../scene/serialize.js';
 import { onOutline } from '../shapes/outline.js';
 import { shapeDef } from '../shapes/registry.js';
 import type { Point } from '../types.js';
-import {
-  baseStyle, countBy, font, hiddenOf, itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle, metaNum, pickStyle, presetOf, stackedShapeNodes,
-  textBlock, withLink, type RenderEnv, type SubResult,
-} from './common.js';
+import { baseStyle, countBy, font, hiddenOf, itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle, metaNum, pickStyle, presetOf, stackedShapeNodes, textBlock, withLink } from './common.js';
+import { type RenderEnv, type SubResult } from './types.js';
 import { decorate, decoratedSize, decoration, lazyKit, type Decoration } from './decorate.js';
 import { assetBox, captionY, mediaAssetNodes, mediaLayout, mediaPort, type MediaBox } from './media-node.js';
-import { metaMediaSource } from '../ops/meta-media.js';
+import { metaMediaSource } from '../media/meta-source.js';
 import { mindPreset, mindPresets } from './mind-presets.js';
 import type { MindmapGeometry } from './types.js';
 

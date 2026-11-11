@@ -2,6 +2,7 @@
 import type { IconLookup } from '../icons/types.js';
 import type { CanvasMeta, DiagramMeta } from '../meta/types.js';
 import type { SceneNode } from '../scene/types.js';
+import type { ResolvedTheme } from '../theme/types.js';
 import type { TextMeasurer } from '../text/measure.js';
 import type { Diagnostic, ItemKind, Point, Rect } from '../types.js';
 import type { ImagePolicy, LinkPolicy, UrlResolver } from '../validate.js';
@@ -169,3 +170,42 @@ export interface RenderResult {
 }
 
 export type { DiagramMeta };
+
+/** What every diagram renderer receives from `render()` (index.ts). */
+export interface RenderEnv {
+  ctx: RenderContext;
+  theme: ResolvedTheme;
+  /** The diagram's metadata with `canvas` replaced by the effective page settings (theme < preset < diagram). */
+  meta: DiagramMeta & { canvas: CanvasMeta };
+  opts: RenderOptions;
+  /** Colour behind labels (halo) and inside markers: the page background, or the paper colour on a clear page. */
+  paper: string;
+  /** Page padding around the content. */
+  pad: number;
+  /** What the render reports (an image the policy refused: `image.blocked`); merged into the pipeline's diagnostics. */
+  diagnostics: Diagnostic[];
+}
+
+export interface SubResult {
+  defs: SceneNode[];
+  body: SceneNode[];
+  bounds: Rect;
+  geom: GeometryIndex;
+  presetsUsed: Partial<Record<ItemKind, Map<string, number>>>;
+  /** The diagram's accessible title and description, when its code gives them. */
+  a11y?: { title?: string; desc?: string };
+}
+
+/** What an icon or image node is made of: its source and layout keys (node data, or a state's metadata). */
+export interface MediaSource {
+  /** The picture's URL (`""`: not chosen yet, the placeholder); undefined: an icon node. */
+  img?: string | undefined;
+  icon?: string | undefined;
+  form?: string | undefined;
+  /** The caption's side: `t` above, else below. */
+  pos?: string | undefined;
+  w?: number | undefined;
+  h?: number | undefined;
+  constraint?: string | undefined;
+  fit?: string | undefined;
+}

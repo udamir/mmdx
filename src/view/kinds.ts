@@ -52,10 +52,10 @@ export const lazyKinds: KindsProvider = { kinds: loadedKinds, has: hasKind, load
 
 let shapesPending: Promise<void> | null = null;
 
-/** Loads the geometry of the shapes beyond the 17 (core/shapes/extended.ts; resolves once they are drawable). */
+/** Loads the geometry of the shapes beyond the 17 (core/extras.ts, with the media kit; resolves once they are drawable). */
 export function loadShapes(): Promise<void> {
   if (!shapesPending) {
-    const p = import('../core/shapes/extended.js').then((m) => m.registerExtendedShapes());
+    const p = import('../core/extras.js').then((m) => m.registerExtendedShapes());
     shapesPending = p;
     const done = (): void => void (shapesPending = null);
     p.then(done, done);

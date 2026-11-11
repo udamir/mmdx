@@ -18,14 +18,10 @@ import type { StyleProps } from '../style.js';
 import { textBlockWidth } from '../text/wrap.js';
 import type { CenterBox, Point, Rect } from '../types.js';
 import type { SafeUrl } from '../validate.js';
-import {
-  assignPorts, baseStyle, byLine, cachedLayout, countBy, crowFoot, edgePath, firstLine, font, haloLabel, hiddenOf, isSide,
-  itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle, metaNum, metaPoints, outerBox, pickStyle, presetOf,
-  sideToward, stackedShapeNodes, textBlock, withLink, type PortLink, type RenderEnv, type SubResult,
-  memoBy,
-} from './common.js';
+import { assignPorts, baseStyle, byLine, cachedLayout, countBy, crowFoot, edgePath, firstLine, font, haloLabel, hiddenOf, isSide, itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle, metaNum, metaPoints, outerBox, pickStyle, presetOf, sideToward, stackedShapeNodes, textBlock, withLink, type PortLink, memoBy } from './common.js';
+import { type RenderEnv, type SubResult } from './types.js';
 import type { BoxGeom, EdgeGeom, ErGeometry, Port, RenderContext } from './types.js';
-import { dashAttrs } from './dash.js';
+import { dashAttrs } from '../shapes/dash.js';
 import { attrLook, entityPreset, erGroupPreset, erPresets, highlight, relPreset } from './er-presets.js';
 import { maxOf } from '../geom.js';
 

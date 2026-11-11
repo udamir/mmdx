@@ -11,9 +11,8 @@ import { markRuns, markStyledRuns, hasMarks, stripMarks } from '../text/marks.js
 import type { FontSpec, TextMeasurer } from '../text/measure.js';
 import type { GeometryIndex, RenderResult } from '../render/types.js';
 import type { ItemKind, Rect } from '../types.js';
-import type { ChangeFacet, ItemChange } from './types.js';
+import type { ChangeFacet, ItemChange, ItemShape } from './types.js';
 import { beforeKey, changeKey } from './merge.js';
-import type { ItemShape } from './shape.js';
 import { diffKind } from '../kinds/registry.js';
 
 /** A highlight colour family: the filter of a change. */

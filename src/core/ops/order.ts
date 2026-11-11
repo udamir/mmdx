@@ -3,7 +3,8 @@
 // the editor previews `applyOrderState(base, states[i])` live while the slider moves and records history once.
 import type { DiagramMeta, ItemMeta } from '../meta/types.js';
 import type { DiagramModel } from '../model.js';
-import { opsKind, reparse, withOps } from '../kinds/registry.js';
+import { opsKind, withOps } from '../kinds/registry.js';
+import { reparse } from '../parse/dispatch.js';
 import { own, ownOr } from '../own.js';
 import type { BoxGeom, GeometryIndex } from '../render/types.js';
 import type { ItemKind, ItemRef } from '../types.js';

@@ -15,8 +15,8 @@ import { normalizeMeta, splitSource, type DiagramDocument } from '../core/meta/i
 import { KIND_TO_COLL, type DiagramMeta, type ItemMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
 import { own, ownOr } from '../core/own.js';
-import { opsKind, registeredKinds, reparse, withKind, withOps } from '../core/kinds/registry.js';
-import { detectType } from '../core/parse/dispatch.js';
+import { opsKind, registeredKinds, withKind, withOps } from '../core/kinds/registry.js';
+import { reparse, detectType } from '../core/parse/dispatch.js';
 import { editorHasKind, loadEditorKind } from './kinds/loader.js';
 import type { ClipboardData } from '../core/ops/clipboard.js';
 import { remapMeta } from '../core/ops/meta-ops.js';

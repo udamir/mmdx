@@ -10,8 +10,8 @@ import { el } from '../scene/build.js';
 import type { SceneNode } from '../scene/types.js';
 import type { StyleProps } from '../style.js';
 import { diag, type CenterBox } from '../types.js';
-import { shapeNodes, type RenderEnv } from './common.js';
-import type { Port } from './types.js';
+import { shapeNodes } from './common.js';
+import type { MediaSource, Port, RenderEnv } from './types.js';
 
 /** Mermaid's icon size when `h` / `w` are not given, the padding of an icon's frame and the gap before a caption. */
 export const ICON_SIZE = 48, FRAME_PAD = 8, CAPTION_GAP = 8;
@@ -39,20 +39,6 @@ export interface MediaBox {
   fit: ImageFit;
   /** The colour of a monochrome icon (the code's stroke, else the text colour). */
   color: string | undefined;
-}
-
-/** What an icon or image node is made of: its source and layout keys (node data, or a state's metadata). */
-export interface MediaSource {
-  /** The picture's URL (`""`: not chosen yet, the placeholder); undefined: an icon node. */
-  img?: string | undefined;
-  icon?: string | undefined;
-  form?: string | undefined;
-  /** The caption's side: `t` above, else below. */
-  pos?: string | undefined;
-  w?: number | undefined;
-  h?: number | undefined;
-  constraint?: string | undefined;
-  fit?: string | undefined;
 }
 
 /**

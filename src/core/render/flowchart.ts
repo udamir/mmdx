@@ -14,26 +14,21 @@ import { mediaKit, type MediaKit } from '../media/kit.js';
 import { ICON_TOKEN } from '../icons/names.js';
 import type { IconResolver } from '../text/rich.js';
 import type { FontSpec } from '../text/measure.js';
-import type { CenterBox, Point } from '../types.js';
-import {
-  assignPorts, cachedLayout, type PortLink, metaNum, metaPoints, type RenderEnv, type SubResult, byLine, countBy, Defs, edgePath, firstLine, font, haloLabel, hiddenOf, isSide, itemGroup,
-  itemLink, LINK_COLOR, linkAttr, mergeStyle, outerBox, pickStyle, presetOf, sideToward, stackedShapeNodes,
-  textBlock, urlRef, withLink,
-  memoBy,
-} from './common.js';
+import type { CenterBox, Point, Rect } from '../types.js';
+import { assignPorts, cachedLayout, type PortLink, metaNum, metaPoints, byLine, countBy, Defs, edgePath, firstLine, font, haloLabel, hiddenOf, isSide, itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle, outerBox, pickStyle, presetOf, sideToward, stackedShapeNodes, textBlock, urlRef, withLink, memoBy } from './common.js';
+import { type RenderEnv, type SubResult, type MediaSource } from './types.js';
 import type { BoxGeom, EdgeGeom, FlowGeometry, Port } from './types.js';
 import { onOutline } from '../shapes/outline.js';
 import { shapeDef } from '../shapes/registry.js';
 import type { ShapeDef } from '../shapes/types.js';
-import type { Rect } from '../types.js';
 
 // the presets and the edge metadata lookup live apart, so code that needs only them (the portable export, the editor's
 // base) does not load the renderer
 export { edgeMeta, edgePreset, flowPresets, groupPreset, nodePreset, presetShape, type FlowPresets } from './flow-presets.js';
 import { edgeMeta, edgePreset, flowPresets, groupPreset, nodePreset } from './flow-presets.js';
 import { edgeStyleLayers, flowNodeShape, groupStyleLayers, nodeStyleLayers } from './flow-style.js';
-import { dashAttrs } from './dash.js';
-import { assetBox, captionY, mediaAssetNodes, mediaLayout, mediaPort, type MediaBox, type MediaSource } from './media-node.js';
+import { dashAttrs } from '../shapes/dash.js';
+import { assetBox, captionY, mediaAssetNodes, mediaLayout, mediaPort, type MediaBox } from './media-node.js';
 
 interface NodeItem extends CenterBox {
   n: FlowNode;

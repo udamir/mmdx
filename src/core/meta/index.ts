@@ -16,7 +16,7 @@ import { isFiniteNumber } from '../validate.js';
 import { migrate } from './migrations.js';
 import { badValueDiagnostic, sanitizeMeta, sanitizeStyleObject, setCollection } from './sanitize.js';
 import { COLLECTIONS, KIND_TO_COLL, META_VERSION, emptyMeta } from './types.js';
-import type { Collection, DiagramMeta, MetaKind } from './types.js';
+import type { Collection, DiagramMeta, MetaIds, MetaKind } from './types.js';
 
 export * from './types.js';
 export { migrate } from './migrations.js';
@@ -176,8 +176,6 @@ export function joinSource(doc: DiagramDocument): string {
   return `${doc.code.trimEnd()}\n\n${META_HEADER}\n${lines.join('\n')}\n`;
 }
 
-/** Ids that exist in the model, per collection. Collections without a set are left alone. */
-export type MetaIds = Partial<Record<Collection, ReadonlySet<string>>>;
 
 /** Drops metadata of elements that no longer exist; only known collections are touched, `unknown` lines stay. */
 export function pruneMeta(meta: DiagramMeta, ids: MetaIds): DiagramMeta {

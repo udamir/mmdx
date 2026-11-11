@@ -1,8 +1,6 @@
 // The diff kind (T01): what diffing two versions of a diagram type needs — item changes, the merged picture, highlight
 // shapes, code lines. The diff and History load it with the type's view kind; the viewer and the editor do not.
-import type { MergeEnv } from '../diff/merge.js';
-import type { ItemShape } from '../diff/shape.js';
-import type { FieldChange, ItemChange } from '../diff/types.js';
+import type { MergeEnv, ItemShape, FieldChange, ItemChange } from '../diff/types.js';
 import type { DiagramMeta } from '../meta/types.js';
 import type { SupportedModel } from '../model.js';
 import type { GeometryIndex } from '../render/types.js';

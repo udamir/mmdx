@@ -6,6 +6,7 @@ import type { DiagramType } from '../types.js';
 import { diag } from '../types.js';
 import { KIND_INFO, typeOfHeader } from '../kinds/info.js';
 import { MAX_SOURCE_LENGTH, tooLargeDiagnostic } from './limits.js';
+import { registeredKinds } from '../kinds/registry.js';
 
 
 /** First header line, skipping blank lines, `%%` comments and leading front matter; scans line by line without splitting the whole source. */
@@ -60,3 +61,6 @@ export function parseWith(code: string, kinds: Kinds): DiagramModel {
   const p = type ? kinds[type] : undefined;
   return p ? p.parse(code) : unsupported(code);
 }
+
+/** A model of the code, parsed with the kinds registered so far (the ops re-parse their results with it). */
+export const reparse = (code: string): DiagramModel => parseWith(code, registeredKinds());

@@ -31,6 +31,29 @@ export function layerOf(r) {
   return [7, 'entry'];
 }
 
+/**
+ * Core's sub-layer (architecture §8.1, core.md diagram 3) of a file relative to src/core/: C0 base types · C1 kind
+ * contract · C2 resources · C3 parse · C4 layout · C5 render · C6 ops · C7 diff and export · C8 kind implementations ·
+ * C9 assembly. A stage's `types.ts` is C0 (its contract types). Overrides: the icon name grammar is C0 (text reads it),
+ * the style stripper parses (C3), and the lazy media kit's implementation draws (C5).
+ */
+export function coreLayerOf(r) {
+  if (r === 'icons/names.ts') return 0;
+  if (r === 'strip-styles.ts') return 3;
+  if (r === 'media/kit-impl.ts') return 5;
+  if (/^(kinds\/all[^/]*|pipeline|context|parse\/index|render\/index|diff\/all|all|extras)\.ts$/.test(r)) return 9;
+  if (/^kinds\/(types|ops-types|diff-types|info|names|registry)\.ts$/.test(r) || r === 'summary.ts' || r.startsWith('kind/')) return 1;
+  if (/^(types|geom|own|style|validate|model|ids)\.ts$/.test(r) || /^(text|scene)\//.test(r) || /^[^/]+\/types\.ts$/.test(r)) return 0;
+  if (/^(meta|theme|shapes|icons|media|schema)\//.test(r) || /^(context-base|layers|item-lines|starter)\.ts$/.test(r)) return 2;
+  if (r.startsWith('parse/')) return 3;
+  if (r.startsWith('layout/')) return 4;
+  if (r.startsWith('render/') || r === 'pipeline-core.ts') return 5;
+  if (r.startsWith('ops/')) return 6;
+  if (r.startsWith('diff/') || r.startsWith('export/')) return 7;
+  if (r.startsWith('kinds/') || r === 'outline.ts') return 8;
+  return 9;
+}
+
 const PRODUCTS = new Set(['editor', 'diff', 'theme-editor']);
 
 /** Every relative import / re-export / dynamic import in src/: { from, to, kind: 'value' | 'type' | 'dynamic' }. */
@@ -80,6 +103,10 @@ export function edgeViolation(e) {
   if (/^editor\/kinds\//.test(e.from) && /^editor\/modules\//.test(e.to)) return 'editor kinds → editor module';
   if (/^view\/modules\/[^/]+$/.test(e.from) && /^view\/modules\/[^/]+$/.test(e.to) && !/index|viewer|lazy/.test(e.from)) return 'view module → view module';
   if (/^core\/(ops|kinds)\//.test(e.from) && /^core\/render\/(flowchart|sequence|er|state|mindmap)\.ts$/.test(e.to)) return 'ops/kinds → full renderer';
+  if (af === 'core' && at === 'core') {
+    const cf = coreLayerOf(e.from.slice(5)), ct = coreLayerOf(e.to.slice(5));
+    if (ct > cf) return `upward core C${cf} → C${ct}`;
+  }
   return null;
 }
 
@@ -91,6 +118,40 @@ export function layerViolations(root) {
     if (why) out.add(`${e.from} → ${e.to} [${e.kind}] (${why})`);
   }
   return [...out].sort();
+}
+
+/**
+ * File-level import cycles (strongly connected components over value and type imports; dynamic imports load later and
+ * do not count): one stable key per cycle, its files sorted.
+ */
+export function importCycles(root) {
+  const next = new Map();
+  for (const e of importEdges(root)) if (e.kind !== 'dynamic') (next.get(e.from) ?? next.set(e.from, []).get(e.from)).push(e.to);
+  let n = 0;
+  const index = new Map(), low = new Map(), stack = [], on = new Set(), out = [];
+  const visit = (v) => {
+    index.set(v, n);
+    low.set(v, n++);
+    stack.push(v);
+    on.add(v);
+    for (const w of next.get(v) ?? []) {
+      if (!index.has(w)) {
+        visit(w);
+        low.set(v, Math.min(low.get(v), low.get(w)));
+      } else if (on.has(w)) low.set(v, Math.min(low.get(v), index.get(w)));
+    }
+    if (low.get(v) !== index.get(v)) return;
+    const c = [];
+    let w;
+    do {
+      w = stack.pop();
+      on.delete(w);
+      c.push(w);
+    } while (w !== v);
+    if (c.length > 1) out.push(c.sort().join(' ↔ '));
+  };
+  for (const v of next.keys()) if (!index.has(v)) visit(v);
+  return out.sort();
 }
 
 /**

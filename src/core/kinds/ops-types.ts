@@ -1,8 +1,7 @@
 // The ops kind (T01): what the editing ops (core/ops) need from a diagram type — code order, positional ids, the
 // clipboard, positions and structure. Only the editor loads it (with its view kind); a missing op means the type does
 // not offer it.
-import type { MetaIds } from '../meta/index.js';
-import type { DiagramMeta } from '../meta/types.js';
+import type { MetaIds, DiagramMeta } from '../meta/types.js';
 import type { ResolvedTheme } from '../theme/types.js';
 import type { Direction, SupportedModel } from '../model.js';
 import type { CloneInto, CloneResult, CodeResult, LineSpan, SwapResult } from '../ops/types.js';

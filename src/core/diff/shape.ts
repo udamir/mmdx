@@ -3,9 +3,7 @@
 import { shapeDef } from '../shapes/registry.js';
 import { outlinePath } from '../shapes/outline.js';
 import type { Rect } from '../types.js';
-
-/** A box (with its shape's outline grown by the frame's padding, when not a rectangle), or a connector's path. */
-export type ItemShape = { t: 'rect'; r: Rect; d?: string } | { t: 'path'; d: string; label: Rect | null; mid: { x: number; y: number } };
+import type { ItemShape } from './types.js';
 
 const box = (b: { x: number; y: number; w: number; h: number }): Rect => ({ x: b.x - b.w / 2, y: b.y - b.h / 2, w: b.w, h: b.h });
 

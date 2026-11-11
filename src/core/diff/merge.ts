@@ -7,7 +7,7 @@ import { own, setOwn } from '../own.js';
 import { withDiff } from '../kinds/registry.js';
 import type { SupportedModel } from '../model.js';
 import type { ItemKind } from '../types.js';
-import type { DiagramDiff, ItemChange } from './types.js';
+import type { DiagramDiff, ItemChange, MergeEnv } from './types.js';
 
 /** Suffix of a removed item's id in the merged diagram (sequence ids are positions, so they would clash). */
 export const REMOVED = '~del';
@@ -51,21 +51,6 @@ export function carryMeta(meta: DiagramMeta, before: DiagramMeta, kind: ItemKind
 }
 
 export const changedField = (c: ItemChange | undefined, name: string) => c?.status === 'changed' && c.fields.some((f) => f.facet === 'content' && f.field === name);
-
-/** What a type's merge (the view kind's `merge`) works with: the diff, the merged metadata and change lookups. */
-export interface MergeEnv {
-  diff: DiagramDiff;
-  /** The merged metadata (removed items' metadata is carried into it). */
-  meta: DiagramMeta;
-  /** The before version's metadata. */
-  before: DiagramMeta;
-  /** Changes of kept and added items by `kind:id` in the after version. */
-  byAfter: Map<string, ItemChange>;
-  /** The removed items. */
-  removed: ItemChange[];
-  /** Records how the item with this id in the merged diagram changed. */
-  mark(c: ItemChange, id: string): void;
-}
 
 /**
  * Builds the merged model, or null when the diagram type changed (the views then fall back to before / after).

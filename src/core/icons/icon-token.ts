@@ -1,7 +1,7 @@
 // Icons written as label tokens (T05, shared by every kind that writes them: the flowchart, mindmap nodes, T10's
 // participants, entities and states): a `pack:name` token at the start of a label (`fa:fa-car Car`,
 // `azure:computer-vision Vision`); Font Awesome in Mermaid's own form, which stock Mermaid draws.
-import { isFaPack, splitIconName } from '../icons/names.js';
+import { isFaPack, splitIconName } from './names.js';
 
 export type IsIconToken = (token: string) => boolean;
 

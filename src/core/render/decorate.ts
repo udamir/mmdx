@@ -22,7 +22,7 @@
 import type { IconForm } from '../icons/types.js';
 import type { ImageFit } from '../media/image.js';
 import { mediaKit, type MediaKit } from '../media/kit.js';
-import { leadingIcon } from '../ops/icon-token.js';
+import { leadingIcon } from '../icons/icon-token.js';
 import type { ItemMeta } from '../meta/types.js';
 import type { SceneNode } from '../scene/types.js';
 import type { CenterBox, Diagnostic, Rect } from '../types.js';

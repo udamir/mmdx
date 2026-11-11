@@ -1,11 +1,15 @@
 // Fixed data of the theme editor: fonts, sample diagrams, shape tabs, field option lists.
 import { DIAGRAM_TYPES } from '../core/kinds/info.js';
 import { participantPresetShape, presetShape } from '../core/render/index.js';
+import { registerExtendedShapes } from '../core/extras.js';
 import { PARTICIPANT_SHAPES, pickerShapes } from '../core/shapes/catalog.js';
 import type { DiagramType } from '../core/types.js';
 import type { ToolbarControl } from '../ui/style-toolbar.js';
 import type { Obj } from './util.js';
 import { FONTS as STYLE_FONTS } from '../ui/fonts.js';
+
+// the previews draw every catalogue shape, icons and rich labels: the geometry and the media kit, registered statically
+registerExtendedShapes();
 
 /** A theme's font: the style pickers' fonts (one table, ui/fonts.ts, B25) without "the theme's font". */
 export const FONTS: readonly (readonly [string, string])[] = STYLE_FONTS.filter(([v]) => v !== '');

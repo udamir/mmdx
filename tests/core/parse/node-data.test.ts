@@ -4,7 +4,8 @@
 // writer changes values in place. Checked against stock Mermaid's parser where the input is Mermaid's.
 import { beforeAll, describe, expect, it } from 'vitest';
 import { parseFlowchart } from '../../../src/core/parse/flowchart.js';
-import { applySplices, editBlock, formatValue, readNodeData, type NodeDataBlock } from '../../../src/core/parse/node-data.js';
+import { applySplices, editBlock, formatValue, readNodeData } from '../../../src/core/parse/node-data.js';
+import { type NodeDataBlock } from '../../../src/core/model.js';
 import { stockParse } from '../../helpers/mermaid.js';
 
 const read = (body: string): NodeDataBlock => {

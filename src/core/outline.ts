@@ -5,14 +5,11 @@ import { outlineMindmap } from './kinds/mindmap-outline.js';
 import { outlineState } from './kinds/state-outline.js';
 import { outlineSequence } from './kinds/sequence-outline.js';
 import type { DiagramModel, SupportedModel } from './model.js';
+import type { OutlineItem } from './kinds/types.js';
 import type { DiagramType } from './types.js';
 
-export { summarize, type Summary } from './summary.js';
-
-export interface OutlineItem {
-  text: string;
-  children?: OutlineItem[];
-}
+export { summarize } from './summary.js';
+export type { OutlineItem, Summary } from './kinds/types.js';
 
 /** Nodes with their outgoing connections; messages in order; tables with columns and relationships; a mindmap's tree. */
 export function outline(model: DiagramModel): OutlineItem[] {

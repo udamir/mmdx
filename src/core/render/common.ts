@@ -6,13 +6,11 @@ import { fmt } from '../scene/serialize.js';
 import type { SceneNode, SceneText, SvgAttrs } from '../scene/types.js';
 import { mergeLayers, type Side, type StyleProps } from '../style.js';
 import type { FontSpec } from '../text/measure.js';
-import type { CenterBox, Diagnostic, ItemKind, Point, Rect } from '../types.js';
+import type { CenterBox, ItemKind, Point, Rect } from '../types.js';
 import { cleanDash, cleanFontFamily, resolveContentUrl, safeUrl, toNumber, type SafeUrl } from '../validate.js';
 import { hash } from '../layout/hash.js';
 import type { LayeredOptions, LayoutEdge, LayoutNode } from '../layout/layered.js';
-import type { CanvasMeta, DiagramMeta } from '../meta/types.js';
-import type { ResolvedTheme } from '../theme/types.js';
-import type { GeometryIndex, HiddenSets, Port, RenderContext, RenderOptions } from './types.js';
+import type { HiddenSets, Port, RenderContext, RenderOptions } from './types.js';
 import { shapeDef, shapeIdOf } from '../shapes/registry.js';
 
 // ---- style ----------------------------------------------------------------------------------------------------
@@ -623,33 +621,6 @@ export function crowFoot(p: Port, card: string, color: string | undefined, width
   const out: SceneNode[] = [el('path', { d: path || undefined, fill: 'none', stroke: color, 'stroke-width': width })];
   if (extra) out.push(extra);
   return out;
-}
-
-// ---- render environment ---------------------------------------------------------------------------------------
-
-/** What every diagram renderer receives from `render()` (index.ts). */
-export interface RenderEnv {
-  ctx: RenderContext;
-  theme: ResolvedTheme;
-  /** The diagram's metadata with `canvas` replaced by the effective page settings (theme < preset < diagram). */
-  meta: DiagramMeta & { canvas: CanvasMeta };
-  opts: RenderOptions;
-  /** Colour behind labels (halo) and inside markers: the page background, or the paper colour on a clear page. */
-  paper: string;
-  /** Page padding around the content. */
-  pad: number;
-  /** What the render reports (an image the policy refused: `image.blocked`); merged into the pipeline's diagnostics. */
-  diagnostics: Diagnostic[];
-}
-
-export interface SubResult {
-  defs: SceneNode[];
-  body: SceneNode[];
-  bounds: Rect;
-  geom: GeometryIndex;
-  presetsUsed: Partial<Record<ItemKind, Map<string, number>>>;
-  /** The diagram's accessible title and description, when its code gives them. */
-  a11y?: { title?: string; desc?: string };
 }
 
 /** A metadata number (validated by core/meta; checked again here because the scene must never see NaN). */

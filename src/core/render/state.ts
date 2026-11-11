@@ -20,15 +20,11 @@ import type { FontSpec } from '../text/measure.js';
 import type { CenterBox, Point, Rect } from '../types.js';
 import { onOutline } from '../shapes/outline.js';
 import { byShapeId, shapeDef } from '../shapes/registry.js';
-import {
-  assignPorts, baseStyle, countBy, Defs, edgePath, font, haloLabel, hiddenOf, isSide, itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle,
-  metaNum, metaPoints, pickStyle, presetOf, sideToward, stackedShapeNodes, textBlock, urlRef, withLink, type PortLink, type RenderEnv, type SubResult,
-  boxGrid,
-  memoBy,
-} from './common.js';
+import { assignPorts, baseStyle, countBy, Defs, edgePath, font, haloLabel, hiddenOf, isSide, itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle, metaNum, metaPoints, pickStyle, presetOf, sideToward, stackedShapeNodes, textBlock, urlRef, withLink, type PortLink, boxGrid, memoBy } from './common.js';
+import { type RenderEnv, type SubResult } from './types.js';
 import { DECO_GAP, decorate, decoratedSize, decoration, lazyKit, type Decoration } from './decorate.js';
 import { assetBox, captionY, mediaAssetNodes, mediaLayout, mediaPort, type MediaBox } from './media-node.js';
-import { metaMediaSource } from '../ops/meta-media.js';
+import { metaMediaSource } from '../media/meta-source.js';
 import { stateEdgePreset, stateGroupPreset, stateNodePreset, stateNotePreset, statePresets } from './state-presets.js';
 import type { BoxGeom, EdgeGeom, Port, StateGeometry } from './types.js';
 import { fmt } from '../scene/serialize.js';

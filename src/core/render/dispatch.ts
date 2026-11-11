@@ -8,10 +8,9 @@ import type { SceneNode } from '../scene/types.js';
 import type { ResolvedTheme } from '../theme/types.js';
 import type { Rect } from '../types.js';
 import { toNumber } from '../validate.js';
-import type { RenderEnv, SubResult } from './common.js';
+import type { RenderEnv, SubResult, RenderContext, RenderOptions, RenderResult } from './types.js';
 import type { Kinds } from '../kinds/types.js';
 import { effectivePage, fitPage, gridPattern, isClear, pageBounds, pageScene } from './page.js';
-import type { RenderContext, RenderOptions, RenderResult } from './types.js';
 
 
 /** What an unsupported (or empty) model renders: an empty 400×200 page (before the page minimum). */

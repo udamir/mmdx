@@ -8,23 +8,19 @@
 // its alias (one is added: `participant A as fa:fa-user A`), drawn above the name; an image is metadata `img` (no
 // Mermaid syntax), and the image tool drops a participant holding it.
 import { activationsOf } from '../../core/ids.js';
-import type { SequenceModel } from '../../core/model.js';
+import type { SequenceModel, BlockKind, SeqBlockStart, SeqMessage, SeqNote } from '../../core/model.js';
 import { addSeqMessage } from '../../core/ops/connect.js';
-import {
-  addBranch, boxParticipants, BRANCH_WORD, branchLabels, deleteSeq, MESSAGE_ARROWS, reattachMessage, relabelBox, relabelBranch, relabelSeq,
-  removeActivation, removeBranch, reverseMessage, setMessageArrow, setNotePlacement, setParticipantType, unboxParticipants,
-} from '../../core/ops/sequence.js';
+import { addBranch, boxParticipants, BRANCH_WORD, branchLabels, deleteSeq, MESSAGE_ARROWS, reattachMessage, relabelBox, relabelBranch, relabelSeq, removeActivation, removeBranch, reverseMessage, setMessageArrow, setNotePlacement, setParticipantType, unboxParticipants, addNote, addParticipant, seqInsertAfter, wrapBlock } from '../../core/ops/sequence.js';
 import { shapeType } from '../../core/parse/sequence.js';
-import { registerExtendedShapes } from '../../core/shapes/extended.js';
+import { registerExtendedShapes } from '../../core/extras.js';
 import type { RefusableResult } from '../../core/ops/types.js';
 import type { ItemRef } from '../../core/types.js';
 import type { SequenceGeometry } from '../../core/render/types.js';
 import type { EditorCore, Sel } from '../core.js';
-import { reparse } from '../../core/kinds/registry.js';
-import type { BlockKind, SeqBlockStart, SeqMessage, SeqNote } from '../../core/model.js';
-import { addNote, addParticipant, seqInsertAfter, wrapBlock } from '../../core/ops/sequence.js';
+import { reparse } from '../../core/parse/dispatch.js';
 import { applyThenStyle, focusLabel, setPreset } from '../modules/shapes/drop.js';
-import { metaMediaSource, NEW_IMAGE } from '../../core/ops/meta-media.js';
+import { NEW_IMAGE } from '../../core/ops/meta-media.js';
+import { metaMediaSource } from '../../core/media/meta-source.js';
 import { metaItemMedia } from './meta-media.js';
 import { blockIcon, noteIcon, shapeIcon } from './palette.js';
 import type { EditKind, ItemAction, PropControl } from './types.js';

@@ -79,7 +79,7 @@ for (const k of ['flowchart', 'sequence', 'er', 'mindmap', 'state']) {
 // 98 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (97.6 kB measured)
 // 98.5 kB (98.1 kB measured) with image and icon states drawn as the flowchart's image nodes (render/media-node.ts, shared)
 // 103.4 kB (103 kB measured) with the codebase audit's fixes (001 Phase 1–3: the metadata key registry, the parsers' step budget and line-indexed lexers, the elements' upgrade and inline-source handling, the History working copy, the hot paths' indexes and caches)
-report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...flow, ...lazy(v, 'src/core/shapes/extended.ts', new Set([...v.base, ...flow]))])), 103.4 * KB);
+report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...flow, ...lazy(v, 'src/core/extras.ts', new Set([...v.base, ...flow]))])), 103.4 * KB);
 // the built-in icon set (T04 §4.7: about 250 Tabler icons with keywords and the Font Awesome look-alikes), a lazy chunk of its own that loads with the first built-in icon; the decoder (body validation and transforms) loads with the first icon of any pack (19.1 and 2.5 kB measured; 20.1 kB in the library build)
 {
   const icons = lazy(v, 'src/icons/builtin.ts', v.base);
@@ -230,7 +230,7 @@ const lazyChunk = (path, name) =>
 const kindChunk = (name) => lazyChunk(`src/core/kinds/${name}.ts`, name);
 const FLOW = kindChunk('flowchart');
 const FLOW_DIFF = kindChunk('flowchart-diff');
-const SHAPES = lazyChunk('src/core/shapes/extended.ts', 'extended');
+const SHAPES = lazyChunk('src/core/extras.ts', 'extended');
 const BUILTIN_ICONS = lazyChunk('src/icons/builtin.ts', 'builtin');
 const HISTORY = ['src/view/modules/history.ts', 'src/diff/history.ts'];
 // budgets: the measurement once History stopped importing the editor's chunk and the diff its kinds and panels (component architecture §10.1), plus about 2 kB; the viewer, editor and diff rows re-measured after the kernel split, the blocks merge and the element lifecycle, and the viewer + History and diff rows again after History in place, plus about 0.5 kB; the viewer and diff rows again with the 0.3 host hooks (the `worker-inline` entry puts the worker client into a chunk of its own), plus about 0.3 kB, and the viewer + History and diff rows once more with the 0.3 fixes and the hooks together, plus about 0.3 kB

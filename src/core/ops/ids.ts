@@ -1,7 +1,7 @@
 // Id helpers for the ops: free ids for new and copied items, the ids a model holds per metadata collection, and
 // existence checks, from the diagram's kind. Positional sequence ids and activation ids live in core/ids.
 import { withOps } from '../kinds/registry.js';
-import type { MetaIds } from '../meta/index.js';
+import type { MetaIds } from '../meta/types.js';
 import type { DiagramModel } from '../model.js';
 import type { ItemRef } from '../types.js';
 

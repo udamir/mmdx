@@ -2,9 +2,10 @@
 // rest of Mermaid 11.17's flowchart shapes, and the figures, state and media shapes of the other kinds. Parsing reads
 // the names alone (core/shapes/registry.ts); drawing, edge clipping, the editor's palette, toolbar and Properties panel
 // and the theme editor read the entries. Importing it registers the geometry of every entry (core/shapes/extended.ts),
-// so the viewer, which loads that geometry on demand, does not import it.
+// so the viewer, which loads that geometry on demand, does not import it; the media kit comes with core/extras.ts.
 import { BASE } from './base.js';
-import { EXTENDED, registerExtendedShapes } from './extended.js';
+import { EXTENDED } from './extended.js';
+import { registerShapes } from './registry.js';
 import type { ShapeCategory, ShapeDef } from './types.js';
 
 export type { ShapeCategory, ShapeDef, ShapeId, Size } from './types.js';
@@ -15,7 +16,7 @@ export const SHAPES: readonly ShapeDef[] = [...BASE, ...EXTENDED];
 /** The categories a flowchart offers in its shape pickers, in order. */
 export const PICKER_CATEGORIES: readonly ShapeCategory[] = ['basic', 'process', 'technical', 'annotation'];
 
-registerExtendedShapes();
+registerShapes(EXTENDED);
 
 export { byShapeId, knownShape, resolveShape, shapeById, shapeDef, shapeIdOf } from './registry.js';
 

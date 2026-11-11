@@ -8,7 +8,7 @@
 import type { SeqBlockStart, SeqMessage, SeqNote, SequenceModel } from '../../../core/model.js';
 import { remapSequenceMeta } from '../../../core/ops/remap.js';
 import { addActivation, addSeqMessageAt, moveActivationEdge, reattachMessage, resizeBlockStep, setNoteSpan, toggleActivation } from '../../../core/ops/sequence.js';
-import { reparse as parse } from '../../../core/kinds/registry.js';
+import { reparse as parse } from '../../../core/parse/dispatch.js';
 import type { SequenceGeometry } from '../../../core/render/types.js';
 import { el, g, text } from '../../../core/scene/build.js';
 import type { SceneNode } from '../../../core/scene/types.js';

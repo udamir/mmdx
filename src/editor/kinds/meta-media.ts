@@ -1,7 +1,7 @@
 // What the editor shows of an image or icon item kept in metadata (core/ops/meta-media.ts: state diagrams, mindmaps,
 // sequence participants): the edit kinds' `media` hook, so the toolbar's Change image, its settings and Properties
 // work on it as on a flowchart image node.
-import type { MediaSource } from '../../core/render/media-node.js';
+import type { MediaSource } from '../../core/render/types.js';
 import type { ItemMedia } from './types.js';
 
 /**

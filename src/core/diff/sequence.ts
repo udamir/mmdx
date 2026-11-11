@@ -4,7 +4,8 @@ import type { DiagramMeta } from '../meta/types.js';
 import type { Participant, SeqBlockStart, SeqItem, SeqMessage, SeqNote, SequenceModel } from '../model.js';
 import { field, metaFields, finish, added, removed, changedPresets, align } from './kit.js';
 import type { FieldChange, ItemChange } from './types.js';
-import { carryMeta, changedField, REMOVED, type MergeEnv } from './merge.js';
+import { carryMeta, changedField, REMOVED } from './merge.js';
+import { type MergeEnv } from './types.js';
 import { mergeText } from './text.js';
 
 // ---- diff ---------------------------------------------------------------------------------------------------

@@ -7,7 +7,7 @@ import type { StyleProps } from '../style.js';
 import type { CenterBox, Point, Rect } from '../types.js';
 import { Pen } from './pen.js';
 import type { ShapeBody } from './types.js';
-import { dashAttrs } from '../render/dash.js';
+import { dashAttrs } from './dash.js';
 
 export const P = (x: number, y: number): string => `${fmt(x)},${fmt(y)}`;
 

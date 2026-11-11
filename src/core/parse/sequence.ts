@@ -24,7 +24,8 @@ import { cleanLabel } from './label.js';
 import { readAccDescrBlock } from './acc-descr.js';
 import { frontmatterAt, frontmatterValues } from './frontmatter.js';
 import { guardParse, ItemBudget, stripControl } from './limits.js';
-import { readNodeData, type NodeDataBlock } from './node-data.js';
+import { readNodeData } from './node-data.js';
+import { type NodeDataBlock } from '../model.js';
 
 // ---- arrows ---------------------------------------------------------------------------------------------------
 

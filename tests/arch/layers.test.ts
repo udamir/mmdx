@@ -3,7 +3,7 @@
 // fails, and so does a fixed one until its line is removed from the baseline in the same change.
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { compareBaseline, edgeViolation, layerViolations, moduleViolations, readBaseline } from '../../tools/check-layers.mjs';
+import { compareBaseline, coreLayerOf, edgeViolation, importCycles, layerViolations, moduleViolations, readBaseline } from '../../tools/check-layers.mjs';
 
 const ROOT = join(__dirname, '../..');
 const BASE = join(__dirname, 'baseline');
@@ -21,6 +21,21 @@ describe('layers', () => {
     expect(edgeViolation({ from: 'editor/kinds/er.ts', to: 'editor/modules/shapes/drop.ts', kind: 'value' })).toBe('editor kinds → editor module');
     expect(edgeViolation({ from: 'diff/history.ts', to: 'editor/core.ts', kind: 'type' })).toMatch(/^product → product/);
     expect(edgeViolation({ from: 'view/core.ts', to: 'core/types.ts', kind: 'value' })).toBeNull();
+    // core's sub-layers: C0 base … C9 assembly, a stage's types.ts is C0
+    expect(edgeViolation({ from: 'core/kinds/types.ts', to: 'core/render/common.ts', kind: 'type' })).toBe('upward core C1 → C5');
+    expect(edgeViolation({ from: 'core/kinds/types.ts', to: 'core/render/types.ts', kind: 'type' })).toBeNull();
+    expect(edgeViolation({ from: 'core/render/flowchart.ts', to: 'core/parse/dispatch.ts', kind: 'value' })).toBeNull();
+    expect([coreLayerOf('types.ts'), coreLayerOf('kinds/registry.ts'), coreLayerOf('meta/keys.ts'), coreLayerOf('parse/er.ts'), coreLayerOf('layout/tree.ts')]).toEqual([0, 1, 2, 3, 4]);
+    expect([coreLayerOf('render/er.ts'), coreLayerOf('ops/er.ts'), coreLayerOf('diff/er.ts'), coreLayerOf('kinds/er-ops.ts'), coreLayerOf('kinds/all.ts')]).toEqual([5, 6, 7, 8, 9]);
+  });
+});
+
+describe('cycles', () => {
+  it('no import cycle beyond the baseline (core has none)', () => {
+    const r = compareBaseline(importCycles(ROOT), readBaseline(join(BASE, 'cycles.txt')));
+    expect(r.added, 'new import cycles').toEqual([]);
+    expect(r.fixed, 'fixed — remove these lines from tests/arch/baseline/cycles.txt').toEqual([]);
+    expect(importCycles(ROOT).filter((c) => c.startsWith('core/'))).toEqual([]);
   });
 });
 

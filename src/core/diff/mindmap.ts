@@ -8,7 +8,8 @@ import type { MindmapModel, MindNode } from '../model.js';
 import { assignDepths, mindKeys } from '../parse/mindmap.js';
 import { field, metaFields, finish, added, removed, changedPresets } from './kit.js';
 import type { FieldChange, ItemChange } from './types.js';
-import { carryMeta, REMOVED, type MergeEnv } from './merge.js';
+import { carryMeta, REMOVED } from './merge.js';
+import { type MergeEnv } from './types.js';
 import { mergeText } from './text.js';
 
 const one = (s: string): string => s.replace(/\s*\n\s*/g, ' ').trim();

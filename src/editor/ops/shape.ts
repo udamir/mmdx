@@ -5,7 +5,7 @@
 // `flow.meta-shape` fix — never on a plain save.
 import type { DiagramMeta } from '../../core/meta/types.js';
 import type { DiagramModel } from '../../core/model.js';
-import { reparse } from '../../core/kinds/registry.js';
+import { reparse } from '../../core/parse/dispatch.js';
 import { cloneMeta, ensure, getM, tidy } from '../../core/ops/meta-util.js';
 import { currentPreset, presetsFor } from '../../core/ops/style-env.js';
 import { shapeIdOf } from '../../core/shapes/registry.js';

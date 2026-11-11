@@ -1,7 +1,7 @@
 // Dash patterns at a line's width: the editor's dotted and dashed patterns scale with the stroke (a thick dotted
 // border is round dots, not ticks across the line); other dasharrays are drawn as written.
 import { describe, expect, it } from 'vitest';
-import { DASHED, DOTTED, dashAttrs } from '../../../src/core/render/dash.js';
+import { DASHED, DOTTED, dashAttrs } from '../../../src/core/shapes/dash.js';
 import { shapeDef } from '../../../src/core/shapes/catalog.js';
 
 describe('dashAttrs', () => {

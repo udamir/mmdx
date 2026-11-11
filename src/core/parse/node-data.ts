@@ -3,27 +3,7 @@
 // the code — unknown keys included — so an edit rewrites only the values it changes, keeping quotes, spacing and order.
 // As in Mermaid, only double quotes protect a `}` or `,`; entries are separated by commas or newlines (multi-line blocks).
 
-export type DataValue = string | number | boolean | null;
-
-export interface DataEntry {
-  key: string;
-  value: DataValue;
-  /** Offsets in the code: the key's start, the value as written (quotes included; empty at `end` for `key:`), the entry's end. */
-  at: number;
-  valueAt: number;
-  valueEnd: number;
-  /** A key written without `:` (YAML reads it as null): a value written for it needs one. */
-  bare?: true;
-}
-
-export interface NodeDataBlock {
-  /** Offsets in the code of `{` and after the closing `}`. */
-  open: number;
-  end: number;
-  entries: DataEntry[];
-  /** Written over several lines (new entries go on lines of their own). */
-  multiline: boolean;
-}
+import type { DataEntry, DataValue, NodeDataBlock } from '../model.js';
 
 const NUMBER = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][-+]?\d+)?$/;
 const SPACE = /[ \t\r]/;

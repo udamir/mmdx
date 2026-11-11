@@ -14,7 +14,8 @@ export { titleToFrontmatter } from './frontmatter.js';
 import { cleanLabel, encodeLabel, isMarkdownString, markdownText } from './label.js';
 import { readAccDescrBlock } from './acc-descr.js';
 import { checkStatement, guardParse, ItemBudget, stripControl } from './limits.js';
-import { applySplices, openBlock, readNodeData, type NodeDataBlock, type Splice } from './node-data.js';
+import { applySplices, openBlock, readNodeData, type Splice } from './node-data.js';
+import { type NodeDataBlock } from '../model.js';
 import { parseStyleList } from './style.js';
 
 // every Mermaid shape name, without the geometry of the shapes beyond the 17 (which loads when one is drawn, T02.9)

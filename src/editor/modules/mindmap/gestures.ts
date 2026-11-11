@@ -9,7 +9,7 @@
 // shortcuts the module registered when it was installed, so they keep their place before the canvas's own.
 import type { DiagramMeta } from '../../../core/meta/types.js';
 import type { MindmapModel } from '../../../core/model.js';
-import { reparse } from '../../../core/kinds/registry.js';
+import { reparse } from '../../../core/parse/dispatch.js';
 import { cloneMeta, ensure, tidy } from '../../../core/ops/meta-util.js';
 import {
   addMindChild, addMindSibling, blockText, cloneMind, indentMind, liftMind, mindNodeAt, moveMind, outdentMind, pasteMindLines, pasteMindText, remapMindMeta,

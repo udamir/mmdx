@@ -7,7 +7,8 @@ import type { DiagramMeta } from '../meta/types.js';
 import type { StateEdge, StateGroup, StateModel, StateNode, StateNote } from '../model.js';
 import { field, metaFields, mermaidStyleOf, finish, added, removed, changedPresets, align, renames } from './kit.js';
 import type { FieldChange, ItemChange } from './types.js';
-import { carryMeta, changedField, REMOVED, type MergeEnv } from './merge.js';
+import { carryMeta, changedField, REMOVED } from './merge.js';
+import { type MergeEnv } from './types.js';
 import { mergeText } from './text.js';
 import { maxOf } from '../geom.js';
 

@@ -6,7 +6,7 @@ import type { HistoryAdapter, StaticVersion } from '../../src/adapters/history.j
 import { createContext } from '../../src/core/context.js';
 import { changeKey } from '../../src/core/diff/merge.js';
 import type { FlowGeometry } from '../../src/core/render/types.js';
-import { registerExtendedShapes } from '../../src/core/shapes/extended.js';
+import { registerExtendedShapes } from '../../src/core/extras.js';
 import { forgetShapes, shapeById } from '../../src/core/shapes/registry.js';
 import { DiffSession, type DiffSessionOptions } from '../../src/diff/session.js';
 

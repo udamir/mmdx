@@ -1,6 +1,6 @@
 // Derivation pipeline (§6.4): source → split → parse → theme → render, for a given set of diagram kinds (parsers +
 // renderers). pipeline.ts binds it to every kind; the viewer binds it to the kind it loaded (§R5).
-import type { CoreContext } from './context.js';
+import type { CoreContext } from './context-base.js';
 import { hiddenByLayers } from './layers.js';
 import { splitSource, type DiagramDocument } from './meta/index.js';
 import type { DiagramModel } from './model.js';

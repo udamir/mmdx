@@ -3,7 +3,8 @@
 // (`portDrag` → `reconnect`), bend points (`bendHandles`, `bendDrag`, `removeBendPoint`, `hoverBend`).
 // Ported from prototype/app.js ~425–970 and `hoverConnect`.
 import { KIND_TO_COLL, type ItemMeta } from '../../../core/meta/types.js';
-import { opsKind, reparse } from '../../../core/kinds/registry.js';
+import { opsKind } from '../../../core/kinds/registry.js';
+import { reparse } from '../../../core/parse/dispatch.js';
 import { cloneMeta, ensure as ensureIn } from '../../../core/ops/meta-util.js';
 import { outerBox } from '../../../core/render/common.js';
 import type { EdgeGeom } from '../../../core/render/types.js';

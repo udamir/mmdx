@@ -4,7 +4,6 @@
 // every component on the page — no instance state (that comes in through the CoreContext).
 import type { DiagramModel, SupportedModel } from '../model.js';
 import type { DiagramType } from '../types.js';
-import { parseWith } from '../parse/dispatch.js';
 import type { DiffKind, DiffKinds } from './diff-types.js';
 import type { OpsKind, OpsKinds } from './ops-types.js';
 import type { Kinds, ViewKind } from './types.js';
@@ -38,8 +37,6 @@ export function withKind<R>(model: DiagramModel, f: (kind: ViewKind, model: Supp
   return k ? f(k, model) : undefined;
 }
 
-/** A model of the code, parsed with the kinds registered so far (the ops re-parse their results with it). */
-export const reparse = (code: string): DiagramModel => parseWith(code, registered);
 
 // ---- ops kinds (the editor) ----
 

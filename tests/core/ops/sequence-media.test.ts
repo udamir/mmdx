@@ -6,7 +6,7 @@
 // parser reads the type back as the participant's shape.
 import { describe, expect, it } from 'vitest';
 import { addParticipant, relabelSeq, setParticipantType } from '../../../src/core/ops/index.js';
-import { withIconToken } from '../../../src/core/ops/icon-token.js';
+import { withIconToken } from '../../../src/core/icons/icon-token.js';
 import { PARTICIPANT_TYPES, typeShape, type ParticipantType } from '../../../src/core/parse/sequence.js';
 import { stockParse } from '../../helpers/mermaid.js';
 import { EXAMPLES, seq } from './helpers.js';

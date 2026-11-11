@@ -1,10 +1,31 @@
 // Parsed diagram models (§5.2). The shapes follow the prototype parsers so the ported ops keep working: they rely on
 // the 0-based source line fields (`lines`, `defLine`, `src`, `line` / `endLine`). Statements split by `;` share a line.
 import type { Diagnostic, DiagramType } from './types.js';
-import type { NodeDataBlock } from './parse/node-data.js';
 import type { ShapeId } from './shapes/types.js';
 
-export type { DataEntry, DataValue, NodeDataBlock } from './parse/node-data.js';
+// Mermaid node data (`A@{ shape: doc }`, read by parse/node-data.ts)
+export type DataValue = string | number | boolean | null;
+
+export interface DataEntry {
+  key: string;
+  value: DataValue;
+  /** Offsets in the code: the key's start, the value as written (quotes included; empty at `end` for `key:`), the entry's end. */
+  at: number;
+  valueAt: number;
+  valueEnd: number;
+  /** A key written without `:` (YAML reads it as null): a value written for it needs one. */
+  bare?: true;
+}
+
+export interface NodeDataBlock {
+  /** Offsets in the code of `{` and after the closing `}`. */
+  open: number;
+  end: number;
+  entries: DataEntry[];
+  /** Written over several lines (new entries go on lines of their own). */
+  multiline: boolean;
+}
+
 
 /** Style parsed from Mermaid `style` / `classDef` / `linkStyle` (already validated, see core/validate). */
 export interface MermaidStyle {

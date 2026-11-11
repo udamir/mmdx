@@ -2,9 +2,7 @@
 // nothing outside the type's own files branches on `model.type`. A view kind is what drawing a diagram needs (the
 // viewer, the diff, SSR); the editor adds an ops kind (core/kinds/ops-types.ts) and an edit kind (editor/kinds).
 import type { SupportedModel } from '../model.js';
-import type { RenderEnv, SubResult } from '../render/common.js';
-import type { BoxGeom } from '../render/types.js';
-import type { Summary } from '../summary.js';
+import type { RenderEnv, SubResult, BoxGeom } from '../render/types.js';
 import type { StyleProps } from '../style.js';
 import type { DiagramType, ItemKind, ItemRef } from '../types.js';
 
@@ -50,3 +48,15 @@ export interface ViewKind<M extends SupportedModel = SupportedModel> {
 
 /** The diagram types a pipeline can handle (the viewer: the ones it loaded; core: all of them). */
 export type Kinds = Partial<Record<DiagramType, ViewKind>>;
+
+/** A diagram's generated accessible name: a message key and its counts (§13). */
+export interface Summary {
+  key: `label.${DiagramType}` | 'label.empty' | 'label.unsupported';
+  params: Record<string, number>;
+}
+
+/** One line of a diagram's text outline (core's `outline()`), with the lines under it. */
+export interface OutlineItem {
+  text: string;
+  children?: OutlineItem[];
+}

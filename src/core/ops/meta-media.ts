@@ -5,7 +5,6 @@
 // Properties write them, as the flowchart writes its node data (core/ops/flow-media.ts): a picture and an icon replace
 // each other, and removing one makes the item plain again.
 import { MEDIA_KEYS } from '../meta/keys.js';
-import type { MediaSource } from '../render/media-node.js';
 import type { MediaPatch } from './flow-media.js';
 
 type Meta = Record<string, unknown>;
@@ -18,21 +17,6 @@ const ICON_NODE_H = 60, IMAGE_NODE_SIZE = 200;
 
 /** A new picture's keys: Mermaid Chart's default size, the caption below, the aspect kept (the flowchart's image node). */
 export const NEW_IMAGE = { h: IMAGE_NODE_SIZE, w: IMAGE_NODE_SIZE, pos: 'b', constraint: 'on' } as const;
-
-const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
-const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined);
-
-/** An item's picture (`img`, `""`: not chosen yet) or icon and its layout keys; null: a plain item. */
-export function metaMediaSource(m: Meta): MediaSource | null {
-  const img = typeof m['img'] === 'string' ? m['img'] : undefined, icon = str(m['icon']);
-  if (img === undefined && !icon) return null;
-  return {
-    ...(img !== undefined ? { img } : { icon }),
-    form: str(m['form']), pos: str(m['pos']), constraint: str(m['constraint']), fit: str(m['imgFit']),
-    w: num(m['w']) ?? (img !== undefined ? num(m['imgW']) : undefined),
-    h: num(m['h']) ?? (img !== undefined ? num(m['imgH']) : undefined),
-  };
-}
 
 const clear = (m: Meta): void => {
   for (const k of MEDIA_KEYS) delete m[k];

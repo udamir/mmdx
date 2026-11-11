@@ -1,26 +1,28 @@
 // The flowchart edit kind.
 import type { FlowchartModel } from '../../core/model.js';
 import { addFlowEdge, edgeText, nodeDef, reconnectFlow } from '../../core/ops/connect.js';
-import { deleteFlow, groupFlow, relabelFlowEdge, relabelFlowNode, relabelGroup, setFlowShape, ungroupFlow } from '../../core/ops/flowchart.js';
+import { deleteFlow, groupFlow, relabelFlowEdge, relabelFlowNode, relabelGroup, setFlowShape, ungroupFlow, addFlowNode } from '../../core/ops/flowchart.js';
 import type { FlowGeometry } from '../../core/render/types.js';
-import type { Sel } from '../core.js';
+import type { Sel, EditorCore } from '../core.js';
 import { cloneMeta, ensure as ensureIn } from '../../core/ops/meta-util.js';
-import { addFlowNode } from '../../core/ops/flowchart.js';
 import { fixIdClash } from '../../core/ops/meta-ops.js';
 import { flowPresets } from '../../core/render/flow-presets.js';
-import type { Point } from '../../core/types.js';
-import type { EditorCore } from '../core.js';
+import type { Point, ItemRef } from '../../core/types.js';
 import { focusLabel } from '../modules/shapes/drop.js';
 import { applyDoc } from '../ops/doc.js';
 import { metaOnlyShapes, shapeDoc } from '../ops/shape.js';
 import { shapeIcon, type PaletteItem } from './palette.js';
+import { registerExtendedShapes } from '../../core/extras.js';
 import { shapeById, type ShapeDef } from '../../core/shapes/catalog.js';
 import { SHAPE_MENU } from '../../core/shapes/menu.js';
 import { addFlowMediaNode, flowMedia, IMAGE_NODE_SIZE, setFlowIconNode, setFlowImage, setFlowMedia, type IsIconToken } from '../../core/ops/flow-media.js';
 import type { SelectResult } from '../../core/ops/types.js';
 import { flowEdgeAnimation, setFlowEdgeAnimation } from '../../core/ops/flow-edge.js';
-import type { ItemRef } from '../../core/types.js';
 import type { EditKind } from './types.js';
+
+// the editor draws every catalogue shape, icons and rich labels at once: this chunk registers the geometry and the
+// media kit statically
+registerExtendedShapes();
 
 const one = (s: string): string => s.replace(/\n/g, ' ');
 

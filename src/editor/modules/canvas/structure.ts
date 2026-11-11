@@ -6,7 +6,8 @@
 import { POSITIONAL_KINDS } from '../../../core/ids.js';
 import { KIND_TO_COLL } from '../../../core/meta/types.js';
 import type { DiagramModel } from '../../../core/model.js';
-import { reparse, withKind } from '../../../core/kinds/registry.js';
+import { withKind } from '../../../core/kinds/registry.js';
+import { reparse } from '../../../core/parse/dispatch.js';
 import {
   alignItems, cloneMeta, copyItems, duplicateItems, groupHasPositions, lockedItems, moveOrder, pasteable, pasteItems, remapMeta, unlockAll as unlockAllOp, type AlignOp,
 } from '../../../core/ops/index.js';

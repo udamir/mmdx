@@ -4,13 +4,14 @@
 // point, else the root) as its last child. The outline gestures (Tab, Enter, drag to re-parent…) are the mindmap
 // module's (editor/modules/mindmap).
 import type { MindmapModel, MindShape } from '../../core/model.js';
-import { reparse } from '../../core/kinds/registry.js';
+import { reparse } from '../../core/parse/dispatch.js';
 import { addMindChild, addMindRoot, deleteMind, mindFragment, mindNodeAt, MIND_NEW, relabelMind, remapMindMeta, setMindColorBy, setMindShape } from '../../core/ops/mindmap.js';
-import { metaMediaSource, NEW_IMAGE } from '../../core/ops/meta-media.js';
+import { NEW_IMAGE } from '../../core/ops/meta-media.js';
+import { metaMediaSource } from '../../core/media/meta-source.js';
 import { metaItemMedia } from './meta-media.js';
 import { cloneMeta, ensure as ensureIn } from '../../core/ops/meta-util.js';
 import { MIND_SHAPES } from '../../core/parse/mindmap.js';
-import { registerExtendedShapes } from '../../core/shapes/extended.js';
+import { registerExtendedShapes } from '../../core/extras.js';
 import type { MindmapGeometry } from '../../core/render/types.js';
 import type { Point } from '../../core/types.js';
 import type { EditorCore, Sel } from '../core.js';

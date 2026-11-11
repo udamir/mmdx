@@ -4,7 +4,8 @@
 // each shape's outline, and previews and lists come from the one table.
 import { beforeAll, describe, expect, it } from 'vitest';
 import { byShapeId, menuShapes, pickerShapes, resolveShape, shapeDef, SHAPES, shapesIn } from '../../../src/core/shapes/catalog.js';
-import { EXTENDED, registerExtendedShapes } from '../../../src/core/shapes/extended.js';
+import { EXTENDED } from '../../../src/core/shapes/extended.js';
+import { registerExtendedShapes } from '../../../src/core/extras.js';
 import { shapeMisses } from '../../../src/core/shapes/misses.js';
 import { EXTENDED_NAMES } from '../../../src/core/shapes/names.js';
 import { onOutline, outlinePoints } from '../../../src/core/shapes/outline.js';

@@ -1,7 +1,7 @@
 // Icons and images of the selection (T05, no UI): what the selected items show and the writes the icon picker, the
 // image tool, the selection toolbar and Properties make, through the edit kind's `media`, `setIcon`, `setImage` and
 // `setMedia`. Several items change in one history step (each write sees the code the one before left).
-import { reparse } from '../../core/kinds/registry.js';
+import { reparse } from '../../core/parse/dispatch.js';
 import type { CodeResult } from '../../core/ops/types.js';
 import type { ItemRef } from '../../core/types.js';
 import type { SupportedModel } from '../../core/model.js';

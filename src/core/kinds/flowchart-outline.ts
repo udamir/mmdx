@@ -1,6 +1,6 @@
 // The text outline of a flowchart (the core's `outline`: for screen readers and copying).
 import type { FlowchartModel } from '../model.js';
-import type { OutlineItem } from '../outline.js';
+import type { OutlineItem } from './types.js';
 
 const one = (s: string): string => s.replace(/\s*\n\s*/g, ' ').trim();
 

@@ -11,10 +11,11 @@ import {
   relabelState, relabelTransition, scopeOf, setCompositeDirection, setDescriptions, setNoteSide, setStateKind, stateFragment, ungroupState, type StateScope,
 } from '../../core/ops/state.js';
 import { cloneMeta, ensure as ensureIn } from '../../core/ops/meta-util.js';
-import { metaMediaSource, NEW_IMAGE } from '../../core/ops/meta-media.js';
+import { NEW_IMAGE } from '../../core/ops/meta-media.js';
+import { metaMediaSource } from '../../core/media/meta-source.js';
 import { metaItemMedia } from './meta-media.js';
 import type { StateGeometry } from '../../core/render/types.js';
-import { registerExtendedShapes } from '../../core/shapes/extended.js';
+import { registerExtendedShapes } from '../../core/extras.js';
 import type { ItemRef, Point } from '../../core/types.js';
 import type { DiagramMeta } from '../../core/meta/types.js';
 import { OPS as STATE_OPS } from '../../core/kinds/state-ops.js';

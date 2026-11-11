@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { forgetKinds } from '../../src/core/kinds/registry.js';
-import { registerExtendedShapes } from '../../src/core/shapes/extended.js';
+import { registerExtendedShapes } from '../../src/core/extras.js';
 import { forgetMediaKit } from '../../src/core/media/kit.js';
 import { forgetShapes, shapeById } from '../../src/core/shapes/registry.js';
 import { readFileSync } from 'node:fs';
