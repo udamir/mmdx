@@ -42,8 +42,9 @@ Blocks (`src/ui/blocks`) are the UI pieces the products share: tool dock, zoom b
 
 `ViewCore` (`src/view/core.ts`) is the kernel every diagram component is built on. It holds:
 
-- **services**: the core context, i18n, storage, popovers, toasts, events and the keymap;
-- **state** (signals): the mode (`edit` or `view`), the stage (`document`, `version` or `history`), the chrome scheme, the theme (component state: the host attribute, the user's pick, or the default following light / dark), display settings, open panels, the tool, compact;
+- **the component shell** (`src/view/component-shell.ts`), which the theme editor and the studio use too: the shadow root, the core context, i18n, storage (replaceable at run time), popovers, dialogs, the chrome scheme remembered per product, and the component's DOM events;
+- **services**: toasts and the keymap (`src/view/keymap.ts`);
+- **state** (read-only signals): the mode (`edit` or `view`), the stage (`document`, `version` or `history`), the chrome scheme, the theme (component state: the host attribute, the user's pick, or the default following light / dark), display settings, open panels, the tool, compact, the layers shown, the host's history and full screen. Only the kernel writes them, through its methods — `setMode`, `setStage`, `setDisplay`, `setPanel`, `setTool`, `setVisibleLayers`, `setHostOptions` — and a module through its scope (below);
 - **the shell** (`src/view/shell.ts`): the shadow root's root element, the canvas area, and named slots that modules fill — `top-left`, `top-center`, `top-right`, `left-stack`, `left-dock`, `right-stack`, `bottom-center`, `bottom-right`, `canvas`, `overlay`;
 - **the scene stack** (`src/view/scene.ts`): what the main canvas shows;
 - **the module host** (`src/view/host.ts`): installs, suspends, resumes and uninstalls modules.
@@ -55,16 +56,17 @@ Features are modules (`ViewModule`). A module installs its slot DOM, listeners, 
 ```ts
 interface ViewModule<C> {
   id: string;
+  replaces?: readonly string[];           // modules of these ids are out while this one is offered
   after?: readonly string[];              // install after these modules
   when?: ModuleWhen;                      // active only in these modes / stages; otherwise suspended
-  enabled?(core: C): boolean;             // re-evaluated when features, controls or options change
-  install(scope: ModuleScope<C>): void | (() => void);
+  enabled?: (core: C) => boolean;         // re-evaluated when features, controls or options change
+  install: (scope: ModuleScope<C>) => void | (() => void);
   load?(): Promise<{ css?: readonly string[]; activate(scope: ModuleScope<C>): void | (() => void) }>;
-  css?: readonly string[];                // adopted while the module is installed
+  css?: readonly string[];                // adopted while the module is installed, given back on uninstall
 }
 ```
 
-Modules never reach into one another; they talk through the kernel's typed events and actions. A module's eager part is small (a button, a shortcut); its lazy part loads on first use. That is how a viewer page ships only the zoom bar, and every other piece of the chrome loads when its control is on.
+Modules never reach into one another; they talk through the kernel's typed events and actions — the events every product fires (`ViewEvents`), plus a product's own (the editor's `EditorEvents`: mode, tool, model, selection, overlay); `tests/arch` checks that each one is fired and heard, and that each action is provided and asked for. Through its scope a module adds to the kernel's lists (`contribute`, `contributeAll`), fills a one-value slot such as the dock's flyout (`claim`), and provides actions — `provideDefault` for one that answers only when no other module does. An id offered twice is reported; an added set takes another module's place only by saying so (`replaces`). A module's eager part is small (a button, a shortcut); its lazy part loads on first use. That is how a viewer page ships only the zoom bar, and every other piece of the chrome loads when its control is on.
 
 | Product | Modules |
 |---|---|
@@ -91,9 +93,10 @@ History pushes a `DiffScene` over the document's scene and pops it on Back; the 
 - **The viewer** is the kernel with a `TextScene` and `VIEWER_MODULES`.
 - **The editor**'s `EditorCore` extends the kernel with a document store (`DocStore`: source snapshots, the derived model, undo history with transactions), a `StoreScene`, gestures and overlay painters.
 - **`<mmdx-diff>`** is the kernel with a `DiffScene` over a `DiffSession` (the version source, the pair, filters, the rendered diff, the selection and the view).
-- **History** runs inside the viewer and the editor: its version panel joins their panels; an old version is the editor's `version` stage (its own scene draws the version read-only, nothing writes the store); a comparison is the `history` stage, a `DiffScene` pushed onto their own canvas in their own look. Its code loads on first use.
+- **History** runs inside the viewer and the editor: its version panel joins their panels; an old version is the editor's `version` stage (its own scene draws the version read-only, nothing writes the store); a comparison is the `history` stage, a `DiffScene` pushed onto their own canvas in their own look. What a product offers it — its own version scene, Restore, an item clipboard — is the `HistoryHost` port (`src/view/history.ts`), which the editor sets; the viewer has none and History brings its own scene. Its code loads on first use.
+- **The theme editor and the studio** are built on the component shell, without a scene kernel: the theme editor draws its previews itself, the studio hosts an editor.
 
-The custom elements (`src/elements`, and `src/editor/editor.ts` for the editor) are thin wrappers around the classes: one shared lifecycle keeps the component across DOM moves, maps attributes to options, and keeps properties set before connecting.
+The custom elements (`src/elements`) are thin wrappers around the classes: one shared lifecycle keeps the component across DOM moves, maps attributes to options from each element's `schema` (the observed attributes follow from it), applies the options every kernel shares in one place, and keeps properties set before connecting. Each element's DOM events are typed (`ViewerEventMap`, `EditorEventMap`, `DiffEventMap`, `ThemeEditorEventMap`; History's in `HistoryEventMap`).
 
 ## Diagram kinds
 
