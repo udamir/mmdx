@@ -252,7 +252,7 @@ export const canvasStructureModule: EditorModule = {
       core.provide('arrange', arrange),
     ]) scope.onDispose(off);
     // ⌘[ / ⌘]: the order slider's module may provide its own; this one is the fallback.
-    if (!core.has('moveSelection')) scope.onDispose(core.provide('moveSelection', moveSelection));
+    scope.onDispose(core.provideDefault('moveSelection', moveSelection));
 
     core.shortcuts.add(
       { id: 'copy', keys: ['mod+c'], label: 'Copy', group: 'Edit', editOnly: true, readOnly: true, run: () => (core.selection().length ? copySelection() : false) },

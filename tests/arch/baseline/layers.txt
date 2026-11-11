@@ -23,4 +23,3 @@ editor/modules/panels/props-er.ts → editor/modules/er-table/look.ts [value] (m
 editor/modules/sequence/index.ts → editor/modules/canvas/shared.ts [value] (module → module sequence → canvas)
 editor/modules/sequence/index.ts → editor/modules/connect/geometry.ts [value] (module → module sequence → connect)
 editor/modules/shapes/drag.ts → editor/modules/connect/geometry.ts [value] (module → module shapes → connect)
-view/history.ts → diff/session.ts [type] (upward view → diff)

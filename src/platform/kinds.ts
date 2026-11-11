@@ -1,7 +1,7 @@
 // Diagram kinds loaded on demand (§R5, A4): a page of flowcharts never downloads the sequence and ER code. One manifest
 // (KIND_MODULES) says where each type's view and diff kinds are; every loader — the viewer's, the diff's and History's,
-// the editor's chunks (editor/kinds/loader.ts) — shares one in-flight load per chunk (`loadOnce`). The kernel's scenes
-// get kinds through a `KindsProvider` (component architecture §7.1). A loaded kind is registered for the generic
+// the editor's chunks (editor/kinds/loader.ts) — shares one in-flight load per chunk (`loadOnce`). A loaded kind is
+// registered for the generic
 // helpers (core/kinds/registry.ts). The geometry of the shapes beyond the 17 loads the same way, the first time a
 // render draws one of them (T02.9).
 import { diffKind, registerDiffs, registerKinds, registeredKinds, viewKind } from '../core/kinds/registry.js';
@@ -50,17 +50,6 @@ export const loadKind = (t: DiagramType): Promise<void> =>
 export const loadDiffKind = (t: DiagramType): Promise<void> =>
   loadOnce(`diff:${t}`, () => !!diffKind(t), () => KIND_MODULES[t].diff().then(({ DIFF }) => void registerDiffs({ [t]: DIFF })));
 
-/** Where a scene gets the parsers and renderers of diagram kinds from. */
-export interface KindsProvider {
-  /** The kinds available now. */
-  kinds(): Kinds;
-  has(t: DiagramType): boolean;
-  /** Makes a kind available (resolves at once when it already is). */
-  load(t: DiagramType): Promise<void>;
-}
-
-/** Kinds loaded on first use, shared by every component on the page. */
-export const lazyKinds: KindsProvider = { kinds: loadedKinds, has: hasKind, load: loadKind };
 
 // ---- shapes ----
 

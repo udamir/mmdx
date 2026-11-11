@@ -9,7 +9,8 @@ import { untracked, type ReadSignal } from '../../reactive/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import type { ViewModule } from '../../view/module.js';
 import type { ExportFormat } from '../../view/types.js';
-import type { DiffExportKind, DiffExportOptions, DiffPair, DiffSession } from '../session.js';
+import type { DiffSession } from '../session.js';
+import type { DiffExportKind, DiffExportOptions, DiffPair } from '../../view/history.js';
 
 /** A button the host adds to the diff. */
 export interface DiffAction {

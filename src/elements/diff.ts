@@ -25,7 +25,8 @@ import { DIFF_CSS, DIFF_HOST_CSS, DIFF_TOKENS } from '../diff/styles.js';
 import { ViewCore } from '../view/core.js';
 import { diffModules, type DiffAction } from '../diff/modules/index.js';
 import { DiffScene } from '../diff/scene.js';
-import { DIFF_FILTERS, DIFF_VIEWS, DiffSession, type DiffExportKind, type DiffExportOptions, type DiffFilter, type DiffMode, type DiffPair, type DiffSource, type DiffViewName } from '../diff/session.js';
+import { DIFF_FILTERS, DIFF_VIEWS, DiffSession, type DiffMode, type DiffSource } from '../diff/session.js';
+import { type DiffExportKind, type DiffExportOptions, type DiffFilter, type DiffPair, type DiffViewName } from '../view/history.js';
 
 export { DIFF_FILTERS, DIFF_VIEWS };
 export type { DiffAction, DiffExportKind, DiffExportOptions, DiffFilter, DiffMode, DiffPair, DiffViewName };

@@ -8,11 +8,12 @@
 // rendering and export half of elements/diff.ts.
 // Every load starts a generation: a list, a page, a source, a render or a change count that arrives for an older one is dropped.
 import { contentId, staticHistory, type StaticVersion } from '../adapters/history.js';
+import type { DiffExportKind, DiffExportOptions, DiffFilter, DiffPair, DiffViewName } from '../view/history.js';
 import { type HistoryAdapter } from '../ports.js';
 import { getShared } from '../platform/config.js';
 import type { CoreContext } from '../core/context.js';
 import type { DiffView } from '../core/diff/annotate.js';
-import { diffDiagramsWith, type ChangeFacet, type DiagramDiff as DiffResult, type DiffIgnore, type ItemChange } from '../core/diff/index.js';
+import { diffDiagramsWith, type DiagramDiff as DiffResult, type DiffIgnore, type ItemChange } from '../core/diff/index.js';
 import { changeKey } from '../core/diff/merge.js';
 import { diffSvg, renderDiffWith, type DiffHide, type DiffRendered, type DiffSvgOptions } from '../core/diff/render.js';
 import { diffReport, sourcePart, unifiedDiff, type VersionInfo } from '../core/diff/report.js';
@@ -30,35 +31,10 @@ import { loadKindsOf } from './kinds.js';
 /** How long the document must rest before History follows it (a working copy row, a comparison that shows it). */
 const SOURCE_DEBOUNCE_MS = 150;
 
-export type DiffViewName = DiffView | 'side';
-export type DiffFilter = 'added' | 'removed' | ChangeFacet;
 /** The version panel's tab: compare two versions, or view one as it is. */
 export type DiffMode = 'compare' | 'history';
-export type DiffExportKind = 'svg' | 'png' | 'mmdx' | 'mmd' | 'diff' | 'json' | 'md';
-
 export const DIFF_VIEWS: readonly DiffViewName[] = ['before', 'merged', 'after', 'side'];
 export const DIFF_FILTERS: readonly DiffFilter[] = ['added', 'removed', 'content', 'layout', 'style'];
-
-export interface DiffExportOptions {
-  /** The view of an image (default: the current one). */
-  view?: DiffViewName;
-  /** Which version a source export writes (default: after, or the viewed one in History mode). */
-  version?: 'before' | 'after' | 'viewed';
-  highlights?: boolean;
-  legend?: boolean;
-  /** PNG scale (1–4, default 2). */
-  scale?: number;
-  scheme?: 'light' | 'dark';
-  /** Reports and patches with the filters applied (default true). */
-  filtered?: boolean;
-}
-
-/** The two compared versions and the shown one (`viewing` only while one version is viewed as it is). */
-export interface DiffPair {
-  base: string | null;
-  head: string | null;
-  viewing: string | null;
-}
 
 /** Where the versions come from: a history, or two sources (each may still be loading). */
 export type DiffSource =

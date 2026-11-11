@@ -14,7 +14,8 @@ import type { Shortcut } from '../../ui/kit/keys.js';
 import { untracked } from '../../reactive/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import type { ViewModule } from '../../view/module.js';
-import { DIFF_FILTERS, DIFF_VIEWS, type DiffSession, type DiffViewName } from '../session.js';
+import { DIFF_FILTERS, DIFF_VIEWS, type DiffSession } from '../session.js';
+import { type DiffViewName } from '../../view/history.js';
 import { VIEW_ICONS } from '../view-icons.js';
 
 const VIEW_KEYS: Record<DiffViewName, string> = { before: '1', merged: '2', after: '3', side: '4' };

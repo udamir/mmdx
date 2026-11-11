@@ -26,27 +26,32 @@ export function eventBus<E>(): EventBus<E> {
   };
 }
 
-/** Actions by name; the newest provider whose owner is active answers (a suspended one gives the action back). */
+/**
+ * Actions by name; the newest provider whose owner is active answers (a suspended one gives the action back). A
+ * default provider answers only when no other one does, whatever the order they came in (A6: instead of a `has()`
+ * probe before providing).
+ */
 export interface ActionRegistry<A> {
-  provide<K extends keyof A>(name: K, f: A[K], owner: { readonly active: boolean } | null): Registration;
+  provide<K extends keyof A>(name: K, f: A[K], owner: { readonly active: boolean } | null, asDefault?: boolean): Registration;
   has(name: keyof A): boolean;
   run(name: keyof A, args: unknown[]): unknown;
 }
 
 export function actionRegistry<A>(): ActionRegistry<A> {
-  type Provided = { f: unknown; owner: { readonly active: boolean } | null };
+  type Provided = { f: unknown; owner: { readonly active: boolean } | null; asDefault: boolean };
   const map = new Map<keyof A, Provided[]>();
   const provider = (name: keyof A): Provided | undefined => {
     const list = map.get(name) ?? [];
-    for (let i = list.length - 1; i >= 0; i--) {
-      const p = list[i]!;
-      if (!p.owner || p.owner.active) return p;
-    }
+    for (const defaults of [false, true])
+      for (let i = list.length - 1; i >= 0; i--) {
+        const p = list[i]!;
+        if (p.asDefault === defaults && (!p.owner || p.owner.active)) return p;
+      }
     return undefined;
   };
   return {
-    provide(name, f, owner) {
-      const p: Provided = { f, owner };
+    provide(name, f, owner, asDefault = false) {
+      const p: Provided = { f, owner, asDefault };
       const list = map.get(name) ?? [];
       list.push(p);
       map.set(name, list);

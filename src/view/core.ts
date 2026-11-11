@@ -21,13 +21,23 @@ import { PopoverManager, Toaster } from '../ui/kit/popover.js';
 import { ShortcutRegistry } from './keymap.js';
 import { effect, signal, untracked, type Signal } from '../reactive/signal.js';
 import { BASE, TOKENS, watchUiScheme } from '../ui/kit/base.js';
-import type { HistoryLoader, HistorySession } from './history.js';
+import type { HistorySession } from './history.js';
 import { ModuleHost, Scope } from './host.js';
 import type { ModuleScope, Registration, ViewModule } from './module.js';
 import { SceneStack, type CanvasArea, type SceneSource } from './scene.js';
 import { createShell, SHELL_CSS, type Shell } from './shell.js';
 import { schemeState, themeLoader, ThemeState, type Scheme, type SchemeState, type UiOption } from './theme.js';
 import type { Display, DockItem, ExportFormat, Mode, PanelItem, SlotName, Stage, Tool, ViewActions, ViewEvents } from './types.js';
+
+
+/**
+ * Opens History on a component (src/diff/history.ts): the version panel, nothing picked; `compare` opens on the
+ * newest change compared. `onClose` runs when it is left. `compareNewest` compares the newest change of an open one.
+ */
+export type HistoryOpener = (core: ViewCore, o: { onClose(): void; compare?: boolean }) => { close(): void; compareNewest(): void };
+
+/** Loads the History code on first use (`() => import('…/diff/history.js')`): the kernel never imports the diff. */
+export type HistoryLoader = () => Promise<{ openHistory: HistoryOpener }>;
 
 export { SHELL_CSS };
 
@@ -242,6 +252,10 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   // ---- styles -----------------------------------------------------------------------------------------------------
 
   /** Adds CSS to the shadow root (deduplicated by identity). */
+  removeCss(css: readonly string[]): void {
+    this.shell.removeCss(css);
+  }
+
   addCss(css: readonly string[]): void {
     this.shell.addCss(css);
   }
@@ -277,6 +291,13 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   /** Provides a named action; a provider registered during a module's install is muted while the module is suspended. */
   provide<K extends keyof A>(name: K, f: A[K]): () => void {
     const r = this.modules.actions.provide(name, f, this.modules.installing);
+    this.attribute(r, 'provide');
+    return () => r.dispose();
+  }
+
+  /** Provides an action that answers only when no other provider does (a module's fallback). */
+  provideDefault<K extends keyof A>(name: K, f: A[K]): () => void {
+    const r = this.modules.actions.provide(name, f, this.modules.installing, true);
     this.attribute(r, 'provide');
     return () => r.dispose();
   }

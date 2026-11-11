@@ -1,8 +1,33 @@
 // The History session facade (component architecture §8.3): what `editor.historySession` / `viewer.historySession`
 // return while History is open — the `<mmdx-diff>` methods over the session History shows.
-import type { DiagramDiff as DiffResult } from '../core/diff/types.js';
-import type { DiffExportKind, DiffExportOptions, DiffFilter, DiffPair, DiffViewName } from '../diff/session.js';
-import type { ViewCore } from './core.js';
+// The contract types live here, not in diff/ (A6): the kernel holds a session, the diff implements it.
+import type { DiffView } from '../core/diff/annotate.js';
+import type { ChangeFacet, DiagramDiff as DiffResult } from '../core/diff/types.js';
+
+export type DiffViewName = DiffView | 'side';
+export type DiffFilter = 'added' | 'removed' | ChangeFacet;
+export type DiffExportKind = 'svg' | 'png' | 'mmdx' | 'mmd' | 'diff' | 'json' | 'md';
+
+export interface DiffExportOptions {
+  /** The view of an image (default: the current one). */
+  view?: DiffViewName;
+  /** Which version a source export writes (default: after, or the viewed one in History mode). */
+  version?: 'before' | 'after' | 'viewed';
+  highlights?: boolean;
+  legend?: boolean;
+  /** PNG scale (1–4, default 2). */
+  scale?: number;
+  scheme?: 'light' | 'dark';
+  /** Reports and patches with the filters applied (default true). */
+  filtered?: boolean;
+}
+
+/** The two compared versions and the shown one (`viewing` only while one version is viewed as it is). */
+export interface DiffPair {
+  base: string | null;
+  head: string | null;
+  viewing: string | null;
+}
 
 export interface HistorySession {
   setPair(base: string, head: string): void;
@@ -18,12 +43,3 @@ export interface HistorySession {
   /** Leaves History. */
   close(): void;
 }
-
-/**
- * Opens History on a component (src/diff/history.ts): the version panel, nothing picked; `compare` opens on the
- * newest change compared. `onClose` runs when it is left. `compareNewest` compares the newest change of an open one.
- */
-export type HistoryOpener = (core: ViewCore, o: { onClose(): void; compare?: boolean }) => { close(): void; compareNewest(): void };
-
-/** Loads the History code on first use (`() => import('…/diff/history.js')`): the kernel never imports the diff. */
-export type HistoryLoader = () => Promise<{ openHistory: HistoryOpener }>;

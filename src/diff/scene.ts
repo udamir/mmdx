@@ -22,7 +22,8 @@ import { h } from '../ui/kit/h.js';
 import { effect, untracked, type ReadSignal } from '../reactive/signal.js';
 import type { ViewCore } from '../view/core.js';
 import { BaseScene, type CanvasArea } from '../view/scene.js';
-import type { DiffSession, DiffViewName } from './session.js';
+import type { DiffSession } from './session.js';
+import type { DiffViewName } from '../view/history.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const STATE_OF: Record<DiffView, number> = { before: 0, merged: 1, after: 2 };

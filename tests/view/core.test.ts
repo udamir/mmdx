@@ -380,3 +380,46 @@ describe('the view event (B45)', () => {
     core.destroy();
   });
 });
+
+describe('module host semantics (A6)', () => {
+  const mod = (id: string, extra: Partial<ViewModule<ViewCore>> = {}): ViewModule<ViewCore> => ({ id, install: () => undefined, ...extra });
+
+  it('an added set replaces modules by id when it says so; an id offered twice is reported, the first kept', () => {
+    const core = mount();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    core.useModules([mod('a'), mod('b')]);
+    const off = core.addModules([mod('b2', { replaces: ['b'] }), mod('a')]);
+    expect(core.moduleIds.sort()).toEqual(['a', 'b2']);
+    expect(String(warn.mock.calls[0]?.[0])).toContain('module a is offered twice');
+    off();
+    expect(core.moduleIds.sort()).toEqual(['a', 'b']);
+    warn.mockRestore();
+    core.destroy();
+  });
+
+  it('a default provider answers only when no other one does, whatever the order', () => {
+    const core = mount();
+    core.useModules([
+      mod('own', { install: (s) => s.provide('documentName', () => 'own') }),
+      mod('fallback', { install: (s) => s.provideDefault('documentName', () => 'fallback') }),
+    ]);
+    expect(core.run('documentName')).toBe('own');
+    core.useModules([mod('fallback', { install: (s) => s.provideDefault('documentName', () => 'fallback') })]);
+    expect(core.run('documentName')).toBe('fallback');
+    core.destroy();
+  });
+
+  it('a module\'s sheet goes when it is uninstalled, unless another module still uses it', () => {
+    const core = mount();
+    const CSS = '.probe-a { color: red }';
+    // jsdom adopts no sheets: the shell's <style> fallback holds them
+    const sheets = (): string[] => [...core.shadow.querySelectorAll('style')].map((s) => s.textContent ?? '');
+    core.useModules([mod('one', { css: [CSS] }), mod('two', { css: [CSS] })]);
+    expect(sheets().some((t) => t.includes('probe-a'))).toBe(true);
+    core.useModules([mod('two', { css: [CSS] })]);
+    expect(sheets().some((t) => t.includes('probe-a'))).toBe(true);
+    core.useModules([]);
+    expect(sheets().some((t) => t.includes('probe-a'))).toBe(false);
+    core.destroy();
+  });
+});

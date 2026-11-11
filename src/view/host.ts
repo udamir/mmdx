@@ -24,6 +24,7 @@ export interface HostCore {
   readonly stage: ReadSignal<Stage>;
   readonly isDestroyed: boolean;
   addCss(css: readonly string[]): void;
+  removeCss(css: readonly string[]): void;
   /** Whether a feature is on (outside install, nothing is recorded). */
   feature(name: string): boolean;
 }
@@ -52,8 +53,7 @@ export class ModuleHost<C extends HostCore> {
   }
 
   add(list: readonly ViewModule<C>[]): () => void {
-    const ids = new Set(this.available.map((m) => m.id));
-    const added = list.filter((m) => !ids.has(m.id));
+    const added = [...list];
     this.added.push(added);
     this.order();
     return () => {
@@ -62,8 +62,23 @@ export class ModuleHost<C extends HostCore> {
     };
   }
 
+  /**
+   * The modules on offer: the product's, then each added set. A module's `replaces` takes the modules of those ids
+   * out of the sets before it (History's layers-only view settings over the viewer's); otherwise an id offered twice
+   * is a mistake: the first stays and the other is reported (B43: it was dropped silently).
+   */
   private order(): void {
-    this.available = orderModules([...this.base, ...this.added.flat()]);
+    const sets = [this.base, ...this.added];
+    const out: ViewModule<C>[] = [];
+    for (const set of sets) {
+      const gone = new Set(set.flatMap((m) => m.replaces ?? []));
+      for (let i = out.length - 1; i >= 0; i--) if (gone.has(out[i]!.id)) out.splice(i, 1);
+      for (const m of set) {
+        if (out.some((x) => x.id === m.id)) console.warn(`[mmdx] module ${m.id} is offered twice: the first is kept (declare \`replaces\` to replace it)`);
+        else out.push(m);
+      }
+    }
+    this.available = orderModules(out);
     this.refresh();
   }
 
@@ -144,6 +159,8 @@ export class ModuleHost<C extends HostCore> {
     if (!s) return;
     this.installed.delete(id);
     s.dispose();
+    // its sheets go with it (one another module still uses stays)
+    if (s.module.css) this.core.removeCss(s.module.css);
   }
 
   /** Uninstalls every module, last installed first. */
@@ -282,6 +299,10 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
     this.register(this.host.actions.provide(name, f, this));
   }
 
+  provideDefault<K extends keyof ActionsOf<C>>(name: K, f: ActionsOf<C>[K]): void {
+    this.register(this.host.actions.provide(name, f, this, true));
+  }
+
   effect(f: () => void | (() => void)): void {
     this.owner.add(effect(() => {
       if (!this.activeSig()) return;
@@ -341,7 +362,11 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
     if (!load) return Promise.resolve();
     this.loaded ??= load().then((part) => {
       if (this.disposed) return;
-      if (part.css) this.core.addCss(part.css);
+      if (part.css) {
+        const css = part.css;
+        this.core.addCss(css);
+        this.onDispose(() => this.core.removeCss(css));
+      }
       this.host.within(this, () => {
         const off = part.activate(this);
         if (typeof off === 'function') this.onDispose(off);

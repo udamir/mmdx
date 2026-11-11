@@ -33,7 +33,7 @@ import { effect, signal, untracked, type Signal } from '../reactive/signal.js';
 import { ALIASES } from '../ui/kit/base.js';
 import { EDITOR_CSS } from './styles.js';
 import { ViewCore } from '../view/core.js';
-import type { Mode, Tool, ViewActions } from '../view/types.js';
+import type { Mode, Tool, ViewActions, ViewEvents } from '../view/types.js';
 import { StoreScene } from './scene.js';
 import { itemExists, type ChangeReason, type DocStore } from './store.js';
 
@@ -241,7 +241,16 @@ function groupParents(model: DiagramModel): Map<string, string> {
   return m;
 }
 
-export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPanels> {
+/** The kernel's events plus the editor's own: the mode and the tool, the document's model, the selection, the overlay. */
+export interface EditorEvents extends ViewEvents {
+  mode: void;
+  tool: void;
+  model: void;
+  selection: void;
+  overlay: void;
+}
+
+export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPanels, EditorEvents> {
   readonly store: DocStore;
   readonly features: EditorFeatures;
   readonly dialogs: Dialogs;

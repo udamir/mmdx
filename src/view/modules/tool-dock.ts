@@ -51,7 +51,7 @@ export const panModule: ViewModule<ViewCore> = {
       pressed: scope.computed(() => core.tool() === 'hand'), onClick: () => core.run('setTool', 'hand'),
     });
     scope.contribute(core.dockItems, { id: 'hand', section: 'tools', order: 20, el: hand.el });
-    if (!core.has('setTool')) scope.provide('setTool', (tool) => core.tool.set(tool));
+    scope.provideDefault('setTool', (tool) => core.tool.set(tool));
     // H, unless a module installed earlier owns it (the editor's canvas)
     if (!core.shortcuts.list({ mode: 'edit' }).some((s) => s.keys.includes('h')))
       scope.shortcut({ id: 'tool-hand', keys: ['h'], label: t('help.hand'), group: t('help.tools'), run: () => void core.run('setTool', 'hand') });

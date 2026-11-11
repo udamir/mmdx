@@ -18,6 +18,8 @@ export type EventsOf<C> = C extends { readonly $events: infer E } ? E : never;
 
 export interface ViewModule<C = unknown> {
   id: string;
+  /** Ids of modules this one replaces while it is offered (an added set's module over the product's). */
+  replaces?: readonly string[];
   /** Install after these modules (ids); replaces reliance on list order. */
   after?: readonly string[];
   /** Active only in these modes / stages (default: all). Inactive = suspended by the kernel. */
@@ -26,9 +28,10 @@ export interface ViewModule<C = unknown> {
    * Re-evaluated when features, controls or options change (`refreshModules()`); false uninstalls, true installs. A
    * module that read `core.feature()` while installing is installed again when one of those features changed.
    */
-  enabled?(core: C): boolean;
+  enabled?: (core: C) => boolean;
   /** Eager part: slot DOM (buttons), shortcuts, cheap listeners. Every registration goes through the scope. */
-  install(scope: ModuleScope<C>): void | (() => void);
+  // properties, not methods (A6): a module of one product's core is not accepted where another's is wanted
+  install: (scope: ModuleScope<C>) => void | (() => void);
   /** Lazy part, loaded on first use (`scope.load()`); its CSS is adopted then. */
   load?(): Promise<{ css?: readonly string[]; activate(scope: ModuleScope<C>): void | (() => void) }>;
   /** Scoped CSS adopted into the component's shadow root while the module is installed. */
@@ -64,6 +67,8 @@ export interface ModuleScope<C = unknown> {
   on<K extends keyof EventsOf<C>>(ev: K, cb: (d: EventsOf<C>[K]) => void): void;
   /** Provides an action: muted while suspended (the previous provider answers), removed on uninstall. */
   provide<K extends keyof ActionsOf<C>>(name: K, f: ActionsOf<C>[K]): void;
+  /** Provides an action that answers only when no other provider does (a fallback; removed on uninstall). */
+  provideDefault<K extends keyof ActionsOf<C>>(name: K, f: ActionsOf<C>[K]): void;
   /** Runs `f` now and whenever a signal it reads changes, while active (re-run on resume). */
   effect(f: () => void | (() => void)): void;
   /** A computed value disposed on uninstall. */

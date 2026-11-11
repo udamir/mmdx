@@ -192,7 +192,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 175.5], ['edito
     // 253.7 kB (253.3 kB measured) with the image library (ImageStore: the image tool's Library, Upload and URL tabs; Source and Properties open each)
     // 258.1 kB (257.7 kB measured) with the codebase audit's fixes (001 Phase 1–3: the metadata key registry, the parsers' step budget and line-indexed lexers, the elements' upgrade and inline-source handling, the History working copy, the hot paths' indexes and caches)
     // 258.9 kB (258.5 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
-    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 258.9 * KB);
+    // 259.3 kB (258.9 kB measured) with Stage 2's A6 (the module host's replaces, default providers and sheets given back)
+    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 259.3 * KB);
   }
 }
 
@@ -361,7 +362,8 @@ const rows = [
   // 259.3 kB (258.9 kB measured) with the codebase audit's fixes (001 Phase 1–3: the metadata key registry, the parsers' step budget and line-indexed lexers, the elements' upgrade and inline-source handling, the History working copy, the hot paths' indexes and caches)
   // 259.8 kB (259.4 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
   // 260.8 kB (260.4 kB measured) with Stage 1's A5 and A17 (the StatusBox block, the built-in themes as typed modules)
-  ['editor + History opened', ['src/editor.ts', ...HISTORY], 260.8],
+  // 261.2 kB (260.8 kB measured) with Stage 2's A6 (the module host's replaces, default providers and sheets given back)
+  ['editor + History opened', ['src/editor.ts', ...HISTORY], 261.2],
   // 125.2 kB while the entry re-exported the all-kinds diff
   // 92.5 kB once the per-type diffs left the entry for the diff kinds (90.9 kB measured); 94.6 kB before; 91.5 kB with the shapes on demand (T02.9, 91.1 kB measured)
   // 92.5 kB with media in the scene (T03, 92.1 kB measured); 95.1 kB with the icon registry (T04, 94.7 kB measured)

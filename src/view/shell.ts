@@ -54,6 +54,8 @@ export interface Shell {
   placeAreaSlots(): void;
   /** Adds CSS to the shadow root (deduplicated by identity). */
   addCss(css: readonly string[]): void;
+  /** Gives back sheets added with addCss: a sheet goes once every adder gave it back (a module's, on uninstall). */
+  removeCss(css: readonly string[]): void;
   /**
    * Insets of the canvas area that fit() keeps clear: the open panel stacks and the tool dock. Measured from the
    * layout boxes (offsets), not the painted ones, so a panel still sliding in counts where it will be.
@@ -65,6 +67,8 @@ export interface Shell {
 
 export function createShell(host: HTMLElement, shadow: ShadowRoot, o: ShellOptions): Shell {
   const css = [...o.css];
+  /** How many times each added sheet was added (the product's own sheets are never given back). */
+  const uses = new Map<string, number>();
   /** `<style>` elements of engines without adopted stylesheets (each sheet once; removed on destroy). */
   const styleEls = new Map<string, HTMLStyleElement>();
   const adopt = (): void => {
@@ -125,11 +129,32 @@ export function createShell(host: HTMLElement, shadow: ShadowRoot, o: ShellOptio
     },
     addCss(add) {
       let changed = false;
-      for (const c of add)
-        if (c && !css.includes(c)) {
+      for (const c of add) {
+        if (!c) continue;
+        uses.set(c, (uses.get(c) ?? 0) + 1);
+        if (!css.includes(c)) {
           css.push(c);
           changed = true;
         }
+      }
+      if (changed) adopt();
+    },
+    removeCss(list) {
+      let changed = false;
+      for (const c of list) {
+        const n = uses.get(c);
+        if (!n) continue;
+        if (n > 1) {
+          uses.set(c, n - 1);
+          continue;
+        }
+        uses.delete(c);
+        if (o.css.includes(c)) continue;
+        css.splice(css.indexOf(c), 1);
+        styleEls.get(c)?.remove();
+        styleEls.delete(c);
+        changed = true;
+      }
       if (changed) adopt();
     },
     insets() {

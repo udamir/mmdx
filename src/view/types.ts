@@ -54,8 +54,6 @@ export interface ViewActions {
    * `compare`: opens on the newest change compared (the studio's Diff).
    */
   toggleHistory(on?: boolean, opts?: { compare?: boolean }): void;
-  /** Export formats of the installed modules, in menu order. */
-  exportFormats(): ExportFormat[];
   setTool(tool: Tool): void;
   setPanel(name: string, open: boolean): void;
   /** The shown document's model (hover highlight, labels). */
@@ -80,27 +78,22 @@ export interface ViewActions {
 }
 
 /**
- * Kernel events, by name → payload (`void`: none). An open map: a product extends it (`interface MyEvents extends
- * ViewEvents { … }`) and passes it to `ViewCore<Actions, Panels, MyEvents>`.
+ * Kernel events, by name → payload (`void`: none): the ones every product fires (A6). An open map: a product extends
+ * it with its own (`interface MyEvents extends ViewEvents { … }`, as the editor's EditorEvents) and passes it to
+ * `ViewCore<Actions, Panels, MyEvents>`.
  */
 export interface ViewEvents {
   /** The attached scene painted. */
   draw: void;
-  /** Pan, zoom or the canvas insets changed. */
+  /** Pan, zoom or the canvas insets changed (fired in every product, B45). */
   view: void;
+  /** The theme shown changed (a pick, a scheme flip to another theme, a registered theme's update). */
   theme: void;
-  mode: void;
-  stage: void;
-  tool: void;
+  /** A panel opened or closed, or what a panel shows changed. */
   panels: void;
-  model: void;
-  selection: void;
-  overlay: void;
   /** The shown document changed (a new source). */
   document: void;
 }
-
-export type ViewEvent = keyof ViewEvents;
 
 /** A button a module adds to the tool dock (the toolDock module renders them by section, then order). */
 export interface DockItem {

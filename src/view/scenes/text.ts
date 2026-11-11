@@ -14,7 +14,7 @@ import { cancelIdle, idle } from '../../dom/idle.js';
 import { renderInWorker, workerAvailable, WORKER_THRESHOLD_BYTES, WORKER_THRESHOLD_LINES } from '../../dom/worker-client.js';
 import { h } from '../../ui/kit/h.js';
 import type { ViewCore } from '../core.js';
-import { drawShapes, lazyKinds, loadShapes, type KindsProvider } from '../../platform/kinds.js';
+import { drawShapes, hasKind, loadedKinds, loadKind, loadShapes } from '../../platform/kinds.js';
 import { BaseScene } from '../scene.js';
 
 export type FitMode = 'contain' | 'width' | 'none';
@@ -29,8 +29,6 @@ export interface TextSceneOptions {
   stage: HTMLElement;
   onRendered(r: Rendered, durationMs: number): void;
   onError(diags: Diagnostic[]): void;
-  /** Parsers and renderers of the diagram kinds (default: loaded on first use). */
-  kinds?: KindsProvider;
 }
 
 export class TextScene extends BaseScene {
@@ -43,13 +41,11 @@ export class TextScene extends BaseScene {
   private renderSeq = 0;
   private handle = 0;
   private destroyed = false;
-  private readonly kinds: KindsProvider;
   /** A message to show once attached again (an error that came while History had the canvas). */
   private deferred: (() => void) | null = null;
 
   constructor(private readonly core: ViewCore, private readonly o: TextSceneOptions) {
     super();
-    this.kinds = o.kinds ?? lazyKinds;
   }
 
   /** Shows a new source (renders now). */
@@ -110,8 +106,8 @@ export class TextScene extends BaseScene {
     };
     // the parser and renderer of this diagram type load on first use
     const type = detectType(text);
-    if (type && !this.kinds.has(type)) {
-      this.kinds.load(type).then(again, () => {
+    if (type && !hasKind(type)) {
+      loadKind(type).then(again, () => {
         if (!this.destroyed && text === this.text) this.showError([{ severity: 'error', code: 'load.failed', message: `Could not load the ${type} renderer` }], text);
       });
       return;
@@ -151,7 +147,7 @@ export class TextScene extends BaseScene {
    * render runs again; should it fail to load, the render with that shape as a rectangle shows.
    */
   private renderHere(text: string, opts: PipelineOptions, t0: number): void {
-    const [r, missing] = drawShapes(() => renderSourceWith(this.kinds.kinds(), text, this.core.ctx, opts));
+    const [r, missing] = drawShapes(() => renderSourceWith(loadedKinds(), text, this.core.ctx, opts));
     if (!missing) {
       this.apply(r, t0, true);
       return;
