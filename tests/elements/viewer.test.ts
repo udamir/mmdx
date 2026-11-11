@@ -183,6 +183,30 @@ afterEach(() => {
     }, 50));
   });
 
+  it('setLayers() and the labels repaint; the hover highlight and the animation do not (P20)', async () => {
+    const src = 'flowchart LR\n  a -- go --> b\n%%@ layer L1 {"name":"One"}\n%%@ node b {"layer":"L1"}';
+    const { host, v } = mount({ source: src });
+    const core = (v as unknown as { core: { display: { set(d: object): void; peek(): object }; on(e: string, f: () => void): () => void } }).core;
+    const settle = () => new Promise((r) => setTimeout(r, 30));
+    const nodes = () => host.shadowRoot!.querySelectorAll('.el[data-kind="node"]').length;
+    // the first paint, and whatever it loaded on the way (a busy machine is slow), are over
+    await vi.waitFor(() => expect(host.shadowRoot!.querySelectorAll('.elabel').length).toBe(1));
+    await settle();
+    let draws = 0;
+    core.on('draw', () => draws++);
+    v.setLayers(['default']);
+    await vi.waitFor(() => expect(nodes()).toBe(1));
+    const once = draws;
+    expect(once).toBeGreaterThan(0);
+    v.setLayers(['default']);
+    core.display.set({ ...core.display.peek(), hoverHighlight: false, animate: false });
+    await settle();
+    expect(draws).toBe(once);
+    v.set({ labels: false });
+    // the labels setting repaints with no invalidate() of its own
+    await vi.waitFor(() => expect(host.shadowRoot!.querySelectorAll('.elabel').length).toBe(0));
+  });
+
   it('toSvg() returns a standalone document', () => {
     const { v } = mount({ source: 'sequenceDiagram\n  A->>B: hi' });
     const svg = v.toSvg();

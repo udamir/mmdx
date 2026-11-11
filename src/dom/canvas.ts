@@ -97,6 +97,9 @@ export class DiagramCanvas {
   private bounds: Rect | null = null;
   private morphing: { dispose(): void } | null = null;
   private readonly links = new Set<DiagramCanvas>();
+  /** The linked canvases' offsets during a gesture (offsetTo). */
+  private readonly offsets = new Map<DiagramCanvas, { x: number; y: number }>();
+  private offsetsIdle: ReturnType<typeof setTimeout> | null = null;
   private linking = false;
   private readonly unlinks = new Set<() => void>();
   private readonly destroyHooks: (() => void)[] = [];
@@ -112,6 +115,8 @@ export class DiagramCanvas {
   private following = false;
   /** `--dx-inv` is on the svg (see syncInv). */
   private inv = false;
+  /** The layers holding a diff badge, looked up when each is painted (P22: not the whole svg per overlay paint). */
+  private readonly badged = new Set<Element>();
 
   constructor(container: HTMLElement | null, opts: CanvasOptions) {
     this.o = { ...opts };
@@ -203,19 +208,20 @@ export class DiagramCanvas {
     patchChildren(this.body, p.body);
     patchChildren(this.runs, p.runs ?? []);
     if (p.overlay) patchChildren(this.overlay, p.overlay);
-    this.syncInv();
+    this.syncInv(this.page, this.body, this.runs, ...(p.overlay ? [this.overlay] : []));
   }
 
   /** Painters' output (editor handles, diff highlights). */
   setOverlay(nodes: readonly SceneNode[]): void {
     patchChildren(this.overlay, nodes);
-    this.syncInv();
+    this.syncInv(this.overlay);
   }
 
   /** Drops the picture and the patch state (a new scene owner repaints in full). */
   clear(): void {
     this.endMorph();
     for (const g of [this.defs, this.page, this.body, this.runs, this.overlay]) g.replaceChildren();
+    this.badged.clear();
     this.syncInv();
   }
 
@@ -224,8 +230,12 @@ export class DiagramCanvas {
    * element when it changes, so it is set only while the picture may have badges (a morph's states, or badges drawn
    * here): zooming a plain picture restyles nothing.
    */
-  private syncInv(): void {
-    const on = !!this.morphing || !!this.svg.querySelector('.dx-badge');
+  private syncInv(...painted: Element[]): void {
+    for (const l of painted) {
+      if (l.querySelector('.dx-badge')) this.badged.add(l);
+      else this.badged.delete(l);
+    }
+    const on = !!this.morphing || this.badged.size > 0;
     if (on === this.inv) return;
     this.inv = on;
     if (on) this.svg.style.setProperty('--dx-inv', String(1 / (this.view.peek().k || 1)));
@@ -341,6 +351,8 @@ export class DiagramCanvas {
     const off = (): void => {
       this.links.delete(other);
       other.links.delete(this);
+      this.offsets.delete(other);
+      other.offsets.delete(this);
       this.unlinks.delete(off);
       other.unlinks.delete(off);
     };
@@ -386,11 +398,38 @@ export class DiagramCanvas {
     this.destroyed = true;
     this.endMorph();
     for (const off of [...this.unlinks]) off();
+    if (this.offsetsIdle) clearTimeout(this.offsetsIdle);
+    this.offsets.clear();
     this.vpt?.destroy();
     this.vpt = null;
     this.dropCss();
     this.svg.remove();
     for (const f of this.destroyHooks.splice(0)) f();
+  }
+
+  /**
+   * How far a linked canvas's free area starts from this one's. Insets read the layout (the panels beside a pane), so
+   * a gesture reads them once and keeps them while it runs (P9: every wheel or pan event read both); a single change
+   * reads them fresh, and a gesture's pause of a quarter second forgets them (a panel may open between two bursts).
+   */
+  private offsetTo(o: DiagramCanvas, gesture: boolean): { x: number; y: number } {
+    let d = gesture ? this.offsets.get(o) : undefined;
+    if (!d) {
+      const a = this.insets(), b = o.insets();
+      d = { x: b.left - a.left, y: b.top - a.top };
+    }
+    if (this.offsetsIdle) clearTimeout(this.offsetsIdle);
+    this.offsetsIdle = null;
+    if (!gesture) {
+      this.offsets.clear();
+      return d;
+    }
+    this.offsets.set(o, d);
+    this.offsetsIdle = setTimeout(() => {
+      this.offsetsIdle = null;
+      this.offsets.clear();
+    }, 250);
+    return d;
   }
 
   /** A wheel or pinch burst, or a pan drag, is running (here or on the linked canvas that passes it on). */
@@ -461,8 +500,8 @@ export class DiagramCanvas {
         try {
           o.vpt.auto = this.vpt.auto;
           // the same view, from where each canvas's free area starts (panes of different widths, side by side)
-          const a = this.insets(), b = o.insets();
-          o.vpt.set({ k: v.k, tx: v.tx - a.left + b.left, ty: v.ty - a.top + b.top });
+          const d = this.offsetTo(o, gesture);
+          o.vpt.set({ k: v.k, tx: v.tx + d.x, ty: v.ty + d.y });
         } finally {
           o.linking = false;
           o.following = false;

@@ -70,7 +70,8 @@ export class StrokeStore {
     this.surfaces.push(c);
     this.paint(c);
     const ac = new AbortController();
-    let cur: { stroke: Stroke; path: SVGPathElement } | null = null;
+    // the stroke being drawn, its path written as far as the points that no longer change (P22: a move appends)
+    let cur: { stroke: Stroke; path: SVGPathElement; d: string } | null = null;
     // capture phase on the canvas itself: drawing wins over panning, selecting and gestures
     c.svg.addEventListener('pointerdown', (e) => {
       if (!this.active || e.button !== 0) return;
@@ -84,14 +85,16 @@ export class StrokeStore {
       const stroke: Stroke = { id: this.nextId++, color: this.color, size: this.size, pts: [c.toDiagram(e.clientX, e.clientY)] };
       const path = this.pathEl(stroke);
       c.layer.append(path);
-      cur = { stroke, path };
+      cur = { stroke, path, d: `M${stroke.pts[0]!.x} ${stroke.pts[0]!.y}` };
     }, { capture: true, signal: ac.signal });
     c.svg.addEventListener('pointermove', (e) => {
       if (!cur) return;
       const p = c.toDiagram(e.clientX, e.clientY), l = cur.stroke.pts[cur.stroke.pts.length - 1]!;
       if (Math.hypot(p.x - l.x, p.y - l.y) * c.scale() < 1.5) return;
-      cur.stroke.pts.push(p);
-      cur.path.setAttribute('d', pathOf(cur.stroke.pts));
+      const pts = cur.stroke.pts;
+      pts.push(p);
+      cur.d += segmentTo(pts, pts.length - 1);
+      cur.path.setAttribute('d', `${cur.d}L${p.x} ${p.y}`);
     }, { signal: ac.signal });
     const end = (): void => {
       if (!cur) return;
@@ -240,11 +243,15 @@ function pathOf(pts: readonly { x: number; y: number }[]): string {
   const f = pts[0]!;
   if (pts.length === 1) return `M${f.x} ${f.y}l0.01 0`;
   let d = `M${f.x} ${f.y}`;
-  for (let i = 1; i < pts.length - 1; i++) {
-    const p = pts[i]!, q = pts[i + 1]!;
-    d += `Q${p.x} ${p.y} ${(p.x + q.x) / 2} ${(p.y + q.y) / 2}`;
-  }
+  for (let i = 2; i < pts.length; i++) d += segmentTo(pts, i);
   const l = pts[pts.length - 1]!;
   return `${d}L${l.x} ${l.y}`;
+}
+
+/** The curve through the point before `i` that point `i` fixes (none while `i` is the second point). */
+function segmentTo(pts: readonly { x: number; y: number }[], i: number): string {
+  if (i < 2) return '';
+  const p = pts[i - 1]!, q = pts[i]!;
+  return `Q${p.x} ${p.y} ${(p.x + q.x) / 2} ${(p.y + q.y) / 2}`;
 }
 

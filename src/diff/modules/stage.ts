@@ -80,7 +80,13 @@ export function diffStageModule(scene: DiffScene): ViewModule<ViewCore> {
         return renderedOf(D, view).model;
       };
       const bodies = (): Element[] => scene.canvases().flatMap((c) => [...c.content.querySelectorAll(':scope > .body-layer')]);
-      const clearAll = (): void => bodies().forEach(clearHighlight);
+      // something is lit: a pointer move with the highlight off (or a pan) clears only then (P8)
+      let lit = false;
+      const clearAll = (): void => {
+        if (!lit) return;
+        lit = false;
+        bodies().forEach(clearHighlight);
+      };
       scope.listen(area, 'pointermove', (ev: PointerEvent) => {
         const svg = canvasOf(ev.target);
         if (!svg || !core.display.peek().hoverHighlight || core.tool.peek() === 'pen' || scene.canvases().some((c) => c.viewport?.panning)) {
@@ -88,7 +94,8 @@ export function diffStageModule(scene: DiffScene): ViewModule<ViewCore> {
           return;
         }
         const body = svg.querySelector(':scope > .vp > .content > .body-layer');
-        if (body) hoverHighlight(body, ev.target as Element, modelOf(svg));
+        if (!body) return;
+        lit = hoverHighlight(body, ev.target as Element, modelOf(svg)) !== '' || lit;
       });
       scope.listen(area, 'pointerleave', clearAll);
       scope.effect(() => {

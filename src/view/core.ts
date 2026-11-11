@@ -189,6 +189,16 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.cleanups.push(onImageSize(() => {
       if (!this.destroyed) this.invalidate();
     }));
+    // the display settings the picture shows (the labels, the visible layers) repaint it; the hover highlight and the
+    // animation change no picture (P20: every writer called invalidate, whatever it changed)
+    const shows = (): string => `${this.display().labels}|${JSON.stringify(this.visibleLayers() ?? null)}`;
+    let painted = untracked(shows);
+    this.cleanups.push(effect(() => {
+      const now = shows();
+      if (now === painted) return;
+      painted = now;
+      untracked(() => this.invalidate());
+    }));
     // animated edges (`e1@{ animate: true }`) move unless the view settings turn them off (or the system asks for less motion)
     this.cleanups.push(effect(() => void (this.root.dataset['edgeAnim'] = this.display().animate ? 'on' : 'off')));
     this.cleanups.push(this.ctx.themes.onChange(() => {

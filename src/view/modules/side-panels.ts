@@ -54,7 +54,6 @@ const viewSettings = (o: { display: boolean }): ViewModule<ViewCore> => ({
     const labels = scope.computed(() => display().labels), hover = scope.computed(() => display().hoverHighlight), animate = scope.computed(() => display().animate);
     const set = (patch: Partial<ReturnType<typeof display.peek>>): void => {
       display.set({ ...display.peek(), ...patch });
-      core.invalidate();
     };
     const list = createLayerList({
       layers: [], editable: false,
@@ -63,7 +62,6 @@ const viewSettings = (o: { display: boolean }): ViewModule<ViewCore> => ({
         const cur = core.visibleLayers.peek();
         const shown = defs.filter((d) => (cur ? cur.includes(d.id) : !d.hidden)).map((d) => d.id);
         core.visibleLayers.set(visible ? [...shown, id] : shown.filter((x) => x !== id));
-        core.invalidate();
       },
       display: o.display ? [
         { id: 'labels', label: t('layers.labels'), value: labels, onChange: (v) => set({ labels: v }) },

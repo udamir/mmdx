@@ -49,7 +49,6 @@ export function layersCard(core: EditorCore): LayersCard {
   const display = (key: 'labels' | 'hoverHighlight' | 'animate', v: boolean): void => {
     core.display.set({ ...core.display.peek(), [key]: v });
     if (key === 'hoverHighlight' && !v) clearHighlight(svg());
-    core.draw();
   };
   const labels = computed(() => core.display().labels), hover = computed(() => core.display().hoverHighlight), animate = computed(() => core.display().animate);
   const toggles: DisplayToggle[] = [
@@ -69,7 +68,6 @@ export function layersCard(core: EditorCore): LayersCard {
         if (visible) on.add(id);
         else on.delete(id);
         core.visibleLayers.set([...on]);
-        core.draw();
         core.fire('panels');
         return;
       }

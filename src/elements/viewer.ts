@@ -199,7 +199,7 @@ export class DiagramViewer {
     // the modules follow the controls (each one re-evaluates what it shows)
     if (changed('controls') || changed('interactive')) core.refreshModules();
     if (changed('src') || changed('source') || changed('loader')) void this.load();
-    else if (changed('labels') || changed('layers') || changed('fit') || changed('fallback')) core.invalidate();
+    else if (changed('fit') || changed('fallback')) core.invalidate();
   }
 
   get options(): Readonly<ViewerOptions> {
@@ -228,7 +228,6 @@ export class DiagramViewer {
     if (ids) this.o.layers = ids;
     else delete this.o.layers;
     this.core.visibleLayers.set(ids);
-    this.core.invalidate();
   }
 
   /** Standalone SVG document of what is shown (visible layers, label setting). */

@@ -126,6 +126,33 @@ describe('DiagramCanvas', () => {
     expect(a.svg.classList.contains('pen-on')).toBe(false);
   });
 
+  it('a stroke drawn move by move has the path it is painted with afterwards (P22: a move appends to it)', () => {
+    const store = new StrokeStore(memoryStorage());
+    const a = new DiagramCanvas(null, { interaction: 'pan-zoom' });
+    sized(a.svg);
+    a.attachInk(store);
+    store.setActive(true);
+    ptr('pointerdown', 10, 10, a.svg);
+    for (const [x, y] of [[20, 14], [34, 30], [50, 35], [70, 60]]) ptr('pointermove', x!, y!, a.svg);
+    const live = a.ink.querySelector('path')!.getAttribute('d');
+    expect(live).toMatch(/^M10 10Q20 14 27 22Q34 30 42 32.5Q50 35 60 47.5L70 60$/);
+    ptr('pointerup', 70, 60, a.svg);
+    expect(a.ink.querySelector('path')!.getAttribute('d')).toBe(live);
+  });
+
+  it('--dx-inv follows a badge in a later overlay paint, and its removal', () => {
+    const c = new DiagramCanvas(null, { interaction: 'pan-zoom' });
+    sized(c.svg);
+    c.setBounds({ x: 0, y: 0, w: 200, h: 100 }, { fit: true });
+    c.show({ defs: [], page: [], body: [{ t: 'g', key: 'b', attrs: { class: 'dx-badge' }, children: [] }] });
+    expect(c.svg.style.getPropertyValue('--dx-inv')).not.toBe('');
+    // an overlay paint does not forget the body's badge
+    c.setOverlay([]);
+    expect(c.svg.style.getPropertyValue('--dx-inv')).not.toBe('');
+    c.show({ defs: [], page: [], body: [] });
+    expect(c.svg.style.getPropertyValue('--dx-inv')).toBe('');
+  });
+
   it('changing auto erase reschedules the strokes already counting down (B21)', () => {
     vi.useFakeTimers();
     try {
@@ -242,6 +269,27 @@ describe('DiagramCanvas', () => {
       vi.advanceTimersByTime(300);
       expect(b.svg.style.transform).toBe('');
       expect(b.vp.getAttribute('transform')).not.toBe(before);
+    });
+
+    it('a linked gesture reads the insets of both panes once, not per event (P9)', () => {
+      vi.useFakeTimers();
+      vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(box);
+      let reads = 0;
+      const host = document.createElement('div');
+      document.body.append(host);
+      const a = new DiagramCanvas(host, { interaction: 'pan-zoom', wheel: 'always', insets: () => (reads++, { left: 10, right: 0, top: 0, bottom: 0 }) });
+      const b = new DiagramCanvas(host, { interaction: 'pan-zoom', wheel: 'always', insets: () => (reads++, { left: 40, right: 0, top: 0, bottom: 0 }) });
+      a.setBounds({ x: 0, y: 0, w: 200, h: 100 }, { fit: true });
+      a.link(b);
+      reads = 0;
+      for (let i = 0; i < 10; i++) wheel(a.svg, { deltaY: -20, ctrlKey: true });
+      expect(reads).toBe(2);
+      // the panes stay 30 px apart
+      expect(b.view.peek().tx - a.view.peek().tx).toBeCloseTo(30);
+      // after a pause the next burst reads them again
+      vi.advanceTimersByTime(400);
+      wheel(a.svg, { deltaY: -20, ctrlKey: true });
+      expect(reads).toBe(4);
     });
   });
 
