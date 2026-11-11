@@ -19,19 +19,17 @@ import type { IconPack } from '../core/icons/types.js';
 import { KIND_TO_COLL, type DiagramMeta, type ItemMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
 import { own, ownOr } from '../core/own.js';
-import { opsKind, registeredKinds, withOps } from '../core/kinds/registry.js';
+import { opsKind, withOps } from '../core/kinds/registry.js';
 import { detectType } from '../core/parse/dispatch.js';
 import { editorHasKind, loadEditorKind } from './kinds/loader.js';
 import type { DiagramType } from '../core/types.js';
 import type { ClipboardData } from '../core/ops/clipboard.js';
 import { remapMeta } from '../core/ops/meta-ops.js';
 import { currentPreset, type StyleEnv } from '../core/ops/style-env.js';
-import { renderDocumentWith, type Rendered } from '../core/pipeline-core.js';
-import { pageScene } from '../core/render/page.js';
+import type { Rendered } from '../core/pipeline-core.js';
 import type { BoxGeom, GeometryIndex } from '../core/render/types.js';
 import type { SceneNode } from '../core/scene/types.js';
 import type { ItemKind, ItemRef, Rect } from '../core/types.js';
-import { itemKey } from '../core/types.js';
 import type { TextFormat, TextFormats } from './ops/format.js';
 import { HIGHLIGHT_CSS } from '../dom/highlight.js';
 import type { Viewport, WheelMode } from '../dom/viewport.js';
@@ -340,7 +338,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     needKind: (code) => this.kinds.need(code),
     selections: this.selections,
     shown: () => {
-      this.rendered = null;
+      this.storeScene.forget();
       this.draw();
       this.fire('model');
       this.fire('selection');
@@ -369,9 +367,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
    */
   readonly docType: ReadSignal<DiagramType | null>;
 
-  private rendered: Rendered | null = null;
   private readonly gestures: GestureSource[] = [];
-  private readonly painters: OverlayPainter[] = [];
   /** Applies a drag's move still waiting for its animation frame (the pointer loop's; P1). */
   flushPreview(): void {
     this.input.flushMove();
@@ -484,7 +480,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   /** The last render (scene, geometry, theme). */
   get result(): Rendered {
-    return this.rendered ?? this.render();
+    return this.storeScene.result;
   }
 
   get geom(): GeometryIndex {
@@ -540,7 +536,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   /** The drawn picture's selection marks (the picture itself does not depend on the selection, P4). */
   decorateSelection(): void {
-    if (this.storeScene.attached && this.dom.body.childElementCount) this.decorate();
+    this.storeScene.decorateSelection();
   }
 
   /** Geometry box of an item (participant foot when asked), or null. */
@@ -555,20 +551,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   /** Renders the current document (no DOM work). */
   render(): Rendered {
-    const v = this.version.peek();
-    const doc = v?.doc ?? this.store.doc();
-    const model = this.model;
-    this.kinds.need(doc.code);
-    const opts: Parameters<typeof renderDocumentWith>[4] = {};
-    if (this.mode.peek() === 'view' && !this.display.peek().labels) opts.hideLabels = true;
-    opts.theme = this.shownTheme();
-    // a version's layers are a view override too (its Layers panel hides and shows them without writing)
-    const layers = this.mode.peek() === 'view' || v ? this.visibleLayers.peek() : undefined;
-    if (layers) opts.visibleLayers = layers;
-    if (this.tableView && this.mode.peek() === 'edit' && !v) opts.tableView = [this.tableView];
-    const r = renderDocumentWith(registeredKinds(), doc, model, this.ctx, opts);
-    this.rendered = { doc, model, tooLarge: false, ...r, diagnostics: [...model.diagnostics, ...r.diagnostics] };
-    return this.rendered;
+    return this.storeScene.render();
   }
 
   /**
@@ -579,70 +562,16 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     this.storeScene.invalidate();
   }
 
-  /** Paints the document into the main canvas (the store scene calls it while attached). */
-  paintDocument(): void {
-    const r = this.render();
-    const res = r.result;
-    this.canvas.show({ defs: res.defs, page: pageScene(res, r.rctx), body: res.body });
-    this.storeScene.bounds.set(res.bounds);
-    this.decorate();
-    this.drawOverlay();
-    this.fire('draw');
-  }
-
-  /** Marks multi-selected items and the inline-edited item on the scene (classes only). */
-  private decorate(): void {
-    const body = this.dom.body;
-    for (const n of Array.from(body.querySelectorAll('.selected, .text-editing'))) n.classList.remove('selected', 'text-editing');
-    // one pass over the scene, however many items are selected
-    const marks = new Map<string, string[]>();
-    const mark = (r: ItemRef, cls: string): void => {
-      const k = itemKey(r);
-      marks.set(k, [...(marks.get(k) ?? []), cls]);
-    };
-    const sel = this.selection();
-    if (sel.length > 1) for (const r of sel) mark(r, 'selected');
-    if (this.inlineEditing) mark(this.inlineEditing, 'text-editing');
-    if (marks.size)
-      for (const n of Array.from(body.querySelectorAll('.el[data-id]'))) {
-        const c = marks.get(`${n.getAttribute('data-kind')}:${n.getAttribute('data-id')}`);
-        if (c) n.classList.add(...c);
-      }
-    this.dom.root.classList.toggle('group-edit', !!this.enteredGroup.peek() && this.mode.peek() === 'edit');
-  }
-
   /** Adds an overlay painter; one added while a module installs is muted while the module is suspended. */
   addOverlay(p: OverlayPainter): () => void {
-    const add = (): void => {
-      if (this.painters.includes(p)) return;
-      this.painters.push(p);
-      this.painters.sort((a, b) => a.order - b.order);
-    };
-    const remove = (): void => {
-      const i = this.painters.indexOf(p);
-      if (i >= 0) this.painters.splice(i, 1);
-    };
-    add();
-    this.track({ set: (on) => (on ? add() : remove()), dispose: remove });
-    return remove;
+    let remove = this.storeScene.addPainter(p);
+    this.track({ set: (on) => void (on ? (remove = this.storeScene.addPainter(p)) : remove()), dispose: () => remove() });
+    return () => remove();
   }
 
   /** Repaints the overlay layer (handles, dots, marquee) from the current geometry. */
   drawOverlay(): void {
-    const k = this.viewport.state.k;
-    const nodes: SceneNode[] = [];
-    const exclusive = this.painters.filter((p) => p.exclusive?.());
-    if (this.mode.peek() === 'edit' && !this.inlineEditing)
-      for (const p of exclusive.length ? exclusive : this.painters) {
-        try {
-          nodes.push(...p.paint(k));
-        } catch (e) {
-          // a broken painter must not take the canvas down
-          console.error(`[mmdx] overlay painter ${p.id}`, e);
-        }
-      }
-    if (this.scene === this.storeScene) this.canvas.setOverlay(nodes);
-    this.fire('overlay');
+    this.storeScene.paintOverlay();
   }
 
   // ---- gestures ---------------------------------------------------------------------------------------------------

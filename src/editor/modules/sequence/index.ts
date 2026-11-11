@@ -19,6 +19,7 @@ import { sizeBadge } from '../../lib/canvas.js';
 import { elementsAt } from '../../lib/geometry.js';
 import { SEQUENCE_CSS } from './css.js';
 import { maxOf, minOf } from '../../../core/geom.js';
+import { GESTURE, PAINT } from '../../lib/priorities.js';
 
 interface SeqLinking {
   a: Point;
@@ -273,10 +274,10 @@ export const sequenceModule: EditorModule = {
       ];
     };
 
-    scope.onDispose(core.addOverlay({
+    scope.painter({
       id: 'sequence',
       exclusive: () => !!linking || !!actPreview,
-      order: 80,
+      order: PAINT.kind,
       paint(k) {
         if (!seqModel(core)) return [];
         if (linking) return linkPreview(k);
@@ -294,7 +295,7 @@ export const sequenceModule: EditorModule = {
         if (!busy()) out.push(...seqDots(k));
         return out;
       },
-    }));
+    });
 
     // ---- gestures ------------------------------------------------------------------------------------------------
 
@@ -612,9 +613,9 @@ export const sequenceModule: EditorModule = {
       };
     };
 
-    scope.onDispose(core.addGestureSource({
+    scope.gesture({
       id: 'sequence',
-      priority: 90,
+      priority: GESTURE.kind,
       down(ev, hit) {
         if (core.mode.peek() !== 'edit' || core.tool.peek() === 'hand' || core.spaceDown || ev.button !== 0 || !hit.handle || !seqModel(core)) return null;
         const h = hit.handle;
@@ -658,7 +659,7 @@ export const sequenceModule: EditorModule = {
         }
         return gst;
       },
-    }));
+    });
 
     // ---- hover (prototype hoverSeq) ------------------------------------------------------------------------------
 

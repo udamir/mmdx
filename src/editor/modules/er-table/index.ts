@@ -25,6 +25,7 @@ import { elementAt } from '../../lib/canvas.js';
 import { freeStrip } from '../../lib/place.js';
 import { applyMeta, styleEnv } from '../../ops/doc.js';
 import { writeAttrLook } from '../../lib/er-look.js';
+import { GESTURE, PAINT } from '../../lib/priorities.js';
 
 export const ER_TABLE_CSS = /* css */ `
 .ed.table-edit .canvas .el { transition: opacity .15s; }
@@ -305,9 +306,9 @@ export const erTableModule: EditorModule = {
 
     // ---- selection overlay ------------------------------------------------------------------------------------
 
-    scope.onDispose(core.addOverlay({
+    scope.painter({
       id: 'er-table',
-      order: 11,
+      order: PAINT.table,
       paint(k) {
         const b = box();
         if (!table || !b || b.hidden) return [];
@@ -326,7 +327,7 @@ export const erTableModule: EditorModule = {
         }
         return out;
       },
-    }));
+    });
 
     // ---- pointer: rows are selected like items and dragged to reorder ----------------------------------------
 
@@ -344,9 +345,9 @@ export const erTableModule: EditorModule = {
       for (let i = Math.min(a, b); i <= Math.max(a, b); i++) out.push(i);
       return out;
     };
-    scope.onDispose(core.addGestureSource({
+    scope.gesture({
       id: 'er-table',
-      priority: 95,
+      priority: GESTURE.table,
       down(ev, hit) {
         if (!table || !editing() || ev.button !== 0 || core.tool.peek() === 'hand' || core.spaceDown) return null;
         const at = rowAt(hit.p);
@@ -407,7 +408,7 @@ export const erTableModule: EditorModule = {
           },
         };
       },
-    }));
+    });
 
     /** The table at the pointer: the event's target, else what is drawn there, else the topmost box that contains it. */
     const tableAt = (ev: MouseEvent): string | null => {

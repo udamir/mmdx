@@ -17,6 +17,7 @@ import { editKind, withEdit } from '../../kinds/registry.js';
 import type { EditorModule } from '../../module.js';
 import { CONNECT_CSS } from './css.js';
 import { canConnect, deepInside, endpointBox, endpointId, geomBoxOf, MAGNETS, portOn, projectToBox, targetAt } from '../../lib/geometry.js';
+import { GESTURE, PAINT } from '../../lib/priorities.js';
 
 interface Linking {
   a: Point;
@@ -197,10 +198,10 @@ export const connectModule: EditorModule = {
       ];
     };
 
-    scope.onDispose(core.addOverlay({
+    scope.painter({
       id: 'connect',
       exclusive: () => !!linking,
-      order: 70,
+      order: PAINT.connect,
       paint(k) {
         const sel = core.selection();
         const single = sel.length === 1 ? sel[0]! : null;
@@ -221,7 +222,7 @@ export const connectModule: EditorModule = {
         if (hoverEdge && !busy()) out.push(...bendHandles(hoverEdge, k));
         return out;
       },
-    }));
+    });
 
     // ---- gestures ------------------------------------------------------------------------------------------------
 
@@ -392,9 +393,9 @@ export const connectModule: EditorModule = {
       });
     };
 
-    scope.onDispose(core.addGestureSource({
+    scope.gesture({
       id: 'connect',
-      priority: 100,
+      priority: GESTURE.handle,
       down(ev, hit) {
         if (core.mode.peek() !== 'edit' || core.tool.peek() === 'hand' || core.spaceDown || ev.button !== 0 || !hit.handle) return null;
         const h = hit.handle;
@@ -429,7 +430,7 @@ export const connectModule: EditorModule = {
         }
         return gst;
       },
-    }));
+    });
 
     // ---- hover ---------------------------------------------------------------------------------------------------
 

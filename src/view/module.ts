@@ -15,6 +15,10 @@ export interface ModuleWhen {
 export type ActionsOf<C> = C extends { readonly $actions: infer A } ? A : never;
 /** The event map of a kernel type (`ViewCore<…, Events>`). */
 export type EventsOf<C> = C extends { readonly $events: infer E } ? E : never;
+/** The gesture sources a core takes (the editor's; `never` for a core without them). */
+export type GestureOf<C> = C extends { addGestureSource(s: infer S): () => void } ? S : never;
+/** The overlay painters a core takes (the editor's; `never` for a core without them). */
+export type PainterOf<C> = C extends { addOverlay(p: infer P): () => void } ? P : never;
 
 export interface ViewModule<C = unknown> {
   id: string;
@@ -74,6 +78,10 @@ export interface ModuleScope<C = unknown> {
   /** A computed value disposed on uninstall. */
   computed<T>(f: () => T): ReadSignal<T>;
   shortcut(...s: Shortcut[]): void;
+  /** A gesture source of the core (the editor's pointer gestures), muted while suspended, removed on uninstall. */
+  gesture(s: GestureOf<C>): void;
+  /** An overlay painter of the core (the editor's handles and marks), muted while suspended, removed on uninstall. */
+  painter(p: PainterOf<C>): void;
   /** Adds an item to a list the kernel renders (dock buttons, export formats, panels); removed while suspended. */
   contribute<T>(list: { peek(): readonly T[]; set(v: readonly T[]): void }, item: T): void;
   /** The module's entries in a kernel list, replaced as a whole (`set`); out while suspended, removed on uninstall. */

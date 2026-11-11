@@ -6,6 +6,7 @@ import { copyStyle as copyStyleOp, pasteStyle as pasteStyleOp, type StyleClip } 
 import type { ItemKind } from '../../../core/types.js';
 import type { Gesture, Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
+import { GESTURE } from '../../lib/priorities.js';
 
 export const PAINT_CSS = /* css */ `
 .ed.tool-paint svg.canvas, .ed.tool-paint svg.canvas .el, .ed.tool-paint svg.canvas .el * { cursor: copy !important; }
@@ -65,9 +66,9 @@ export const canvasPaintModule: EditorModule = {
       if (core.tool() !== 'paint') paintFrom = null;
     });
 
-    scope.onDispose(core.addGestureSource({
+    scope.gesture({
       id: 'canvas-paint',
-      priority: 60,
+      priority: GESTURE.paint,
       down(ev, hit): Gesture | null {
         if (core.tool.peek() !== 'paint') return null;
         if (hit.el && hit.item && core.mode.peek() === 'edit') {
@@ -82,7 +83,7 @@ export const canvasPaintModule: EditorModule = {
         setPainting(false);
         return null; // the board press goes on (marquee)
       },
-    }));
+    });
 
     for (const off of [
       core.provide('copyStyle', () => {

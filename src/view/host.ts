@@ -8,7 +8,7 @@ import type { ShortcutRegistry } from './keymap.js';
 import { Owner } from '../reactive/owner.js';
 import { computed, effect, signal, type ReadSignal } from '../reactive/signal.js';
 import { actionRegistry, eventBus } from './bus.js';
-import { matchesWhen, orderModules, type ActionsOf, type EventsOf, type ModuleScope, type Registration, type ViewModule } from './module.js';
+import { matchesWhen, orderModules, type ActionsOf, type EventsOf, type GestureOf, type ModuleScope, type PainterOf, type Registration, type ViewModule } from './module.js';
 import type { Mode, SlotName, Stage } from './types.js';
 
 /** What the module host needs from its kernel (ViewCore). */
@@ -383,6 +383,14 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
     }
     this.regs.push(r);
     if (!this.active) r.set(false);
+  }
+
+  gesture(s: GestureOf<C>): void {
+    this.onDispose((this.core as unknown as { addGestureSource(s: GestureOf<C>): () => void }).addGestureSource(s));
+  }
+
+  painter(p: PainterOf<C>): void {
+    this.onDispose((this.core as unknown as { addOverlay(p: PainterOf<C>): () => void }).addOverlay(p));
   }
 
   onDispose(f: () => void): void {

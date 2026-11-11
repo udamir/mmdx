@@ -48,7 +48,7 @@ describe('selection events', () => {
 
   it('a pick does not render the diagram again (P4)', () => {
     const { core } = mount();
-    const paint = vi.spyOn(core, 'paintDocument');
+    const paint = vi.spyOn(core.storeScene, 'paintDocument');
     core.select([{ kind: 'node', id: 'A' }]);
     core.select([{ kind: 'node', id: 'A' }, { kind: 'node', id: 'B' }]);
     expect(paint).not.toHaveBeenCalled();

@@ -34,7 +34,7 @@ describe('drag preview per frame (P1)', () => {
     const el = core.dom.body.querySelector('[data-kind="node"][data-id="A"]')!;
     const b = core.geom.type === 'flowchart' ? core.geom.nodes.get('A')! : null;
     const s = core.toScreen({ x: b!.x, y: b!.y });
-    const paint = vi.spyOn(core, 'paintDocument');
+    const paint = vi.spyOn(core.storeScene, 'paintDocument');
     ptr(el, 'pointerdown', s.x, s.y);
     const before = paint.mock.calls.length;
     for (let i = 1; i <= 10; i++) ptr(core.dom.svg, 'pointermove', s.x + i * 5, s.y);

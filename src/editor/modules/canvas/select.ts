@@ -16,6 +16,7 @@ import type { Gesture, Hit, Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { menuLinks, openLinkMenu } from '../../../view/link-menu.js';
 import { connectionCount, elementAt, inArea, itemLabel, LINE_KINDS, markSelection, samePrimary, selectable, selKey, sizeBadge } from '../../lib/canvas.js';
+import { GESTURE, PAINT } from '../../lib/priorities.js';
 
 const NOOP: Gesture = { move: () => undefined };
 
@@ -103,9 +104,9 @@ export const canvasSelectModule: EditorModule = {
 
     // ---- overlay: selection boxes, resize handle, entered group, page, marquee -----------------------------------
 
-    scope.onDispose(core.addOverlay({
+    scope.painter({
       id: 'canvas-select',
-      order: 10,
+      order: PAINT.selection,
       paint(k) {
         const out: SceneNode[] = [];
         const sel = core.selection();
@@ -161,7 +162,7 @@ export const canvasSelectModule: EditorModule = {
         }
         return out;
       },
-    }));
+    });
 
     // ---- gestures ------------------------------------------------------------------------------------------------
 
@@ -326,18 +327,18 @@ export const canvasSelectModule: EditorModule = {
       };
     };
 
-    scope.onDispose(core.addGestureSource({
+    scope.gesture({
       id: 'canvas-resize',
-      priority: 100,
+      priority: GESTURE.handle,
       down(_ev, hit) {
         if (!editing() || readOnly() || hit.handle?.getAttribute('data-handle') !== 'resize') return null;
         return resizeGesture();
       },
-    }));
+    });
 
-    scope.onDispose(core.addGestureSource({
+    scope.gesture({
       id: 'canvas-items',
-      priority: 50,
+      priority: GESTURE.item,
       down(ev: PointerEvent, hit: Hit) {
         if (!editing() || ev.button !== 0 || !hit.item || hit.handle) return null;
         let sel: Sel = hit.item;
@@ -379,11 +380,11 @@ export const canvasSelectModule: EditorModule = {
         }
         return readOnly() ? NOOP : moveGesture(sel, part);
       },
-    }));
+    });
 
-    scope.onDispose(core.addGestureSource({
+    scope.gesture({
       id: 'canvas-marquee',
-      priority: 10,
+      priority: GESTURE.background,
       down(ev, hit) {
         if (!editing() || ev.button !== 0 || hit.item || hit.handle) return null;
         let redraw = false;
@@ -425,7 +426,7 @@ export const canvasSelectModule: EditorModule = {
           cancel: finish,
         };
       },
-    }));
+    });
 
     // ---- pointer extras: page deselect, double-click, links and hover highlight (View) ---------------------------
 

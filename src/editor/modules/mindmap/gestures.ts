@@ -24,6 +24,7 @@ import type { EditorCore, Gesture, Hit, Sel } from '../../core.js';
 import type { ModuleScope } from '../../../view/module.js';
 import { mindmapKeys } from './index.js';
 import { maxOf } from '../../../core/geom.js';
+import { GESTURE, PAINT } from '../../lib/priorities.js';
 
 export { MINDMAP_CSS } from './css.js';
 
@@ -257,10 +258,10 @@ export function activateMindmap(scope: ModuleScope<EditorCore>): () => void {
     return s === 'd' ? { x: b.x, y: b.y + b.h / 2 + gap } : { x: b.x + (s === 'l' ? -1 : 1) * (b.w / 2 + gap), y: b.y };
   };
 
-  scope.onDispose(core.addOverlay({
+  scope.painter({
     id: 'mindmap',
     exclusive: () => !!drag,
-    order: 80,
+    order: PAINT.kind,
     paint(k) {
       const gm = mindGeom(core), M = mindModel(core);
       if (!gm || !M) return [];
@@ -309,7 +310,7 @@ export function activateMindmap(scope: ModuleScope<EditorCore>): () => void {
       }
       return out;
     },
-  }));
+  });
 
   // ---- drag to re-parent or reorder ------------------------------------------------------------------------------
 
@@ -390,9 +391,9 @@ export function activateMindmap(scope: ModuleScope<EditorCore>): () => void {
     },
   });
 
-  scope.onDispose(core.addGestureSource({
+  scope.gesture({
     id: 'mindmap',
-    priority: 90,
+    priority: GESTURE.kind,
     down(ev, hit: Hit) {
       const M = mindModel(core);
       if (!M || !editing() || core.tool.peek() === 'hand' || core.spaceDown || ev.button !== 0) return null;
@@ -423,7 +424,7 @@ export function activateMindmap(scope: ModuleScope<EditorCore>): () => void {
       if (multi || id === M.root || core.getM('node', id).locked) return NOOP;
       return dragGesture(id, hit.p, ev.altKey);
     },
-  }));
+  });
   scope.onDispose(core.on('model', () => {
     drag = null;
   }));
