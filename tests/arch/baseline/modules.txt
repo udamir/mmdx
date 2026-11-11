@@ -32,8 +32,6 @@ editor/modules/panels/code-panel.ts: kernel DOM ×2
 editor/modules/panels/layers.ts: bare computed ×3
 editor/modules/panels/layers.ts: kernel DOM ×1
 editor/modules/panels/right-panels.ts: kernel DOM ×1
-editor/modules/sequence/index.ts: bare core.on ×1
-editor/modules/sequence/index.ts: kernel DOM ×1
 editor/modules/shapes/index.ts: bare core.on ×2
 editor/modules/shapes/index.ts: kernel DOM ×1
 view/modules/canvas.ts: kernel DOM ×2

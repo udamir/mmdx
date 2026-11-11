@@ -2,7 +2,6 @@
 727	core/render/flowchart.ts › renderFlowchart
 651	core/render/sequence.ts › renderSequence
 605	core/render/state.ts › renderState
-553	editor/modules/sequence/index.ts › install
 534	core/parse/flowchart.ts › readFlowchart
 521	core/parse/er.ts › readER
 488	editor/modules/panels/code-panel.ts › install
