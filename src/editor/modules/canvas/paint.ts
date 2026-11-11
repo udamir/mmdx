@@ -89,7 +89,6 @@ export const canvasPaintModule: EditorModule = {
       core.provide('copyStyle', () => {
         if (copyStyle()) core.toast('Style copied — ⌘/Ctrl+Alt+V to paste');
       }),
-      core.provide('pasteStyle', (t: Sel) => pasteStyle(t)),
       core.provide('setPainting', setPainting),
     );
 

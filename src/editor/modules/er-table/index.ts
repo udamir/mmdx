@@ -621,7 +621,6 @@ export const erTableModule: EditorModule = {
       }),
       core.on('mode', () => exit(false)),
       core.on('view', () => tb?.place()),
-      core.provide('editTable', (id: string | null) => (id ? enter(id) : exit())),
     );
 
     return () => {

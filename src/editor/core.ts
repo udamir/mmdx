@@ -163,14 +163,10 @@ export interface EditorActions {
   arrange(op: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom' | 'hdist' | 'vdist'): void;
   enterGroup(gid: string): void;
   exitGroup(): void;
-  /** ER: edit a table's attributes in place (table view); null leaves it. */
-  editTable(id: string | null): void;
   inlineEdit(item: Sel): boolean;
   moveSelection(dir: -1 | 1): void;
-  unlockAll(): void;
   applyActivation(): void;
   copyStyle(): void;
-  pasteStyle(target: Sel): boolean;
   setPainting(on: boolean): void;
   addShape(kind: string, opts?: { preset?: string; at?: { x: number; y: number } }): void;
   /** Shapes menu of the tool dock (ER: the table presets); `anchor` = the dock button it flies out of. */
@@ -181,10 +177,7 @@ export interface EditorActions {
   fitView(): void;
   /** Opens the code panel at a real (1-based) line of the Mermaid code (clears a code filter that hides it). */
   gotoCodeLine(line: number): void;
-  /** Opens the Metadata tab at a (1-based) line of the metadata text. */
-  gotoMetaLine(line: number): void;
   setPanel(name: PanelName, open: boolean): void;
-  toggleHelp(on?: boolean): void;
   /** Opens or closes the History of the document (when the editor has a history); `compare`: on the newest change. */
   toggleHistory(on?: boolean, opts?: { compare?: boolean }): void;
   exportAs(kind: 'mmdx' | 'mmd' | 'svg' | 'png'): Promise<void>;

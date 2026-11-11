@@ -1,8 +1,7 @@
 // Left panel (A.1 rows 2–6, 8): Mermaid code and Metadata tabs, the code filter (`%% - N hidden` folding, edits in
 // the filtered view written into the full file), live per-line metadata validation, the problems list with fixes,
 // gutter markers, the canvas issue bar (a Pill at the top centre while the panel is closed, loaded on first use) and
-// `gotoCodeLine` /
-// `gotoMetaLine`. A SidePanel with a Tabs head in the left stack (chrome/panes.ts); the editors are ui/code-editor.
+// `gotoCodeLine`. A SidePanel with a Tabs head in the left stack (chrome/panes.ts); the editors are ui/code-editor.
 // Ported from prototype/app.js (~85–237, ~1809–1875, ~2697–2730, ~4307–4449) and index.html `#leftPane`.
 import { checkMetaLine, metaToLines, splitSource } from '../../../core/meta/index.js';
 import type { Diagnostic } from '../../../core/types.js';
@@ -553,7 +552,7 @@ export const codePanelModule: EditorModule = {
         metaEd.gotoLine(n);
       }
     };
-    cleanups.push(core.provide('gotoCodeLine', gotoCodeLine), core.provide('gotoMetaLine', gotoMetaLine));
+    cleanups.push(core.provide('gotoCodeLine', gotoCodeLine));
 
     // ---- follow the document: code (undo, ops, loads), metadata and problems after each draw
     let revSeen = '';

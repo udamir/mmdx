@@ -63,7 +63,6 @@ export interface ExportFormat {
 /** Actions every component may provide; modules call them through `core.run()`. */
 export interface ViewActions {
   fitView(): void;
-  toggleHelp(on?: boolean): void;
   /**
    * Opens or closes the History of the document (when there is a history). Opening shows the version panel only;
    * `compare`: opens on the newest change compared (the studio's Diff).

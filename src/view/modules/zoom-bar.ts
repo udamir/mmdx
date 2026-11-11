@@ -1,6 +1,6 @@
 // zoomBar (component architecture §7.4): the zoom bar bottom right (− % + Fit), the `?` help popup generated from the
 // keymap of the active modules, and full screen of the component's host — the browser's, else the host page's
-// (`core.hostFullscreen`, for sandboxed iframes). Provides `fitView` and `toggleHelp`; keys + − 0 / F (fit), arrows
+// (`core.hostFullscreen`, for sandboxed iframes). Provides `fitView`; keys + − 0 / F (fit), arrows
 // (pan in View mode), ? and Esc (help).
 import { createZoomBar, ZOOM_BAR_CSS } from '../../ui/blocks/zoom-bar.js';
 import { signal, untracked } from '../../ui/signal.js';
@@ -78,7 +78,6 @@ export const zoomBarModule: ViewModule<ViewCore> = {
         },
       });
     };
-    if (core.feature('help')) scope.provide('toggleHelp', toggleHelp);
 
     // ---- full screen: the component's host element; the host page's when the browser's is unavailable
     let refit: ReturnType<typeof setTimeout> | undefined;

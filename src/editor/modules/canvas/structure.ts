@@ -2,7 +2,7 @@
 // clipboard of §8.2, align / distribute, unlock all, ⌘[ / ⌘] and the board's right-click menu (Paste, Unlock all,
 // disabled "Nothing to paste"; on a group whose type offers it, "Reset positions in this group" of T07). Ported from
 // prototype app.js (`deleteSelection`, `canGroup`, `groupSelection`, `ungroupSelection`, `copySelection`, `pasteable`,
-// `pasteAt`, `duplicateSelection`, `unlockAll`, `arrangeSelection`, `moveSelection`, `showContextMenu`).
+// `pasteAt`, `duplicateSelection`, `arrangeSelection`, `moveSelection`, `showContextMenu`).
 import { POSITIONAL_KINDS } from '../../../core/ids.js';
 import { KIND_TO_COLL } from '../../../core/meta/types.js';
 import type { DiagramModel } from '../../../core/model.js';
@@ -250,7 +250,6 @@ export const canvasStructureModule: EditorModule = {
       core.provide('pasteAt', pasteAt),
       core.provide('duplicateSelection', duplicateSelection),
       core.provide('arrange', arrange),
-      core.provide('unlockAll', unlockAll),
     );
     // ⌘[ / ⌘]: the order slider's module may provide its own; this one is the fallback.
     if (!core.has('moveSelection')) offs.push(core.provide('moveSelection', moveSelection));
