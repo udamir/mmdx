@@ -295,6 +295,7 @@ DiagramEditor
 DocumentAdapter (type)
 DocumentSaveResult (type)
 EditorCore
+EditorEventMap (type)
 EditorFeatures (type)
 EditorModule (type)
 EditorOptions (type)

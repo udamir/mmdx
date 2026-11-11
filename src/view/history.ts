@@ -1,6 +1,7 @@
 // The History session facade (component architecture §8.3): what `editor.historySession` / `viewer.historySession`
 // return while History is open — the `<mmdx-diff>` methods over the session History shows.
 // The contract types live here, not in diff/ (A6): the kernel holds a session, the diff implements it.
+import type { Diagnostic } from '../core/types.js';
 import type { DiffView } from '../core/diff/annotate.js';
 import type { ChangeFacet, DiagramDiff as DiffResult } from '../core/diff/types.js';
 
@@ -58,4 +59,17 @@ export interface HistoryHost {
   restoreVersion?(source: string, version: { id: string }): void;
   /** Puts copied items on the host's item clipboard (copying from History). */
   setClipboard?(data: unknown): void;
+}
+
+/** The DOM events History sends from the element it opens in (the viewer, the editor, the studio's editor). */
+export interface HistoryEventMap {
+  'mmdx-history-open': CustomEvent<Record<string, never>>;
+  'mmdx-history-close': CustomEvent<Record<string, never>>;
+  /** What History shows: nothing picked, one version as it is, or a comparison. */
+  'mmdx-history-show': CustomEvent<{ shown: 'none' | 'version' | 'compare' }>;
+  /** The versions shown (`viewing`: the one shown as it is). */
+  'mmdx-history-version': CustomEvent<{ base: string | null; head: string | null; viewing: string | null }>;
+  /** Before a version is restored into the document; cancelable. */
+  'mmdx-history-restore': CustomEvent<{ id: string; source: string }>;
+  'mmdx-history-error': CustomEvent<{ diagnostics: Diagnostic[] }>;
 }

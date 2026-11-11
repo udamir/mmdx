@@ -8,7 +8,7 @@ import { memoryStorage } from '../../src/adapters/storage.js';
 import type { ThemeSource } from '../../src/ports.js';
 import { BUILTIN_THEMES } from '../../src/core/theme/builtin.js';
 import type { ThemeFile } from '../../src/core/theme/types.js';
-import { defineEditor, type MmdxEditorElement } from '../../src/editor/editor.js';
+import { defineEditor, type MmdxEditorElement } from '../../src/elements/editor.js';
 import { defineDiff, type MmdxDiffElement } from '../../src/elements/diff.js';
 import { defineStudio, type MmdxStudioElement } from '../../src/elements/studio.js';
 import { defineThemeEditor, type MmdxThemeEditorElement } from '../../src/elements/theme-editor.js';

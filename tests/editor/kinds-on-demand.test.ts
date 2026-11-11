@@ -4,7 +4,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { forgetKinds, forgetOps, opsKind, viewKind } from '../../src/core/kinds/registry.js';
-import { defineEditor, type MmdxEditorElement } from '../../src/editor/editor.js';
+import { defineEditor, type MmdxEditorElement } from '../../src/elements/editor.js';
 import { editKind, forgetEditKinds } from '../../src/editor/kinds/registry.js';
 
 beforeAll(() => {

@@ -41,11 +41,7 @@ const ATTRS: Readonly<Record<string, AttrSpec<ThemeEditorOptions>>> = {
 };
 
 export class MmdxThemeEditorElement extends MmdxElement<ThemeEditorOptions, ThemeEditor> {
-  static observedAttributes = Object.keys(ATTRS);
-
-  protected attrs(): typeof ATTRS {
-    return ATTRS;
-  }
+  static override readonly schema = { attrs: ATTRS };
 
   protected create(o: ThemeEditorOptions): ThemeEditor {
     return new ThemeEditor(this, o);

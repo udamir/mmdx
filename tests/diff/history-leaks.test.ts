@@ -4,7 +4,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { StaticVersion } from '../../src/adapters/history.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
-import { defineEditor, type MmdxEditorElement } from '../../src/editor/editor.js';
+import { defineEditor, type MmdxEditorElement } from '../../src/elements/editor.js';
 import { loadKind } from '../../src/platform/kinds.js';
 
 beforeAll(async () => {

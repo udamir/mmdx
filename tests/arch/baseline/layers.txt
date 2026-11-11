@@ -7,7 +7,6 @@ core/kinds/sequence.ts → core/render/sequence.ts [value] (ops/kinds → full r
 core/kinds/state.ts → core/render/state.ts [value] (ops/kinds → full renderer)
 core/media/kit.ts → core/media/kit-impl.ts [type] (upward core C2 → C5)
 editor/core.ts → diff/history.ts [dynamic] (product → product editor → diff)
-editor/editor.ts → elements/base.ts [value] (upward editor → elements)
 editor/kinds/er.ts → editor/modules/shapes/drop.ts [value] (editor kinds → editor module)
 editor/kinds/flowchart.ts → editor/modules/shapes/drop.ts [value] (editor kinds → editor module)
 editor/kinds/mindmap.ts → editor/modules/shapes/drop.ts [value] (editor kinds → editor module)

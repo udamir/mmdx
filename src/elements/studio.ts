@@ -10,7 +10,8 @@ import { type StorageAdapter, type ThemeSource, type HistoryAdapter } from '../p
 import { fetchThemeSource, localStorageThemeStore } from '../adapters/themes.js';
 import { getShared } from '../platform/config.js';
 import { ensureBuiltinThemes } from '../platform/themes.js';
-import { defineEditor, type DiagramEditor, type MmdxEditorElement } from '../editor/editor.js';
+import { type DiagramEditor } from '../editor/editor.js';
+import { defineEditor, type MmdxEditorElement } from './editor.js';
 import { readDocumentFiles } from '../editor/modules/chrome/document.js';
 import { download } from '../dom/export.js';
 import type { WheelMode } from '../dom/viewport.js';
@@ -587,9 +588,7 @@ const ATTRS: Readonly<Record<string, AttrSpec<StudioOptions>>> = {
 };
 
 export class MmdxStudioElement extends MmdxElement<StudioOptions, DiagramStudio> {
-  protected attrs(): typeof ATTRS {
-    return ATTRS;
-  }
+  static override readonly schema = { attrs: ATTRS };
 
   protected create(o: StudioOptions): DiagramStudio {
     return new DiagramStudio(this, o);

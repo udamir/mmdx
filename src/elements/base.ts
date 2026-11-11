@@ -81,8 +81,20 @@ export abstract class MmdxElement<O extends object, I extends { destroy(): void 
   protected props: Partial<O> = {};
   private inst: I | null = null;
 
-  /** Attribute name → option (the attributes observed). */
-  protected abstract attrs(): Readonly<Record<string, AttrSpec<O>>>;
+  /**
+   * The element's schema (A9): its attributes — name → option and parser — from which the observed attributes and the
+   * options read at creation follow, so a subclass cannot forget to observe one.
+   */
+  static readonly schema: { readonly attrs: Readonly<Record<string, AttrSpec<never>>> } = { attrs: {} };
+
+  static get observedAttributes(): string[] {
+    return Object.keys(this.schema.attrs);
+  }
+
+  /** Attribute name → option (the schema's). */
+  private attrs(): Readonly<Record<string, AttrSpec<O>>> {
+    return (this.constructor as typeof MmdxElement).schema.attrs as unknown as Readonly<Record<string, AttrSpec<O>>>;
+  }
   /** Creates the component from the attributes and the properties. */
   protected abstract create(o: Partial<O>): I;
   /** Applies changed options to the live component. */

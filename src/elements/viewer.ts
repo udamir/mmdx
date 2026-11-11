@@ -5,6 +5,8 @@
 // and the viewer's modules — the editor's chrome (tool dock, zoom bar with help, view params), every piece behind a
 // control of the `controls` attribute.
 import { MmdxElement, readInlineSource, warnOnce, words, type AttrSpec, type Patch } from './base.js';
+import type { HistoryEventMap } from '../view/history.js';
+import { applyKernelPatch, KERNEL_OPTION_KEYS } from '../view/kernel-options.js';
 import { fetchText } from '../adapters/fetch-text.js';
 import type { ThemeSource, HistoryAdapter, StorageAdapter, HostFullscreen } from '../ports.js';
 import type { StaticVersion } from '../adapters/history.js';
@@ -61,7 +63,7 @@ export interface ViewerOptions {
   fullscreen?: HostFullscreen;
 }
 
-export interface ViewerEventMap {
+export interface ViewerEventMap extends HistoryEventMap {
   'mmdx-render': CustomEvent<{ bounds: Rect; type: string | null; durationMs: number }>;
   'mmdx-error': CustomEvent<{ diagnostics: Diagnostic[] }>;
   'mmdx-link': CustomEvent<{ href: string; id: string | null }>;
@@ -69,8 +71,6 @@ export interface ViewerEventMap {
   /** Before the full-screen button enters or leaves full screen; cancelable (the host handles it, nothing changes). */
   'mmdx-fullscreen-request': CustomEvent<{ enter: boolean }>;
   'mmdx-ui': CustomEvent<{ ui: 'light' | 'dark' }>;
-  'mmdx-history-open': CustomEvent<Record<string, never>>;
-  'mmdx-history-close': CustomEvent<Record<string, never>>;
 }
 
 const DEFAULT_CONTROLS: readonly ViewerControl[] = ['zoom', 'fullscreen'];
@@ -177,18 +177,13 @@ export class DiagramViewer {
     Object.assign(this.o, patch);
     for (const k of Object.keys(patch) as (keyof ViewerOptions)[]) if (patch[k] === undefined) delete this.o[k];
     const core = this.core;
-    if (changed('storage')) core.setStorage(this.o.storage);
+    applyKernelPatch(core, Object.fromEntries(KERNEL_OPTION_KEYS.filter(changed).map((k) => [k, this.o[k]])), { wheel: 'ctrl' });
     if (changed('themeSource')) core.setThemeSource(this.o.themeSource);
     if (changed('ctx')) warnOnce('viewer: `ctx` is read when the viewer is created');
-    if (changed('ui')) core.setUi(this.o.ui);
-    if (changed('theme')) core.themes.attr.set(this.o.theme ?? null);
-    if (changed('themeDark')) core.themes.attrDark.set(this.o.themeDark ?? null);
-    if (changed('compact')) core.setCompact(this.o.compact ?? 'auto');
     if (changed('interactive')) {
       core.canvas.setInteraction(this.o.interactive === false ? 'static' : 'pan-zoom');
       core.root.classList.toggle('can-pan', core.canvas.interaction === 'pan-zoom');
     }
-    if (changed('wheel')) core.canvas.setOptions({ wheel: this.o.wheel ?? 'ctrl' });
     if (changed('labels') || changed('hoverHighlight')) core.setDisplay({ labels: this.o.labels !== false, hoverHighlight: this.o.hoverHighlight !== false });
     if (changed('layers')) core.setVisibleLayers(this.o.layers);
     if (changed('history')) core.setHostOptions({ history: this.o.history ?? null });
@@ -374,11 +369,7 @@ const ATTRS: Readonly<Record<string, AttrSpec<ViewerOptions>>> = {
 };
 
 export class MmdxViewerElement extends MmdxElement<ViewerOptions, DiagramViewer> {
-  static observedAttributes = Object.keys(ATTRS);
-
-  protected attrs(): typeof ATTRS {
-    return ATTRS;
-  }
+  static override readonly schema = { attrs: ATTRS };
 
   protected create(o: ViewerOptions): DiagramViewer {
     return new DiagramViewer(this, o);

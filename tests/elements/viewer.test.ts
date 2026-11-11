@@ -488,7 +488,7 @@ describe('inline sources round-trip (B17)', () => {
   });
 
   it('the editor element opens an inline source as the viewer does', async () => {
-    const { defineEditor } = await import('../../src/editor/editor.js');
+    const { defineEditor } = await import('../../src/elements/editor.js');
     defineEditor();
     const el = document.createElement('mmdx-editor');
     el.innerHTML = '<script type="text/mermaid">\n    flowchart LR\n      a["<\\/script>"] --> b\n  </script>';

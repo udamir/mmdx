@@ -4,7 +4,7 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { elementProperties } from '../../src/elements/base.js';
 import { defineViewer, MmdxViewerElement } from '../../src/elements/viewer.js';
-import { defineEditor, MmdxEditorElement } from '../../src/editor/editor.js';
+import { defineEditor, MmdxEditorElement } from '../../src/elements/editor.js';
 import { createReactWrappers } from '../../src/wrappers/react.js';
 
 beforeAll(() => {
