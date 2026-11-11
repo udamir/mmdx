@@ -255,7 +255,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 262.7 kB (262.3 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
     // 263.2 kB (262.8 kB measured) 4.7: the group tree and escapeRegExp as shared modules (+0.1 kB)
     // 247.8 kB (247.4 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
-    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 247.8 * KB);
+    // 248.3 kB (247.9 kB measured) 4.9: the diff reports missing fonts too (+0.1 kB)
+    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 248.3 * KB);
   }
 }
 
