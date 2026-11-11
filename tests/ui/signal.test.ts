@@ -87,3 +87,94 @@ describe('signals', () => {
     expect(seen).toEqual([2, 4, 6]);
   });
 });
+
+describe('robustness (R12)', () => {
+  it('a throwing effect does not drop the rest of the batch; the error comes out after it', () => {
+    const s = signal(0);
+    const seen: number[] = [];
+    effect(() => {
+      if (s() === 1) throw new Error('boom');
+    });
+    effect(() => void seen.push(s()));
+    expect(() => s.set(1)).toThrow('boom');
+    expect(seen).toEqual([0, 1]);
+    // the throwing effect still follows what it read
+    s.set(2);
+    expect(seen).toEqual([0, 1, 2]);
+  });
+
+  it('a set inside an effect does not flush re-entrantly: effects run in order, each once', () => {
+    const a = signal(0), b = signal(0);
+    const log: string[] = [];
+    effect(() => {
+      log.push(`A${a()}`);
+      if (a() === 1) b.set(1);
+    });
+    effect(() => void log.push(`B${b()}:${a()}`));
+    log.length = 0;
+    a.set(1);
+    // the second effect runs once, after the first, and sees both new values (no nested pass in between)
+    expect(log).toEqual(['A1', 'B1:1']);
+  });
+
+  it('an effect that keeps setting what it reads stops with an error (cycle guard)', () => {
+    const s = signal(0);
+    const stop = (() => {
+      try {
+        return effect(() => s.set(s() + 1));
+      } catch (e) {
+        return e;
+      }
+    })();
+    expect(String(stop)).toMatch(/cycle/i);
+    expect(s.peek()).toBeLessThan(200);
+  });
+
+  it('a computed whose value stays the same does not re-run its readers', () => {
+    const n = signal(2);
+    const even = computed(() => n() % 2 === 0);
+    let runs = 0;
+    effect(() => {
+      even();
+      runs++;
+    });
+    n.set(4);
+    n.set(6);
+    expect(runs).toBe(1);
+    n.set(7);
+    expect(runs).toBe(2);
+    expect(even()).toBe(false);
+  });
+
+  it('a computed that threw is notified again when its inputs change', () => {
+    const s = signal(0);
+    const c = computed(() => {
+      if (s() === 1) throw new Error('bad');
+      return s() * 10;
+    });
+    const seen: unknown[] = [];
+    effect(() => {
+      try {
+        seen.push(c());
+      } catch (e) {
+        seen.push((e as Error).message);
+      }
+    });
+    s.set(1);
+    s.set(2);
+    s.set(3);
+    expect(seen).toEqual([0, 'bad', 20, 30]);
+  });
+
+  it('a computed read inside a batch sees the values set so far, and the effect runs once after it', () => {
+    const a = signal(1), b = signal(1);
+    const sum = computed(() => a() + b());
+    const seen: number[] = [];
+    effect(() => void seen.push(sum()));
+    batch(() => {
+      a.set(2);
+      b.set(3);
+    });
+    expect(seen).toEqual([2, 5]);
+  });
+});
