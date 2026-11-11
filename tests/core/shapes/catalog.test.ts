@@ -6,7 +6,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { byShapeId, menuShapes, pickerShapes, resolveShape, shapeDef, SHAPES, shapesIn } from '../../../src/core/shapes/catalog.js';
 import { EXTENDED } from '../../../src/core/shapes/extended.js';
 import { registerExtendedShapes } from '../../../src/core/extras.js';
-import { shapeMisses } from '../../../src/core/shapes/misses.js';
+import { collectMisses } from '../../../src/core/shapes/misses.js';
 import { EXTENDED_NAMES } from '../../../src/core/shapes/names.js';
 import { onOutline, outlinePoints } from '../../../src/core/shapes/outline.js';
 import { forgetShapes, shapeById } from '../../../src/core/shapes/registry.js';
@@ -67,14 +67,11 @@ describe('names', () => {
   it('a known shape whose geometry is not loaded resolves by name and draws as a counted rectangle (T02.9)', () => {
     forgetShapes();
     try {
-      const n = shapeMisses();
       expect(resolveShape('lightning-bolt')?.names.id).toBe('bolt');
       expect(shapeById('bolt')).toBeUndefined();
-      expect(shapeDef('lightning-bolt').id).toBe('rect');
-      expect(shapeMisses()).toBe(n + 1);
-      expect(shapeDef('diam').id).toBe('diamond');
-      expect(shapeDef('nope').id).toBe('rect');
-      expect(shapeMisses()).toBe(n + 1);
+      expect(collectMisses(() => shapeDef('lightning-bolt').id)).toEqual(['rect', { shapes: true }]);
+      // a loaded shape, and an unknown name (a rectangle, not a miss)
+      expect(collectMisses(() => [shapeDef('diam').id, shapeDef('nope').id])).toEqual([['diamond', 'rect'], {}]);
     } finally {
       registerExtendedShapes();
     }
@@ -194,5 +191,20 @@ describe('the Shapes menu list (Mermaid Chart sections)', () => {
       for (const name of [def.mermaid, ...def.aliases].filter((x): x is string => !!x)) expect(shapeIdOf(name), name).toBe(id);
     }
     expect(['proc', 'process', 'rectangle', 'rect'].map(shapeIdOf)).toEqual(['rect', 'rect', 'rect', 'rect']);
+  });
+});
+
+describe('what a render drew without (A18)', () => {
+  it('a render reports shapes and the media kit it lacked in its result, not in a global count', async () => {
+    const { renderSource } = await import('../../../src/core/pipeline.js');
+    const { createContext } = await import('../../../src/core/context.js');
+    forgetShapes();
+    try {
+      const r = renderSource('flowchart LR\n  a@{ shape: lightning-bolt }', createContext());
+      expect(r.result.missing).toEqual({ shapes: true });
+    } finally {
+      registerExtendedShapes();
+    }
+    expect(renderSource('flowchart LR\n  a@{ shape: lightning-bolt }', createContext()).result.missing).toBeUndefined();
   });
 });

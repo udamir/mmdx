@@ -8,7 +8,7 @@ import { MEDIA_KIT } from '../../../src/core/media/kit-impl.js';
 import { emptyMeta } from '../../../src/core/meta/types.js';
 import type { ItemMeta } from '../../../src/core/meta/types.js';
 import { serializeNodes } from '../../../src/core/scene/serialize.js';
-import { shapeMisses } from '../../../src/core/shapes/misses.js';
+import { collectMisses } from '../../../src/core/shapes/misses.js';
 import type { Diagnostic } from '../../../src/core/types.js';
 import { makeCtx, registry } from './helpers.js';
 
@@ -123,17 +123,18 @@ describe('decorate', () => {
     expect(r.svg).toMatch(/mmdx-icon(-missing)?/);
   });
 
-  it('without the media kit: nothing drawn (the space stays), one miss counted', () => {
+  it('without the media kit: nothing drawn (the space stays), the kit reported missing', () => {
     forgetMediaKit();
     try {
-      const before = shapeMisses();
-      const k = lazyKit();
-      const env = { ctx, diagnostics: [] as Diagnostic[] };
-      const d = decoration(ctx, k, { label: 'Run', meta: { img: IMG, iconPos: 't' }, fontSize: 16, color: undefined, icon: { written: 'fa fa-book', form: 'class' } });
-      const r = decorate(env, k, d, 0, 0, text, { key: 'n' });
-      expect(r.nodes).toEqual([]);
-      expect(r.contentBox.y).toBe(72 + DECO_GAP + 28 + DECO_GAP + 10);
-      expect(shapeMisses() - before).toBe(1);
+      const [, missing] = collectMisses(() => {
+        const k = lazyKit();
+        const env = { ctx, diagnostics: [] as Diagnostic[] };
+        const d = decoration(ctx, k, { label: 'Run', meta: { img: IMG, iconPos: 't' }, fontSize: 16, color: undefined, icon: { written: 'fa fa-book', form: 'class' } });
+        const r = decorate(env, k, d, 0, 0, text, { key: 'n' });
+        expect(r.nodes).toEqual([]);
+        expect(r.contentBox.y).toBe(72 + DECO_GAP + 28 + DECO_GAP + 10);
+      });
+      expect(missing).toEqual({ media: true });
     } finally {
       registerMediaKit(MEDIA_KIT);
     }

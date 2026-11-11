@@ -167,6 +167,14 @@ export interface RenderResult {
   diagnostics?: Diagnostic[];
   /** The diagram's own accessible title and description (`accTitle`, `accDescr`): the SVG's `<title>` and `<desc>`. */
   a11y?: { title?: string; desc?: string };
+  /** What the render drew without because it was not loaded (A18): shapes' geometry, the media kit. */
+  missing?: Misses;
+}
+
+/** What a render lacked (core/shapes/misses.ts collects it). */
+export interface Misses {
+  shapes?: true;
+  media?: true;
 }
 
 export type { DiagramMeta };

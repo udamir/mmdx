@@ -2,18 +2,17 @@
 // This module bundles no themes; context.ts adds the built-in ones as the default registry.
 import { IconRegistry } from './icons/registry.js';
 import type { ThemeRegistry } from './theme/registry.js';
-import type { ImageSizes } from './render/types.js';
-import { createStaticMeasurer, type TextMeasurer } from './text/measure.js';
-import { DEFAULT_IMAGE_POLICY, DEFAULT_LINK_POLICY, type ImagePolicy, type LinkPolicy, type UrlResolver } from './validate.js';
+import type { RenderContext } from './render/types.js';
+import { createStaticMeasurer } from './text/measure.js';
+import { DEFAULT_IMAGE_POLICY, DEFAULT_LINK_POLICY, type UrlResolver } from './validate.js';
 
-export interface CoreContext {
+/**
+ * One component instance's context (A18: what it shares with a render is RenderContext's, picked from there, so the
+ * two are typed once): the measurer, the ids' prefix, the policies, the URL resolver and image sizes, plus its theme
+ * registry, icon registry and locale.
+ */
+export interface CoreContext extends Pick<RenderContext, 'measure' | 'idPrefix' | 'linkPolicy' | 'imagePolicy' | 'imageSizes'> {
   themes: ThemeRegistry;
-  measure: TextMeasurer;
-  /** Unique per instance, so SVG <defs> ids (markers, patterns) never collide between diagrams on one page. */
-  idPrefix: string;
-  linkPolicy: LinkPolicy;
-  /** Which image URLs diagram content may use (T03): `https:` only by default. */
-  imagePolicy: ImagePolicy;
   /**
    * Icon packs (T04): `pack:name` label tokens, icon nodes and mindmap icons are looked up here. Components share the
    * registry of `configure({ iconPacks })` (or extend it with their own packs); SSR builds one with `createIconRegistry`.
@@ -25,8 +24,6 @@ export interface CoreContext {
    * diagram renders on the main thread.
    */
   resolveUrl?: UrlResolver;
-  /** Natural sizes of content images (T06), when the host can load them: components set the browser's lookup. */
-  imageSizes?: ImageSizes;
   locale?: string;
 }
 

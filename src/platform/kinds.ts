@@ -7,7 +7,7 @@
 import { diffKind, registerDiffs, registerKinds, registeredKinds, viewKind } from '../core/kinds/registry.js';
 import type { DiffKind } from '../core/kind/diff-types.js';
 import type { Kinds, ViewKind } from '../core/kind/types.js';
-import { shapeMisses } from '../core/shapes/misses.js';
+import { collectMisses } from '../core/shapes/misses.js';
 import type { DiagramType } from '../core/types.js';
 
 /** Where each type's kinds are: its view kind (parser, renderer) and its diff kind. */
@@ -72,9 +72,8 @@ export const loadShapes = (): Promise<void> => loadOnce('extras', () => false, (
  * rectangle (core/shapes/registry.ts), and the caller loads it (`loadShapes`) and renders again.
  */
 export function drawShapes<R>(render: () => R): [R, missing: boolean] {
-  const before = shapeMisses();
-  const r = render();
-  return [r, shapeMisses() !== before];
+  const [r, m] = collectMisses(render);
+  return [r, !!(m.shapes || m.media)];
 }
 
 /** A render with every shape it draws: when one was missing, it loads and the render runs again (if it fails to load, the shape stays a rectangle). */

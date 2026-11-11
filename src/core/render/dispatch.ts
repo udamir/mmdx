@@ -2,6 +2,7 @@
 // page and the standalone SVG export (§7). The kinds are passed in, as for parsing.
 
 import type { DiagramMeta } from '../meta/types.js';
+import { collectMisses } from '../shapes/misses.js';
 import type { DiagramModel } from '../model.js';
 import { escAttr, escText, fmt, serializeNodes } from '../scene/serialize.js';
 import type { SceneNode } from '../scene/types.js';
@@ -31,7 +32,7 @@ export function renderWith(kinds: Kinds, model: DiagramModel, meta: DiagramMeta,
     diagnostics: [],
   };
   const kind = model.type ? kinds[model.type] : undefined;
-  const r = kind && model.type ? kind.render(model, env) : empty();
+  const [r, missing] = collectMisses(() => (kind && model.type ? kind.render(model, env) : empty()));
   const contentBounds = r.bounds;
   const bounds = pageBounds(fitPage(r.bounds, canvas), canvas);
   const border = ctx.color(canvas.border ?? theme.canvas.border);
@@ -50,6 +51,7 @@ export function renderWith(kinds: Kinds, model: DiagramModel, meta: DiagramMeta,
   };
   if (env.diagnostics.length) out.diagnostics = env.diagnostics;
   if (r.a11y && (r.a11y.title || r.a11y.desc)) out.a11y = r.a11y;
+  if (missing.shapes || missing.media) out.missing = missing;
   return out;
 }
 
