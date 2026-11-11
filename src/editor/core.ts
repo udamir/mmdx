@@ -351,7 +351,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     // and `mmdx-selection` once per real change (B11, P5) — not on construction, not for the same items again, and not
     // while a version is shown (its items are picked to copy them; the net change is reported when it closes)
     let last = this.store.selection.peek().map(itemKey).join('\n');
-    this.cleanups.push(effect(() => {
+    this.owner.add(effect(() => {
       const sel = this.store.selection();
       if (this.version()) return;
       const key = sel.map(itemKey).join('\n');

@@ -17,7 +17,6 @@ export const canvasPaintModule: EditorModule = {
   enabled: ({ features: f }) => f.copyStyle,
   install(scope) {
     const core = scope.core;
-    const offs: (() => void)[] = [];
     let clip: StyleClip | null = null;
     let paintFrom: Sel | null = null;
 
@@ -66,7 +65,7 @@ export const canvasPaintModule: EditorModule = {
       if (core.tool() !== 'paint') paintFrom = null;
     });
 
-    offs.push(core.addGestureSource({
+    scope.onDispose(core.addGestureSource({
       id: 'canvas-paint',
       priority: 60,
       down(ev, hit): Gesture | null {
@@ -85,12 +84,12 @@ export const canvasPaintModule: EditorModule = {
       },
     }));
 
-    offs.push(
+    for (const off of [
       core.provide('copyStyle', () => {
         if (copyStyle()) core.toast('Style copied — ⌘/Ctrl+Alt+V to paste');
       }),
       core.provide('setPainting', setPainting),
-    );
+    ]) scope.onDispose(off);
 
     core.shortcuts.add(
       {
@@ -125,7 +124,6 @@ export const canvasPaintModule: EditorModule = {
     );
 
     return () => {
-      for (const off of offs) off();
       if (core.tool.peek() === 'paint') core.setTool('pointer');
       clip = null;
     };

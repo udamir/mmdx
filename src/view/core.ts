@@ -4,6 +4,7 @@
 // the shell with its named slots (shell.ts), the scene stack with the canvas area (scene.ts), the events and actions
 // (bus.ts) and the module host (host.ts). Products are compositions: a kernel, a scene source and a set of modules.
 import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
+import { Owner } from '../reactive/owner.js';
 import type { ThemeSource } from '../adapters/themes.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
 import { getShared, instanceContext } from '../config.js';
@@ -123,7 +124,8 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   /** Side panels of the left and right stacks, contributed by modules. */
   readonly panelItems: Signal<readonly PanelItem[]> = signal<readonly PanelItem[]>([]);
 
-  protected readonly cleanups: (() => void)[] = [];
+  /** What the kernel set up (effects, listeners, subscriptions), let go on destroy. */
+  protected readonly owner = new Owner('kernel');
   protected readonly ac = new AbortController();
   protected destroyed = false;
   private readonly o: ViewCoreOptions;
@@ -171,7 +173,8 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.canvasArea = this.scenes.area;
     this.popovers = new PopoverManager(this.shadow);
     this.toaster = new Toaster(this.root);
-    this.cleanups.push(() => this.toaster.destroy(), () => this.popovers.close());
+    this.owner.add(() => this.toaster.destroy());
+    this.owner.add(() => this.popovers.close());
 
     // ---- state
     this.mode = signal<Mode>(o.initialMode ?? 'view');
@@ -179,36 +182,36 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.scheme = this.schemeState.scheme;
     this.themes = new ThemeState({ registry: this.ctx.themes, storage: this.storage, product: o.product, scheme: this.scheme, theme: o.theme, themeDark: o.themeDark });
     this.loadTheme = themeLoader(this.ctx.themes, () => this.source, () => !this.destroyed);
-    this.cleanups.push(watchUiScheme(() => this.schemeState.apply()));
+    this.owner.add(watchUiScheme(() => this.schemeState.apply()));
     // an icon pack (or the icon code) finished loading: what was drawn as an empty box or a placeholder can show now
-    this.cleanups.push(this.ctx.icons.onChange(() => {
+    this.owner.add(this.ctx.icons.onChange(() => {
       if (!this.destroyed) this.invalidate();
     }));
     // an image node without a size is drawn at its picture's size once the browser has loaded it (T06): once more
     this.ctx.imageSizes ??= domImageSizes;
-    this.cleanups.push(onImageSize(() => {
+    this.owner.add(onImageSize(() => {
       if (!this.destroyed) this.invalidate();
     }));
     // the display settings the picture shows (the labels, the visible layers) repaint it; the hover highlight and the
     // animation change no picture (P20: every writer called invalidate, whatever it changed)
     const shows = (): string => `${this.display().labels}|${JSON.stringify(this.visibleLayers() ?? null)}`;
     let painted = untracked(shows);
-    this.cleanups.push(effect(() => {
+    this.owner.add(effect(() => {
       const now = shows();
       if (now === painted) return;
       painted = now;
       untracked(() => this.invalidate());
     }));
     // animated edges (`e1@{ animate: true }`) move unless the view settings turn them off (or the system asks for less motion)
-    this.cleanups.push(effect(() => void (this.root.dataset['edgeAnim'] = this.display().animate ? 'on' : 'off')));
-    this.cleanups.push(this.ctx.themes.onChange(() => {
+    this.owner.add(effect(() => void (this.root.dataset['edgeAnim'] = this.display().animate ? 'on' : 'off')));
+    this.owner.add(this.ctx.themes.onChange(() => {
       if (this.destroyed) return;
       this.themes.themesChanged();
     }));
-    this.cleanups.push(effect(() => void this.host.setAttribute('data-ui', this.scheme())));
+    this.owner.add(effect(() => void this.host.setAttribute('data-ui', this.scheme())));
     // the theme reaches every canvas through the attached scene; a scheme flip that keeps the theme repaints nothing
     let shown = `${this.themes.current.peek()}#${this.themes.rev.peek()}`;
-    this.cleanups.push(effect(() => {
+    this.owner.add(effect(() => {
       const now = `${this.themes.current()}#${this.themes.rev()}`;
       if (now === shown) return;
       shown = now;
@@ -217,7 +220,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
         this.invalidate();
       });
     }));
-    this.cleanups.push(effect(() => {
+    this.owner.add(effect(() => {
       const m = this.mode(), st = this.stage();
       untracked(() => this.refreshModules());
       this.root.dataset['mode'] = m;
@@ -417,13 +420,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.ac.abort();
     this.modules.clear();
     this.scenes.destroy();
-    for (const c of this.cleanups.splice(0).reverse()) {
-      try {
-        c();
-      } catch (e) {
-        console.error('[mmdx] cleanup failed', e);
-      }
-    }
+    this.owner.dispose();
     this.shell.destroy();
   }
 

@@ -123,7 +123,6 @@ export const connectModule: EditorModule = {
   css: [CONNECT_CSS],
   install(scope) {
     const core = scope.core;
-    const offs: (() => void)[] = [];
     let linking: Linking | null = null;
     let magnets: Magnets | null = null;
     let hoverEdge: ItemRef | null = null;
@@ -198,7 +197,7 @@ export const connectModule: EditorModule = {
       ];
     };
 
-    offs.push(core.addOverlay({
+    scope.onDispose(core.addOverlay({
       id: 'connect',
       exclusive: () => !!linking,
       order: 70,
@@ -393,7 +392,7 @@ export const connectModule: EditorModule = {
       });
     };
 
-    offs.push(core.addGestureSource({
+    scope.onDispose(core.addGestureSource({
       id: 'connect',
       priority: 100,
       down(ev, hit) {
@@ -481,12 +480,11 @@ export const connectModule: EditorModule = {
         ev.preventDefault();
       }
     }, { capture: true });
-    offs.push(core.on('model', () => {
+    scope.onDispose(core.on('model', () => {
       hoverEdge = null;
     }));
 
     return () => {
-      for (const off of offs) off();
       linking = null;
       magnets = null;
     };

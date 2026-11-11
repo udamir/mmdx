@@ -145,7 +145,6 @@ export const codePanelModule: EditorModule = {
     const store = core.store;
     const ac = new AbortController();
     const sig = { signal: ac.signal };
-    const cleanups: (() => void)[] = [];
     const metaTab = core.features.metadataTab;
 
     // ---- DOM
@@ -434,7 +433,7 @@ export const codePanelModule: EditorModule = {
       if (codeTimer !== undefined || applying) return; // typing: the filter follows once the code is applied
       syncEditor();
     };
-    cleanups.push(core.on('selection', searchFromSelection));
+    scope.onDispose(core.on('selection', searchFromSelection));
 
     // ---- metadata editor: %%@ lines, the same filter, per-line checks
     let metaText = '';
@@ -570,7 +569,7 @@ export const codePanelModule: EditorModule = {
         metaEd.gotoLine(n);
       }
     };
-    cleanups.push(core.provide('gotoCodeLine', gotoCodeLine));
+    scope.onDispose(core.provide('gotoCodeLine', gotoCodeLine));
 
     // ---- follow the document: code (undo, ops, loads), metadata and problems after each draw
     let revSeen = '';
@@ -592,7 +591,7 @@ export const codePanelModule: EditorModule = {
       holdProblems = false;
       renderProblems();
     };
-    cleanups.push(core.on('draw', onDraw));
+    scope.onDispose(core.on('draw', onDraw));
     syncEditor();
     writeMetaText(true);
     onDraw();
@@ -603,7 +602,6 @@ export const codePanelModule: EditorModule = {
       clearTimeout(metaTimer);
       clearTimeout(searchTimer);
       ac.abort();
-      for (const c of cleanups) c();
       codeEd.destroy();
       metaEd?.destroy();
       tabs.destroy();

@@ -41,11 +41,10 @@ export const versionCopyModule: EditorModule = {
       const y = r.y - hh - 12 >= 8 ? r.y - hh - 12 : r.y + r.h + 12;
       bar.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
     };
-    const offs = [core.on('draw', place), core.on('selection', place), core.on('view', place), core.on('tool', place)];
+    for (const off of [core.on('draw', place), core.on('selection', place), core.on('view', place), core.on('tool', place)]) scope.onDispose(off);
     scope.register({ set: (on) => void (on && place()), dispose: () => undefined });
     place();
     return () => {
-      for (const off of offs) off();
       bar.remove();
     };
   },

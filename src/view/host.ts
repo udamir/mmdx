@@ -4,6 +4,7 @@
 // effects, computeds, contributions — so it can be suspended, resumed and uninstalled with nothing left behind. It
 // holds the kernel's events and actions, which the kernel types per product (bus.ts).
 import type { Shortcut, ShortcutRegistry } from '../ui/shortcuts.js';
+import { Owner } from '../reactive/owner.js';
 import { computed, effect, signal, type ReadSignal } from '../reactive/signal.js';
 import { actionRegistry, eventBus } from './bus.js';
 import { matchesWhen, orderModules, type ActionsOf, type EventsOf, type ModuleScope, type Registration, type ViewModule } from './module.js';
@@ -187,7 +188,8 @@ export class ModuleHost<C extends HostCore> {
 /** The registrations of one module: muted while suspended, removed on uninstall. */
 export class Scope<C extends HostCore> implements ModuleScope<C> {
   private readonly regs: Registration[] = [];
-  private readonly disposers: (() => void)[] = [];
+  /** What the module set up through this scope, let go on uninstall. */
+  private readonly owner: Owner;
   private readonly mounts: { el: Element; parent: Element; marker: Comment | null }[] = [];
   private readonly activeSig = signal(true);
   /** Features read while installing, with the value they had (a change installs the module again). */
@@ -199,6 +201,7 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
 
   constructor(private readonly host: ModuleHost<C>, readonly module: ViewModule<C>) {
     this.core = host.core;
+    this.owner = new Owner(`module ${module.id}`);
   }
 
   get id(): string {
@@ -263,7 +266,7 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
       if (this.active) this.host.run(this, () => f(ev as never));
     };
     target.addEventListener(type, wrapped, opts);
-    this.disposers.push(() => target.removeEventListener(type, wrapped, opts));
+    this.owner.add(() => target.removeEventListener(type, wrapped, opts));
   }
 
   canvas(type: string, f: (ev: never) => void): void {
@@ -279,7 +282,7 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
   }
 
   effect(f: () => void | (() => void)): void {
-    this.disposers.push(effect(() => {
+    this.owner.add(effect(() => {
       if (!this.activeSig()) return;
       return this.host.run(this, f);
     }));
@@ -287,7 +290,7 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
 
   computed<T>(f: () => T): ReadSignal<T> {
     const c = computed(f);
-    this.disposers.push(c.dispose);
+    this.owner.add(c.dispose);
     return c;
   }
 
@@ -298,7 +301,7 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
   wrapShortcut(s: Shortcut, remove: () => void): Shortcut {
     const own = s.active;
     const out: Shortcut = { ...s, active: () => this.active && (!own || own()) };
-    this.disposers.push(() => {
+    this.owner.add(() => {
       remove();
       this.core.shortcuts.remove(out);
     });
@@ -328,7 +331,7 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
 
   onDispose(f: () => void): void {
     if (this.disposed) f();
-    else this.disposers.push(f);
+    else this.owner.add(f);
   }
 
   /** Loads and activates the lazy part once; a failed load is not kept (the next call tries again). */
@@ -352,13 +355,7 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    for (const f of this.disposers.splice(0).reverse()) {
-      try {
-        f();
-      } catch (e) {
-        console.error(`[mmdx] module ${this.id}: cleanup failed`, e);
-      }
-    }
+    this.owner.dispose();
     for (const r of this.regs.splice(0)) r.dispose();
     for (const m of this.mounts.splice(0)) {
       m.el.remove();

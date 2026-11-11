@@ -2,6 +2,7 @@
 // gallery, appearance toggle — the prototype's index.html, packaged as one element. The studio gives the editor the
 // open document's versions (an example's bundled history and the versions saved here), shown by the editor's History.
 import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../ui/blocks/overlay-scroll.js';
+import { Owner } from '../reactive/owner.js';
 import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
 import type { ImageStore } from '../adapters/images.js';
 import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
@@ -105,7 +106,7 @@ export class DiagramStudio {
   private readonly toaster: Toaster;
   private readonly dialogs: Dialogs;
   private readonly ac = new AbortController();
-  private readonly cleanups: (() => void)[] = [];
+  private readonly owner = new Owner('studio');
   private examples: ExampleInfo[] = [];
   private themeSource: ThemeSource | undefined;
   private name = 'diagram';
@@ -189,7 +190,7 @@ export class DiagramStudio {
     }, sig);
     // files dropped on the editor or opened from its menu: the studio opens them (its name, versions, unsaved check)
     const off = this.editorEl.instance?.core.provide('openFiles', (files) => this.openFiles(files));
-    if (off) this.cleanups.push(off);
+    if (off) this.owner.add(off);
     // what the editor took (a drop on its canvas) is not opened again here
     root.addEventListener('dragover', (ev) => {
       if (ev.defaultPrevented || !ev.dataTransfer?.types.includes('Files')) return;
@@ -205,7 +206,7 @@ export class DiagramStudio {
       ev.preventDefault();
       void this.openFiles(ev.dataTransfer.files);
     }, sig);
-    this.cleanups.push(watchUiScheme(() => this.applyScheme()));
+    this.owner.add(watchUiScheme(() => this.applyScheme()));
     this.applyScheme();
     void this.boot();
   }
@@ -222,7 +223,7 @@ export class DiagramStudio {
     if (this.destroyed) return;
     this.destroyed = true;
     this.ac.abort();
-    for (const c of this.cleanups.splice(0)) c();
+    this.owner.dispose();
     this.pops.close();
     this.toaster.destroy();
     this.shadow.replaceChildren();

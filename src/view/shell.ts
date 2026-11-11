@@ -2,6 +2,7 @@
 // slots modules fill, the styles adopted into the shadow root, the insets of the canvas area (what fit() keeps clear
 // of, and the `--inset-l` / `--inset-r` of the open panel stacks), and the `compact` preset (§7.6).
 import type { Insets } from '../dom/canvas.js';
+import { Owner } from '../reactive/owner.js';
 import { observeSize } from '../dom/resize.js';
 import { h } from '../ui/h.js';
 import { effect, signal, type Signal } from '../reactive/signal.js';
@@ -92,7 +93,8 @@ export function createShell(host: HTMLElement, shadow: ShadowRoot, o: ShellOptio
 
   const compact = signal(false);
   const stackInsets = signal<{ left: number; right: number } | null>(null, (a, b) => a === b || (!!a && !!b && a.left === b.left && a.right === b.right));
-  const cleanups: (() => void)[] = [
+  const owner = new Owner('shell');
+  for (const off of [
     effect(() => void root.classList.toggle('compact', compact())),
     effect(() => {
       const s = stackInsets(), st = root.style;
@@ -104,7 +106,7 @@ export function createShell(host: HTMLElement, shadow: ShadowRoot, o: ShellOptio
         st.removeProperty('--inset-r');
       }
     }),
-  ];
+  ]) owner.add(off);
 
   // the `compact` preset: on, off, or automatic below a host size
   let compactOption = o.compact;
@@ -113,7 +115,7 @@ export function createShell(host: HTMLElement, shadow: ShadowRoot, o: ShellOptio
     const r = host.getBoundingClientRect();
     compact.set(!!r.width && (r.width < COMPACT_W || r.height < COMPACT_H));
   };
-  cleanups.push(observeSize(host, syncCompact));
+  owner.add(observeSize(host, syncCompact));
   syncCompact();
 
   return {
@@ -144,7 +146,7 @@ export function createShell(host: HTMLElement, shadow: ShadowRoot, o: ShellOptio
       syncCompact();
     },
     destroy() {
-      for (const c of cleanups.splice(0).reverse()) c();
+      owner.dispose();
       root.remove();
       for (const el of styleEls.values()) el.remove();
       styleEls.clear();

@@ -67,7 +67,6 @@ export const canvasEmptyModule: EditorModule = {
   css: [EMPTY_CSS],
   install(scope) {
     const core = scope.core;
-    const offs: (() => void)[] = [];
     const hint = h('div', { class: 'empty-hint edit-only', hidden: true }, 'Drag shapes from the toolbar on the left onto the canvas');
     const chooser = h('div', { class: 'type-chooser edit-only', role: 'dialog', 'aria-label': 'Start a diagram', hidden: true },
       h('div', { class: 'tc-title' }, 'Start a diagram'),
@@ -102,10 +101,9 @@ export const canvasEmptyModule: EditorModule = {
       hint.hidden = !core.model.type || !core.isEmptyDiagram();
       placeHint();
     };
-    offs.push(core.on('draw', sync), core.on('view', placeHint), core.on('mode', sync));
+    for (const off of [core.on('draw', sync), core.on('view', placeHint), core.on('mode', sync)]) scope.onDispose(off);
     sync();
     return () => {
-      for (const off of offs) off();
       hint.remove();
       chooser.remove();
     };

@@ -186,6 +186,23 @@ export function moduleViolations(root) {
 }
 
 /**
+ * Hand-kept arrays of undo functions (`const offs: (() => void)[] = […]`, by their usual names) outside
+ * reactive/owner.ts: `file: name`. Lists of callbacks that are not undo functions (waiters, an animation's steps) keep
+ * other names.
+ */
+export function manualCleanupArrays(root) {
+  const SRC = join(root, 'src');
+  const out = [];
+  const re = /\b(?:const|let|readonly)\s+(offs|cleanups|disposers|unsubs|destroyHooks)\s*:\s*\(\(\)\s*=>\s*void\)\[\]\s*=/g;
+  for (const f of walk(SRC)) {
+    const r = relative(SRC, f).split('\\').join('/');
+    if (r === 'reactive/owner.ts') continue;
+    for (const m of readFileSync(f, 'utf8').matchAll(re)) out.push(`${r}: ${m[1]}`);
+  }
+  return out.sort();
+}
+
+/**
  * Compares found keys with a baseline. `added`: new violations (fail); `fixed`: baseline entries that no longer occur
  * (fail too, so the baseline is shrunk in the same change). Count keys (`… ×n`) may go down only by updating the line.
  */

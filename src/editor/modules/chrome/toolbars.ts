@@ -121,7 +121,6 @@ export const toolbarsModule: EditorModule = {
     const f = core.features;
     const ac = new AbortController();
     const sig = { signal: ac.signal };
-    const cleanups: (() => void)[] = [];
     const live = new LiveEdit(core);
     const wrap = core.dom.wrap;
 
@@ -209,7 +208,7 @@ export const toolbarsModule: EditorModule = {
       // the op already carried sequence metadata over to the new positional ids: no second remap
       applyDoc(core, t('history.order'), res, res.selection ?? sel);
     };
-    cleanups.push(core.provide('moveSelection', moveSelection));
+    scope.onDispose(core.provide('moveSelection', moveSelection));
 
     // ---- the style toolbar
     /**
@@ -304,7 +303,7 @@ export const toolbarsModule: EditorModule = {
       if (!styleArgs || style || destroyed) return;
       core.addCss([SHAPE_PALETTE_CSS]);
       style = createStyleToolbar(wrap, ...styleArgs);
-      cleanups.push(() => style?.destroy());
+      scope.onDispose(() => style?.destroy());
       if (!scope.active) style.el.remove();
       else sync(true);
     }));
@@ -527,7 +526,7 @@ export const toolbarsModule: EditorModule = {
     const ensurePageBar = (): Promise<void> => (pageLoading ??= import('../../../ui/page-toolbar.js').then(({ createPageToolbar }) => {
       if (!pageApi || page) return;
       page = createPageToolbar(wrap, pageApi, { i18n: core.i18n });
-      cleanups.push(() => page?.destroy());
+      scope.onDispose(() => page?.destroy());
       if (!scope.active) page.el.remove();
       else page.refresh();
     }));
@@ -712,7 +711,7 @@ export const toolbarsModule: EditorModule = {
       if (page && !page.isOpen()) pageKey = '';
       sync();
     };
-    cleanups.push(
+    for (const off of [
       core.on('draw', () => sync()),
       core.on('selection', () => sync()),
       core.on('mode', () => sync(true)),
@@ -727,14 +726,13 @@ export const toolbarsModule: EditorModule = {
         page?.place();
       }),
       core.provide('refreshToolbar', () => sync(true)),
-    );
+    ]) scope.onDispose(off);
     sync(true);
 
     return () => {
       destroyed = true;
       live.flush();
       ac.abort();
-      for (const c of cleanups) c();
       badge.remove();
     };
   },

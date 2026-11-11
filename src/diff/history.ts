@@ -12,6 +12,7 @@
 // Session events reach the host as `mmdx-history-*`. Loaded on first use: the viewer and the editor bundles never
 // contain the diff.
 import { staticHistory, type HistoryAdapter, type StaticVersion, type VersionInfo } from '../adapters/history.js';
+import { Owner } from '../reactive/owner.js';
 import type { ItemKind } from '../core/types.js';
 import { transitionFrom, type MorphState } from '../dom/morph.js';
 import { reducedMotion } from '../dom/motion.js';
@@ -483,8 +484,8 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
   const removeModules = core.addModules(modules);
   const loaded = session.load({ history: withWorkingCopy(history, () => core.run('documentSource') ?? '', t('history.working')) });
   if (o.compare) compareNewest();
-
-  const offs: (() => void)[] = [
+  const owner = new Owner('history');
+  for (const off of [
     // the working copy follows the document (edits, remote updates, host setSource, undo())
     core.on('document', () => session.sourceChanged(WORKING_COPY)),
     // closing the version panel leaves History when it shows nothing older; a version or a comparison stays (the
@@ -502,13 +503,13 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
       const what = shown();
       untracked(() => core.emit('mmdx-history-show', { shown: what }));
     }),
-  ];
+  ]) owner.add(off);
 
   function close(): void {
     if (closed) return;
     closed = true;
     seq++;
-    for (const off of offs) off();
+    owner.dispose();
     core.historySession.set(null);
     core.historyOpen.set(false);
     morph?.finish();

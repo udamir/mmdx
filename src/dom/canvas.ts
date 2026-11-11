@@ -8,6 +8,7 @@
 //            > g.content > [g.page-layer, g.body-layer, g.dx-runs, g.overlay]
 //            > g.ink
 import type { Rect } from '../core/types.js';
+import { Owner } from '../reactive/owner.js';
 import type { SceneNode } from '../core/scene/types.js';
 import { patchChildren } from './patch.js';
 import type { StrokeStore } from './pen.js';
@@ -102,7 +103,8 @@ export class DiagramCanvas {
   private offsetsIdle: ReturnType<typeof setTimeout> | null = null;
   private linking = false;
   private readonly unlinks = new Set<() => void>();
-  private readonly destroyHooks: (() => void)[] = [];
+  /** The onDestroy hooks. */
+  private readonly hooks = new Owner('canvas');
   private destroyed = false;
   private penActive = false;
   private insetsOverride: (() => Insets) | null = null;
@@ -363,8 +365,7 @@ export class DiagramCanvas {
 
   /** Runs `f` when the canvas is destroyed (whoever destroys it). */
   onDestroy(f: () => void): void {
-    if (this.destroyed) f();
-    else this.destroyHooks.push(f);
+    this.hooks.add(f);
   }
 
   /** Paints a stroke store into this canvas's ink layer and draws on it while the pen is active. Returns a detach. */
@@ -404,7 +405,7 @@ export class DiagramCanvas {
     this.vpt = null;
     this.dropCss();
     this.svg.remove();
-    for (const f of this.destroyHooks.splice(0)) f();
+    this.hooks.dispose();
   }
 
   /**

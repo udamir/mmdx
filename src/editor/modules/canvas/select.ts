@@ -59,7 +59,6 @@ export const canvasSelectModule: EditorModule = {
   css: [SELECT_CSS],
   install(scope) {
     const core = scope.core;
-    const offs: (() => void)[] = [];
     const svg = core.dom.svg;
     let marquee: { x0: number; y0: number; x1: number; y1: number } | null = null;
     // the item being resized: its size is shown under it while the handle is dragged
@@ -104,7 +103,7 @@ export const canvasSelectModule: EditorModule = {
 
     // ---- overlay: selection boxes, resize handle, entered group, page, marquee -----------------------------------
 
-    offs.push(core.addOverlay({
+    scope.onDispose(core.addOverlay({
       id: 'canvas-select',
       order: 10,
       paint(k) {
@@ -327,7 +326,7 @@ export const canvasSelectModule: EditorModule = {
       };
     };
 
-    offs.push(core.addGestureSource({
+    scope.onDispose(core.addGestureSource({
       id: 'canvas-resize',
       priority: 100,
       down(_ev, hit) {
@@ -336,7 +335,7 @@ export const canvasSelectModule: EditorModule = {
       },
     }));
 
-    offs.push(core.addGestureSource({
+    scope.onDispose(core.addGestureSource({
       id: 'canvas-items',
       priority: 50,
       down(ev: PointerEvent, hit: Hit) {
@@ -382,7 +381,7 @@ export const canvasSelectModule: EditorModule = {
       },
     }));
 
-    offs.push(core.addGestureSource({
+    scope.onDispose(core.addGestureSource({
       id: 'canvas-marquee',
       priority: 10,
       down(ev, hit) {
@@ -442,7 +441,7 @@ export const canvasSelectModule: EditorModule = {
     scope.listen(core.dom.root, 'keyup', (ev) => {
       if (ev.key === 'Alt') altCopy(false);
     });
-    offs.push(() => core.dom.root.classList.remove('alt-copy', 'copying'));
+    scope.onDispose(() => core.dom.root.classList.remove('alt-copy', 'copying'));
 
     let down: { x: number; y: number } | null = null;
     scope.listen(svg, 'pointerdown', (ev) => {
@@ -633,12 +632,12 @@ export const canvasSelectModule: EditorModule = {
 
     // ---- events ------------------------------------------------------------------------------------------------
 
-    offs.push(core.on('draw', decorateGroupEdit));
-    offs.push(core.on('selection', () => {
+    scope.onDispose(core.on('draw', decorateGroupEdit));
+    scope.onDispose(core.on('selection', () => {
       markSelection(core);
       announce();
     }));
-    offs.push(core.on('mode', () => {
+    scope.onDispose(core.on('mode', () => {
       clearHighlight(core.dom.body);
       hoverKey = '';
       decorateGroupEdit();
@@ -648,9 +647,9 @@ export const canvasSelectModule: EditorModule = {
       decorateGroupEdit();
     });
 
-    offs.push(core.provide('selectAll', selectAll));
-    offs.push(core.provide('enterGroup', enterGroup));
-    offs.push(core.provide('exitGroup', exitGroup));
+    scope.onDispose(core.provide('selectAll', selectAll));
+    scope.onDispose(core.provide('enterGroup', enterGroup));
+    scope.onDispose(core.provide('exitGroup', exitGroup));
 
     // ---- shortcuts (A.11) --------------------------------------------------------------------------------------
 
@@ -710,7 +709,6 @@ export const canvasSelectModule: EditorModule = {
     return () => {
       destroyed = true;
       flushNudge();
-      for (const off of offs) off();
       for (const n of Array.from(core.dom.body.querySelectorAll('.el.in-edit'))) n.classList.remove('in-edit');
     };
   },

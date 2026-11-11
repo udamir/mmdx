@@ -10,5 +10,7 @@ export function layerViolations(root: string): string[];
 export function importCycles(root: string): string[];
 export const MODULE_RULES: Record<string, RegExp>;
 export function moduleViolations(root: string): string[];
+/** Hand-kept arrays of undo functions outside reactive/owner.ts: `file: name`. */
+export function manualCleanupArrays(root: string): string[];
 export function compareBaseline(found: string[], baseline: string[]): { added: string[]; fixed: string[] };
 export function readBaseline(file: string): string[];

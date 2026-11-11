@@ -7,6 +7,7 @@
 // screen, the tool dock with Hand and the pen, the view params with the theme menu and the light / dark toggle, and
 // view settings. Views: Before, Merged, After (one canvas; switching animates) and Side by side (two linked canvases).
 import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
+import { Owner } from '../reactive/owner.js';
 import { fetchText } from '../adapters/fetch-text.js';
 import type { ThemeSource } from '../adapters/themes.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
@@ -109,7 +110,7 @@ export class DiagramDiff {
   private readonly o: DiffOptions;
   private readonly actions = signal<readonly DiffAction[]>([]);
   private readonly label = signal<string | null>(null);
-  private readonly offs: (() => void)[] = [];
+  private readonly owner = new Owner('diff');
   private destroyed = false;
 
   constructor(host: HTMLElement, options: DiffOptions = {}) {
@@ -180,18 +181,16 @@ export class DiagramDiff {
 
     core.panels.set({ ...core.panels.peek(), ...panelState(o.panels) });
     core.useModules(diffModules(this.scene, { actions: this.actions }));
-    this.offs.push(
-      effect(() => core.root.setAttribute('aria-label', label())),
-      // History mode needs the version panel
-      effect(() => {
-        const on = !!core.panels()['history'] && core.feature('history');
-        untracked(() => session.setVersionsShown(on));
-      }),
-      // a type that cannot be drawn: the code diff shows the changes
-      effect(() => {
-        if (session.unsupported() && core.feature('code') && !core.panels.peek()['code']) untracked(() => core.run('setPanel', 'code', true));
-      }),
-    );
+    this.owner.add(effect(() => core.root.setAttribute('aria-label', label())));
+    // History mode needs the version panel
+    this.owner.add(effect(() => {
+      const on = !!core.panels()['history'] && core.feature('history');
+      untracked(() => session.setVersionsShown(on));
+    }));
+    // a type that cannot be drawn: the code diff shows the changes
+    this.owner.add(effect(() => {
+      if (session.unsupported() && core.feature('code') && !core.panels.peek()['code']) untracked(() => core.run('setPanel', 'code', true));
+    }));
     void this.load();
   }
 
@@ -325,7 +324,7 @@ export class DiagramDiff {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
-    for (const off of this.offs.splice(0)) off();
+    this.owner.dispose();
     this.session.destroy();
     this.core.destroy();
   }

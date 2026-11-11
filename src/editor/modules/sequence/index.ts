@@ -161,7 +161,6 @@ export const sequenceModule: EditorModule = {
   css: [SEQUENCE_CSS],
   install(scope) {
     const core = scope.core;
-    const offs: (() => void)[] = [];
     let linking: SeqLinking | null = null;
     let actPreview: ActPreview | null = null;
     let llHover: { id: string; y: number } | null = null;
@@ -171,8 +170,8 @@ export const sequenceModule: EditorModule = {
     let sizing = false;
     const busy = (): boolean => active || core.dragging;
 
-    offs.push(core.provide('applyActivation', () => applyActivation(core)));
-    offs.push(core.provide('activationInfo', () => activationInfo(core)));
+    scope.onDispose(core.provide('applyActivation', () => applyActivation(core)));
+    scope.onDispose(core.provide('activationInfo', () => activationInfo(core)));
 
     // ---- painters ------------------------------------------------------------------------------------------------
 
@@ -274,7 +273,7 @@ export const sequenceModule: EditorModule = {
       ];
     };
 
-    offs.push(core.addOverlay({
+    scope.onDispose(core.addOverlay({
       id: 'sequence',
       exclusive: () => !!linking || !!actPreview,
       order: 80,
@@ -613,7 +612,7 @@ export const sequenceModule: EditorModule = {
       };
     };
 
-    offs.push(core.addGestureSource({
+    scope.onDispose(core.addGestureSource({
       id: 'sequence',
       priority: 90,
       down(ev, hit) {
@@ -701,13 +700,12 @@ export const sequenceModule: EditorModule = {
     scope.listen(svg, 'pointerleave', () => {
       if (!busy()) clear();
     });
-    offs.push(core.on('model', () => {
+    scope.onDispose(core.on('model', () => {
       llHover = null;
       hoverMsg = null;
     }));
 
     return () => {
-      for (const off of offs) off();
       linking = null;
       actPreview = null;
     };

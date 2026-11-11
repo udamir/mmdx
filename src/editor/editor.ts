@@ -1,6 +1,7 @@
 // <mmdx-editor> (§8.2, UC2): edit a diagram attached to a host page. The DiagramEditor class owns one EditorCore and
 // its feature modules; the custom element is a thin wrapper around it.
 import { EDITOR_MESSAGES } from '../ui/messages/editor.js';
+import { Owner } from '../reactive/owner.js';
 import { registerMessages } from '../ui/i18n.js';
 import { isTextTarget } from '../ui/shortcuts.js';
 import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
@@ -83,7 +84,7 @@ export class DiagramEditor {
   readonly core: EditorCore;
   readonly store: DocStore;
   private readonly o: EditorOptions;
-  private readonly cleanups: (() => void)[] = [];
+  private readonly owner = new Owner('editor');
   private readonly ac = new AbortController();
   private version: string | undefined;
   private saving: Promise<SaveOutcome> | null = null;
@@ -136,19 +137,19 @@ export class DiagramEditor {
     this.core.images = options.images ?? null;
     const core = this.core;
     const root = core.root;
-    this.cleanups.push(() => core.destroy());
+    this.owner.add(() => core.destroy());
 
     // panel visibility from storage, then options
     const savedPanels = core.storage.get<{ code?: boolean; properties?: boolean; layers?: boolean }>('panels') ?? {};
     core.panels.set({ code: true, properties: true, layers: true, ...savedPanels, ...(options.panels ?? {}) });
-    this.cleanups.push(effect(() => {
+    this.owner.add(effect(() => {
       const p = core.panels();
       const m = core.mode();
       root.classList.toggle('no-code', !p.code || !features.codePanel || m === 'view');
       root.classList.toggle('no-right', m === 'view' ? !p.layers : !p.properties && !p.layers);
       root.classList.toggle('no-layers', !p.layers);
     }));
-    this.cleanups.push(effect(() => {
+    this.owner.add(effect(() => {
       const m = core.mode();
       root.classList.toggle('mode-edit', m === 'edit');
       root.classList.toggle('mode-view', m === 'view');
@@ -156,7 +157,7 @@ export class DiagramEditor {
     // switching the stage (History) or the mode ends the edit in flight: nothing keeps writing the store from a state
     // captured before, and a gesture's release never commits while History is open (§8.2)
     let firstSwitch = true;
-    this.cleanups.push(effect(() => {
+    this.owner.add(effect(() => {
       core.stage();
       core.mode();
       if (firstSwitch) {
@@ -166,11 +167,11 @@ export class DiagramEditor {
       untracked(() => core.cancelGesture());
     }));
     // the remote-change bar waits while History is open
-    this.cleanups.push(effect(() => {
+    this.owner.add(effect(() => {
       const history = core.stage() === 'history';
       if (this.remoteBar) this.remoteBar.el.hidden = history;
     }));
-    this.cleanups.push(effect(() => {
+    this.owner.add(effect(() => {
       const t = core.tool();
       for (const c of Array.from(root.classList)) if (c.startsWith('tool-')) root.classList.remove(c);
       root.classList.add(`tool-${t}`);
@@ -199,7 +200,7 @@ export class DiagramEditor {
 
     core.fileName = name;
     // built-in themes besides baseline load on demand; redraw when they (or a theme saved elsewhere) arrive
-    this.cleanups.push(core.ctx.themes.onChange(() => {
+    this.owner.add(core.ctx.themes.onChange(() => {
       if (this.destroyed) return;
       core.draw();
       core.fire('theme');
@@ -368,14 +369,7 @@ export class DiagramEditor {
     this.unsubscribe = null;
     this.pendingRemote = null;
     this.ac.abort();
-    for (const c of this.cleanups.reverse()) {
-      try {
-        c();
-      } catch (e) {
-        console.error('[mmdx] cleanup failed', e);
-      }
-    }
-    this.cleanups.length = 0;
+    this.owner.dispose();
   }
 
   /**
@@ -609,7 +603,7 @@ export class DiagramEditor {
       frame = 0;
       pendingMove = null;
     };
-    this.cleanups.push(dropMove);
+    this.owner.add(dropMove);
     core.flushPreview = flushMove;
     svg.addEventListener('pointermove', (ev) => {
       core.pointer = { clientX: ev.clientX, clientY: ev.clientY };
@@ -666,7 +660,7 @@ export class DiagramEditor {
       return true;
     };
     core.cancelPointer = () => void cancel();
-    this.cleanups.push(() => (core.cancelPointer = null));
+    this.owner.add(() => (core.cancelPointer = null));
     svg.addEventListener('pointerup', (ev) => finish(ev, false), sig);
     svg.addEventListener('pointercancel', (ev) => finish(ev, true), sig);
     svg.addEventListener('lostpointercapture', (ev) => {

@@ -211,12 +211,11 @@ export const documentModule: EditorModule = {
   install(scope) {
     const core = scope.core;
     const f = core.features;
-    const cleanups: (() => void)[] = [];
-    if (f.export) cleanups.push(core.provide('exportAs', (kind) => exportAs(core, kind)));
-    if (f.plainMermaid) cleanups.push(core.provide('plainMermaid', () => plainMermaid(core)));
-    if (f.autoLayout) cleanups.push(core.provide('autoLayout', () => autoLayout(core)));
+    if (f.export) scope.onDispose(core.provide('exportAs', (kind) => exportAs(core, kind)));
+    if (f.plainMermaid) scope.onDispose(core.provide('plainMermaid', () => plainMermaid(core)));
+    if (f.autoLayout) scope.onDispose(core.provide('autoLayout', () => autoLayout(core)));
     if (f.open) {
-      cleanups.push(core.provide('openFiles', (files) => openFiles(core, files)));
+      scope.onDispose(core.provide('openFiles', (files) => openFiles(core, files)));
       // drag-and-drop onto the canvas: through the `openFiles` action, so a host that provides its own (the studio:
       // its file name, versions and unsaved-changes check) handles the drop; the event is consumed (defaultPrevented)
       // for hosts that listen further up. Muted while the module is suspended and ignored over an old version: History
@@ -238,10 +237,7 @@ export const documentModule: EditorModule = {
         ev.preventDefault();
         void core.run('openFiles', docs);
       });
-      cleanups.push(() => wrap.classList.remove('drop-target'));
+      scope.onDispose(() => wrap.classList.remove('drop-target'));
     }
-    return () => {
-      for (const c of cleanups) c();
-    };
   },
 };

@@ -112,7 +112,6 @@ export const rightPanelsModule: EditorModule = {
     const t = core.i18n.t;
     const f = core.features;
     const live = new LiveEdit(core);
-    const offs: (() => void)[] = [];
 
     // ---- Properties (Edit mode only)
     let propsBody: HTMLElement | null = null;
@@ -124,7 +123,7 @@ export const rightPanelsModule: EditorModule = {
       });
       // not for an old version shown read-only (History)
       scope.contribute(core.panelItems, { id: 'properties', side: 'right', order: 10, el: panel.el, visible: () => core.mode() === 'edit' && core.stage() !== 'version' });
-      offs.push(() => panel.destroy());
+      scope.onDispose(() => panel.destroy());
     }
     // ---- Layers / View settings
     const layers = f.layers ? layersCard(core) : null;
@@ -140,7 +139,7 @@ export const rightPanelsModule: EditorModule = {
         const title = core.mode() === 'edit' ? t('layers.layers') : t('layers.title');
         panel.update({ title, label: title, closeLabel: core.mode.peek() === 'edit' ? t('layers.close') : t('layers.closeView') });
       });
-      offs.push(() => {
+      scope.onDispose(() => {
         layers.destroy();
         panel.destroy();
       });
@@ -219,7 +218,6 @@ export const rightPanelsModule: EditorModule = {
     return () => {
       gone = true;
       live.flush();
-      for (const off of offs) off();
     };
   },
 };

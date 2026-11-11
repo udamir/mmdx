@@ -59,7 +59,6 @@ export const canvasStructureModule: EditorModule = {
   css: [STRUCTURE_CSS],
   install(scope) {
     const core = scope.core;
-    const offs: (() => void)[] = [];
     /** The copy buffer is the core's (`core.clipboard`, UI state, never saved): the source of truth for paste. */
     const editing = (): boolean => core.mode.peek() === 'edit';
 
@@ -242,7 +241,7 @@ export const canvasStructureModule: EditorModule = {
 
     // ---- actions and shortcuts ---------------------------------------------------------------------------------
 
-    offs.push(
+    for (const off of [
       core.provide('deleteSelection', deleteSelection),
       core.provide('groupSelection', groupSelection),
       core.provide('ungroupSelection', ungroupSelection),
@@ -251,9 +250,9 @@ export const canvasStructureModule: EditorModule = {
       core.provide('pasteAt', pasteAt),
       core.provide('duplicateSelection', duplicateSelection),
       core.provide('arrange', arrange),
-    );
+    ]) scope.onDispose(off);
     // ⌘[ / ⌘]: the order slider's module may provide its own; this one is the fallback.
-    if (!core.has('moveSelection')) offs.push(core.provide('moveSelection', moveSelection));
+    if (!core.has('moveSelection')) scope.onDispose(core.provide('moveSelection', moveSelection));
 
     core.shortcuts.add(
       { id: 'copy', keys: ['mod+c'], label: 'Copy', group: 'Edit', editOnly: true, readOnly: true, run: () => (core.selection().length ? copySelection() : false) },
@@ -273,9 +272,5 @@ export const canvasStructureModule: EditorModule = {
       { id: 'order-forward', keys: ['mod+]'], label: 'Move forward in the code order', group: 'Edit', editOnly: true, run: () => (core.selection().length ? void core.run('moveSelection', 1) : false) },
       { id: 'board-menu', keys: ['shift+f10', 'contextmenu'], label: 'Open the context menu', group: 'Edit', editOnly: true, run: () => keyboardMenu() },
     );
-
-    return () => {
-      for (const off of offs) off();
-    };
   },
 };

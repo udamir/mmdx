@@ -3,8 +3,9 @@
 // function returning a handle; its CSS is a fragment the host adopts (deduplicated by identity), written against the
 // `--mmdx-*` tokens only.
 import { isMac, type I18n } from '../i18n.js';
+import { Owner } from '../../reactive/owner.js';
 import { formatKeys } from '../shortcuts.js';
-import { effect, type ReadSignal } from '../../reactive/signal.js';
+import { type ReadSignal } from '../../reactive/signal.js';
 
 /** The translation function every block takes its strings through. */
 export type Translate = I18n['t'];
@@ -22,36 +23,8 @@ export interface BlockHandle<P> {
   destroy(): void;
 }
 
-/**
- * Bookkeeping of one block instance: listeners on an AbortController, signal effects, and cleanups, all released by
- * `dispose()`.
- */
-export class Scope {
-  private readonly ac = new AbortController();
-  private readonly offs: (() => void)[] = [];
-
-  get signal(): AbortSignal {
-    return this.ac.signal;
-  }
-
-  on<K extends keyof HTMLElementEventMap>(el: EventTarget, type: K | string, f: (ev: HTMLElementEventMap[K]) => void, opts: AddEventListenerOptions = {}): void {
-    el.addEventListener(type, f as EventListener, { ...opts, signal: this.ac.signal });
-  }
-
-  /** Runs `f` now and whenever a signal it reads changes. */
-  effect(f: () => void): void {
-    this.offs.push(effect(f));
-  }
-
-  add(off: () => void): void {
-    this.offs.push(off);
-  }
-
-  dispose(): void {
-    this.ac.abort();
-    for (const off of this.offs.splice(0).reverse()) off();
-  }
-}
+/** Bookkeeping of one block instance: its listeners, effects and cleanups, all released by `dispose()` (an Owner). */
+export class Scope extends Owner {}
 
 /** Tooltip text with a shortcut hint: `Hand (H)`; `format` defaults to the registry's `formatKeys` (platform symbols). */
 export const tipText = (label: string, keys?: string, format: (k: string) => string = formatKeys): string => (keys ? `${label} (${format(keys)})` : label);

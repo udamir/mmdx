@@ -51,7 +51,6 @@ export const shapesModule: EditorModule = {
   install(scope) {
     const core = scope.core;
     const ac = new AbortController();
-    const offs: (() => void)[] = [];
     const root = core.dom.root;
     const menu = h('div', { class: 'shapes-menu edit-only', hidden: true });
     const sub = h('div', { class: 'mtb-pop mtb-sub shapes-sub edit-only', hidden: true });
@@ -250,8 +249,8 @@ export const shapesModule: EditorModule = {
 
     // ---- wiring --------------------------------------------------------------------------------------------------
 
-    offs.push(core.provide('toggleShapesMenu', (a?: HTMLElement) => toggle(a)));
-    offs.push(core.provide('addShape', (kind: string, opts?: { preset?: string; at?: Point }) => {
+    scope.onDispose(core.provide('toggleShapesMenu', (a?: HTMLElement) => toggle(a)));
+    scope.onDispose(core.provide('addShape', (kind: string, opts?: { preset?: string; at?: Point }) => {
       addShape(core, kind, opts ?? {});
     }));
     core.shortcuts.add({
@@ -280,7 +279,7 @@ export const shapesModule: EditorModule = {
       ev.stopPropagation();
       ev.preventDefault();
     }, { capture: true });
-    offs.push(core.on('mode', () => {
+    scope.onDispose(core.on('mode', () => {
       if (core.mode.peek() !== 'edit') {
         setMenu(false);
         hideSub();
@@ -289,7 +288,7 @@ export const shapesModule: EditorModule = {
     }));
     // the diagram type changed (code panel, new diagram): the menu follows it
     let typeSeen = core.model.type;
-    offs.push(core.on('draw', () => {
+    scope.onDispose(core.on('draw', () => {
       const type = core.model.type;
       if (type === typeSeen) return;
       typeSeen = type;
@@ -305,7 +304,6 @@ export const shapesModule: EditorModule = {
 
     return () => {
       ac.abort();
-      for (const off of offs) off();
       markAnchor(false);
       palette?.destroy();
       root.querySelector('.pal-ghost')?.remove();

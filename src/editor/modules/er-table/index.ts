@@ -59,7 +59,6 @@ export const erTableModule: EditorModule = {
   install(scope) {
     const core = scope.core;
     const t = core.i18n.t;
-    const offs: (() => void)[] = [];
     const wrap = core.dom.wrap;
     let destroyed = false;
     /** The table being edited and its selected rows (attribute indices). */
@@ -306,7 +305,7 @@ export const erTableModule: EditorModule = {
 
     // ---- selection overlay ------------------------------------------------------------------------------------
 
-    offs.push(core.addOverlay({
+    scope.onDispose(core.addOverlay({
       id: 'er-table',
       order: 11,
       paint(k) {
@@ -345,7 +344,7 @@ export const erTableModule: EditorModule = {
       for (let i = Math.min(a, b); i <= Math.max(a, b); i++) out.push(i);
       return out;
     };
-    offs.push(core.addGestureSource({
+    scope.onDispose(core.addGestureSource({
       id: 'er-table',
       priority: 95,
       down(ev, hit) {
@@ -599,7 +598,7 @@ export const erTableModule: EditorModule = {
 
     // ---- keeping in step with the editor ----------------------------------------------------------------------
 
-    offs.push(
+    for (const off of [
       core.on('draw', () => {
         if (!table) return;
         // the table went away (undo, code edit, another diagram type) or the editor left Edit mode
@@ -621,12 +620,11 @@ export const erTableModule: EditorModule = {
       }),
       core.on('mode', () => exit(false)),
       core.on('view', () => tb?.place()),
-    );
+    ]) scope.onDispose(off);
 
     return () => {
       destroyed = true;
       closeEditor(false);
-      for (const off of offs) off();
       tb?.destroy();
       core.tableView = null;
       core.dom.root.classList.remove('table-edit');

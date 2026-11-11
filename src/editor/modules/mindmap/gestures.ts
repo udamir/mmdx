@@ -89,7 +89,6 @@ function toggleFold(core: EditorCore, id: string): void {
 /** Activates the mindmap gestures in the module's scope (its keys through `mindmapKeys`). */
 export function activateMindmap(scope: ModuleScope<EditorCore>): () => void {
   const core = scope.core;
-  const offs: (() => void)[] = [];
   let drag: Drag | null = null;
   const root = core.dom.root;
   const onRoot = (ev: KeyboardEvent): boolean => (ev.composedPath()[0] ?? ev.target) === root;
@@ -233,7 +232,7 @@ export function activateMindmap(scope: ModuleScope<EditorCore>): () => void {
     duplicate,
     paste,
   });
-  offs.push(() => {
+  scope.onDispose(() => {
     for (const k of Object.keys(keys)) delete keys[k];
   });
 
@@ -258,7 +257,7 @@ export function activateMindmap(scope: ModuleScope<EditorCore>): () => void {
     return s === 'd' ? { x: b.x, y: b.y + b.h / 2 + gap } : { x: b.x + (s === 'l' ? -1 : 1) * (b.w / 2 + gap), y: b.y };
   };
 
-  offs.push(core.addOverlay({
+  scope.onDispose(core.addOverlay({
     id: 'mindmap',
     exclusive: () => !!drag,
     order: 80,
@@ -394,7 +393,7 @@ export function activateMindmap(scope: ModuleScope<EditorCore>): () => void {
     },
   });
 
-  offs.push(core.addGestureSource({
+  scope.onDispose(core.addGestureSource({
     id: 'mindmap',
     priority: 90,
     down(ev, hit: Hit) {
@@ -428,12 +427,11 @@ export function activateMindmap(scope: ModuleScope<EditorCore>): () => void {
       return dragGesture(id, hit.p, ev.altKey);
     },
   }));
-  offs.push(core.on('model', () => {
+  scope.onDispose(core.on('model', () => {
     drag = null;
   }));
 
   return () => {
-    for (const off of offs) off();
     drag = null;
   };
 }

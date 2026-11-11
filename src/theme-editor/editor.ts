@@ -4,6 +4,7 @@
 // the tiles they affect and the preview after a short pause. Can be mounted into any element; <mmdx-theme-editor>
 // wraps it.
 import { memoryThemeStore } from '../adapters/themes.js';
+import { Owner } from '../reactive/owner.js';
 import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
 import { ensureBuiltinThemes, getShared, instanceContext } from '../config.js';
 import type { CoreContext } from '../core/context.js';
@@ -28,7 +29,7 @@ import { THEME_EDITOR_MESSAGES } from '../ui/messages/theme-editor.js';
 import { TOOLBAR_MESSAGES } from '../ui/messages/toolbar.js';
 import { PopoverManager, Toaster } from '../ui/popover.js';
 import { formatKeys, ShortcutRegistry } from '../ui/shortcuts.js';
-import { effect, signal, untracked } from '../reactive/signal.js';
+import { signal, untracked } from '../reactive/signal.js';
 import { createStyleToolbar, type StyleToolbarHandle } from '../ui/style-toolbar.js';
 import { ALIASES, adoptStyles, BASE, resolveUiScheme, TOKENS, watchUiScheme } from '../ui/styles/base.js';
 import { THEME_EDITOR_CSS } from '../ui/styles/theme-editor.js';
@@ -74,7 +75,7 @@ export class ThemeEditor {
   private readonly toaster: Toaster;
   private readonly keys = new ShortcutRegistry();
   private readonly ac = new AbortController();
-  private readonly offs: (() => void)[] = [];
+  private readonly owner = new Owner('theme editor');
   private readonly draft: Draft;
   private readonly lib: ThemeLibrary;
   private readonly env: Env;
@@ -182,7 +183,7 @@ export class ThemeEditor {
     this.listView = listView(this.env, this.list, () => this.o, () => this.fileInput.click());
     this.wire();
     this.wireKeys();
-    this.offs.push(watchUiScheme(() => this.applyScheme()));
+    this.owner.add(watchUiScheme(() => this.applyScheme()));
     this.applyScheme();
     this.ready = this.lib.load(options.theme);
   }
@@ -290,7 +291,7 @@ export class ThemeEditor {
     this.lib.destroy();
     this.dialogs.destroy();
     this.ac.abort();
-    for (const off of this.offs.splice(0)) off();
+    this.owner.dispose();
     this.mainScope.dispose();
     this.listView.destroy();
     this.preview.destroy();
@@ -351,7 +352,7 @@ export class ThemeEditor {
 
   /** The effects that keep the views in step with the draft and the library. */
   private wire(): void {
-    const fx = (f: () => void): void => void this.offs.push(effect(f));
+    const fx = (f: () => void): void => this.owner.effect(f);
     // the main column: a theme opened, undo / redo / discard, or the options it shows changed
     fx(() => {
       this.draft.epoch();
