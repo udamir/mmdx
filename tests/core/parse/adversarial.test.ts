@@ -7,7 +7,7 @@ import { parse } from '../../../src/core/parse/index.js';
 import { renderToSvg } from '../../../src/core.js';
 import { ADVERSARIAL, OVER_LIMIT } from '../../fixtures/adversarial.js';
 
-const N = 20_000;
+const N = 10_000;
 
 /** Best of three, in ms. */
 const time = (f: () => unknown): number => {

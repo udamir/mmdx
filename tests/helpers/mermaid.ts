@@ -17,9 +17,20 @@ function load(): Promise<Record<MermaidVersion, Parser>> {
   return loaded;
 }
 
+/**
+ * Mermaid's parse resolves on microtasks only: a test that parses thousands of outputs in a loop would never let the
+ * worker's event loop run, so the test runner's own messages time out (vitest "Timeout calling onTaskUpdate"). Every
+ * so many parses this yields a macrotask.
+ */
+let parses = 0;
+const breathe = async (): Promise<void> => {
+  if (++parses % 20 === 0) await new Promise<void>((r) => setTimeout(r, 0));
+};
+
 /** Whether each Mermaid version reads the code. */
 export async function stockResults(code: string): Promise<Record<MermaidVersion, boolean>> {
   const p = await load();
+  await breathe();
   const ok = async (v: MermaidVersion): Promise<boolean> => {
     try {
       await p[v](code);
@@ -35,6 +46,7 @@ export async function stockResults(code: string): Promise<Record<MermaidVersion,
 /** Resolves when both Mermaid versions read the code; rejects with the first version's error otherwise. */
 export async function stockParse(code: string): Promise<true> {
   const p = await load();
+  await breathe();
   for (const v of MERMAID_VERSIONS) {
     try {
       await p[v](code);
