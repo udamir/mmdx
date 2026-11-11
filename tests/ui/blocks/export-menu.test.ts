@@ -111,3 +111,15 @@ describe('createExportMenu', () => {
     expect(pops.isOpen).toBe(false);
   });
 });
+
+describe('menus read their label and popovers when they open (B36)', () => {
+  it('update({ popovers }) applies to the next opening', () => {
+    const a = shadowHost(), b = shadowHost();
+    const m = createExportMenu({ entries: DIFF, popovers: a.pops, within: () => a.host, t });
+    b.root.append(m.el);
+    m.update({ popovers: b.pops, within: () => b.host });
+    m.el.click();
+    expect(b.root.querySelector('[role=menu]')).not.toBeNull();
+    expect(a.root.querySelector('[role=menu]')).toBeNull();
+  });
+});

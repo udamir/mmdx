@@ -7,7 +7,8 @@ import { keepFocus, rovingKeys } from './focus.js';
 export interface TabsProps<V extends string = string> {
   label: string;
   /** `id` and `controls` (the id of its `tabpanel`) link a tab with its panel (`aria-controls`, `aria-labelledby`). */
-  tabs: readonly { value: V; label: string; title?: string; id?: string; controls?: string }[];
+  /** `name`: the accessible name when the label is not one (an icon). */
+  tabs: readonly { value: V; label: string; title?: string; name?: string; id?: string; controls?: string }[];
   value: Value<V>;
   onChange: (value: V) => void;
   /** Elements after the tabs (pushed to the end, e.g. a close button). */
@@ -36,6 +37,7 @@ export function createTabs<V extends string>(props: TabsProps<V>): BlockHandle<T
     const buttons = p.tabs.map((t) => {
       const b = h('button', { type: 'button', role: 'tab', 'data-tab': t.value, 'data-f': `tab-${t.value}`, title: t.title ?? '' }, t.label);
       if (t.id) b.id = t.id;
+      if (t.name) b.setAttribute('aria-label', t.name);
       if (t.controls) b.setAttribute('aria-controls', t.controls);
       b.addEventListener('click', () => {
         if (read(p.value) !== t.value) p.onChange(t.value);

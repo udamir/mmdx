@@ -3,7 +3,8 @@
 import { FIELD_DEFS, themeSection } from '../core/schema/style-fields.js';
 import { deepMerge } from '../core/theme/registry.js';
 import { h } from '../ui/h.js';
-import { RATIOS, ROUTINGS } from './constants.js';
+import { ROUTINGS } from './constants.js';
+import { RATIOS } from '../ui/page-ratios.js';
 import type { Env } from './env.js';
 import { fieldRow } from './fields.js';
 import type { LocalField, TileSel } from './types.js';
@@ -60,12 +61,15 @@ function styleFields(env: Env, d: HTMLElement, sel: TileSel): void {
   }
 }
 
-/** Page preset fields a type's section may add (THEME_SECTIONS `pageFields`). */
-const PAGE_FIELD_DEFS = (t: Env['t']): Record<string, LocalField> => ({
-  gap: { label: t('te.ppGap'), type: 'number' },
-  rowH: { label: t('te.ppRowH'), type: 'number' },
-  mirror: { label: t('te.ppMirror'), type: 'bool' },
-});
+/** Page preset fields a type's section may add (THEME_SECTIONS `pageFields`): their own labels here, types from FIELD_DEFS. */
+const PAGE_FIELD_LABELS: Readonly<Record<string, string>> = { gap: 'te.ppGap', rowH: 'te.ppRowH', mirror: 'te.ppMirror' };
+
+/** A page field as FIELD_DEFS defines it (a select for `mindLayout`, B26); a key it does not know is a text field. */
+export function pageField(env: Pick<Env, 't' | 'tf'>, k: string): LocalField {
+  const def = FIELD_DEFS[k];
+  const label = PAGE_FIELD_LABELS[k] ? env.t(PAGE_FIELD_LABELS[k]!) : env.tf(`field.${k}`, def?.label ?? k);
+  return def ? { ...def, label } : { label, type: 'text' };
+}
 
 function pageFields(env: Env, d: HTMLElement, sel: TileSel): void {
   const { t } = env;
@@ -78,8 +82,7 @@ function pageFields(env: Env, d: HTMLElement, sel: TileSel): void {
   row('border', { label: t('te.ppBorder'), type: 'color' });
   const section = themeSection(sel.type);
   if (section.routing) row('routing', { label: t('te.ppRouting'), type: 'select', options: ROUTINGS.map((r) => [r, env.tf(`ptb.routing.${r}`, r)] as const) });
-  row('ratio', { label: t('te.ppRatio'), type: 'select', options: [['free', t('te.ppFree')], ...RATIOS.map((r) => [r, r] as const)] });
+  row('ratio', { label: t('te.ppRatio'), type: 'select', options: [['free', t('te.ppFree')], ...RATIOS.map(([r, l]) => [r, l.startsWith('ratio.') ? t(l) : l] as const)] });
   row('pad', { label: t('te.ppPad'), type: 'number' });
-  const PAGE_FIELDS = PAGE_FIELD_DEFS(t);
-  for (const k of section.pageFields ?? []) row(k, PAGE_FIELDS[k] ?? { label: k, type: 'text' });
+  for (const k of section.pageFields ?? []) row(k, pageField(env, k));
 }

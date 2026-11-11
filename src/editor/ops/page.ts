@@ -8,8 +8,7 @@ import type { EditorCore } from '../core.js';
 import { applyMeta } from './doc.js';
 
 /** Named proportions (the label is an i18n key when it starts with `ratio.`). */
-export const RATIOS: readonly (readonly [string, string])[] = [['16:9', '16 : 9'], ['4:3', '4 : 3'], ['3:2', '3 : 2'], ['1:1', 'ratio.square'], ['2:3', '2 : 3'], ['3:4', '3 : 4'], ['9:16', '9 : 16'],
-  ['297:210', 'ratio.a4l'], ['210:297', 'ratio.a4p']];
+export { RATIOS } from '../../ui/page-ratios.js';
 
 /** Page values in effect: theme < page preset < the diagram's own. */
 export const pageEff = (core: EditorCore): ReturnType<typeof effectivePage> => effectivePage(core.model.type, core.meta, core.result.theme);

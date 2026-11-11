@@ -10,7 +10,8 @@ export const CODE_TOKENS_CSS = /* css */ `
 }
 :host([data-ui="dark"]) {
   --mmdx-code-kw: #c4a5ff; --mmdx-code-arrow: #ff7eb6; --mmdx-code-str: #7ee0a1; --mmdx-code-label: #6cc4ff; --mmdx-code-text: #5fd8c9;
-  --mmdx-code-cls: #ffa26b; --mmdx-code-dir: #d29bff; --mmdx-code-punct: #8d97a8; --mmdx-code-comment: #7d8597; --mmdx-code-meta: #5b6272;
+  --mmdx-code-cls: #ffa26b; --mmdx-code-dir: #d29bff; --mmdx-code-key: #f0b860; --mmdx-code-punct: #8d97a8; --mmdx-code-comment: #7d8597;
+  --mmdx-code-meta: #5b6272; --mmdx-code-fold: #e0c070;
 }
 .t-kw { color: var(--mmdx-code-kw); font-weight: 600; }
 .t-arrow, .t-card { color: var(--mmdx-code-arrow); font-weight: 600; }

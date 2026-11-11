@@ -8,6 +8,8 @@ import { registerMessages } from '../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
 import { gridKeys } from './grid-keys.js';
+import { createTabs } from './tabs.js';
+import { signal } from '../signal.js';
 
 export interface EmojiPickerProps {
   t: Translate;
@@ -35,8 +37,9 @@ export const EMOJI_PICKER_CSS = /* css */ `
 .ep-search { flex: 1; min-width: 0; }
 .ep-tone { width: auto; }
 .ep-tabs { display: flex; gap: 0; justify-content: space-between; border-bottom: 1px solid var(--mmdx-border); }
-.ep-tab { border: 0; background: none; padding: 3px 4px; font-size: 17px; line-height: 1; border-radius: 6px 6px 0 0; filter: grayscale(.6); }
-.ep-tab[aria-selected=true] { filter: none; box-shadow: inset 0 -2px 0 var(--mmdx-accent); }
+.ep-tabs .mmdx-tabs-spacer { display: none; }
+.ep-tabs [role=tab] { border: 0; background: none; padding: 3px 4px; font-size: 17px; line-height: 1; border-radius: 6px 6px 0 0; filter: grayscale(.6); }
+.ep-tabs [role=tab][aria-selected=true] { filter: none; box-shadow: inset 0 -2px 0 var(--mmdx-accent); }
 .ep-head { font-size: 11px; font-weight: 600; color: var(--mmdx-muted); }
 .ep-grid { display: grid; grid-template-columns: repeat(${COLS}, 34px); grid-auto-rows: 34px; height: 238px; overflow-y: auto; align-content: start; }
 .ep-e { border: 0; background: none; padding: 0; font-size: 22px; line-height: 1; border-radius: 6px;
@@ -56,11 +59,17 @@ export function createEmojiPicker(props: EmojiPickerProps): EmojiPickerHandle {
   const el = h('div', { class: 'ep', role: 'dialog' });
   const input = h('input', { type: 'search', class: 'ep-search', autocomplete: 'off' });
   const tone = h('select', { class: 'ep-tone' });
-  const tabs = h('div', { class: 'ep-tabs', role: 'tablist' });
+  // the group tabs: the shared tab list (roving focus, arrow keys, B28); none is selected while a search shows
+  const current = signal('');
+  const tabs = createTabs<string>({ label: '', tabs: [], value: current, class: 'ep-tabs', onChange: (key) => {
+    tab = key;
+    query = input.value = '';
+    render();
+  } });
   const head = h('div', { class: 'ep-head' });
   const grid = h('div', { class: 'ep-grid', role: 'group' });
   const info = h('div', { class: 'ep-info', 'aria-live': 'polite' });
-  el.append(h('div', { class: 'ep-top' }, input, tone), tabs, head, grid, info);
+  el.append(h('div', { class: 'ep-top' }, input, tone), tabs.el, head, grid, info);
   const keys = gridKeys(grid, {
     count: () => tiles.length,
     cols: () => COLS,
@@ -86,15 +95,8 @@ export function createEmojiPicker(props: EmojiPickerProps): EmojiPickerHandle {
     const list: [string, string, string][] = [];
     if (p.recent?.length) list.push(['recent', '🕘', t('emoji.recent')]);
     for (const g of p.data.groups) list.push([g.key, g.items[0]?.e ?? '?', t(`emoji.group.${g.key}`)]);
-    tabs.replaceChildren(...list.map(([key, icon, label]) => {
-      const b = h('button', { type: 'button', class: 'ep-tab', role: 'tab', 'aria-selected': String(!query && tab === key), title: label, 'aria-label': label }, icon);
-      b.addEventListener('click', () => {
-        tab = key;
-        query = input.value = '';
-        render();
-      });
-      return b;
-    }));
+    tabs.update({ label: t('emoji.title'), tabs: list.map(([value, label, name]) => ({ value, label, title: name, name })) });
+    current.set(query ? '' : tab);
   };
 
   const renderGrid = (): void => {
@@ -133,7 +135,6 @@ export function createEmojiPicker(props: EmojiPickerProps): EmojiPickerHandle {
     tone.setAttribute('aria-label', t('emoji.tone'));
     tone.replaceChildren(...[0, 1, 2, 3, 4, 5].map((n) => h('option', { value: String(n), title: t(`emoji.tone.${n}`) }, `${withTone('✋', n)} ${t(`emoji.tone.${n}`)}`)));
     tone.value = String(p.tone ?? 0);
-    tabs.setAttribute('aria-label', t('emoji.title'));
     renderTabs();
     renderGrid();
   };
@@ -176,6 +177,7 @@ export function createEmojiPicker(props: EmojiPickerProps): EmojiPickerHandle {
       render();
     },
     destroy() {
+      tabs.destroy();
       keys.destroy();
       scope.dispose();
       el.remove();

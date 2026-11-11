@@ -5,12 +5,10 @@ import { PARTICIPANT_SHAPES, pickerShapes } from '../core/shapes/catalog.js';
 import type { DiagramType } from '../core/types.js';
 import type { ToolbarControl } from '../ui/style-toolbar.js';
 import type { Obj } from './util.js';
+import { FONTS as STYLE_FONTS } from '../ui/fonts.js';
 
-export const FONTS: readonly (readonly [string, string])[] = [
-  ["'Open Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif", 'Open Sans'], ["Inter, 'Segoe UI', system-ui, sans-serif", 'Inter'],
-  ['Roboto, sans-serif', 'Roboto'], ["'Helvetica Neue', Arial, sans-serif", 'Helvetica'], ['Georgia, serif', 'Georgia'],
-  ["'JetBrains Mono', 'SF Mono', Menlo, monospace", 'JetBrains Mono'],
-];
+/** A theme's font: the style pickers' fonts (one table, ui/fonts.ts, B25) without "the theme's font". */
+export const FONTS: readonly (readonly [string, string])[] = STYLE_FONTS.filter(([v]) => v !== '');
 
 export const DEFAULT_SAMPLES: Readonly<Record<DiagramType, string>> = {
   flowchart: `flowchart TB
@@ -101,7 +99,6 @@ export const SHAPE_TABS: Readonly<Record<string, ShapeTabs>> = {
 export const LINE_KINDS = new Set(['edge', 'message', 'rel', 'lifeline', 'transition']);
 /** The text colour key of box-like kinds (contrast check on their fill). */
 export const TEXT_ON_FILL: Readonly<Record<string, string>> = { node: 'text', participant: 'text', note: 'text', entity: 'text', box: 'text', group: 'titleColor', block: 'labelColor', composite: 'titleColor' };
-export const RATIOS = ['16:9', '4:3', '3:2', '1:1', '2:3', '3:4', '9:16'];
 export const ROUTINGS = ['curved', 'orthogonal', 'straight'];
 export const TOOLBAR_EXCLUDE: readonly ToolbarControl[] = ['link', 'lock', 'paint', 'delete', 'order', 'layer', 'editGroup', 'ungroup', 'group', 'activate', 'arrange', 'more', 'presets'];
 /** Top-level theme keys that change nothing drawn (tiles and the preview need not follow them). */

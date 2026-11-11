@@ -75,8 +75,15 @@ export function createThemeButton(props: ThemeButtonProps): ThemeButtonHandle {
   const caret = icon(I_chevronDown, 12);
   caret.setAttribute('class', 'mmdx-icon vp-caret');
   const el = h('button', { type: 'button', class: 'vp-btn mmdx-theme-btn' }, icon(I_palette, 18), caret);
+  // read when the menu opens: update({ t, popovers }) applies (B36)
   scope.add(attachMenu({
-    button: el, popovers: p.popovers, label: p.t('theme.menu'),
+    button: el,
+    get popovers() {
+      return p.popovers;
+    },
+    get label() {
+      return p.t('theme.menu');
+    },
     entries: () => themeMenuEntries(p),
     within: () => p.within?.(),
     ...(p.align ? { align: p.align } : {}), ...(p.placement ? { placement: p.placement } : {}),

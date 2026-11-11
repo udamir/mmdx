@@ -19,11 +19,21 @@ const diffImporters: Record<DiagramType, () => Promise<{ DIFF: DiffKind }>> = {
   state: () => import('../core/kinds/state-diff.js'),
 };
 
+/** Loads in progress: concurrent callers share one (B37: each registered the kind again). */
+const loading = new Map<DiagramType, Promise<void>>();
+
 /** Loads a type's diff kind (resolves at once when it is loaded). */
-async function loadDiffKind(t: DiagramType): Promise<void> {
-  if (diffKind(t)) return;
-  const { DIFF } = await diffImporters[t]();
-  registerDiffs({ [t]: DIFF });
+function loadDiffKind(t: DiagramType): Promise<void> {
+  if (diffKind(t)) return Promise.resolve();
+  let p = loading.get(t);
+  if (!p) {
+    p = diffImporters[t]().then(({ DIFF }) => {
+      if (!diffKind(t)) registerDiffs({ [t]: DIFF });
+    });
+    p.finally(() => loading.delete(t)).catch(() => {});
+    loading.set(t, p);
+  }
+  return p;
 }
 
 /** Loads the kinds of every given source (sources of an unsupported type load nothing). */

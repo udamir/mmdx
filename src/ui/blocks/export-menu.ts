@@ -79,8 +79,15 @@ export function createExportMenu(props: ExportMenuProps): ExportMenuHandle {
   const scope = new Scope();
   let fx = new Scope();
   const el = h('button', { type: 'button', class: 'primary vp-export-btn' });
+  // read when the menu opens: update({ t, popovers }) applies (B36)
   scope.add(attachMenu({
-    button: el, popovers: p.popovers, label: p.t('export.title'),
+    button: el,
+    get popovers() {
+      return p.popovers;
+    },
+    get label() {
+      return p.t('export.title');
+    },
     entries: () => exportMenuEntries(p.entries, { ...(p.sections ? { sections: p.sections } : {}), ...(p.onError ? { onError: p.onError } : {}) }),
     within: () => p.within?.(),
     ...(p.align ? { align: p.align } : {}), ...(p.placement ? { placement: p.placement } : {}),

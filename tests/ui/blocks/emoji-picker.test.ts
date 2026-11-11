@@ -18,9 +18,9 @@ describe('EmojiPicker', () => {
     const p = createEmojiPicker({ t, data: DATA, recent: ['😂'], onPick });
     document.body.append(p.el);
     expect(p.tab).toBe('recent');
-    expect([...p.el.querySelectorAll('.ep-tab')].map((b) => b.getAttribute('aria-label'))).toEqual(['Recent', 'Smileys & emotion', 'People & body', 'Flags']);
+    expect([...p.el.querySelectorAll('.ep-tabs [role=tab]')].map((b) => b.getAttribute('aria-label'))).toEqual(['Recent', 'Smileys & emotion', 'People & body', 'Flags']);
     expect([...p.el.querySelectorAll('.ep-e')].map((b) => b.textContent)).toEqual(['😂']);
-    p.el.querySelectorAll<HTMLButtonElement>('.ep-tab')[2]!.click();
+    p.el.querySelectorAll<HTMLButtonElement>('.ep-tabs [role=tab]')[2]!.click();
     expect([...p.el.querySelectorAll('.ep-e')].map((b) => b.getAttribute('aria-label'))).toEqual(['waving hand', 'people holding hands']);
     p.el.querySelector<HTMLButtonElement>('.ep-e')!.click();
     expect(onPick).toHaveBeenCalledWith('👋');
@@ -52,5 +52,18 @@ describe('EmojiPicker', () => {
     expect(document.activeElement).toBe(tiles[0]);
     tiles[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
     expect(document.activeElement).toBe(tiles[1]);
+  });
+});
+
+describe('emoji picker tabs follow the ARIA tab pattern (B28)', () => {
+  it('one tab stop, arrows move and select', () => {
+    const p = createEmojiPicker({ t, data: DATA, onPick: () => {} });
+    document.body.append(p.el);
+    const tabs = [...p.el.querySelectorAll<HTMLButtonElement>('.ep-tabs [role=tab]')];
+    expect(tabs.filter((b) => b.tabIndex === 0)).toHaveLength(1);
+    tabs[0]!.focus();
+    tabs[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(p.tab).toBe(tabs[1]!.dataset['tab']);
+    p.destroy();
   });
 });
