@@ -3,7 +3,6 @@
 // its tool) and remembered. The Properties content (the inspectors) loads the first time it shows. In View mode only Layers shows, as "View settings", and hovering a box highlights its
 // connections (Display → hover highlight). Ported from index.html `#rightPane` and prototype/app.js (~1875–2594,
 // ~3016–3066).
-import { clearHighlight, hoverHighlight } from '../../../dom/highlight.js';
 import { createSidePanel } from '../../../ui/blocks/side-panel.js';
 import { h } from '../../../ui/kit/h.js';
 import type { EditorModule } from '../../module.js';
@@ -191,29 +190,6 @@ export const rightPanelsModule: EditorModule = {
           if (dirty[k]) refresh();
         }));
     refresh();
-
-    // ---- View mode: hovering a box highlights its connections (Display → hover highlight)
-    let hoverKey = '';
-    const svg = core.canvas.svg;
-    scope.canvas('pointermove', (ev) => {
-      if (core.mode.peek() !== 'view' || !core.display.peek().hoverHighlight || core.tool.peek() === 'pen' || core.dragging) {
-        if (hoverKey) {
-          hoverKey = '';
-          clearHighlight(svg);
-        }
-        return;
-      }
-      const target = ev.target instanceof Element ? ev.target : null;
-      const box = target?.closest('.el.node, .el.entity, .el.participant') ?? null;
-      const key = box ? `${box.getAttribute('data-kind')}:${box.getAttribute('data-id')}` : '';
-      if (key === hoverKey) return;
-      hoverKey = hoverHighlight(svg, target, core.model);
-    });
-    scope.canvas('pointerleave', () => {
-      if (!hoverKey) return;
-      hoverKey = '';
-      clearHighlight(svg);
-    });
 
     return () => {
       gone = true;

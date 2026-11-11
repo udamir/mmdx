@@ -11,6 +11,7 @@ import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../../ui/messages/blocks-diff.js';
 import { untracked } from '../../reactive/signal.js';
 import type { ViewCore } from '../../view/core.js';
+import { onLinkClick } from '../../view/link-menu.js';
 import type { ViewModule } from '../../view/module.js';
 import type { DiffScene } from '../scene.js';
 
@@ -44,15 +45,8 @@ export function diffStageModule(scene: DiffScene): ViewModule<ViewCore> {
         const a = target.closest('a');
         if (a) ev.preventDefault();
         if (!down || Math.hypot(ev.clientX - down.x, ev.clientY - down.y) > 4 || core.tool.peek() === 'pen') return;
-        const href = a?.getAttribute('href');
-        if (href && (ev.metaKey || ev.ctrlKey)) {
-          const item = a!.closest('[data-id]');
-          if (!core.emit('mmdx-link', { href, id: item?.getAttribute('data-id') ?? null }, true)) return;
-          const where = core.ctx.linkPolicy.target ?? '_blank';
-          if (where === '_blank') window.open(href, '_blank', 'noopener,noreferrer');
-          else window.location.assign(href);
-          return;
-        }
+        // the multi-link menu too, as the viewer's
+        if ((ev.metaKey || ev.ctrlKey) && onLinkClick(core, ev)) return;
         if (!core.feature('select') || session.viewOnly.peek() || !session.rendered.peek()) return;
         // a highlight carries the change key; an item drawn in this view has it on `data-ck` (minus the part prefix
         // of edge labels)

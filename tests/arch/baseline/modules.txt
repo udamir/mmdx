@@ -7,7 +7,7 @@ editor/modules/canvas/empty.ts: kernel DOM ×6
 editor/modules/canvas/inline-edit.ts: kernel DOM ×4
 editor/modules/canvas/nudge.ts: kernel DOM ×1
 editor/modules/canvas/select-gestures.ts: kernel DOM ×1
-editor/modules/canvas/select-pointer.ts: kernel DOM ×2
+editor/modules/canvas/select-pointer.ts: kernel DOM ×1
 editor/modules/canvas/select.ts: kernel DOM ×1
 editor/modules/canvas/structure.ts: kernel DOM ×4
 editor/modules/chrome/document.ts: kernel DOM ×1
@@ -28,10 +28,9 @@ editor/modules/panels/code-panel.ts: kernel DOM ×1
 editor/modules/panels/code-problems.ts: kernel DOM ×1
 editor/modules/panels/layers.ts: bare computed ×3
 editor/modules/panels/layers.ts: kernel DOM ×1
-editor/modules/panels/right-panels.ts: kernel DOM ×1
 editor/modules/shapes/index.ts: bare core.on ×2
 editor/modules/shapes/index.ts: kernel DOM ×1
-view/modules/canvas.ts: kernel DOM ×2
+view/modules/canvas.ts: kernel DOM ×1
 view/modules/panels.ts: bare computed ×1
 view/modules/panels.ts: kernel DOM ×2
 view/modules/pen.ts: kernel DOM ×1

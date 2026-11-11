@@ -162,6 +162,8 @@ export class DiagramEditor {
     // what History needs from the document (component architecture §8.2)
     core.provide('documentSource', () => this.store.source());
     core.provide('documentName', () => core.fileName || 'diagram');
+    // what the standard view modules read of the document (View mode's hover highlight)
+    core.provide('documentModel', () => core.model);
     core.historyHost = {
       setClipboard: (data) => core.uiState.clipboard.set(data as NonNullable<typeof core.clipboard>),
       showVersion: (v) => core.showVersion(v),

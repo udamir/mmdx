@@ -32,7 +32,7 @@ const erTableModule = lazyModule<EditorCore>({ id: 'er-table', when: { kind: ['e
 const sequenceModule = lazyModule<EditorCore>({ id: 'sequence', when: { kind: ['sequence'] } }, () => import('./sequence/index.js').then((m) => m.sequenceModule));
 
 const ALWAYS = new Set(['history', 'tool-dock', 'pan', 'pen', 'zoom-bar', 'view-params', 'panes']);
-const VERSION = new Set(['canvas-select', 'canvas-structure', 'code-panel', 'right-panels', 'editor-tools', 'editor-params', 'document']);
+const VERSION = new Set(['links', 'hover-highlight', 'canvas-select', 'canvas-structure', 'code-panel', 'right-panels', 'editor-tools', 'editor-params', 'document']);
 
 export const DEFAULT_MODULES: readonly EditorModule[] = ([
   // first: while a table is edited its rows take the keys (Esc, Delete, ⌘A, Enter, arrows) before the canvas does
