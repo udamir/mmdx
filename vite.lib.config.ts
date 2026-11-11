@@ -1,11 +1,9 @@
 import { defineConfig } from 'vite';
-// @ts-expect-error plain ESM build helper without type declarations
 import { cssTemplatesPlugin } from './tools/css-templates.mjs';
-// @ts-expect-error plain ESM build helper without type declarations
 import { noBuiltinIcons, workerSourcePlugin } from './tools/worker-source.mjs';
 
 // Library build (§16): one ESM file per public entry, shared chunks split out; no runtime dependencies bundled
-// except what core needs (none). `mermaid` stays external (optional peer, loaded lazily).
+// except what core needs (none). `mermaid` stays external (the optional peer; the code never imports it by name).
 export default defineConfig({
   plugins: [cssTemplatesPlugin(), workerSourcePlugin()],
   // relative asset URLs: the render worker is found next to the chunk that starts it (`../assets/…`), so apps that
@@ -36,7 +34,7 @@ export default defineConfig({
       formats: ['es'],
     },
     rollupOptions: {
-      external: ['mermaid', /^@codemirror\//, /^@lezer\//],
+      external: ['mermaid'],
       output: { chunkFileNames: 'chunks/[name]-[hash].js' },
     },
   },

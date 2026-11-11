@@ -4,7 +4,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-// @ts-expect-error plain ESM tool without type declarations
 import { longFunctions, MAX_LINES } from '../../tools/check-funcs.mjs';
 
 const ROOT = join(__dirname, '../..');

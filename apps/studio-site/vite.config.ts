@@ -2,9 +2,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
-// @ts-expect-error plain ESM build helper without type declarations
 import { cssTemplatesPlugin } from '../../tools/css-templates.mjs';
-// @ts-expect-error plain ESM build helper without type declarations
 import { noBuiltinIcons } from '../../tools/worker-source.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));

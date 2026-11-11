@@ -1,7 +1,6 @@
 // Architecture guard (D8): no stylesheet in src/ defines a class that no code can put on an element.
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-// @ts-expect-error plain ESM tool without type declarations
 import { deadClasses } from '../../tools/check-css.mjs';
 
 describe('CSS classes', () => {

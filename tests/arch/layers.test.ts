@@ -3,7 +3,6 @@
 // fails, and so does a fixed one until its line is removed from the baseline in the same change.
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-// @ts-expect-error plain ESM tool without type declarations
 import { compareBaseline, edgeViolation, layerViolations, moduleViolations, readBaseline } from '../../tools/check-layers.mjs';
 
 const ROOT = join(__dirname, '../..');
