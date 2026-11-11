@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { icon } from '../../src/ui/h.js';
-import { ICONS } from '../../src/ui/icons.js';
+import * as ICON_PATHS from '../../src/ui/icons.js';
 import { logoMark } from '../../src/ui/logo.js';
 import { shapePreview } from '../../src/ui/shape-preview.js';
 import { NODE_SHAPES, PARTICIPANT_SHAPES } from '../../src/ui/style-toolbar.js';
@@ -56,7 +56,7 @@ type Story = StoryObj<Args>;
 export const Icons: Story = {
   render: (a) => {
     const { host, root } = chromeHost([], { ui: a.ui });
-    root.append(gallery(Object.entries(ICONS).map(([name, d]) => cell(name, icon(d, a.size)))));
+    root.append(gallery(Object.entries(ICON_PATHS).filter(([name]) => name.startsWith('I_')).map(([name, d]) => cell(name.slice(2), icon(d as string, a.size)))));
     return host;
   },
 };

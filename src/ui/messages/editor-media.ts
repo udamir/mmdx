@@ -6,7 +6,7 @@ import type { Messages } from '../i18n.js';
 export const EDITOR_MEDIA_MESSAGES: Messages = {
   'shapes.cat.basic': 'Basic', 'shapes.cat.process': 'Process', 'shapes.cat.technical': 'Technical', 'shapes.cat.annotation': 'Annotation',
   'shapes.dragTip': 'drag onto the canvas or click to add (Alt-click: give the selected nodes this shape)',
-  'media.selectIcon': 'Select an item to give it an icon', 'media.blocked': 'This image URL is not allowed here',
+  'media.blocked': 'This image URL is not allowed here',
   'props.icon': 'Icon', 'props.image': 'Image', 'props.imageNone': 'No image',
   'props.iconTokenMmdx': 'Shown by mmdx only: stock Mermaid draws Font Awesome icons in labels and shows this one as text', 'props.toIconNode': 'Convert to icon node', 'props.changeImage': 'Change image', 'props.setImage': 'Set image',
   'props.removeImage': 'Remove image', 'props.labelPos': 'Label', 'props.iconForm': 'Frame', 'props.mediaW': 'Width', 'props.mediaH': 'Height',

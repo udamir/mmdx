@@ -12,7 +12,7 @@ import { createSidePanel } from '../../../ui/blocks/side-panel.js';
 import { createTabs } from '../../../ui/blocks/tabs.js';
 import { CODE_EDITOR_CSS, createCodeEditor, highlightMetaLine, type CodeEditor } from '../../../ui/code-editor.js';
 import { h, icon } from '../../../ui/h.js';
-import { ICONS } from '../../../ui/icons.js';
+import { I_search } from '../../../ui/icons.js';
 import { signal } from '../../../ui/signal.js';
 import type { EditorCore } from '../../core.js';
 import { withEdit } from '../../kinds/registry.js';
@@ -131,7 +131,7 @@ export const codePanelModule: EditorModule = {
       input.spellcheck = false;
       const count = h('span', { class: 'count', 'aria-live': 'polite' });
       const clear = h('button', { type: 'button', title: t('code.clearFilter'), 'aria-label': t('code.clearFilter') }, '×');
-      const box = h('div', { class: 'code-search' }, icon(ICONS.search, 15), input, count, clear);
+      const box = h('div', { class: 'code-search' }, icon(I_search, 15), input, count, clear);
       return { box, input, count, clear };
     };
     const filterBar = (): { bar: HTMLElement; info: HTMLElement; all: HTMLButtonElement } => {

@@ -2,7 +2,7 @@
 // be added and removed (references to a removed colour keep its value); in a theme, a changed colour can go back to
 // the baseline's.
 import { h, icon } from '../../ui/h.js';
-import { ICONS } from '../../ui/icons.js';
+import { I_plus } from '../../ui/icons.js';
 import type { Env } from '../env.js';
 import { isHex, obj } from '../util.js';
 
@@ -57,7 +57,7 @@ export function paletteCard(env: Env, box: HTMLElement): void {
       draft.set(['palette', `color-${n}`], ci.value);
       refresh();
     });
-    grid.append(h('label', { class: 'te-dot te-dot-add', title: t('te.addColor'), role: 'listitem' }, icon(ICONS.plus, 16), ci));
+    grid.append(h('label', { class: 'te-dot te-dot-add', title: t('te.addColor'), role: 'listitem' }, icon(I_plus, 16), ci));
   }
   box.append(grid);
 }

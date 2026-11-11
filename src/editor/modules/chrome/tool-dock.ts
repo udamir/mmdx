@@ -6,7 +6,7 @@
 import { editKind } from '../../kinds/registry.js';
 import { dockBadge, dockButton } from '../../../ui/blocks/tool-dock.js';
 import { icon } from '../../../ui/h.js';
-import { ICONS } from '../../../ui/icons.js';
+import { I_code, I_layers, I_pointer, I_props, I_redo, I_shapes, I_undo } from '../../../ui/icons.js';
 import { computed } from '../../../ui/signal.js';
 import type { Tool } from '../../core.js';
 import type { EditorModule } from '../../module.js';
@@ -41,13 +41,13 @@ export const editorToolsModule: EditorModule = {
     core.provide('setTool', setTool);
 
     const toolOn = (tool: Tool) => computed(() => core.tool() === tool);
-    const pointer = dockButton({ icon: ICONS.pointer, label: t('tools.pointer'), keys: 'v', class: 'edit-only', f: 'tool-pointer', pressed: toolOn('pointer'), attrs: { 'data-tool': 'pointer' }, onClick: () => setTool('pointer') });
-    const shapes = dockButton({ icon: ICONS.shapes, label: t('tools.shapes'), keys: 's', class: 'edit-only no-version vt-shapes', f: 'tool-shapes', attrs: { 'aria-haspopup': 'menu' }, onClick: () => core.run('toggleShapesMenu', shapes.el) });
+    const pointer = dockButton({ icon: I_pointer, label: t('tools.pointer'), keys: 'v', class: 'edit-only', f: 'tool-pointer', pressed: toolOn('pointer'), attrs: { 'data-tool': 'pointer' }, onClick: () => setTool('pointer') });
+    const shapes = dockButton({ icon: I_shapes, label: t('tools.shapes'), keys: 's', class: 'edit-only no-version vt-shapes', f: 'tool-shapes', attrs: { 'aria-haspopup': 'menu' }, onClick: () => core.run('toggleShapesMenu', shapes.el) });
     const panelOn = (name: 'code' | 'properties' | 'layers') => computed(() => core.panels()[name]);
-    const codeBtn = f.codePanel ? dockButton({ icon: ICONS.code, label: t('tools.code'), keys: 'c', class: 'edit-only vt-code', f: 'panel-code', pressed: panelOn('code'), onClick: () => void core.run('setPanel', 'code', !core.panels.peek().code) }) : null;
-    const propsBtn = f.properties ? dockButton({ icon: ICONS.props, label: t('tools.props'), keys: 'i', class: 'edit-only no-version vt-props', f: 'panel-props', pressed: panelOn('properties'), onClick: () => void core.run('setPanel', 'properties', !core.panels.peek().properties) }) : null;
+    const codeBtn = f.codePanel ? dockButton({ icon: I_code, label: t('tools.code'), keys: 'c', class: 'edit-only vt-code', f: 'panel-code', pressed: panelOn('code'), onClick: () => void core.run('setPanel', 'code', !core.panels.peek().code) }) : null;
+    const propsBtn = f.properties ? dockButton({ icon: I_props, label: t('tools.props'), keys: 'i', class: 'edit-only no-version vt-props', f: 'panel-props', pressed: panelOn('properties'), onClick: () => void core.run('setPanel', 'properties', !core.panels.peek().properties) }) : null;
     // Layers in Edit mode, View settings in View mode (the same right-hand card)
-    const layersBtn = f.layers ? dockButton({ icon: ICONS.layers, label: t('tools.layers'), keys: 'l', class: 'vt-layers', f: 'panel-layers', pressed: panelOn('layers'), onClick: () => void core.run('setPanel', 'layers', !core.panels.peek().layers) }) : null;
+    const layersBtn = f.layers ? dockButton({ icon: I_layers, label: t('tools.layers'), keys: 'l', class: 'vt-layers', f: 'panel-layers', pressed: panelOn('layers'), onClick: () => void core.run('setPanel', 'layers', !core.panels.peek().layers) }) : null;
     if (layersBtn) {
       const v = icon(VIEW_SETTINGS_ICON, 19);
       v.classList.add('view-only');
@@ -60,8 +60,8 @@ export const editorToolsModule: EditorModule = {
     if (propsBtn) scope.contribute(core.dockItems, { id: 'properties', section: 'panels', order: 20, el: propsBtn.el });
     if (layersBtn) scope.contribute(core.dockItems, { id: 'layers', section: 'panels', order: 30, el: layersBtn.el });
 
-    const undoBtn = dockButton({ icon: ICONS.undo, label: t('tools.undo'), keys: 'mod+z', f: 'undo', onClick: () => core.undo() });
-    const redoBtn = dockButton({ icon: ICONS.redo, label: t('tools.redo'), keys: 'mod+shift+z', f: 'redo', onClick: () => core.redo() });
+    const undoBtn = dockButton({ icon: I_undo, label: t('tools.undo'), keys: 'mod+z', f: 'undo', onClick: () => core.undo() });
+    const redoBtn = dockButton({ icon: I_redo, label: t('tools.redo'), keys: 'mod+shift+z', f: 'redo', onClick: () => core.redo() });
     scope.contribute(core.dockItems, { id: 'undo', section: 'edit', order: 10, el: undoBtn.el });
     scope.contribute(core.dockItems, { id: 'redo', section: 'edit', order: 20, el: redoBtn.el });
 

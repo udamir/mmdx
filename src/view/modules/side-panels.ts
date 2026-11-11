@@ -9,10 +9,12 @@ import { createLayerList, LAYER_LIST_CSS } from '../../ui/blocks/layer-list.js';
 import { createSidePanel } from '../../ui/blocks/side-panel.js';
 import { dockButton } from '../../ui/blocks/tool-dock.js';
 import { h } from '../../ui/h.js';
-import { ICONS } from '../../ui/icons.js';
+import { I_code, I_layers } from '../../ui/icons.js';
 import { signal } from '../../ui/signal.js';
 import type { ViewCore } from '../core.js';
 import type { ModuleScope, ViewModule } from '../module.js';
+import { registerMessages } from '../../ui/i18n.js';
+import { BLOCK_MESSAGES_PANELS } from '../../ui/messages/blocks-panels.js';
 
 const VIEW_SETTINGS_ICON = 'M2.5 11.5C4.6 7.4 8 5.5 12 5.5s7.4 1.9 9.5 6M2.5 11.5c2.1 4.1 5.5 6 9.5 6M12 14.3a2.8 2.8 0 1 0 0-5.6 2.8 2.8 0 0 0 0 5.6zM18.5 20.7a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4z';
 
@@ -42,11 +44,12 @@ const viewSettings = (o: { display: boolean }): ViewModule<ViewCore> => ({
   css: [LAYER_LIST_CSS, '.mmdx-panel.layers-only .mmdx-layers > .mmdx-sect:first-child { display: none; }'],
   enabled: (core) => core.feature('layers'),
   install(scope) {
+    registerMessages(BLOCK_MESSAGES_PANELS); // `panel.close` is the side panel block's (one table)
     const core = scope.core;
     const t = core.i18n.t;
     const keys = freeKey(core, 'l');
     const title = o.display ? t('layers.title') : t('layers.layers');
-    const offBtn = panelToggle(scope, 'view-settings', { icon: o.display ? VIEW_SETTINGS_ICON : ICONS.layers, label: o.display ? t('tools.viewSettings') : title, keys, help: o.display ? t('help.viewSettings') : title, order: 30 });
+    const offBtn = panelToggle(scope, 'view-settings', { icon: o.display ? VIEW_SETTINGS_ICON : I_layers, label: o.display ? t('tools.viewSettings') : title, keys, help: o.display ? t('help.viewSettings') : title, order: 30 });
     const display = core.display;
     const labels = scope.computed(() => display().labels), hover = scope.computed(() => display().hoverHighlight), animate = scope.computed(() => display().animate);
     const set = (patch: Partial<ReturnType<typeof display.peek>>): void => {
@@ -103,9 +106,10 @@ export const codeViewModule: ViewModule<ViewCore> = {
   css: [CODE_VIEW_CSS],
   enabled: (core) => core.feature('code'),
   install(scope) {
+    registerMessages(BLOCK_MESSAGES_PANELS); // `panel.close` is the side panel block's (one table)
     const core = scope.core;
     const t = core.i18n.t;
-    const offBtn = panelToggle(scope, 'code-view', { icon: ICONS.code, label: t('tools.codeView'), keys: 'c', help: t('help.codeView'), order: 10 });
+    const offBtn = panelToggle(scope, 'code-view', { icon: I_code, label: t('tools.codeView'), keys: 'c', help: t('help.codeView'), order: 10 });
     const lines = (): string[] => stripMermaidStyles(core.run('documentCode') ?? '').replace(/\n$/, '').split('\n');
     const view = createCodeView({ mode: 'plain', lines: lines(), language: 'mermaid', label: t('codeView.label'), copy: true, part: 'code', t });
     const body = h('div', { class: 'code-view' }, view.el);

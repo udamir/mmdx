@@ -21,6 +21,8 @@ import type { ModuleScope, ViewModule } from '../../view/module.js';
 import { metaLines, relatedLines } from '../lines.js';
 import { sourceLines, type DiffMode, type DiffSession } from '../session.js';
 import { I_HISTORY } from '../../view/icons.js';
+import { registerMessages } from '../../ui/i18n.js';
+import { BLOCK_MESSAGES_DIFF } from '../../ui/messages/blocks-diff.js';
 
 export const DIFF_PANELS_CSS = /* css */ `
 .code-diff { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
@@ -67,6 +69,7 @@ export function versionsModule(session: DiffSession, o: { dockButton?: boolean; 
     css: [VERSION_LIST_CSS, MENU_CSS, DIFF_PANELS_CSS],
     enabled: (core) => core.feature('history'),
     install(scope) {
+      registerMessages(BLOCK_MESSAGES_DIFF); // the panels' names are the blocks' (one table)
       const core = scope.core;
       const t = core.i18n.t;
       const { open, toggle } = toggleOf(scope, 'history');
@@ -146,6 +149,7 @@ export function codeDiffModule(session: DiffSession): ViewModule<ViewCore> {
     css: [CODE_VIEW_CSS, DIFF_PANELS_CSS],
     enabled: (core) => core.feature('code'),
     install(scope) {
+      registerMessages(BLOCK_MESSAGES_DIFF); // the panels' names are the blocks' (one table)
       const core = scope.core;
       const t = core.i18n.t;
       const { open, toggle } = toggleOf(scope, 'code');
@@ -225,6 +229,7 @@ export function changeListModule(session: DiffSession): ViewModule<ViewCore> {
     css: [CHANGE_LIST_CSS],
     enabled: (core) => core.feature('changes'),
     install(scope) {
+      registerMessages(BLOCK_MESSAGES_DIFF); // the panels' names are the blocks' (one table)
       const core = scope.core;
       const t = core.i18n.t;
       const { open, toggle } = toggleOf(scope, 'changes');

@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createIconButton } from '../../../src/ui/blocks/button.js';
 import { createToolDock, dockBadge, dockButton } from '../../../src/ui/blocks/tool-dock.js';
-import { ICONS } from '../../../src/ui/icons.js';
+import { I_code, I_hand, I_pen, I_pointer, I_redo, I_undo } from '../../../src/ui/icons.js';
 import { signal } from '../../../src/ui/signal.js';
 
 const key = (el: Element, k: string): KeyboardEvent => {
@@ -14,17 +14,17 @@ const key = (el: Element, k: string): KeyboardEvent => {
 afterEach(() => document.body.replaceChildren());
 
 const tools = (): { pointer: HTMLButtonElement; hand: HTMLButtonElement; code: HTMLButtonElement; undo: HTMLButtonElement; redo: HTMLButtonElement } => ({
-  pointer: dockButton({ icon: ICONS.pointer, label: 'Select', keys: 'v', f: 'pointer' }).el,
-  hand: dockButton({ icon: ICONS.hand, label: 'Hand', keys: 'h', f: 'hand' }).el,
-  code: dockButton({ icon: ICONS.code, label: 'Code', keys: 'c', class: 'vt-code', f: 'code' }).el,
-  undo: createIconButton({ icon: ICONS.undo, label: 'Undo', iconSize: 19, f: 'undo' }).el,
-  redo: createIconButton({ icon: ICONS.redo, label: 'Redo', iconSize: 19, f: 'redo' }).el,
+  pointer: dockButton({ icon: I_pointer, label: 'Select', keys: 'v', f: 'pointer' }).el,
+  hand: dockButton({ icon: I_hand, label: 'Hand', keys: 'h', f: 'hand' }).el,
+  code: dockButton({ icon: I_code, label: 'Code', keys: 'c', class: 'vt-code', f: 'code' }).el,
+  undo: createIconButton({ icon: I_undo, label: 'Undo', iconSize: 19, f: 'undo' }).el,
+  redo: createIconButton({ icon: I_redo, label: 'Redo', iconSize: 19, f: 'redo' }).el,
 });
 
 describe('dockButton', () => {
   it('is a .vt-tool icon button with a 19 px icon and the shortcut in its title', () => {
     const onClick = vi.fn();
-    const b = dockButton({ icon: ICONS.pen, label: 'Pen', keys: 'p', class: 'vt-pen', onClick });
+    const b = dockButton({ icon: I_pen, label: 'Pen', keys: 'p', class: 'vt-pen', onClick });
     expect(b.el.classList.contains('vt-tool')).toBe(true);
     expect(b.el.classList.contains('vt-pen')).toBe(true);
     expect(b.el.title).toBe('Pen (P)');
@@ -36,7 +36,7 @@ describe('dockButton', () => {
   });
 
   it('dockBadge shows the problem count, capped at 99+', () => {
-    const b = dockButton({ icon: ICONS.code, label: 'Code', class: 'vt-code' }).el;
+    const b = dockButton({ icon: I_code, label: 'Code', class: 'vt-code' }).el;
     dockBadge(b, 3);
     expect(b.classList.contains('has-issues')).toBe(true);
     expect(b.dataset['issues']).toBe('3');

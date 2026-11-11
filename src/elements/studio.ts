@@ -21,7 +21,7 @@ import { createSegmented, type SegmentedOption, type SegmentedProps } from '../u
 import { MENU_CSS, openMenu } from '../ui/blocks/menu.js';
 import { h, icon } from '../ui/h.js';
 import { signal } from '../ui/signal.js';
-import { ICONS } from '../ui/icons.js';
+import { I_close, I_eye, I_file, I_folder, I_palette, I_save } from '../ui/icons.js';
 import { logoMark } from '../ui/logo.js';
 import { PopoverManager, Toaster } from '../ui/popover.js';
 import { Dialogs, DIALOG_CSS } from '../ui/dialog.js';
@@ -141,14 +141,14 @@ export class DiagramStudio {
     this.nameEl = h('span', { class: 'name', title: 'File name' });
     const newBtn = h('button', { type: 'button', class: 'primary', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: () => this.openNewMenu(newBtn) }, '＋ New');
     const exBtn = h('button', { type: 'button', onclick: () => void this.openGallery() }, 'Examples');
-    const openBtn = h('button', { type: 'button', title: 'Open .mmdx / .mmd / .md / .layout.json', onclick: () => this.pickFiles() }, icon(ICONS.folder), 'Open');
+    const openBtn = h('button', { type: 'button', title: 'Open .mmdx / .mmd / .md / .layout.json', onclick: () => this.pickFiles() }, icon(I_folder), 'Open');
     const modeSwitch = (this.modeSwitch = createSegmented<StudioMode>({
       label: 'Mode', options: this.modeOptions(), value: this.mode, buttonClass: 'mode', f: 'mode',
       onChange: (m) => this.setMode(m),
     }));
-    const saveVersion = h('button', { type: 'button', title: 'Record the current diagram as a version in its history (see History in the tool dock)', onclick: () => void this.saveVersion() }, icon(ICONS.save), 'Save version');
-    const themesBtn = h('button', { type: 'button', title: 'Edit the diagram themes', onclick: () => void this.openThemeEditor() }, icon(ICONS.palette), 'Theme editor');
-    const plainBtn = h('button', { type: 'button', title: 'Render with stock Mermaid (what YouTrack / GitHub show)', onclick: () => void this.editorEl.plainMermaid() }, icon(ICONS.eye), 'Plain Mermaid');
+    const saveVersion = h('button', { type: 'button', title: 'Record the current diagram as a version in its history (see History in the tool dock)', onclick: () => void this.saveVersion() }, icon(I_save), 'Save version');
+    const themesBtn = h('button', { type: 'button', title: 'Edit the diagram themes', onclick: () => void this.openThemeEditor() }, icon(I_palette), 'Theme editor');
+    const plainBtn = h('button', { type: 'button', title: 'Render with stock Mermaid (what YouTrack / GitHub show)', onclick: () => void this.editorEl.plainMermaid() }, icon(I_eye), 'Plain Mermaid');
     const top = h('header', { class: 'top', part: 'toolbar' },
       h('div', { class: 'brand' }, h('span', { class: 'logo', 'aria-hidden': 'true' }, logoMark(24)), 'Mermaid Studio'),
       h('div', { class: 'grp' }, newBtn, exBtn, openBtn),
@@ -356,7 +356,7 @@ export class DiagramStudio {
     let open = true;
     const thumbOf = (ex: ExampleInfo): HTMLElement => {
       if (ex.thumbnail) return h('div', { class: 'thumb' }, h('img', { src: ex.thumbnail, alt: '' }));
-      const box = h('div', { class: 'thumb loading' }, icon(ICONS.file, 32));
+      const box = h('div', { class: 'thumb loading' }, icon(I_file, 32));
       void this.preview(ex).then((url) => {
         box.classList.remove('loading');
         if (url && open) box.replaceChildren(h('img', { src: url, alt: '' }));
@@ -561,7 +561,7 @@ export class DiagramStudio {
     // the theme the diagram is shown in (component state, §7.5; documents no longer carry one)
     const current = this.editorEl.instance?.theme;
     if (current) te.setAttribute('theme', current);
-    const close = h('button', { type: 'button', 'aria-label': 'Close theme editor', onclick: () => void done() }, icon(ICONS.close));
+    const close = h('button', { type: 'button', 'aria-label': 'Close theme editor', onclick: () => void done() }, icon(I_close));
     const back = h('div', { class: 'themes-dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Theme editor' },
       h('div', { class: 'box' }, h('div', { class: 'head' }, h('b', null, 'Diagram themes'), close), te));
     const done = async (): Promise<void> => {

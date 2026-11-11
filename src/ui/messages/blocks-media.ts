@@ -9,11 +9,8 @@ export const BLOCK_MESSAGES_MEDIA: Messages = {
   'palette.results': 'Results', 'palette.none': 'No shapes match “{q}”', 'palette.shapes': 'Shapes',
   // icon picker
   'icons.title': 'Choose an icon…', 'icons.search': 'Search icons', 'icons.searchPlaceholder': 'Search icons',
-  'icons.searchPacks': 'Search icons, {packs} and more', 'icons.packs': 'Icon packs', 'icons.all': 'All', 'icons.recent': 'Recent',
-  'icons.loading': 'Loading {pack}…', 'icons.load': '{pack} — not loaded yet; choose to load it', 'icons.failed': '{pack} could not be loaded',
-  'icons.none': 'No icons match “{q}”', 'icons.empty': 'No icons in this pack', 'icons.grid': 'Icons', 'icons.remove': 'Remove icon',
-  'icons.license': 'Licence: {license}', 'icons.hint': 'Only the built-in icons are available. Your host can register more packs (AWS, Azure, Google Cloud, logos…).',
-  'icons.docs': 'How to add icon packs',
+  'icons.none': 'No icons match “{q}”', 'icons.empty': 'No icons in this pack', 'icons.grid': 'Icons',
+  'icons.license': 'Licence: {license}',
   // image tool
   'image.title': 'Image', 'image.url': 'Image URL', 'image.urlPlaceholder': 'https://…', 'image.add': 'Add image', 'image.replace': 'Replace image',
   'image.remove': 'Remove image', 'image.drop': 'Drop an image here, paste it, or', 'image.choose': 'choose a file',

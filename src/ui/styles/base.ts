@@ -50,7 +50,7 @@ export const ALIASES = /* css */ `
   --accent-2: var(--mmdx-accent-2); --danger: var(--mmdx-danger); --danger-bg: var(--mmdx-danger-bg);
   --warn-ink: var(--mmdx-warn); --warn-bg: var(--mmdx-warn-bg); --warn-line: var(--mmdx-warn-line);
   --float: var(--mmdx-float); --float-2: var(--mmdx-float-2); --float-line: var(--mmdx-float-line);
-  --font: var(--mmdx-font); --toggle-off: var(--mmdx-faint); --scroll: var(--mmdx-faint);
+  --font: var(--mmdx-font); --toggle-off: var(--mmdx-faint);
   --halo: transparent; --dot-ring: rgba(0,0,0,.15);
 }
 :host([data-ui="dark"]) { --halo: rgba(255,255,255,.5); --dot-ring: rgba(255,255,255,.35); }
@@ -70,8 +70,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
   outline: none; box-shadow: var(--mmdx-focus);
 }
 button.primary { background: var(--mmdx-accent); color: var(--mmdx-on-accent); border-color: var(--mmdx-accent); }
-button.ghost { border-color: transparent; background: transparent; }
-button.ghost:hover:not(:disabled) { background: var(--mmdx-surface-2); border-color: transparent; }
 button.on { background: var(--mmdx-accent-2); color: var(--mmdx-accent); border-color: transparent; }
 button.danger { color: var(--mmdx-danger); }
 select, input[type=text], input[type=number], input[type=search], input[type=url], input:not([type]) {
@@ -82,10 +80,6 @@ kbd {
   font: 11px var(--mmdx-font);
 }
 .mmdx-icon { display: block; flex-shrink: 0; }
-.mmdx-float {
-  background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: var(--mmdx-radius);
-  box-shadow: var(--mmdx-shadow);
-}
 .mmdx-pop {
   position: absolute; z-index: var(--mmdx-z-popover); background: var(--mmdx-surface); border: 1px solid var(--mmdx-border);
   border-radius: var(--mmdx-radius); box-shadow: var(--mmdx-shadow-lg); padding: 6px; min-width: 180px;

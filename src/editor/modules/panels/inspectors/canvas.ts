@@ -6,7 +6,7 @@ import type { Direction, DiagramType } from '../../../../core/model.js';
 import { cloneMeta } from '../../../../core/ops/meta-util.js';
 import { pagePresets, ratioOf } from '../../../../core/render/page.js';
 import { h, icon } from '../../../../ui/h.js';
-import { ICONS } from '../../../../ui/icons.js';
+import { I_lock, I_unlock } from '../../../../ui/icons.js';
 import { applyMeta, DIAGRAM_TYPES, FLOW_DIRS, setAutonumberOn, setFlowDirection, switchDiagramType } from '../../../ops/doc.js';
 import { choosePagePreset, pageEff, RATIOS, setPageRatio, setPageSizeMode, setPageValue } from '../../../ops/page.js';
 import { field } from '../fields.js';
@@ -86,7 +86,7 @@ function pageSizeFields(p: PanelCtx, host: HTMLElement): void {
     if (hh > 0) apply(k ? hh * k : c.w ?? b.w, hh);
   });
   const lock = h('button', { type: 'button', class: 'lock-btn' + (k ? ' on' : ''), title: k ? t('page.unlock') : t('page.lock'), 'aria-label': k ? t('page.unlock') : t('page.lock'), 'aria-pressed': String(!!k) },
-    icon(k ? ICONS.lock : ICONS.unlock, 15));
+    icon(k ? I_lock : I_unlock, 15));
   lock.addEventListener('click', () => {
     if (k) {
       applyMeta(core, t('history.pageRatio'), { meta: setPageValue(core, 'ratio', '', '') });

@@ -5,7 +5,7 @@ import { reducedMotion } from '../../dom/motion.js';
 import { StrokeStore } from '../../dom/pen.js';
 import { dockButton } from '../../ui/blocks/tool-dock.js';
 import { createPenOptions, PEN_OPTIONS_CSS } from '../../ui/blocks/pen-options.js';
-import { ICONS } from '../../ui/icons.js';
+import { I_pen } from '../../ui/icons.js';
 import type { ViewCore } from '../core.js';
 import type { ViewModule } from '../module.js';
 
@@ -22,7 +22,7 @@ export const penModule: ViewModule<ViewCore> = {
     const defaultTool = (): 'hand' | 'pointer' => (core.mode.peek() === 'edit' ? 'pointer' : 'hand');
     const toggle = (): void => void core.run('setTool', core.tool.peek() === 'pen' ? defaultTool() : 'pen');
 
-    const btn = dockButton({ icon: ICONS.pen, label: t('tools.pen'), keys: 'p', class: 'vt-pen', f: 'tool-pen', pressed: scope.computed(() => core.tool() === 'pen'), onClick: toggle });
+    const btn = dockButton({ icon: I_pen, label: t('tools.pen'), keys: 'p', class: 'vt-pen', f: 'tool-pen', pressed: scope.computed(() => core.tool() === 'pen'), onClick: toggle });
     scope.contribute(core.dockItems, { id: 'pen', section: 'tools', order: 40, el: btn.el });
     const opts = createPenOptions({ pen: store, t });
     scope.onDispose(store.subscribe(() => opts.refresh()));

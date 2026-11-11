@@ -27,7 +27,7 @@ svg.canvas.panning { cursor: grabbing; }
 /* an edge, not a blurred shadow: a blur filter over the page redraws the whole screen on every repaint once zoomed in */
 .page-layer.page-shadow .page { stroke: var(--line); stroke-width: 1px; vector-effect: non-scaling-stroke; }
 .overlay { pointer-events: none; }
-.overlay [data-handle], .overlay .hit-on { pointer-events: all; }
+.overlay [data-handle] { pointer-events: all; }
 .ed.dragging .mtb { opacity: 0; pointer-events: none; }
 .ed:focus-visible { box-shadow: inset var(--mmdx-focus); }
 .mmdx-dialog.compare { width: min(760px, calc(100% - 32px)); }

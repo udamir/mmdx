@@ -6,7 +6,7 @@ import { createIconButton } from '../ui/blocks/button.js';
 import { createMenu, type MenuEntry } from '../ui/blocks/menu.js';
 import { createToolbar } from '../ui/blocks/toolbar.js';
 import { h } from '../ui/h.js';
-import { ICONS } from '../ui/icons.js';
+import { I_more } from '../ui/icons.js';
 import { Scope } from '../ui/blocks/block.js';
 import type { Env } from './env.js';
 import type { ThemeEditorOptions } from './types.js';
@@ -52,7 +52,7 @@ export function listView(env: Env, list: HTMLElement, options: () => Readonly<Th
       o.canDelete && store.delete && e?.inStore && !e.inSource && id !== BASELINE && item(t('te.delete'), t('te.deleteTitle'), () => void lib.remove(), true),
     ].filter((x): x is MenuEntry => !!x);
 
-    const more = createIconButton({ icon: ICONS.more, label: t('te.more'), text: t('te.more'), class: 'te-more', attrs: { 'aria-haspopup': 'menu', 'aria-expanded': 'false' } });
+    const more = createIconButton({ icon: I_more, label: t('te.more'), text: t('te.more'), class: 'te-more', attrs: { 'aria-haspopup': 'menu', 'aria-expanded': 'false' } });
     // a fixed popover beside the button: the list sits in an inline frame or a dialog overlay alike
     scope.on(more.el, 'click', () => {
       if (env.pops.isOpenFor(more.el)) return env.pops.close();

@@ -24,6 +24,5 @@ export const VIEW_MESSAGES: Messages = {
   'viewParams.title': 'View',
   'export.failed': '{kind} export failed: {msg}',
   'export.imagesMissing': '{n} of the images could not be included (blocked by the image host)',
-  'panel.close': 'Close',
   'view.links': 'Links',
 };

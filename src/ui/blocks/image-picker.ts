@@ -80,7 +80,6 @@ export const IMAGE_PICKER_CSS = /* css */ `${TABS_CSS}${OVERLAY_SCROLL_CSS}
 .imp-more { align-self: center; }
 .imp.imp-wide { width: 300px; }
 .imp .ip { width: auto; }
-.imp .ip-title { display: none; }
 .imp-row { display: flex; gap: 6px; }
 .imp-url { flex: 1; min-width: 0; }
 .imp-url[aria-invalid=true] { border-color: var(--mmdx-danger); }
