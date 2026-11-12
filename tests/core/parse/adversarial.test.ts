@@ -26,7 +26,7 @@ describe('parsers on adversarial sources', () => {
     expect(() => parse(small)).not.toThrow();
     const t1 = time(() => parse(small)), t4 = time(() => parse(big));
     // quadratic growth would be ~16×; linear ~4×
-    if (t4 > 20) expect(t4 / Math.max(t1, 1)).toBeLessThan(8);
+    if (t4 > 20) expect(t4 / Math.max(t1, 1)).toBeLessThan(6);
   });
 
   it.each(OVER_LIMIT.map((c) => [c.name, c] as const))('%s: stops with doc.too-complex', (_, c) => {

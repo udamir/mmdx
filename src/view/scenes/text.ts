@@ -11,7 +11,7 @@ import { pageScene } from '../../core/render/page.js';
 import { BUILTIN_IDS } from '../../core/theme/builtin-ids.js';
 import { diagnosticText, type Diagnostic, type Rect } from '../../core/types.js';
 import { cancelIdle, idle } from '../../dom/idle.js';
-import { renderInWorker, workerAvailable, WORKER_THRESHOLD_BYTES, WORKER_THRESHOLD_LINES } from '../../dom/worker-client.js';
+import { renderInWorker, workerAvailable, WORKER_THRESHOLD_CHARS, WORKER_THRESHOLD_LINES } from '../../dom/worker-client.js';
 import { h } from '../../ui/kit/h.js';
 import type { ViewCore } from '../core.js';
 import { drawShapes, hasKind, loadedKinds, loadKind, loadShapes } from '../../platform/kinds.js';
@@ -128,7 +128,7 @@ export class TextScene extends BaseScene {
     if (layers) opts.visibleLayers = layers;
     // the host's URL resolver is a function: it does not reach the worker
     // by size too: one long line is as slow to parse as many short ones (G13)
-    if ((text.length > WORKER_THRESHOLD_BYTES || countLines(text) > WORKER_THRESHOLD_LINES) && workerAvailable() && !core.ctx.resolveUrl) {
+    if ((text.length > WORKER_THRESHOLD_CHARS || countLines(text) > WORKER_THRESHOLD_LINES) && workerAvailable() && !core.ctx.resolveUrl) {
       const seq = ++this.renderSeq;
       void renderInWorker(text, core.ctx, opts, this).then((wr) => {
         if (this.destroyed || seq !== this.renderSeq || text !== this.text) return;

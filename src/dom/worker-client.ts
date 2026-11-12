@@ -13,8 +13,8 @@ import type { WorkerReady, WorkerRequest, WorkerResponse } from './worker-protoc
 
 /** Diagrams with more source lines than this render in the worker. */
 export const WORKER_THRESHOLD_LINES = 300;
-/** …or more than this many characters (a few very long lines cost as much as many short ones). */
-export const WORKER_THRESHOLD_BYTES = 32 * 1024;
+/** …or more than this many characters (UTF-16 code units: the parsers' cost follows the string length, not its UTF-8 size; a few very long lines cost as much as many short ones). */
+export const WORKER_THRESHOLD_CHARS = 32 * 1024;
 const TIMEOUT_MS = 2000;
 /** A worker that has not started this long after it was created (its script never loads): the main thread renders. */
 const START_TIMEOUT_MS = 10_000;
