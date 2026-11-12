@@ -387,7 +387,6 @@ export interface EdgePath {
 export interface EdgePathOpts {
   routing?: string | undefined;
   curve?: number | undefined;
-  radius?: number;
   points?: readonly (readonly [number, number])[] | undefined;
 }
 
@@ -395,13 +394,13 @@ export interface EdgePathOpts {
  * Path between two ports. points: bend points [[x, y], …] the line passes through (fixed in diagram coordinates).
  * Besides the path (d) and a point at a fraction of its length (at), the result has `mids`.
  */
-export function edgePath(p1: Port, p2: Port, { routing = 'curved', curve = 1, radius = 10, points = [] }: EdgePathOpts = {}): EdgePath {
-  if (points.length) return pathThrough(p1, p2, points.map(([x, y]) => ({ x, y })), routing, curve, radius);
-  const res = edgePathPlain(p1, p2, routing, curve, radius);
+export function edgePath(p1: Port, p2: Port, { routing = 'curved', curve = 1, points = [] }: EdgePathOpts = {}): EdgePath {
+  if (points.length) return pathThrough(p1, p2, points.map(([x, y]) => ({ x, y })), routing, curve);
+  const res = edgePathPlain(p1, p2, routing, curve);
   return { ...res, mids: [res.at(0.5)] };
 }
 
-function pathThrough(p1: Port, p2: Port, pts: Point[], routing: string, curve: number, radius: number): EdgePath {
+function pathThrough(p1: Port, p2: Port, pts: Point[], routing: string, curve: number): EdgePath {
   const V: Point[] = [p1, ...pts, p2];
   let d: string, dense: Point[], vAt: number[]; // dense polyline of the drawn line; vAt[i]: index in it of user vertex V[i]
   if (routing === 'straight' || curve === 0) {
@@ -451,7 +450,7 @@ function pathThrough(p1: Port, p2: Port, pts: Point[], routing: string, curve: n
     });
     const W2 = W.filter((_, i) => keep[i]);
     vAt = vAt.map((i) => remap[i]!);
-    d = roundedPolyline(W2, radius);
+    d = roundedPolyline(W2);
     dense = W2;
   } else {
     // smooth curve through every point: Catmull-Rom tangents inside, the box sides' directions at the ends
@@ -538,13 +537,13 @@ export function boxGrid(cell = 160): { add(b: CenterBox): void; hits(r: Rect): b
   };
 }
 
-function edgePathPlain(p1: Port, p2: Port, routing: string, curve: number, radius: number): Omit<EdgePath, 'mids'> {
+function edgePathPlain(p1: Port, p2: Port, routing: string, curve: number): Omit<EdgePath, 'mids'> {
   if (routing === 'straight' || curve === 0) {
     return { d: `M${P(p1.x, p1.y)} L${P(p2.x, p2.y)}`, at: (t) => polylinePoint([p1, p2], t) };
   }
   if (routing === 'orthogonal') {
     const pts = orthoPoints(p1, p2);
-    return { d: roundedPolyline(pts, radius), at: (t) => polylinePoint(pts, t) };
+    return { d: roundedPolyline(pts), at: (t) => polylinePoint(pts, t) };
   }
   const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
   const k = clamp(dist * 0.42, 24, 220) * curve;
@@ -574,13 +573,16 @@ function orthoPoints(p1: Port, p2: Port): Point[] {
   return pts.filter((p, i) => i === 0 || Math.hypot(p.x - pts[i - 1]!.x, p.y - pts[i - 1]!.y) > 0.5);
 }
 
-function roundedPolyline(pts: readonly Point[], rad: number): string {
+/** The radius of an orthogonal line's rounded corners. */
+const CORNER = 10;
+
+function roundedPolyline(pts: readonly Point[]): string {
   const p0 = pts[0]!;
   let d = `M${P(p0.x, p0.y)}`;
   for (let i = 1; i < pts.length - 1; i++) {
     const p = pts[i]!, a = pts[i - 1]!, b = pts[i + 1]!;
     const la = Math.hypot(p.x - a.x, p.y - a.y), lb = Math.hypot(b.x - p.x, b.y - p.y);
-    const r = Math.min(rad, la / 2, lb / 2);
+    const r = Math.min(CORNER, la / 2, lb / 2);
     const s = { x: p.x + ((a.x - p.x) / la) * r, y: p.y + ((a.y - p.y) / la) * r };
     const e = { x: p.x + ((b.x - p.x) / lb) * r, y: p.y + ((b.y - p.y) / lb) * r };
     d += ` L${P(s.x, s.y)} Q${P(p.x, p.y)} ${P(e.x, e.y)}`;
@@ -590,7 +592,7 @@ function roundedPolyline(pts: readonly Point[], rad: number): string {
 }
 
 /** Crow's-foot cardinality marker at port p (n points away from the entity). */
-export function crowFoot(p: Port, card: string, color: string | undefined, width = 1, bg = '#fff'): SceneNode[] {
+export function crowFoot(p: Port, card: string, color: string | undefined, width: number, bg: string): SceneNode[] {
   const n = p.n, t = { x: -n.y, y: n.x };
   const at = (d: number, s = 0): Point => ({ x: p.x + n.x * d + t.x * s, y: p.y + n.y * d + t.y * s });
   const line = (a: Point, b: Point): string => `M${P(a.x, a.y)} L${P(b.x, b.y)}`;
