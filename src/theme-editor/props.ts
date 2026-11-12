@@ -1,7 +1,6 @@
 // "All properties" of the selected tile: everything the floating toolbar does not cover, as field rows under the
 // tile's gallery. An item style's fields come from the style schema; a page preset has its own.
 import { FIELD_DEFS, themeSection } from '../core/schema/style-fields.js';
-import { deepMerge } from '../core/theme/registry.js';
 import { h } from '../ui/kit/h.js';
 import { ROUTINGS } from '../core/style.js';
 import { RATIOS } from '../ui/diagram/page-ratios.js';
@@ -36,28 +35,16 @@ export function renderProps(env: Env): void {
 
 function styleFields(env: Env, d: HTMLElement, sel: TileSel): void {
   const { draft } = env;
-  const base0 = draft.isBase();
-  const inherited = obj(draft.parent.peek()?.[sel.type]);
-  // a node's base: the common node style + its shape's default (in the baseline: as edited)
-  const own = obj(draft.current()?.[sel.type]);
-  const SK = sel.shapesKey ?? '';
-  const shapeBase = sel.shape ? (base0 ? { ...obj(own[sel.kind]) } : deepMerge(obj(inherited[sel.kind]), obj(obj(inherited[SK])[sel.shape]))) : {};
+  const path = draft.stylePath(sel);
+  const inherited = draft.inheritedFor(sel);
+  const inheritable = draft.inheritsFor(sel);
   for (const f of sel.fields) {
     const def = FIELD_DEFS[f];
     if (!def) continue;
     const k = def.key ?? f;
-    const ldef: LocalField = { ...def, label: env.tf(`field.${f}`, def.label) };
-    if (sel.preset === null && sel.shape) {
-      if (k === 'shape') continue;
-      fieldRow(env, d, ldef, [sel.type, SK, sel.shape, k], shapeBase[k], true);
-    } else if (sel.preset === null) fieldRow(env, d, ldef, [sel.type, sel.kind, k], obj(inherited[sel.kind])[k]);
-    else {
-      const shapeDef = sel.shape ? (base0 ? obj(obj(own[SK])[sel.shape]) : deepMerge(obj(obj(inherited[SK])[sel.shape]), obj(obj(own[SK])[sel.shape]))) : {};
-      const base = base0
-        ? { ...obj(own[sel.kind]), ...shapeDef }[k]
-        : deepMerge(deepMerge(obj(inherited[sel.kind]), shapeDef), obj(obj(inherited[sel.presets ?? ''])[sel.preset]))[k];
-      fieldRow(env, d, ldef, [sel.type, sel.presets ?? '', sel.preset, k], base, base0);
-    }
+    // a shape's default does not pick its own shape
+    if (sel.preset === null && sel.shape && k === 'shape') continue;
+    fieldRow(env, d, { ...def, label: env.tf(`field.${f}`, def.label) }, [...path, k], inherited[k], { inheritable });
   }
 }
 
@@ -75,7 +62,7 @@ function pageFields(env: Env, d: HTMLElement, sel: TileSel): void {
   const { t } = env;
   const name = sel.preset ?? '';
   const inherited = obj(obj(obj(env.draft.parent.peek()?.[sel.type])['pagePresets'])[name]);
-  const row = (k: string, def: LocalField): void => void fieldRow(env, d, def, [sel.type, 'pagePresets', name, k], inherited[k], true);
+  const row = (k: string, def: LocalField): void => void fieldRow(env, d, def, [sel.type, 'pagePresets', name, k], inherited[k], { inheritable: true });
   row('label', { label: t('te.ppLabel'), type: 'text' });
   row('background', { label: t('te.ppBackground'), type: 'color' });
   row('grid', { label: t('te.ppGrid'), type: 'text' });

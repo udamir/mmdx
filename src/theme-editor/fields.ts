@@ -37,15 +37,19 @@ export function renderErrors(env: Env, root: Element = env.dlg): void {
   });
 }
 
-/**
- * One property. In the baseline every value is the theme's own; in a theme, an empty field inherits.
- * `presetOfBase`: a baseline preset field, which inherits from the baseline item style.
- */
-export function fieldRow(env: Env, host: HTMLElement, def: LocalField, path: readonly string[], inherited: unknown, presetOfBase = false): HTMLElement {
+export interface FieldRowOptions {
+  /** Whether an empty field inherits (it shows the inherited value and has a reset): default in a theme, not in the baseline; a baseline preset or shape default inherits from the baseline item style. */
+  inheritable?: boolean;
+  /** Names the inherited value in the select's inherit option (default: its option's label), e.g. the font's family name. */
+  inheritLabel?: (v: unknown) => string;
+}
+
+/** One property. In the baseline every value is the theme's own; in a theme, an empty field inherits. */
+export function fieldRow(env: Env, host: HTMLElement, def: LocalField, path: readonly string[], inherited: unknown, o: FieldRowOptions = {}): HTMLElement {
   const { t, draft } = env;
   const row = h('div', { class: 'te-f', dataset: { dirty: path.join('.') } });
   const own = (): unknown => draft.get(path);
-  const inheritable = !draft.isBase() || presetOfBase;
+  const inheritable = o.inheritable ?? !draft.isBase();
   row.classList.toggle('set', inheritable && own() !== undefined);
   const id = `te-f-${env.ctx.idPrefix}${path.join('-').replace(/[^\w-]/g, '_')}`;
   row.append(h('label', { for: id }, def.label));
@@ -87,7 +91,7 @@ export function fieldRow(env: Env, host: HTMLElement, def: LocalField, path: rea
   } else {
     const s = h('select', { id });
     const opts = (def.options ?? []).map((o): readonly [string, string] => (typeof o === 'string' ? [o, o] : o));
-    const label = (v: unknown): string => opts.find((o) => o[0] === String(v))?.[1] ?? String(v);
+    const label = o.inheritLabel ?? ((v: unknown): string => opts.find((x) => x[0] === String(v))?.[1] ?? String(v));
     if (inheritable) s.append(new Option(inherited !== undefined ? t('te.inheritOptV', { v: label(inherited) }) : t('te.inheritOpt'), '__inherit'));
     for (const [v, l] of opts) s.append(new Option(l, v));
     s.value = own() !== undefined ? String(own()) : inheritable ? '__inherit' : String(inherited ?? optionValue(opts[0] ?? ''));
@@ -103,7 +107,7 @@ export function fieldRow(env: Env, host: HTMLElement, def: LocalField, path: rea
     r.addEventListener('click', () => {
       set(undefined);
       const fresh = h('div');
-      const next = fieldRow(env, fresh, def, path, inherited, presetOfBase);
+      const next = fieldRow(env, fresh, def, path, inherited, o);
       row.replaceWith(next);
       env.decorate(next);
     });

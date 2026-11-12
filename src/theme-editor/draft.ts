@@ -259,6 +259,29 @@ export class Draft {
     return s.preset === null ? base : { ...base, ...obj(obj(tt[s.presets ?? ''])[s.preset]) };
   }
 
+  /** The tile's own style: what the draft itself sets at `stylePath(s)` (empty when nothing). */
+  ownFor(s: TileSel): Obj {
+    return obj(getPath(this.current(), this.stylePath(s)));
+  }
+
+  /**
+   * What the tile's empty fields fall back to (theme editor §8.3), the tile inheritance chain in one place: an item's default inherits the parent's item style; a shape's default the parent's item style and shape default (in the baseline: the baseline's item style); a preset its item style, its shape's default (the draft's own over the parent's) and the parent's preset (in the baseline: the item style and shape default as edited).
+   */
+  inheritedFor(s: TileSel): Obj {
+    const base0 = this.isBase();
+    const inh = obj(this.parent.peek()?.[s.type]);
+    const own = obj(this.current()?.[s.type]);
+    const sk = s.shapesKey ?? '';
+    if (s.preset === null) return !s.shape ? obj(inh[s.kind]) : base0 ? { ...obj(own[s.kind]) } : deepMerge(obj(inh[s.kind]), obj(obj(inh[sk])[s.shape]));
+    const shapeDef = s.shape ? (base0 ? obj(obj(own[sk])[s.shape]) : deepMerge(obj(obj(inh[sk])[s.shape]), obj(obj(own[sk])[s.shape]))) : {};
+    return base0 ? { ...obj(own[s.kind]), ...shapeDef } : deepMerge(deepMerge(obj(inh[s.kind]), shapeDef), obj(obj(inh[s.presets ?? ''])[s.preset]));
+  }
+
+  /** Whether the tile's fields can inherit: in a theme all do; in the baseline a shape's default and a preset do (from the item style), an item's default does not. */
+  inheritsFor(s: TileSel): boolean {
+    return !this.isBase() || s.preset !== null || !!s.shape;
+  }
+
   /** WCAG AA: the contrast of the tile's text on its fill (or the page) when it is below 4.5:1, else null. */
   lowContrast(s: TileSel): number | null {
     const key = TEXT_ON_FILL[s.kind];

@@ -32,7 +32,7 @@ export const THEME_EDITOR_MESSAGES: Messages = {
   'te.paletteHintTheme': 'Click a colour to override it in this theme (ringed = changed; × goes back to the baseline).',
   'te.page': 'Appearance, font & page', 'te.changed': '{n} changed', 'te.colorTitle': '{name}: {value}', 'te.colorChanged': '{name}: {value} (baseline {base})',
   'te.colorBack': 'Back to the baseline colour', 'te.colorRemove': 'Remove from the palette (styles using it keep its current colour)',
-  'te.addColor': 'Add a colour', 'te.appearance': 'Appearance', 'te.light': 'Light', 'te.dark': 'Dark', 'te.font': 'Font', 'te.inheritFont': 'inherit ({name})',
+  'te.addColor': 'Add a colour', 'te.appearance': 'Appearance', 'te.light': 'Light', 'te.dark': 'Dark', 'te.font': 'Font',
   'te.pageBg': 'Page background', 'te.pageBorder': 'Page border', 'te.grid': 'Grid colour', 'te.default': 'Default', 'te.shapeDefault': '{shape} — default',
   'te.addPreset': '+ Preset', 'te.addPresetTitle': 'A named style items can use (Mermaid class A:::name or the Style preset of an item)',
   'te.deletePreset': 'Delete this preset', 'te.shapePresets': '{label} — {n} presets', 'te.lowContrast': 'Low contrast: text on fill is {ratio}:1 (WCAG AA needs 4.5:1)',

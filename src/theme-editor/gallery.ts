@@ -116,9 +116,8 @@ export function itemGallery(env: Env, box: HTMLElement, type: DiagramType, it: T
     pics.set(key, pic);
     const capText = preset ?? (tabs ? t('te.shapeDefault', { shape: shapeLabel() }) : t('te.default'));
     const cap = h('span', { class: 'te-tile-cap' }, capText);
-    const rawT = obj(draft.current()?.[type]);
-    if (preset !== null && !draft.isBase() && Object.keys(obj(obj(rawT[it.presets ?? ''])[preset])).length) cap.append(dotmark());
-    if (preset === null && Object.keys(obj(tabs ? obj(rawT[tabs.key])[curShape()] : rawT[it.key])).length && (!draft.isBase() || tabs)) cap.append(dotmark());
+    // the tile sets values of its own (a baseline preset's are all its own: no mark)
+    if (Object.keys(draft.ownFor(s)).length && (preset === null ? draft.inheritsFor(s) : !draft.isBase())) cap.append(dotmark());
     // WCAG AA: text colour on the fill
     const ratio = draft.lowContrast(s);
     const warn = ratio === null ? null : t('te.lowContrast', { ratio: (Math.floor(ratio * 10) / 10).toFixed(1) });
