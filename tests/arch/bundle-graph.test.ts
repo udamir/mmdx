@@ -19,7 +19,9 @@ function staticClosure(entry: string): Set<string> {
 
 describe('static import graphs', () => {
   it('mmdx/diff and the item previews carry no built-in theme data', () => {
-    for (const entry of ['diff.ts', 'ui/item-preview-core.ts']) {
+    for (const entry of ['diff.ts', 'ui/diagram/item-preview-core.ts']) {
+      // an entry that moved matches no edge and would pass without checking anything (BUG-022)
+      expect(edges.some((e) => e.from === entry), `${entry} is not a source file`).toBe(true);
       const c = staticClosure(entry);
       expect([...c].filter((f) => /^core\/theme\/builtin(-extra)?\.ts$/.test(f)), entry).toEqual([]);
     }
