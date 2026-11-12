@@ -2,6 +2,7 @@
 // by a row, Home / End to the first and last, Page Up / Down by a page of rows; Enter and Space choose (the tile's
 // click). One tile is the tab stop (`tabindex=0`), the others -1, so the grid is one stop in the tab order. Works on
 // indexes, so a virtualised grid (only the visible rows in the DOM) uses it as well: `focus(i)` brings a tile in.
+import type { Owner } from '../../reactive/owner.js';
 
 export interface GridKeysOptions {
   /** Number of tiles. */
@@ -70,4 +71,28 @@ export function gridKeys(el: HTMLElement, o: GridKeysOptions): GridKeysHandle {
       el.removeEventListener('focusin', onFocus);
     },
   };
+}
+
+export interface SearchIntoGridOptions {
+  /** Number of results (tiles) shown. */
+  count(): number;
+  /** The search text (Enter takes the first result only while there is one). */
+  query(): string;
+  /** ↓: moves the focus to the first tile. */
+  enter(): void;
+  /** Enter: takes the first result. */
+  pick(): void;
+}
+
+/** The search field over a grid of tiles (X16: the emoji, icon and shape pickers): ↓ goes into the grid at the first tile, Enter takes the first result of a search. The listener goes with `scope`. */
+export function searchIntoGrid(scope: Owner, input: HTMLInputElement, o: SearchIntoGridOptions): void {
+  scope.on(input, 'keydown', (ev: KeyboardEvent) => {
+    if (ev.key === 'ArrowDown' && o.count()) {
+      ev.preventDefault();
+      o.enter();
+    } else if (ev.key === 'Enter' && o.count() && o.query().trim()) {
+      ev.preventDefault();
+      o.pick();
+    }
+  });
 }

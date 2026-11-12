@@ -5,7 +5,7 @@ import { h } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
 import { defineBlock, type BlockHandle, type Translate } from './block.js';
-import { gridKeys } from '../kit/grid-keys.js';
+import { gridKeys, searchIntoGrid } from '../kit/grid-keys.js';
 import { createTabs } from './tabs.js';
 import { signal } from '../../reactive/signal.js';
 
@@ -156,15 +156,7 @@ export function createEmojiPicker(props: EmojiPickerProps): EmojiPickerHandle {
       renderTabs();
       renderGrid();
     });
-    scope.on(input, 'keydown', (ev: KeyboardEvent) => {
-      if (ev.key === 'ArrowDown' && tiles.length) {
-        ev.preventDefault();
-        tiles[0]!.focus();
-      } else if (ev.key === 'Enter' && tiles.length && query.trim()) {
-        ev.preventDefault();
-        tiles[0]!.click();
-      }
-    });
+    searchIntoGrid(scope, input, { count: () => tiles.length, query: () => query, enter: () => tiles[0]!.focus(), pick: () => tiles[0]!.click() });
     scope.on(tone, 'change', () => {
       p.tone = Number(tone.value) || 0;
       p.onTone?.(p.tone ?? 0);

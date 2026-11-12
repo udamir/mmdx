@@ -7,7 +7,7 @@ import { h } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
 import { defineBlock, type BlockHandle, type Scope, type Translate } from './block.js';
-import { gridKeys } from '../kit/grid-keys.js';
+import { gridKeys, searchIntoGrid } from '../kit/grid-keys.js';
 
 export interface ShapePaletteItem {
   key: string;
@@ -174,16 +174,13 @@ export function createShapePalette(props: ShapePaletteProps): ShapePaletteHandle
       renderBody();
     });
     // ↓ from the search field goes into the tiles; Enter takes the first result
-    scope.on(input, 'keydown', (ev: KeyboardEvent) => {
-      if (ev.key === 'ArrowDown' && tiles.length) {
-        ev.preventDefault();
+    searchIntoGrid(scope, input, {
+      count: () => tiles.length, query: () => query, pick: () => tiles[0]!.click(),
+      enter: () => {
         keys.setActive(0);
         syncStop();
         tiles[0]!.focus();
-      } else if (ev.key === 'Enter' && tiles.length && query.trim()) {
-        ev.preventDefault();
-        tiles[0]!.click();
-      }
+      },
     });
     return {
       el,

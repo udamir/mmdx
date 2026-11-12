@@ -6,7 +6,7 @@ import { h } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
 import { defineBlock, type BlockHandle, type Translate } from './block.js';
-import { gridKeys } from '../kit/grid-keys.js';
+import { gridKeys, searchIntoGrid } from '../kit/grid-keys.js';
 import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../kit/overlay-scroll.js';
 
 export interface IconPickerPack {
@@ -171,16 +171,13 @@ export function createIconPicker(props: IconPickerProps): IconPickerHandle {
       scroller.scrollTop = 0;
       refresh();
     });
-    input.addEventListener('keydown', (ev) => {
-      if (ev.key === 'ArrowDown' && list.length) {
-        ev.preventDefault();
+    searchIntoGrid(scope, input, {
+      count: () => list.length, query: () => query, pick: () => p.onPick(list[0]!),
+      enter: () => {
         keys.setActive(0);
         drawRows(true);
         shown.get(0)?.focus();
-      } else if (ev.key === 'Enter' && list.length && query.trim()) {
-        ev.preventDefault();
-        p.onPick(list[0]!);
-      }
+      },
     });
     return {
       el,
