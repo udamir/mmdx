@@ -78,7 +78,7 @@ export const PANEL_STACK_CSS = /* css */ `
 `;
 
 /** Minimum heights kept while dragging a splitter: the lower panel, and the room left above it. */
-const MIN_LOWER = 90, MIN_UPPER = 140, STEP = 16;
+const MIN_LOWER = 90, MIN_UPPER = 140;
 
 export function createPanelStack(props: PanelStackProps): PanelStackHandle {
   registerMessages(BLOCK_MESSAGES_PANELS);
@@ -133,66 +133,28 @@ export function createPanelStack(props: PanelStackProps): PanelStackHandle {
 
     /** The splitter above panel `i`: drag sets that panel's height. */
     const makeSplit = (i: number, s: Scope): HTMLElement => {
-      const t = p.t;
-      const split = h('div', { class: 'mmdx-split', role: 'separator', 'aria-orientation': 'horizontal', tabindex: '0', title: t('panes.resize'), 'aria-label': t('panes.resize') });
       const lower = (): StackPanel | undefined => p.panels[i];
-      // `quiet`: a drag tells the host once, when it ends (P22: onChange per pointer move)
-      const setH = (px: number | null, quiet = false): void => {
-        const x = lower();
-        if (!x) return;
-        if (px === null) heights.delete(x.id);
-        else heights.set(x.id, Math.round(px));
-        applyHeights();
-        if (!quiet) changed();
-      };
-      const clamp = (px: number): number => Math.max(MIN_LOWER, Math.min((el.getBoundingClientRect().height || 1e4) - MIN_UPPER, px));
-      let drag: AbortController | null = null;
-      s.add(() => drag?.abort());
-      s.on(split, 'pointerdown', (ev: PointerEvent) => {
-        const x = lower();
-        if (ev.button !== 0 || !x) return;
-        ev.preventDefault();
-        try {
-          split.setPointerCapture(ev.pointerId);
-        } catch {
-          // best-effort
-        }
-        const y0 = ev.clientY, h0 = x.panel.getBoundingClientRect().height;
-        const root = el.parentElement;
-        split.classList.add('dragging');
-        root?.classList.add('resizing-rows');
-        drag?.abort();
-        const ac = (drag = new AbortController());
-        let moved = false;
-        const move = (e: PointerEvent): void => {
-          moved = true;
-          setH(clamp(h0 - (e.clientY - y0)), true);
-        };
-        const up = (): void => {
-          ac.abort();
-          if (moved) changed();
-          split.classList.remove('dragging');
-          root?.classList.remove('resizing-rows');
+      return createGrip({
+        axis: 'y', measure: () => lower()?.panel, min: MIN_LOWER, max: () => (el.getBoundingClientRect().height || 1e4) - MIN_UPPER, title: p.t('panes.resize'),
+        dragRoot: () => el.parentElement, dragClass: 'resizing-rows',
+        get: () => {
+          const x = lower();
+          return x ? heights.get(x.id) ?? null : null;
+        },
+        // a drag tells the host once, when it ends (P22: onChange per pointer move)
+        set: (px, live) => {
+          const x = lower();
+          if (!x) return;
+          if (px === null) heights.delete(x.id);
+          else heights.set(x.id, Math.round(px));
+          applyHeights();
+          if (!live) changed();
+        },
+        onCommit: (dragged) => {
+          if (dragged) changed();
           saveHeights();
-        };
-        split.addEventListener('pointermove', move as EventListener, { signal: ac.signal });
-        split.addEventListener('pointerup', up, { signal: ac.signal });
-        split.addEventListener('pointercancel', up, { signal: ac.signal });
-      });
-      s.on(split, 'dblclick', () => {
-        setH(null);
-        saveHeights();
-      });
-      s.on(split, 'keydown', (ev: KeyboardEvent) => {
-        const x = lower();
-        if ((ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown') || !x) return;
-        ev.preventDefault();
-        ev.stopPropagation();
-        const h0 = heights.get(x.id) ?? (x.panel.getBoundingClientRect().height || 200);
-        setH(clamp(h0 + (ev.key === 'ArrowUp' ? STEP : -STEP)));
-        saveHeights();
-      });
-      return split;
+        },
+      }, s);
     };
 
     const render = (): void => keepFocus(el, () => {
