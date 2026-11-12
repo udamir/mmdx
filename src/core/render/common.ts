@@ -9,7 +9,7 @@ import type { FontSpec } from '../text/measure.js';
 import type { CenterBox, ItemKind, Point, Rect } from '../types.js';
 import { cleanDash, cleanFontFamily, resolveContentUrl, safeUrl, toNumber, type SafeUrl } from '../validate.js';
 import { STYLE_KEYS, valueType } from '../meta/keys.js';
-import { hash } from '../layout/hash.js';
+import { hash } from '../layout/cache.js';
 import type { LayeredOptions, LayoutEdge, LayoutNode } from '../layout/layered.js';
 import type { HiddenSets, Port, RenderContext, RenderOptions, TextOpts } from './types.js';
 import { shapeDef, shapeIdOf } from '../shapes/registry.js';

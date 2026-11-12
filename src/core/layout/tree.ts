@@ -11,8 +11,7 @@
 // input (ids, sizes, order, collapsed), so an edit lays out its own branch and its ancestors only.
 import type { Point } from '../types.js';
 import { maxOf, minOf } from '../geom.js';
-import { pack, unpack } from './cache.js';
-import { hash } from './hash.js';
+import { hash, pack, unpack } from './cache.js';
 import type { LayoutCache } from './types.js';
 
 export interface TreeNode {

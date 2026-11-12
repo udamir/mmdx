@@ -45,8 +45,7 @@
 import { layered, type LayeredOptions, type LayoutEdge, type LayoutNode } from './layered.js';
 import type { Point, Rect } from '../types.js';
 import { maxOf } from '../geom.js';
-import { pack, unpack } from './cache.js';
-import { hash } from './hash.js';
+import { hash, pack, unpack } from './cache.js';
 import type { LayoutCache } from './types.js';
 
 export type CompoundDir = 'TB' | 'BT' | 'LR' | 'RL';
