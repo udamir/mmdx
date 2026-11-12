@@ -57,6 +57,28 @@ export function keepRemoved<T>(env: MergeEnv, c: ItemChange, make: (id: string) 
   return x;
 }
 
+/**
+ * An ordered list of the after version with the removed items of the before version back in place: each right after the nearest earlier item of the before list that both versions have (at the start without one). `key` names the items that take part (null: an item that is neither kept nor placed), `afterKey` maps a kept item's key to its key in the after list, and `keep` makes the merged copy of a removed item (keepRemoved), null for one that was not removed.
+ */
+export function placeRemoved<T>(before: readonly T[], after: readonly T[], key: (x: T) => string | null, afterKey: ReadonlyMap<string, string>, keep: (x: T) => T | null): T[] {
+  let anchor: string | null = null;
+  const pending = new Map<string | null, T[]>();
+  for (const x of before) {
+    const k = key(x);
+    if (k === null) continue;
+    const copy = keep(x);
+    if (copy) pending.set(anchor, [...(pending.get(anchor) ?? []), copy]);
+    else anchor = afterKey.get(k) ?? anchor;
+  }
+  const out: T[] = [...(pending.get(null) ?? [])];
+  for (const x of after) {
+    out.push(x);
+    const k = key(x);
+    if (k !== null) out.push(...(pending.get(k) ?? []));
+  }
+  return out;
+}
+
 /** An item of the after version with its text marked word by word when the change touched it (`key`: the text field). */
 export function relabelChanged<T extends { label: string }>(c: ItemChange | undefined, before: { label: string } | undefined, after: T): T {
   return changedField(c, 'label') ? { ...after, label: mergeText(before?.label ?? '', after.label) } : after;
