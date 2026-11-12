@@ -2,15 +2,15 @@
 // clipboard, positions and structure. Only the editor loads it (with its view kind); a missing op means the type does
 // not offer it.
 import type { MetaIds, DiagramMeta } from '../meta/types.js';
-import type { ResolvedTheme } from '../theme/types.js';
+import type { ResolvedTheme, ThemeSlots } from '../theme/types.js';
 import type { Direction, SupportedModel } from '../model.js';
 import type { CloneInto, CloneResult, CodeResult, LineSpan, SwapResult } from '../ops/types.js';
 import type { BoxGeom, EdgeGeom, GeometryIndex } from '../render/types.js';
 import type { DrawnItem, Presets } from './types.js';
 import type { DiagramType, ItemKind, ItemRef } from '../types.js';
 
-/** A theme slot: `<section>.<slot>` of a theme file (`state.composite`, `flowchart.group`). */
-export type ThemeSlot = `${'flowchart' | 'sequence' | 'er' | 'mindmap' | 'state'}.${string}`;
+/** A theme slot: `<section>.<slot>` of a theme file (`state.composite`, `flowchart.group`), one of the sections' slots (theme/types.ts ThemeSlots). */
+export type ThemeSlot = { [S in keyof ThemeSlots]: `${S}.${ThemeSlots[S]}` }[keyof ThemeSlots];
 
 /**
  * Where a diagram type's item kinds take their theme styles (B6; the first part of the kind's theme section
