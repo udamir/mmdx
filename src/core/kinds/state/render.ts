@@ -9,8 +9,8 @@
 // title. Labels with markdown or icon tokens and images draw through the media kit (a lazy chunk), as in the flowchart.
 import { a11yOf, Bounds, depthOf, EMPTY_META, hiddenGroups, str } from '../../render/graph-kit.js';
 import { diagramTitle } from '../../render/title.js';
-import { ancestorsOf, layoutCompound, type CompoundContainer, type CompoundEdge, type CompoundNode, type CompoundResult } from '../../layout/compound.js';
-import { polylineCrosses, routeAround } from '../../layout/route.js';
+import { containerBox, crossedOf, edgeLabel, edgeStroke, groupFrame, placeAuto, placedContainer, placePorts, rectOf, routeAroundScopes, withinOf, type Ports } from '../../render/graph-scene.js';
+import { layoutCompound, type CompoundContainer, type CompoundEdge, type CompoundNode, type CompoundResult } from '../../layout/compound.js';
 import type { ItemMeta } from '../../meta/types.js';
 import type { Direction, MermaidStyle, StateGroup, StateModel, StateNode, StateNote } from '../../model.js';
 import { el, title as tooltip } from '../../scene/build.js';
@@ -22,7 +22,7 @@ import type { FontSpec } from '../../text/measure.js';
 import type { CenterBox, Point, Rect } from '../../types.js';
 import { onOutline } from '../../shapes/outline.js';
 import { byShapeId, shapeDef } from '../../shapes/registry.js';
-import { assignPorts, baseStyle, countBy, Defs, edgePath, font, haloLabel, hiddenOf, isSide, itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle, metaNum, metaPoints, pickStyle, presetOf, sideToward, stackedShapeNodes, textBlock, urlRef, withLink, type PortLink, boxGrid, memoBy } from '../../render/common.js';
+import { baseStyle, countBy, Defs, edgePath, font, hiddenOf, itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle, metaNum, metaPoints, pickStyle, presetOf, stackedShapeNodes, textBlock, urlRef, withLink, boxGrid } from '../../render/common.js';
 import { type RenderEnv, type SubResult } from '../../render/types.js';
 import { DECO_GAP, decorate, decoratedSize, decoration, lazyKit, type Decoration } from '../../render/decorate.js';
 import { assetBox, captionY, mediaAssetNodes, mediaLayout, mediaPort, type MediaBox } from '../../render/media-node.js';
@@ -125,15 +125,8 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
   // ---- the direction each composite is laid out in (Mermaid: its own `direction`, top to bottom without one, unless
   // a transition from outside reaches a state inside: then its parent's)
   const parentOf = (id: string): string | null => model.nodes.get(id)?.parent ?? model.groups.get(id)?.parent ?? null;
-  const within = (id: string, gid: string): boolean => {
-    const seen = new Set<string>();
-    for (let p: string | null = id; p && !seen.has(p); p = parentOf(p)) {
-      if (p === gid) return true;
-      seen.add(p);
-    }
-    return false;
-  };
-  const crossed = (gid: string): boolean => model.edges.some((e) => e.from !== gid && e.to !== gid && within(e.from, gid) !== within(e.to, gid));
+  const within = withinOf(parentOf);
+  const crossed = crossedOf(model.edges, within);
   const ownDir = new Map<string, Direction | undefined>();
   for (const g of model.groups.values()) ownDir.set(g.id, crossed(g.id) ? undefined : g.dir ?? 'TB');
   const dirMemo = new Map<string | null, Direction>();
@@ -255,13 +248,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
 
   // ---- layout
   const CR = stateLayout(model, ctx, groups, nodes, notes, ownDir, hiddenNodes);
-  for (const N of nodes.values()) {
-    if (!CR.auto.has(N.n.id)) continue;
-    const p = CR.nodes.get(N.n.id)!;
-    N.x = p.x;
-    N.y = p.y;
-    N.auto = true;
-  }
+  placeAuto(CR, nodes);
   for (const it of notes.values()) {
     const p = CR.nodes.get(noteKey(it.note.id));
     if (p) {
@@ -271,7 +258,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
   }
   for (const G of groups.values()) {
     const r = CR.containers.get(G.g.id);
-    if (r) G.box = { x: r.x + r.w / 2, y: r.y + r.h / 2, w: r.w, h: r.h, ...(G.m.w != null && G.m.h != null ? { fixed: true } : {}) };
+    if (r) G.box = containerBox(r, G.m.w != null && G.m.h != null);
   }
   // a note of a state placed by hand sits beside it (the layout places notes beside auto-placed states only)
   for (const it of notes.values()) {
@@ -297,25 +284,10 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
   }
   const visibleEdges = edgeItems.filter((x) => !x.hidden);
   const routed = new Map<string, [number, number][]>();
-  const bendsOf = (x: EdgeItem): [number, number][] => (x.points.length ? x.points : routed.get(x.e.id) ?? x.points);
   const autoEnd = (id: string): boolean => (nodes.get(id) ? !!nodes.get(id)!.auto : !!CR.containers.get(id)?.auto);
-  const placePorts = (): ReturnType<typeof assignPorts> => assignPorts(
-    visibleEdges.filter((x) => x.e.from !== x.e.to).map((x) => {
-      const pts = bendsOf(x);
-      const p0 = pts[0], pn = pts[pts.length - 1];
-      const link: PortLink = {
-        id: x.e.id, a: x.a, b: x.b, aKey: x.e.from, bKey: x.e.to,
-        fromSide: (isSide(x.m.fromSide) ? x.m.fromSide : undefined) || (p0 ? sideToward(x.a, { x: p0[0], y: p0[1] }) : undefined),
-        toSide: (isSide(x.m.toSide) ? x.m.toSide : undefined) || (pn ? sideToward(x.b, { x: pn[0], y: pn[1] }) : undefined),
-        fromAt: metaNum(x.m.fromAt), toAt: metaNum(x.m.toAt),
-      };
-      const r = autoEnd(x.e.from) && autoEnd(x.e.to) ? CR.edges.get(x.e.id) : undefined;
-      if (r) link.prefer = across(r.dir) ? 'h' : 'v';
-      return link;
-    }),
-    { prefer: across(model.direction) ? 'h' : 'v' },
-  );
-  let ports = placePorts();
+  const portEdges = visibleEdges.filter((x) => x.e.from !== x.e.to);
+  const place = (): Ports => placePorts(portEdges, routed, CR, autoEnd, { prefer: across(model.direction) ? 'h' : 'v' });
+  let ports = place();
   const onShape = (id: string, b: CenterBox, port: Port): Port => {
     const N = nodes.get(id);
     if (N?.media) return mediaPort(b, N.media, !!N.title?.lines.length, port);
@@ -324,7 +296,7 @@ export function renderState(model: StateModel, env: RenderEnv): SubResult {
   const routingOf = (x: EdgeItem): { routing: string; curve: number } => ({ routing: str(x.m.routing) || routingDefault, curve: x.st.curve ?? 1 });
   routeStateEdges(CR, {
     groups, groupHidden, nodes, hiddenNodes, notes, visibleEdges, routed, within, onShape, routingOf, autoEnd, ports,
-    replacePorts: () => (ports = placePorts()),
+    replacePorts: () => (ports = place()),
   });
 
   // ---- draw
@@ -400,10 +372,7 @@ function stateLayout(model: StateModel, ctx: RenderEnv['ctx'], groups: ReadonlyM
     const d = ownDir.get(g.id);
     if (d) c.dir = d;
     c.title = { w: title?.w ?? 0, h: title ? padTop : pad };
-    const fx = metaNum(gm.x), fy = metaNum(gm.y), fw = metaNum(gm.w), fh = metaNum(gm.h);
-    if (fx !== undefined && fy !== undefined && fw && fh) c.fixed = { x: fx, y: fy, w: fw, h: fh };
-    else if (fx !== undefined && fy !== undefined) c.at = { x: fx, y: fy };
-    containers.push(c);
+    containers.push(placedContainer(c, gm));
   }
   const cn: CompoundNode[] = [];
   for (const N of nodes.values()) {
@@ -421,8 +390,6 @@ function stateLayout(model: StateModel, ctx: RenderEnv['ctx'], groups: ReadonlyM
   const ce: CompoundEdge[] = model.edges.map((e) => ({ id: e.id, from: e.from, to: e.to }));
   return layoutCompound({ nodes: cn, containers, edges: ce }, { dir: model.direction, rankSep: 56, nodeSep: 40, padding: 14, margin: 60, placedGap: 60, besideGap: 24, cache: ctx.layoutCache });
 }
-
-type Ports = ReturnType<typeof assignPorts>;
 
 /** What routing around composites reads, and how it places the ports again (5.8, R1). */
 interface StateRoute {
@@ -448,75 +415,22 @@ interface StateRoute {
  * placed again facing the first and last bend point. Transitions with bend points of their own are left alone.
  */
 function routeStateEdges(R: CompoundResult, c: StateRoute): void {
-  const { groups, groupHidden, nodes, hiddenNodes, notes, visibleEdges, routed, within, onShape, routingOf, autoEnd } = c;
-  let ports = c.ports;
+  const { groups, groupHidden, nodes, hiddenNodes, notes, visibleEdges, within, onShape, autoEnd } = c;
   const frames: { id: string; r: Rect }[] = [];
-  for (const [id, G] of groups) if (!groupHidden.has(id) && Number.isFinite(G.box.x)) frames.push({ id, r: { x: G.box.x - G.box.w / 2, y: G.box.y - G.box.h / 2, w: G.box.w, h: G.box.h } });
+  for (const [id, G] of groups) if (!groupHidden.has(id) && Number.isFinite(G.box.x)) frames.push({ id, r: rectOf(G.box) });
   // states and notes too: transitions in a cycle (a back edge) would otherwise cut through the states between
   const boxes: { id: string; r: Rect }[] = [];
-  for (const [id, N] of nodes) if (!hiddenNodes.has(id) && Number.isFinite(N.x)) boxes.push({ id, r: { x: N.x - N.w / 2, y: N.y - N.h / 2, w: N.w, h: N.h } });
-  for (const it of notes.values()) if (Number.isFinite(it.x)) boxes.push({ id: it.note.target, r: { x: it.x - it.w / 2, y: it.y - it.h / 2, w: it.w, h: it.h } });
+  for (const [id, N] of nodes) if (!hiddenNodes.has(id) && Number.isFinite(N.x)) boxes.push({ id, r: rectOf(N) });
+  for (const it of notes.values()) if (Number.isFinite(it.x)) boxes.push({ id: it.note.target, r: rectOf(it) });
   if (!frames.length && !boxes.length) return;
-  const holders = (id: string): string[] => (R.containers.has(id) ? [id, ...ancestorsOf(R.parent, id)] : ancestorsOf(R.parent, id));
-  const drawn = (x: EdgeItem, pts: readonly (readonly [number, number])[]): Point[] | null => {
-    const pp = ports.get(x.e.id);
-    if (!pp) return null;
-    const path = edgePath(onShape(x.e.from, x.a, pp.a), onShape(x.e.to, x.b, pp.b), { ...routingOf(x), points: pts });
-    return Array.from({ length: 41 }, (_, i) => path.at(i / 40));
-  };
-  const straight = memoBy((x: EdgeItem) => drawn(x, [])); // sampled once for both passes (P7)
-  const ends = (x: EdgeItem): [Point, Point] | null => {
-    const pp = ports.get(x.e.id);
-    return pp ? [onShape(x.e.from, x.a, pp.a), onShape(x.e.to, x.b, pp.b)] : null;
-  };
-  const asPairs = (pts: readonly Point[]): [number, number][] => pts.map((q) => [q.x, q.y]);
-  const todo = visibleEdges.filter((x) => x.e.from !== x.e.to && !x.points.length && autoEnd(x.e.from) && autoEnd(x.e.to));
-  const obstacles = new Map<EdgeItem, Rect[]>();
-  for (const x of todo) {
-    const skip = new Set([...holders(x.e.from), ...holders(x.e.to)]);
-    const obs = frames.filter((f) => !skip.has(f.id)).map((f) => f.r);
+  routeAroundScopes(R, {
+    todo: visibleEdges.filter((x) => x.e.from !== x.e.to && !x.points.length && autoEnd(x.e.from) && autoEnd(x.e.to)),
+    frames, boxes, near: () => true,
     // the states near the line, other than its ends and what an end composite holds
-    const line = straight(x);
-    if (line) {
-      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-      for (const q of line) {
-        x0 = Math.min(x0, q.x);
-        y0 = Math.min(y0, q.y);
-        x1 = Math.max(x1, q.x);
-        y1 = Math.max(y1, q.y);
-      }
-      const near = { x: x0 - 60, y: y0 - 60, w: x1 - x0 + 120, h: y1 - y0 + 120 };
-      const inEnd = (id: string): boolean => (groups.has(x.e.from) && within(id, x.e.from)) || (groups.has(x.e.to) && within(id, x.e.to));
-      for (const b of boxes)
-        if (b.id !== x.e.from && b.id !== x.e.to && !inEnd(b.id) && b.r.x < near.x + near.w && b.r.x + b.r.w > near.x && b.r.y < near.y + near.h && b.r.y + b.r.h > near.y) obs.push(b.r);
-    }
-    obstacles.set(x, obs);
-  }
-  for (const x of todo) {
-    const obs = obstacles.get(x)!;
-    const line = obs.length ? straight(x) : null;
-    if (!line || !polylineCrosses(line, obs)) continue;
-    const hint = R.edges.get(x.e.id)?.points ?? [];
-    const viaHint = hint.length ? drawn(x, asPairs(hint)) : null;
-    if (viaHint && !polylineCrosses(viaHint, obs)) {
-      routed.set(x.e.id, asPairs(hint));
-      continue;
-    }
-    const ab = ends(x);
-    const around = ab && routeAround(ab[0], ab[1], obs, 14);
-    if (around) routed.set(x.e.id, asPairs(around));
-  }
-  if (!routed.size) return;
-  ports = c.replacePorts();
-  for (const x of todo) {
-    if (!routed.has(x.e.id)) continue;
-    const obs = obstacles.get(x)!;
-    const line = drawn(x, routed.get(x.e.id)!);
-    if (!line || !polylineCrosses(line, obs)) continue;
-    const ab = ends(x);
-    const around = ab && routeAround(ab[0], ab[1], obs, 24);
-    if (around) routed.set(x.e.id, asPairs(around));
-  }
+    keep: (x, id) => !((groups.has(x.e.from) && within(id, x.e.from)) || (groups.has(x.e.to) && within(id, x.e.to))),
+    ends: (x, pp) => [onShape(x.e.from, x.a, pp.a), onShape(x.e.to, x.b, pp.b)],
+    path: c.routingOf, margins: [14, 24], ports: c.ports, replacePorts: c.replacePorts, routed: c.routed,
+  });
 }
 
 /** What the draw phase reads: the measured, placed and routed items (5.8, R1). */
@@ -552,25 +466,16 @@ function drawState(r: StateRun): { groupNodes: SceneNode[]; edgeNodes: SceneNode
   for (const G of [...groups.values()].sort((a, b) => a.depth - b.depth || a.g.order - b.g.order)) {
     if (groupHidden.has(G.g.id) || !Number.isFinite(G.box.x)) continue;
     const { box, st } = G;
-    const href = itemLink(ctx, G.m.link, G.g.link);
-    const parts = stackedShapeNodes('rect', box, st);
+    const after: SceneNode[] = [];
     const band = st.padTop ?? st.pad ?? 0;
     const x0 = box.x - box.w / 2, y0 = box.y - box.h / 2;
-    if (G.title) {
-      const pad = st.pad ?? 0;
-      const ty = y0 + band / 2;
-      const left = st.titleAlign === 'left';
-      const to = { size: st.titleSize ?? 14, weight: st.titleWeight, color: href ? LINK_COLOR : st.titleColor, family: st.fontFamily || family, anchor: left ? ('start' as const) : ('middle' as const), lh: 1.25, underline: !!href };
-      const tx = left ? x0 + pad : box.x;
-      parts.push(...withLink(href, G.title.rich && kit() ? kit()!.richText(G.title.rich, tx, ty, { ...to, measure: ctx.measure }) : [textBlock(G.title.lines, tx, ty, to)]));
-      // the title band's lower edge
-      parts.push(el('path', { class: 'band', d: `M${fmt(x0)},${fmt(y0 + band)} L${fmt(x0 + box.w)},${fmt(y0 + band)}`, fill: 'none', stroke: st.stroke, 'stroke-width': Math.max(0.5, (st.strokeWidth ?? 1) * 0.75), 'stroke-opacity': 0.6 }));
-    }
+    // the title band's lower edge
+    if (G.title) after.push(el('path', { class: 'band', d: `M${fmt(x0)},${fmt(y0 + band)} L${fmt(x0 + box.w)},${fmt(y0 + band)}`, fill: 'none', stroke: st.stroke, 'stroke-width': Math.max(0.5, (st.strokeWidth ?? 1) * 0.75), 'stroke-opacity': 0.6 }));
     // concurrency regions: dashed separators
     for (const L of CR.regionLines.get(G.g.id) ?? [])
-      parts.push(el('path', { class: 'region', d: `M${fmt(L.x1)},${fmt(L.y1)} L${fmt(L.x2)},${fmt(L.y2)}`, fill: 'none', stroke: st.stroke, 'stroke-width': st.strokeWidth ?? 1, 'stroke-dasharray': '6 4' }));
-    if (G.g.tooltip) parts.push(tooltip(G.g.tooltip));
-    groupNodes.push(itemGroup('group', G.g.id, 'group st-composite', parts, linkAttr(href)));
+      after.push(el('path', { class: 'region', d: `M${fmt(L.x1)},${fmt(L.y1)} L${fmt(L.x2)},${fmt(L.y2)}`, fill: 'none', stroke: st.stroke, 'stroke-width': st.strokeWidth ?? 1, 'stroke-dasharray': '6 4' }));
+    if (G.g.tooltip) after.push(tooltip(G.g.tooltip));
+    groupNodes.push(groupFrame({ id: G.g.id, box, st, title: G.title, href: itemLink(ctx, G.m.link, G.g.link), family, cls: 'group st-composite', after }, ctx, kit));
   }
 
   // ---- transitions
@@ -601,10 +506,7 @@ function drawState(r: StateRun): { groupNodes: SceneNode[]; edgeNodes: SceneNode
     const startType = str(em.startArrow) || 'none';
     const mkE = defs.marker(endType, st.color, 9 + width * 1.5);
     const mkS = defs.marker(startType, st.color, 9 + width * 1.5);
-    edgeNodes.push(itemGroup('edge', e.id, 'edge st-transition', [
-      el('path', { class: 'hit', d: path.d, fill: 'none', stroke: 'transparent', 'stroke-width': 12 }),
-      el('path', { class: 'line', d: path.d, fill: 'none', stroke: st.color, 'stroke-width': width, 'stroke-opacity': st.strokeOpacity, 'stroke-dasharray': st.dash || undefined, 'marker-end': urlRef(mkE), 'marker-start': urlRef(mkS) }),
-    ], { 'data-from': e.from, 'data-to': e.to }));
+    edgeNodes.push(edgeStroke('edge', e.id, 'edge st-transition', e, { class: 'line', d: path.d, fill: 'none', stroke: st.color, 'stroke-width': width, 'stroke-opacity': st.strokeOpacity, 'stroke-dasharray': st.dash || undefined, 'marker-end': urlRef(mkE), 'marker-start': urlRef(mkS) }));
     let labelBox: BoxGeom | null = null;
     if (e.label && !opts.hideLabels) {
       const size = st.labelSize ?? 12;
@@ -627,10 +529,7 @@ function drawState(r: StateRun): { groupNodes: SceneNode[]; edgeNodes: SceneNode
       }
       const lx = lp.x + (metaNum(em.labelDx) || 0), ly = lp.y + (metaNum(em.labelDy) || 0);
       const lo = { size, color, family: st.fontFamily || family, halo: env.paper, weight: st.fontWeight || 400, underline: !!href };
-      const label: SceneNode[] = L.rich && kit()
-        ? kit()!.richText(L.rich, lx, ly, { ...lo, lh: 1.25, measure: ctx.measure, extra: { stroke: env.paper, 'stroke-width': 4, 'stroke-linejoin': 'round', 'paint-order': 'stroke' } })
-        : [haloLabel(L.lines, lx, ly, lo)];
-      labelNodes.push(itemGroup('edge', e.id, 'elabel', withLink(href, label), { 'data-part': 'label', 'data-from': e.from, 'data-to': e.to, ...linkAttr(href) }, 'label'));
+      labelNodes.push(edgeLabel('edge', e.id, L, lx, ly, lo, href, ctx, kit, e));
       labelBox = { x: lx, y: ly, w: L.w, h: lh };
       taken.add(labelBox);
     }
