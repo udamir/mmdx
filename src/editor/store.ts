@@ -4,7 +4,7 @@ import { joinSource, normalizeMeta, splitSource, type DiagramDocument } from '..
 import type { DiagramMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
 import { elementExists } from '../core/ops/ids.js';
-import { editorParse } from './kinds/loader.js';
+import { reparse } from '../core/parse/dispatch.js';
 import { sameRefs } from './lib/refs.js';
 import type { ItemRef } from '../core/types.js';
 import { computed, signal, type ReadSignal } from '../reactive/signal.js';
@@ -23,6 +23,8 @@ export interface StoreOptions {
   onChange?: (source: string, reason: ChangeReason) => void;
   /** The outermost transaction ended (committed, rolled back or abandoned by a load). */
   onIdle?: () => void;
+  /** Parses the code (the editor's: `editorParse`, with its loaded types, a tracked read of their arrival; default: every registered kind). Given by the editor so the store does not import the kind loader (no import cycle, BUG-016). */
+  parse?: (code: string) => DiagramModel;
 }
 
 /**
@@ -54,8 +56,9 @@ export class DocStore {
 
   constructor(private readonly opts: StoreOptions = {}) {
     this.budget = opts.historyBytes ?? 5 * 1024 * 1024;
-    // parsed once the editor has the type's kinds (while they load: an empty model, and nothing is drawn), and again when they arrive
-    this.model = computed(() => editorParse(this.code()));
+    // the editor's parse: once it has the type's kinds (while they load: an empty model, and nothing is drawn), and again when they arrive
+    const parse = opts.parse ?? reparse;
+    this.model = computed(() => parse(this.code()));
   }
 
   /** The full text: code + %%@ lines. */

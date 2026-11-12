@@ -38,7 +38,7 @@ export const toolbarsModule: EditorModule = {
     const ac = new AbortController();
     const sig = { signal: ac.signal };
     const live = new LiveEdit(core);
-    const wrap = core.dom.wrap;
+    const wrap = core.overlayHost;
 
     // the item whose text is being edited keeps its toolbar: the text format menu acts on the selected words
     const primary = (): Sel | null => (core.mode.peek() !== 'edit' ? null : core.inlineEditing ? { ...core.inlineEditing } : core.selection()[0] ?? null);
@@ -184,22 +184,20 @@ export const toolbarsModule: EditorModule = {
       if (page && !page.isOpen()) pageKey = '';
       sync();
     };
-    for (const off of [
-      core.on('draw', () => sync()),
-      core.on('selection', () => sync()),
-      core.on('mode', () => sync(true)),
-      core.on('tool', () => sync()),
-      core.on('panels', afterCommit),
-      core.on('overlay', () => {
-        if (afterDrag && !core.dragging) sync();
-      }),
-      core.on('view', () => {
-        placeBadge();
-        style?.place();
-        page?.place();
-      }),
-      core.provide('refreshToolbar', () => sync(true)),
-    ]) scope.onDispose(off);
+    scope.on('draw', () => sync());
+    scope.on('selection', () => sync());
+    scope.on('mode', () => sync(true));
+    scope.on('tool', () => sync());
+    scope.on('panels', afterCommit);
+    scope.on('overlay', () => {
+      if (afterDrag && !core.dragging) sync();
+    });
+    scope.on('view', () => {
+      placeBadge();
+      style?.place();
+      page?.place();
+    });
+    scope.provide('refreshToolbar', () => sync(true));
     sync(true);
 
     return () => {

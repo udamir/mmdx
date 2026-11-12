@@ -2,7 +2,6 @@
 import { opsKind } from '../../core/kinds/registry.js';
 import type { Rect } from '../../core/types.js';
 import type { EditorCore, Sel } from '../core.js';
-import { itemEls } from './canvas.js';
 
 /** What a measured dock edge holds for: the canvas size, the view (a new object per `view` change), the mode and the compact preset. */
 interface DockEdge {
@@ -53,7 +52,7 @@ export function anchorRect(core: EditorCore, s: Sel): Rect | null {
     x1 = Math.max(x1, r);
     y1 = Math.max(y1, b);
   };
-  const els = itemEls(core, s);
+  const els = core.itemElements(s);
   if (s.kind === 'edge' || s.kind === 'rel') {
     for (const e of els) {
       const parts = e.getAttribute('data-part') === 'label' ? [e] : Array.from(e.querySelectorAll('.hit'));

@@ -18,7 +18,7 @@ export const versionCopyModule: EditorModule = {
   when: { stage: ['version'] },
   install(scope) {
     const core = scope.core;
-    const wrap = core.dom.wrap;
+    const wrap = core.overlayHost;
     const btn = h('button', { type: 'button', class: 'mtb-btn wide', 'data-f': 'version-copy', title: 'Copy (⌘C) — paste it into the diagram after History' }, icon(I_copy, 18), 'Copy');
     const bar = h('div', { class: 'mtb ver-copy', role: 'toolbar', 'aria-label': 'Selection', hidden: true }, h('div', { class: 'mtb-seg' }, btn));
     // the canvas does not start a gesture on the bar
@@ -41,7 +41,7 @@ export const versionCopyModule: EditorModule = {
       const y = r.y - hh - 12 >= 8 ? r.y - hh - 12 : r.y + r.h + 12;
       bar.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
     };
-    for (const off of [core.on('draw', place), core.on('selection', place), core.on('view', place), core.on('tool', place)]) scope.onDispose(off);
+    for (const ev of ['draw', 'selection', 'view', 'tool'] as const) scope.on(ev, place);
     scope.register({ set: (on) => void (on && place()), dispose: () => undefined });
     place();
     return () => {

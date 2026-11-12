@@ -21,17 +21,15 @@ import type { DiagramModel } from '../core/model.js';
 import { own, ownOr } from '../core/own.js';
 import { opsKind, withOps } from '../core/kinds/registry.js';
 import { detectType } from '../core/parse/dispatch.js';
-import { editorHasKind, editorParse, loadEditorKind } from './kinds/loader.js';
 import type { DiagramType } from '../core/types.js';
 import type { ClipboardData } from '../core/ops/clipboard.js';
 import { remapMeta } from '../core/ops/document.js';
 import { currentPreset, type StyleEnv } from '../core/ops/style-env.js';
 import type { Rendered } from '../core/pipeline-core.js';
 import type { BoxGeom, GeometryIndex } from '../core/render/types.js';
-import type { SceneNode } from '../core/scene/types.js';
-import type { ItemKind, ItemRef, Rect } from '../core/types.js';
+import { itemKey, type ItemKind, type ItemRef, type Rect } from '../core/types.js';
 import type { TextFormat, TextFormats } from './ops/format.js';
-import { HIGHLIGHT_CSS } from '../dom/highlight.js';
+import { clearHighlight, HIGHLIGHT_CSS, highlightItems } from '../dom/highlight.js';
 import type { Viewport, WheelMode } from '../dom/viewport.js';
 import { Dialogs, DIALOG_CSS } from '../ui/kit/dialog.js';
 import { signal, untracked, type ReadSignal } from '../reactive/signal.js';
@@ -39,10 +37,10 @@ import { ALIASES } from '../ui/kit/base.js';
 import { EDITOR_CSS } from './styles.js';
 import { ViewCore } from '../view/core.js';
 import type { Mode, Tool, ViewActions, ViewEvents } from '../view/types.js';
-import { StoreScene } from './scene.js';
+import { StoreScene, type OverlayPainter } from './scene.js';
 import type { ChangeReason, DocStore } from './store.js';
 
-export type { Mode, Tool, VersionView };
+export type { Mode, OverlayPainter, Tool, VersionView };
 
 /** Feature flags (§8.2 `features`): every group of Appendix A rows can be turned off; all on by default. */
 export interface EditorFeatures {
@@ -129,16 +127,6 @@ export interface GestureSource {
   down(ev: PointerEvent, hit: Hit): Gesture | null;
 }
 
-/** Paints part of the overlay (handles, highlights, marquee) from the current geometry. */
-export interface OverlayPainter {
-  id: string;
-  /** Lower paints first (underneath). */
-  order: number;
-  paint(k: number): SceneNode[];
-  /** While true, only exclusive painters paint (a link or process preview hides selection boxes and handles). */
-  exclusive?(): boolean;
-}
-
 /**
  * Named actions that feature modules provide to each other (the prototype's free functions that every part called).
  * A module registers the ones it owns in install(); callers use `core.run(name, …)`, which is a no-op (returns
@@ -204,8 +192,19 @@ export interface CoreDom {
   overlay: SVGGElement;
 }
 
+/** The editor's kinds (`editor/kinds/loader.ts`), given by the editor so the core does not import the loader (no import cycle, BUG-016). */
+export interface EditorKindSource {
+  /** The type's view, ops and edit kinds are loaded (`editorHasKind`). */
+  has(t: DiagramType): boolean;
+  /** Loads them (`loadEditorKind`). */
+  load(t: DiagramType): Promise<void>;
+  /** Parses code with the types the editor has loaded (`editorParse`). */
+  parse(code: string): DiagramModel;
+}
+
 export interface EditorCoreOptions {
   store: DocStore;
+  kinds: EditorKindSource;
   features: EditorFeatures;
   storage?: StorageAdapter;
   ctx?: Partial<CoreContext>;
@@ -238,6 +237,7 @@ export interface EditorEvents extends ViewEvents {
 export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPanels, EditorEvents> {
   readonly store: DocStore;
   readonly features: EditorFeatures;
+  private readonly kindSource: EditorKindSource;
   readonly dialogs: Dialogs;
   /** The scene that draws the document (the canvas shows it unless History is open). */
   readonly storeScene: StoreScene;
@@ -358,7 +358,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       this.uiState.inlineEditing.set(null);
     },
     needKind: (code) => this.kinds.need(code),
-    parse: (code) => untracked(() => editorParse(code)),
+    parse: (code) => untracked(() => this.kindSource.parse(code)),
     selections: this.selections,
     shown: () => {
       this.storeScene.forget();
@@ -373,8 +373,8 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   }
   /** The kinds of the shown diagram types, loaded on demand (A10g; T01). */
   readonly kinds: KindLoader = new KindLoader({
-    has: editorHasKind,
-    load: loadEditorKind,
+    has: (t) => this.kindSource.has(t),
+    load: (t) => this.kindSource.load(t),
     live: () => this.host.isConnected,
     loaded: (fit) => {
       this.versions.reparse();
@@ -428,6 +428,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       ...(o.themeDark ? { themeDark: o.themeDark } : {}),
       ...(o.compact !== undefined ? { compact: o.compact } : {}),
     });
+    this.kindSource = o.kinds;
     this.store = o.store;
     this.features = o.features;
     this.docType = this.owner.computed(() => detectType(this.store.code()));
@@ -451,6 +452,65 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   /** The editor's DOM (the shell's root and canvas area, the main canvas's layers). */
   get dom(): CoreDom {
     return this.domCache;
+  }
+
+  // ---- DOM services for modules (R10, BUG-016: modules do not reach into `dom`, `root`, `area` or `canvas`) ----------------
+
+  /** Where floating UI goes (bars, menus, inline editors, hints): the canvas wrapper, their positioning context; modules place what stays into it with `scope.mount`. */
+  get overlayHost(): HTMLElement {
+    return this.area;
+  }
+
+  /** The editor's focusable root: keyboard, paste and pointer events of the editor reach it (modules listen on it with `scope.listen`), and tooltips over the whole editor go in it. */
+  get eventRoot(): HTMLElement {
+    return this.root;
+  }
+
+  /** A key or paste meant for the canvas: the event's target is the editor's root itself, not a field or a panel in it. */
+  atRoot(ev: Event): boolean {
+    return (ev.composedPath()[0] ?? ev.target) === this.root;
+  }
+
+  /** Turns a state class of the whole editor on or off (`copying`, `table-edit`…: the editor's CSS follows it). */
+  rootClass(name: string, on: boolean): void {
+    this.root.classList.toggle(name, on);
+  }
+
+  /** A CSS custom property as the editor's root computes it (the chrome's tokens: `--mmdx-text`…; '' when not set or not computed). */
+  cssVar(name: string): string {
+    return typeof getComputedStyle === 'function' ? getComputedStyle(this.root).getPropertyValue(name).trim() : '';
+  }
+
+  /** Gives the focus back to the editor (an inline editor, a menu or a row editor closed), without scrolling. */
+  focusEditor(): void {
+    this.root.focus({ preventScroll: true });
+  }
+
+  /** The main canvas's box on screen (client px). */
+  canvasRect(): DOMRect {
+    return this.canvas.svg.getBoundingClientRect();
+  }
+
+  /** The drawn page's box on screen (client px); null: no page is drawn. */
+  pageRect(): DOMRect | null {
+    const page = this.canvas.page.querySelector('rect.page') ?? this.canvas.svg.querySelector('rect.page');
+    return page ? page.getBoundingClientRect() : null;
+  }
+
+  /** The elements drawing an item (its main element and parts, in document order; none when it is not drawn). */
+  itemElements(it: ItemRef): readonly Element[] {
+    return this.drawnItems().get(itemKey(it)) ?? [];
+  }
+
+  /** Highlights these items on the canvas (the rest fades, as on hover); null: none. */
+  highlight(items: readonly ItemRef[] | null): void {
+    if (items) highlightItems(this.canvas.svg, items);
+    else clearHighlight(this.canvas.svg);
+  }
+
+  /** The element is part of the drawn picture (not the overlay or the chrome). */
+  inPicture(el: Element | null): boolean {
+    return !!el && this.canvas.body.contains(el);
   }
 
   /** Pan and zoom of the main canvas. */
@@ -651,7 +711,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   /** Client point → canvas-local px. */
   toLocal(ev: { clientX: number; clientY: number }): { x: number; y: number } {
-    const r = this.dom.svg.getBoundingClientRect();
+    const r = this.canvasRect();
     return { x: ev.clientX - r.left, y: ev.clientY - r.top };
   }
 

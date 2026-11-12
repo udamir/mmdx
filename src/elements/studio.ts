@@ -16,7 +16,7 @@ import { type DiagramEditor } from '../editor/editor.js';
 import { defineEditor, type MmdxEditorElement } from './editor.js';
 import { ExamplesGallery, type ExampleInfo } from './studio-gallery.js';
 import { StudioVersions } from './studio-versions.js';
-import { readDocumentFiles } from '../editor/modules/chrome/document.js';
+import { readDocumentFiles } from '../editor/lib/files.js';
 import { download } from '../dom/export.js';
 import type { WheelMode } from '../dom/viewport.js';
 import { DIAGRAM_TYPES } from '../core/kinds/info.js';

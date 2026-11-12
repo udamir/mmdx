@@ -99,7 +99,7 @@ export const insertModule: EditorModule = {
       core.run('openImageTool', null, { insert: true, file, ...(at ? { at } : {}) });
     };
     const imageFile = (list: FileList | null | undefined): File | null => [...(list ?? [])].find((f) => /^image\//.test(f.type)) ?? null;
-    scope.listen(core.dom.root, 'paste', (ev) => {
+    scope.listen(core.eventRoot, 'paste', (ev) => {
       const e = ev as ClipboardEvent;
       const target = e.composedPath()[0] as HTMLElement | undefined;
       if (!editing() || (target && /^(INPUT|TEXTAREA)$/.test(target.tagName)) || target?.closest?.('.mmdx-pop')) return;
@@ -108,11 +108,11 @@ export const insertModule: EditorModule = {
       e.preventDefault();
       takeFile(f, core.pointer ? core.toDiagram(core.pointer) : null);
     });
-    scope.listen(core.dom.wrap, 'dragover', (ev) => {
+    scope.listen(core.overlayHost, 'dragover', (ev) => {
       const e = ev as DragEvent;
       if (editing() && [...(e.dataTransfer?.items ?? [])].some((x) => x.kind === 'file')) e.preventDefault();
     });
-    scope.listen(core.dom.wrap, 'drop', (ev) => {
+    scope.listen(core.overlayHost, 'drop', (ev) => {
       const e = ev as DragEvent;
       const f = editing() ? imageFile(e.dataTransfer?.files) : null;
       if (!f) return;

@@ -4,7 +4,7 @@ import { opsKind, withKind } from '../../core/kinds/registry.js';
 import type { BoxGeom } from '../../core/render/types.js';
 import { el, text } from '../../core/scene/build.js';
 import type { SceneNode } from '../../core/scene/types.js';
-import { itemKey, type ItemKind, type ItemRef } from '../../core/types.js';
+import type { ItemKind, ItemRef } from '../../core/types.js';
 import type { EditorCore, Sel } from '../core.js';
 import { withEdit } from '../kinds/registry.js';
 import { sameRef } from './refs.js';
@@ -155,9 +155,6 @@ function segmentInArea(p: readonly [number, number], q: readonly [number, number
 }
 
 export const selKey = (it: ItemRef | null | undefined): string => (it ? `${it.kind}:${it.id}` : '');
-
-/** Item elements of the scene (`.el[data-kind][data-id]`) drawing one item (main element and parts). */
-export const itemEls = (core: EditorCore, it: ItemRef): Element[] => [...(core.drawnItems().get(itemKey(it)) ?? [])];
 
 /** The first line of an item's text (for announcements and the group-edit bar). */
 export function itemLabel(core: EditorCore, it: ItemRef): string {

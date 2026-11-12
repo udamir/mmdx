@@ -10,22 +10,24 @@ import type { SelectScope } from './select-state.js';
 export function installSelectPointer(scope: SelectScope): void {
   const core = scope.core;
   const editing = (): boolean => core.mode.peek() === 'edit';
-  const { root, body } = core.dom;
   const isLane = (gid: string): boolean => core.isLane(gid);
 
   // Alt/Option held over the canvas: the copy cursor on what an Alt-drag would copy
   const altCopy = (on: boolean): void => {
-    root.classList.toggle('alt-copy', on && editing() && !!withEdit(core.model, (k) => k.altCopy));
+    core.rootClass('alt-copy', on && editing() && !!withEdit(core.model, (k) => k.altCopy));
   };
   scope.canvas('pointermove', (ev) => altCopy(ev.altKey));
   scope.canvas('pointerleave', () => altCopy(false));
-  scope.listen(root, 'keydown', (ev) => {
+  scope.listen(core.eventRoot, 'keydown', (ev) => {
     if (ev.key === 'Alt') altCopy(true);
   });
-  scope.listen(root, 'keyup', (ev) => {
+  scope.listen(core.eventRoot, 'keyup', (ev) => {
     if (ev.key === 'Alt') altCopy(false);
   });
-  scope.onDispose(() => root.classList.remove('alt-copy', 'copying'));
+  scope.onDispose(() => {
+    core.rootClass('alt-copy', false);
+    core.rootClass('copying', false);
+  });
 
   scope.canvas('pointerdown', () => {
     if (core.pageSelected.peek()) {
@@ -42,7 +44,7 @@ export function installSelectPointer(scope: SelectScope): void {
     // The first click may have re-rendered the item (selecting it): look up what is under the pointer as well.
     const at = elementAt(core, ev.clientX, ev.clientY);
     if (at?.closest('[data-handle]')) return;
-    const itemEl = t?.closest('.el[data-kind]') ?? (at && body.contains(at) ? at.closest('.el[data-kind]') : null);
+    const itemEl = t?.closest('.el[data-kind]') ?? (at && core.inPicture(at) ? at.closest('.el[data-kind]') : null);
     if (itemEl && editing()) {
       const item: ItemRef = { kind: itemEl.getAttribute('data-kind') as ItemKind, id: itemEl.getAttribute('data-id') ?? '' };
       const part = itemEl.getAttribute('data-part');

@@ -1,3 +1,2 @@
 # Import cycles (value and type imports) — baseline of today's (2026-11-11, after A2: core has none); may only shrink.
-# The editor's (EditKind hooks take EditorCore) goes with A10; the view's (History ↔ kernel) went with A6.
-editor/core.ts ↔ editor/kinds/loader.ts ↔ editor/kinds/registry.ts ↔ editor/kinds/types.ts ↔ editor/scene.ts ↔ editor/store.ts
+# The view's (History ↔ kernel) went with A6; the editor's (core ↔ kinds ↔ scene ↔ store) went with BUG-016: the core and the store take the kind loader from the editor, and the scene reads a structural host.

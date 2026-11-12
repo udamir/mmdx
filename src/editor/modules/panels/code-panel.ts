@@ -79,7 +79,7 @@ export const codePanelModule: EditorModule = {
       label: t('code.panel'), value: current, onChange: (v) => showTab(v),
       tabs: [{ value: 'code', label: t('code.tabMermaid'), id: tabId('code'), controls: bodyId('code') }, ...(metaTab ? [{ value: 'meta' as const, label: t('code.tabMetadata'), id: tabId('meta'), controls: bodyId('meta') }] : [])],
     });
-    const tipHost = (): HTMLElement => core.root;
+    const tipHost = (): HTMLElement => core.eventRoot;
     const codeF = createFilteredEditor({
       t, id: bodyId('code'), labelledBy: tabId('code'), body: 'code', placeholder: t('code.filterPlaceholder'), label: t('code.filterLabel'),
       editor: { lineNumbers: true, label: t('code.editorLabel'), tipHost, onInput: () => onCodeInput() }, onClear: () => clearCodeFilter(), signal: ac.signal,

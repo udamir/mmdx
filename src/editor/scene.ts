@@ -5,10 +5,51 @@
 import { registeredKinds } from '../core/kinds/registry.js';
 import { renderDocumentWith, type Rendered } from '../core/pipeline-core.js';
 import { pageScene } from '../core/render/page.js';
+import type { CoreContext } from '../core/context.js';
+import type { DiagramDocument } from '../core/meta/index.js';
+import type { DiagramModel } from '../core/model.js';
 import type { SceneNode } from '../core/scene/types.js';
 import { itemKey, type ItemRef } from '../core/types.js';
+import type { DiagramCanvas } from '../dom/canvas.js';
+import type { ReadSignal } from '../reactive/signal.js';
 import { BaseScene } from '../view/scene.js';
-import type { EditorCore, OverlayPainter } from './core.js';
+import type { Display, Mode } from '../view/types.js';
+
+/** Paints part of the overlay (handles, highlights, marquee) from the current geometry. */
+export interface OverlayPainter {
+  id: string;
+  /** Lower paints first (underneath). */
+  order: number;
+  paint(k: number): SceneNode[];
+  /** While true, only exclusive painters paint (a link or process preview hides selection boxes and handles). */
+  exclusive?(): boolean;
+}
+
+/**
+ * What the store scene reads of the editor core (structural: the scene does not import the core, so the core, the store and the kinds have no import cycle, BUG-016): the shown document, the view state, the canvas and the selection.
+ */
+export interface SceneHost {
+  readonly version: ReadSignal<{ readonly doc: DiagramDocument } | null>;
+  readonly store: { doc(): DiagramDocument };
+  readonly model: DiagramModel;
+  readonly code: string;
+  readonly kinds: { need(code: string): void; pending(code: string): boolean };
+  readonly mode: ReadSignal<Mode>;
+  readonly display: ReadSignal<Display>;
+  shownTheme(): string;
+  readonly visibleLayers: ReadSignal<readonly string[] | undefined>;
+  readonly tableView: string | null;
+  readonly ctx: CoreContext;
+  readonly canvas: Pick<DiagramCanvas, 'show' | 'clear' | 'setOverlay'>;
+  readonly scene: unknown;
+  readonly dom: { readonly body: SVGGElement; readonly root: HTMLElement };
+  readonly viewport: { readonly state: { readonly k: number } };
+  selection(): readonly ItemRef[];
+  readonly inlineEditing: ItemRef | null;
+  readonly enteredGroup: ReadSignal<string | null>;
+  fire(ev: 'draw' | 'overlay'): void;
+}
+
 
 export class StoreScene extends BaseScene {
   readonly id = 'store';
@@ -19,7 +60,7 @@ export class StoreScene extends BaseScene {
   /** The drawn picture's item elements by item key, read once per paint (null: read again when asked). */
   private drawn: Map<string, Element[]> | null = null;
 
-  constructor(private readonly core: EditorCore) {
+  constructor(private readonly core: SceneHost) {
     super();
   }
 

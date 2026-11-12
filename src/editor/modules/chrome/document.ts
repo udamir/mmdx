@@ -8,14 +8,14 @@ import { fileStem } from '../../../ui/kit/format.js';
 import { getShared } from '../../../platform/config.js';
 import { renderWithMermaid } from '../../../platform/mermaid.js';
 import { mmdxOnlyContent, toPortableMermaid, type MmdxOnly } from '../../../core/export/portable.js';
-import { joinSource, mergeLegacySidecar, pruneMeta } from '../../../core/meta/index.js';
+import { joinSource, pruneMeta } from '../../../core/meta/index.js';
 import { usedIds } from '../../../core/ops/ids.js';
 import { resetLayout } from '../../../core/ops/positions.js';
 import { standaloneSvg } from '../../../core/pipeline-core.js';
 import { download, fontsMissing, reportMissingImages, svgToPng } from '../../../dom/export.js';
-import type { Diagnostic } from '../../../core/types.js';
 import { h } from '../../../ui/kit/h.js';
 import type { EditorCore } from '../../core.js';
+import { isDocumentFile, readDocumentFiles } from '../../lib/files.js';
 import type { EditorModule } from '../../module.js';
 import { applyMeta } from '../../ops/doc.js';
 
@@ -144,47 +144,6 @@ function loadDocument(core: EditorCore, src: string, name?: string): void {
   core.select([]);
 }
 
-const isJson = (f: File): boolean => /\.json$/i.test(f.name);
-/** A file that can be a document: a diagram, Markdown or text file, or a `.json` layout sidecar — never an image. */
-const isDocumentFile = (f: File): boolean => /\.(mmdx|mmd|md|markdown|txt|json)$/i.test(f.name) && !/^image\//.test(f.type ?? '');
-
-/** The text of a Markdown file is its first ```mermaid block (other files are taken as they are). */
-export function extractMermaid(text: string, fileName: string): string {
-  if (!/\.(md|markdown)$/i.test(fileName)) return text;
-  const md = /```mermaid[^\n]*\n([\s\S]*?)```/.exec(text);
-  return md ? md[1] ?? '' : text;
-}
-
-export interface ReadFiles {
-  /** The document to load. */
-  source: string;
-  /** The diagram file's name (absent when only a sidecar was given). */
-  name?: string;
-  /** A `.json` legacy layout sidecar that was merged, with what merging it reported. */
-  sidecar?: { name: string; diagnostics: Diagnostic[] };
-}
-
-/**
- * Reads dropped or picked files into one document (A.8 row 79): `.mmdx`, `.mmd`, `.txt`, `.md` (its first mermaid
- * block), plus a `.json` legacy sidecar merged into it (into `current()` when no diagram file came with it). Null when
- * nothing could be opened.
- */
-export async function readDocumentFiles(files: FileList | File[], current: () => string): Promise<ReadFiles | null> {
-  const list = Array.from(files).filter(isDocumentFile);
-  const json = list.find(isJson);
-  const src = list.find((f) => !isJson(f));
-  if (!json && !src) return null;
-  const text = src ? extractMermaid(await src.text(), src.name) : current();
-  const out: ReadFiles = { source: text };
-  if (src) out.name = src.name;
-  if (json) {
-    const merged = mergeLegacySidecar(text, await json.text());
-    out.source = joinSource(merged.doc);
-    out.sidecar = { name: json.name, diagnostics: merged.diagnostics };
-  }
-  return out;
-}
-
 export async function openFiles(core: EditorCore, files: FileList | File[]): Promise<void> {
   const t = core.i18n.t;
   try {
@@ -221,7 +180,7 @@ export const documentModule: EditorModule = {
       // its file name, versions and unsaved-changes check) handles the drop; the event is consumed (defaultPrevented)
       // for hosts that listen further up. Muted while the module is suspended and ignored over an old version: History
       // never loads a dropped file.
-      const wrap = core.area;
+      const wrap = core.overlayHost;
       const hasFiles = (ev: DragEvent): boolean => !!ev.dataTransfer && Array.from(ev.dataTransfer.types).includes('Files');
       scope.listen(wrap, 'dragover', (ev: DragEvent) => {
         if (!hasFiles(ev) || core.mode.peek() !== 'edit' || core.version.peek()) return;

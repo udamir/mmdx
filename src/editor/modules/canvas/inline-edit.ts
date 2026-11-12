@@ -10,7 +10,6 @@ import type { Sel, TextEditSession } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { formatsAt, hasMarkup, toggleFormat, type TextFormat } from '../../ops/format.js';
 import { labelSpec } from '../../ops/label.js';
-import { itemEls } from '../../lib/canvas.js';
 
 export const INLINE_EDIT_CSS = /* css */ `
 .inline-edit { position: absolute; z-index: 30; box-sizing: border-box; resize: none; overflow: hidden; margin: 0;
@@ -30,13 +29,13 @@ export const canvasInlineEditModule: EditorModule = {
   install(scope) {
     const core = scope.core;
     let close: ((apply: boolean) => void) | null = null;
-    const wrap = core.dom.wrap;
+    const wrap = core.overlayHost;
 
     const inlineEdit = (item: Sel): boolean => {
       close?.(true);
       const spec = labelSpec(core, item.kind, item.id);
       if (!spec || core.mode.peek() !== 'edit') return false;
-      const els = itemEls(core, item);
+      const els = core.itemElements(item);
       const main = els.find((e) => !e.hasAttribute('data-part')), part = els.find((e) => e.getAttribute('data-part') === 'label');
       if (!main && !part) return false;
       // where the text is: an edge label, the item's first text line, or (no text yet) the item itself
@@ -149,7 +148,7 @@ export const canvasInlineEditModule: EditorModule = {
       const done = (apply: boolean): void => {
         if (closed) return;
         closed = true;
-        const hadFocus = core.dom.shadow.activeElement === ta;
+        const hadFocus = core.shadow.activeElement === ta;
         core.uiState.inlineEditing.set(null);
         if (core.textEdit === session) core.uiState.textEdit.set(null);
         close = null;
@@ -161,7 +160,7 @@ export const canvasInlineEditModule: EditorModule = {
         if (!apply || (v === spec.value && md === spec.markdown) || !core.applyCode(spec.apply(v, md), 'Edit text', { select: [item] })) core.draw();
         if (core.has('refreshToolbar')) core.run('refreshToolbar');
         // back to the canvas (Enter / Esc), but never pull focus away from where a click went
-        if (hadFocus) core.dom.root.focus({ preventScroll: true });
+        if (hadFocus) core.focusEditor();
       };
       close = done;
       ta.addEventListener('input', () => {
@@ -196,7 +195,7 @@ export const canvasInlineEditModule: EditorModule = {
     };
 
     // pressing on the canvas applies the open editor first (prototype: S.inlineClose?.(true) on pointerdown)
-    scope.listen(core.dom.svg, 'pointerdown', () => close?.(true), { capture: true });
+    scope.canvas('pointerdown', () => close?.(true), { capture: true });
     const off = core.provide('inlineEdit', inlineEdit);
     // suspended (History opens): the open editor is cancelled — the document is not written in History (§8.2)
     scope.register({ set: (on) => void (on || close?.(false)), dispose: () => undefined });

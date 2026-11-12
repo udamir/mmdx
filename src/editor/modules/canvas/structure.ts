@@ -18,6 +18,7 @@ import { withEdit } from '../../kinds/registry.js';
 import type { EditorModule } from '../../module.js';
 import { canGroup as canGroupSel, groupResetState, resettableGroup, resetSelectedGroup } from '../../ops/group.js';
 import { moveSelection } from '../../ops/order.js';
+import { sameRef } from '../../lib/refs.js';
 import { items as nItems } from '../../lib/canvas.js';
 
 /** The board's right-click menu is the Menu block. */
@@ -190,8 +191,8 @@ export const canvasStructureModule: EditorModule = {
       if (g) entries.push({ label: core.i18n.t('history.resetGroup'), disabled: !groupHasPositions(core.model, core.meta, g), run: () => void resetSelectedGroup(core) });
       if (!entries.length) entries.push({ label: 'Nothing to paste', disabled: true, run: () => undefined });
       openMenu({
-        popovers: core.popovers, opener: null, label: 'Board', entries, within: core.area, at: { clientX, clientY }, class: 'ctx-menu',
-        onClose: () => core.root.focus({ preventScroll: true }),
+        popovers: core.popovers, opener: null, label: 'Board', entries, within: core.overlayHost, at: { clientX, clientY }, class: 'ctx-menu',
+        onClose: () => core.focusEditor(),
       });
     };
 
@@ -203,11 +204,11 @@ export const canvasStructureModule: EditorModule = {
       const ref: ItemRef = { kind, id };
       if (groupResetState(core, ref) === null) return null;
       const sel = core.selection();
-      if (sel.length !== 1 || sel[0]!.kind !== kind || sel[0]!.id !== id) core.select([ref]);
+      if (sel.length !== 1 || !sameRef(sel[0], ref)) core.select([ref]);
       return ref;
     };
 
-    scope.listen(core.dom.svg, 'contextmenu', (ev) => {
+    scope.canvas('contextmenu', (ev) => {
       ev.preventDefault();
       if (!editing() || core.version.peek()) return;
       if (ev.target instanceof Element && ev.target.closest('.el') && !menuGroup(ev.target)) return;
@@ -219,7 +220,7 @@ export const canvasStructureModule: EditorModule = {
       if (!editing() || core.version.peek()) return false;
       const p = core.primary();
       const b = p ? core.boxOf(p) : null;
-      const sr = core.dom.svg.getBoundingClientRect();
+      const sr = core.canvasRect();
       const { w, h: hh } = core.viewport.size;
       const s = b ? core.toScreen({ x: b.x, y: b.y }) : { x: w / 2, y: hh / 2 };
       showContextMenu(sr.left + s.x, sr.top + s.y, core.toDiagram({ clientX: sr.left + s.x, clientY: sr.top + s.y }));

@@ -4,7 +4,7 @@
 // reads the editor through its public API.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
-import { extractMermaid, readDocumentFiles } from '../../src/editor/modules/chrome/document.js';
+import { extractMermaid, readDocumentFiles } from '../../src/editor/lib/files.js';
 import { DiagramStudio } from '../../src/elements/studio.js';
 
 beforeAll(() => {

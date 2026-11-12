@@ -76,7 +76,7 @@ export function openRowEditor(c: RowEditorHost, i: number): void {
     c.refresh();
     // typing into the last row: straight on to the next new attribute
     if (next && i < 0 && v && ok) c.editRow(-1);
-    else core.dom.root.focus({ preventScroll: true });
+    else core.focusEditor();
     return true;
   };
   st.editor = { close: (apply) => void finish(apply) };

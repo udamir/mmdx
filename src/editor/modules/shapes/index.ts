@@ -281,16 +281,16 @@ export const shapesModule: EditorModule = {
       ev.stopPropagation();
       ev.preventDefault();
     }, { capture: true });
-    scope.onDispose(core.on('mode', () => {
+    scope.on('mode', () => {
       if (core.mode.peek() !== 'edit') {
         setMenu(false);
         hideSub();
         markAnchor(false);
       }
-    }));
+    });
     // the diagram type changed (code panel, new diagram): the menu follows it
     let typeSeen = core.model.type;
-    scope.onDispose(core.on('draw', () => {
+    scope.on('draw', () => {
       const type = core.model.type;
       if (type === typeSeen) return;
       typeSeen = type;
@@ -302,7 +302,7 @@ export const shapesModule: EditorModule = {
         hideSub();
         markAnchor(!menu.hidden);
       }
-    }));
+    });
 
     return () => {
       ac.abort();

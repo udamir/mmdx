@@ -125,7 +125,7 @@ export const rightPanelsModule: EditorModule = {
       scope.onDispose(() => panel.destroy());
     }
     // ---- Layers / View settings
-    const layers = f.layers ? layersCard(core) : null;
+    const layers = f.layers ? layersCard(scope) : null;
     if (layers) {
       const newBtn = h('button', { type: 'button', class: 'small primary edit-only no-version rp-act', title: t('layers.newTip'), 'data-f': 'layers-new' }, t('layers.new'));
       scope.listen(newBtn, 'click', () => layers.addLayer());

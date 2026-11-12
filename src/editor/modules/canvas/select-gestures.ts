@@ -62,8 +62,7 @@ export function installSelectGestures(scope: SelectScope, st: SelectState): void
     core.write({ meta: res.meta });
     core.select(res.selection ?? []);
     core.draw();
-    const root = core.dom.root;
-    root.classList.add('copying');
+    core.rootClass('copying', true);
     const model = core.model, meta = core.meta, geom = core.geom, sel = core.selection();
     return {
       move(dx, dy) {
@@ -71,11 +70,11 @@ export function installSelectGestures(scope: SelectScope, st: SelectState): void
         core.draw();
       },
       end() {
-        root.classList.remove('copying');
+        core.rootClass('copying', false);
         core.commit('Copy');
       },
       cancel() {
-        root.classList.remove('copying');
+        core.rootClass('copying', false);
         core.rollback();
       },
     };

@@ -40,13 +40,13 @@ const remember = (core: EditorCore, key: string, v: string, n: number): void => 
 
 /** The chrome's text colour (monochrome icon previews): a colour literal, else the default ink. */
 function inkOf(core: EditorCore): string {
-  const v = typeof getComputedStyle === 'function' ? getComputedStyle(core.root).getPropertyValue('--mmdx-text').trim() : '';
+  const v = core.cssVar('--mmdx-text');
   return /^#[0-9a-f]{3,8}$/i.test(v) ? v : '#1f2328';
 }
 
 /** Puts a popover beside its anchor (right of a dock button, below anything else), inside the viewport. */
 function place(el: HTMLElement, anchor: HTMLElement | null, core: EditorCore): void {
-  const r = anchor?.getBoundingClientRect() ?? core.dom.wrap.getBoundingClientRect();
+  const r = anchor?.getBoundingClientRect() ?? core.overlayHost.getBoundingClientRect();
   const vw = typeof innerWidth === 'number' ? innerWidth : 1024, vh = typeof innerHeight === 'number' ? innerHeight : 768;
   const w = el.offsetWidth || 360, ht = el.offsetHeight || 420;
   const dock = !!anchor?.closest('.tool-dock');
@@ -76,7 +76,7 @@ function place(el: HTMLElement, anchor: HTMLElement | null, core: EditorCore): v
 /** Opens `content` as a dialog popover (Tab kept inside, Esc and an outside press close it). */
 function openPop(core: EditorCore, content: HTMLElement, anchor: HTMLElement | null, onClose: () => void): HTMLElement {
   const pop = h('div', { class: 'ins-pop' }, content);
-  core.dom.shadow.append(pop);
+  core.shadow.append(pop);
   // placed again when its size changes (another tab of the image tool), so it stays by its bar
   const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => place(pop, anchor, core)) : null;
   core.popovers.open(pop, anchor, { onClose: () => {

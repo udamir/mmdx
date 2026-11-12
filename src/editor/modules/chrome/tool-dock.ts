@@ -6,7 +6,6 @@
 import { editKind } from '../../kinds/registry.js';
 import { dockBadge, dockButton } from '../../../ui/blocks/tool-dock.js';
 import { I_code, I_layers, I_pointer, I_props, I_redo, I_shapes, I_undo } from '../../../ui/kit/icons.js';
-import { computed } from '../../../reactive/signal.js';
 import type { Tool } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 
@@ -38,10 +37,10 @@ export const editorToolsModule: EditorModule = {
     };
     core.provide('setTool', setTool);
 
-    const toolOn = (tool: Tool) => computed(() => core.tool() === tool);
+    const toolOn = (tool: Tool) => scope.computed(() => core.tool() === tool);
     const pointer = dockButton({ icon: I_pointer, label: t('tools.pointer'), keys: 'v', class: 'edit-only', f: 'tool-pointer', pressed: toolOn('pointer'), attrs: { 'data-tool': 'pointer' }, onClick: () => setTool('pointer') });
     const shapes = dockButton({ icon: I_shapes, label: t('tools.shapes'), keys: 's', class: 'edit-only no-version vt-shapes', f: 'tool-shapes', attrs: { 'aria-haspopup': 'menu' }, onClick: () => core.run('toggleShapesMenu', shapes.el) });
-    const panelOn = (name: 'code' | 'properties' | 'layers') => computed(() => core.panels()[name]);
+    const panelOn = (name: 'code' | 'properties' | 'layers') => scope.computed(() => core.panels()[name]);
     const codeBtn = f.codePanel ? dockButton({ icon: I_code, label: t('tools.code'), keys: 'c', class: 'edit-only vt-code', f: 'panel-code', pressed: panelOn('code'), onClick: () => void core.run('setPanel', 'code', !core.panels.peek().code) }) : null;
     const propsBtn = f.properties ? dockButton({ icon: I_props, label: t('tools.props'), keys: 'i', class: 'edit-only no-version vt-props', f: 'panel-props', pressed: panelOn('properties'), onClick: () => void core.run('setPanel', 'properties', !core.panels.peek().properties) }) : null;
     // Layers in Edit mode; View mode's View settings and Code view are the viewer's modules (A16)
@@ -62,8 +61,8 @@ export const editorToolsModule: EditorModule = {
       shapes.update({ label: t(editKind(core.model.type)?.shapesLabel ?? 'tools.shapes') });
       shapes.el.hidden = !core.model.type || !core.has('toggleShapesMenu');
     };
-    core.on('model', syncShapes);
-    core.on('draw', syncShapes);
+    scope.on('model', syncShapes);
+    scope.on('draw', syncShapes);
     // the Shapes menu's module is suspended while History shows something: checked again once it is back
     scope.effect(() => {
       core.stage();

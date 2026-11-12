@@ -49,11 +49,10 @@ export function installNudge(scope: SelectScope): Nudge {
     nudgeTimer = setTimeout(flushNudge, 450);
     return true;
   };
-  const root = core.dom.root;
-  scope.listen(root, 'keyup', (ev) => {
+  scope.listen(core.eventRoot, 'keyup', (ev) => {
     if (ev.key.startsWith('Arrow')) flushNudge();
   });
-  scope.listen(root, 'keydown', (ev) => {
+  scope.listen(core.eventRoot, 'keydown', (ev) => {
     if (nudgeOpen && !ev.key.startsWith('Arrow') && ev.key !== 'Shift') flushNudge();
   }, { capture: true });
   scope.canvas('pointerdown', () => flushNudge(), { capture: true });

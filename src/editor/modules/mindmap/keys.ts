@@ -15,13 +15,11 @@ import { applyAt, mindGeom, mindModel, selectedNode, toggleFold } from './lib.js
 
 export function installMindmapKeys(scope: ModuleScope<EditorCore>): void {
   const core = scope.core;
-  const root = core.dom.root;
-  const onRoot = (ev: KeyboardEvent): boolean => (ev.composedPath()[0] ?? ev.target) === root;
   const editing = (): boolean => core.mode.peek() === 'edit' && !core.version.peek();
   /** A key for the selected node of a mindmap, with the canvas focused. */
   const target = (ev: KeyboardEvent): { M: MindmapModel; id: string } | null => {
     const M = mindModel(core);
-    const id = M && onRoot(ev) && editing() ? selectedNode(core) : null;
+    const id = M && core.atRoot(ev) && editing() ? selectedNode(core) : null;
     return M && id ? { M, id } : null;
   };
   const keyOp = (f: (M: MindmapModel, id: string) => { code: string; line?: number; reason?: string }, label: string, edit = false) => (ev: KeyboardEvent): boolean => {
@@ -62,7 +60,7 @@ export function installMindmapKeys(scope: ModuleScope<EditorCore>): void {
 
   const duplicate = (ev: KeyboardEvent): boolean => {
     const M = mindModel(core);
-    if (!M || !onRoot(ev) || !editing()) return false;
+    if (!M || !core.atRoot(ev) || !editing()) return false;
     const refs = core.selection().filter((r) => r.kind === 'node' && r.id !== M.root);
     if (!refs.length) return false;
     const res = cloneMind(core.code, M, refs);
@@ -85,7 +83,7 @@ export function installMindmapKeys(scope: ModuleScope<EditorCore>): void {
   const paste = (ev: KeyboardEvent): boolean => {
     const M = mindModel(core);
     const data = core.clipboard;
-    if (!M || !onRoot(ev) || !editing() || data?.type !== 'mindmap' || !M.root) return false;
+    if (!M || !core.atRoot(ev) || !editing() || data?.type !== 'mindmap' || !M.root) return false;
     const here = data.items.every((r) => M.nodes.has(r.id));
     const src = here ? M : data.content ? parseMindmap(data.content.code) : null;
     const code = here ? core.code : data.content?.code ?? '';
@@ -127,10 +125,10 @@ export function installMindmapKeys(scope: ModuleScope<EditorCore>): void {
 
   // Space folds on release, so Space+drag still pans
   let spacePan = false;
-  scope.listen(root, 'pointerdown', () => {
+  scope.listen(core.eventRoot, 'pointerdown', () => {
     if (core.spaceDown) spacePan = true;
   });
-  scope.listen(root, 'keyup', (ev) => {
+  scope.listen(core.eventRoot, 'keyup', (ev) => {
     if (ev.key !== ' ') return;
     const pan = spacePan;
     spacePan = false;
@@ -162,10 +160,10 @@ export function installMindmapKeys(scope: ModuleScope<EditorCore>): void {
   });
 
   // indented text or a Markdown list pasted on a node becomes its subtree
-  scope.listen(root, 'paste', (ev) => {
+  scope.listen(core.eventRoot, 'paste', (ev) => {
     const M = mindModel(core);
     const e = ev as ClipboardEvent;
-    if (!M || !editing() || core.inlineEditing || (e.composedPath()[0] ?? e.target) !== root) return;
+    if (!M || !editing() || core.inlineEditing || !core.atRoot(e)) return;
     const text = e.clipboardData?.getData('text/plain') ?? '';
     if (!text.trim() || e.clipboardData?.files.length) return;
     const parent = selectedNode(core) ?? M.root;

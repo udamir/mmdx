@@ -12,7 +12,7 @@ import { cloneMeta, ensure, tidy } from '../../../core/ops/meta-util.js';
 import { effectiveValue } from '../../../core/ops/style-env.js';
 import { el } from '../../../core/scene/build.js';
 import type { SceneNode } from '../../../core/scene/types.js';
-import { itemKey, type Rect } from '../../../core/types.js';
+import type { Rect } from '../../../core/types.js';
 import type { StyleToolbarHandle } from '../../../ui/diagram/style-toolbar.js';
 import type { Gesture } from '../../core.js';
 import type { EditorModule } from '../../module.js';
@@ -44,7 +44,7 @@ export const erTableModule: EditorModule = {
   install(scope) {
     const core = scope.core;
     const t = core.i18n.t;
-    const { wrap, root, body } = core.dom;
+    const wrap = core.overlayHost;
     let destroyed = false;
     const st: TableState = { table: null, sel: [], editor: null, dropGap: null };
 
@@ -59,9 +59,9 @@ export const erTableModule: EditorModule = {
     // ---- entering and leaving ---------------------------------------------------------------------------------
 
     const mark = (): void => {
-      for (const n of Array.from(body.querySelectorAll('.el.table-in-edit'))) n.classList.remove('table-in-edit');
+      for (const els of core.drawnItems().values()) for (const n of els) n.classList.remove('table-in-edit');
       if (!st.table) return;
-      for (const n of core.drawnItems().get(itemKey({ kind: 'entity', id: st.table })) ?? []) n.classList.add('table-in-edit');
+      for (const n of core.itemElements({ kind: 'entity', id: st.table })) n.classList.add('table-in-edit');
     };
 
     const enter = (id: string): void => {
@@ -70,7 +70,7 @@ export const erTableModule: EditorModule = {
       st.table = id;
       st.sel = [];
       core.uiState.tableView.set(id);
-      root.classList.add('table-edit');
+      core.rootClass('table-edit', true);
       core.enterGroup(null);
       core.select([]);
       core.draw();
@@ -85,7 +85,7 @@ export const erTableModule: EditorModule = {
       st.table = null;
       st.sel = [];
       core.uiState.tableView.set(null);
-      root.classList.remove('table-edit');
+      core.rootClass('table-edit', false);
       if (select && er()?.entities.has(id)) core.select([{ kind: 'entity', id }]);
       core.draw();
       core.fire('panels');
@@ -223,13 +223,13 @@ export const erTableModule: EditorModule = {
         const moving = [...st.sel];
         const stop = (): void => {
           st.dropGap = null;
-          root.classList.remove('attr-moving');
+          core.rootClass('attr-moving', false);
           core.drawOverlay();
         };
         return {
           threshold: 4,
           move: (_dx, dy) => {
-            root.classList.add('attr-moving');
+            core.rootClass('attr-moving', true);
             st.dropGap = gapAt(box(), hit.p.y + dy);
             core.drawOverlay();
           },
@@ -331,7 +331,7 @@ export const erTableModule: EditorModule = {
       closeEditor(false);
       tb?.destroy();
       core.uiState.tableView.set(null);
-      root.classList.remove('table-edit');
+      core.rootClass('table-edit', false);
     };
   },
 };

@@ -15,6 +15,7 @@ import { DEFAULT_FEATURES, EditorCore, type EditorFeatures, type Mode } from './
 import type { EditorModule } from './module.js';
 import { DEFAULT_MODULES } from './modules/index.js';
 import { DocStore } from './store.js';
+import { editorHasKind, editorParse, loadEditorKind } from './kinds/loader.js';
 import { DocumentSync, type SaveOutcome } from './services/document-sync.js';
 import type { ItemRef } from '../core/types.js';
 import type { HistorySession } from '../view/history.js';
@@ -98,12 +99,14 @@ export class DiagramEditor {
     const features: EditorFeatures = { ...DEFAULT_FEATURES, ...(options.features ?? {}) };
     if (options.toolbar === 'none') features.styleToolbar = false;
     this.store = new DocStore({
+      parse: editorParse,
       onChange: (src, reason) => this.sync.onStoreChange(src, reason),
       // a remote update waits for the transaction to end (after the caller of commit / rollback is done)
       onIdle: () => queueMicrotask(() => this.sync.applyPendingRemote()),
     });
     this.core = new EditorCore(host, {
       store: this.store,
+      kinds: { has: editorHasKind, load: loadEditorKind, parse: editorParse },
       features,
       ...(options.storage ? { storage: options.storage } : {}),
       ...(options.ctx ? { ctx: options.ctx } : {}),

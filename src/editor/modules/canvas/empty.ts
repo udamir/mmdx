@@ -39,12 +39,12 @@ const isBlank = (core: EditorCore): boolean => !core.model.type && !core.code.sp
 /** Centres the page in the free part of the canvas at zoom `k` at most (a new diagram is not blown up). */
 function centerView(core: EditorCore, k = 1): void {
   const b = core.result.result.bounds;
-  const r = core.dom.svg.getBoundingClientRect();
+  const r = core.canvasRect();
   if (!r.width || !b.w || !b.h) return;
-  const cs = getComputedStyle(core.dom.root);
-  const px = (v: string): number => parseFloat(v) || 0;
-  const x0 = px(cs.getPropertyValue('--inset-l')) + 64;
-  const w = Math.max(48, r.width - x0 - px(cs.getPropertyValue('--inset-r')));
+  // the open panel stacks (the shell's `--inset-l` / `--inset-r`)
+  const stacks = core.stackInsets.peek();
+  const x0 = (stacks?.left ?? 0) + 64;
+  const w = Math.max(48, r.width - x0 - (stacks?.right ?? 0));
   const kk = Math.min(k, (w - 48) / b.w, (r.height - 120) / b.h);
   core.viewport.auto = false;
   core.viewport.set({ k: kk, tx: x0 + (w - b.w * kk) / 2 - b.x * kk, ty: (r.height - b.h * kk) / 2 - b.y * kk });
@@ -71,13 +71,13 @@ export const canvasEmptyModule: EditorModule = {
       core.toast('Add shapes from the Shapes menu — or type Mermaid on the left');
     });
     chooser.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-    core.dom.wrap.append(hint, chooser);
+    scope.mount(core.overlayHost, hint);
+    scope.mount(core.overlayHost, chooser);
 
     // The hint is centred on the page, as wide as the page allows.
     const placeHint = (): void => {
       if (hint.hidden) return;
-      const page = core.dom.page.querySelector('rect.page') ?? core.dom.svg.querySelector('rect.page');
-      const r = page?.getBoundingClientRect(), wr = core.dom.wrap.getBoundingClientRect();
+      const r = core.pageRect(), wr = core.overlayHost.getBoundingClientRect();
       if (!r?.width) {
         Object.assign(hint.style, { left: '0px', top: '0px', width: '100%', height: '100%' });
         return;
@@ -89,11 +89,9 @@ export const canvasEmptyModule: EditorModule = {
       hint.hidden = !core.model.type || !core.isEmptyDiagram();
       placeHint();
     };
-    for (const off of [core.on('draw', sync), core.on('view', placeHint), core.on('mode', sync)]) scope.onDispose(off);
+    scope.on('draw', sync);
+    scope.on('view', placeHint);
+    scope.on('mode', sync);
     sync();
-    return () => {
-      hint.remove();
-      chooser.remove();
-    };
   },
 };

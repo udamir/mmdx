@@ -27,7 +27,6 @@ export const canvasSelectModule: EditorModule = {
   css: [SELECT_CSS],
   install(scope) {
     const core = scope.core;
-    const { root, body } = core.dom;
     const st: SelectState = { marquee: null, sizing: null };
     let destroyed = false;
 
@@ -50,14 +49,19 @@ export const canvasSelectModule: EditorModule = {
       core.fire('panels');
     };
 
+    /** Every drawn item element (main elements and parts). */
+    const drawnElements = (): Element[] => [...core.drawnItems().values()].flat();
+    const clearGroupEdit = (): void => {
+      for (const n of drawnElements()) n.classList.remove('in-edit');
+    };
     /** Marks what is inside the group being edited (the rest fades): that, Esc and a click outside are the whole mode. */
     const decorateGroupEdit = (): void => {
       const gid = editing() ? core.enteredGroup.peek() : null;
-      for (const n of Array.from(body.querySelectorAll('.el.in-edit'))) n.classList.remove('in-edit');
+      clearGroupEdit();
       if (!gid) return;
       const inside = (kind: string | null, id: string | null): boolean =>
         (kind === 'node' || kind === 'group') && id !== null && core.insideGroup({ kind, id }, gid);
-      for (const n of Array.from(body.querySelectorAll('.el'))) {
+      for (const n of drawnElements()) {
         const kind = n.getAttribute('data-kind'), id = n.getAttribute('data-id');
         const ok = kind === 'edge' ? inside('node', n.getAttribute('data-from')) && inside('node', n.getAttribute('data-to')) : inside(kind, id);
         if (ok) n.classList.add('in-edit');
@@ -95,9 +99,8 @@ export const canvasSelectModule: EditorModule = {
       else if (r.y + r.h > hh - m) dy = hh - m - (r.y + r.h);
       if (dx || dy) core.viewport.panBy(dx, dy);
     };
-    const onCanvasRoot = (ev: KeyboardEvent): boolean => (ev.composedPath()[0] ?? ev.target) === root;
     const tab = (ev: KeyboardEvent, dir: 1 | -1): boolean => {
-      if (!onCanvasRoot(ev)) return false;
+      if (!core.atRoot(ev)) return false;
       const list = tabOrder();
       if (!list.length) return false;
       const p = core.primary();
@@ -115,8 +118,7 @@ export const canvasSelectModule: EditorModule = {
 
     let lastAnnounced = '';
     const announce = (): void => {
-      const live = root.querySelector('.mmdx-sr[aria-live]');
-      if (!live) return;
+      const live = core.live;
       const sel = core.selection();
       let msg = '';
       if (sel.length === 1) {
@@ -167,7 +169,7 @@ export const canvasSelectModule: EditorModule = {
         id: 'edit-text', keys: ['enter'], label: 'Edit the selected item’s text', group: 'Edit', editOnly: true,
         run: (ev) => {
           const p = core.primary();
-          if (!onCanvasRoot(ev) || !p) return false;
+          if (!core.atRoot(ev) || !p) return false;
           if (!core.run('inlineEdit', p)) core.run('setPanel', 'properties', true);
           return true;
         },
@@ -206,7 +208,7 @@ export const canvasSelectModule: EditorModule = {
     return () => {
       destroyed = true;
       flushNudge();
-      for (const n of Array.from(body.querySelectorAll('.el.in-edit'))) n.classList.remove('in-edit');
+      clearGroupEdit();
     };
   },
 };
