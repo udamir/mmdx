@@ -242,7 +242,7 @@ export function styleToolbarApi({ core, t, live, primary, multi }: BarContext, p
     },
     presets: () => {
       const s = primary();
-      return s ? Object.keys(presetsFor(env(), s.kind) ?? {}).filter((p) => p !== '_base') : [];
+      return s ? Object.keys(presetsFor(env(), s.kind) ?? {}) : [];
     },
     setPreset: (p) => setOverride('preset', p || undefined),
     reset: () => {

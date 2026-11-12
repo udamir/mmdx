@@ -7,7 +7,7 @@ import { KIND_TO_COLL } from '../meta/types.js';
 import { own, setOwn } from '../own.js';
 import { type ItemKind, type ItemRef } from '../types.js';
 import { cloneJson, cloneMeta, ensure, getM, tidy } from './meta-util.js';
-import { baseStyleOf, currentPreset, edgeEndsOf, effectiveValue, isLocalPreset, nodeShapeOf, participantShapeOf, presetOfItem, presetsFor, themePresetsOf, type StyleEnv } from './style-env.js';
+import { BASE_STYLE, baseStyleOf, currentPreset, edgeEndsOf, effectiveValue, isLocalPreset, nodeShapeOf, participantShapeOf, presetOfItem, presetsFor, themePresetsOf, type StyleEnv } from './style-env.js';
 import type { MetaResult } from './types.js';
 
 
@@ -185,6 +185,7 @@ export const canSavePreset = (env: StyleEnv, ref: ItemRef): boolean => !!presets
 export function saveAsPreset(env: StyleEnv, ref: ItemRef, rawName: string): MetaResult & { name?: string } {
   const name = normalizePresetName(rawName);
   if (!name) return { meta: env.meta, reason: 'The preset needs a name' };
+  if (name === BASE_STYLE) return { meta: env.meta, reason: `"${name}" is the diagram's base style, not a preset name` };
   if (Object.hasOwn(presetsFor(env, ref.kind) ?? {}, name)) return { meta: env.meta, reason: `There already is a preset "${name}"` };
   const { kind } = ref;
   const base = presetOfItem(env, ref);

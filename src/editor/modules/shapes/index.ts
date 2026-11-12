@@ -193,7 +193,7 @@ export const shapesModule: EditorModule = {
       sub.append(grid);
       const P = presetsFor(env(), gi.kind) ?? {};
       const pics: [HTMLElement, string][] = [];
-      for (const name of ['', ...Object.keys(P).filter((p) => p !== '_base')]) {
+      for (const name of ['', ...Object.keys(P)]) {
         const { b, pic } = presetTile(gi.item, name, `${name ? `Table preset "${name}"` : 'Default table style'} — click to add, or drag onto the canvas`);
         grid.append(b);
         pics.push([pic, name]);

@@ -56,6 +56,11 @@ describe('style env', () => {
     const local = env({ ...emptyMeta(), styles: { node: { mine: { fill: '#fff' }, core: { fill: '#000' } } } });
     expect(isLocalPreset(local, 'node', 'mine')).toBe(true);
     expect(isLocalPreset(local, 'node', 'core')).toBe(false);
+    // the diagram's base style is a layer, not a preset (X21): the presets leave it out, the item's look still has it
+    const based = env({ ...emptyMeta(), styles: { node: { _base: { fill: '#123456' }, mine: { fill: '#fff' } } } });
+    expect(Object.keys(presetsFor(based, 'node')!)).toContain('mine');
+    expect(Object.keys(presetsFor(based, 'node')!)).not.toContain('_base');
+    expect(baseStyleOf(based, 'node', 'n4').fill).toBe('#123456');
   });
 
   it('shapes, base style and arrow ends', () => {

@@ -34,11 +34,14 @@ export interface StyleEnv {
 
 export type { Presets };
 
+/** The diagram-wide base style of a kind in `meta.styles.<kind>`: a layer of every item's style, not a preset (X21). */
+export const BASE_STYLE = '_base';
 
-/** Theme presets plus the diagram's own, for an item kind of the current diagram type (undefined: no presets). */
+/** Theme presets plus the diagram's own, for an item kind of the current diagram type (undefined: no presets); the base style is not one of them. */
 export function presetsFor(env: StyleEnv, kind: ItemKind): Presets | undefined {
   const { model, theme: T, meta } = env;
-  return model.type ? withOps(model, (k) => k.presets(T, meta)[kind]) : {};
+  const P = model.type ? withOps(model, (k) => k.presets(T, meta)[kind]) : {};
+  return P && Object.hasOwn(P, BASE_STYLE) ? Object.fromEntries(Object.entries(P).filter(([k]) => k !== BASE_STYLE)) : P;
 }
 
 /** Where the diagram's type takes an item kind's theme styles (its ops kind's theme slots, B6). */
@@ -111,7 +114,7 @@ export function baseStyleOf(env: StyleEnv, kind: ItemKind, id: string | null): S
     : kind === 'node' ? byShapeId(shapes)?.[nodeShapeOf(env, id)]
       : kind === 'participant' ? shapes[participantShapeOf(env, id)]
         : undefined;
-  const layers: (object | undefined)[] = [defaultsFor(env, kind), shapeDef, meta.styles[kind]?.['_base'], presetsFor(env, kind)?.[preset]];
+  const layers: (object | undefined)[] = [defaultsFor(env, kind), shapeDef, meta.styles[kind]?.[BASE_STYLE], presetsFor(env, kind)?.[preset]];
   const b = mergeLayers<StyleProps & Record<string, unknown>>(...(layers as Record<string, unknown>[]));
   if (env.color) for (const k of Object.keys(b)) if (COLOR_KEYS.has(k) && typeof b[k] === 'string') b[k] = env.color(b[k]) ?? b[k];
   return b;

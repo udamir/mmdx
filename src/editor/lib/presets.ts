@@ -96,7 +96,7 @@ export function presetPicker(core: EditorCore, grid: HTMLElement, ref: ItemRef, 
     if (!st) return undefined;
     return kind === 'participant' ? participantPresetShape(st) : presetShape(st);
   };
-  const all = Object.keys(P).filter((p) => p !== '_base' && (!shape || shapeOf(p) === shape || p === own));
+  const all = Object.keys(P).filter((p) => !shape || shapeOf(p) === shape || p === own);
   const local = all.filter((n) => isLocalPreset(env, kind, n));
   const items: [HTMLElement, string][] = [];
   const done = (): void => opts.after?.();
