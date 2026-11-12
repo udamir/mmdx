@@ -211,11 +211,15 @@ export function layered(nodes: readonly LayoutNode[], edges: readonly LayoutEdge
       }
       return [bc.get(id)!, id];
     };
-    // each id's keys once, not per comparison (P22); past its path a key stays the id's own
-    const keys = new Map(L.map((id) => [id, Array.from({ length: Math.min(6, pathOf(id).length + 1) }, (_, d) => key(id, d))]));
+    // each (id, depth) key computed the first time a comparison needs it, then kept for the sort (P22, BUG-002): most
+    // comparisons decide at depth 0, so an eager table of every depth cost more than the comparisons it saved; past an
+    // id's path a key stays the id's own
+    const keys = new Map<string, [number, string][]>();
     const keyAt = (id: string, d: number): [number, string] => {
-      const k = keys.get(id)!;
-      return k[Math.min(d, k.length - 1)]!;
+      const at = Math.min(d, 5, pathOf(id).length);
+      let k = keys.get(id);
+      if (!k) keys.set(id, (k = []));
+      return (k[at] ??= key(id, at));
     };
     L.sort((x, y) => {
       for (let d = 0; d < 6; d++) {
