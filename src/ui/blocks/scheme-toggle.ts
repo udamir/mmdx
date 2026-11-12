@@ -5,8 +5,8 @@ import { h, icon } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { I_moon, I_sun } from '../kit/icons.js';
 import { BLOCK_MESSAGES_CHROME } from '../messages/blocks.js';
-import { defineBlock, read, type BlockHandle, type Translate, type Value } from './block.js';
-import { rovingKeys } from '../kit/focus.js';
+import { defineBlock, type BlockHandle, type Translate, type Value } from './block.js';
+import { createChoiceGroup } from '../kit/choice.js';
 
 export type Scheme = 'light' | 'dark';
 
@@ -25,20 +25,13 @@ export const SCHEME_TOGGLE_CSS = /* css */ `
 export function createSchemeToggle(props: SchemeToggleProps): BlockHandle<SchemeToggleProps> {
   registerMessages(BLOCK_MESSAGES_CHROME);
   return defineBlock(props, (p, scope) => {
-    const radio = (v: Scheme, path: string): HTMLButtonElement => {
-      const b = h('button', { type: 'button', role: 'radio', 'aria-checked': 'false', 'data-ui': v, 'data-f': `scheme-${v}` }, icon(path, 17));
-      scope.on(b, 'click', () => {
-        if (read(p.scheme) !== v) p.onChange(v);
-      });
-      return b;
-    };
+    const radio = (v: Scheme, path: string): HTMLButtonElement => h('button', { type: 'button', role: 'radio', 'aria-checked': 'false', 'data-ui': v, 'data-f': `scheme-${v}` }, icon(path, 17));
     const light = radio('light', I_sun);
     const dark = radio('dark', I_moon);
     const el = h('div', { class: 'vp-mode', role: 'radiogroup' }, light, dark);
 
     // arrows pick the other scheme (two radios: every arrow toggles) and move the focus with it
-    const keys = rovingKeys(el, { orientation: 'both', selector: '[role=radio]', select: true });
-    scope.add(() => keys.destroy());
+    const choice = createChoiceGroup<Scheme>(el, scope, { state: 'aria-checked', key: 'ui', arrows: { orientation: 'both', selector: '[role=radio]' } });
 
     const render = (): void => {
       const { t } = p;
@@ -47,16 +40,7 @@ export function createSchemeToggle(props: SchemeToggleProps): BlockHandle<Scheme
         b.title = label;
         b.setAttribute('aria-label', label);
       }
-      const fx = scope.renew();
-      const scheme = p.scheme;
-      fx.effect(() => {
-        const v = read(scheme);
-        for (const b of [light, dark]) {
-          const on = b.dataset['ui'] === v;
-          b.setAttribute('aria-checked', String(on));
-          b.tabIndex = on ? 0 : -1;
-        }
-      });
+      choice.bind(scope.renew(), [light, dark], p.scheme, (v) => p.onChange(v));
     };
     return { el, render };
   });
