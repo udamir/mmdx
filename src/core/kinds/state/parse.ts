@@ -11,13 +11,13 @@
 // inside a composite, its title from the first text the code gives it and its description rows from the others; one
 // start and one end pseudo-state per scope (`[*]start`, `X/[*]end`, `X/2/[*]start` in X's second region).
 import type { Direction, MermaidStyle, StateBlock, StateEdge, StateGroup, StateKind, StateModel, StateNode } from '../../model.js';
-import type { DiagnosticFix } from '../../types.js';
+import type { Diagnostic, DiagnosticFix } from '../../types.js';
 import { diag } from '../../types.js';
 import { frontmatterValues } from '../../parse/frontmatter.js';
 import { guardParse, ItemBudget, LexBudget, stripControl } from '../../parse/limits.js';
 import { LineScan } from '../../parse/line-scan.js';
 import { firstMatch, lexRule, prepareSource, type LexRule } from '../../parse/jison.js';
-import { labelText, lineIndex, stripQuotes } from '../../parse/kit.js';
+import { labelText, lineIndex, stripQuotes, type LineIndex } from '../../parse/kit.js';
 import { parseStyleList } from '../../parse/style.js';
 import { minOf } from '../../geom.js';
 
@@ -485,6 +485,8 @@ function textAt(src: string, at: readonly [number, number]): [number, number] {
 
 const textOf = labelText;
 
+type Comp = Stmt & { k: 'comp' };
+
 /** Never throws: a source past the lexer's limits gives an empty model with `doc.too-complex`. */
 export function parseState(code: string): StateModel {
   return guardParse(emptyState, () => readState(code));
@@ -492,69 +494,92 @@ export function parseState(code: string): StateModel {
 
 function readState(code: string): StateModel {
   const model = emptyState();
-  const D = model.diagnostics;
-  const budget = new ItemBudget(D);
-  const { src, front } = prepareSource(typeof code === 'string' ? code : '');
-  const orig = (typeof code === 'string' ? code : '') + '\n';
-  const lineAt = lineIndex(src);
-  const raw = (at: readonly [number, number]): string => orig.slice(at[0], at[1]);
+  const text = typeof code === 'string' ? code : '';
+  const { src, front } = prepareSource(text);
   const lex = new Lexer(src);
-  const G = new Grammar(lex);
-
-  // ---- statements, with error recovery at the next line
-  const root: Stmt[] = [];
-  /** Open composites (innermost last) with their documents. */
-  const open: (Stmt & { k: 'comp' })[] = [];
-  const docOf = (): Stmt[] => (open.length ? open[open.length - 1]!.doc : root);
-  const recover = (at: number): void => {
-    const nl = src.indexOf('\n', at);
-    G.drop();
-    lex.reset(nl < 0 ? src.length : nl + 1, open.length);
-    G.depth = open.length;
+  const R: StateRead = { src, lex, G: new Grammar(lex), D: model.diagnostics, lineAt: lineIndex(src), root: [], open: [] };
+  if (readHeader(R, model)) readBody(R);
+  else R.D.push(diag('error', 'state.header', 'The "stateDiagram-v2" header is missing'));
+  // ---- settings: frontmatter title
+  const fmTitle = frontmatterValues(front).get('title');
+  if (fmTitle) model.title = stripControl(fmTitle);
+  const B: StateBuild = {
+    model, D: model.diagnostics, budget: new ItemBudget(model.diagnostics), orig: text + '\n', src, lineAt: R.lineAt, order: 0,
+    classUses: [], styles: [], classes: [], clicks: [], edgeCount: new Map(), noteN: 0,
   };
-  const syntax = (at: number, msg: string, code = 'state.syntax'): void => {
-    D.push(diag('error', code, `Mermaid cannot read this line of the state diagram: ${msg}`, lineAt(at)));
-  };
+  walk(B, R.root, null, null);
+  resolveState(B);
+  return model;
+}
 
-  // the header (`stateDiagram` / `stateDiagram-v2`), after blank lines only
-  let started = false;
-  while (!started) {
+// ---- statements, with error recovery at the next line -------------------------------------------------------------
+
+/** What reading the statements holds (R2): the prepared source, the lexer and its grammar, the statements read and the open composites (innermost last) with their documents. */
+interface StateRead {
+  readonly src: string;
+  readonly lex: Lexer;
+  readonly G: Grammar;
+  readonly D: Diagnostic[];
+  readonly lineAt: LineIndex;
+  readonly root: Stmt[];
+  readonly open: Comp[];
+}
+
+const docOf = (R: StateRead): Stmt[] => (R.open.length ? R.open[R.open.length - 1]!.doc : R.root);
+
+function recover(R: StateRead, at: number): void {
+  const nl = R.src.indexOf('\n', at);
+  R.G.drop();
+  R.lex.reset(nl < 0 ? R.src.length : nl + 1, R.open.length);
+  R.G.depth = R.open.length;
+}
+
+function syntax(R: StateRead, at: number, msg: string, code = 'state.syntax'): void {
+  R.D.push(diag('error', code, `Mermaid cannot read this line of the state diagram: ${msg}`, R.lineAt(at)));
+}
+
+/** The header (`stateDiagram` / `stateDiagram-v2`), after blank lines only; false: there is none. */
+function readHeader(R: StateRead, model: StateModel): boolean {
+  const { G } = R;
+  for (;;) {
     let t: Tok;
     try {
       t = G.peek();
     } catch (e) {
       if (!(e instanceof LexError)) throw e;
-      syntax(e.at, e.message);
-      recover(e.at);
+      syntax(R, e.at, e.message);
+      recover(R, e.at);
       continue;
     }
     if (t.t === 'NL') {
       G.take();
       continue;
     }
-    if (t.t === 'EOF') break;
+    if (t.t === 'EOF') return false;
     if (t.t !== 'SD') {
-      syntax(t.s, 'the "stateDiagram" header must come first');
-      recover(t.s);
+      syntax(R, t.s, 'the "stateDiagram" header must come first');
+      recover(R, t.s);
       continue;
     }
     G.take();
     model.header = /-v2/i.test(t.v) ? 'stateDiagram-v2' : 'stateDiagram';
-    model.headerLine = lineAt(t.s);
-    started = true;
+    model.headerLine = R.lineAt(t.s);
+    return true;
   }
-  if (!started) D.push(diag('error', 'state.header', 'The "stateDiagram-v2" header is missing'));
+}
 
-  while (started) {
-    let t: Tok;
+/** The statements after the header, each into the document of the composite it is in. */
+function readBody(R: StateRead): void {
+  const { G, open } = R;
+  for (;;) {
     try {
-      t = G.peek();
+      const t = G.peek();
       if (t.t === 'EOF') {
         if (open.length) {
           const c = open[open.length - 1]!;
-          D.push(diag('error', 'state.unclosed', `The composite state "${c.id}" has no closing "}"`, lineAt(c.s), { params: { id: c.id } }));
+          R.D.push(diag('error', 'state.unclosed', `The composite state "${c.id}" has no closing "}"`, R.lineAt(c.s), { params: { id: c.id } }));
         }
-        break;
+        return;
       }
       if (t.t === 'STRUCT_STOP' && open.length) {
         G.take();
@@ -565,235 +590,279 @@ function readState(code: string): StateModel {
         continue;
       }
       const st = G.statement((c) => {
-        docOf().push(c);
+        docOf(R).push(c);
         open.push(c);
       });
-      if (st && st.k !== 'comp') docOf().push(st);
+      if (st && st.k !== 'comp') docOf(R).push(st);
     } catch (e) {
       if (e instanceof LexError) {
-        if (e.code === 'single-word') {
-          // `state My State {`: reported, and read as a composite named by its first word so its block still parses
-          syntax(e.at, e.message, 'state.single-word');
-          const name = src.slice(e.at, e.end - 1).trim();
-          const id = name.split(/\s+/)[0]!;
-          const c: Stmt & { k: 'comp' } = { k: 'comp', id, at: [e.at, e.at + id.length], doc: [], s: src.lastIndexOf('state', e.at), e: e.end, closed: false };
-          docOf().push(c);
-          open.push(c);
-          G.drop();
-          lex.reset(e.end, open.length);
-          G.depth = open.length;
-          continue;
+        if (e.code === 'single-word') singleWord(R, e);
+        else {
+          syntax(R, e.at, e.message);
+          recover(R, e.at);
         }
-        syntax(e.at, e.message);
-        recover(e.at);
       } else if (e instanceof SyntaxErr) {
-        syntax(e.at, e.message);
-        recover(e.at);
+        syntax(R, e.at, e.message);
+        recover(R, e.at);
       } else throw e;
     }
   }
+}
 
-  // ---- settings: frontmatter title
-  const fm = frontmatterValues(front);
-  const fmTitle = fm.get('title');
-  if (fmTitle) model.title = stripControl(fmTitle);
+/** `state My State {`: reported, and read as a composite named by its first word so its block still parses. */
+function singleWord(R: StateRead, e: LexError): void {
+  syntax(R, e.at, e.message, 'state.single-word');
+  const name = R.src.slice(e.at, e.end - 1).trim();
+  const id = name.split(/\s+/)[0]!;
+  const c: Comp = { k: 'comp', id, at: [e.at, e.at + id.length], doc: [], s: R.src.lastIndexOf('state', e.at), e: e.end, closed: false };
+  docOf(R).push(c);
+  R.open.push(c);
+  R.G.drop();
+  R.lex.reset(e.end, R.open.length);
+  R.G.depth = R.open.length;
+}
 
-  // ---- the model, as Mermaid's StateDB and data fetcher build it (document order, depth first)
-  const N = model.nodes, Gs = model.groups;
-  let order = 0;
-  /** Composites by id while building (also before they are known as composites). */
-  const lineOfAt = (at: number): number => lineAt(at);
-  const pseudo = (ref: IdRef, scope: string | null, region: number, end: boolean): string => (ref.id === '[*]' ? pseudoId(scope, region, end) : ref.id);
-  const kindDecl = new Map<string, number>();
+// ---- the model, as Mermaid's StateDB and data fetcher build it (document order, depth first) ----------------------
 
-  /** A mention of a state in a scope: created on the first, re-parented by every mention inside a composite. */
-  const visit = (id: string, scope: string | null, region: number, line: number, kind: StateKind = 'state'): StateNode | StateGroup | null => {
-    const g = Gs.get(id);
-    if (g) {
-      g.lines.add(line);
-      if (scope !== null && scope !== id) {
-        g.parent = scope;
-        g.region = region;
+/** What building the model from the statements holds (R2): the model and its budget, the code, the creation order and what the resolve phase applies. */
+interface StateBuild {
+  readonly model: StateModel;
+  readonly D: Diagnostic[];
+  readonly budget: ItemBudget;
+  /** The code with a final line break: statement offsets are offsets into it. */
+  readonly orig: string;
+  readonly src: string;
+  readonly lineAt: LineIndex;
+  order: number;
+  readonly classUses: { cls: string; line: number }[];
+  readonly styles: { ids: string[]; st: MermaidStyle }[];
+  readonly classes: { ids: string[]; cls: string; line: number }[];
+  readonly clicks: { id: string; url: string; tooltip?: string }[];
+  readonly edgeCount: Map<string, number>;
+  noteN: number;
+}
+
+const raw = (B: StateBuild, at: readonly [number, number]): string => B.orig.slice(at[0], at[1]);
+const pseudo = (ref: IdRef, scope: string | null, region: number, end: boolean): string => (ref.id === '[*]' ? pseudoId(scope, region, end) : ref.id);
+
+/** A mention of a state in a scope: created on the first, re-parented by every mention inside a composite. */
+function visit(B: StateBuild, id: string, scope: string | null, region: number, line: number, kind: StateKind = 'state'): StateNode | StateGroup | null {
+  const N = B.model.nodes;
+  const g = B.model.groups.get(id);
+  if (g) {
+    g.lines.add(line);
+    if (scope !== null && scope !== id) {
+      g.parent = scope;
+      g.region = region;
+    }
+    return g;
+  }
+  let n = N.get(id);
+  if (!n) {
+    if (!B.budget.take(line)) return null;
+    const k: StateKind = isPseudo(id) ? (id.endsWith('end') ? 'end' : 'start') : kind;
+    n = { id, kind: k, label: '', descriptions: [], texts: [], parent: scope, region, classes: [], style: {}, lines: new Set(), defLine: null, order: B.order++ };
+    N.set(id, n);
+  } else if (scope !== null) {
+    n.parent = scope;
+    n.region = region;
+  }
+  n.lines.add(line);
+  return n;
+}
+
+function addClass(B: StateBuild, item: StateNode | StateGroup | null, cls: string | undefined, line: number): void {
+  if (!item || !cls) return;
+  item.classes.push(cls);
+  B.classUses.push({ cls, line });
+}
+
+function addText(item: StateNode | StateGroup | null, text: string, form: 'as' | 'colon', line: number, at: [number, number]): void {
+  if (!item) return;
+  item.texts.push({ text: textOf(text), form, line, start: at[0], end: at[1] });
+  if ('kind' in item && item.defLine === null) item.defLine = line;
+}
+
+/** A document's statements in a scope (a composite's block, or the top level); `--` starts the block's next region. */
+function walk(B: StateBuild, doc: readonly Stmt[], scope: string | null, block: StateBlock | null): void {
+  let region = 0;
+  for (const st of doc) {
+    const line = B.lineAt(st.s);
+    if (st.k === 'div') {
+      if (block) {
+        block.dividers.push(line);
+        region++;
       }
-      return g;
-    }
-    let n = N.get(id);
-    if (!n) {
-      if (!budget.take(line)) return null;
-      const k: StateKind = isPseudo(id) ? (id.endsWith('end') ? 'end' : 'start') : kind;
-      n = { id, kind: k, label: '', descriptions: [], texts: [], parent: scope, region, classes: [], style: {}, lines: new Set(), defLine: null, order: order++ };
-      N.set(id, n);
-    } else if (scope !== null) {
-      n.parent = scope;
-      n.region = region;
-    }
-    n.lines.add(line);
-    return n;
-  };
-  const classUses: { cls: string; line: number }[] = [];
-  const addClass = (item: StateNode | StateGroup | null, cls: string | undefined, line: number): void => {
-    if (!item || !cls) return;
-    item.classes.push(cls);
-    classUses.push({ cls, line });
-  };
-  const addText = (item: StateNode | StateGroup | null, text: string, form: 'as' | 'colon', line: number, at: [number, number]): void => {
-    if (!item) return;
-    item.texts.push({ text: textOf(text), form, line, start: at[0], end: at[1] });
-    if ('kind' in item && item.defLine === null) item.defLine = line;
-  };
-  const styles: { ids: string[]; st: MermaidStyle }[] = [];
-  const classes: { ids: string[]; cls: string; line: number }[] = [];
-  const clicks: { id: string; url: string; tooltip?: string }[] = [];
-  let edgeCount = new Map<string, number>();
-  let noteN = 0;
+    } else apply(B, st, scope, region, line);
+  }
+}
 
-  const walk = (doc: readonly Stmt[], scope: string | null, block: StateBlock | null): void => {
-    let region = 0;
-    for (const st of doc) {
-      const line = lineOfAt(st.s);
-      switch (st.k) {
-        // `a:::c` and `a:::c : text` on their own: Mermaid's StateDB drops the class (only a transition's ends keep it)
-        case 'state':
-          visit(pseudo(st.ref, scope, region, false), scope, region, line);
-          break;
-        case 'desc': {
-          const it = visit(pseudo(st.ref, scope, region, false), scope, region, line);
-          addText(it, raw(st.at), 'colon', line, st.at);
-          break;
+/** One statement onto the model. */
+function apply(B: StateBuild, st: Stmt, scope: string | null, region: number, line: number): void {
+  const { model, D } = B;
+  switch (st.k) {
+    // `a:::c` and `a:::c : text` on their own: Mermaid's StateDB drops the class (only a transition's ends keep it)
+    case 'state':
+      visit(B, pseudo(st.ref, scope, region, false), scope, region, line);
+      break;
+    case 'desc': {
+      const it = visit(B, pseudo(st.ref, scope, region, false), scope, region, line);
+      addText(it, raw(B, st.at), 'colon', line, st.at);
+      break;
+    }
+    case 'as': {
+      const it = visit(B, st.id, scope, region, line);
+      addText(it, raw(B, st.title.at), 'as', line, st.title.at);
+      if (st.more !== undefined && it) it.texts.push({ text: textOf(st.more.trim()), form: 'colon', line, start: st.at[1], end: st.at[1] });
+      if (it && 'kind' in it) it.defLine = line;
+      break;
+    }
+    case 'decl': {
+      const known = model.nodes.has(st.id) || model.groups.has(st.id);
+      const it = visit(B, st.id, scope, region, line, st.kind);
+      if (it && 'kind' in it) {
+        if (it.defLine === null || !known) it.defLine = line;
+        if (known && it.kind !== st.kind) {
+          // Mermaid keeps the kind of the first mention
+          D.push(diag('warning', 'state.kind-late', `Mermaid draws "${st.id}" as a ${it.kind === 'state' ? 'plain state' : it.kind}: declare it as <<${st.kind}>> before its first use`, line, { params: { id: st.id, kind: st.kind } }));
         }
-        case 'as': {
-          const it = visit(st.id, scope, region, line);
-          addText(it, raw(st.title.at), 'as', line, st.title.at);
-          if (st.more !== undefined && it) it.texts.push({ text: textOf(st.more.trim()), form: 'colon', line, start: st.at[1], end: st.at[1] });
-          if (it && 'kind' in it) it.defLine = line;
-          break;
-        }
-        case 'decl': {
-          const known = N.has(st.id) || Gs.has(st.id);
-          const it = visit(st.id, scope, region, line, st.kind);
-          if (it && 'kind' in it) {
-            if (it.defLine === null || !known) it.defLine = line;
-            if (known && it.kind !== st.kind) {
-              // Mermaid keeps the kind of the first mention
-              D.push(diag('warning', 'state.kind-late', `Mermaid draws "${st.id}" as a ${it.kind === 'state' ? 'plain state' : it.kind}: declare it as <<${st.kind}>> before its first use`, line, { params: { id: st.id, kind: st.kind } }));
-            }
-          }
-          kindDecl.set(st.id, line);
-          break;
-        }
-        case 'rel': {
-          const from = pseudo(st.a, scope, region, false), to = pseudo(st.b, scope, region, true);
-          const a = visit(from, scope, region, line);
-          const b = visit(to, scope, region, line);
-          addClass(a, st.a.cls, line);
-          addClass(b, st.b.cls, line);
-          if (!a || !b || !budget.take(line)) break;
-          const key = `${from}->${to}`;
-          const n = (edgeCount.get(key) ?? 0) + 1;
-          edgeCount.set(key, n);
-          const e: StateEdge = {
-            id: n > 1 ? `${key}#${n}` : key, from, to, label: st.label ? textOf(raw(st.label.textAt)) : '',
-            src: line, index: model.edges.length, scope, region, start: st.s, end: st.e, fromAt: st.a.at, toAt: st.b.at,
-          };
-          if (st.label) e.labelAt = st.label.at;
-          model.edges.push(e);
-          // a `;` ends the label: Mermaid reads what follows as states
-          if (st.label) {
-            const after = src.slice(st.label.at[1], src.indexOf('\n', st.label.at[1]));
-            if (after.startsWith(';')) D.push(diag('warning', 'state.semicolon', 'Mermaid ends the label at ";" and reads the rest of the line as states: write ";" as #59;', line, { fix: semicolonFix(st.label.at[1]) }));
-          }
-          break;
-        }
-        case 'note': {
-          const target = pseudo(st.ref, scope, region, false);
-          const it = visit(target, scope, region, line);
-          if (!it || !budget.take(line)) break;
-          noteN++;
-          model.notes.push({
-            id: `n${noteN}`, target, side: st.side, text: textOf(st.multi ? dedent(raw(st.at).replace(/\n[^\S\n]*end note$/i, '')) : st.text),
-            line, endLine: lineAt(Math.max(st.s, st.e - 1)), multi: st.multi, scope, region,
-          });
-          break;
-        }
-        case 'comp': {
-          let g = Gs.get(st.id);
-          if (!g) {
-            const n = N.get(st.id);
-            if (!budget.take(line)) break;
-            g = {
-              id: st.id, label: '', texts: n?.texts ?? [], parent: n ? n.parent : scope, region: n ? n.region : region, children: [], order: n?.order ?? order++,
-              line, blocks: [], regions: 1, lines: n?.lines ?? new Set(), classes: n?.classes ?? [], style: {},
-            };
-            if (n) N.delete(st.id);
-            Gs.set(st.id, g);
-          }
-          if (scope !== null && scope !== st.id) {
-            g.parent = scope;
-            g.region = region;
-          }
-          g.lines.add(line);
-          const b: StateBlock = { line, start: st.s, end: st.e, dividers: [] };
-          if (st.closed) b.endLine = lineAt(st.e - 1);
-          if (b.endLine !== undefined) g.lines.add(b.endLine);
-          if (!g.blocks.length && b.endLine !== undefined) g.endLine = b.endLine;
-          g.blocks.push(b);
-          if (st.title) addText(g, raw(st.title.at), 'as', line, st.title.at);
-          walk(st.doc, st.id, b);
-          g.regions = Math.max(g.regions, b.dividers.length + 1);
-          break;
-        }
-        case 'div':
-          if (block) {
-            block.dividers.push(line);
-            region++;
-          }
-          break;
-        case 'dir':
-          if (scope === null) {
-            model.direction = st.dir === 'TD' ? 'TB' : st.dir;
-            model.dirLine = line;
-          } else {
-            const g = Gs.get(scope);
-            if (g && st.dir !== 'TD') g.dir = st.dir;
-          }
-          break;
-        case 'classDef': {
-          const st2 = parseStyleList(st.styles, (msg) => D.push(diag('warning', 'state.bad-style', msg, line)));
-          model.classDefs[st.name] = st2;
-          model.classDefLines[st.name] = line;
-          if (st.isDefault) {
-            model.classDefs['default'] = st2;
-            D.push(diag('warning', 'state.classdef-default', 'Stock Mermaid (11.17, 12.2) fails to parse "classDef default" in a state diagram; mmdx applies it to every state', line, {
-              fix: { title: 'Remove the line', apply: (c: string) => removeLine(c, line) },
-            }));
-          }
-          break;
-        }
-        case 'class':
-          classes.push({ ids: st.ids.split(',').map((x) => x.trim()).filter(Boolean), cls: st.cls, line });
-          break;
-        case 'style':
-          styles.push({ ids: st.ids.split(',').map((x) => x.trim()).filter(Boolean), st: parseStyleList(st.styles.replace(/;/g, ''), (msg) => D.push(diag('warning', 'state.bad-style', msg, line))) });
-          break;
-        case 'click': {
-          const id = pseudo(st.ref, scope, region, false);
-          const c: { id: string; url: string; tooltip?: string } = { id, url: st.url };
-          if (st.tooltip) c.tooltip = st.tooltip;
-          clicks.push(c);
-          break;
-        }
-        case 'acc':
-          if (st.what === 'title') model.accTitle = stripControl(st.text);
-          else model.accDescr = st.text.split('\n').map((l) => stripControl(l).trim()).filter(Boolean).join('\n');
-          break;
-        case 'skip':
-          break;
       }
+      break;
     }
-  };
-  walk(root, null, null);
-  edgeCount = new Map();
+    case 'rel':
+      transition(B, st, scope, region, line);
+      break;
+    case 'note':
+      note(B, st, scope, region, line);
+      break;
+    case 'comp':
+      composite(B, st, scope, region, line);
+      break;
+    case 'div':
+      break;
+    case 'dir':
+      if (scope === null) {
+        model.direction = st.dir === 'TD' ? 'TB' : st.dir;
+        model.dirLine = line;
+      } else {
+        const g = model.groups.get(scope);
+        if (g && st.dir !== 'TD') g.dir = st.dir;
+      }
+      break;
+    default:
+      styling(B, st, scope, region, line);
+  }
+}
 
+/** `a --> b : label`. */
+function transition(B: StateBuild, st: Stmt & { k: 'rel' }, scope: string | null, region: number, line: number): void {
+  const { model } = B;
+  const from = pseudo(st.a, scope, region, false), to = pseudo(st.b, scope, region, true);
+  const a = visit(B, from, scope, region, line);
+  const b = visit(B, to, scope, region, line);
+  addClass(B, a, st.a.cls, line);
+  addClass(B, b, st.b.cls, line);
+  if (!a || !b || !B.budget.take(line)) return;
+  const key = `${from}->${to}`;
+  const n = (B.edgeCount.get(key) ?? 0) + 1;
+  B.edgeCount.set(key, n);
+  const e: StateEdge = {
+    id: n > 1 ? `${key}#${n}` : key, from, to, label: st.label ? textOf(raw(B, st.label.textAt)) : '',
+    src: line, index: model.edges.length, scope, region, start: st.s, end: st.e, fromAt: st.a.at, toAt: st.b.at,
+  };
+  if (st.label) e.labelAt = st.label.at;
+  model.edges.push(e);
+  // a `;` ends the label: Mermaid reads what follows as states
+  if (st.label) {
+    const after = B.src.slice(st.label.at[1], B.src.indexOf('\n', st.label.at[1]));
+    if (after.startsWith(';')) B.D.push(diag('warning', 'state.semicolon', 'Mermaid ends the label at ";" and reads the rest of the line as states: write ";" as #59;', line, { fix: semicolonFix(st.label.at[1]) }));
+  }
+}
+
+/** `note left of a : text` (or over lines up to `end note`). */
+function note(B: StateBuild, st: Stmt & { k: 'note' }, scope: string | null, region: number, line: number): void {
+  const target = pseudo(st.ref, scope, region, false);
+  const it = visit(B, target, scope, region, line);
+  if (!it || !B.budget.take(line)) return;
+  B.noteN++;
+  B.model.notes.push({
+    id: `n${B.noteN}`, target, side: st.side, text: textOf(st.multi ? dedent(raw(B, st.at).replace(/\n[^\S\n]*end note$/i, '')) : st.text),
+    line, endLine: B.lineAt(Math.max(st.s, st.e - 1)), multi: st.multi, scope, region,
+  });
+}
+
+/** `state X { … }`: the composite (a state of that id becomes it), one more block of it, and the block's statements. */
+function composite(B: StateBuild, st: Comp, scope: string | null, region: number, line: number): void {
+  const { model } = B;
+  let g = model.groups.get(st.id);
+  if (!g) {
+    const n = model.nodes.get(st.id);
+    if (!B.budget.take(line)) return;
+    g = {
+      id: st.id, label: '', texts: n?.texts ?? [], parent: n ? n.parent : scope, region: n ? n.region : region, children: [], order: n?.order ?? B.order++,
+      line, blocks: [], regions: 1, lines: n?.lines ?? new Set(), classes: n?.classes ?? [], style: {},
+    };
+    if (n) model.nodes.delete(st.id);
+    model.groups.set(st.id, g);
+  }
+  if (scope !== null && scope !== st.id) {
+    g.parent = scope;
+    g.region = region;
+  }
+  g.lines.add(line);
+  const b: StateBlock = { line, start: st.s, end: st.e, dividers: [] };
+  if (st.closed) b.endLine = B.lineAt(st.e - 1);
+  if (b.endLine !== undefined) g.lines.add(b.endLine);
+  if (!g.blocks.length && b.endLine !== undefined) g.endLine = b.endLine;
+  g.blocks.push(b);
+  if (st.title) addText(g, raw(B, st.title.at), 'as', line, st.title.at);
+  walk(B, st.doc, st.id, b);
+  g.regions = Math.max(g.regions, b.dividers.length + 1);
+}
+
+/** `classDef`, `class`, `style`, `click` and the accessibility statements (classes, styles and links apply once every state is known). */
+function styling(B: StateBuild, st: Stmt, scope: string | null, region: number, line: number): void {
+  const { model, D } = B;
+  switch (st.k) {
+    case 'classDef': {
+      const st2 = parseStyleList(st.styles, (msg) => D.push(diag('warning', 'state.bad-style', msg, line)));
+      model.classDefs[st.name] = st2;
+      model.classDefLines[st.name] = line;
+      if (st.isDefault) {
+        model.classDefs['default'] = st2;
+        D.push(diag('warning', 'state.classdef-default', 'Stock Mermaid (11.17, 12.2) fails to parse "classDef default" in a state diagram; mmdx applies it to every state', line, {
+          fix: { title: 'Remove the line', apply: (c: string) => removeLine(c, line) },
+        }));
+      }
+      break;
+    }
+    case 'class':
+      B.classes.push({ ids: st.ids.split(',').map((x) => x.trim()).filter(Boolean), cls: st.cls, line });
+      break;
+    case 'style':
+      B.styles.push({ ids: st.ids.split(',').map((x) => x.trim()).filter(Boolean), st: parseStyleList(st.styles.replace(/;/g, ''), (msg) => D.push(diag('warning', 'state.bad-style', msg, line))) });
+      break;
+    case 'click': {
+      const id = pseudo(st.ref, scope, region, false);
+      const c: { id: string; url: string; tooltip?: string } = { id, url: st.url };
+      if (st.tooltip) c.tooltip = st.tooltip;
+      B.clicks.push(c);
+      break;
+    }
+    case 'acc':
+      if (st.what === 'title') model.accTitle = stripControl(st.text);
+      else model.accDescr = st.text.split('\n').map((l) => stripControl(l).trim()).filter(Boolean).join('\n');
+      break;
+    default:
+      break;
+  }
+}
+
+// ---- resolve: what needs every state ------------------------------------------------------------------------------
+
+function resolveState(B: StateBuild): void {
+  const { model, D } = B;
+  const N = model.nodes;
   // ---- `direction TD`: Mermaid has no TD, it reads two states
   for (const [id, n] of N)
     if (id === 'TD' && N.has('direction')) {
@@ -802,21 +871,36 @@ function readState(code: string): StateModel {
         fix: { title: 'Use TB', apply: (c: string) => replaceOnLine(c, li, /\bdirection(\s+)TD\b/i, 'direction$1TB') },
       }));
     }
+  titles(model);
+  stateTree(model);
+  applyStyles(B);
+  // ---- transitions between the inner states of two composites (Mermaid forbids them; mmdx draws them)
+  const holder = (id: string): string | null => N.get(id)?.parent ?? model.groups.get(id)?.parent ?? null;
+  for (const e of model.edges) {
+    const a = holder(e.from), b = holder(e.to);
+    if (a && b && a !== b && !isPseudo(e.from) && !isPseudo(e.to))
+      D.push(diag('warning', 'state.cross-composite', `Mermaid does not allow a transition between states of different composites ("${e.from}" in "${a}", "${e.to}" in "${b}"); mmdx draws it`, e.src, { params: { from: e.from, to: e.to } }));
+  }
+}
 
-  // ---- titles and description rows; composites have a title only
-  for (const n of N.values()) {
+/** Titles and description rows; composites have a title only. */
+function titles(model: StateModel): void {
+  for (const n of model.nodes.values()) {
     if (n.kind === 'start' || n.kind === 'end') continue;
     n.label = n.texts[0]?.text ?? n.id;
     n.descriptions = n.texts.slice(1).map((t) => t.text);
     if (n.defLine === null && n.texts.length) n.defLine = n.texts[0]!.line;
   }
-  for (const g of Gs.values()) {
+  for (const g of model.groups.values()) {
     g.label = g.texts[0]?.text ?? g.id;
     if (g.texts.length > 1)
-      D.push(diag('error', 'state.composite-description', `Mermaid fails on a composite state with description rows ("${g.id}" has ${g.texts.length} texts): give it one title`, g.texts[1]!.line, { params: { id: g.id } }));
+      model.diagnostics.push(diag('error', 'state.composite-description', `Mermaid fails on a composite state with description rows ("${g.id}" has ${g.texts.length} texts): give it one title`, g.texts[1]!.line, { params: { id: g.id } }));
   }
+}
 
-  // ---- the tree: children in code order (cycles cut: a composite inside itself goes to the top level)
+/** The tree: children in code order (cycles cut: a composite inside itself goes to the top level). */
+function stateTree(model: StateModel): void {
+  const N = model.nodes, Gs = model.groups;
   for (const g of Gs.values()) {
     const seen = new Set<string>([g.id]);
     for (let p = g.parent; p; p = Gs.get(p)?.parent ?? null) {
@@ -831,35 +915,29 @@ function readState(code: string): StateModel {
   const kids = [...[...N.values()].map((n) => ({ id: n.id, parent: n.parent, order: n.order })), ...[...Gs.values()].map((g) => ({ id: g.id, parent: g.parent, order: g.order }))].sort((a, b) => a.order - b.order);
   for (const k of kids) if (k.parent) Gs.get(k.parent)?.children.push(k.id);
   for (const n of N.values()) if (n.parent && !Gs.has(n.parent)) n.parent = null;
+}
 
-  // ---- classes, styles, links
-  const item = (id: string): StateNode | StateGroup | undefined => N.get(id) ?? Gs.get(id);
-  for (const c of classes) for (const id of c.ids) addClass(item(id) ?? null, c.cls, c.line);
-  for (const s of styles) for (const id of s.ids) {
+/** Classes, styles and links onto the states they name; classes without a classDef. */
+function applyStyles(B: StateBuild): void {
+  const { model } = B;
+  const item = (id: string): StateNode | StateGroup | undefined => model.nodes.get(id) ?? model.groups.get(id);
+  for (const c of B.classes) for (const id of c.ids) addClass(B, item(id) ?? null, c.cls, c.line);
+  for (const s of B.styles) for (const id of s.ids) {
     const it = item(id);
     if (it) it.style = { ...it.style, ...s.st };
   }
-  for (const c of clicks) {
+  for (const c of B.clicks) {
     const it = item(c.id);
     if (!it) continue;
     it.link = c.url;
     if (c.tooltip) it.tooltip = c.tooltip;
   }
   const seenUse = new Set<string>();
-  for (const u of classUses)
+  for (const u of B.classUses)
     if (!Object.hasOwn(model.classDefs, u.cls) && !seenUse.has(u.cls)) {
       seenUse.add(u.cls);
       model.undefinedClasses.push(u);
     }
-
-  // ---- transitions between the inner states of two composites (Mermaid forbids them; mmdx draws them)
-  const holder = (id: string): string | null => N.get(id)?.parent ?? Gs.get(id)?.parent ?? null;
-  for (const e of model.edges) {
-    const a = holder(e.from), b = holder(e.to);
-    if (a && b && a !== b && !isPseudo(e.from) && !isPseudo(e.to))
-      D.push(diag('warning', 'state.cross-composite', `Mermaid does not allow a transition between states of different composites ("${e.from}" in "${a}", "${e.to}" in "${b}"); mmdx draws it`, e.src, { params: { from: e.from, to: e.to } }));
-  }
-  return model;
 }
 
 /** Common indentation removed from a multi-line note's lines (Mermaid's markdown drops it). */
