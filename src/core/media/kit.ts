@@ -3,10 +3,28 @@
 // render needs it. Renderers ask for it here: when it is not loaded, the render draws plain text and empty asset boxes
 // and counts a miss, and the viewer, History and the diff load it and render again (platform/kinds.ts `drawShapes`), as
 // they do for the shapes. Core's kinds, the editor's flowchart and the theme editor register it statically.
+import type { drawIcon, iconResolver } from '../icons/draw.js';
+import type { TextOpts } from '../render/types.js';
+import type { SceneNode, TextRun } from '../scene/types.js';
 import { missMedia } from '../shapes/misses.js';
-import type { MEDIA_KIT } from './kit-impl.js';
+import type { TextMeasurer } from '../text/measure.js';
+import type { IconResolver, runsBlockWidth, runsText, wrapRuns } from '../text/rich.js';
+import type { drawImage } from './image.js';
+import type { checkImageUrl } from './policy.js';
 
-export type MediaKit = typeof MEDIA_KIT;
+/** What the kit draws with (kit-impl.ts `MEDIA_KIT` is checked against it): the rich-text drawing written out, since render/rich-text.ts is a layer above. */
+export interface MediaKit {
+  labelRuns(label: string, o: { markdown?: boolean; icons?: IconResolver; iconSize?: number }): TextRun[] | null;
+  richLines(lines: readonly (readonly TextRun[])[]): boolean;
+  richText(lines: readonly (readonly TextRun[])[], x: number, y: number, o: TextOpts & { measure: TextMeasurer }): SceneNode[];
+  wrapRuns: typeof wrapRuns;
+  runsBlockWidth: typeof runsBlockWidth;
+  runsText: typeof runsText;
+  iconResolver: typeof iconResolver;
+  drawIcon: typeof drawIcon;
+  drawImage: typeof drawImage;
+  checkImageUrl: typeof checkImageUrl;
+}
 
 let kit: MediaKit | null = null;
 

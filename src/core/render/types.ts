@@ -1,11 +1,25 @@
 // Render contract (§7): model + meta + resolved theme → scene tree + geometry.
 import type { IconLookup } from '../icons/types.js';
 import type { CanvasMeta, DiagramMeta } from '../meta/types.js';
-import type { SceneNode } from '../scene/types.js';
+import type { SceneNode, SvgAttrs } from '../scene/types.js';
 import type { ResolvedTheme } from '../theme/types.js';
 import type { TextMeasurer } from '../text/measure.js';
 import type { Diagnostic, ItemKind, Point, Rect } from '../types.js';
 import type { ImagePolicy, LinkPolicy, UrlResolver } from '../validate.js';
+
+/** How a text block is drawn (render/common.ts `textBlock`, the media kit's `richText`). */
+export interface TextOpts {
+  size: number;
+  weight?: number | string | undefined;
+  color?: string | undefined;
+  family: string;
+  anchor?: 'start' | 'middle' | 'end';
+  /** Line height as a multiple of the size. */
+  lh?: number;
+  cls?: string;
+  underline?: boolean;
+  extra?: SvgAttrs;
+}
 
 /** Everything a renderer needs from its environment; instance-scoped, never global. */
 export interface RenderContext {

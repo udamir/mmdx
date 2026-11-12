@@ -11,7 +11,7 @@ import { cleanDash, cleanFontFamily, resolveContentUrl, safeUrl, toNumber, type 
 import { STYLE_KEYS, valueType } from '../meta/keys.js';
 import { hash } from '../layout/hash.js';
 import type { LayeredOptions, LayoutEdge, LayoutNode } from '../layout/layered.js';
-import type { HiddenSets, Port, RenderContext, RenderOptions } from './types.js';
+import type { HiddenSets, Port, RenderContext, RenderOptions, TextOpts } from './types.js';
 import { shapeDef, shapeIdOf } from '../shapes/registry.js';
 
 // ---- style ----------------------------------------------------------------------------------------------------
@@ -133,19 +133,6 @@ export const withLink = (href: SafeUrl | null, nodes: SceneNode[]): SceneNode[] 
 export const linkAttr = (href: SafeUrl | null): SvgAttrs => (href ? { 'data-link': href } : {});
 
 // ---- text -----------------------------------------------------------------------------------------------------
-
-export interface TextOpts {
-  size: number;
-  weight?: number | string | undefined;
-  color?: string | undefined;
-  family: string;
-  anchor?: 'start' | 'middle' | 'end';
-  /** Line height as a multiple of the size. */
-  lh?: number;
-  cls?: string;
-  underline?: boolean;
-  extra?: SvgAttrs;
-}
 
 /** The attributes of a text block (`textBlock`, `richText`). */
 export const textAttrs = (o: TextOpts): SvgAttrs => ({

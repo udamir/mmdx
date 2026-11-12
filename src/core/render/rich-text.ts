@@ -8,7 +8,8 @@ import { image, text } from '../scene/build.js';
 import type { SceneNode, TextLine, TextRun } from '../scene/types.js';
 import type { FontSpec, TextMeasurer } from '../text/measure.js';
 import { parseInline, runFont, runsText, runWidth, type IconResolver } from '../text/rich.js';
-import { textAttrs, type TextOpts } from './common.js';
+import { textAttrs } from './common.js';
+import type { TextOpts } from './types.js';
 
 /** Whether a line needs its runs (styling, marks or icons); a single plain run is drawn as text. */
 const styledLine = (runs: readonly TextRun[]): boolean => runs.some((r) => r.icon || r.bold || r.italic || r.underline || r.strike || r.mark);
