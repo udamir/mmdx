@@ -72,7 +72,7 @@ export const erTableModule: EditorModule = {
       st.sel = [];
       core.uiState.tableView.set(id);
       root.classList.add('table-edit');
-      core.enteredGroup.set(null);
+      core.enterGroup(null);
       core.select([]);
       core.draw();
       core.fire('panels');

@@ -64,8 +64,8 @@ describe('a suspended module does not react', () => {
     expect(marked()).toBeGreaterThan(0);
     expect(ed.core.root.querySelector('.group-edit-bar')).toBeNull();
     ed.core.setStage('history');
-    ed.core.enteredGroup.set(null);
-    ed.core.enteredGroup.set('G');
+    ed.core.enterGroup(null);
+    ed.core.enterGroup('G');
     ed.core.fire('draw');
     expect(ed.core.root.querySelector('.group-edit-bar')).toBeNull();
     ed.core.setStage('document');

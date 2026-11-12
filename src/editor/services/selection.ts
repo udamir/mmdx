@@ -12,7 +12,7 @@ type Pick = ItemRef & { foot?: boolean };
 export interface SelectionHost {
   readonly store: { readonly selection: Signal<ItemRef[]> };
   readonly version: ReadSignal<unknown>;
-  readonly pageSelected: Signal<boolean>;
+  selectPage(on: boolean): void;
   fire(ev: 'selection'): void;
   emit(type: string, detail: unknown): boolean;
   drawOverlay(): void;
@@ -70,7 +70,7 @@ export class SelectionService {
       list.push({ kind: it.kind, id: it.id });
     }
     const foot = !!items[0]?.foot;
-    if (list.length) h.pageSelected.set(false);
+    if (list.length) h.selectPage(false);
     // a version's items are selected to copy them: the document's selection and its event stay as they are
     if (h.version.peek()) {
       this.foot = foot;

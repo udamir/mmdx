@@ -29,7 +29,7 @@ export function installSelectPointer(scope: SelectScope): void {
 
   scope.canvas('pointerdown', () => {
     if (core.pageSelected.peek()) {
-      core.pageSelected.set(false);
+      core.selectPage(false);
       core.drawOverlay();
       core.fire('panels');
     }
@@ -50,7 +50,7 @@ export function installSelectPointer(scope: SelectScope): void {
       const g = !part ? core.groupTarget(item, isLane) : null;
       const enterSelf = item.kind === 'group' && !g && core.enteredGroup.peek() !== item.id && !isLane(item.id);
       if (g || enterSelf) {
-        core.enteredGroup.set(g ?? item.id);
+        core.enterGroup(g ?? item.id);
         const inner = core.groupTarget(item, isLane);
         core.select(enterSelf ? [] : inner ? [{ kind: 'group', id: inner }] : [item]);
         core.draw();

@@ -30,7 +30,7 @@ export const editorToolsModule: EditorModule = {
       if (tool === 'pointer' && core.mode.peek() !== 'edit') tool = 'hand';
       if (tool === 'pen' && !f.pen) return;
       if (tool !== 'pointer' && (core.selection().length || core.enteredGroup.peek())) {
-        core.enteredGroup.set(null);
+        core.enterGroup(null);
         core.select([]);
         core.draw();
       }

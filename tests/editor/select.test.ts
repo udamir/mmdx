@@ -119,7 +119,7 @@ describe('canvas selection: overlay', () => {
     expect(overlay(core, 'sel-box')).toBe(2);
     expect(overlay(core, 'sel-handle')).toBe(0);
     core.select([]);
-    core.pageSelected.set(true);
+    core.selectPage(true);
     core.drawOverlay();
     expect(overlay(core, 'page-sel')).toBe(1);
     // a press on the canvas drops the page selection

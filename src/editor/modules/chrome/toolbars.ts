@@ -99,7 +99,7 @@ export const toolbarsModule: EditorModule = {
     if (f.pageToolbar) wrap.append(badge);
     badge.addEventListener('click', () => {
       core.select([]);
-      core.pageSelected.set(true);
+      core.selectPage(true);
       core.drawOverlay();
       core.fire('panels');
       sync(true);

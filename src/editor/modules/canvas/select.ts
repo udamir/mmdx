@@ -36,7 +36,7 @@ export const canvasSelectModule: EditorModule = {
     // ---- group editing ------------------------------------------------------------------------------------------
 
     const enterGroup = (gid: string): void => {
-      core.enteredGroup.set(gid);
+      core.enterGroup(gid);
       core.select([]);
       core.draw();
       core.fire('panels');
@@ -44,7 +44,7 @@ export const canvasSelectModule: EditorModule = {
     const exitGroup = (): void => {
       const gid = core.enteredGroup.peek();
       if (!gid) return;
-      core.enteredGroup.set(null);
+      core.enterGroup(null);
       core.select(core.store.exists({ kind: 'group', id: gid }) ? [{ kind: 'group', id: gid }] : []);
       core.draw();
       core.fire('panels');
@@ -192,7 +192,7 @@ export const canvasSelectModule: EditorModule = {
           id: 'deselect', keys: ['escape'], label: 'Clear the selection', group: 'Edit',
           run: () => {
             if (!core.selection().length && !core.pageSelected.peek()) return false;
-            core.pageSelected.set(false);
+            core.selectPage(false);
             core.select([]);
             core.draw();
             core.fire('panels');

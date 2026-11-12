@@ -463,7 +463,7 @@ describe('open files', () => {
     ed = new DiagramEditor(host, { value: FLOW, modules: [documentModule], storage: memoryStorage(), features: { open: true } });
     const e = ed;
     e.core.select([{ kind: 'node', id: 'A' }]);
-    e.core.enteredGroup.set('G');
+    e.core.enterGroup('G');
     const ops: string[] = [];
     host.addEventListener('mmdx-op', (ev) => ops.push((ev as CustomEvent<{ type: string }>).detail.type));
     const file = { name: 'other.mmd', text: () => Promise.resolve('flowchart TB\n  X --> Y\n') } as unknown as File; // jsdom's File has no text()

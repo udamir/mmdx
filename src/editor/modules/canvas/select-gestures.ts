@@ -213,7 +213,7 @@ export function installSelectGestures(scope: SelectScope, st: SelectState): void
       // Clicking outside the group being edited leaves it.
       const entered = core.enteredGroup.peek();
       if (entered && !core.insideGroup(sel, entered)) {
-        core.enteredGroup.set(null);
+        core.enterGroup(null);
         redraw = true;
       }
       // An item inside a group selects (and drags) the whole group, like in Miro.
@@ -255,7 +255,7 @@ export function installSelectGestures(scope: SelectScope, st: SelectState): void
       if (!editing() || ev.button !== 0 || hit.item || hit.handle) return null;
       let redraw = false;
       if (core.enteredGroup.peek()) {
-        core.enteredGroup.set(null);
+        core.enterGroup(null);
         redraw = true;
       }
       // Rubber-band selection (Shift adds to the current selection). Dragged left to right it takes the items fully

@@ -45,12 +45,12 @@ export async function switchDiagramType(core: EditorCore, type: DiagramType): Pr
   if (core.model.type && !(await core.dialogs.confirm(t('type.switchTitle', { type: label }), t('type.switchMsg', { type: label.toLowerCase() }), { ok: t('type.switchOk'), danger: true }))) return;
   const doc = newDiagram(type);
   const group = core.enteredGroup.peek(), page = core.pageSelected.peek();
-  core.enteredGroup.set(null);
-  core.pageSelected.set(false);
+  core.enterGroup(null);
+  core.selectPage(false);
   if (!core.applyCode(doc, t('history.newDiagram'), { select: [], type: 'doc.setType' })) {
     // vetoed by the host: nothing changes
-    core.enteredGroup.set(group);
-    core.pageSelected.set(page);
+    core.enterGroup(group);
+    core.selectPage(page);
     return;
   }
   core.uiState.fileName.set(`untitled-${type}`);

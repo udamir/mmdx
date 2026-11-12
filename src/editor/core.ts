@@ -34,7 +34,7 @@ import type { TextFormat, TextFormats } from './ops/format.js';
 import { HIGHLIGHT_CSS } from '../dom/highlight.js';
 import type { Viewport, WheelMode } from '../dom/viewport.js';
 import { Dialogs, DIALOG_CSS } from '../ui/kit/dialog.js';
-import { signal, untracked, type ReadSignal, type Signal } from '../reactive/signal.js';
+import { signal, untracked, type ReadSignal } from '../reactive/signal.js';
 import { ALIASES } from '../ui/kit/base.js';
 import { EDITOR_CSS } from './styles.js';
 import { ViewCore } from '../view/core.js';
@@ -243,11 +243,32 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   readonly storeScene: StoreScene;
 
   // ---- UI state (never saved into the document) -------------------------------------------------------------------
-  readonly enteredGroup: Signal<string | null> = signal<string | null>(null);
-  readonly pageSelected: Signal<boolean> = signal(false);
-  readonly codeFilter = signal('');
-  /** Problems in the Mermaid code and the metadata (code panel → canvas issue bar, badge on the Code tool). */
-  readonly issueCount = signal(0);
+  private readonly enteredGroupState = signal<string | null>(null);
+  private readonly pageSelectedState = signal(false);
+  private readonly codeFilterState = signal('');
+  private readonly issueCountState = signal(0);
+  /** The group being edited (Miro-like; null: none), set through `enterGroup`. */
+  readonly enteredGroup: ReadSignal<string | null> = this.enteredGroupState;
+  /** The page itself is selected (the page toolbar shows), set through `selectPage`. */
+  readonly pageSelected: ReadSignal<boolean> = this.pageSelectedState;
+  /** The code panel's filter (what the canvas dims), set through `setCodeFilter`. */
+  readonly codeFilter: ReadSignal<string> = this.codeFilterState;
+  /** Problems in the Mermaid code and the metadata (code panel → canvas issue bar, badge on the Code tool), set through `setIssueCount`. */
+  readonly issueCount: ReadSignal<number> = this.issueCountState;
+  /** Enters a group to edit inside it, or leaves group editing (null); only the state: the `enterGroup` action also clears the selection and draws. */
+  enterGroup(gid: string | null): void {
+    this.enteredGroupState.set(gid);
+  }
+  /** Selects the page itself (its toolbar) or not. */
+  selectPage(on: boolean): void {
+    this.pageSelectedState.set(on);
+  }
+  setCodeFilter(q: string): void {
+    this.codeFilterState.set(q);
+  }
+  setIssueCount(n: number): void {
+    this.issueCountState.set(n);
+  }
   /** What the host gives the editor (A10g): its image store and its upload of pictures. */
   readonly hostServices = new HostServices();
   /**
@@ -328,7 +349,8 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
    */
   readonly versions: VersionSource = new VersionSource({
     enteredGroup: this.enteredGroup,
-    pageSelected: this.pageSelected,
+    enterGroup: (gid) => this.enterGroup(gid),
+    selectPage: (on) => this.selectPage(on),
     visibleLayers: this.visibleLayers,
     setLayers: (ids) => this.visibleLayersState.set(ids),
     stopEditing: () => {
@@ -691,8 +713,8 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     const before = this.store.model.peek().type;
     this.store.load(src, { history: opts.history, reason: opts.reason, markSaved: opts.markSaved !== false });
     if (opts.reason === 'load') {
-      this.enteredGroup.set(null);
-      this.pageSelected.set(false);
+      this.enterGroup(null);
+      this.selectPage(false);
     }
     this.draw();
     if (this.scene === this.storeScene && !this.version.peek() && (opts.fit !== false || before !== this.store.model.peek().type)) {
@@ -805,8 +827,8 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     this.toolState.set(m === 'edit' ? 'pointer' : 'hand');
     if (m === 'view') {
       this.select([]);
-      this.enteredGroup.set(null);
-      this.pageSelected.set(false);
+      this.enterGroup(null);
+      this.selectPage(false);
     }
     this.fire('mode');
     this.draw();

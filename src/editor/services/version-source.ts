@@ -4,7 +4,7 @@
 import { normalizeMeta, splitSource, type DiagramDocument } from '../../core/meta/index.js';
 import type { DiagramModel } from '../../core/model.js';
 import type { ItemRef } from '../../core/types.js';
-import { signal, type ReadSignal, type Signal } from '../../reactive/signal.js';
+import { signal, type ReadSignal } from '../../reactive/signal.js';
 import { elementExists } from '../../core/ops/ids.js';
 
 /** An old version shown read-only in the editor's canvas (History): read and drawn instead of the store's document. */
@@ -16,8 +16,9 @@ export interface VersionView {
 }
 
 export interface VersionHost {
-  enteredGroup: Signal<string | null>;
-  pageSelected: Signal<boolean>;
+  enteredGroup: ReadSignal<string | null>;
+  enterGroup(gid: string | null): void;
+  selectPage(on: boolean): void;
   visibleLayers: ReadSignal<readonly string[] | undefined>;
   setLayers(ids: readonly string[] | undefined): void;
   /** Ends the edit in flight and the inline editor (nothing is written while a version shows). */
@@ -53,8 +54,8 @@ export class VersionSource {
       const doc: DiagramDocument = { code: split.doc.code, meta: normalizeMeta(split.doc.meta) };
       if (!cur) {
         this.aside = { group: h.enteredGroup.peek(), layers: h.visibleLayers.peek() };
-        h.enteredGroup.set(null);
-        h.pageSelected.set(false);
+        h.enterGroup(null);
+        h.selectPage(false);
       }
       // the same item stays selected from version to version while it is there
       const model = h.parse(doc.code);
@@ -67,7 +68,7 @@ export class VersionSource {
       const back = this.aside;
       this.aside = null;
       if (back) {
-        h.enteredGroup.set(back.group);
+        h.enterGroup(back.group);
         h.setLayers(back.layers);
       }
     }

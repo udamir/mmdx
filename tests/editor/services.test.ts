@@ -98,7 +98,7 @@ describe('VersionSource', () => {
   it('puts the entered group and the layer override aside while a version shows, and gives them back', async () => {
     const ed = await mount(NESTED);
     const core = ed.core;
-    core.enteredGroup.set('Outer');
+    core.enterGroup('Outer');
     core.showVersion({ id: 'v1', source: 'flowchart TB\n  A --> B\n' });
     expect(core.version.peek()?.model.type).toBe('flowchart');
     expect(core.code.trim()).toBe('flowchart TB\n  A --> B');

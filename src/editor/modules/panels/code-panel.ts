@@ -127,7 +127,7 @@ export const codePanelModule: EditorModule = {
       codeEd.setMarkers(marksOf(codeIssueList));
       metaEd?.setMarkers(marksOf(meta.issues));
       const issues = allIssues();
-      core.issueCount.set(issues.length);
+      core.setIssueCount(issues.length);
       syncIssueBar();
       list.render(issues, filterBroken);
     };
@@ -156,7 +156,7 @@ export const codePanelModule: EditorModule = {
       const code = core.code;
       shownCode = code;
       const q = codeF.input.value;
-      core.codeFilter.set(q.trim());
+      core.setCodeFilter(q.trim());
       const lines = q.trim() ? filterLines(code, core.model, q) : null;
       codeF.count.textContent = lines ? t(lines.length === 1 ? 'code.lines1' : 'code.linesN', { n: lines.length }) : '';
       // an old version (History) is read-only: its code and metadata can be read, filtered and copied
@@ -340,7 +340,7 @@ export const codePanelModule: EditorModule = {
       tabs.destroy();
       panel.destroy();
       pill.destroy();
-      core.issueCount.set(0);
+      core.setIssueCount(0);
     };
   },
 };
