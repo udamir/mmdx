@@ -6,9 +6,10 @@
 // (`fa:fa-book Book`), which stock Mermaid draws; an `::icon()` line is replaced by one when the icon changes.
 import type { DiagramMeta, ItemMeta } from '../../meta/types.js';
 import type { MindmapModel, MindNode, MindShape } from '../../model.js';
-import { descendantsOf, MIND_DELIMS, MIND_SHAPES, mindKeys, parseMindmap } from './parse.js';
+import { descendantsOf, MIND_DELIMS, MIND_SHAPES, parseMindmap } from './parse.js';
 import { labelText } from '../../parse/label.js';
 import { setOwn } from '../../own.js';
+import { matchMindNodes } from './ops-match.js';
 import type { ItemRef } from '../../types.js';
 import type { CloneResult, CodeResult, LineResult, MoveResult, RefusableResult } from '../../ops/types.js';
 
@@ -461,41 +462,24 @@ export function setMindColorBy(code: string, by: 'branch' | 'depth'): CodeResult
 // ---- metadata after code changes ----------------------------------------------------------------------------------
 
 /**
- * Metadata of positional ids (`mm<k>`) moved to the nodes' new ids after a code change: matched by (parent path,
- * label, ordinal among same-label siblings), then by the label alone (a moved node), then by the same id. Written ids
- * keep their metadata as they are. Pure.
+ * Metadata of positional ids (`mm<k>`) moved to the nodes' new ids after a code change: to the node the diff matches (ops-match.ts matchMindNodes: a written id, the root, the place in the tree, the label under the matched parent, the label alone), else, for a node the diff calls removed, to the node the diff calls added with the same id (a node relabelled in place). Entries of written ids and of ids no node has stay as they are, and an entry a node already has is kept. Pure.
  */
 export function remapMindMeta(meta: DiagramMeta, before: MindmapModel, after: MindmapModel): DiagramMeta {
   const m = meta.nodes;
   if (!m || !Object.keys(m).length) return meta;
   const positional = (model: MindmapModel, id: string): boolean => !!model.nodes.get(id) && model.nodes.get(id)!.written !== id;
-  const ka = mindKeys(before), kb = mindKeys(after);
-  const byKey = new Map<string, string>();
-  for (const [id, k] of kb) if (positional(after, id) && !byKey.has(k)) byKey.set(k, id);
-  const byLabel = new Map<string, string[]>();
-  for (const n of after.nodes.values()) if (positional(after, n.id)) byLabel.set(n.label, [...(byLabel.get(n.label) ?? []), n.id]);
+  const map = matchMindNodes(before, after);
+  const matched = new Set(map.values());
   const out: Record<string, ItemMeta> = {};
-  const used = new Set<string>();
   // written ids and entries of ids no node has stay as they are
   // ids come from the document: never a plain assignment (`__proto__`, B32)
   for (const [id, v] of Object.entries(m)) if (!positional(before, id)) setOwn(out, id, v);
-  for (const id of Object.keys(out)) used.add(id);
-  const pending: string[] = [];
+  const used = new Set(Object.keys(out));
   for (const id of Object.keys(m)) {
     if (!positional(before, id)) continue;
-    const k = ka.get(id);
-    const hit = k !== undefined ? byKey.get(k) : undefined;
-    if (hit && !used.has(hit)) {
-      setOwn(out, hit, m[id]!);
-      used.add(hit);
-    } else pending.push(id);
-  }
-  for (const id of pending) {
-    const label = before.nodes.get(id)!.label;
-    const hit = byLabel.get(label)?.find((x) => !used.has(x));
-    const same = after.nodes.has(id) && positional(after, id) && !used.has(id) ? id : undefined;
-    const to = hit ?? same;
-    if (to) {
+    const same = positional(after, id) && !matched.has(id) ? id : undefined;
+    const to = map.get(id) ?? same;
+    if (to !== undefined && !used.has(to)) {
       setOwn(out, to, m[id]!);
       used.add(to);
     }

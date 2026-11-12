@@ -12,7 +12,7 @@ const walk = (d: string): string[] => readdirSync(d).flatMap((n) => (statSync(jo
 /** `file name` → what it is. */
 const ALLOWED: Record<string, string> = {
   'context-base.ts counter': 'id counter: each context a unique id prefix',
-  'kinds/mindmap/diff.ts matched': 'cache: the node matching of a pair of models (WeakMap on the models)',
+  'kinds/mindmap/ops-match.ts matched': 'cache: the node matching of a pair of models (WeakMap on the models)',
   'diff/render.ts marklessContexts': 'cache: the derived mark-free context per context (WeakMap)',
   'icons/draw.ts placeholders': 'cache: the placeholder image per colour',
   'icons/draw.ts reported': 'cache: what a diagnostics list already holds (WeakMap on the list)',

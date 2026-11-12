@@ -1,11 +1,10 @@
 // The mindmap diff (the diff kind's `diff`: nodes matched across the versions, each change put into one facet) and its
 // merged picture (`merge`: the after version plus the removed nodes in their old place, changed text marked).
-// Matching: a written id that both versions have, else a node's place in the tree (its path of labels and its rank
-// among same-label siblings), else (label, matched parent), else the label alone — a node with the same label under
-// another parent is one that moved (layout), not a removal and an addition.
+// Matching: ops-match.ts matchMindNodes, which the metadata carry-over over a code change shares.
 import type { DiagramMeta } from '../../meta/types.js';
 import type { MindmapModel, MindNode } from '../../model.js';
-import { assignDepths, mindKeys } from './parse.js';
+import { assignDepths } from './parse.js';
+import { matchMindNodes } from './ops-match.js';
 import { field, metaFields, finish, added, removed, changedPresets } from '../../diff/kit.js';
 import type { FieldChange, ItemChange } from '../../diff/types.js';
 import { keepRemoved, REMOVED } from '../../diff/merge.js';
@@ -13,54 +12,6 @@ import { type MergeEnv } from '../../diff/types.js';
 import { mergeText } from '../../diff/text.js';
 
 const one = (s: string): string => s.replace(/\s*\n\s*/g, ' ').trim();
-
-// the diff and its merge match the same two models (P11: matched twice per render)
-const matched = new WeakMap<MindmapModel, WeakMap<MindmapModel, Map<string, string>>>();
-
-/** Before id → after id of the nodes both versions have. */
-function matchMindNodes(a: MindmapModel, b: MindmapModel): Map<string, string> {
-  const inner = matched.get(a) ?? matched.set(a, new WeakMap()).get(a)!;
-  return inner.get(b) ?? inner.set(b, matchNodes(a, b)).get(b)!;
-}
-
-function matchNodes(a: MindmapModel, b: MindmapModel): Map<string, string> {
-  const out = new Map<string, string>(), taken = new Set<string>();
-  const pair = (x: string, y: string): void => {
-    out.set(x, y);
-    taken.add(y);
-  };
-  // written ids
-  for (const n of a.nodes.values()) {
-    const m = n.written ? b.nodes.get(n.id) : undefined;
-    if (m && m.written === n.written) pair(n.id, m.id);
-  }
-  // the root is the root
-  if (a.root && b.root && !out.has(a.root) && !taken.has(b.root)) pair(a.root, b.root);
-  // the same place in the tree
-  const ka = mindKeys(a), kb = mindKeys(b);
-  const byKey = new Map<string, string>();
-  for (const [id, k] of kb) if (!taken.has(id) && !byKey.has(k)) byKey.set(k, id);
-  for (const n of a.nodes.values()) {
-    if (out.has(n.id)) continue;
-    const k = ka.get(n.id);
-    const hit = k !== undefined ? byKey.get(k) : undefined;
-    if (hit && !taken.has(hit)) pair(n.id, hit);
-  }
-  // (label, matched parent), then the label alone, in code order; the after nodes bucketed by label (P11: a scan of
-  // every node per node)
-  const byLabel = new Map<string, MindNode[]>();
-  for (const m of b.nodes.values()) (byLabel.get(m.label) ?? byLabel.set(m.label, []).get(m.label)!).push(m);
-  const free = (pred: (x: MindNode, y: MindNode) => boolean): void => {
-    for (const n of a.nodes.values()) {
-      if (out.has(n.id)) continue;
-      const hit = byLabel.get(n.label)?.find((m) => !taken.has(m.id) && pred(n, m));
-      if (hit) pair(n.id, hit.id);
-    }
-  };
-  free((x, y) => !!x.parent && out.get(x.parent) === y.parent);
-  free(() => true);
-  return out;
-}
 
 /** Each node's place among its parent's children (a flat map's `indexOf` per node is quadratic). */
 const ranksOf = (m: MindmapModel): Map<string, number> => {

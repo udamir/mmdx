@@ -9,6 +9,7 @@ import type { DiagramMeta } from '../../../src/core/meta/types.js';
 import type { MindmapModel } from '../../../src/core/model.js';
 import * as OPS from '../../../src/core/kinds/mindmap/ops.js';
 import { remapMeta } from '../../../src/core/ops/document.js';
+import { diffDiagrams } from '../../../src/core/diff/all.js';
 import { parseMindmap } from '../../../src/core/kinds/mindmap/parse.js';
 import type { ItemRef } from '../../../src/core/types.js';
 import { stockParse } from '../../helpers/mermaid.js';
@@ -142,6 +143,31 @@ describe('mindmap ops', () => {
     const mv = OPS.reparentMind(SRC, M, id(M, 'b1'), 'c', 0);
     const N2 = P(mv.code);
     expect(remapMeta(M, SRC, N2, mv.code, meta).nodes?.[id(N2, 'b1')]).toEqual({ collapsed: true });
+  });
+
+  it('the carry-over follows the diff\'s matching (X10): a node under a moved written-id parent keeps its metadata, not the first node with its label', () => {
+    const before = 'mindmap\n  root\n    p[P]\n      X\n    S\n';
+    const after = 'mindmap\n  root\n    N\n      X\n    S\n      p[P]\n        X\n';
+    const A = P(before), B = P(after);
+    const x = id(A, 'X');
+    const underP = B.nodes.get('p')!.children[0]!, underN = [...B.nodes.values()].find((n) => n.label === 'N')!.children[0]!;
+    // the diff: the X under p is the old one (unchanged), the X under N is new
+    const d = diffDiagrams(before, after);
+    expect(d.items.find((i) => i.id === underP)).toMatchObject({ status: 'unchanged' });
+    expect(d.items.find((i) => i.id === underN)).toMatchObject({ status: 'added' });
+    // the old rules (place, then the label alone in code order) gave the metadata to the X under N
+    const meta: DiagramMeta = { canvas: {}, styles: {}, nodes: { [x]: { fill: '#f00' } } };
+    expect(OPS.remapMindMeta(meta, A, B).nodes).toEqual({ [underP]: { fill: '#f00' } });
+  });
+
+  it('a node relabelled in place keeps its metadata; a positional node given a written id takes it along', () => {
+    const before = 'mindmap\n  root\n    A\n    B\n';
+    const A = P(before);
+    const meta: DiagramMeta = { canvas: {}, styles: {}, nodes: { [id(A, 'B')]: { fill: '#f00' } } };
+    const relabelled = P('mindmap\n  root\n    A\n    C\n');
+    expect(OPS.remapMindMeta(meta, A, relabelled).nodes).toEqual({ [id(relabelled, 'C')]: { fill: '#f00' } });
+    const written = P('mindmap\n  root\n    A\n    b[B]\n');
+    expect(OPS.remapMindMeta(meta, A, written).nodes).toEqual({ b: { fill: '#f00' } });
   });
 });
 
