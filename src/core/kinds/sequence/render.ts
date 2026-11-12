@@ -36,7 +36,7 @@ import { assetBox, captionY, mediaAssetNodes, mediaLayout, type MediaBox } from 
 import { metaMediaSource } from '../../media/meta-source.js';
 import type { BoxGeom, SequenceGeometry, TextOpts } from '../../render/types.js';
 import { dashAttrs } from '../../shapes/dash.js';
-import { seqPresets } from './presets.js';
+import { seqPresets, type SeqPresets } from './presets.js';
 import { minOf } from '../../geom.js';
 
 /** A participant preset belongs to one shape (like node presets): its own "shape", else "for", else the box. */
@@ -144,7 +144,125 @@ function mediaOf(m: ItemMeta, p: Participant): { src: MediaSource; fromCode: boo
   return url && !url.startsWith('@') ? { src: { img: url }, fromCode: true } : null;
 }
 
+type ItemColl = 'participants' | 'messages' | 'notes' | 'blocks' | 'boxes' | 'activations';
+
+/** What every phase reads (5.8, R1): the model and its environment, the theme section and presets, the page layout, the layers, the media kit and the text readers. */
+interface SeqRun {
+  model: SequenceModel;
+  env: RenderEnv;
+  S: RenderEnv['theme']['sequence'];
+  P: SeqPresets;
+  L: Layout;
+  family: string;
+  hidden: Record<'participant' | 'message' | 'note' | 'block' | 'box' | 'activation', ReadonlySet<string>>;
+  mt(k: ItemColl, id: string): ItemMeta;
+  kit: ReturnType<typeof lazyKit>;
+  hasIcons(s: string): boolean;
+  /** A text's lines (wrapped at `maxW` when given): runs when it holds icon tokens, else plain as before. */
+  textOf(text: string, fnt: FontSpec, color: string | undefined, line: number | undefined, maxW?: number): Txt;
+  drawText(t: Txt, x: number, y: number, o: TextOpts): SceneNode[];
+  msgStyle(it: SeqMessage): { m: ItemMeta; preset: string; st: StyleProps };
+  /** A message's text, read once (its icon tokens report their misses once). */
+  msgText(it: SeqMessage, st: StyleProps): Txt;
+}
+
+interface NoteOut {
+  it: SeqNote;
+  st: StyleProps;
+  m: ItemMeta;
+  x0: number;
+  x1: number;
+  y0: number;
+  h: number;
+  text: Txt;
+  hidden: boolean;
+}
+
+interface ActOut {
+  id: string;
+  pid: string;
+  y0: number;
+  y1: number;
+  level: number;
+  st: StyleProps;
+  w: number;
+  from?: string;
+  to?: string;
+}
+
+/** The vertical pass's rows: the messages, notes, blocks and processes in place, the heads' height and the last row. */
+interface Rows {
+  msgs: MsgOut[];
+  notes: NoteOut[];
+  blocks: BlockOut[];
+  acts: ActOut[];
+  headH: number;
+  bottom: number;
+}
+
 export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult {
+  const { ctx } = env;
+  const r = seqRun(model, env);
+  const { L, family } = r;
+  const defs = new Defs(ctx.idPrefix);
+
+  // ---- layout input and layout: the participants, their places across, then the rows down
+  const parts = measureParts(r);
+  const idx = new Map(parts.map((x, i) => [x.p.id, i]));
+  const { cx, auto } = placeParts(r, parts, idx);
+  const rows = verticalPass(r, parts, idx, cx);
+  const { msgs, bottom } = rows;
+  const top = L.top;
+  let W = 400; // no participants: a default page
+  if (cx.length) {
+    let m = -Infinity;
+    cx.forEach((v, i) => (m = Math.max(m, v + parts[i]!.w / 2)));
+    W = m + L.margin / 2;
+  }
+
+  // ---- draw: boxes, blocks (outer first), lifelines, processes, notes, messages, heads (and mirrored feet)
+  const body: SceneNode[] = [];
+  const boxGeom = drawBoxes(r, parts, idx, cx, bottom, body);
+  const blockGeom = drawBlocks(r, rows.blocks, cx, W, body);
+  const lifelines = drawLifelines(r, parts, cx, bottom, body);
+  const actGeom = drawActs(r, rows.acts, parts, idx, cx, body);
+  const noteGeom = drawNotes(r, rows.notes, body);
+  const msgGeom = drawMessages(r, defs, msgs, body);
+  const { partGeom, footGeom } = drawHeads(r, parts, cx, bottom, body);
+
+  // ---- finish: bounds, the title, the geometry
+  const pad = env.pad;
+  const bounds = {
+    x: 0,
+    y: top - (model.boxes.length ? 40 : 14) - pad,
+    w: W + L.margin / 2 + pad,
+    h: (L.mirror ? bottom + rows.headH : bottom + 24) - top + 40 + pad * 2,
+  };
+
+  // the diagram's `title` (parsed but never drawn by the prototype, A.13): a page title above the participants
+  body.unshift(...diagramTitle(bounds, model.title, ctx, family, pad));
+
+  const geom: SequenceGeometry = {
+    type: 'sequence',
+    participants: partGeom,
+    participantFeet: footGeom,
+    messages: msgGeom,
+    activations: actGeom,
+    boxes: boxGeom,
+    blocks: blockGeom,
+    notes: noteGeom,
+    autoX: new Map(parts.map((x, i) => [x.p.id, auto[i]!])),
+    lifelines,
+  };
+  const out: SubResult = { defs: defs.nodes(), body, bounds, geom, presetsUsed: { message: countBy(msgs.map((x) => x.preset || '(none)')) } };
+  // `accTitle` / `accDescr`: the SVG's <title> and <desc>
+  const a11y = a11yOf(model);
+  if (a11y) out.a11y = a11y;
+  return out;
+}
+
+/** The phases' shared reader: the page layout (theme, then canvas metadata), the layers, the media kit and the text readers. */
+function seqRun(model: SequenceModel, env: RenderEnv): SeqRun {
   const { ctx, theme: T, meta, opts } = env;
   const S = T.sequence;
   const P = seqPresets(T, meta);
@@ -164,18 +282,15 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     blockTags: c.blockTags !== false,
   };
   const family = T.font;
-  const defs = new Defs(ctx.idPrefix);
   const hidden = {
     participant: hiddenOf(opts, 'participant'), message: hiddenOf(opts, 'message'), note: hiddenOf(opts, 'note'),
     block: hiddenOf(opts, 'block'), box: hiddenOf(opts, 'box'), activation: hiddenOf(opts, 'activation'),
   };
-  const mt = <K extends 'participants' | 'messages' | 'notes' | 'blocks' | 'boxes' | 'activations'>(k: K, id: string): ItemMeta =>
-    meta[k]?.[id] ?? EMPTY_META;
+  const mt = (k: ItemColl, id: string): ItemMeta => meta[k]?.[id] ?? EMPTY_META;
 
   // icon tokens in names, messages and notes draw through the media kit (a lazy chunk), asked for only when a text has one
   const kit = lazyKit();
   const hasIcons = (s: string): boolean => s.includes(':') && [...s.matchAll(ICON_TOKEN)].some((t) => ctx.icons.resolve(t[2]!, 'token') !== null);
-  /** A text's lines (wrapped at `maxW` when given): runs when it holds icon tokens, else plain as before. */
   const textOf = (text: string, fnt: FontSpec, color: string | undefined, line: number | undefined, maxW?: number): Txt => {
     const k = hasIcons(text) ? kit() : null;
     const runs = k ? k.labelRuns(text, { icons: k.iconResolver(ctx, color, fnt.size, line === undefined ? { diagnostics: env.diagnostics } : { diagnostics: env.diagnostics, line }), iconSize: fnt.size }) : null;
@@ -188,13 +303,31 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     const lines = maxW !== undefined ? wrap(text, maxW, fnt, ctx.measure) : text.split('\n');
     return { lines, w: textBlockWidth(lines, fnt, ctx.measure) };
   };
-  const drawText = (t: Txt, x: number, y: number, o: TextOpts): SceneNode[] => {
-    const k = t.rich ? kit() : null;
-    return k && t.rich ? k.richText(t.rich, x, y, { ...o, measure: ctx.measure }) : [textBlock(t.lines, x, y, o)];
+  const msgTexts = new Map<string, Txt>();
+  return {
+    model, env, S, P, L, family, hidden, mt, kit, hasIcons, textOf,
+    drawText(t, x, y, o) {
+      const k = t.rich ? kit() : null;
+      return k && t.rich ? k.richText(t.rich, x, y, { ...o, measure: ctx.measure }) : [textBlock(t.lines, x, y, o)];
+    },
+    msgStyle(it) {
+      const m = mt('messages', it.id);
+      const preset = str(m.preset) ?? '';
+      return { m, preset, st: mergeStyle(ctx, S.message, baseStyle(meta, 'message'), presetOf(P.message, preset), pickStyle(m, ['labelOnLine'])) };
+    },
+    msgText(it, st) {
+      let t = msgTexts.get(it.id);
+      if (!t) msgTexts.set(it.id, (t = textOf(it.text, font(st.labelSize ?? 14, st.fontWeight || 400, st.fontFamily || family), st.labelColor ?? undefined, it.src)));
+      return t;
+    },
   };
+}
 
-  // ---- participants
-  const parts: Part[] = model.participants.map((p) => {
+/** The participants: shape and style (own > Mermaid's type / actor > preset > theme), the name wrapped to fit, the icon and the image, the head's size; an image or icon participant as the flowchart's image node. */
+function measureParts(r: SeqRun): Part[] {
+  const { model, env, S, P, family, hidden, mt, kit } = r;
+  const { ctx, meta } = env;
+  return model.participants.map((p) => {
     const m = mt('participants', p.id);
     const preset = str(m.preset) ?? '';
     const pst = presetOf(P.participant, preset);
@@ -216,7 +349,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     if (media) {
       st.shape = media.src.img != null ? 'image' : 'icon';
       const ln = Number.isFinite(line) ? line : undefined;
-      const { box, caption, w, h } = mediaLayout(env, kit(), media.src, {}, fontSize, 200, st.text, ln ?? null, (cw) => textOf(p.label, fnt, st.text, ln, cw));
+      const { box, caption, w, h } = mediaLayout(env, kit(), media.src, {}, fontSize, 200, st.text, ln ?? null, (cw) => r.textOf(p.label, fnt, st.text, ln, cw));
       const deco = decoration(ctx, kit, { label: '', meta: {}, fontSize, color: st.text });
       return { p, m, st, preset, name: caption, nameSize: fontSize, deco, fromCode: media.fromCode, figure: null, w, h, hidden: hidden.participant.has(p.id), media: { box, src: media.src } };
     }
@@ -227,8 +360,8 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     const maxW = st.wrap ? Math.max(20, (fixedW || st.maxW || Math.max(st.minW ?? 0, 200)) - padX * 2) : undefined;
     // a figure's name with inline icons is laid out at the size it is drawn at (a plain one keeps its width measured at
     // the head's size, as before)
-    const nameFnt = figure && hasIcons(deco.label) ? font(nameSize, st.fontWeight, st.fontFamily || family) : fnt;
-    const name = textOf(deco.label, nameFnt, deco.inlineColor ?? st.text, Number.isFinite(line) ? line : undefined, maxW);
+    const nameFnt = figure && r.hasIcons(deco.label) ? font(nameSize, st.fontWeight, st.fontFamily || family) : fnt;
+    const name = r.textOf(deco.label, nameFnt, deco.inlineColor ?? st.text, Number.isFinite(line) ? line : undefined, maxW);
     const textH = name.lines.length * nameSize * 1.3;
     const block = decorated(deco) ? decoratedSize(deco, { w: name.w, h: textH }) : null;
     const w = fixedW || Math.max(st.minW ?? 0, (block?.w ?? name.w) + 2 * padX);
@@ -239,31 +372,21 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     if (block) h = Math.max(h, figure ? 4 + figure.h + 6 + block.h + 4 : block.h + 2 * padY);
     return { p, m, st, preset, name, nameSize, deco, fromCode: false, figure, w, h, hidden: hidden.participant.has(p.id) };
   });
-  const idx = new Map(parts.map((x, i) => [x.p.id, i]));
-  const msgStyle = (it: SeqMessage): { m: ItemMeta; preset: string; st: StyleProps } => {
-    const m = mt('messages', it.id);
-    const preset = str(m.preset) ?? '';
-    return { m, preset, st: mergeStyle(ctx, S.message, baseStyle(meta, 'message'), presetOf(P.message, preset), pickStyle(m, ['labelOnLine'])) };
-  };
+}
 
-  // auto x: base gaps, then widen for message labels
+/** The participants' centres across: base gaps, widened for the message labels, then metadata overrides that keep the following participants' relative spacing (`auto`: the centres before them). */
+function placeParts(r: SeqRun, parts: readonly Part[], idx: ReadonlyMap<string, number>): { cx: number[]; auto: number[] } {
+  const { model, env, L, family } = r;
   const cx: number[] = [];
   parts.forEach((x, i) => {
     cx[i] = i === 0 ? L.margin + x.w / 2 : cx[i - 1]! + parts[i - 1]!.w / 2 + L.gap + x.w / 2;
   });
-  // a message's text, read once (its icon tokens report their misses once)
-  const msgTexts = new Map<string, Txt>();
-  const msgText = (it: SeqMessage, st: StyleProps): Txt => {
-    let t = msgTexts.get(it.id);
-    if (!t) msgTexts.set(it.id, (t = textOf(it.text, font(st.labelSize ?? 14, st.fontWeight || 400, st.fontFamily || family), st.labelColor ?? undefined, it.src)));
-    return t;
-  };
   const need: [number, number, number][] = [];
   for (const it of model.items) {
     if (it.kind !== 'message') continue;
-    const { st } = msgStyle(it);
-    const T = msgText(it, st);
-    const lw = T.rich ? T.w : textBlockWidth(T.lines, font(st.labelSize ?? 14, 400, family), ctx.measure);
+    const { st } = r.msgStyle(it);
+    const txt = r.msgText(it, st);
+    const lw = txt.rich ? txt.w : textBlockWidth(txt.lines, font(st.labelSize ?? 14, 400, family), env.ctx.measure);
     const a = idx.get(it.from), b = idx.get(it.to);
     if (a === undefined || b === undefined) continue;
     if (a === b) need.push([a, a + 1, lw + 90]);
@@ -275,32 +398,28 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     const def = d - (cx[b]! - cx[a]!);
     if (def > 0) for (let i = b; i < cx.length; i++) cx[i]! += def;
   }
-  // metadata overrides keep the following participants' relative spacing
   const auto = [...cx];
   parts.forEach((x, i) => {
     const mx = metaNum(x.m.x);
     if (mx !== undefined) cx[i] = mx;
     else if (i > 0) cx[i] = cx[i - 1]! + (auto[i]! - auto[i - 1]!);
   });
-  const cxOf = (pid: string): number => cx[idx.get(pid) ?? -1] ?? 0;
+  return { cx, auto };
+}
 
-  // ---- vertical pass
-  const top = L.top;
+/** The vertical pass: the items row by row in code order — messages (self, created and destroyed participants, processes opened and closed), notes, blocks and their sections. */
+function verticalPass(r: SeqRun, parts: readonly Part[], idx: ReadonlyMap<string, number>, cx: readonly number[]): Rows {
+  const { model, env, S, P, L, family, hidden, mt } = r;
+  const { ctx, meta } = env;
+  const cxOf = (pid: string): number => cx[idx.get(pid) ?? -1] ?? 0;
   let headH = 40;
   for (const x of parts) if (!x.p.createdBy) headH = Math.max(headH, x.h);
-  let y = top + headH + 40;
+  let y = L.top + headH + 40;
   const msgs: MsgOut[] = [];
-  const notes: { it: SeqNote; st: StyleProps; m: ItemMeta; x0: number; x1: number; y0: number; h: number; text: Txt; hidden: boolean }[] = [];
+  const notes: NoteOut[] = [];
   const blocks: BlockOut[] = [];
-  const acts: { id: string; pid: string; y0: number; y1: number; level: number; st: StyleProps; w: number; from?: string; to?: string }[] = [];
+  const acts: ActOut[] = [];
   const blockStack: BlockOut[] = [];
-  const minX = L.margin / 2;
-  const totalW = (): number => {
-    if (!cx.length) return 400; // no participants yet: a default page
-    let m = -Infinity;
-    cx.forEach((v, i) => (m = Math.max(m, v + parts[i]!.w / 2)));
-    return m + L.margin / 2;
-  };
   const numbers = messageNumbers(model);
   // participants created / destroyed by a message (their heads and lifelines start / end at its row)
   const createdBy = new Map<string, Part>(), destroyedBy = new Map<string, Part>();
@@ -331,7 +450,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
   const deactivate = (pid: string, y1: number, to?: string): void => {
     const a = tracker.close(pid);
     if (!a) return;
-    const out: (typeof acts)[number] = { id: a.id, pid, y0: a.data.y0, y1, level: a.level, st: a.data.st, w: a.data.w };
+    const out: ActOut = { id: a.id, pid, y0: a.data.y0, y1, level: a.level, st: a.data.st, w: a.data.w };
     if (a.data.from !== undefined) out.from = a.data.from;
     if (to !== undefined) out.to = to;
     acts.push(out);
@@ -353,10 +472,10 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
 
   for (const it of model.items) {
     if (it.kind === 'message') {
-      const { m, st, preset } = msgStyle(it);
+      const { m, st, preset } = r.msgStyle(it);
       const isHidden = hidden.participant.has(it.from) || hidden.participant.has(it.to) || hidden.message.has(it.id) || inHiddenBlock();
       y += metaNum(m.dy) || 0;
-      const text = msgText(it, st);
+      const text = r.msgText(it, st);
       const lines = text.lines;
       const lh = (st.labelSize ?? 14) * L.lineH;
       const labelH = lines.length * lh;
@@ -403,32 +522,9 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
       const st = mergeStyle(ctx, S.note, baseStyle(meta, 'note'), presetOf(P.note, str(m.preset)), pickStyle(m));
       y += metaNum(m.dy) || 0;
       const fontSize = st.fontSize ?? 14;
-      const text = textOf(it.text, font(fontSize, 400, family), st.text, it.src);
-      const lines = text.lines;
-      const tw = text.w + 24;
-      const xs = it.targets.map(cxOf);
-      let x0: number, x1: number;
-      if (it.pos === 'over') {
-        let lo = Infinity, hi = -Infinity;
-        for (const v of xs) {
-          lo = Math.min(lo, v);
-          hi = Math.max(hi, v);
-        }
-        x0 = lo - (xs.length > 1 ? 40 : 0);
-        x1 = hi + (xs.length > 1 ? 40 : 0);
-        if (x1 - x0 < tw) {
-          const cm = (x0 + x1) / 2;
-          x0 = cm - tw / 2;
-          x1 = cm + tw / 2;
-        }
-      } else if (it.pos === 'left of') {
-        x1 = (xs[0] ?? 0) - 14;
-        x0 = x1 - tw;
-      } else {
-        x0 = (xs[0] ?? 0) + 14;
-        x1 = x0 + tw;
-      }
-      const h = lines.length * fontSize * 1.3 + 16;
+      const text = r.textOf(it.text, font(fontSize, 400, family), st.text, it.src);
+      const [x0, x1] = noteSpan(it, it.targets.map(cxOf), text.w + 24);
+      const h = text.lines.length * fontSize * 1.3 + 16;
       notes.push({
         it, st, m, x0, x1, y0: y + 6, h, text,
         hidden: it.targets.some((t) => hidden.participant.has(t)) || hidden.note.has(it.id) || inHiddenBlock(),
@@ -461,17 +557,43 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     }
   }
   for (const a of tracker.drain()) {
-    const out: (typeof acts)[number] = { id: a.id, pid: a.participant, y0: a.data.y0, y1: y, level: a.level, st: a.data.st, w: a.data.w };
+    const out: ActOut = { id: a.id, pid: a.participant, y0: a.data.y0, y1: y, level: a.level, st: a.data.st, w: a.data.w };
     if (a.data.from !== undefined) out.from = a.data.from;
     acts.push(out);
   }
-  const bottom = y + 30;
+  return { msgs, notes, blocks, acts, headH, bottom: y + 30 };
+}
 
-  // ---- draw
-  const W = totalW();
-  const body: SceneNode[] = [];
-  // participant boxes (mermaid "box")
-  const boxGeom = new Map<string, BoxGeom>(), blockGeom = new Map<string, BoxGeom & { y0: number; y1: number }>(), noteGeom = new Map<string, BoxGeom>();
+/** A note's span across: over its participants (40 px past them when it spans several, at least its text's width), or beside one. */
+function noteSpan(it: SeqNote, xs: readonly number[], tw: number): [number, number] {
+  if (it.pos === 'over') {
+    let lo = Infinity, hi = -Infinity;
+    for (const v of xs) {
+      lo = Math.min(lo, v);
+      hi = Math.max(hi, v);
+    }
+    let x0 = lo - (xs.length > 1 ? 40 : 0), x1 = hi + (xs.length > 1 ? 40 : 0);
+    if (x1 - x0 < tw) {
+      const cm = (x0 + x1) / 2;
+      x0 = cm - tw / 2;
+      x1 = cm + tw / 2;
+    }
+    return [x0, x1];
+  }
+  if (it.pos === 'left of') {
+    const x1 = (xs[0] ?? 0) - 14;
+    return [x1 - tw, x1];
+  }
+  const x0 = (xs[0] ?? 0) + 14;
+  return [x0, x0 + tw];
+}
+
+/** Mermaid's participant boxes (`box`): around their members' heads, down around the mirrored feet too. */
+function drawBoxes(r: SeqRun, parts: readonly Part[], idx: ReadonlyMap<string, number>, cx: readonly number[], bottom: number, body: SceneNode[]): Map<string, BoxGeom> {
+  const { model, env, S, P, L, family, hidden, mt } = r;
+  const { ctx, meta } = env;
+  const top = L.top;
+  const boxGeom = new Map<string, BoxGeom>();
   for (const bx of model.boxes) {
     if (hidden.box.has(bx.id)) continue;
     const ids = bx.members.map((id) => idx.get(id)).filter((i): i is number => i !== undefined);
@@ -506,8 +628,15 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     body.push(itemGroup('box', bx.id, 'box', children, linkAttr(href)));
     boxGeom.set(bx.id, { x: (x0 + x1) / 2, y: (top - 30 + boxBottom) / 2, w: x1 - x0, h: boxBottom - top + 30 });
   }
-  // blocks (outer first)
-  const fullX0 = minX, fullX1 = W;
+  return boxGeom;
+}
+
+/** The blocks, outer first: the page's width (or around their participants), the kind tag, the label, the sections' dashed lines. */
+function drawBlocks(r: SeqRun, blocks: readonly BlockOut[], cx: readonly number[], W: number, body: SceneNode[]): Map<string, BoxGeom & { y0: number; y1: number }> {
+  const { env, L, family } = r;
+  const { ctx } = env;
+  const blockGeom = new Map<string, BoxGeom & { y0: number; y1: number }>();
+  const fullX0 = L.margin / 2, fullX1 = W;
   for (const b of [...blocks].sort((p, q) => p.depth - q.depth)) {
     if (b.hidden) continue;
     const { st } = b;
@@ -554,13 +683,18 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     body.push(itemGroup('block', b.it.id, 'block', inner, linkAttr(href)));
     blockGeom.set(b.it.id, { x: (x0 + x1) / 2, y: (b.y0 + b.y1) / 2, w: x1 - x0, h: b.y1 - b.y0, y0: b.y0, y1: b.y1 });
   }
-  // lifelines
-  const LL = mergeStyle(ctx, S.lifeline);
+  return blockGeom;
+}
+
+/** The lifelines (from a created participant's row, to a destroyed one's cross) and the editor's handle on each. */
+function drawLifelines(r: SeqRun, parts: readonly Part[], cx: readonly number[], bottom: number, body: SceneNode[]): Map<string, { x: number; y0: number; y1: number }> {
+  const { env, S, L } = r;
+  const LL = mergeStyle(env.ctx, S.lifeline);
   const lifelines = new Map<string, { x: number; y0: number; y1: number }>();
   parts.forEach((x, i) => {
     if (x.hidden) return;
     const lx = cx[i]!;
-    const y0 = x.createdY !== undefined ? x.createdY + x.h / 2 : top + x.h;
+    const y0 = x.createdY !== undefined ? x.createdY + x.h / 2 : L.top + x.h;
     const y1 = x.destroyedY ?? (L.mirror ? bottom : bottom + 20);
     const dash = LL.dash || undefined;
     // destroyed: a cross where the lifeline ends
@@ -584,11 +718,15 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     );
     lifelines.set(x.p.id, { x: lx, y0, y1 });
   });
-  // activations (processes)
+  return lifelines;
+}
+
+/** The processes (activations): a bar on the lifeline, nested ones 5 px to the right, with a wider transparent box to hit. */
+function drawActs(r: SeqRun, acts: readonly ActOut[], parts: readonly Part[], idx: ReadonlyMap<string, number>, cx: readonly number[], body: SceneNode[]): SequenceGeometry['activations'] {
   const actGeom: SequenceGeometry['activations'] = new Map();
   for (const a of acts) {
     const i = idx.get(a.pid);
-    if (i === undefined || parts[i]!.hidden || hidden.activation.has(a.id)) continue;
+    if (i === undefined || parts[i]!.hidden || r.hidden.activation.has(a.id)) continue;
     const { st, w } = a;
     const hitPad = 9; // easier to hover / click than the thin bar itself
     const x = cx[i]! - w / 2 + a.level * 5, h = Math.max(8, a.y1 - a.y0);
@@ -606,25 +744,37 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     if (a.to !== undefined) geo.to = a.to;
     actGeom.set(a.id, geo);
   }
-  // notes
+  return actGeom;
+}
+
+/** The notes: a box with the text in it (the geometry of the hidden ones too). */
+function drawNotes(r: SeqRun, notes: readonly NoteOut[], body: SceneNode[]): Map<string, BoxGeom> {
+  const { env, family } = r;
+  const noteGeom = new Map<string, BoxGeom>();
   for (const n of notes) {
     const box = { x: (n.x0 + n.x1) / 2, y: n.y0 + n.h / 2, w: n.x1 - n.x0, h: n.h };
     noteGeom.set(n.it.id, { ...box, hidden: n.hidden });
     if (n.hidden) continue;
     const { st } = n;
-    const href = itemLink(ctx, n.m.link);
+    const href = itemLink(env.ctx, n.m.link);
     body.push(
       itemGroup('note', n.it.id, 'note', [
         ...shapeNodes('rect', box, st),
         ...withLink(href, [
-          ...drawText(n.text, box.x, box.y, {
+          ...r.drawText(n.text, box.x, box.y, {
             size: st.fontSize ?? 14, weight: st.fontWeight || 400, color: href ? LINK_COLOR : st.text, family: st.fontFamily || family, underline: !!href,
           }),
         ]),
       ], linkAttr(href)),
     );
   }
-  // messages
+  return noteGeom;
+}
+
+/** The messages: a self message's loop, else the line with its head (a marker, a half head, a central connection's circle), the label above it or on it, the number's disc. */
+function drawMessages(r: SeqRun, defs: Defs, msgs: readonly MsgOut[], body: SceneNode[]): SequenceGeometry['messages'] {
+  const { env, L, family } = r;
+  const { ctx, opts } = env;
   const msgGeom: SequenceGeometry['messages'] = new Map();
   for (const gm of msgs) {
     if (gm.hidden) continue;
@@ -652,7 +802,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
         // the loop comes back leftwards; a reversed head sits where it leaves the lifeline
         ...halfHead(it, it.reverse ? x : x + 2, it.reverse ? yy : yy + 24, -1, -1, size, width * 0.75, st.color),
         ...withLink(href, [
-          ...drawText(gm.text, x + 66, yy + 12, {
+          ...r.drawText(gm.text, x + 66, yy + 12, {
             size: labelSize, color: labelColor, family: st.fontFamily || family, weight: st.fontWeight || 400, anchor: 'start', lh: L.lineH, underline: !!href,
           }),
         ]),
@@ -681,7 +831,7 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
         if (st.labelOnLine) inner.push(el('rect', { x: cxm - tw / 2 - 6, y: ty - th / 2, width: tw + 12, height: th, fill: gm.bg }));
         inner.push(
           ...withLink(href, [
-            ...drawText(gm.text, cxm, ty, {
+            ...r.drawText(gm.text, cxm, ty, {
               size: labelSize, color: labelColor, family: st.fontFamily || family, weight: st.fontWeight || 400, lh: L.lineH, underline: !!href,
             }),
           ]),
@@ -692,47 +842,13 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     }
     body.push(itemGroup('message', it.id, 'message', inner, { 'data-from': it.from, 'data-to': it.to, ...linkAttr(href) }));
   }
-  // participant heads (and optional mirrored feet)
-  /** A participant's head centred on (px, cy): its shape or figure, its icon and image, its name. */
-  const headNodes = (x: Part, px: number, cy: number, href: ReturnType<typeof itemLink>, foot: boolean): SceneNode[] => {
-    const { st, figure, deco } = x;
-    const color = href ? LINK_COLOR : st.text;
-    const to: TextOpts = { size: x.nameSize, weight: st.fontWeight, color, family: st.fontFamily || family, underline: !!href };
-    if (x.media) {
-      // an image or icon participant: the asset, then the name under (or above) it; the foot's assets are the head's again
-      const box = { x: px, y: cy, w: x.w, h: x.h };
-      const out = mediaAssetNodes(foot ? { ...env, diagnostics: [] } : env, kit(), box, x.media.box, x.media.src, st, {
-        key: foot ? `${x.p.id}:foot` : x.p.id, family, line: x.p.defLine ?? minOf(x.p.lines), source: x.fromCode ? 'code' : 'meta',
-      });
-      if (x.name.lines.length) out.push(...withLink(href, drawText(x.name, px, captionY(box, x.media.box), { ...to, lh: 1.3 })));
-      return out;
-    }
-    const text = { w: x.name.w, h: x.name.lines.length * x.nameSize * 1.3 };
-    // the assets of the foot are the head's again: its diagnostics are not repeated, its images get keys of their own
-    const at = (top: number): { nodes: SceneNode[]; y: number; x: number } => {
-      if (!decorated(deco)) return { nodes: [], x: px, y: top + text.h / 2 };
-      const D = decorate(foot ? { ctx, diagnostics: [] } : env, kit, deco, px, top, text, {
-        key: foot ? `${x.p.id}:foot` : x.p.id, line: x.p.defLine ?? minOf(x.p.lines), family, ...(st.text ? { color: st.text } : {}), source: x.fromCode ? 'code' : 'meta',
-      });
-      return { nodes: D.nodes, x: D.contentBox.x, y: D.contentBox.y };
-    };
-    if (figure) {
-      // the figure at the top, the name (with its icon and image) under it
-      const top = cy - x.h / 2 + 4;
-      const fig = st.shape === 'actor'
-        ? [g({ fill: 'none', stroke: st.stroke, 'stroke-width': 2 }, [
-          el('circle', { cx: px, cy: top + 8, r: 8 }),
-          el('path', { d: `M${fmt(px)},${fmt(top + 16)} v20 M${fmt(px - 14)},${fmt(top + 24)} h28 M${fmt(px)},${fmt(top + 36)} l-12,16 M${fmt(px)},${fmt(top + 36)} l12,16` }),
-        ])]
-        : shapeDef(st.shape).draw({ x: px, y: top + figure.h / 2, w: figure.w, h: figure.h }, st, {});
-      const name = at(top + figure.h + 6);
-      return [...fig, ...name.nodes, ...withLink(href, drawText(x.name, name.x, name.y, to))];
-    }
-    const shape = st.shape === 'database' ? 'cylinder' : st.shape === 'box' ? 'rect' : st.shape;
-    const block = decorated(deco) ? decoratedSize(deco, text) : text;
-    const name = at(cy + (shape === 'cylinder' ? 4 : 0) - block.h / 2);
-    return [...stackedShapeNodes(shape, { x: px, y: cy, w: x.w, h: x.h }, st), ...name.nodes, ...withLink(href, drawText(x.name, name.x, name.y, to))];
-  };
+  return msgGeom;
+}
+
+/** The participants' heads (at a created one's row), and their mirrored feet at the bottom (under a destroyed one's cross). */
+function drawHeads(r: SeqRun, parts: readonly Part[], cx: readonly number[], bottom: number, body: SceneNode[]): { partGeom: Map<string, BoxGeom>; footGeom: Map<string, BoxGeom> } {
+  const { env, L } = r;
+  const { ctx } = env;
   const partGeom = new Map<string, BoxGeom>(), footGeom = new Map<string, BoxGeom>();
   parts.forEach((x, i) => {
     if (x.hidden) return;
@@ -740,48 +856,63 @@ export function renderSequence(model: SequenceModel, env: RenderEnv): SubResult 
     // its own link first, else the first of its Mermaid links; all of them make the viewer's menu
     const href = x.m.link ? itemLink(ctx, x.m.link) : firstLink(ctx, x.p);
     const attrs = { ...linkAttr(href), ...menuAttr(ctx, x.p) };
-    const hy = x.createdY ?? top + x.h / 2;
-    body.push(itemGroup('participant', x.p.id, 'participant', headNodes(x, px, hy, href, false), attrs));
+    const hy = x.createdY ?? L.top + x.h / 2;
+    body.push(itemGroup('participant', x.p.id, 'participant', headNodes(r, x, px, hy, href, false), attrs));
     if (L.mirror) {
       // the copy at the bottom: selectable / resizable like the head (data-foot tells the editor which one was picked);
       // a destroyed participant's copy sits under its cross
       const fy = x.destroyedY !== undefined ? x.destroyedY + 14 + x.h / 2 : bottom + x.h / 2;
       body.push(
-        itemGroup('participant', x.p.id, 'participant', headNodes(x, px, fy, href, true), { 'data-foot': '1', ...attrs }, 'foot'),
+        itemGroup('participant', x.p.id, 'participant', headNodes(r, x, px, fy, href, true), { 'data-foot': '1', ...attrs }, 'foot'),
       );
       footGeom.set(x.p.id, { x: px, y: fy, w: x.w, h: x.h, ...(x.media ? { asset: assetBox({ x: px, y: fy, w: x.w, h: x.h }, x.media.box) } : {}) });
     }
     partGeom.set(x.p.id, { x: px, y: hy, w: x.w, h: x.h, ...(x.media ? { asset: assetBox({ x: px, y: hy, w: x.w, h: x.h }, x.media.box) } : {}) });
   });
+  return { partGeom, footGeom };
+}
 
-  const pad = env.pad;
-  const bounds = {
-    x: 0,
-    y: top - (model.boxes.length ? 40 : 14) - pad,
-    w: W + L.margin / 2 + pad,
-    h: (L.mirror ? bottom + headH : bottom + 24) - top + 40 + pad * 2,
+/** A participant's head centred on (px, cy): its shape or figure, its icon and image, its name. */
+function headNodes(r: SeqRun, x: Part, px: number, cy: number, href: ReturnType<typeof itemLink>, foot: boolean): SceneNode[] {
+  const { env, family, kit } = r;
+  const { ctx } = env;
+  const { st, figure, deco } = x;
+  const color = href ? LINK_COLOR : st.text;
+  const to: TextOpts = { size: x.nameSize, weight: st.fontWeight, color, family: st.fontFamily || family, underline: !!href };
+  if (x.media) {
+    // an image or icon participant: the asset, then the name under (or above) it; the foot's assets are the head's again
+    const box = { x: px, y: cy, w: x.w, h: x.h };
+    const out = mediaAssetNodes(foot ? { ...env, diagnostics: [] } : env, kit(), box, x.media.box, x.media.src, st, {
+      key: foot ? `${x.p.id}:foot` : x.p.id, family, line: x.p.defLine ?? minOf(x.p.lines), source: x.fromCode ? 'code' : 'meta',
+    });
+    if (x.name.lines.length) out.push(...withLink(href, r.drawText(x.name, px, captionY(box, x.media.box), { ...to, lh: 1.3 })));
+    return out;
+  }
+  const text = { w: x.name.w, h: x.name.lines.length * x.nameSize * 1.3 };
+  // the assets of the foot are the head's again: its diagnostics are not repeated, its images get keys of their own
+  const at = (top: number): { nodes: SceneNode[]; y: number; x: number } => {
+    if (!decorated(deco)) return { nodes: [], x: px, y: top + text.h / 2 };
+    const D = decorate(foot ? { ctx, diagnostics: [] } : env, kit, deco, px, top, text, {
+      key: foot ? `${x.p.id}:foot` : x.p.id, line: x.p.defLine ?? minOf(x.p.lines), family, ...(st.text ? { color: st.text } : {}), source: x.fromCode ? 'code' : 'meta',
+    });
+    return { nodes: D.nodes, x: D.contentBox.x, y: D.contentBox.y };
   };
-
-  // the diagram's `title` (parsed but never drawn by the prototype, A.13): a page title above the participants
-  body.unshift(...diagramTitle(bounds, model.title, ctx, family, pad));
-
-  const geom: SequenceGeometry = {
-    type: 'sequence',
-    participants: partGeom,
-    participantFeet: footGeom,
-    messages: msgGeom,
-    activations: actGeom,
-    boxes: boxGeom,
-    blocks: blockGeom,
-    notes: noteGeom,
-    autoX: new Map(parts.map((x, i) => [x.p.id, auto[i]!])),
-    lifelines,
-  };
-  const out: SubResult = { defs: defs.nodes(), body, bounds, geom, presetsUsed: { message: countBy(msgs.map((x) => x.preset || '(none)')) } };
-  // `accTitle` / `accDescr`: the SVG's <title> and <desc>
-  const a11y = a11yOf(model);
-  if (a11y) out.a11y = a11y;
-  return out;
+  if (figure) {
+    // the figure at the top, the name (with its icon and image) under it
+    const top = cy - x.h / 2 + 4;
+    const fig = st.shape === 'actor'
+      ? [g({ fill: 'none', stroke: st.stroke, 'stroke-width': 2 }, [
+        el('circle', { cx: px, cy: top + 8, r: 8 }),
+        el('path', { d: `M${fmt(px)},${fmt(top + 16)} v20 M${fmt(px - 14)},${fmt(top + 24)} h28 M${fmt(px)},${fmt(top + 36)} l-12,16 M${fmt(px)},${fmt(top + 36)} l12,16` }),
+      ])]
+      : shapeDef(st.shape).draw({ x: px, y: top + figure.h / 2, w: figure.w, h: figure.h }, st, {});
+    const name = at(top + figure.h + 6);
+    return [...fig, ...name.nodes, ...withLink(href, r.drawText(x.name, name.x, name.y, to))];
+  }
+  const shape = st.shape === 'database' ? 'cylinder' : st.shape === 'box' ? 'rect' : st.shape;
+  const block = decorated(deco) ? decoratedSize(deco, text) : text;
+  const name = at(cy + (shape === 'cylinder' ? 4 : 0) - block.h / 2);
+  return [...stackedShapeNodes(shape, { x: px, y: cy, w: x.w, h: x.h }, st), ...name.nodes, ...withLink(href, r.drawText(x.name, name.x, name.y, to))];
 }
 
 /** Radius of a central connection's circle. */
