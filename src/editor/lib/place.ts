@@ -4,17 +4,39 @@ import type { Rect } from '../../core/types.js';
 import type { EditorCore, Sel } from '../core.js';
 import { itemEls } from './canvas.js';
 
-/** Horizontal strip of the canvas not covered by the tool dock or the open panel stacks (wrap coords). */
-export function freeStrip(core: EditorCore): [number, number] {
-  const wrap = core.dom.wrap;
-  const wr = wrap.getBoundingClientRect();
+/** What a measured dock edge holds for: the canvas size, the view (a new object per `view` change), the mode and the compact preset. */
+interface DockEdge {
+  w: number;
+  h: number;
+  view: unknown;
+  mode: string;
+  compact: boolean;
+  edge: number;
+}
+
+/** The tool dock's right edge per editor (wrap coords; 0: no dock shown), measured again after a resize of the canvas or a `view` event, not per placement (P22, BUG-029). */
+const dockEdges = new WeakMap<EditorCore, DockEdge>();
+
+function dockEdge(core: EditorCore, wr: DOMRect): number {
+  const view = core.canvas.view.peek(), mode = core.mode.peek(), compact = core.compact.peek();
+  const c = dockEdges.get(core);
+  if (c && c.w === wr.width && c.h === wr.height && c.view === view && c.mode === mode && c.compact === compact) return c.edge;
+  const dock = core.dom.wrap.querySelector('.tool-dock');
   const shown = (e: Element | null): e is HTMLElement => {
     if (!(e instanceof HTMLElement) || e.offsetParent === null) return false;
     const cs = getComputedStyle(e);
     return cs.visibility !== 'hidden' && cs.display !== 'none';
   };
-  const dock = wrap.querySelector('.tool-dock'), stacks = core.stackInsets.peek();
-  let lo = shown(dock) ? dock.getBoundingClientRect().right - wr.left : 0;
+  const edge = shown(dock) ? dock.getBoundingClientRect().right - wr.left : 0;
+  dockEdges.set(core, { w: wr.width, h: wr.height, view, mode, compact, edge });
+  return edge;
+}
+
+/** Horizontal strip of the canvas not covered by the tool dock or the open panel stacks (wrap coords). */
+export function freeStrip(core: EditorCore): [number, number] {
+  const wr = core.dom.wrap.getBoundingClientRect();
+  const stacks = core.stackInsets.peek();
+  let lo = dockEdge(core, wr);
   if (stacks) lo = Math.max(lo, stacks.left);
   const hi = wr.width - (stacks?.right ?? 0) - 10;
   lo += 10;
