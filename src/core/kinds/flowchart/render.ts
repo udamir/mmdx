@@ -4,20 +4,20 @@
 import { a11yOf, Bounds, depthOf, EMPTY_META, hiddenGroups, str } from '../../render/graph-kit.js';
 import { diagramTitle } from '../../render/title.js';
 import { layered, type LayoutEdge, type LayoutNode } from '../../layout/layered.js';
-import { ancestorsOf, layoutCompound, type CompoundContainer, type CompoundNode, type CompoundResult } from '../../layout/compound.js';
-import { polylineCrosses, routeAround } from '../../layout/route.js';
+import { containerBox, crossedOf, edgeLabel, edgeStroke, groupFrame, handFrame, mediaKitOnce, placeAuto, placedContainer, placePorts, rectOf, routeAroundScopes, withinOf, type Ports } from '../../render/graph-scene.js';
+import { layoutCompound, type CompoundContainer, type CompoundNode, type CompoundResult } from '../../layout/compound.js';
 import type { ItemMeta } from '../../meta/types.js';
 import type { FlowEdge, FlowGroup, FlowNode, FlowchartModel, MermaidStyle } from '../../model.js';
-import { el, title as tooltip } from '../../scene/build.js';
+import { title as tooltip } from '../../scene/build.js';
 import type { SceneNode, TextRun } from '../../scene/types.js';
 import type { StyleProps } from '../../style.js';
 import { textBlockWidth, wrap } from '../../text/wrap.js';
-import { mediaKit, type MediaKit } from '../../media/kit.js';
+import type { MediaKit } from '../../media/kit.js';
 import { ICON_TOKEN } from '../../icons/names.js';
 import type { IconResolver } from '../../text/rich.js';
 import type { FontSpec } from '../../text/measure.js';
 import type { CenterBox, Point, Rect } from '../../types.js';
-import { assignPorts, cachedLayout, type PortLink, metaNum, metaPoints, byLine, countBy, Defs, edgePath, firstLine, font, haloLabel, hiddenOf, isSide, itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle, outerBox, pickStyle, presetOf, sideToward, stackedShapeNodes, textBlock, urlRef, withLink, memoBy } from '../../render/common.js';
+import { cachedLayout, metaNum, metaPoints, byLine, countBy, Defs, edgePath, firstLine, font, hiddenOf, itemGroup, itemLink, LINK_COLOR, linkAttr, mergeStyle, outerBox, pickStyle, presetOf, stackedShapeNodes, textBlock, urlRef, withLink } from '../../render/common.js';
 import { type RenderEnv, type SubResult, type MediaSource } from '../../render/types.js';
 import type { BoxGeom, EdgeGeom, FlowGeometry, Port } from '../../render/types.js';
 import { onOutline } from '../../shapes/outline.js';
@@ -87,14 +87,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
   const wrapWidth = cfg.wrappingWidth ?? WRAP_WIDTH;
   // rich labels, icons and images draw through the media kit, a lazy chunk (core/media/kit.ts): asked for only when a
   // diagram needs it; without it the render draws plain text and empty boxes, and runs again once it has loaded
-  let kitAsked = false, K: MediaKit | null = null;
-  const kit = (): MediaKit | null => {
-    if (!kitAsked) {
-      kitAsked = true;
-      K = mediaKit();
-    }
-    return K;
-  };
+  const { kit, given } = mediaKitOnce();
   /** A label needs runs: a markdown string, or a token of a registered pack or Font Awesome (the registry decides). */
   const needsRuns = (label: string, md: boolean | undefined): boolean =>
     !!md || (label.includes(':') && [...label.matchAll(ICON_TOKEN)].some((t) => ctx.icons.resolve(t[2]!, 'token') !== null));
@@ -210,8 +203,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     const st = mergeStyle(ctx, ...groupStyleLayers(env.theme, meta, P, preset), ...classDefs, g.style, pickStyle(gm));
     const tfont = font(st.titleSize ?? 14, st.titleWeight, st.fontFamily || family);
     const T = (g.label || '').trim() ? labelLines(g.label, g.md, tfont, st.titleColor, g.line, 0, wrapWidth) : null;
-    const fx = metaNum(gm.x), fy = metaNum(gm.y), fw = metaNum(gm.w), fh = metaNum(gm.h);
-    const frame = fw && fh && fx !== undefined && fy !== undefined ? { x: fx, y: fy, w: fw, h: fh } : null;
+    const frame = handFrame(gm);
     looks.set(g.id, { m: gm, st, preset, lines: T?.lines ?? [], T, frame });
   }
 
@@ -295,7 +287,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     const pad = st.pad ?? 0, padTop = st.padTop ?? pad;
     let box: GroupBox;
     const r = CR?.containers.get(g.id);
-    if (r) box = { x: r.x + r.w / 2, y: r.y + r.h / 2, w: r.w, h: r.h, ...(frame ? { fixed: true } : { empty: !visibleIn.has(g.id) }) };
+    if (r) box = { ...containerBox(r, !!frame), ...(frame ? {} : { empty: !visibleIn.has(g.id) }) };
     else if (frame) box = { x: frame.x + frame.w / 2, y: frame.y + frame.h / 2, w: frame.w, h: frame.h, fixed: true };
     else {
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -368,57 +360,16 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
   const visibleEdges = edgeItems.filter((x) => !x.hidden);
   /** Bend points the compound layout's router gave an edge (never stored: the edge's own `points` win). */
   const routed = new Map<string, [number, number][]>();
-  const bendsOf = (x: EdgeItem): [number, number][] => (x.points.length ? x.points : routed.get(x.e.id) ?? x.points);
-  const horizontal = (d: string): boolean => d === 'LR' || d === 'RL';
-  const placePorts = (): ReturnType<typeof assignPorts> => assignPorts(
-    visibleEdges.map((x) => {
-      const pts = bendsOf(x);
-      const p0 = pts[0], pn = pts[pts.length - 1];
-      const link: PortLink = {
-        id: x.e.id,
-        a: x.a,
-        b: x.b,
-        aKey: x.e.from,
-        bKey: x.e.to,
-        // with bend points, the line leaves / enters on the sides facing its first / last point (unless set by hand)
-        fromSide: (isSide(x.m.fromSide) ? x.m.fromSide : undefined) || (p0 ? sideToward(x.a, { x: p0[0], y: p0[1] }) : undefined),
-        toSide: (isSide(x.m.toSide) ? x.m.toSide : undefined) || (pn ? sideToward(x.b, { x: pn[0], y: pn[1] }) : undefined),
-        fromAt: metaNum(x.m.fromAt),
-        toAt: metaNum(x.m.toAt),
-      };
-      // between auto-placed ends, the ports follow the direction of the subgraph the edge was laid out in
-      const r = CR && autoEnd(x.e.from) && autoEnd(x.e.to) ? CR.edges.get(x.e.id) : undefined;
-      if (r) link.prefer = horizontal(r.dir) ? 'h' : 'v';
-      return link;
-    }),
-    { prefer: horizontal(model.direction) ? 'h' : 'v' },
-  );
-  let ports = placePorts();
+  const place = (): Ports => placePorts(visibleEdges, routed, CR, autoEnd, { prefer: model.direction === 'LR' || model.direction === 'RL' ? 'h' : 'v' });
+  let ports = place();
 
   // ---- draw
   const groupNodes: SceneNode[] = [];
   for (const G of [...groups.values()].sort((a, b) => a.depth - b.depth || a.g.order - b.g.order)) {
     if (groupHidden.has(G.g.id) || G.empty) continue;
     const { box, st, lines } = G;
-    const href = itemLink(ctx, G.m.link);
-    const children = stackedShapeNodes('rect', box, st);
-    if (lines.length && st.titleSize) {
-      const pad = st.pad ?? 0;
-      const ty = box.y - box.h / 2 + (st.padTop ?? pad) / 2 + (G.preset === 'lane' ? -6 : 0);
-      const left = st.titleAlign === 'left';
-      const to = {
-        size: st.titleSize,
-        weight: st.titleWeight,
-        color: href ? LINK_COLOR : st.titleColor,
-        family: st.fontFamily || family,
-        anchor: left ? ('start' as const) : ('middle' as const),
-        lh: 1.25,
-        underline: !!href,
-      };
-      const tx = left ? box.x - box.w / 2 + pad : box.x;
-      children.push(...withLink(href, G.rich ? K!.richText(G.rich, tx, ty, { ...to, measure: ctx.measure }) : [textBlock(lines, tx, ty, to)]));
-    }
-    groupNodes.push(itemGroup('group', G.g.id, 'group', children, linkAttr(href)));
+    const title = lines.length && st.titleSize ? { lines, ...(G.rich ? { rich: G.rich } : {}) } : null;
+    groupNodes.push(groupFrame({ id: G.g.id, box, st, title, href: itemLink(ctx, G.m.link), family, cls: 'group', dy: G.preset === 'lane' ? -6 : 0 }, ctx, kit));
   }
 
   const edgeNodes: SceneNode[] = [], labelNodes: SceneNode[] = [];
@@ -452,28 +403,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     // `e1@{ animate: true }`: dashes flowing along the line in the DOM (CSS, dom/canvas.ts), a still dash in exports
     const anim = e.data?.animate || e.data?.animation ? (e.data.animation === 'slow' ? ' mmdx-flow mmdx-flow-slow' : ' mmdx-flow') : '';
     const dash = anim ? { 'stroke-dasharray': '9 5', 'stroke-linecap': 'round' as const } : dashAttrs(st.dash, width);
-    edgeNodes.push(
-      itemGroup(
-        'edge',
-        e.id,
-        'edge',
-        [
-          el('path', { class: 'hit', d: path.d, fill: 'none', stroke: 'transparent', 'stroke-width': 12 }),
-          el('path', {
-            class: `line${anim}`,
-            d: path.d,
-            fill: 'none',
-            stroke: st.color,
-            'stroke-width': width,
-            'stroke-opacity': st.strokeOpacity,
-            ...dash,
-            'marker-end': urlRef(mkE),
-            'marker-start': urlRef(mkS),
-          }),
-        ],
-        { 'data-from': e.from, 'data-to': e.to },
-      ),
-    );
+    edgeNodes.push(edgeStroke('edge', e.id, 'edge', e, { class: `line${anim}`, d: path.d, fill: 'none', stroke: st.color, 'stroke-width': width, 'stroke-opacity': st.strokeOpacity, ...dash, 'marker-end': urlRef(mkE), 'marker-start': urlRef(mkS) }));
     let labelBox: BoxGeom | null = null;
     if (e.label && !opts.hideLabels) {
       const lp = path.at(metaNum(em.labelAt) ?? 0.5);
@@ -485,10 +415,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
       const L = labelLines(e.label, e.md, labelFont(st), color, e.src, 0, wrapWidth);
       const lines = L.lines;
       const lo = { size: labelSize, color, family: st.fontFamily || family, halo: env.paper, weight: st.fontWeight || 400, underline: !!href };
-      const label: SceneNode[] = L.rich
-        ? K!.richText(L.rich, lx, ly, { ...lo, lh: 1.25, measure: ctx.measure, extra: { stroke: env.paper, 'stroke-width': 4, 'stroke-linejoin': 'round', 'paint-order': 'stroke' } })
-        : [haloLabel(lines, lx, ly, lo)];
-      labelNodes.push(itemGroup('edge', e.id, 'elabel', withLink(href, label), { 'data-part': 'label', 'data-from': e.from, 'data-to': e.to, ...linkAttr(href) }, 'label'));
+      labelNodes.push(edgeLabel('edge', e.id, L, lx, ly, lo, href, ctx, kit, e));
       labelBox = { x: lx, y: ly, w: L.w, h: lines.length * labelSize * 1.25 };
     }
     // a routed line has one handle in its middle, as a line without bend points (the route is not stored)
@@ -534,7 +461,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
       anchor: align === 'left' ? ('start' as const) : align === 'right' ? ('end' as const) : ('middle' as const),
       underline: !!href,
     };
-    const label = N.rich ? K!.richText(N.rich, tx, ty, { ...to, measure: ctx.measure }) : [textBlock(N.lines, tx, ty, to)];
+    const label = N.rich ? given()!.richText(N.rich, tx, ty, { ...to, measure: ctx.measure }) : [textBlock(N.lines, tx, ty, to)];
     const shown = !def.below || N.n.label !== N.n.id;
     nodeNodes.push(itemGroup('node', id, 'node', [...stackedShapeNodes(st.shape, N, st), ...(shown ? withLink(href, label) : []), ...tip], linkAttr(href)));
   }
@@ -592,90 +519,33 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
   }
 
   /**
-   * T07.3: a line between auto-placed ends must not cross a subgraph that holds neither end. Such a line goes through
-   * the points the layout kept free for it, else around the subgraphs in the way (core/layout/route.ts); the ports
-   * are then placed again, facing the first and last bend point. Lines with bend points of their own are left alone.
+   * T07.3 (render/graph-scene.ts routeAroundScopes): a line that leaves a subgraph was laid out between the subgraphs,
+   * not between the nodes, so it also keeps off the other nodes near it and the titles of the subgraphs it leaves (one
+   * laid out inside a scope keeps the layered engine's place).
    */
   function routeAroundGroups(R: CompoundResult): void {
     const frames: { id: string; r: Rect }[] = [];
-    for (const [id, G] of groups) if (!G.empty && !groupHidden.has(id)) frames.push({ id, r: { x: G.box.x - G.box.w / 2, y: G.box.y - G.box.h / 2, w: G.box.w, h: G.box.h } });
+    for (const [id, G] of groups) if (!G.empty && !groupHidden.has(id)) frames.push({ id, r: rectOf(G.box) });
     if (!frames.length) return;
-    const holders = (id: string): string[] => (R.containers.has(id) ? [id, ...ancestorsOf(R.parent, id)] : ancestorsOf(R.parent, id));
-    const obstaclesOf = (x: EdgeItem): Rect[] => {
-      const skip = new Set([...holders(x.e.from), ...holders(x.e.to)]);
-      return frames.filter((f) => !skip.has(f.id)).map((f) => f.r);
-    };
-    const drawn = (x: EdgeItem, pts: readonly (readonly [number, number])[]): Point[] | null => {
-      const pp = ports.get(x.e.id);
-      if (!pp) return null;
-      const path = edgePath(onShape(x.e.from, x.a, pp.a), onShape(x.e.to, x.b, pp.b), { ...routingOf(x), points: pts });
-      return Array.from({ length: 41 }, (_, i) => path.at(i / 40));
-    };
-    const straight = memoBy((x: EdgeItem) => drawn(x, [])); // sampled once for both passes (P7)
-    const ends = (x: EdgeItem): [Point, Point] | null => {
-      const pp = ports.get(x.e.id);
-      return pp ? [onShape(x.e.from, x.a, pp.a), onShape(x.e.to, x.b, pp.b)] : null;
-    };
-    const asPairs = (pts: readonly Point[]): [number, number][] => pts.map((q) => [q.x, q.y]);
-    const todo = visibleEdges.filter((x) => !x.points.length && autoEnd(x.e.from) && autoEnd(x.e.to));
-    // a line that leaves a subgraph was laid out between the subgraphs, not between the nodes: it also keeps off the
-    // other nodes near it (one laid out inside a scope keeps the layered engine's place)
     const boxes: { id: string; r: Rect }[] = [];
-    for (const [id, N] of nodes) if (!hiddenNodes.has(id)) boxes.push({ id, r: { x: N.x - N.w / 2, y: N.y - N.h / 2, w: N.w, h: N.h } });
+    for (const [id, N] of nodes) if (!hiddenNodes.has(id)) boxes.push({ id, r: rectOf(N) });
     const parentOf = (id: string): string | null => (R.containers.has(id) ? id : R.parent.get(id) ?? null);
-    const obstacles = new Map<EdgeItem, Rect[]>();
-    for (const x of todo) {
-      const obs = obstaclesOf(x);
-      if (parentOf(x.e.from) !== parentOf(x.e.to)) {
-        const line = straight(x);
-        if (line) {
-          let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-          for (const q of line) {
-            x0 = Math.min(x0, q.x);
-            y0 = Math.min(y0, q.y);
-            x1 = Math.max(x1, q.x);
-            y1 = Math.max(y1, q.y);
-          }
-          const near = { x: x0 - 60, y: y0 - 60, w: x1 - x0 + 120, h: y1 - y0 + 120 };
-          for (const b of boxes)
-            if (b.id !== x.e.from && b.id !== x.e.to && b.r.x < near.x + near.w && b.r.x + b.r.w > near.x && b.r.y < near.y + near.h && b.r.y + b.r.h > near.y) obs.push(b.r);
-          // nor through the titles of the subgraphs it leaves
-          for (const id of new Set([...holders(x.e.from), ...holders(x.e.to)])) {
-            const G = groups.get(id);
-            if (!G || G.empty || !G.lines.length || !G.st.titleSize || id === x.e.from || id === x.e.to) continue;
-            const band = G.st.padTop ?? G.st.pad ?? 0;
-            if (band > 0) obs.push({ x: G.box.x - G.box.w / 2, y: G.box.y - G.box.h / 2, w: G.box.w, h: band });
-          }
+    routeAroundScopes(R, {
+      todo: visibleEdges.filter((x) => !x.points.length && autoEnd(x.e.from) && autoEnd(x.e.to)),
+      frames, boxes, near: (x) => parentOf(x.e.from) !== parentOf(x.e.to),
+      more: (x, holders) => {
+        const bands: Rect[] = [];
+        for (const id of holders) {
+          const G = groups.get(id);
+          if (!G || G.empty || !G.lines.length || !G.st.titleSize || id === x.e.from || id === x.e.to) continue;
+          const band = G.st.padTop ?? G.st.pad ?? 0;
+          if (band > 0) bands.push({ x: G.box.x - G.box.w / 2, y: G.box.y - G.box.h / 2, w: G.box.w, h: band });
         }
-      }
-      obstacles.set(x, obs);
-    }
-    for (const x of todo) {
-      const obs = obstacles.get(x)!;
-      const line = obs.length ? straight(x) : null;
-      if (!line || !polylineCrosses(line, obs)) continue;
-      const hint = R.edges.get(x.e.id)?.points ?? [];
-      const viaHint = hint.length ? drawn(x, asPairs(hint)) : null;
-      if (viaHint && !polylineCrosses(viaHint, obs)) {
-        routed.set(x.e.id, asPairs(hint));
-        continue;
-      }
-      const ab = ends(x);
-      const around = ab && routeAround(ab[0], ab[1], obs, 18);
-      if (around) routed.set(x.e.id, asPairs(around));
-    }
-    if (!routed.size) return;
-    ports = placePorts();
-    // with the ports placed again a curve may still clip a corner: once more from the new ports, with a wider margin
-    for (const x of todo) {
-      if (!routed.has(x.e.id)) continue;
-      const obs = obstacles.get(x)!;
-      const line = drawn(x, routed.get(x.e.id)!);
-      if (!line || !polylineCrosses(line, obs)) continue;
-      const ab = ends(x);
-      const around = ab && routeAround(ab[0], ab[1], obs, 32);
-      if (around) routed.set(x.e.id, asPairs(around));
-    }
+        return bands;
+      },
+      ends: (x, pp) => [onShape(x.e.from, x.a, pp.a), onShape(x.e.to, x.b, pp.b)],
+      path: routingOf, margins: [18, 32], ports, replacePorts: () => (ports = place()), routed,
+    });
   }
 
   /**
@@ -688,17 +558,8 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
       const l = firstLine(n.defLine, n.lines);
       return Number.isFinite(l) ? l : undefined;
     };
-    /** `id` is the group or inside it. */
-    const within = (id: string, gid: string): boolean => {
-      const seen = new Set<string>();
-      for (let p: string | null = id; p && !seen.has(p); p = model.nodes.get(p)?.parent ?? model.groups.get(p)?.parent ?? null) {
-        if (p === gid) return true;
-        seen.add(p);
-      }
-      return false;
-    };
     // a link to a node inside from outside crosses the border; a link to the subgraph itself does not (Mermaid)
-    const crossed = (gid: string): boolean => model.edges.some((e) => e.from !== gid && e.to !== gid && within(e.from, gid) !== within(e.to, gid));
+    const crossed = crossedOf(model.edges, withinOf((id) => model.nodes.get(id)?.parent ?? model.groups.get(id)?.parent ?? null));
     const containers: CompoundContainer[] = [];
     for (const g of model.groups.values()) {
       if (!holdsNode.has(g.id)) continue;
@@ -707,13 +568,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
       const c: CompoundContainer = { id: g.id, parent: g.parent && holdsNode.has(g.parent) ? g.parent : null, order: g.line, pad };
       if (g.dir && !crossed(g.id)) c.dir = g.dir;
       if (lines.length) c.title = { w: T?.w ?? 0, h: st.titleSize ? padTop : pad };
-      if (frame) c.fixed = frame;
-      else {
-        // "Reset positions in this group" keeps the group's top-left (x / y without a size)
-        const ax = metaNum(gm.x), ay = metaNum(gm.y);
-        if (ax !== undefined && ay !== undefined) c.at = { x: ax, y: ay };
-      }
-      containers.push(c);
+      containers.push(placedContainer(c, gm, frame));
     }
     const cn: CompoundNode[] = [...nodes.values()].map((N) => {
       const n = N.n;
@@ -728,13 +583,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
       { nodes: cn, containers, edges: ce },
       { dir: model.direction, rankSep: 70, nodeSep: 46, padding: 14, margin: 60, placedGap: 60, cache: ctx.layoutCache },
     );
-    for (const N of nodes.values()) {
-      if (!R.auto.has(N.n.id)) continue;
-      const p = R.nodes.get(N.n.id)!;
-      N.x = p.x;
-      N.y = p.y;
-      N.auto = true;
-    }
+    placeAuto(R, nodes);
     return R;
   }
 
@@ -748,7 +597,7 @@ export function renderFlowchart(model: FlowchartModel, env: RenderEnv): SubResul
     const fontSize = st.fontSize ?? 14;
     const cy = captionY(N, M);
     const to = { size: fontSize, weight: st.fontWeight, color: href ? LINK_COLOR : st.text, family: st.fontFamily || family, lh: 1.3, underline: !!href };
-    out.push(...withLink(href, N.rich ? K!.richText(N.rich, N.x, cy, { ...to, measure: ctx.measure }) : [textBlock(N.lines, N.x, cy, to)]));
+    out.push(...withLink(href, N.rich ? given()!.richText(N.rich, N.x, cy, { ...to, measure: ctx.measure }) : [textBlock(N.lines, N.x, cy, to)]));
     return out;
   }
 }
