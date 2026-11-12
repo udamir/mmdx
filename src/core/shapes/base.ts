@@ -48,6 +48,19 @@ const cylRy = (h: number): number => Math.min(9, h * 0.16);
 const hcylRx = (w: number): number => Math.min(10, w * 0.1);
 const lean = (w: number, h: number): number => Math.min(h * 0.4, w / 5);
 
+/** A four-sided shape with corners pulled in by the lean, each 1 (in) or 0 (square), top-left, top-right, bottom-right, bottom-left: the parallelograms and the trapezoids. */
+const quadShape = ([tl, tr, br, bl]: readonly [number, number, number, number]): Pick<ShapeDef, 'draw' | 'outline'> => ({
+  draw: (b, st, extra) => {
+    const { x, y, w, h, pa } = frame(b, st, extra);
+    const k = lean(w, h);
+    return [el('path', { d: `M${P(x + tl * k, y)} L${P(x + w - tr * k, y)} L${P(x + w - br * k, y + h)} L${P(x + bl * k, y + h)} Z`, ...pa })];
+  },
+  outline: (w, h) => {
+    const k = lean(w, h), hw = w / 2, hh = h / 2;
+    return poly([-hw + tl * k, -hh], [hw - tr * k, -hh], [hw - br * k, hh], [-hw + bl * k, hh]);
+  },
+});
+
 export const BASE: readonly ShapeDef[] = [
   {
     id: 'rect', mermaid: 'rect', aliases: ['proc', 'process', 'rectangle', 'composite'], legacy: ['squareRect'], bracket: ['[', ']'],
@@ -174,15 +187,7 @@ export const BASE: readonly ShapeDef[] = [
       legacy: s ? ['lean_right', 'lean_r'] : ['lean_left', 'lean_l'], bracket: s ? ['[/', '/]'] : ['[\\', '\\]'],
       name: s ? 'Data input / output' : 'Data output / input', title: s ? 'Lean right' : 'Lean left', category: 'basic', size: { w: 130, h: 56 },
       ...(s ? { menu: [4, 'Input / Output'] as const } : {}),
-      draw: (b, st, extra) => {
-        const { x, y, w, h, pa } = frame(b, st, extra);
-        const k = lean(w, h);
-        return [el('path', { d: `M${P(x + (s ? k : 0), y)} L${P(x + w - (s ? 0 : k), y)} L${P(x + w - (s ? k : 0), y + h)} L${P(x + (s ? 0 : k), y + h)} Z`, ...pa })];
-      },
-      outline: (w, h) => {
-        const k = lean(w, h), hw = w / 2, hh = h / 2;
-        return s ? poly([-hw + k, -hh], [hw, -hh], [hw - k, hh], [-hw, hh]) : poly([-hw, -hh], [hw - k, -hh], [hw, hh], [-hw + k, hh]);
-      },
+      ...quadShape(s ? [1, 0, 1, 0] : [0, 1, 0, 1]),
     };
   }),
   ...(['trapezoid', 'trapezoid-alt'] as const).map((id): ShapeDef => {
@@ -191,15 +196,7 @@ export const BASE: readonly ShapeDef[] = [
       id, mermaid: up ? 'trap-b' : 'trap-t', aliases: up ? ['priority', 'trapezoid-bottom', 'trapezoid'] : ['manual', 'trapezoid-top', 'inv-trapezoid'],
       legacy: up ? ['trap_b'] : ['inv_trapezoid', 'trap_t'], bracket: up ? ['[/', '\\]'] : ['[\\', '/]'],
       name: up ? 'Priority action' : 'Manual operation', title: up ? 'Trapezoid base bottom' : 'Trapezoid base top', category: 'basic', size: { w: 130, h: 56 },
-      draw: (b, st, extra) => {
-        const { x, y, w, h, pa } = frame(b, st, extra);
-        const k = lean(w, h);
-        return [el('path', { d: `M${P(x + (up ? k : 0), y)} L${P(x + w - (up ? k : 0), y)} L${P(x + w - (up ? 0 : k), y + h)} L${P(x + (up ? 0 : k), y + h)} Z`, ...pa })];
-      },
-      outline: (w, h) => {
-        const k = lean(w, h), hw = w / 2, hh = h / 2;
-        return up ? poly([-hw + k, -hh], [hw - k, -hh], [hw, hh], [-hw, hh]) : poly([-hw, -hh], [hw, -hh], [hw - k, hh], [-hw + k, hh]);
-      },
+      ...quadShape(up ? [1, 1, 0, 0] : [0, 0, 1, 1]),
     };
   }),
   {
