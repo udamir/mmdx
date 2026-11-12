@@ -17,7 +17,7 @@ import { metaToLines } from '../../../core/meta/index.js';
 
 export type { Issue };
 
-export const CODE_PANEL_CSS = /* css */ `
+const CODE_PANEL_CSS = /* css */ `
 ${CODE_EDITOR_CSS}
 .code-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .tab-body { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 8px; gap: 6px; }

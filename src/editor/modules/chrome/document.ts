@@ -157,7 +157,7 @@ export async function openFiles(core: EditorCore, files: FileList | File[]): Pro
   }
 }
 
-export const DOCUMENT_CSS = /* css */ `
+const DOCUMENT_CSS = /* css */ `
 .mmdx-dialog.mm-card { width: min(1200px, calc(100% - 48px)); height: min(860px, calc(100% - 48px)); }
 .mm-body { flex: 1; overflow: auto; min-height: 0; }
 .mm-body svg { max-width: 100%; height: auto; }

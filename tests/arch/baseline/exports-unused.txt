@@ -1,17 +1,7 @@
 # exported values no other file names (tools/check-exports.mjs); may only shrink: un-export or delete, then remove the line
-core/kinds/all-extras.ts › ALL_EXTRAS
 diff/modules/bar.ts › DIFF_BAR_CSS
 diff/modules/export.ts › HOST_ACTIONS_CSS
 diff/scene.ts › DIFF_SCENE_CSS
-editor/modules/canvas/empty.ts › EMPTY_CSS
-editor/modules/canvas/inline-edit.ts › INLINE_EDIT_CSS
-editor/modules/canvas/paint.ts › PAINT_CSS
-editor/modules/canvas/structure.ts › STRUCTURE_CSS
-editor/modules/chrome/document.ts › DOCUMENT_CSS
-editor/modules/chrome/tool-dock.ts › EDITOR_TOOLS_CSS
-editor/modules/chrome/toolbars.ts › TOOLBARS_CSS
-editor/modules/panels/code-panel.ts › CODE_PANEL_CSS
-editor/modules/panels/right-panels.ts › RIGHT_PANELS_CSS
 theme-editor/constants.ts › DEFAULT_SAMPLES
 view/link-menu.ts › followLink
 view/link-menu.ts › linkAt

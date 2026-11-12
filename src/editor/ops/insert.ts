@@ -5,7 +5,7 @@ import type { ItemRef } from '../../core/types.js';
 import type { EditorCore, Sel } from '../core.js';
 
 /** Opens an item's text now: the inline editor, else the Properties panel. */
-export function editText(core: EditorCore, it: ItemRef): void {
+function editText(core: EditorCore, it: ItemRef): void {
   if (!core.run('inlineEdit', it)) core.run('setPanel', 'properties', true);
 }
 

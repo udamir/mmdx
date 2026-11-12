@@ -11,7 +11,7 @@ import { createStatusBox, STATUS_BOX_CSS } from '../../../ui/blocks/status-box.j
 import type { EditorCore } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 
-export const EMPTY_CSS = /* css */ `
+const EMPTY_CSS = /* css */ `
 .empty-hint { position: absolute; left: 0; top: 0; display: grid; place-items: center; color: var(--muted); font-size: 15px; pointer-events: none;
   padding: 0 24px; box-sizing: border-box; text-align: center; overflow: hidden; line-height: 1.4; z-index: 2; }
 .type-chooser { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 15; text-align: center; padding: 24px 26px;

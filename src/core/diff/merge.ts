@@ -39,7 +39,7 @@ function mergeMeta(a: DiagramMeta, b: DiagramMeta): DiagramMeta {
   return meta;
 }
 
-export function carryMeta(meta: DiagramMeta, before: DiagramMeta, kind: ItemKind, fromId: string, toId: string): void {
+function carryMeta(meta: DiagramMeta, before: DiagramMeta, kind: ItemKind, fromId: string, toId: string): void {
   const coll = Object.hasOwn(KIND_TO_COLL, kind) ? KIND_TO_COLL[kind as keyof typeof KIND_TO_COLL] : undefined;
   if (!coll || coll === 'layers') return;
   const src = own(before[coll] as Record<string, ItemMeta> | undefined, fromId);

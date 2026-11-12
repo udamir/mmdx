@@ -22,7 +22,7 @@ import { sameRef } from '../../lib/refs.js';
 import { items as nItems } from '../../lib/canvas.js';
 
 /** The board's right-click menu is the Menu block. */
-export const STRUCTURE_CSS = MENU_CSS;
+const STRUCTURE_CSS = MENU_CSS;
 
 /** Clipboard MIME type of the editor's own format (§8.2); `web ` prefix = custom format of the async clipboard API. */
 const MMDX_CLIPBOARD_TYPE = 'web application/x-mmdx+json';

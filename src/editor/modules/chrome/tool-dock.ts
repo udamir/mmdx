@@ -9,7 +9,7 @@ import { I_code, I_layers, I_pointer, I_props, I_redo, I_shapes, I_undo } from '
 import type { Tool } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 
-export const EDITOR_TOOLS_CSS = /* css */ `
+const EDITOR_TOOLS_CSS = /* css */ `
 .mode-edit .view-only { display: none !important; }
 [data-stage=version] .no-version { display: none !important; }
 `;

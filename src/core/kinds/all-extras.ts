@@ -6,6 +6,5 @@ import { EXTRAS as mindmap } from './mindmap/extras.js';
 import { registerExtras } from './registry.js';
 import { EXTRAS as sequence } from './sequence/extras.js';
 import { EXTRAS as state } from './state/extras.js';
-import type { ExtrasKinds } from '../kind/extras-types.js';
 
-export const ALL_EXTRAS: ExtrasKinds = registerExtras({ flowchart, sequence, er, mindmap, state });
+registerExtras({ flowchart, sequence, er, mindmap, state });

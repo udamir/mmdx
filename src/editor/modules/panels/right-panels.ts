@@ -10,7 +10,7 @@ import { LiveEdit } from '../../ops/live.js';
 import { LAYERS_CSS, layersCard } from './layers.js';
 import type { PanelCtx } from './properties.js';
 
-export const RIGHT_PANELS_CSS = /* css */ `
+const RIGHT_PANELS_CSS = /* css */ `
 ${LAYERS_CSS}
 .mmdx-split:not([hidden]) + .mmdx-panel.layers { flex: 0 1 auto; max-height: 45%; }
 .mmdx-split:not([hidden]) + .mmdx-panel.layers[style*="flex"] { max-height: none; }

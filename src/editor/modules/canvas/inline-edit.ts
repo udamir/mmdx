@@ -11,7 +11,7 @@ import type { EditorModule } from '../../module.js';
 import { formatsAt, hasMarkup, toggleFormat, type TextFormat } from '../../ops/format.js';
 import { labelSpec } from '../../ops/label.js';
 
-export const INLINE_EDIT_CSS = /* css */ `
+const INLINE_EDIT_CSS = /* css */ `
 .inline-edit { position: absolute; z-index: 30; box-sizing: border-box; resize: none; overflow: hidden; margin: 0;
   padding: 0; line-height: 1.25; border: 0; border-radius: 0; background: transparent; box-shadow: none; outline: none;
   caret-color: var(--accent); white-space: pre-wrap; }

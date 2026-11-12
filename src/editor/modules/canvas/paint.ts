@@ -9,7 +9,7 @@ import type { EditorModule } from '../../module.js';
 import { GESTURE } from '../../lib/priorities.js';
 import { sameRef } from '../../lib/refs.js';
 
-export const PAINT_CSS = /* css */ `
+const PAINT_CSS = /* css */ `
 .ed.tool-paint svg.canvas, .ed.tool-paint svg.canvas .el, .ed.tool-paint svg.canvas .el * { cursor: copy !important; }
 `;
 

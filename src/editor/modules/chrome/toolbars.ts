@@ -18,7 +18,7 @@ import { pageToolbarApi } from './page-api.js';
 import { paletteApi } from './palette-api.js';
 import { styleToolbarApi } from './style-api.js';
 
-export const TOOLBARS_CSS = /* css */ `
+const TOOLBARS_CSS = /* css */ `
 ${STYLE_TOOLBAR_CSS}
 .page-badge { position: absolute; left: 0; top: 0; z-index: 5; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--muted);
   font-size: 11px; font-weight: 600; letter-spacing: .02em; padding: 2px 8px; line-height: 16px; cursor: pointer; white-space: nowrap; }

@@ -39,13 +39,13 @@ export function registerEditorKind(type: DiagramType, chunk: () => Promise<KindC
 const version = signal(0);
 
 /** Changes whenever a kind finishes loading (a tracked read: computeds that parse depend on it). */
-export const kindsVersion = (): number => version();
+const kindsVersion = (): number => version();
 
 /** Are the view, ops and edit kinds of the type loaded? */
 export const editorHasKind = (t: DiagramType): boolean => !!viewKind(t) && !!opsKind(t) && !!editKind(t);
 
 /** The view kinds of the types the editor can edit (their ops and edit kinds are loaded too): what its document parses with. */
-export const editorKinds = (): Kinds => Object.fromEntries(Object.entries(registeredKinds()).filter(([t]) => editorHasKind(t)));
+const editorKinds = (): Kinds => Object.fromEntries(Object.entries(registeredKinds()).filter(([t]) => editorHasKind(t)));
 
 /**
  * Parses code as the editor does (its document and a shown version): once the editor has the type's kinds (view, ops and edit), and only with the editor's types; while they load, an empty model (no problems). A viewer or a gallery may have loaded a type's parser before the editor's chunk of it, and a model of that type would reach ops that are not there yet (the editor's lookups fail closed). A tracked read of `kindsVersion`: a computed that parses runs again when a kind arrives.
