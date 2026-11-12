@@ -57,6 +57,34 @@ describe('IconPicker', () => {
     expect(picker.el.querySelector('.ip-none')!.textContent).toBe('No icons match “nothing”');
   });
 
+  it('typing refreshes at most once per animation frame: the first keystroke at once, the rest at the frame; Enter sees the latest (P22)', () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (f: FrameRequestCallback) => frames.push(f));
+    vi.stubGlobal('cancelAnimationFrame', () => undefined);
+    const find = vi.fn((q: string): string[] => ['tabler:user', 'tabler:users', 'tabler:car'].filter((n) => n.includes(q)));
+    const { picker, onPick } = make({ find });
+    const search = picker.el.querySelector<HTMLInputElement>('.ip-search')!;
+    const type = (v: string): void => {
+      search.value = v;
+      search.dispatchEvent(new Event('input'));
+    };
+    find.mockClear();
+    type('u');
+    expect(find).toHaveBeenCalledTimes(1);
+    expect(tiles(picker.el)).toEqual(['tabler:user', 'tabler:users']);
+    type('us');
+    type('use');
+    expect(find).toHaveBeenCalledTimes(1);
+    frames.shift()!(0);
+    expect(find).toHaveBeenCalledTimes(2);
+    expect(find).toHaveBeenLastCalledWith('use', null);
+    // a keystroke waiting for its frame is applied before Enter picks
+    type('users');
+    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(onPick).toHaveBeenCalledWith('tabler:users');
+    vi.unstubAllGlobals();
+  });
+
   it('a tile names its icon and licence; arrows move through the grid', () => {
     const { picker } = make();
     const first = picker.el.querySelector<HTMLElement>('.ip-rows .ip-tile')!;

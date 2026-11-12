@@ -166,13 +166,32 @@ export function createIconPicker(props: IconPickerProps): IconPickerHandle {
       drawRows(true);
     }
 
-    input.addEventListener('input', () => {
-      query = input.value;
+    // typing refreshes at most once per animation frame (P22): the first keystroke at once (what a test or a quick pick sees), the ones during that frame together at its end
+    let frame = 0, pending = false;
+    const search = (): void => {
+      pending = false;
       scroller.scrollTop = 0;
       refresh();
+    };
+    const tick = (): void => {
+      frame = 0;
+      if (!pending) return;
+      search();
+      frame = requestAnimationFrame(tick);
+    };
+    /** Runs a refresh still waiting for its frame (before Enter or ↓ read the results). */
+    const flush = (): void => {
+      if (pending) search();
+    };
+    scope.add(() => frame && cancelAnimationFrame(frame));
+    scope.on(input, 'input', () => {
+      query = input.value;
+      if (frame) return void (pending = true);
+      search();
+      if (typeof requestAnimationFrame === 'function') frame = requestAnimationFrame(tick);
     });
     searchIntoGrid(scope, input, {
-      count: () => list.length, query: () => query, pick: () => p.onPick(list[0]!),
+      count: () => (flush(), list.length), query: () => query, pick: () => p.onPick(list[0]!),
       enter: () => {
         keys.setActive(0);
         drawRows(true);
