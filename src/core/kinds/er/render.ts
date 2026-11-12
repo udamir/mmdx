@@ -154,7 +154,7 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
     if (r.from !== r.to || hidden.rel.has(r.id) || !ents.has(r.from)) continue;
     const st = mergeStyle(ctx, E.rel, baseStyle(meta, 'rel'), presetOf(P.rel, relPreset(r, meta)), pickStyle(meta.rels?.[r.id] ?? EMPTY_META));
     const size = st.labelSize ?? 13, lines = r.label && !opts.hideLabels ? r.label.split('\n') : [];
-    const lw = lines.reduce((w, l) => Math.max(w, ctx.measure.width(l, font(size, 400, st.fontFamily || family))), 0);
+    const lw = textBlockWidth(lines, font(size, 400, st.fontFamily || family), ctx.measure);
     loopRoom.set(r.from, Math.max(loopRoom.get(r.from) ?? 0, 62 + (across(model.direction) ? (lines.length ? lines.length * size * 1.25 + 4 : 0) : lw + 4)));
   }
   const layoutSize = (x: Ent): { w: number; h: number } => {
@@ -279,8 +279,7 @@ export function renderER(model: ErModel, env: RenderEnv): SubResult {
       const lines = r.label.split('\n');
       const size = st.labelSize ?? 13;
       const href = itemLink(ctx, m.link);
-      let lw = 0;
-      for (const l of lines) lw = Math.max(lw, ctx.measure.width(l, font(size, 400, st.fontFamily || family)));
+      const lw = textBlockWidth(lines, font(size, 400, st.fontFamily || family), ctx.measure);
       // a loop's label sits outside it, past its far side
       const loop = r.from === r.to && metaNum(m.labelAt) === undefined;
       const below = loop && across(model.direction);
@@ -418,9 +417,7 @@ function compactLayout(ctx: RenderContext, e: Entity, st: StyleProps, m: ItemMet
   const titleSize = st.titleSize ?? 16;
   const titleLines = title.lines;
   const rich = title.rich && K ? title.rich : null;
-  let tw = 0;
-  if (rich) tw = K!.runsBlockWidth(rich, font(titleSize, st.titleWeight, family), ctx.measure);
-  else for (const t of titleLines) tw = Math.max(tw, ctx.measure.width(t, font(titleSize, st.titleWeight, family)));
+  const tw = rich ? K!.runsBlockWidth(rich, font(titleSize, st.titleWeight, family), ctx.measure) : textBlockWidth(titleLines, font(titleSize, st.titleWeight, family), ctx.measure);
   let inner = Math.max(tw, 0);
   for (const l of lines) inner = Math.max(inner, l.w);
   const w = metaNum(m.w) || Math.max(st.minW ?? 0, inner + padX * 2);
