@@ -26,7 +26,7 @@ import { I_HISTORY } from '../../view/icons.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../../ui/messages/blocks-diff.js';
 
-export const DIFF_PANELS_CSS = /* css */ `
+const DIFF_PANELS_CSS = /* css */ `
 .code-diff { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 `;
 

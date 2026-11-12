@@ -14,7 +14,7 @@ import { signal } from '../../reactive/signal.js';
 import type { ViewCore } from '../core.js';
 import type { ViewModule } from '../module.js';
 
-export const VIEW_PARAMS_CSS = /* css */ `
+const VIEW_PARAMS_CSS = /* css */ `
 .mmdx-toolbar.view-params { position: absolute; top: 12px; right: 12px; z-index: 32; display: flex; align-items: center; gap: 4px; padding: 4px;
   background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: 12px; box-shadow: 0 4px 16px rgba(20,30,60,.10), 0 1px 3px rgba(20,30,60,.06); }
 .view-params .vp-sep { width: 1px; height: 22px; background: var(--mmdx-float-line); margin: 0 2px; }

@@ -1,10 +1,1 @@
 # exported values no other file names (tools/check-exports.mjs); may only shrink: un-export or delete, then remove the line
-diff/modules/bar.ts › DIFF_BAR_CSS
-diff/modules/export.ts › HOST_ACTIONS_CSS
-diff/modules/panels.ts › DIFF_PANELS_CSS
-diff/scene.ts › DIFF_SCENE_CSS
-view/link-menu.ts › followLink
-view/link-menu.ts › linkAt
-view/link-menu.ts › menuLinks
-view/link-menu.ts › openLinkMenu
-view/modules/view-params.ts › VIEW_PARAMS_CSS

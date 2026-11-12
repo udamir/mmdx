@@ -16,7 +16,7 @@ export interface LinkHost {
 }
 
 /** The link under a click: an `<a>` (the viewer's picture) or a `data-link` (the editor's), and the item it is on. */
-export function linkAt(target: EventTarget | null): { el: Element; href: string | null; item: Element | null } | null {
+function linkAt(target: EventTarget | null): { el: Element; href: string | null; item: Element | null } | null {
   const t = target instanceof Element ? target : null;
   const el = t?.closest('[data-link]') ?? t?.closest('a') ?? null;
   if (!el) return null;
@@ -24,7 +24,7 @@ export function linkAt(target: EventTarget | null): { el: Element; href: string 
 }
 
 /** Follows a link: the cancelable `mmdx-link`, then the link policy's target (a new tab by default). */
-export function followLink(core: Pick<LinkHost, 'ctx' | 'emit'>, href: string, item: Element | null): void {
+function followLink(core: Pick<LinkHost, 'ctx' | 'emit'>, href: string, item: Element | null): void {
   if (!core.emit('mmdx-link', { href, id: item?.getAttribute('data-id') ?? null }, true)) return;
   const target = core.ctx.linkPolicy.target ?? '_blank';
   if (target === '_blank') window.open(href, '_blank', 'noopener,noreferrer');
@@ -42,7 +42,7 @@ export function onLinkClick(core: LinkHost, ev: MouseEvent): boolean {
 }
 
 /** The links of the item under `target` when it has a menu of them (two or more), else null. */
-export function menuLinks(target: Element | null): { label: string; href: string }[] | null {
+function menuLinks(target: Element | null): { label: string; href: string }[] | null {
   const raw = target?.closest('[data-links]')?.getAttribute('data-links');
   if (!raw) return null;
   let list: unknown;
@@ -57,7 +57,7 @@ export function menuLinks(target: Element | null): { label: string; href: string
 }
 
 /** Opens the menu of `links` at the click; picking one calls `follow` with its url. */
-export function openLinkMenu(o: { popovers: PopoverManager; within: Element; at: { clientX: number; clientY: number }; label: string; links: readonly { label: string; href: string }[]; follow(href: string): void }): void {
+function openLinkMenu(o: { popovers: PopoverManager; within: Element; at: { clientX: number; clientY: number }; label: string; links: readonly { label: string; href: string }[]; follow(href: string): void }): void {
   openMenu({
     popovers: o.popovers, opener: null, label: o.label, within: o.within, at: o.at, class: 'link-menu',
     entries: o.links.map((l) => ({ label: l.label, title: l.href, run: () => o.follow(l.href) })),

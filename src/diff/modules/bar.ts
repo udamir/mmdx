@@ -20,7 +20,7 @@ import { VIEW_ICONS } from '../view-icons.js';
 
 const VIEW_KEYS: Record<DiffViewName, string> = { before: '1', merged: '2', after: '3', side: '4' };
 
-export const DIFF_BAR_CSS = /* css */ `
+const DIFF_BAR_CSS = /* css */ `
 .dbar { position: absolute; left: calc(var(--inset-l, 0px) + (100% - var(--inset-l, 0px) - var(--inset-r, 0px)) / 2); bottom: 12px; transform: translateX(-50%); z-index: 36;
   white-space: nowrap; max-width: calc(100% - var(--inset-l, 0px) - var(--inset-r, 0px) - 24px); gap: 2px; padding: 3px;
   background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: var(--mmdx-radius); box-shadow: var(--mmdx-shadow); }

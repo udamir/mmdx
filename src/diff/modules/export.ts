@@ -62,7 +62,7 @@ export function diffExportModule(session: DiffSession): ViewModule<ViewCore> {
   };
 }
 
-export const HOST_ACTIONS_CSS = /* css */ `
+const HOST_ACTIONS_CSS = /* css */ `
 .host-actions { display: contents; }
 .view-params .host-actions button { height: 32px; padding: 0 12px; border-radius: 8px; white-space: nowrap; }
 `;

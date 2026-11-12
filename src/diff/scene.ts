@@ -78,7 +78,7 @@ export interface DiffSceneOptions {
 type Kind = 'single' | 'side' | 'plain';
 
 /** The CSS a DiffScene needs besides the diff tokens and canvas styles (its banner). */
-export const DIFF_SCENE_CSS: readonly string[] = [MESSAGES_CSS, STATUS_BOX_CSS, /* css */ `
+const DIFF_SCENE_CSS: readonly string[] = [MESSAGES_CSS, STATUS_BOX_CSS, /* css */ `
 .dx-stage.host-look { gap: 0; background: transparent; }
 .dx-stage.host-look.single, .dx-stage.host-look.side { left: 0; right: 0; }
 /* side by side under the panels: the panes split at the middle of the area between the panel stacks */
