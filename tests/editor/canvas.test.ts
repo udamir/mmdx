@@ -135,6 +135,24 @@ describe('canvas selection', () => {
     expect(core.code.trim()).toBe('sequenceDiagram');
   });
 
+  it('a marquee reports the selection only when it changes (B11, P5)', () => {
+    const { core } = mount(FLOW);
+    const g = core.geom;
+    if (g.type !== 'flowchart') throw new Error();
+    const a = g.nodes.get('A')!;
+    const fired: string[] = [];
+    core.on('selection', () => fired.push(sel(core).sort().join(',')));
+    // from above-left of A, growing in eight steps: empty for the first ones, then A only for the rest
+    const p0 = core.toScreen({ x: a.x - a.w / 2 - 10, y: a.y - a.h / 2 - 10 });
+    const p1 = core.toScreen({ x: a.x + a.w / 2 + 10, y: a.y + a.h / 2 + 4 });
+    pid++;
+    pointer(core.dom.svg, 'pointerdown', p0.x, p0.y);
+    for (let i = 1; i <= 8; i++) pointer(core.dom.svg, 'pointermove', p0.x + ((p1.x - p0.x) * i) / 8, p0.y + ((p1.y - p0.y) * i) / 8);
+    pointer(core.dom.svg, 'pointerup', p1.x, p1.y);
+    expect(sel(core)).toEqual(['node:A']);
+    expect(fired).toEqual(['node:A']);
+  });
+
   it('marquee left to right takes what is fully inside, right to left what it touches', () => {
     const { core } = mount(FLOW);
     const g = core.geom;

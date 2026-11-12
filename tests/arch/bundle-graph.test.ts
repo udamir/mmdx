@@ -26,4 +26,9 @@ describe('static import graphs', () => {
       expect([...c].filter((f) => /^core\/theme\/builtin(-extra)?\.ts$/.test(f)), entry).toEqual([]);
     }
   });
+
+  it('the sequence ops kind does not pull in the sequence renderer (P15)', () => {
+    expect(edges.some((e) => e.from === 'core/kinds/sequence/ops-kind.ts')).toBe(true);
+    expect(staticClosure('core/kinds/sequence/ops-kind.ts').has('core/kinds/sequence/render.ts')).toBe(false);
+  });
 });

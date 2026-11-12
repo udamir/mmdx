@@ -523,6 +523,15 @@ describe('viewer state sync (B19, B20)', () => {
     v.set({ interactive: false });
     expect(root().classList.contains('can-pan')).toBe(false);
   });
+
+  it('the view event fires on a pan of the viewer (B45)', async () => {
+    const { host, v } = mount({ source: 'flowchart LR\n  a --> b' });
+    await vi.waitFor(() => expect(host.shadowRoot!.querySelector('.el[data-kind="node"]')).not.toBeNull());
+    let n = 0;
+    v.core.on('view', () => n++);
+    v.core.canvas.viewport!.panBy(10, 0);
+    expect(n).toBeGreaterThan(0);
+  });
 });
 
 describe('theme menu (B44)', () => {
@@ -539,3 +548,4 @@ describe('theme menu (B44)', () => {
     v.destroy();
   });
 });
+

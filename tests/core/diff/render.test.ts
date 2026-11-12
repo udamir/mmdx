@@ -124,3 +124,15 @@ describe('report links (old D7)', () => {
     expect(md('https://example.com/v1')).toContain('[`v1`](<https://example.com/v1>)');
   });
 });
+
+describe('renderDiffWith parses each code once (P13)', () => {
+  it('two versions: two parses, not four', async () => {
+    const { renderDiffWith } = await import('../../../src/core/diff/render.js');
+    const { ALL_KINDS } = await import('../../../src/core/pipeline.js');
+    let parses = 0;
+    const flow = ALL_KINDS.flowchart!;
+    const kinds = { ...ALL_KINDS, flowchart: { ...flow, parse: (code: string) => (parses++, flow.parse(code)) } };
+    renderDiffWith(kinds, 'flowchart LR\n  A --> B\n', 'flowchart LR\n  A --> C\n', createContext());
+    expect(parses).toBe(2);
+  });
+});

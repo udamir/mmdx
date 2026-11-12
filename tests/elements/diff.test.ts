@@ -276,3 +276,13 @@ describe('<mmdx-diff>', () => {
     expect(el.shadowRoot!.querySelectorAll('.pane svg').length).toBe(1);
   });
 });
+
+describe('the view event in the diff element (B45)', () => {
+  it('fires on a pan of the comparison', async () => {
+    const { d } = await mount({ beforeSource: 'flowchart LR\n  A --> B', afterSource: 'flowchart LR\n  A --> C' });
+    let n = 0;
+    d.core.on('view', () => n++);
+    d.core.canvas.viewport!.panBy(10, 0);
+    expect(n).toBeGreaterThan(0);
+  });
+});
