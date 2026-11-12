@@ -8,7 +8,7 @@ import { registerMessages } from '../../i18n.js';
 import { I_download } from '../kit/icons.js';
 import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
 import type { PopoverManager } from '../kit/popover.js';
-import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
+import { defineBlock, read, type BlockHandle, type Translate, type Value } from './block.js';
 import { attachMenu, type MenuEntry } from './menu.js';
 
 export interface ExportEntry {
@@ -75,48 +75,34 @@ export interface ExportMenuHandle extends BlockHandle<ExportMenuProps> {
 
 export function createExportMenu(props: ExportMenuProps): ExportMenuHandle {
   registerMessages(BLOCK_MESSAGES_PANELS);
-  let p = { ...props };
-  const scope = new Scope();
-  let fx = new Scope();
-  const el = h('button', { type: 'button', class: 'primary vp-export-btn' });
-  // read when the menu opens: update({ t, popovers }) applies (B36)
-  scope.add(attachMenu({
-    button: el,
-    get popovers() {
-      return p.popovers;
-    },
-    get label() {
-      return p.t('export.title');
-    },
-    entries: () => exportMenuEntries(p.entries, { ...(p.sections ? { sections: p.sections } : {}), ...(p.onError ? { onError: p.onError } : {}) }),
-    within: () => p.within?.(),
-    ...(p.align ? { align: p.align } : {}), ...(p.placement ? { placement: p.placement } : {}),
-  }));
-  const render = (): void => {
-    fx.dispose();
-    fx = new Scope();
-    const t = p.t;
-    el.title = t('export.tip');
-    el.setAttribute('aria-label', t('export.title'));
-    el.disabled = !p.entries.length;
-    const compact = p.compact;
-    fx.effect(() => {
-      const small = compact !== undefined && read(compact);
-      el.classList.toggle('compact', small);
-      el.replaceChildren(small ? icon(I_download, 18) : t('export.title'));
-    });
-  };
-  render();
-  return {
-    el,
-    update(next) {
-      p = { ...p, ...next };
-      render();
-    },
-    destroy() {
-      fx.dispose();
-      scope.dispose();
-      el.remove();
-    },
-  };
+  return defineBlock(props, (p, scope) => {
+    const el = h('button', { type: 'button', class: 'primary vp-export-btn' });
+    // read when the menu opens: update({ t, popovers }) applies (B36)
+    scope.add(attachMenu({
+      button: el,
+      get popovers() {
+        return p.popovers;
+      },
+      get label() {
+        return p.t('export.title');
+      },
+      entries: () => exportMenuEntries(p.entries, { ...(p.sections ? { sections: p.sections } : {}), ...(p.onError ? { onError: p.onError } : {}) }),
+      within: () => p.within?.(),
+      ...(p.align ? { align: p.align } : {}), ...(p.placement ? { placement: p.placement } : {}),
+    }));
+    const render = (): void => {
+      const fx = scope.renew();
+      const t = p.t;
+      el.title = t('export.tip');
+      el.setAttribute('aria-label', t('export.title'));
+      el.disabled = !p.entries.length;
+      const compact = p.compact;
+      fx.effect(() => {
+        const small = compact !== undefined && read(compact);
+        el.classList.toggle('compact', small);
+        el.replaceChildren(small ? icon(I_download, 18) : t('export.title'));
+      });
+    };
+    return { el, render };
+  });
 }

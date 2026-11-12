@@ -97,7 +97,9 @@ export class ThemeEditor {
   private readonly view = signal(0);
   /** Bumps when options the views show change (canEdit, canDelete, canPublish). */
   private readonly rev = signal(0);
-  private mainScope = new Scope();
+  /** Owns the main column's scope, renewed by each `renderMain`. */
+  private readonly mainRounds = new Scope();
+  private mainScope = this.mainRounds.renew();
   private viewT: ReturnType<typeof setTimeout> | undefined;
   private laidOut = false;
   private destroyed = false;
@@ -296,7 +298,7 @@ export class ThemeEditor {
     this.dialogs.destroy();
     this.ac.abort();
     this.owner.dispose();
-    this.mainScope.dispose();
+    this.mainRounds.dispose();
     this.listView.destroy();
     this.preview.destroy();
     this.toolbar.destroy();
@@ -424,8 +426,7 @@ export class ThemeEditor {
   private renderMain(): void {
     const t = this.i18n.t;
     const env = this.env;
-    this.mainScope.dispose();
-    this.mainScope = new Scope();
+    this.mainScope = this.mainRounds.renew();
     // built from the draft as it is: nothing is left to catch up with
     clearTimeout(this.viewT);
     this.draft.takeTouched();

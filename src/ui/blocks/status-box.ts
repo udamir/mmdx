@@ -2,7 +2,7 @@
 // Retry — in one place instead of each product building its own. The element is a wrapper laid out as its content
 // (`display: contents`), so the host's container places it; an error is an alert, the rest a status region.
 import { h } from '../kit/h.js';
-import { Scope, type BlockHandle } from './block.js';
+import { defineBlock, type BlockHandle } from './block.js';
 
 export interface StatusBoxProps {
   /** `null`: nothing to say (the box is empty). */
@@ -22,29 +22,17 @@ export const STATUS_BOX_CSS = /* css */ `
 `;
 
 export function createStatusBox(props: StatusBoxProps): StatusBoxHandle {
-  let p = { ...props };
-  const scope = new Scope();
-  const el = h('div', { class: 'mmdx-status' });
+  return defineBlock(props, (p) => {
+    const el = h('div', { class: 'mmdx-status' });
 
-  const render = (): void => {
-    if (!p.kind) return void el.replaceChildren();
-    if (p.kind !== 'error') return void el.replaceChildren(h('div', { role: 'status' }, p.text ?? ''));
-    const retry = p.onRetry ? h('button', { type: 'button' }, p.retryLabel ?? 'Retry') : null;
-    const onRetry = p.onRetry;
-    if (retry && onRetry) retry.addEventListener('click', () => onRetry());
-    el.replaceChildren(h('div', { class: 'error', role: 'alert' }, h('div', null, p.text ?? ''), retry));
-  };
-  render();
-
-  return {
-    el,
-    update(next) {
-      p = { ...p, ...next };
-      render();
-    },
-    destroy() {
-      scope.dispose();
-      el.remove();
-    },
-  };
+    const render = (): void => {
+      if (!p.kind) return void el.replaceChildren();
+      if (p.kind !== 'error') return void el.replaceChildren(h('div', { role: 'status' }, p.text ?? ''));
+      const retry = p.onRetry ? h('button', { type: 'button' }, p.retryLabel ?? 'Retry') : null;
+      const onRetry = p.onRetry;
+      if (retry && onRetry) retry.addEventListener('click', () => onRetry());
+      el.replaceChildren(h('div', { class: 'error', role: 'alert' }, h('div', null, p.text ?? ''), retry));
+    };
+    return { el, render };
+  });
 }

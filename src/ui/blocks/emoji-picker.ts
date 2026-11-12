@@ -4,7 +4,7 @@
 import { h } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
-import { Scope, type BlockHandle, type Translate } from './block.js';
+import { defineBlock, type BlockHandle, type Translate } from './block.js';
 import { gridKeys } from '../kit/grid-keys.js';
 import { createTabs } from './tabs.js';
 import { signal } from '../../reactive/signal.js';
@@ -62,136 +62,127 @@ export const EMOJI_PICKER_CSS = /* css */ `
 
 export function createEmojiPicker(props: EmojiPickerProps): EmojiPickerHandle {
   registerMessages(BLOCK_MESSAGES_MEDIA);
-  let p = { ...props };
-  const scope = new Scope();
-  let query = '';
-  let tab = p.recent?.length ? 'recent' : p.data.groups[0]?.key ?? '';
-  let tiles: HTMLElement[] = [];
-  const el = h('div', { class: 'ep', role: 'dialog' });
-  const input = h('input', { type: 'search', class: 'ep-search', autocomplete: 'off' });
-  const tone = h('select', { class: 'ep-tone' });
-  // the group tabs: the shared tab list (roving focus, arrow keys, B28); none is selected while a search shows
-  const current = signal('');
-  const tabs = createTabs<string>({ label: '', tabs: [], value: current, class: 'ep-tabs', onChange: (key) => {
-    tab = key;
-    query = input.value = '';
-    render();
-  } });
-  const head = h('div', { class: 'ep-head' });
-  const grid = h('div', { class: 'ep-grid', role: 'group' });
-  const info = h('div', { class: 'ep-info', 'aria-live': 'polite' });
-  el.append(h('div', { class: 'ep-top' }, input, tone), tabs.el, head, grid, info);
-  const keys = gridKeys(grid, {
-    count: () => tiles.length,
-    cols: () => COLS,
-    indexOf: (e) => {
-      const i = tiles.indexOf(e as HTMLElement);
-      return i < 0 ? null : i;
-    },
-    focus: (i) => {
-      tiles.forEach((b, j) => b.setAttribute('tabindex', j === i ? '0' : '-1'));
-      tiles[i]?.focus();
-    },
-  });
-
-  const shown = (it: PickerEmoji): string => p.withTone(it.e, p.tone ?? 0, it.tones);
-  const byEmoji = (): Map<string, PickerEmoji> => {
-    const m = new Map<string, PickerEmoji>();
-    for (const g of p.data.groups) for (const it of g.items) m.set(it.e, it);
-    return m;
-  };
-
-  const renderTabs = (): void => {
-    const t = p.t;
-    const list: [string, string, string][] = [];
-    if (p.recent?.length) list.push(['recent', '🕘', t('emoji.recent')]);
-    for (const g of p.data.groups) list.push([g.key, g.items[0]?.e ?? '?', t(`emoji.group.${g.key}`)]);
-    tabs.update({ label: t('emoji.title'), tabs: list.map(([value, label, name]) => ({ value, label, title: name, name })) });
-    current.set(query ? '' : tab);
-  };
-
-  const renderGrid = (): void => {
-    const t = p.t;
-    let items: { text: string; name: string }[];
-    if (query.trim()) {
-      head.textContent = '';
-      items = p.search(query).map((it) => ({ text: shown(it), name: it.name }));
-    } else if (tab === 'recent') {
-      head.textContent = t('emoji.recent');
-      const all = byEmoji();
-      items = (p.recent ?? []).map((e) => ({ text: e, name: all.get(e)?.name ?? e }));
-    } else {
-      const g = p.data.groups.find((x) => x.key === tab);
-      head.textContent = g ? t(`emoji.group.${g.key}`) : '';
-      items = (g?.items ?? []).map((it) => ({ text: shown(it), name: it.name }));
-    }
-    grid.setAttribute('aria-label', head.textContent || t('emoji.title'));
-    tiles = items.map(({ text, name }, i) => {
-      const b = h('button', { type: 'button', class: 'ep-e', title: name, 'aria-label': name, tabindex: i ? '-1' : '0' }, text);
-      b.addEventListener('focus', () => (info.textContent = name));
-      b.addEventListener('pointerenter', () => (info.textContent = name));
-      b.addEventListener('click', () => p.onPick(text));
-      return b;
+  return defineBlock(props, (p, scope) => {
+    let query = '';
+    let tab = p.recent?.length ? 'recent' : p.data.groups[0]?.key ?? '';
+    let tiles: HTMLElement[] = [];
+    const el = h('div', { class: 'ep', role: 'dialog' });
+    const input = h('input', { type: 'search', class: 'ep-search', autocomplete: 'off' });
+    const tone = h('select', { class: 'ep-tone' });
+    // the group tabs: the shared tab list (roving focus, arrow keys, B28); none is selected while a search shows
+    const current = signal('');
+    const tabs = createTabs<string>({ label: '', tabs: [], value: current, class: 'ep-tabs', onChange: (key) => {
+      tab = key;
+      query = input.value = '';
+      render();
+    } });
+    const head = h('div', { class: 'ep-head' });
+    const grid = h('div', { class: 'ep-grid', role: 'group' });
+    const info = h('div', { class: 'ep-info', 'aria-live': 'polite' });
+    scope.add(() => tabs.destroy());
+    el.append(h('div', { class: 'ep-top' }, input, tone), tabs.el, head, grid, info);
+    const keys = gridKeys(grid, {
+      count: () => tiles.length,
+      cols: () => COLS,
+      indexOf: (e) => {
+        const i = tiles.indexOf(e as HTMLElement);
+        return i < 0 ? null : i;
+      },
+      focus: (i) => {
+        tiles.forEach((b, j) => b.setAttribute('tabindex', j === i ? '0' : '-1'));
+        tiles[i]?.focus();
+      },
     });
-    grid.replaceChildren(...(tiles.length ? tiles : [h('div', { class: 'ep-none', role: 'status' }, query.trim() ? t('emoji.none', { q: query.trim() }) : '')]));
-    grid.scrollTop = 0;
-    keys.setActive(0);
-  };
+    scope.add(() => keys.destroy());
 
-  const render = (): void => {
-    const t = p.t;
-    el.setAttribute('aria-label', t('emoji.title'));
-    input.placeholder = t('emoji.searchPlaceholder');
-    input.setAttribute('aria-label', t('emoji.search'));
-    tone.setAttribute('aria-label', t('emoji.tone'));
-    tone.replaceChildren(...[0, 1, 2, 3, 4, 5].map((n) => h('option', { value: String(n), title: t(`emoji.tone.${n}`) }, `${p.withTone('✋', n)} ${t(`emoji.tone.${n}`)}`)));
-    tone.value = String(p.tone ?? 0);
-    renderTabs();
-    renderGrid();
-  };
+    const shown = (it: PickerEmoji): string => p.withTone(it.e, p.tone ?? 0, it.tones);
+    const byEmoji = (): Map<string, PickerEmoji> => {
+      const m = new Map<string, PickerEmoji>();
+      for (const g of p.data.groups) for (const it of g.items) m.set(it.e, it);
+      return m;
+    };
 
-  scope.on(input, 'input', () => {
-    query = input.value;
-    renderTabs();
-    renderGrid();
-  });
-  scope.on(input, 'keydown', (ev: KeyboardEvent) => {
-    if (ev.key === 'ArrowDown' && tiles.length) {
-      ev.preventDefault();
-      tiles[0]!.focus();
-    } else if (ev.key === 'Enter' && tiles.length && query.trim()) {
-      ev.preventDefault();
-      tiles[0]!.click();
-    }
-  });
-  scope.on(tone, 'change', () => {
-    p = { ...p, tone: Number(tone.value) || 0 };
-    p.onTone?.(p.tone ?? 0);
-    renderGrid();
-  });
-  render();
+    const renderTabs = (): void => {
+      const t = p.t;
+      const list: [string, string, string][] = [];
+      if (p.recent?.length) list.push(['recent', '🕘', t('emoji.recent')]);
+      for (const g of p.data.groups) list.push([g.key, g.items[0]?.e ?? '?', t(`emoji.group.${g.key}`)]);
+      tabs.update({ label: t('emoji.title'), tabs: list.map(([value, label, name]) => ({ value, label, title: name, name })) });
+      current.set(query ? '' : tab);
+    };
 
-  return {
-    el,
-    get tab() {
-      return tab;
-    },
-    focus: () => input.focus(),
-    setQuery(q) {
-      input.value = q;
-      query = q;
+    const renderGrid = (): void => {
+      const t = p.t;
+      let items: { text: string; name: string }[];
+      if (query.trim()) {
+        head.textContent = '';
+        items = p.search(query).map((it) => ({ text: shown(it), name: it.name }));
+      } else if (tab === 'recent') {
+        head.textContent = t('emoji.recent');
+        const all = byEmoji();
+        items = (p.recent ?? []).map((e) => ({ text: e, name: all.get(e)?.name ?? e }));
+      } else {
+        const g = p.data.groups.find((x) => x.key === tab);
+        head.textContent = g ? t(`emoji.group.${g.key}`) : '';
+        items = (g?.items ?? []).map((it) => ({ text: shown(it), name: it.name }));
+      }
+      grid.setAttribute('aria-label', head.textContent || t('emoji.title'));
+      tiles = items.map(({ text, name }, i) => {
+        const b = h('button', { type: 'button', class: 'ep-e', title: name, 'aria-label': name, tabindex: i ? '-1' : '0' }, text);
+        b.addEventListener('focus', () => (info.textContent = name));
+        b.addEventListener('pointerenter', () => (info.textContent = name));
+        b.addEventListener('click', () => p.onPick(text));
+        return b;
+      });
+      grid.replaceChildren(...(tiles.length ? tiles : [h('div', { class: 'ep-none', role: 'status' }, query.trim() ? t('emoji.none', { q: query.trim() }) : '')]));
+      grid.scrollTop = 0;
+      keys.setActive(0);
+    };
+
+    const render = (): void => {
+      const t = p.t;
+      el.setAttribute('aria-label', t('emoji.title'));
+      input.placeholder = t('emoji.searchPlaceholder');
+      input.setAttribute('aria-label', t('emoji.search'));
+      tone.setAttribute('aria-label', t('emoji.tone'));
+      tone.replaceChildren(...[0, 1, 2, 3, 4, 5].map((n) => h('option', { value: String(n), title: t(`emoji.tone.${n}`) }, `${p.withTone('✋', n)} ${t(`emoji.tone.${n}`)}`)));
+      tone.value = String(p.tone ?? 0);
       renderTabs();
       renderGrid();
-    },
-    update(next) {
-      p = { ...p, ...next };
-      render();
-    },
-    destroy() {
-      tabs.destroy();
-      keys.destroy();
-      scope.dispose();
-      el.remove();
-    },
-  };
+    };
+
+    scope.on(input, 'input', () => {
+      query = input.value;
+      renderTabs();
+      renderGrid();
+    });
+    scope.on(input, 'keydown', (ev: KeyboardEvent) => {
+      if (ev.key === 'ArrowDown' && tiles.length) {
+        ev.preventDefault();
+        tiles[0]!.focus();
+      } else if (ev.key === 'Enter' && tiles.length && query.trim()) {
+        ev.preventDefault();
+        tiles[0]!.click();
+      }
+    });
+    scope.on(tone, 'change', () => {
+      p.tone = Number(tone.value) || 0;
+      p.onTone?.(p.tone ?? 0);
+      renderGrid();
+    });
+    return {
+      el,
+      get tab() {
+        return tab;
+      },
+      focus: () => input.focus(),
+      setQuery(q) {
+        input.value = q;
+        query = q;
+        renderTabs();
+        renderGrid();
+      },
+      render,
+    };
+  });
 }

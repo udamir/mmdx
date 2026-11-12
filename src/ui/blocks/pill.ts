@@ -4,7 +4,7 @@
 // tools are icon (or text) buttons between the text and the action.
 import { h, icon } from '../kit/h.js';
 import { I_chevronLeft } from '../kit/icons.js';
-import { ariaKeys, read, Scope, tipText, type BlockHandle, type Translate, type Value } from './block.js';
+import { ariaKeys, defineBlock, read, tipText, type BlockHandle, type Translate, type Value } from './block.js';
 
 /** A button of the pill, between the text and its action (e.g. swap Before and After). */
 export interface PillTool {
@@ -59,62 +59,47 @@ export const PILL_CSS = /* css */ `
 `;
 
 export function createPill(props: PillProps): BlockHandle<PillProps> {
-  let p = { ...props };
-  const scope = new Scope();
-  let fx = new Scope();
-  const text = h('span', { class: 'mmdx-pill-text', role: 'status', 'aria-live': 'polite' });
-  const button = h('button', { type: 'button', class: 'mmdx-pill-btn', 'data-f': 'pill-action' });
-  const tools = h('span', { class: 'mmdx-pill-tools', style: 'display:contents' });
-  const content = h('span', { class: 'mmdx-pill-content' });
-  const el = h('div', { role: 'group' }, text, content, tools, button);
-  scope.on(button, 'click', () => p.action.onClick());
+  return defineBlock(props, (p, scope) => {
+    const text = h('span', { class: 'mmdx-pill-text', role: 'status', 'aria-live': 'polite' });
+    const button = h('button', { type: 'button', class: 'mmdx-pill-btn', 'data-f': 'pill-action' });
+    const tools = h('span', { class: 'mmdx-pill-tools', style: 'display:contents' });
+    const content = h('span', { class: 'mmdx-pill-content' });
+    const el = h('div', { role: 'group' }, text, content, tools, button);
+    scope.on(button, 'click', () => p.action.onClick());
 
-  const render = (): void => {
-    const { action } = p;
-    el.className = ['mmdx-pill', p.class].filter(Boolean).join(' ');
-    el.setAttribute('aria-label', p.label ?? p.t('history.open'));
-    button.replaceChildren(...(action.icon ? [icon(action.icon, 18)] : [...(action.plain ? [] : [icon(I_chevronLeft, 16)]), h('span', null, action.label)]));
-    button.classList.toggle('plain', !!action.plain);
-    button.classList.toggle('icon-only', !!action.icon);
-    if (action.icon) button.setAttribute('aria-label', action.label);
-    else button.removeAttribute('aria-label');
-    el.classList.toggle('has-content', !!p.content);
-    text.classList.toggle('mmdx-sr', !!p.content);
-    content.replaceChildren(...(p.content ? [p.content] : []));
-    content.hidden = !p.content;
-    if (p.part) el.setAttribute('part', p.part);
-    else el.removeAttribute('part');
-    button.title = tipText(action.label, action.keys, p.formatKeys);
-    if (action.keys) button.setAttribute('aria-keyshortcuts', ariaKeys(action.keys));
-    else button.removeAttribute('aria-keyshortcuts');
-    fx.dispose();
-    fx = new Scope();
-    const value = p.text;
-    fx.effect(() => void (text.textContent = read(value)));
-    tools.replaceChildren(...(p.tools ?? []).map((tool) => {
-      const tip = tipText(tool.label, tool.keys, p.formatKeys);
-      const b = tool.icon
-        ? h('button', { type: 'button', class: 'mmdx-pill-tool', title: tip, 'aria-label': tool.label, 'data-f': `pill-${tool.id}`, 'data-tool': tool.id }, icon(tool.icon, 18))
-        : h('button', { type: 'button', class: 'mmdx-pill-btn plain', title: tip, 'data-f': `pill-${tool.id}`, 'data-tool': tool.id }, tool.label);
-      if (tool.keys) b.setAttribute('aria-keyshortcuts', ariaKeys(tool.keys));
-      fx.on(b, 'click', () => tool.onClick());
-      const hidden = tool.hidden;
-      if (hidden !== undefined) fx.effect(() => void (b.hidden = read(hidden)));
-      return b;
-    }));
-  };
-  render();
-
-  return {
-    el,
-    update(next) {
-      p = { ...p, ...next };
-      render();
-    },
-    destroy() {
-      fx.dispose();
-      scope.dispose();
-      el.remove();
-    },
-  };
+    const render = (): void => {
+      const { action } = p;
+      el.className = ['mmdx-pill', p.class].filter(Boolean).join(' ');
+      el.setAttribute('aria-label', p.label ?? p.t('history.open'));
+      button.replaceChildren(...(action.icon ? [icon(action.icon, 18)] : [...(action.plain ? [] : [icon(I_chevronLeft, 16)]), h('span', null, action.label)]));
+      button.classList.toggle('plain', !!action.plain);
+      button.classList.toggle('icon-only', !!action.icon);
+      if (action.icon) button.setAttribute('aria-label', action.label);
+      else button.removeAttribute('aria-label');
+      el.classList.toggle('has-content', !!p.content);
+      text.classList.toggle('mmdx-sr', !!p.content);
+      content.replaceChildren(...(p.content ? [p.content] : []));
+      content.hidden = !p.content;
+      if (p.part) el.setAttribute('part', p.part);
+      else el.removeAttribute('part');
+      button.title = tipText(action.label, action.keys, p.formatKeys);
+      if (action.keys) button.setAttribute('aria-keyshortcuts', ariaKeys(action.keys));
+      else button.removeAttribute('aria-keyshortcuts');
+      const fx = scope.renew();
+      const value = p.text;
+      fx.effect(() => void (text.textContent = read(value)));
+      tools.replaceChildren(...(p.tools ?? []).map((tool) => {
+        const tip = tipText(tool.label, tool.keys, p.formatKeys);
+        const b = tool.icon
+          ? h('button', { type: 'button', class: 'mmdx-pill-tool', title: tip, 'aria-label': tool.label, 'data-f': `pill-${tool.id}`, 'data-tool': tool.id }, icon(tool.icon, 18))
+          : h('button', { type: 'button', class: 'mmdx-pill-btn plain', title: tip, 'data-f': `pill-${tool.id}`, 'data-tool': tool.id }, tool.label);
+        if (tool.keys) b.setAttribute('aria-keyshortcuts', ariaKeys(tool.keys));
+        fx.on(b, 'click', () => tool.onClick());
+        const hidden = tool.hidden;
+        if (hidden !== undefined) fx.effect(() => void (b.hidden = read(hidden)));
+        return b;
+      }));
+    };
+    return { el, render };
+  });
 }

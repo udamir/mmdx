@@ -7,7 +7,7 @@ import { registerMessages } from '../../i18n.js';
 import { I_chevronDown, I_palette } from '../kit/icons.js';
 import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
 import type { PopoverManager } from '../kit/popover.js';
-import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
+import { defineBlock, read, type BlockHandle, type Translate, type Value } from './block.js';
 import { attachMenu, type MenuEntry } from './menu.js';
 
 export interface ThemeInfo {
@@ -69,47 +69,33 @@ export interface ThemeButtonHandle extends BlockHandle<ThemeButtonProps> {
 /** The palette button with a caret that opens the theme menu. */
 export function createThemeButton(props: ThemeButtonProps): ThemeButtonHandle {
   registerMessages(BLOCK_MESSAGES_PANELS);
-  let p = { ...props };
-  const scope = new Scope();
-  let fx = new Scope();
-  const caret = icon(I_chevronDown, 12);
-  caret.setAttribute('class', 'mmdx-icon vp-caret');
-  const el = h('button', { type: 'button', class: 'vp-btn mmdx-theme-btn' }, icon(I_palette, 18), caret);
-  // read when the menu opens: update({ t, popovers }) applies (B36)
-  scope.add(attachMenu({
-    button: el,
-    get popovers() {
-      return p.popovers;
-    },
-    get label() {
-      return p.t('theme.menu');
-    },
-    entries: () => themeMenuEntries(p),
-    within: () => p.within?.(),
-    ...(p.align ? { align: p.align } : {}), ...(p.placement ? { placement: p.placement } : {}),
-  }));
-  const render = (): void => {
-    fx.dispose();
-    fx = new Scope();
-    const shown = p.shown;
-    fx.effect(() => {
-      const id = read(shown);
-      const label = p.t('theme.current', { name: p.themes.find((x) => x.id === id)?.name ?? id });
-      el.title = label;
-      el.setAttribute('aria-label', label);
-    });
-  };
-  render();
-  return {
-    el,
-    update(next) {
-      p = { ...p, ...next };
-      render();
-    },
-    destroy() {
-      fx.dispose();
-      scope.dispose();
-      el.remove();
-    },
-  };
+  return defineBlock(props, (p, scope) => {
+    const caret = icon(I_chevronDown, 12);
+    caret.setAttribute('class', 'mmdx-icon vp-caret');
+    const el = h('button', { type: 'button', class: 'vp-btn mmdx-theme-btn' }, icon(I_palette, 18), caret);
+    // read when the menu opens: update({ t, popovers }) applies (B36)
+    scope.add(attachMenu({
+      button: el,
+      get popovers() {
+        return p.popovers;
+      },
+      get label() {
+        return p.t('theme.menu');
+      },
+      entries: () => themeMenuEntries(p),
+      within: () => p.within?.(),
+      ...(p.align ? { align: p.align } : {}), ...(p.placement ? { placement: p.placement } : {}),
+    }));
+    const render = (): void => {
+      const fx = scope.renew();
+      const shown = p.shown;
+      fx.effect(() => {
+        const id = read(shown);
+        const label = p.t('theme.current', { name: p.themes.find((x) => x.id === id)?.name ?? id });
+        el.title = label;
+        el.setAttribute('aria-label', label);
+      });
+    };
+    return { el, render };
+  });
 }

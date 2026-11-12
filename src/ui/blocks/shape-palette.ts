@@ -6,7 +6,7 @@
 import { h } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
-import { Scope, type BlockHandle, type Translate } from './block.js';
+import { defineBlock, type BlockHandle, type Scope, type Translate } from './block.js';
 import { gridKeys } from '../kit/grid-keys.js';
 
 export interface ShapePaletteItem {
@@ -92,124 +92,114 @@ export function matchesShape(item: ShapePaletteItem, q: string): boolean {
 
 export function createShapePalette(props: ShapePaletteProps): ShapePaletteHandle {
   registerMessages(BLOCK_MESSAGES_MEDIA);
-  let p = { ...props };
-  let scope = new Scope();
-  let query = '';
-  let tiles: HTMLElement[] = [];
-  let tileItems: ShapePaletteItem[] = [];
-  const el = h('div', { class: 'sp', role: 'group' });
-  const input = h('input', { type: 'search', class: 'sp-search' });
-  const body = h('div', { class: 'sp-body' });
-  const keys = gridKeys(body, {
-    count: () => tiles.length,
-    cols: () => (p.layout === 'list' ? 1 : p.cols ?? (p.compact ? 8 : 6)),
-    indexOf: (e) => {
-      const i = tiles.indexOf(e as HTMLElement);
-      return i < 0 ? null : i;
-    },
-    focus: (i) => {
-      tiles[i]?.focus();
+  return defineBlock(props, (p, scope) => {
+    let query = '';
+    let tiles: HTMLElement[] = [];
+    let tileItems: ShapePaletteItem[] = [];
+    const el = h('div', { class: 'sp', role: 'group' });
+    const input = h('input', { type: 'search', class: 'sp-search' });
+    const body = h('div', { class: 'sp-body' });
+    const keys = gridKeys(body, {
+      count: () => tiles.length,
+      cols: () => (p.layout === 'list' ? 1 : p.cols ?? (p.compact ? 8 : 6)),
+      indexOf: (e) => {
+        const i = tiles.indexOf(e as HTMLElement);
+        return i < 0 ? null : i;
+      },
+      focus: (i) => {
+        tiles[i]?.focus();
+        syncStop();
+      },
+    });
+    scope.add(() => keys.destroy());
+    const syncStop = (): void => tiles.forEach((b, i) => b.setAttribute('tabindex', i === keys.active ? '0' : '-1'));
+
+    const tile = (it: ShapePaletteItem, fx: Scope): HTMLElement => {
+      const list = p.layout === 'list';
+      const on = p.current === it.key;
+      const b = h('button', {
+        type: 'button', class: (list ? 'sp-row' : 'sp-tile') + (on ? ' on' : ''), title: it.tip ?? it.label, 'aria-label': it.label, 'data-key': it.key,
+        ...(p.current !== undefined ? { 'aria-pressed': String(on) } : {}),
+      }, it.icon(), list ? h('span', null, it.label.split(' — ')[0]!) : null);
+      if (p.onPointerDown) b.addEventListener('pointerdown', (ev) => p.onPointerDown?.(it, ev, b), { signal: fx.signal });
+      // a pointer press is the host's (drag or add on release); a keyboard click (detail 0) chooses
+      b.addEventListener('click', (ev) => {
+        if (!p.onPointerDown || ev.detail === 0) p.onPick?.(it, ev);
+      }, { signal: fx.signal });
+      tiles.push(b);
+      tileItems.push(it);
+      return b;
+    };
+
+    const section = (title: string, items: readonly ShapePaletteItem[], fx: Scope): HTMLElement[] => {
+      if (!items.length) return [];
+      const list = p.layout === 'list';
+      const box = h('div', { class: list ? 'sp-list' : 'sp-grid', role: 'group', ...(title ? { 'aria-label': title } : {}) }, ...items.map((it) => tile(it, fx)));
+      if (!list && p.cols) box.style.setProperty('--sp-cols', String(p.cols));
+      return title ? [h('div', { class: 'sp-head', 'aria-hidden': 'true' }, title), box] : [box];
+    };
+
+    const renderBody = (): void => {
+      const fx = scope.renew();
+      tiles = [];
+      tileItems = [];
+      const t = p.t;
+      const out: HTMLElement[] = [];
+      if (query.trim()) {
+        const seen = new Set<string>();
+        const hits = p.sections.flatMap((s) => s.items).filter((it) => !seen.has(it.key) && (seen.add(it.key), matchesShape(it, query)));
+        if (hits.length) out.push(...section(t('palette.results'), hits, fx));
+        else out.push(h('div', { class: 'sp-none', role: 'status' }, t('palette.none', { q: query.trim() })));
+      } else {
+        for (const s of p.sections) out.push(...section(s.title, s.items, fx));
+      }
+      body.replaceChildren(...out);
+      const cur = p.current ? tileItems.findIndex((x) => x.key === p.current) : -1;
+      keys.setActive(cur >= 0 ? cur : 0);
       syncStop();
-    },
-  });
-  const syncStop = (): void => tiles.forEach((b, i) => b.setAttribute('tabindex', i === keys.active ? '0' : '-1'));
+    };
 
-  const tile = (it: ShapePaletteItem): HTMLElement => {
-    const list = p.layout === 'list';
-    const on = p.current === it.key;
-    const b = h('button', {
-      type: 'button', class: (list ? 'sp-row' : 'sp-tile') + (on ? ' on' : ''), title: it.tip ?? it.label, 'aria-label': it.label, 'data-key': it.key,
-      ...(p.current !== undefined ? { 'aria-pressed': String(on) } : {}),
-    }, it.icon(), list ? h('span', null, it.label.split(' — ')[0]!) : null);
-    if (p.onPointerDown) b.addEventListener('pointerdown', (ev) => p.onPointerDown?.(it, ev, b), { signal: scope.signal });
-    // a pointer press is the host's (drag or add on release); a keyboard click (detail 0) chooses
-    b.addEventListener('click', (ev) => {
-      if (!p.onPointerDown || ev.detail === 0) p.onPick?.(it, ev);
-    }, { signal: scope.signal });
-    tiles.push(b);
-    tileItems.push(it);
-    return b;
-  };
-
-  const section = (title: string, items: readonly ShapePaletteItem[]): HTMLElement[] => {
-    if (!items.length) return [];
-    const list = p.layout === 'list';
-    const box = h('div', { class: list ? 'sp-list' : 'sp-grid', role: 'group', ...(title ? { 'aria-label': title } : {}) }, ...items.map(tile));
-    if (!list && p.cols) box.style.setProperty('--sp-cols', String(p.cols));
-    return title ? [h('div', { class: 'sp-head', 'aria-hidden': 'true' }, title), box] : [box];
-  };
-
-  const renderBody = (): void => {
-    scope.dispose();
-    scope = new Scope();
-    tiles = [];
-    tileItems = [];
-    const t = p.t;
-    const out: HTMLElement[] = [];
-    if (query.trim()) {
-      const seen = new Set<string>();
-      const hits = p.sections.flatMap((s) => s.items).filter((it) => !seen.has(it.key) && (seen.add(it.key), matchesShape(it, query)));
-      if (hits.length) out.push(...section(t('palette.results'), hits));
-      else out.push(h('div', { class: 'sp-none', role: 'status' }, t('palette.none', { q: query.trim() })));
-    } else {
-      for (const s of p.sections) out.push(...section(s.title, s.items));
-    }
-    body.replaceChildren(...out);
-    const cur = p.current ? tileItems.findIndex((x) => x.key === p.current) : -1;
-    keys.setActive(cur >= 0 ? cur : 0);
-    syncStop();
-  };
-
-  const render = (): void => {
-    const t = p.t;
-    el.classList.toggle('compact', !!p.compact);
-    el.setAttribute('aria-label', p.title ?? t('palette.shapes'));
-    input.placeholder = t('palette.searchPlaceholder');
-    input.setAttribute('aria-label', t('palette.search'));
-    el.replaceChildren(...(p.title ? [h('div', { class: 'sp-title' }, p.title)] : []), ...(p.search === false ? [] : [input]), body);
-    renderBody();
-  };
-
-  input.addEventListener('input', () => {
-    query = input.value;
-    renderBody();
-  });
-  // ↓ from the search field goes into the tiles; Enter takes the first result
-  input.addEventListener('keydown', (ev) => {
-    if (ev.key === 'ArrowDown' && tiles.length) {
-      ev.preventDefault();
-      keys.setActive(0);
-      syncStop();
-      tiles[0]!.focus();
-    } else if (ev.key === 'Enter' && tiles.length && query.trim()) {
-      ev.preventDefault();
-      tiles[0]!.click();
-    }
-  });
-  render();
-
-  return {
-    el,
-    get query() {
-      return query;
-    },
-    setQuery(q) {
-      input.value = q;
-      query = q;
+    const render = (): void => {
+      const t = p.t;
+      el.classList.toggle('compact', !!p.compact);
+      el.setAttribute('aria-label', p.title ?? t('palette.shapes'));
+      input.placeholder = t('palette.searchPlaceholder');
+      input.setAttribute('aria-label', t('palette.search'));
+      el.replaceChildren(...(p.title ? [h('div', { class: 'sp-title' }, p.title)] : []), ...(p.search === false ? [] : [input]), body);
       renderBody();
-    },
-    focus() {
-      if (p.search === false) (tiles[keys.active] ?? tiles[0])?.focus();
-      else input.focus();
-    },
-    update(next) {
-      p = { ...p, ...next };
-      render();
-    },
-    destroy() {
-      keys.destroy();
-      scope.dispose();
-      el.remove();
-    },
-  };
+    };
+
+    scope.on(input, 'input', () => {
+      query = input.value;
+      renderBody();
+    });
+    // ↓ from the search field goes into the tiles; Enter takes the first result
+    scope.on(input, 'keydown', (ev: KeyboardEvent) => {
+      if (ev.key === 'ArrowDown' && tiles.length) {
+        ev.preventDefault();
+        keys.setActive(0);
+        syncStop();
+        tiles[0]!.focus();
+      } else if (ev.key === 'Enter' && tiles.length && query.trim()) {
+        ev.preventDefault();
+        tiles[0]!.click();
+      }
+    });
+    return {
+      el,
+      get query() {
+        return query;
+      },
+      setQuery(q) {
+        input.value = q;
+        query = q;
+        renderBody();
+      },
+      focus() {
+        if (p.search === false) (tiles[keys.active] ?? tiles[0])?.focus();
+        else input.focus();
+      },
+      render,
+    };
+  });
 }

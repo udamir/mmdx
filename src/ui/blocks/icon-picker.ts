@@ -5,7 +5,7 @@
 import { h } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_MEDIA } from '../messages/blocks-media.js';
-import { Scope, type BlockHandle, type Translate } from './block.js';
+import { defineBlock, type BlockHandle, type Translate } from './block.js';
 import { gridKeys } from '../kit/grid-keys.js';
 import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../kit/overlay-scroll.js';
 
@@ -61,146 +61,137 @@ export const ICON_PICKER_CSS = /* css */ `${OVERLAY_SCROLL_CSS}
 
 export function createIconPicker(props: IconPickerProps): IconPickerHandle {
   registerMessages(BLOCK_MESSAGES_MEDIA);
-  let p = { ...props };
-  const scope = new Scope();
-  let query = '';
-  let list: readonly string[] = [];
-  let first = 0;
-  let shown = new Map<number, HTMLElement>();
+  return defineBlock(props, (p, scope) => {
+    let query = '';
+    let list: readonly string[] = [];
+    let first = 0;
+    let shown = new Map<number, HTMLElement>();
 
-  const el = h('div', { class: 'ip', role: 'dialog' });
-  const input = h('input', { type: 'search', class: 'ip-search', autocomplete: 'off' });
-  const rows = h('div', { class: 'ip-rows', role: 'group' });
-  const space = h('div', { class: 'ip-space' }, rows);
-  const scroller = h('div', { class: 'ip-scroll' }, space);
-  const none = h('div', { class: 'ip-none', role: 'status' });
-  el.append(input, scroller, none);
-  // the panels' thin scrollbar over the icons (the native one hidden)
-  const thumbs = createOverlayScroll(el);
-  el.append(...thumbs.thumbs);
-  scope.add(() => thumbs.destroy());
+    const el = h('div', { class: 'ip', role: 'dialog' });
+    const input = h('input', { type: 'search', class: 'ip-search', autocomplete: 'off' });
+    const rows = h('div', { class: 'ip-rows', role: 'group' });
+    const space = h('div', { class: 'ip-space' }, rows);
+    const scroller = h('div', { class: 'ip-scroll' }, space);
+    const none = h('div', { class: 'ip-none', role: 'status' });
+    el.append(input, scroller, none);
+    // the panels' thin scrollbar over the icons (the native one hidden)
+    const thumbs = createOverlayScroll(el);
+    el.append(...thumbs.thumbs);
+    scope.add(() => thumbs.destroy());
 
-  const cols = (): number => Math.max(1, Math.floor((scroller.clientWidth || ICON_TILE * 7) / ICON_TILE));
-  const visibleRows = (): number => Math.ceil((scroller.clientHeight || ICON_TILE * ROWS) / ICON_TILE) + 2;
-  const describe = (name: string): string => {
-    const lic = p.packs().find((x) => x.name === name.slice(0, name.indexOf(':')))?.license;
-    return lic ? `${name} · ${p.t('icons.license', { license: lic })}` : name;
-  };
+    const cols = (): number => Math.max(1, Math.floor((scroller.clientWidth || ICON_TILE * 7) / ICON_TILE));
+    const visibleRows = (): number => Math.ceil((scroller.clientHeight || ICON_TILE * ROWS) / ICON_TILE) + 2;
+    const describe = (name: string): string => {
+      const lic = p.packs().find((x) => x.name === name.slice(0, name.indexOf(':')))?.license;
+      return lic ? `${name} · ${p.t('icons.license', { license: lic })}` : name;
+    };
 
-  const tile = (name: string, i: number): HTMLElement => {
-    const on = p.current === name;
-    const b = h('button', { type: 'button', class: 'ip-tile' + (on ? ' on' : ''), 'aria-label': name, title: describe(name), 'aria-pressed': String(on), tabindex: '-1', 'data-i': String(i) },
-      h('img', { src: p.preview(name), alt: '', width: 20, height: 20, draggable: false }));
-    if (p.onPointerDown) b.addEventListener('pointerdown', (ev) => p.onPointerDown?.(name, ev, b));
-    b.addEventListener('click', (ev) => {
-      if (!p.onPointerDown || ev.detail === 0) p.onPick(name);
+    const tile = (name: string, i: number): HTMLElement => {
+      const on = p.current === name;
+      const b = h('button', { type: 'button', class: 'ip-tile' + (on ? ' on' : ''), 'aria-label': name, title: describe(name), 'aria-pressed': String(on), tabindex: '-1', 'data-i': String(i) },
+        h('img', { src: p.preview(name), alt: '', width: 20, height: 20, draggable: false }));
+      if (p.onPointerDown) b.addEventListener('pointerdown', (ev) => p.onPointerDown?.(name, ev, b));
+      b.addEventListener('click', (ev) => {
+        if (!p.onPointerDown || ev.detail === 0) p.onPick(name);
+      });
+      return b;
+    };
+
+    // ---- the virtualised grid: only the rows in view (plus one above and below) are in the DOM
+    const keys = gridKeys(rows, {
+      count: () => list.length,
+      cols,
+      page: () => ROWS,
+      indexOf: (e) => {
+        const i = Number((e as HTMLElement).dataset?.['i']);
+        return Number.isInteger(i) && e.parentElement === rows ? i : null;
+      },
+      focus: (i) => {
+        const c = cols(), row = Math.floor(i / c);
+        const top = row * ICON_TILE, bottom = top + ICON_TILE;
+        if (top < scroller.scrollTop) scroller.scrollTop = top;
+        else if (bottom > scroller.scrollTop + (scroller.clientHeight || ICON_TILE * ROWS)) scroller.scrollTop = bottom - (scroller.clientHeight || ICON_TILE * ROWS);
+        drawRows(true);
+        shown.get(i)?.focus();
+      },
     });
-    return b;
-  };
-
-  // ---- the virtualised grid: only the rows in view (plus one above and below) are in the DOM
-  const keys = gridKeys(rows, {
-    count: () => list.length,
-    cols,
-    page: () => ROWS,
-    indexOf: (e) => {
-      const i = Number((e as HTMLElement).dataset?.['i']);
-      return Number.isInteger(i) && e.parentElement === rows ? i : null;
-    },
-    focus: (i) => {
-      const c = cols(), row = Math.floor(i / c);
-      const top = row * ICON_TILE, bottom = top + ICON_TILE;
-      if (top < scroller.scrollTop) scroller.scrollTop = top;
-      else if (bottom > scroller.scrollTop + (scroller.clientHeight || ICON_TILE * ROWS)) scroller.scrollTop = bottom - (scroller.clientHeight || ICON_TILE * ROWS);
+    scope.add(() => keys.destroy());
+    const drawRows = (force = false): void => {
+      const c = cols();
+      rows.style.setProperty('--ip-cols', String(c));
+      const total = Math.ceil(list.length / c);
+      space.style.height = `${total * ICON_TILE}px`;
+      const from = Math.max(0, Math.floor(scroller.scrollTop / ICON_TILE) - 1);
+      if (!force && from === first && shown.size) return;
+      first = from;
+      const to = Math.min(total, from + visibleRows());
+      const next = new Map<number, HTMLElement>();
+      const els: HTMLElement[] = [];
+      for (let i = from * c; i < Math.min(list.length, to * c); i++) {
+        const b = tile(list[i]!, i);
+        next.set(i, b);
+        els.push(b);
+      }
+      shown = next;
+      rows.style.transform = `translateY(${from * ICON_TILE}px)`;
+      // keep the focus on the same icon across a redraw
+      const focused = rows.contains(document.activeElement) || (rows.getRootNode() as ShadowRoot | Document).activeElement?.parentElement === rows;
+      rows.replaceChildren(...els);
+      const stop = shown.get(keys.active) ?? els[0];
+      stop?.setAttribute('tabindex', '0');
+      if (focused) stop?.focus({ preventScroll: true });
+    };
+    scope.on(scroller, 'scroll', () => drawRows());
+    // the columns follow the width (a tab shown after the picker was built, a resized popover)
+    let width = 0;
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => {
+      if (scroller.clientWidth === width) return;
+      width = scroller.clientWidth;
       drawRows(true);
-      shown.get(i)?.focus();
-    },
-  });
-  const drawRows = (force = false): void => {
-    const c = cols();
-    rows.style.setProperty('--ip-cols', String(c));
-    const total = Math.ceil(list.length / c);
-    space.style.height = `${total * ICON_TILE}px`;
-    const from = Math.max(0, Math.floor(scroller.scrollTop / ICON_TILE) - 1);
-    if (!force && from === first && shown.size) return;
-    first = from;
-    const to = Math.min(total, from + visibleRows());
-    const next = new Map<number, HTMLElement>();
-    const els: HTMLElement[] = [];
-    for (let i = from * c; i < Math.min(list.length, to * c); i++) {
-      const b = tile(list[i]!, i);
-      next.set(i, b);
-      els.push(b);
-    }
-    shown = next;
-    rows.style.transform = `translateY(${from * ICON_TILE}px)`;
-    // keep the focus on the same icon across a redraw
-    const focused = rows.contains(document.activeElement) || (rows.getRootNode() as ShadowRoot | Document).activeElement?.parentElement === rows;
-    rows.replaceChildren(...els);
-    const stop = shown.get(keys.active) ?? els[0];
-    stop?.setAttribute('tabindex', '0');
-    if (focused) stop?.focus({ preventScroll: true });
-  };
-  scope.on(scroller, 'scroll', () => drawRows());
-  // the columns follow the width (a tab shown after the picker was built, a resized popover)
-  let width = 0;
-  const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => {
-    if (scroller.clientWidth === width) return;
-    width = scroller.clientWidth;
-    drawRows(true);
-  }) : null;
-  ro?.observe(scroller);
-  scope.add(() => ro?.disconnect());
+    }) : null;
+    ro?.observe(scroller);
+    scope.add(() => ro?.disconnect());
 
-  function refresh(): void {
-    const t = p.t;
-    el.setAttribute('aria-label', t('icons.title'));
-    input.setAttribute('aria-label', t('icons.search'));
-    input.placeholder = t('icons.searchPlaceholder');
-    rows.setAttribute('aria-label', t('icons.grid'));
-    list = p.find(query.trim(), null);
-    const cur = p.current ? list.indexOf(p.current) : -1;
-    keys.setActive(cur >= 0 ? cur : 0);
-    none.hidden = list.length > 0;
-    none.textContent = query.trim() ? t('icons.none', { q: query.trim() }) : t('icons.empty');
-    drawRows(true);
-  }
-
-  input.addEventListener('input', () => {
-    query = input.value;
-    scroller.scrollTop = 0;
-    refresh();
-  });
-  input.addEventListener('keydown', (ev) => {
-    if (ev.key === 'ArrowDown' && list.length) {
-      ev.preventDefault();
-      keys.setActive(0);
+    function refresh(): void {
+      const t = p.t;
+      el.setAttribute('aria-label', t('icons.title'));
+      input.setAttribute('aria-label', t('icons.search'));
+      input.placeholder = t('icons.searchPlaceholder');
+      rows.setAttribute('aria-label', t('icons.grid'));
+      list = p.find(query.trim(), null);
+      const cur = p.current ? list.indexOf(p.current) : -1;
+      keys.setActive(cur >= 0 ? cur : 0);
+      none.hidden = list.length > 0;
+      none.textContent = query.trim() ? t('icons.none', { q: query.trim() }) : t('icons.empty');
       drawRows(true);
-      shown.get(0)?.focus();
-    } else if (ev.key === 'Enter' && list.length && query.trim()) {
-      ev.preventDefault();
-      p.onPick(list[0]!);
     }
-  });
-  refresh();
 
-  return {
-    el,
-    refresh,
-    focus: () => input.focus(),
-    setQuery(q) {
-      input.value = q;
-      query = q;
+    input.addEventListener('input', () => {
+      query = input.value;
+      scroller.scrollTop = 0;
       refresh();
-    },
-    update(next) {
-      p = { ...p, ...next };
-      refresh();
-    },
-    destroy() {
-      keys.destroy();
-      scope.dispose();
-      el.remove();
-    },
-  };
+    });
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'ArrowDown' && list.length) {
+        ev.preventDefault();
+        keys.setActive(0);
+        drawRows(true);
+        shown.get(0)?.focus();
+      } else if (ev.key === 'Enter' && list.length && query.trim()) {
+        ev.preventDefault();
+        p.onPick(list[0]!);
+      }
+    });
+    return {
+      el,
+      refresh,
+      focus: () => input.focus(),
+      setQuery(q) {
+        input.value = q;
+        query = q;
+        refresh();
+      },
+      render: refresh,
+    };
+  });
 }

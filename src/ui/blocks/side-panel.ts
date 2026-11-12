@@ -7,7 +7,7 @@ import { h } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
 import type { Signal } from '../../reactive/signal.js';
-import { Scope, type BlockHandle, type Translate } from './block.js';
+import { defineBlock, type BlockHandle, type Translate } from './block.js';
 import { createIconButton, type IconButtonHandle } from './button.js';
 import { keepFocus } from '../kit/focus.js';
 import { createGrip } from '../kit/grip.js';
@@ -88,65 +88,49 @@ const setChildren = (box: HTMLElement, kids: readonly Node[]): void => {
 
 export function createSidePanel(props: SidePanelProps): SidePanelHandle {
   registerMessages(BLOCK_MESSAGES_PANELS);
-  let p = { ...props };
-  const scope = new Scope();
-  let fx = new Scope();
-  let close: IconButtonHandle | null = null;
-  const el = h('section', null);
-  const head = h('div', { class: 'mmdx-panel-head' });
-  const bodyEl = h('div', { class: 'mmdx-panel-body' });
-  // thin scrollbars over the content of whatever scrolls inside (the body, a list, a code editor)
-  const scroll = createOverlayScroll(el);
+  return defineBlock(props, (p, scope) => {
+    let close: IconButtonHandle | null = null;
+    scope.add(() => close?.destroy());
+    const el = h('section', null);
+    const head = h('div', { class: 'mmdx-panel-head' });
+    const bodyEl = h('div', { class: 'mmdx-panel-body' });
+    // thin scrollbars over the content of whatever scrolls inside (the body, a list, a code editor)
+    const scroll = createOverlayScroll(el);
+    scope.add(() => scroll.destroy());
 
-  // the close button and the grip are rebuilt (their focus is kept); the head and the body stay in place
-  const render = (): void => keepFocus(el, () => {
-    fx.dispose();
-    fx = new Scope();
-    close?.destroy();
-    close = null;
-    const t = p.t ?? english;
-    // mmdx-oscroll: the native scrollbars inside are hidden for the overlay ones
-    el.className = ['mmdx-panel', 'mmdx-oscroll', p.class].filter(Boolean).join(' ');
-    el.dataset['side'] = p.side;
-    el.setAttribute('aria-label', p.label);
-    if (p.part) el.setAttribute('part', p.part);
-    else el.removeAttribute('part');
-    const onClose = p.onClose;
-    if (onClose) close = createIconButton({ icon: null, text: '×', label: p.closeLabel ?? t('panel.close'), class: 'mmdx-panel-close collapse-btn', f: 'panel-close', ...(p.closeKeys ? { keys: p.closeKeys } : {}), onClick: () => onClose() });
-    const title = p.head ?? (head.firstElementChild?.classList.contains('mmdx-panel-title') ? head.firstElementChild as HTMLElement : h('b', { class: 'mmdx-panel-title', role: 'heading', 'aria-level': '2' }));
-    if (!p.head) title.textContent = p.title ?? '';
-    setChildren(head, [title, ...(p.actions ?? []), ...(close ? [close.el] : [])]);
-    setChildren(bodyEl, [p.body]);
-    const children: HTMLElement[] = [head, bodyEl, ...scroll.thumbs];
-    const r = p.resizable;
-    if (r) {
-      children.push(createGrip({
-        side: p.side, measure: el, get: () => r.width.peek(), set: (w) => r.width.set(w), min: r.min, max: r.max, title: r.title ?? t('panes.resize'),
-        ...(r.onCommit ? { onCommit: r.onCommit } : {}), dragRoot: () => el.parentElement,
-      }, fx));
-      fx.effect(() => {
-        const w = r.width();
-        if (w === null) el.style.removeProperty('width');
-        else el.style.width = `${w}px`;
-      });
-    } else el.style.removeProperty('width');
-    setChildren(el, children);
-  });
-  render();
-
-  return {
-    el,
-    bodyEl,
-    update(next) {
-      p = { ...p, ...next };
-      render();
-    },
-    destroy() {
+    // the close button and the grip are rebuilt (their focus is kept); the head and the body stay in place
+    const render = (): void => keepFocus(el, () => {
+      const fx = scope.renew();
       close?.destroy();
-      scroll.destroy();
-      fx.dispose();
-      scope.dispose();
-      el.remove();
-    },
-  };
+      close = null;
+      const t = p.t ?? english;
+      // mmdx-oscroll: the native scrollbars inside are hidden for the overlay ones
+      el.className = ['mmdx-panel', 'mmdx-oscroll', p.class].filter(Boolean).join(' ');
+      el.dataset['side'] = p.side;
+      el.setAttribute('aria-label', p.label);
+      if (p.part) el.setAttribute('part', p.part);
+      else el.removeAttribute('part');
+      const onClose = p.onClose;
+      if (onClose) close = createIconButton({ icon: null, text: '×', label: p.closeLabel ?? t('panel.close'), class: 'mmdx-panel-close collapse-btn', f: 'panel-close', ...(p.closeKeys ? { keys: p.closeKeys } : {}), onClick: () => onClose() });
+      const title = p.head ?? (head.firstElementChild?.classList.contains('mmdx-panel-title') ? head.firstElementChild as HTMLElement : h('b', { class: 'mmdx-panel-title', role: 'heading', 'aria-level': '2' }));
+      if (!p.head) title.textContent = p.title ?? '';
+      setChildren(head, [title, ...(p.actions ?? []), ...(close ? [close.el] : [])]);
+      setChildren(bodyEl, [p.body]);
+      const children: HTMLElement[] = [head, bodyEl, ...scroll.thumbs];
+      const r = p.resizable;
+      if (r) {
+        children.push(createGrip({
+          side: p.side, measure: el, get: () => r.width.peek(), set: (w) => r.width.set(w), min: r.min, max: r.max, title: r.title ?? t('panes.resize'),
+          ...(r.onCommit ? { onCommit: r.onCommit } : {}), dragRoot: () => el.parentElement,
+        }, fx));
+        fx.effect(() => {
+          const w = r.width();
+          if (w === null) el.style.removeProperty('width');
+          else el.style.width = `${w}px`;
+        });
+      } else el.style.removeProperty('width');
+      setChildren(el, children);
+    });
+    return { el, bodyEl, render };
+  });
 }

@@ -1,7 +1,7 @@
 // Segmented (§5.2): exclusive buttons (the diff's views, compare / version, the studio's mode switch) with a
 // compact `<select>` form that the host's container queries show instead of the buttons on narrow canvases.
 import { h } from '../kit/h.js';
-import { read, Scope, type BlockHandle, type Value } from './block.js';
+import { defineBlock, read, type BlockHandle, type Value } from './block.js';
 import { keepFocus } from '../kit/focus.js';
 
 export interface SegmentedOption<V extends string = string> {
@@ -35,51 +35,39 @@ export const SEGMENTED_CSS = /* css */ `
 `;
 
 export function createSegmented<V extends string>(props: SegmentedProps<V>): BlockHandle<SegmentedProps<V>> {
-  let p = { ...props };
-  let fx = new Scope();
-  const el = h('span', { class: 'mmdx-seg', role: 'group' });
-  const render = (): void => keepFocus(el, () => {
-    fx.dispose();
-    fx = new Scope();
-    el.setAttribute('aria-label', p.label);
-    const prefix = p.f ?? 'seg';
-    const buttons = p.options.map((o) => {
-      const b = h('button', {
-        type: 'button', class: p.buttonClass ?? 'view', disabled: !!o.disabled, 'data-f': `${prefix}-${o.value}`, 'data-value': o.value,
-        ...(o.tip ? { 'data-tip': o.tip } : {}), ...(o.icon ? { 'aria-label': o.label } : {}),
-      }, o.icon ? o.icon() : o.label);
-      b.addEventListener('click', () => p.onChange(o.value), { signal: fx.signal });
-      return b;
-    });
-    let select: HTMLSelectElement | null = null;
-    if (p.select) {
-      select = h('select', { class: `mmdx-seg-select ${p.selectClass ?? 'views'}`, 'aria-label': p.label, 'data-f': `${prefix}-select` },
-        ...p.options.map((o) => h('option', { value: o.value, disabled: !!o.disabled }, o.label)));
-      const s = select;
-      s.addEventListener('change', () => p.onChange(s.value as V), { signal: fx.signal });
-    }
-    el.replaceChildren(...buttons, ...(select ? [select] : []));
-    const value = p.value;
-    fx.effect(() => {
-      const v = read(value);
-      for (const b of buttons) {
-        const on = b.dataset['value'] === v;
-        b.classList.toggle('on', on);
-        b.setAttribute('aria-pressed', String(on));
+  return defineBlock(props, (p, scope) => {
+    const el = h('span', { class: 'mmdx-seg', role: 'group' });
+    const render = (): void => keepFocus(el, () => {
+      const fx = scope.renew();
+      el.setAttribute('aria-label', p.label);
+      const prefix = p.f ?? 'seg';
+      const buttons = p.options.map((o) => {
+        const b = h('button', {
+          type: 'button', class: p.buttonClass ?? 'view', disabled: !!o.disabled, 'data-f': `${prefix}-${o.value}`, 'data-value': o.value,
+          ...(o.tip ? { 'data-tip': o.tip } : {}), ...(o.icon ? { 'aria-label': o.label } : {}),
+        }, o.icon ? o.icon() : o.label);
+        b.addEventListener('click', () => p.onChange(o.value), { signal: fx.signal });
+        return b;
+      });
+      let select: HTMLSelectElement | null = null;
+      if (p.select) {
+        select = h('select', { class: `mmdx-seg-select ${p.selectClass ?? 'views'}`, 'aria-label': p.label, 'data-f': `${prefix}-select` },
+          ...p.options.map((o) => h('option', { value: o.value, disabled: !!o.disabled }, o.label)));
+        const s = select;
+        s.addEventListener('change', () => p.onChange(s.value as V), { signal: fx.signal });
       }
-      if (select) select.value = v;
+      el.replaceChildren(...buttons, ...(select ? [select] : []));
+      const value = p.value;
+      fx.effect(() => {
+        const v = read(value);
+        for (const b of buttons) {
+          const on = b.dataset['value'] === v;
+          b.classList.toggle('on', on);
+          b.setAttribute('aria-pressed', String(on));
+        }
+        if (select) select.value = v;
+      });
     });
+    return { el, render };
   });
-  render();
-  return {
-    el,
-    update(next) {
-      p = { ...p, ...next };
-      render();
-    },
-    destroy() {
-      fx.dispose();
-      el.remove();
-    },
-  };
 }

@@ -3,7 +3,7 @@
 // be a signal; the host keeps it (e.g. which cards of the theme editor stay open across re-renders).
 import { h } from '../kit/h.js';
 import { untracked } from '../../reactive/signal.js';
-import { read, Scope, type BlockHandle, type Value } from './block.js';
+import { defineBlock, read, type BlockHandle, type Value } from './block.js';
 
 export interface DisclosureProps {
   title: string;
@@ -39,71 +39,53 @@ export const DISCLOSURE_CSS = /* css */ `
 let seq = 0;
 
 export function createDisclosure(props: DisclosureProps): DisclosureHandle {
-  let p = { ...props };
-  const scope = new Scope();
-  let fx = new Scope();
-  const caret = h('span', { class: 'mmdx-disclosure-caret', 'aria-hidden': 'true' });
-  const label = h('span', { class: 'mmdx-disclosure-title' });
-  const badge = h('span', { class: 'mmdx-disclosure-badge' });
-  const head = h('button', { type: 'button' }, caret, label, badge);
-  const body = h('div');
-  const el = h('div', null, head, body);
-  // a plain `open` is the block's own state
-  let own = false;
-  let filled = false;
-  const isOpen = (): boolean => (typeof p.open === 'function' ? p.open.peek() : own);
-  const show = (open: boolean): void => {
-    body.hidden = !open;
-    caret.textContent = open ? '▾' : '▸';
-    head.setAttribute('aria-expanded', String(open));
-    if (open && !filled) {
-      filled = true;
-      // the body's own reads are not this block's dependencies
-      untracked(() => p.fill?.(body));
-    }
-  };
-  scope.on(head, 'click', () => {
-    const next = !isOpen();
-    if (typeof p.open !== 'function') {
-      own = next;
-      show(next);
-    }
-    p.onToggle?.(next);
+  return defineBlock(props, (p, scope) => {
+    const caret = h('span', { class: 'mmdx-disclosure-caret', 'aria-hidden': 'true' });
+    const label = h('span', { class: 'mmdx-disclosure-title' });
+    const badge = h('span', { class: 'mmdx-disclosure-badge' });
+    const head = h('button', { type: 'button' }, caret, label, badge);
+    const body = h('div');
+    const el = h('div', null, head, body);
+    // a plain `open` is the block's own state
+    let own = false;
+    let filled = false;
+    const isOpen = (): boolean => (typeof p.open === 'function' ? p.open.peek() : own);
+    const show = (open: boolean): void => {
+      body.hidden = !open;
+      caret.textContent = open ? '▾' : '▸';
+      head.setAttribute('aria-expanded', String(open));
+      if (open && !filled) {
+        filled = true;
+        // the body's own reads are not this block's dependencies
+        untracked(() => p.fill?.(body));
+      }
+    };
+    scope.on(head, 'click', () => {
+      const next = !isOpen();
+      if (typeof p.open !== 'function') {
+        own = next;
+        show(next);
+      }
+      p.onToggle?.(next);
+    });
+
+    const render = (): void => {
+      const fx = scope.renew();
+      el.className = ['mmdx-disclosure', p.class].filter(Boolean).join(' ');
+      head.className = ['mmdx-disclosure-head', p.headClass].filter(Boolean).join(' ');
+      body.className = ['mmdx-disclosure-body', p.bodyClass].filter(Boolean).join(' ');
+      for (const [k, v] of Object.entries(p.headAttrs ?? {})) head.setAttribute(k, v);
+      label.textContent = p.title;
+      badge.textContent = p.badge ?? '';
+      badge.hidden = !p.badge;
+      body.id = p.id ?? (body.id || `mmdx-disclosure-${++seq}`);
+      head.setAttribute('aria-controls', body.id);
+      body.replaceChildren();
+      filled = false;
+      if (typeof p.open !== 'function') own = p.open;
+      const open = p.open;
+      fx.effect(() => show(read(open)));
+    };
+    return { el, head, body, isOpen, render };
   });
-
-  const render = (): void => {
-    fx.dispose();
-    fx = new Scope();
-    el.className = ['mmdx-disclosure', p.class].filter(Boolean).join(' ');
-    head.className = ['mmdx-disclosure-head', p.headClass].filter(Boolean).join(' ');
-    body.className = ['mmdx-disclosure-body', p.bodyClass].filter(Boolean).join(' ');
-    for (const [k, v] of Object.entries(p.headAttrs ?? {})) head.setAttribute(k, v);
-    label.textContent = p.title;
-    badge.textContent = p.badge ?? '';
-    badge.hidden = !p.badge;
-    body.id = p.id ?? (body.id || `mmdx-disclosure-${++seq}`);
-    head.setAttribute('aria-controls', body.id);
-    body.replaceChildren();
-    filled = false;
-    if (typeof p.open !== 'function') own = p.open;
-    const open = p.open;
-    fx.effect(() => show(read(open)));
-  };
-  render();
-
-  return {
-    el,
-    head,
-    body,
-    isOpen,
-    update(next) {
-      p = { ...p, ...next };
-      render();
-    },
-    destroy() {
-      fx.dispose();
-      scope.dispose();
-      el.remove();
-    },
-  };
 }

@@ -19,10 +19,9 @@ export interface ListView {
 
 export function listView(env: Env, list: HTMLElement, options: () => Readonly<ThemeEditorOptions>, importFile: () => void): ListView {
   const { t, lib, draft } = env;
-  let scope = new Scope();
+  const rounds = new Scope();
   const render = (): void => {
-    scope.dispose();
-    scope = new Scope();
+    const scope = rounds.renew();
     const id = draft.id.peek();
     const o = options();
     const rows = [...lib.files.peek()].map(([tid, e]) => {
@@ -72,6 +71,6 @@ export function listView(env: Env, list: HTMLElement, options: () => Readonly<Th
   };
   return {
     render,
-    destroy: () => scope.dispose(),
+    destroy: () => rounds.dispose(),
   };
 }

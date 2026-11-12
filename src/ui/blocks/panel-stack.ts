@@ -8,7 +8,7 @@ import { h } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_PANELS } from '../messages/blocks-panels.js';
 import { signal, untracked } from '../../reactive/signal.js';
-import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
+import { defineBlock, read, type BlockHandle, type Scope, type Translate, type Value } from './block.js';
 import { keepFocus } from '../kit/focus.js';
 import { createGrip } from '../kit/grip.js';
 
@@ -82,229 +82,226 @@ const MIN_LOWER = 90, MIN_UPPER = 140, STEP = 16;
 
 export function createPanelStack(props: PanelStackProps): PanelStackHandle {
   registerMessages(BLOCK_MESSAGES_PANELS);
-  let p = { ...props };
-  const scope = new Scope();
-  let fx = new Scope();
-  const el = h('aside', null);
-  const drawer = signal(false);
-  const opened = new Map<string, number>(); // panel id → when it was last opened (the drawer shows the newest)
-  const wasOpen = new Map<string, boolean>();
-  let tick = 0;
-  let ready = false; // no onChange while the stack is being created
+  return defineBlock(props, (p, scope) => {
+    const el = h('aside', null);
+    const drawer = signal(false);
+    const opened = new Map<string, number>(); // panel id → when it was last opened (the drawer shows the newest)
+    const wasOpen = new Map<string, boolean>();
+    let tick = 0;
+    let ready = false; // no onChange while the stack is being created
 
-  // ---- remembered sizes
-  const wKey = (): string => `${p.storageKey}.w`, hKey = (): string => `${p.storageKey}.h`;
-  let w: number | null = null;
-  const heights = new Map<string, number>();
-  /** Reads the remembered sizes of the current `storageKey` (again after it changes). */
-  const load = (): void => {
-    const savedW = p.storage.get<number>(wKey());
-    w = typeof savedW === 'number' && Number.isFinite(savedW) && savedW > 0 ? savedW : null;
-    const savedH = p.storage.get<Record<string, number>>(hKey());
-    heights.clear();
-    if (savedH && typeof savedH === 'object') for (const [k, v] of Object.entries(savedH)) if (typeof v === 'number' && v > 0) heights.set(k, v);
-  };
-  load();
-  const saveHeights = (): void => {
-    if (heights.size) p.storage.set(hKey(), Object.fromEntries(heights));
-    else p.storage.remove(hKey());
-  };
-  const changed = (): void => {
-    if (ready && p.onChange) untracked(p.onChange);
-  };
-  const applyWidth = (): void => {
-    const cur = w ?? p.width?.initial ?? null;
-    if (p.width && cur !== null) el.style.setProperty('--mmdx-stack-w', `${Math.round(cur)}px`);
-    else el.style.removeProperty('--mmdx-stack-w');
-  };
-
-  let splits: (HTMLElement | null)[] = [];
-  /** Sets the inline height of the panels under a visible splitter (and only those). */
-  const applyHeights = (): void => {
-    p.panels.forEach((x, i) => {
-      const split = splits[i];
-      const px = heights.get(x.id);
-      if (split && !split.hidden && px !== undefined) x.panel.style.flex = `0 0 ${Math.round(px)}px`;
-      else x.panel.style.flex = '';
-      if (split) {
-        if (px !== undefined) split.setAttribute('aria-valuenow', String(Math.round(px)));
-        else split.removeAttribute('aria-valuenow');
-      }
-    });
-  };
-
-  /** The splitter above panel `i`: drag sets that panel's height. */
-  const makeSplit = (i: number, s: Scope): HTMLElement => {
-    const t = p.t;
-    const split = h('div', { class: 'mmdx-split', role: 'separator', 'aria-orientation': 'horizontal', tabindex: '0', title: t('panes.resize'), 'aria-label': t('panes.resize') });
-    const lower = (): StackPanel | undefined => p.panels[i];
-    // `quiet`: a drag tells the host once, when it ends (P22: onChange per pointer move)
-    const setH = (px: number | null, quiet = false): void => {
-      const x = lower();
-      if (!x) return;
-      if (px === null) heights.delete(x.id);
-      else heights.set(x.id, Math.round(px));
-      applyHeights();
-      if (!quiet) changed();
+    // ---- remembered sizes
+    const wKey = (): string => `${p.storageKey}.w`, hKey = (): string => `${p.storageKey}.h`;
+    let w: number | null = null;
+    const heights = new Map<string, number>();
+    /** Reads the remembered sizes of the current `storageKey` (again after it changes). */
+    const load = (): void => {
+      const savedW = p.storage.get<number>(wKey());
+      w = typeof savedW === 'number' && Number.isFinite(savedW) && savedW > 0 ? savedW : null;
+      const savedH = p.storage.get<Record<string, number>>(hKey());
+      heights.clear();
+      if (savedH && typeof savedH === 'object') for (const [k, v] of Object.entries(savedH)) if (typeof v === 'number' && v > 0) heights.set(k, v);
     };
-    const clamp = (px: number): number => Math.max(MIN_LOWER, Math.min((el.getBoundingClientRect().height || 1e4) - MIN_UPPER, px));
-    let drag: AbortController | null = null;
-    s.add(() => drag?.abort());
-    s.on(split, 'pointerdown', (ev: PointerEvent) => {
-      const x = lower();
-      if (ev.button !== 0 || !x) return;
-      ev.preventDefault();
-      try {
-        split.setPointerCapture(ev.pointerId);
-      } catch {
-        // best-effort
-      }
-      const y0 = ev.clientY, h0 = x.panel.getBoundingClientRect().height;
-      const root = el.parentElement;
-      split.classList.add('dragging');
-      root?.classList.add('resizing-rows');
-      drag?.abort();
-      const ac = (drag = new AbortController());
-      let moved = false;
-      const move = (e: PointerEvent): void => {
-        moved = true;
-        setH(clamp(h0 - (e.clientY - y0)), true);
-      };
-      const up = (): void => {
-        ac.abort();
-        if (moved) changed();
-        split.classList.remove('dragging');
-        root?.classList.remove('resizing-rows');
-        saveHeights();
-      };
-      split.addEventListener('pointermove', move as EventListener, { signal: ac.signal });
-      split.addEventListener('pointerup', up, { signal: ac.signal });
-      split.addEventListener('pointercancel', up, { signal: ac.signal });
-    });
-    s.on(split, 'dblclick', () => {
-      setH(null);
-      saveHeights();
-    });
-    s.on(split, 'keydown', (ev: KeyboardEvent) => {
-      const x = lower();
-      if ((ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown') || !x) return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      const h0 = heights.get(x.id) ?? (x.panel.getBoundingClientRect().height || 200);
-      setH(clamp(h0 + (ev.key === 'ArrowUp' ? STEP : -STEP)));
-      saveHeights();
-    });
-    return split;
-  };
+    load();
+    const saveHeights = (): void => {
+      if (heights.size) p.storage.set(hKey(), Object.fromEntries(heights));
+      else p.storage.remove(hKey());
+    };
+    const changed = (): void => {
+      if (ready && p.onChange) untracked(p.onChange);
+    };
+    const applyWidth = (): void => {
+      const cur = w ?? p.width?.initial ?? null;
+      if (p.width && cur !== null) el.style.setProperty('--mmdx-stack-w', `${Math.round(cur)}px`);
+      else el.style.removeProperty('--mmdx-stack-w');
+    };
 
-  const render = (): void => keepFocus(el, () => {
-    fx.dispose();
-    fx = new Scope();
-    el.className = ['mmdx-stack', p.class].filter(Boolean).join(' ');
-    el.dataset['side'] = p.side;
-    if (p.label) el.setAttribute('aria-label', p.label);
-    else el.removeAttribute('aria-label');
-    if (p.part) el.setAttribute('part', p.part);
-    else el.removeAttribute('part');
-    splits = p.panels.map((_, i) => (i ? makeSplit(i, fx) : null));
-    const children: HTMLElement[] = [];
-    p.panels.forEach((x, i) => {
-      const split = splits[i];
-      if (split) children.push(split);
-      children.push(x.panel);
-    });
-    const wd = p.width;
-    if (wd)
-      children.push(createGrip({
-        side: p.side, measure: el, get: () => w ?? wd.initial, min: wd.min, max: wd.max, title: p.t('panes.resize'), dragRoot: () => el.parentElement,
-        set: (px) => {
-          w = px;
-          applyWidth();
-          changed();
-        },
-        onCommit: () => {
-          if (w === null) p.storage.remove(wKey());
-          else p.storage.set(wKey(), w);
-        },
-      }, fx));
-    // panels already in place are not moved (a focused control inside one keeps the focus)
-    const cur = el.childNodes;
-    if (cur.length !== children.length || children.some((c, i) => cur[i] !== c)) el.replaceChildren(...children);
-    applyWidth();
-
-    // ---- visibility: open panels (or, as a drawer, the one opened last); splitters between visible panels
-    fx.effect(() => {
-      const isDrawer = drawer();
-      const open = p.panels.filter((x) => {
-        const on = read(x.open);
-        if (on && !wasOpen.get(x.id)) opened.set(x.id, ++tick);
-        wasOpen.set(x.id, on);
-        return on;
-      });
-      const front = isDrawer ? open.reduce<StackPanel | null>((a, x) => (!a || (opened.get(x.id) ?? 0) > (opened.get(a.id) ?? 0) ? x : a), null) : null;
-      const shown = new Set(isDrawer ? (front ? [front] : []) : open);
-      let above = false;
+    let splits: (HTMLElement | null)[] = [];
+    /** Sets the inline height of the panels under a visible splitter (and only those). */
+    const applyHeights = (): void => {
       p.panels.forEach((x, i) => {
-        const on = shown.has(x);
-        x.panel.hidden = !on;
         const split = splits[i];
-        if (split) split.hidden = !(on && above);
-        above ||= on;
+        const px = heights.get(x.id);
+        if (split && !split.hidden && px !== undefined) x.panel.style.flex = `0 0 ${Math.round(px)}px`;
+        else x.panel.style.flex = '';
+        if (split) {
+          if (px !== undefined) split.setAttribute('aria-valuenow', String(Math.round(px)));
+          else split.removeAttribute('aria-valuenow');
+        }
       });
-      applyHeights();
-      el.classList.toggle('open', shown.size > 0);
-      el.classList.toggle('drawer', isDrawer);
-      changed();
-    });
-  });
-  render();
-
-  // ---- drawer form below a host width (observed again when `container` or `drawerBelow` change)
-  let unobserve = (): void => undefined;
-  scope.add(() => unobserve());
-  const observe = (): void => {
-    unobserve();
-    unobserve = () => undefined;
-    const c = p.container, below = p.drawerBelow;
-    if (!c || below === undefined) {
-      if (ready) drawer.set(false);
-      return;
-    }
-    const check = (width: number): void => {
-      if (width > 0) drawer.set(width < below);
     };
-    check(c.getBoundingClientRect().width);
-    if (typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver((entries) => check(entries[0]?.contentRect.width ?? c.getBoundingClientRect().width));
-    ro.observe(c);
-    unobserve = () => ro.disconnect();
-  };
-  observe();
-  ready = true;
 
-  return {
-    el,
-    get drawer() {
-      return drawer.peek();
-    },
-    width() {
-      if (!el.classList.contains('open') || drawer.peek()) return 0;
-      return el.getBoundingClientRect().width || (p.width ? (w ?? p.width.initial) : 0);
-    },
-    setDrawer(on) {
-      drawer.set(on);
-    },
-    update(next) {
-      const prev = p;
-      p = { ...p, ...next };
-      if (p.storageKey !== prev.storageKey || p.storage !== prev.storage) load();
-      render();
-      if (p.container !== prev.container || p.drawerBelow !== prev.drawerBelow) observe();
-    },
-    destroy() {
-      fx.dispose();
-      scope.dispose();
-      el.remove();
-    },
-  };
+    /** The splitter above panel `i`: drag sets that panel's height. */
+    const makeSplit = (i: number, s: Scope): HTMLElement => {
+      const t = p.t;
+      const split = h('div', { class: 'mmdx-split', role: 'separator', 'aria-orientation': 'horizontal', tabindex: '0', title: t('panes.resize'), 'aria-label': t('panes.resize') });
+      const lower = (): StackPanel | undefined => p.panels[i];
+      // `quiet`: a drag tells the host once, when it ends (P22: onChange per pointer move)
+      const setH = (px: number | null, quiet = false): void => {
+        const x = lower();
+        if (!x) return;
+        if (px === null) heights.delete(x.id);
+        else heights.set(x.id, Math.round(px));
+        applyHeights();
+        if (!quiet) changed();
+      };
+      const clamp = (px: number): number => Math.max(MIN_LOWER, Math.min((el.getBoundingClientRect().height || 1e4) - MIN_UPPER, px));
+      let drag: AbortController | null = null;
+      s.add(() => drag?.abort());
+      s.on(split, 'pointerdown', (ev: PointerEvent) => {
+        const x = lower();
+        if (ev.button !== 0 || !x) return;
+        ev.preventDefault();
+        try {
+          split.setPointerCapture(ev.pointerId);
+        } catch {
+          // best-effort
+        }
+        const y0 = ev.clientY, h0 = x.panel.getBoundingClientRect().height;
+        const root = el.parentElement;
+        split.classList.add('dragging');
+        root?.classList.add('resizing-rows');
+        drag?.abort();
+        const ac = (drag = new AbortController());
+        let moved = false;
+        const move = (e: PointerEvent): void => {
+          moved = true;
+          setH(clamp(h0 - (e.clientY - y0)), true);
+        };
+        const up = (): void => {
+          ac.abort();
+          if (moved) changed();
+          split.classList.remove('dragging');
+          root?.classList.remove('resizing-rows');
+          saveHeights();
+        };
+        split.addEventListener('pointermove', move as EventListener, { signal: ac.signal });
+        split.addEventListener('pointerup', up, { signal: ac.signal });
+        split.addEventListener('pointercancel', up, { signal: ac.signal });
+      });
+      s.on(split, 'dblclick', () => {
+        setH(null);
+        saveHeights();
+      });
+      s.on(split, 'keydown', (ev: KeyboardEvent) => {
+        const x = lower();
+        if ((ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown') || !x) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        const h0 = heights.get(x.id) ?? (x.panel.getBoundingClientRect().height || 200);
+        setH(clamp(h0 + (ev.key === 'ArrowUp' ? STEP : -STEP)));
+        saveHeights();
+      });
+      return split;
+    };
+
+    const render = (): void => keepFocus(el, () => {
+      const fx = scope.renew();
+      el.className = ['mmdx-stack', p.class].filter(Boolean).join(' ');
+      el.dataset['side'] = p.side;
+      if (p.label) el.setAttribute('aria-label', p.label);
+      else el.removeAttribute('aria-label');
+      if (p.part) el.setAttribute('part', p.part);
+      else el.removeAttribute('part');
+      splits = p.panels.map((_, i) => (i ? makeSplit(i, fx) : null));
+      const children: HTMLElement[] = [];
+      p.panels.forEach((x, i) => {
+        const split = splits[i];
+        if (split) children.push(split);
+        children.push(x.panel);
+      });
+      const wd = p.width;
+      if (wd)
+        children.push(createGrip({
+          side: p.side, measure: el, get: () => w ?? wd.initial, min: wd.min, max: wd.max, title: p.t('panes.resize'), dragRoot: () => el.parentElement,
+          set: (px) => {
+            w = px;
+            applyWidth();
+            changed();
+          },
+          onCommit: () => {
+            if (w === null) p.storage.remove(wKey());
+            else p.storage.set(wKey(), w);
+          },
+        }, fx));
+      // panels already in place are not moved (a focused control inside one keeps the focus)
+      const cur = el.childNodes;
+      if (cur.length !== children.length || children.some((c, i) => cur[i] !== c)) el.replaceChildren(...children);
+      applyWidth();
+
+      // ---- visibility: open panels (or, as a drawer, the one opened last); splitters between visible panels
+      fx.effect(() => {
+        const isDrawer = drawer();
+        const open = p.panels.filter((x) => {
+          const on = read(x.open);
+          if (on && !wasOpen.get(x.id)) opened.set(x.id, ++tick);
+          wasOpen.set(x.id, on);
+          return on;
+        });
+        const front = isDrawer ? open.reduce<StackPanel | null>((a, x) => (!a || (opened.get(x.id) ?? 0) > (opened.get(a.id) ?? 0) ? x : a), null) : null;
+        const shown = new Set(isDrawer ? (front ? [front] : []) : open);
+        let above = false;
+        p.panels.forEach((x, i) => {
+          const on = shown.has(x);
+          x.panel.hidden = !on;
+          const split = splits[i];
+          if (split) split.hidden = !(on && above);
+          above ||= on;
+        });
+        applyHeights();
+        el.classList.toggle('open', shown.size > 0);
+        el.classList.toggle('drawer', isDrawer);
+        changed();
+      });
+    });
+
+    let was = { ...p };
+    // ---- drawer form below a host width (observed again when `container` or `drawerBelow` change)
+    let unobserve = (): void => undefined;
+    scope.add(() => unobserve());
+    const observe = (): void => {
+      unobserve();
+      unobserve = () => undefined;
+      const c = p.container, below = p.drawerBelow;
+      if (!c || below === undefined) {
+        if (ready) drawer.set(false);
+        return;
+      }
+      const check = (width: number): void => {
+        if (width > 0) drawer.set(width < below);
+      };
+      check(c.getBoundingClientRect().width);
+      if (typeof ResizeObserver === 'undefined') return;
+      const ro = new ResizeObserver((entries) => check(entries[0]?.contentRect.width ?? c.getBoundingClientRect().width));
+      ro.observe(c);
+      unobserve = () => ro.disconnect();
+    };
+    return {
+      el,
+      get drawer() {
+        return drawer.peek();
+      },
+      width() {
+        if (!el.classList.contains('open') || drawer.peek()) return 0;
+        return el.getBoundingClientRect().width || (p.width ? (w ?? p.width.initial) : 0);
+      },
+      setDrawer(on) {
+        drawer.set(on);
+      },
+      render: (next) => {
+        // what the remembered sizes and the drawer observer were set up for
+        const prev = was;
+        was = { ...p };
+        if (!next) {
+          render();
+          observe();
+          ready = true;
+          return;
+        }
+        if (p.storageKey !== prev.storageKey || p.storage !== prev.storage) load();
+        render();
+        if (p.container !== prev.container || p.drawerBelow !== prev.drawerBelow) observe();
+      },
+    };
+  });
 }

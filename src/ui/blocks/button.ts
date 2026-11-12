@@ -2,7 +2,7 @@
 // mirrors the label with its shortcut, and an optional pressed state. Pressed, disabled and hidden can follow
 // signals.
 import { h, icon as svgIcon } from '../kit/h.js';
-import { ariaKeys, read, Scope, tipText, type BlockHandle, type Value } from './block.js';
+import { ariaKeys, defineBlock, read, tipText, type BlockHandle, type Value } from './block.js';
 
 export interface IconButtonProps {
   /** Icon path (24 × 24 viewBox), or null for a text button. */
@@ -35,56 +35,41 @@ export interface IconButtonHandle extends BlockHandle<IconButtonProps> {
 }
 
 export function createIconButton(props: IconButtonProps): IconButtonHandle {
-  let p = { ...props };
-  const scope = new Scope();
-  const el = h('button', { type: 'button' });
-  scope.on(el, 'click', (ev: MouseEvent) => p.onClick?.(ev));
-  let effects = new Scope();
+  return defineBlock(props, (p, scope) => {
+    const el = h('button', { type: 'button' });
+    scope.on(el, 'click', (ev: MouseEvent) => p.onClick?.(ev));
 
-  const render = (): void => {
-    effects.dispose();
-    effects = new Scope();
-    el.className = ['mmdx-btn', p.class].filter(Boolean).join(' ');
-    el.replaceChildren(...[p.icon ? svgIcon(p.icon, p.iconSize ?? 16) : null, p.text ?? null].filter((x): x is SVGElement | string => x !== null));
-    el.setAttribute('aria-label', p.label);
-    const tip = p.tip ?? tipText(p.label, p.keys, p.formatKeys);
-    el.removeAttribute('title');
-    el.removeAttribute('data-tip');
-    if ((p.tooltip ?? 'title') === 'title') el.title = tip;
-    else if (p.tooltip === 'tip') el.setAttribute('data-tip', tip);
-    if (p.keys) el.setAttribute('aria-keyshortcuts', ariaKeys(p.keys));
-    else el.removeAttribute('aria-keyshortcuts');
-    if (p.f) el.setAttribute('data-f', p.f);
-    for (const [k, v] of Object.entries(p.attrs ?? {})) {
-      if (v === undefined) el.removeAttribute(k);
-      else el.setAttribute(k, v);
-    }
-    const pressed = p.pressed;
-    if (pressed !== undefined)
-      effects.effect(() => {
-        const on = read(pressed);
-        el.classList.toggle('on', on);
-        el.setAttribute('aria-pressed', String(on));
-      });
-    const disabled = p.disabled;
-    if (disabled !== undefined) effects.effect(() => void (el.disabled = read(disabled)));
-    const hidden = p.hidden;
-    if (hidden !== undefined) effects.effect(() => void (el.hidden = read(hidden)));
-  };
-  render();
-
-  return {
-    el,
-    update(next) {
-      p = { ...p, ...next };
-      render();
-    },
-    destroy() {
-      effects.dispose();
-      scope.dispose();
-      el.remove();
-    },
-  };
+    const render = (): void => {
+      const effects = scope.renew();
+      el.className = ['mmdx-btn', p.class].filter(Boolean).join(' ');
+      el.replaceChildren(...[p.icon ? svgIcon(p.icon, p.iconSize ?? 16) : null, p.text ?? null].filter((x): x is SVGElement | string => x !== null));
+      el.setAttribute('aria-label', p.label);
+      const tip = p.tip ?? tipText(p.label, p.keys, p.formatKeys);
+      el.removeAttribute('title');
+      el.removeAttribute('data-tip');
+      if ((p.tooltip ?? 'title') === 'title') el.title = tip;
+      else if (p.tooltip === 'tip') el.setAttribute('data-tip', tip);
+      if (p.keys) el.setAttribute('aria-keyshortcuts', ariaKeys(p.keys));
+      else el.removeAttribute('aria-keyshortcuts');
+      if (p.f) el.setAttribute('data-f', p.f);
+      for (const [k, v] of Object.entries(p.attrs ?? {})) {
+        if (v === undefined) el.removeAttribute(k);
+        else el.setAttribute(k, v);
+      }
+      const pressed = p.pressed;
+      if (pressed !== undefined)
+        effects.effect(() => {
+          const on = read(pressed);
+          el.classList.toggle('on', on);
+          el.setAttribute('aria-pressed', String(on));
+        });
+      const disabled = p.disabled;
+      if (disabled !== undefined) effects.effect(() => void (el.disabled = read(disabled)));
+      const hidden = p.hidden;
+      if (hidden !== undefined) effects.effect(() => void (el.hidden = read(hidden)));
+    };
+    return { el, render };
+  });
 }
 
 /** ToggleButton (§5.2): an IconButton whose `pressed` is required (`aria-pressed` and the `on` class follow it). */

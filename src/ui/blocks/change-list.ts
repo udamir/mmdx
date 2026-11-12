@@ -10,7 +10,7 @@ import type { FieldChange, ItemChange } from '../../core/diff/index.js';
 import { h, icon } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
-import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
+import { defineBlock, read, type BlockHandle, type Translate, type Value } from './block.js';
 import { FILTER_ICONS } from './filter-toggles.js';
 import { keepFocus, rovingKeys } from '../kit/focus.js';
 import { describeChange, kindLabel } from '../diagram/change-text.js';
@@ -97,83 +97,76 @@ export const CHANGE_LIST_CSS = /* css */ `
 
 export function createChangeList(props: ChangeListProps): ChangeListHandle {
   registerMessages(BLOCK_MESSAGES_DIFF);
-  let p = { ...props };
-  const scope = new Scope();
-  const el = h('div', { class: 'mmdx-change-list' });
-  const rows = (): HTMLElement[] => [...el.querySelectorAll<HTMLElement>('.change')];
-  /** The selected key as last applied (`p.selected` may be a signal). */
-  let selected = read(p.selected);
+  return defineBlock(props, (p, scope) => {
+    const el = h('div', { class: 'mmdx-change-list' });
+    const rows = (): HTMLElement[] => [...el.querySelectorAll<HTMLElement>('.change')];
+    /** The selected key as last applied (`p.selected` may be a signal). */
+    let selected = read(p.selected);
 
-  // one listener for every row: the current selection decides between selecting and clearing
-  scope.on(el, 'click', (ev: MouseEvent) => {
-    const row = (ev.target as Element).closest<HTMLElement>('.change');
-    const key = row && el.contains(row) ? row.dataset['key'] : undefined;
-    if (key !== undefined) p.onSelect(selected === key ? null : key);
-  });
-  const keys = rovingKeys(el, { orientation: 'vertical', selector: '.change', wrap: false, roving: true, current: (list) => list.find((b) => b.getAttribute('aria-selected') === 'true') });
-  scope.add(() => keys.destroy());
+    // one listener for every row: the current selection decides between selecting and clearing
+    scope.on(el, 'click', (ev: MouseEvent) => {
+      const row = (ev.target as Element).closest<HTMLElement>('.change');
+      const key = row && el.contains(row) ? row.dataset['key'] : undefined;
+      if (key !== undefined) p.onSelect(selected === key ? null : key);
+    });
+    const keys = rovingKeys(el, { orientation: 'vertical', selector: '.change', wrap: false, roving: true, current: (list) => list.find((b) => b.getAttribute('aria-selected') === 'true') });
+    scope.add(() => keys.destroy());
 
-  const render = (): void => {
-    const t = p.t;
-    if (p.part) el.setAttribute('part', p.part);
-    else el.removeAttribute('part');
-    const out: HTMLElement[] = [];
-    if (p.doc.length)
-      out.push(h('details', { class: 'doc-changes', open: true }, h('summary', null, t('diff.panel.docWide', { n: p.doc.length })), ...p.doc.map((f) => fieldRow(f, p.colorBefore, p.colorAfter))));
-    if (!p.changes.length) out.push(h('div', { class: 'empty' }, t('diff.empty.noChanges')));
-    else {
-      const list = h('div', { class: 'changes', role: 'listbox', 'aria-label': t('diff.panel.changes') });
-      for (const c of p.changes) {
-        const key = p.keyOf(c);
-        list.append(h('button', { type: 'button', class: `change st-${c.status}`, role: 'option', 'aria-selected': String(selected === key), 'data-key': key, 'data-f': key, title: describeChange(t, c) },
-          h('span', { class: 'cicons' }, ...marksOf(c).map((m) => h('span', { class: `cicon m-${m}`, 'aria-hidden': 'true' }, icon(FILTER_ICONS[m], 14)))),
-          h('span', { class: 'kind' }, kindLabel(t, c.kind)),
-          h('span', { class: 'label' }, c.label)));
+    const draw = (): void => {
+      const t = p.t;
+      if (p.part) el.setAttribute('part', p.part);
+      else el.removeAttribute('part');
+      const out: HTMLElement[] = [];
+      if (p.doc.length)
+        out.push(h('details', { class: 'doc-changes', open: true }, h('summary', null, t('diff.panel.docWide', { n: p.doc.length })), ...p.doc.map((f) => fieldRow(f, p.colorBefore, p.colorAfter))));
+      if (!p.changes.length) out.push(h('div', { class: 'empty' }, t('diff.empty.noChanges')));
+      else {
+        const list = h('div', { class: 'changes', role: 'listbox', 'aria-label': t('diff.panel.changes') });
+        for (const c of p.changes) {
+          const key = p.keyOf(c);
+          list.append(h('button', { type: 'button', class: `change st-${c.status}`, role: 'option', 'aria-selected': String(selected === key), 'data-key': key, 'data-f': key, title: describeChange(t, c) },
+            h('span', { class: 'cicons' }, ...marksOf(c).map((m) => h('span', { class: `cicon m-${m}`, 'aria-hidden': 'true' }, icon(FILTER_ICONS[m], 14)))),
+            h('span', { class: 'kind' }, kindLabel(t, c.kind)),
+            h('span', { class: 'label' }, c.label)));
+        }
+        out.push(list);
       }
-      out.push(list);
-    }
-    el.replaceChildren(...out);
-  };
-  render();
-  keys.sync();
-
-  const select = (key: string | null): void => {
-    selected = key;
-    let row: HTMLElement | null = null;
-    for (const b of rows()) {
-      const on = b.dataset['key'] === key;
-      b.setAttribute('aria-selected', String(on));
-      if (on) row = b;
-    }
-    keys.sync();
-    row?.scrollIntoView?.({ block: 'nearest' });
-  };
-  // a `selected` signal moves the selection in place
-  let fx = new Scope();
-  const follow = (): void => {
-    fx.dispose();
-    fx = new Scope();
-    const v = p.selected;
-    if (typeof v === 'function') fx.effect(() => select(v()));
-  };
-  follow();
-
-  return {
-    el,
-    select,
-    update(next) {
-      p = { ...p, ...next };
-      if (next && 'selected' in next) {
-        selected = read(p.selected);
-        follow();
+      el.replaceChildren(...out);
+    };
+    const select = (key: string | null): void => {
+      selected = key;
+      let row: HTMLElement | null = null;
+      for (const b of rows()) {
+        const on = b.dataset['key'] === key;
+        b.setAttribute('aria-selected', String(on));
+        if (on) row = b;
       }
-      keepFocus(el, render);
       keys.sync();
-    },
-    destroy() {
-      fx.dispose();
-      scope.dispose();
-      el.remove();
-    },
-  };
+      row?.scrollIntoView?.({ block: 'nearest' });
+    };
+    // a `selected` signal moves the selection in place
+    const follow = (): void => {
+      const fx = scope.renew();
+      const v = p.selected;
+      if (typeof v === 'function') fx.effect(() => select(v()));
+    };
+    return {
+      el,
+      select,
+      render: (next) => {
+        if (!next) {
+          draw();
+          keys.sync();
+          follow();
+          return;
+        }
+        if ('selected' in next) {
+          selected = read(p.selected);
+          follow();
+        }
+        keepFocus(el, draw);
+        keys.sync();
+      },
+    };
+  });
 }

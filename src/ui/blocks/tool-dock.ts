@@ -4,7 +4,7 @@
 // `editor/modules/chrome/tool-dock.ts` and the diff's `vbar`; the class names are kept so the editor's tests and
 // styles still match. The host builds the buttons (`dockButton`) and owns their state.
 import { h } from '../kit/h.js';
-import { read, Scope, type BlockHandle, type Value } from './block.js';
+import { defineBlock, read, type BlockHandle, type Value } from './block.js';
 import { createIconButton, type IconButtonHandle, type IconButtonProps } from './button.js';
 import { keepFocus } from '../kit/focus.js';
 import { createToolbar, type ToolbarHandle, type ToolbarItem } from './toolbar.js';
@@ -83,66 +83,54 @@ export function dockBadge(button: HTMLElement, n: number): void {
 }
 
 export function createToolDock(props: ToolDockProps): ToolDockHandle {
-  let p = { ...props };
-  const scope = new Scope();
-  let compactScope = new Scope();
-  const opts = h('div', { class: 'vt-opts', hidden: true });
-  const toolbar: ToolbarHandle = createToolbar({ label: p.label, orientation: 'vertical', items: [], class: 'view-tools', tooltip: 'side' });
-  let cards: HTMLElement[] = [];
-  const el = h('div', { class: 'tool-dock' }, toolbar.el);
-  // the dock is not part of the canvas: pointer events stay here
-  scope.on(el, 'pointerdown', (ev: PointerEvent) => ev.stopPropagation());
+  return defineBlock(props, (p, scope) => {
+    const opts = h('div', { class: 'vt-opts', hidden: true });
+    const toolbar: ToolbarHandle = createToolbar({ label: p.label, orientation: 'vertical', items: [], class: 'view-tools', tooltip: 'side' });
+    scope.add(() => toolbar.destroy());
+    let cards: HTMLElement[] = [];
+    const el = h('div', { class: 'tool-dock' }, toolbar.el);
+    // the dock is not part of the canvas: pointer events stay here
+    scope.on(el, 'pointerdown', (ev: PointerEvent) => ev.stopPropagation());
 
-  const toolItems = (): ToolbarItem[] => {
-    const items = (p.groups[0]?.items ?? []).map((x) => (x === 'sep' ? h('span', { class: 'vt-divider', 'aria-hidden': 'true' }) : x));
-    return [...items, opts];
-  };
-  const renderFlyout = (): void => {
-    const f = p.flyout ?? null;
-    opts.replaceChildren(...(f ? [f] : []));
-    opts.hidden = !f;
-  };
-  const renderGroups = (): void => {
-    const first = p.groups[0];
-    toolbar.update({ label: first?.label ?? p.label, class: ['view-tools', first?.class].filter(Boolean).join(' '), items: toolItems() });
-    // the cards follow the tools bar; the bar itself stays in place, so its focus is untouched
-    keepFocus(el, () => {
-      for (const c of cards) c.remove();
-      cards = p.groups.slice(1).map((g) =>
-        h('div', { class: ['vt-card', `vt-${g.id}`, g.class].filter(Boolean).join(' '), role: 'group', ...(g.label ? { 'aria-label': g.label } : {}) },
-          ...g.items.filter((x): x is HTMLElement => !!x && x !== 'sep')));
-      el.append(...cards);
-    });
-  };
-  const renderFrame = (): void => {
-    el.setAttribute('part', p.part ?? 'toolbar');
-    compactScope.dispose();
-    compactScope = new Scope();
-    const compact = p.compact;
-    if (compact !== undefined) compactScope.effect(() => el.classList.toggle('compact', read(compact)));
-  };
-  renderFrame();
-  renderFlyout();
-  renderGroups();
-
-  return {
-    el,
-    tools: toolbar.el,
-    setFlyout(f) {
-      p = { ...p, flyout: f };
-      renderFlyout();
-    },
-    update(next) {
-      p = { ...p, ...next };
-      renderFrame();
-      if (next && 'flyout' in next) renderFlyout();
-      if (next?.groups || next?.label) renderGroups();
-    },
-    destroy() {
-      compactScope.dispose();
-      toolbar.destroy();
-      scope.dispose();
-      el.remove();
-    },
-  };
+    const toolItems = (): ToolbarItem[] => {
+      const items = (p.groups[0]?.items ?? []).map((x) => (x === 'sep' ? h('span', { class: 'vt-divider', 'aria-hidden': 'true' }) : x));
+      return [...items, opts];
+    };
+    const renderFlyout = (): void => {
+      const f = p.flyout ?? null;
+      opts.replaceChildren(...(f ? [f] : []));
+      opts.hidden = !f;
+    };
+    const renderGroups = (): void => {
+      const first = p.groups[0];
+      toolbar.update({ label: first?.label ?? p.label, class: ['view-tools', first?.class].filter(Boolean).join(' '), items: toolItems() });
+      // the cards follow the tools bar; the bar itself stays in place, so its focus is untouched
+      keepFocus(el, () => {
+        for (const c of cards) c.remove();
+        cards = p.groups.slice(1).map((g) =>
+          h('div', { class: ['vt-card', `vt-${g.id}`, g.class].filter(Boolean).join(' '), role: 'group', ...(g.label ? { 'aria-label': g.label } : {}) },
+            ...g.items.filter((x): x is HTMLElement => !!x && x !== 'sep')));
+        el.append(...cards);
+      });
+    };
+    const renderFrame = (): void => {
+      el.setAttribute('part', p.part ?? 'toolbar');
+      const fx = scope.renew();
+      const compact = p.compact;
+      if (compact !== undefined) fx.effect(() => el.classList.toggle('compact', read(compact)));
+    };
+    return {
+      el,
+      tools: toolbar.el,
+      setFlyout(f) {
+        p.flyout = f;
+        renderFlyout();
+      },
+      render: (next) => {
+        renderFrame();
+        if (!next || 'flyout' in next) renderFlyout();
+        if (!next || next.groups || next.label) renderGroups();
+      },
+    };
+  });
 }

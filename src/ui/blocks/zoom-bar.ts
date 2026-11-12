@@ -8,7 +8,7 @@ import { h, icon } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_CHROME } from '../messages/blocks.js';
 import type { ReadSignal } from '../../reactive/signal.js';
-import { ariaKeys, read, Scope, tipText, type BlockHandle, type Translate, type Value } from './block.js';
+import { ariaKeys, defineBlock, read, tipText, type BlockHandle, type Translate, type Value } from './block.js';
 import { keepFocus, rovingKeys } from '../kit/focus.js';
 
 export interface ZoomBarProps {
@@ -63,75 +63,64 @@ export const ZOOM_BAR_CSS = /* css */ `
 
 export function createZoomBar(props: ZoomBarProps): ZoomBarHandle {
   registerMessages(BLOCK_MESSAGES_CHROME);
-  let p = { ...props };
-  let fx = new Scope();
-  const el = h('div', { class: 'bottom-bar' });
-  let helpButton: HTMLButtonElement | null = null;
-  const keys = rovingKeys(el, { orientation: 'horizontal', selector: '.zoom > button', roving: true });
+  return defineBlock(props, (p, scope) => {
+    const el = h('div', { class: 'bottom-bar' });
+    let helpButton: HTMLButtonElement | null = null;
+    const keys = rovingKeys(el, { orientation: 'horizontal', selector: '.zoom > button', roving: true });
+    scope.add(() => keys.destroy());
 
-  const render = (): void => keepFocus(el, () => {
-    fx.dispose();
-    fx = new Scope();
-    const { t } = p;
-    const tip = (label: string, k: string): string => tipText(label, k, p.formatKeys);
-    const btn = (f: string, label: string, text: string, run: () => void, extra: Record<string, unknown> = {}): HTMLButtonElement => {
-      const b = h('button', { type: 'button', title: label, 'aria-label': label, 'data-f': f, ...extra }, text);
-      fx.on(b, 'click', run);
-      return b;
-    };
-    const out = btn('zoom-out', t('zoom.out'), '−', () => p.onZoom(1 / 1.2));
-    const level = h('output', { 'aria-live': 'off', 'aria-label': t('zoom.level') });
-    const inn = btn('zoom-in', t('zoom.in'), '+', () => p.onZoom(1.2));
-    const fit = btn('fit', t('zoom.fit'), '', () => p.onFit(), { class: 'fit-btn', title: tip(t('zoom.fit'), 'f'), 'aria-keyshortcuts': ariaKeys('f') });
-    const help = p.help;
-    helpButton = help ? btn('help', t('help.button'), '?', () => help.onToggle(), { class: 'help-btn', title: tip(t('help.button'), '?'), 'aria-keyshortcuts': ariaKeys('?'), 'aria-haspopup': 'dialog', 'aria-expanded': 'false' }) : null;
-    const full = p.fullscreen;
-    const fs = full ? btn('fullscreen', t('fullscreen.enter'), '', () => full.onToggle(), { class: 'fs-btn', hidden: !full.available }) : null;
-    const bar = h('div', { class: 'zoom', role: 'toolbar', 'aria-label': t('zoom.bar'), part: p.part ?? 'zoom-bar' }, out, level, inn, fit, helpButton, fs);
-    el.replaceChildren(bar);
+    const render = (): void => keepFocus(el, () => {
+      const fx = scope.renew();
+      const { t } = p;
+      const tip = (label: string, k: string): string => tipText(label, k, p.formatKeys);
+      const btn = (f: string, label: string, text: string, run: () => void, extra: Record<string, unknown> = {}): HTMLButtonElement => {
+        const b = h('button', { type: 'button', title: label, 'aria-label': label, 'data-f': f, ...extra }, text);
+        fx.on(b, 'click', run);
+        return b;
+      };
+      const out = btn('zoom-out', t('zoom.out'), '−', () => p.onZoom(1 / 1.2));
+      const level = h('output', { 'aria-live': 'off', 'aria-label': t('zoom.level') });
+      const inn = btn('zoom-in', t('zoom.in'), '+', () => p.onZoom(1.2));
+      const fit = btn('fit', t('zoom.fit'), '', () => p.onFit(), { class: 'fit-btn', title: tip(t('zoom.fit'), 'f'), 'aria-keyshortcuts': ariaKeys('f') });
+      const help = p.help;
+      helpButton = help ? btn('help', t('help.button'), '?', () => help.onToggle(), { class: 'help-btn', title: tip(t('help.button'), '?'), 'aria-keyshortcuts': ariaKeys('?'), 'aria-haspopup': 'dialog', 'aria-expanded': 'false' }) : null;
+      const full = p.fullscreen;
+      const fs = full ? btn('fullscreen', t('fullscreen.enter'), '', () => full.onToggle(), { class: 'fs-btn', hidden: !full.available }) : null;
+      const bar = h('div', { class: 'zoom', role: 'toolbar', 'aria-label': t('zoom.bar'), part: p.part ?? 'zoom-bar' }, out, level, inn, fit, helpButton, fs);
+      el.replaceChildren(bar);
 
-    const view = p.view;
-    fx.effect(() => void (level.textContent = `${Math.round(view().k * 100)}%`));
-    const compact = p.compact;
-    fx.effect(() => {
-      const on = compact !== undefined && read(compact);
-      el.classList.toggle('compact', on);
-      fit.replaceChildren(on ? icon(I_FIT, 16) : t('zoom.fitShort'));
-    });
-    if (help && helpButton) {
-      const b = helpButton;
-      fx.effect(() => b.setAttribute('aria-expanded', String(read(help.open))));
-    }
-    // the label says what the button does (the state is announced once, not as a label and a pressed state too)
-    if (full && fs)
+      const view = p.view;
+      fx.effect(() => void (level.textContent = `${Math.round(view().k * 100)}%`));
+      const compact = p.compact;
       fx.effect(() => {
-        const on = read(full.active);
-        const label = on ? t('fullscreen.exit') : t('fullscreen.enter');
-        fs.replaceChildren(icon(on ? I_SHRINK : I_EXPAND, 16));
-        fs.title = label;
-        fs.setAttribute('aria-label', label);
-        fs.classList.toggle('on', on);
+        const on = compact !== undefined && read(compact);
+        el.classList.toggle('compact', on);
+        fit.replaceChildren(on ? icon(I_FIT, 16) : t('zoom.fitShort'));
       });
+      if (help && helpButton) {
+        const b = helpButton;
+        fx.effect(() => b.setAttribute('aria-expanded', String(read(help.open))));
+      }
+      // the label says what the button does (the state is announced once, not as a label and a pressed state too)
+      if (full && fs)
+        fx.effect(() => {
+          const on = read(full.active);
+          const label = on ? t('fullscreen.exit') : t('fullscreen.enter');
+          fs.replaceChildren(icon(on ? I_SHRINK : I_EXPAND, 16));
+          fs.title = label;
+          fs.setAttribute('aria-label', label);
+          fs.classList.toggle('on', on);
+        });
+    });
+    return {
+      el,
+      get helpButton() {
+        return helpButton;
+      },
+      render: () => {
+        render();
+        keys.sync();
+      },
+    };
   });
-  const renderAll = (): void => {
-    render();
-    keys.sync();
-  };
-  renderAll();
-
-  return {
-    el,
-    get helpButton() {
-      return helpButton;
-    },
-    update(next) {
-      p = { ...p, ...next };
-      renderAll();
-    },
-    destroy() {
-      keys.destroy();
-      fx.dispose();
-      el.remove();
-    },
-  };
 }

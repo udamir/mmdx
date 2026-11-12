@@ -2,7 +2,7 @@
 // (Home / End too) with a roving tab stop (the bar is one stop in the Tab order; a nested radio group keeps its own)
 // and the CSS tooltips of `data-tip` placed beside (vertical) or above (horizontal) the bar.
 import { h } from '../kit/h.js';
-import { read, Scope, type BlockHandle, type Value } from './block.js';
+import { defineBlock, read, type BlockHandle, type Value } from './block.js';
 import { keepFocus, rovingKeys } from '../kit/focus.js';
 
 export type ToolbarItem = HTMLElement | 'sep' | null | undefined | false;
@@ -48,48 +48,37 @@ const controls = (bar: HTMLElement): HTMLElement[] =>
   [...bar.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((e) => e.closest('.mmdx-toolbar') === bar);
 
 export function createToolbar(props: ToolbarProps): ToolbarHandle {
-  let p = { ...props };
-  const scope = new Scope();
-  const el = h(p.tag ?? 'div', { role: 'toolbar' });
-  let compactScope = new Scope();
+  return defineBlock(props, (p, scope) => {
+    const el = h(p.tag ?? 'div', { role: 'toolbar' });
 
-  // arrow keys move along the bar; only the last focused control (else the first) is in the Tab order
-  const keys = rovingKeys(el, { orientation: () => p.orientation, selector: controls, roving: true, skip: (x) => x.tagName === 'INPUT' || x.tagName === 'SELECT' });
-  scope.add(() => keys.destroy());
+    // arrow keys move along the bar; only the last focused control (else the first) is in the Tab order
+    const keys = rovingKeys(el, { orientation: () => p.orientation, selector: controls, roving: true, skip: (x) => x.tagName === 'INPUT' || x.tagName === 'SELECT' });
+    scope.add(() => keys.destroy());
 
-  const renderFrame = (): void => {
-    el.className = ['mmdx-toolbar', p.class, `tip-${p.tooltip ?? (p.orientation === 'vertical' ? 'side' : 'above')}`].filter(Boolean).join(' ');
-    el.setAttribute('aria-label', p.label);
-    el.setAttribute('aria-orientation', p.orientation);
-    if (p.part) el.setAttribute('part', p.part);
-    else el.removeAttribute('part');
-    compactScope.dispose();
-    compactScope = new Scope();
-    const compact = p.compact;
-    if (compact !== undefined) compactScope.effect(() => el.classList.toggle('compact', read(compact)));
-  };
-  const renderItems = (): void => {
-    keepFocus(el, () => el.replaceChildren(...p.items.filter((x): x is HTMLElement | 'sep' => !!x).map((x) => (x === 'sep' ? h('span', { class: 'mmdx-sep', role: 'separator', 'aria-orientation': p.orientation === 'vertical' ? 'horizontal' : 'vertical' }) : x))));
-    keys.sync();
-  };
-  renderFrame();
-  renderItems();
-
-  return {
-    el,
-    setItems(items) {
-      p = { ...p, items };
-      renderItems();
-    },
-    update(next) {
-      p = { ...p, ...next };
-      renderFrame();
-      if (next?.items) renderItems();
-    },
-    destroy() {
-      compactScope.dispose();
-      scope.dispose();
-      el.remove();
-    },
-  };
+    const renderFrame = (): void => {
+      el.className = ['mmdx-toolbar', p.class, `tip-${p.tooltip ?? (p.orientation === 'vertical' ? 'side' : 'above')}`].filter(Boolean).join(' ');
+      el.setAttribute('aria-label', p.label);
+      el.setAttribute('aria-orientation', p.orientation);
+      if (p.part) el.setAttribute('part', p.part);
+      else el.removeAttribute('part');
+      const fx = scope.renew();
+      const compact = p.compact;
+      if (compact !== undefined) fx.effect(() => el.classList.toggle('compact', read(compact)));
+    };
+    const renderItems = (): void => {
+      keepFocus(el, () => el.replaceChildren(...p.items.filter((x): x is HTMLElement | 'sep' => !!x).map((x) => (x === 'sep' ? h('span', { class: 'mmdx-sep', role: 'separator', 'aria-orientation': p.orientation === 'vertical' ? 'horizontal' : 'vertical' }) : x))));
+      keys.sync();
+    };
+    return {
+      el,
+      setItems(items) {
+        p.items = items;
+        renderItems();
+      },
+      render: (next) => {
+        renderFrame();
+        if (!next || next.items) renderItems();
+      },
+    };
+  });
 }

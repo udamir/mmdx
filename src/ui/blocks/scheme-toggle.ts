@@ -5,7 +5,7 @@ import { h, icon } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { I_moon, I_sun } from '../kit/icons.js';
 import { BLOCK_MESSAGES_CHROME } from '../messages/blocks.js';
-import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
+import { defineBlock, read, type BlockHandle, type Translate, type Value } from './block.js';
 import { rovingKeys } from '../kit/focus.js';
 
 export type Scheme = 'light' | 'dark';
@@ -24,55 +24,40 @@ export const SCHEME_TOGGLE_CSS = /* css */ `
 
 export function createSchemeToggle(props: SchemeToggleProps): BlockHandle<SchemeToggleProps> {
   registerMessages(BLOCK_MESSAGES_CHROME);
-  let p = { ...props };
-  const scope = new Scope();
-  let fx = new Scope();
-  const radio = (v: Scheme, path: string): HTMLButtonElement => {
-    const b = h('button', { type: 'button', role: 'radio', 'aria-checked': 'false', 'data-ui': v, 'data-f': `scheme-${v}` }, icon(path, 17));
-    scope.on(b, 'click', () => {
-      if (read(p.scheme) !== v) p.onChange(v);
-    });
-    return b;
-  };
-  const light = radio('light', I_sun);
-  const dark = radio('dark', I_moon);
-  const el = h('div', { class: 'vp-mode', role: 'radiogroup' }, light, dark);
+  return defineBlock(props, (p, scope) => {
+    const radio = (v: Scheme, path: string): HTMLButtonElement => {
+      const b = h('button', { type: 'button', role: 'radio', 'aria-checked': 'false', 'data-ui': v, 'data-f': `scheme-${v}` }, icon(path, 17));
+      scope.on(b, 'click', () => {
+        if (read(p.scheme) !== v) p.onChange(v);
+      });
+      return b;
+    };
+    const light = radio('light', I_sun);
+    const dark = radio('dark', I_moon);
+    const el = h('div', { class: 'vp-mode', role: 'radiogroup' }, light, dark);
 
-  // arrows pick the other scheme (two radios: every arrow toggles) and move the focus with it
-  const keys = rovingKeys(el, { orientation: 'both', selector: '[role=radio]', select: true });
-  scope.add(() => keys.destroy());
+    // arrows pick the other scheme (two radios: every arrow toggles) and move the focus with it
+    const keys = rovingKeys(el, { orientation: 'both', selector: '[role=radio]', select: true });
+    scope.add(() => keys.destroy());
 
-  const render = (): void => {
-    const { t } = p;
-    el.setAttribute('aria-label', t('ui.appearance'));
-    for (const [b, label] of [[light, t('ui.light')], [dark, t('ui.dark')]] as const) {
-      b.title = label;
-      b.setAttribute('aria-label', label);
-    }
-    fx.dispose();
-    fx = new Scope();
-    const scheme = p.scheme;
-    fx.effect(() => {
-      const v = read(scheme);
-      for (const b of [light, dark]) {
-        const on = b.dataset['ui'] === v;
-        b.setAttribute('aria-checked', String(on));
-        b.tabIndex = on ? 0 : -1;
+    const render = (): void => {
+      const { t } = p;
+      el.setAttribute('aria-label', t('ui.appearance'));
+      for (const [b, label] of [[light, t('ui.light')], [dark, t('ui.dark')]] as const) {
+        b.title = label;
+        b.setAttribute('aria-label', label);
       }
-    });
-  };
-  render();
-
-  return {
-    el,
-    update(next) {
-      p = { ...p, ...next };
-      render();
-    },
-    destroy() {
-      fx.dispose();
-      scope.dispose();
-      el.remove();
-    },
-  };
+      const fx = scope.renew();
+      const scheme = p.scheme;
+      fx.effect(() => {
+        const v = read(scheme);
+        for (const b of [light, dark]) {
+          const on = b.dataset['ui'] === v;
+          b.setAttribute('aria-checked', String(on));
+          b.tabIndex = on ? 0 : -1;
+        }
+      });
+    };
+    return { el, render };
+  });
 }
