@@ -67,6 +67,8 @@ export interface KindSpec {
   groups: readonly (readonly ToolbarControl[])[];
   /** Style key edited by the size field (fontSize, labelSize, titleSize, attrSize). */
   size?: string;
+  /** Style keys the size field sets with `size`, each at the size plus its offset (a table's title: `{ titleSize: 1 }`). */
+  sizeAlso?: Readonly<Record<string, number>>;
   /** Style key toggled by Bold. */
   bold?: string;
   /** Style key of the text colour. */
