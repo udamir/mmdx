@@ -10,8 +10,6 @@ import { DoublePress } from './lib.js';
 import { installConnectPainter } from './painters.js';
 import type { ConnState } from './state.js';
 
-export { createConnection, reconnect } from './lib.js';
-
 export const connectModule: EditorModule = {
   id: 'connect',
   css: [CONNECT_CSS],

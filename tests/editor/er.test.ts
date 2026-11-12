@@ -10,7 +10,7 @@ import type { EditorCore } from '../../src/editor/core.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
 import { DEFAULT_MODULES } from '../../src/editor/modules/index.js';
 import { editKind } from '../../src/editor/kinds/registry.js';
-import { createConnection } from '../../src/editor/modules/connect/index.js';
+import { createConnection } from '../../src/editor/modules/connect/lib.js';
 import { moveItem } from '../../src/core/ops/positions.js';
 import { currentPreset } from '../../src/core/ops/style-env.js';
 import { updateRel } from '../../src/core/kinds/er/ops.js';

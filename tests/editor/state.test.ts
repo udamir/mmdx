@@ -17,7 +17,7 @@ import { DiagramEditor } from '../../src/editor/editor.js';
 import { DEFAULT_MODULES } from '../../src/editor/modules/index.js';
 import { ALL_EDIT_KINDS } from '../../src/editor/kinds/all.js';
 import { editKind, forgetEditKinds, registerEditKinds } from '../../src/editor/kinds/registry.js';
-import { createConnection, reconnect } from '../../src/editor/modules/connect/index.js';
+import { createConnection, reconnect } from '../../src/editor/modules/connect/lib.js';
 import { mediaTargets, setIconOf, setImageOf, setMediaOf } from '../../src/editor/ops/media.js';
 import { stockParse } from '../helpers/mermaid.js';
 
