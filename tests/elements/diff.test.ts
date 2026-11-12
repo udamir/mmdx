@@ -286,3 +286,12 @@ describe('the view event in the diff element (B45)', () => {
     expect(n).toBeGreaterThan(0);
   });
 });
+
+describe('roles (BUG-023)', () => {
+  it('no element with role=img holds a control', async () => {
+    const { root } = await mount({ history: history('simple-flow'), panels: ['history', 'code', 'changes'] });
+    const images = [...root.querySelectorAll('[role=img]')];
+    expect(images.length).toBeGreaterThan(0);
+    for (const img of images) expect(img.querySelector('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])'), `${img.getAttribute('class')} holds a control`).toBeNull();
+  });
+});

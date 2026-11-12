@@ -29,7 +29,7 @@ export const SHELL_CSS = /* css */ `
 
 export interface ShellOptions {
   /** The shell's root element: its class and role. */
-  root: { class: string; role: 'img' | 'application' | 'group'; label?: string; roleDescription?: string };
+  root: { class: string; role: 'application' | 'group'; label?: string; roleDescription?: string };
   /** Class of the canvas area. */
   areaClass: string;
   css: readonly string[];

@@ -212,8 +212,14 @@ export class DiffScene extends BaseScene {
     this.layout('single');
     const label = this.o.label;
     if (label)
+      // the stage is the image while it shows a picture; a message (loading, a failed load with its Retry) is read as it is (BUG-023)
       this.owner.add(effect(() => {
-        const text = label();
+        const text = label(), message = !!s.status();
+        if (message) {
+          this.stage?.removeAttribute('role');
+          this.stage?.removeAttribute('aria-label');
+          return;
+        }
         this.stage?.setAttribute('role', 'img');
         this.stage?.setAttribute('aria-label', text);
       }));

@@ -58,7 +58,7 @@ export interface ViewCoreOptions {
   /** The product's own CSS, adopted after the tokens and the base sheet. */
   css: readonly string[];
   /** The shell's root element: its class and role. */
-  root: { class: string; role: 'img' | 'application' | 'group'; label?: string; roleDescription?: string };
+  root: { class: string; role: 'application' | 'group'; label?: string; roleDescription?: string };
   /** Class of the canvas area (`canvas-wrap` in the editor, `stage` in the viewer). */
   areaClass: string;
   canvas: CanvasOptions;

@@ -9,7 +9,7 @@ import { BaseScene, type CanvasArea } from '../../src/view/scene.js';
 const mount = (o: Partial<ConstructorParameters<typeof ViewCore>[1]> = {}): ViewCore => {
   const host = document.createElement('div');
   document.body.append(host);
-  return new ViewCore(host, { product: 'viewer', storage: memoryStorage(), css: [], root: { class: 'root', role: 'img' }, areaClass: 'stage', canvas: { interaction: 'pan-zoom' }, ...o });
+  return new ViewCore(host, { product: 'viewer', storage: memoryStorage(), css: [], root: { class: 'root', role: 'group' }, areaClass: 'stage', canvas: { interaction: 'pan-zoom' }, ...o });
 };
 
 const key = (core: ViewCore, k: string): void => {

@@ -75,6 +75,8 @@ export interface ViewerEventMap extends HistoryEventMap {
 }
 
 const DEFAULT_CONTROLS: readonly ViewerControl[] = ['zoom', 'fullscreen'];
+/** The id of the picture (`role=img`) in the viewer's shadow root, which names the root (`aria-labelledby`). */
+const PICTURE_ID = 'mmdx-picture';
 
 export class DiagramViewer {
   readonly core: ViewCore;
@@ -94,7 +96,8 @@ export class DiagramViewer {
     this.core = new ViewCore(host, {
       product: 'viewer',
       css: [VIEWER_CSS],
-      root: { class: 'root', role: 'img' },
+      // a group: it holds the controls; the picture alone is the image (BUG-023)
+      root: { class: 'root', role: 'group' },
       areaClass: 'stage',
       canvas: { interaction: o.interactive === false ? 'static' : 'pan-zoom', wheel: o.wheel ?? 'ctrl', panOnDrag: true, svgClass: 'scene', part: 'canvas' },
       feature: (name) => this.feature(name),
@@ -110,7 +113,11 @@ export class DiagramViewer {
     });
     const core = this.core;
     this.ctx = core.ctx;
-    core.canvas.svg.setAttribute('aria-hidden', 'true');
+    // the picture is the image with the diagram's name and description; the root (focused for the keys) is named after it
+    const picture = core.canvas.svg;
+    picture.id = PICTURE_ID;
+    picture.setAttribute('role', 'img');
+    core.root.setAttribute('aria-labelledby', PICTURE_ID);
     core.setDisplay({ labels: o.labels !== false, hoverHighlight: o.hoverHighlight !== false });
     if (o.layers) core.setVisibleLayers(o.layers);
     this.msg = h('div', { class: 'msg' });
@@ -123,8 +130,8 @@ export class DiagramViewer {
       onRendered: (r, durationMs) => {
         const a11y = r.result.a11y;
         this.syncLabel();
-        if (a11y?.desc) core.root.setAttribute('aria-description', a11y.desc);
-        else core.root.removeAttribute('aria-description');
+        if (a11y?.desc) core.canvas.svg.setAttribute('aria-description', a11y.desc);
+        else core.canvas.svg.removeAttribute('aria-description');
         core.root.classList.toggle('can-pan', core.canvas.interaction === 'pan-zoom');
         const warn = r.diagnostics.filter((d) => d.severity !== 'info' || d.code === 'theme.missing');
         if (warn.length) core.emit('mmdx-error', { diagnostics: warn });
@@ -142,9 +149,9 @@ export class DiagramViewer {
 
     core.pushScene(this.scene);
     this.installModules();
-    // a picture while the diagram shows; the code panel must stay readable for screen readers
-    // however the panels change (a toggle, a set restored from storage: no `panels` event, B19)
-    const offRole = effect(() => this.syncRole(core.panels()));
+    // the root is a group whatever the panels show, so the code panel stays readable for screen readers (B19); it is
+    // pinned while a panel is open, however the panels change (a toggle, a set restored from storage: no `panels` event)
+    const offRole = effect(() => this.syncPinned(core.panels()));
     this.ac.signal.addEventListener('abort', offRole);
 
     const ssr = host.querySelector(':scope > svg[data-mmdx-ssr]');
@@ -318,17 +325,16 @@ export class DiagramViewer {
     this.core.useModules(list);
   }
 
-  private syncRole(panels: Readonly<Record<string, boolean>>): void {
-    this.core.root.setAttribute('role', panels['code-view'] ? 'group' : 'img');
+  private syncPinned(panels: Readonly<Record<string, boolean>>): void {
     this.core.root.classList.toggle('pinned', Object.values(panels).some(Boolean));
   }
 
-  /** The accessible name: the host's `label`, else the diagram's `accTitle`, else the generated summary (B20). */
+  /** The picture's accessible name (the root's too): the host's `label`, else the diagram's `accTitle`, else the generated summary (B20). */
   private syncLabel(): void {
     const r = this.scene.rendered;
     if (!r) return;
     const s = summarize(r.model);
-    this.core.root.setAttribute('aria-label', this.o.label ?? r.result.a11y?.title ?? this.core.i18n.t(s.key, s.params));
+    this.core.canvas.svg.setAttribute('aria-label', this.o.label ?? r.result.a11y?.title ?? this.core.i18n.t(s.key, s.params));
   }
 
   private async load(): Promise<void> {
