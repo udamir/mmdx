@@ -309,8 +309,9 @@ export const codePanelModule: EditorModule = {
     let themeSeen = '';
     const onDraw = (): void => {
       if (codeTimer === undefined && (core.code !== shownCode || codeEd.readOnly !== !!core.version.peek() && !filter)) syncEditor();
-      // the document's revision, or the version shown instead of it
-      const rev = `${store.revision.peek()}|${core.version.peek()?.id ?? ''}`, theme = core.result.themeId;
+      // the document's revision, or the version shown instead of it; and its type, which a kind loaded later turns from
+      // unsupported into the type (the same revision: its problems change)
+      const rev = `${store.revision.peek()}|${core.version.peek()?.id ?? ''}|${core.model.type ?? ''}`, theme = core.result.themeId;
       if (rev === revSeen && theme === themeSeen) return;
       revSeen = rev;
       themeSeen = theme;

@@ -383,8 +383,12 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       initialMode: 'edit',
       canvas: {
         interaction: 'pan-zoom', wheel: o.wheel ?? 'always', panOnDrag: false, minK: 0.05, maxK: 6, pad: 16, svgClass: 'canvas', part: 'canvas',
-        // fit() fills the canvas under the panels, leaving room above the page for its badge
-        insets: () => ({ left: 0, right: 0, top: 28, bottom: 0 }),
+        // fit() fills the free part of the canvas: clear of the open panel stacks and the tool dock (the shell measures
+        // them), leaving room above the page for its badge
+        insets: () => {
+          const free = this.insets();
+          return { left: free.left, right: free.right, top: 28, bottom: 0 };
+        },
         pageClass: 'page-layer page-shadow',
         // the kernel fires `view`
         onView: () => this.drawOverlay(),

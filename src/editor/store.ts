@@ -4,8 +4,8 @@ import { joinSource, normalizeMeta, splitSource, type DiagramDocument } from '..
 import type { DiagramMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
 import { elementExists } from '../core/ops/ids.js';
-import { reparse } from '../core/parse/dispatch.js';
-import { kindsVersion } from './kinds/loader.js';
+import { detectType, parseWith } from '../core/parse/dispatch.js';
+import { editorHasKind, editorKinds, kindsVersion } from './kinds/loader.js';
 import type { ItemRef } from '../core/types.js';
 import { computed, signal, type ReadSignal } from '../reactive/signal.js';
 
@@ -54,10 +54,15 @@ export class DocStore {
 
   constructor(private readonly opts: StoreOptions = {}) {
     this.budget = opts.historyBytes ?? 5 * 1024 * 1024;
-    // parsed with the kinds loaded so far; parsed again when another one arrives
+    // parsed once the editor has the type's kinds (view, ops and edit): while they load, nothing is parsed (an empty
+    // model, no problems) and nothing is drawn; parsed again when they arrive. Only with the editor's types: a viewer or a
+    // gallery may have loaded a type's parser before the editor's chunk of it, and a model of that type would reach ops
+    // that are not there yet (the editor's lookups fail closed)
     this.model = computed(() => {
       kindsVersion();
-      return reparse(this.code());
+      const code = this.code(), type = detectType(code);
+      if (type && !editorHasKind(type)) return { type: null, diagnostics: [] };
+      return parseWith(code, editorKinds());
     });
   }
 

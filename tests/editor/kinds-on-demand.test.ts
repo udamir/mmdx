@@ -6,6 +6,7 @@ import { memoryStorage } from '../../src/adapters/storage.js';
 import { forgetKinds, forgetOps, opsKind, viewKind } from '../../src/core/kinds/registry.js';
 import { defineEditor, type MmdxEditorElement } from '../../src/elements/editor.js';
 import { editKind, forgetEditKinds } from '../../src/editor/kinds/registry.js';
+import { loadKind } from '../../src/platform/kinds.js';
 
 beforeAll(() => {
   (globalThis as { ResizeObserver?: unknown }).ResizeObserver ??= class { observe(): void {} disconnect(): void {} };
@@ -52,5 +53,25 @@ describe('editor kinds on demand', () => {
     expect(items(el, 'participant')).toBe(2);
     el.undo();
     expect(items(el, 'node')).toBe(2);
+  });
+
+  it('a type whose parser another component loaded first (the studio\'s gallery) waits for the editor\'s own kinds: nothing is parsed or drawn meanwhile, then it draws; no ops lookup fails', async () => {
+    const el = editor('flowchart LR\n  a --> b\n');
+    await el.whenLoaded();
+    // a viewer on the page loaded the ER parser and renderer; the editor's ER chunk (its ops) is not loaded yet
+    await loadKind('er');
+    expect(viewKind('er') && !opsKind('er')).toBeTruthy();
+    const core = el.instance!.core;
+    // before the fix: the model was an ER model at once and the empty-state check's ops lookup threw (KindNotLoaded)
+    expect(() => el.setSource('erDiagram\n  A ||--o{ B : has\n')).not.toThrow();
+    // while the editor's ER kinds load nothing is parsed (no problems) and nothing is drawn
+    expect(core.model).toEqual({ type: null, diagnostics: [] });
+    expect(() => core.isEmptyDiagram()).not.toThrow();
+    expect(items(el, 'node') + items(el, 'entity')).toBe(0);
+    await el.whenLoaded();
+    expect(core.model.type).toBe('er');
+    expect(items(el, 'entity')).toBe(2);
+    // the problems of the moment it waited (unsupported) are gone once it parses
+    expect(core.issueCount.peek()).toBe(0);
   });
 });

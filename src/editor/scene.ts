@@ -58,6 +58,15 @@ export class StoreScene extends BaseScene {
   /** Paints the document into the main canvas, its decorations and the overlay. */
   paintDocument(): void {
     const c = this.core;
+    // the type's kinds are loading: nothing to draw yet (the canvas is cleared; the kinds' arrival draws and fits)
+    const code = c.version.peek()?.doc.code ?? c.code;
+    if (c.kinds.pending(code)) {
+      c.kinds.need(code);
+      this.rendered = null;
+      c.canvas.clear();
+      this.bounds.set(null);
+      return;
+    }
     const r = this.render();
     const res = r.result;
     c.canvas.show({ defs: res.defs, page: pageScene(res, r.rctx), body: res.body });

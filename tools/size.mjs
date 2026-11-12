@@ -271,7 +271,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 248.9 kB (248.5 kB measured) DiffSession split into VersionStore + DiffExporter (A13c)
     // 249.3 kB (248.9 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
     // 249.8 kB (249.4 kB measured) shared adapter helpers (http, subscribers, base64) and ownPreset (4.12)
-    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 249.8 * KB);
+    // 250.3 kB (249.9 kB measured) the editor waits for a type's kinds before it parses (pending check)
+    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 250.3 * KB);
   }
 }
 

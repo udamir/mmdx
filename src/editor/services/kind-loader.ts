@@ -40,7 +40,7 @@ export class KindLoader {
 
   /** Resolves once the kinds of the code's diagram type are loaded (at once when they are). */
   ready(code: string): Promise<void> {
-    if (!this.missing(code)) return Promise.resolve();
+    if (!this.pending(code)) return Promise.resolve();
     return new Promise((r) => {
       this.waiters.push(r);
       this.need(code);
@@ -49,11 +49,11 @@ export class KindLoader {
 
   /** The view just fitted this code: when its kinds are still loading, fit again once they are (its bounds change). */
   oweFit(code: string): void {
-    this.fit = this.missing(code);
+    this.fit = this.pending(code);
   }
 
-  /** The code's diagram type is known and its kinds are not loaded yet. */
-  private missing(code: string): boolean {
+  /** The code's diagram type is known and its kinds are not loaded yet (nothing is parsed or drawn meanwhile). */
+  pending(code: string): boolean {
     const t = detectType(code);
     return !!t && !this.host.has(t);
   }

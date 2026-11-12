@@ -2,7 +2,8 @@
 // time a document of that type is shown, so an editor of flowcharts never downloads the sequence and ER code. Loading
 // bumps `kindsVersion`, which the store's model reads, so the document is parsed again with the new kind. A kind plugin
 // adds its chunk with `registerEditorKind` (A11e).
-import { opsKind, registerExtras, registerKinds, registerOps, viewKind } from '../../core/kinds/registry.js';
+import { opsKind, registerExtras, registerKinds, registerOps, registeredKinds, viewKind } from '../../core/kinds/registry.js';
+import type { Kinds } from '../../core/kind/types.js';
 import type { ExtrasKind } from '../../core/kind/extras-types.js';
 import type { OpsKind } from '../../core/kind/ops-types.js';
 import type { ViewKind } from '../../core/kind/types.js';
@@ -40,6 +41,9 @@ export const kindsVersion = (): number => version();
 
 /** Are the view, ops and edit kinds of the type loaded? */
 export const editorHasKind = (t: DiagramType): boolean => !!viewKind(t) && !!opsKind(t) && !!editKind(t);
+
+/** The view kinds of the types the editor can edit (their ops and edit kinds are loaded too): what its document parses with. */
+export const editorKinds = (): Kinds => Object.fromEntries(Object.entries(registeredKinds()).filter(([t]) => editorHasKind(t)));
 
 /** Loads a type's kinds (resolves at once when they are loaded). */
 export const loadEditorKind = (t: DiagramType): Promise<void> =>
