@@ -1,6 +1,6 @@
 // GitHub Pages app (UC4): the studio with the bundled examples and themes, and a demo image library.
-import type { ImageInfo, ImageStore } from '../../src/adapters/images.js';
-import { configure } from '../../src/config.js';
+import type { ImageInfo, ImageStore } from '../../src/ports.js';
+import { configure } from '../../src/platform/config.js';
 import { DEFAULT_IMAGE_POLICY } from '../../src/core/validate.js';
 
 // The demo starts in the system's light / dark on every visit: the toggle's choice lasts for the visit only, so the

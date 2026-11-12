@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import '../../src/editor.js';
 import { memoryDocumentAdapter } from '../../src/adapters/documents.js';
 import { DEFAULT_FEATURES, type EditorFeatures } from '../../src/editor/core.js';
-import type { MmdxEditorElement } from '../../src/editor/editor.js';
+import type { MmdxEditorElement } from '../../src/elements/editor.js';
 import { example, exampleHistory, SMALL_ER, SMALL_FLOW, SMALL_SEQUENCE, uiArg } from '../support.js';
 
 type Toggle = Exclude<keyof EditorFeatures, 'exportFormats'>;

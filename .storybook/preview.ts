@@ -1,7 +1,7 @@
 import type { Preview } from '@storybook/web-components-vite';
 import { UPDATE_GLOBALS } from 'storybook/internal/core-events';
 import { themes as sbThemes } from 'storybook/theming';
-import { configure } from '../src/config.js';
+import { configure } from '../src/platform/config.js';
 import { memoryThemeStore } from '../src/adapters/themes.js';
 import { createDefaultRegistry } from '../src/core/theme/builtin.js';
 import { SYSTEM_UI, THEME_FILES } from '../stories/support.js';

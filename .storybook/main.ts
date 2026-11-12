@@ -1,6 +1,5 @@
 // Storybook: every component (the four elements and the chrome they are built from) and the main features.
 import type { StorybookConfig } from '@storybook/web-components-vite';
-// @ts-expect-error plain ESM build helper without type declarations
 import { noBuiltinIcons } from '../tools/worker-source.mjs';
 
 const config: StorybookConfig = {
