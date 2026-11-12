@@ -11,7 +11,9 @@
 // input (ids, sizes, order, collapsed), so an edit lays out its own branch and its ancestors only.
 import type { Point } from '../types.js';
 import { maxOf, minOf } from '../geom.js';
+import { pack, unpack } from './cache.js';
 import { hash } from './hash.js';
+import type { LayoutCache } from './types.js';
 
 export interface TreeNode {
   id: string;
@@ -37,7 +39,7 @@ export interface TreeOptions {
   /** Gap between the root's branches. */
   branchGap?: number;
   /** Cache of subtree frames (keyed by the subtree's input). */
-  cache?: { get(k: string): Map<string, Point> | undefined; set(k: string, v: Map<string, Point>): void; reserve?(n: number): void };
+  cache?: LayoutCache;
 }
 
 export interface TreeResult {
@@ -118,7 +120,7 @@ export function layoutTree(root: string, nodes: ReadonlyMap<string, TreeNode>, o
   const frame = (n: TreeNode): Frame => {
     const key = `tree${down ? 'v' : 'h'}${levelGap},${gap}${KEY}${sig(n)}`;
     const hit = o.cache?.get(key);
-    if (hit) return unpack(hit);
+    if (hit) return unframe(hit);
     const w = W(n), h = H(n);
     const own: Band = { x0: 0, x1: w, y0: -h / 2, y1: h / 2 };
     const children = childrenOf(n);
@@ -134,7 +136,7 @@ export function layoutTree(root: string, nodes: ReadonlyMap<string, TreeNode>, o
         merge(f.contour, s.contour, x, dy, 1);
       });
     }
-    o.cache?.set(key, pack(f));
+    o.cache?.set(key, pack(f.pos, f.contour.map((b, k) => [k, [{ x: b.x0, y: b.y0 }, { x: b.x1, y: b.y1 }]] as const)));
     return f;
   };
   // children as the frame sees them: in order, each once (sig() decided which)
@@ -219,32 +221,11 @@ export function layoutTree(root: string, nodes: ReadonlyMap<string, TreeNode>, o
   return { pos, side };
 }
 
-// ---- cache values: a frame as a Map<string, Point> (node centres, then the contour's corners under keys no id has) ----
+// ---- cache values: a frame's node centres, its contour's bands as two corners each (layout/cache.ts) ----
 
-function pack(f: Frame): Map<string, Point> {
-  const m = new Map(f.pos);
-  f.contour.forEach((b, k) => {
-    m.set(`${KEY}${k}a`, { x: b.x0, y: b.y0 });
-    m.set(`${KEY}${k}b`, { x: b.x1, y: b.y1 });
-  });
-  return m;
-}
-
-function unpack(m: ReadonlyMap<string, Point>): Frame {
-  const pos = new Map<string, Point>(), contour: Band[] = [];
-  for (const [k, p] of m) {
-    if (!k.startsWith(KEY)) pos.set(k, p);
-    else {
-      const i = Number(k.slice(1, -1));
-      const b = (contour[i] ??= { x0: 0, x1: 0, y0: 0, y1: 0 });
-      if (k.endsWith('a')) {
-        b.x0 = p.x;
-        b.y0 = p.y;
-      } else {
-        b.x1 = p.x;
-        b.y1 = p.y;
-      }
-    }
-  }
+function unframe(m: ReadonlyMap<string, Point>): Frame {
+  const { pos, lists } = unpack(m);
+  const contour: Band[] = [];
+  for (const [k, [a, b]] of lists) contour[k] = { x0: a!.x, x1: b!.x, y0: a!.y, y1: b!.y };
   return { pos, contour };
 }

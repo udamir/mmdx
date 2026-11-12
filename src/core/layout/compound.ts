@@ -39,13 +39,15 @@
 //
 // Cache (§3.5): each scope's `layered` run is cached under the scope's own input (its items' sizes, its lifted edges,
 // its direction and the spacing), so an edit inside one container lays out that scope again, and its ancestors only
-// when its size changed. `opts.cache` has the shape of `RenderContext.layoutCache`.
+// when its size changed. `opts.cache` is the renderers' `LayoutCache` (layout/types.ts).
 //
 // Deterministic: insertion order everywhere, no randomness, the same input gives the same output.
 import { layered, type LayeredOptions, type LayoutEdge, type LayoutNode } from './layered.js';
 import type { Point, Rect } from '../types.js';
 import { maxOf } from '../geom.js';
+import { pack, unpack } from './cache.js';
 import { hash } from './hash.js';
+import type { LayoutCache } from './types.js';
 
 export type CompoundDir = 'TB' | 'BT' | 'LR' | 'RL';
 
@@ -94,14 +96,6 @@ export interface CompoundInput {
   edges: readonly CompoundEdge[];
 }
 
-/** The scope cache (the shape of `RenderContext.layoutCache`). */
-export interface ScopeCache {
-  get(k: string): Map<string, Point> | undefined;
-  set(k: string, v: Map<string, Point>): void;
-  /** Room for this many entries (a diagram's scopes, twice: a diff renders two versions). */
-  reserve?(n: number): void;
-}
-
 export interface CompoundOptions extends Omit<LayeredOptions, 'groupGap'> {
   /** A container's padding when it has no `pad` (default 16). */
   padding?: number;
@@ -117,7 +111,7 @@ export interface CompoundOptions extends Omit<LayeredOptions, 'groupGap'> {
   besideGap?: number;
   /** The contents of an empty container or region (default 40 × 20). */
   emptySize?: { w: number; h: number };
-  cache?: ScopeCache | undefined;
+  cache?: LayoutCache | undefined;
 }
 
 export interface Line {
@@ -193,7 +187,6 @@ interface Lifted {
 }
 
 const ROOT = '\u0000root';
-const ROUTE_KEY = '\u0000r';
 
 export function layoutCompound(input: CompoundInput, opts: CompoundOptions = {}): CompoundResult {
   const {
@@ -393,14 +386,14 @@ export function layoutCompound(input: CompoundInput, opts: CompoundOptions = {})
     const le: LayoutEdge[] = edges.map((e) => ({ from: host.get(e.from) ?? e.from, to: host.get(e.to) ?? e.to, minlen: e.minlen ?? 1 }));
     const lo = { dir, rankSep, nodeSep };
     const key = cache ? 'compound' + hash(JSON.stringify([ln, le, lo])) : '';
-    let pos = cache?.get(key);
-    let routes: Map<number, Point[]>;
-    if (pos) routes = decodeRoutes(pos);
+    const hit = cache?.get(key);
+    let pos: Map<string, Point>, routes: Map<number, Point[]>;
+    if (hit) ({ pos, lists: routes } = unpack(hit));
     else {
       stats.laidOut++;
       routes = new Map();
       pos = layered(ln, le, lo, { routes });
-      if (cache) cache.set(key, encodeRoutes(pos, routes));
+      if (cache) cache.set(key, pack(pos, routes));
     }
     // to the block's own top-left
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -612,23 +605,3 @@ export function layoutCompound(input: CompoundInput, opts: CompoundOptions = {})
 }
 
 const add = (a: Point, b: Point): Point => ({ x: a.x + b.x, y: a.y + b.y });
-
-/** A scope's cached result: the positions, plus the hint points under keys no item id can have. */
-function encodeRoutes(pos: Map<string, Point>, routes: Map<number, Point[]>): Map<string, Point> {
-  if (!routes.size) return pos;
-  const out = new Map(pos);
-  for (const [k, pts] of routes) pts.forEach((p, j) => out.set(`${ROUTE_KEY}${k}.${j}`, p));
-  return out;
-}
-
-function decodeRoutes(pos: Map<string, Point>): Map<number, Point[]> {
-  const routes = new Map<number, Point[]>();
-  for (const [key, p] of pos) {
-    if (!key.startsWith(ROUTE_KEY)) continue;
-    const [k, j] = key.slice(ROUTE_KEY.length).split('.').map(Number) as [number, number];
-    let r = routes.get(k);
-    if (!r) routes.set(k, (r = []));
-    r[j] = p;
-  }
-  return routes;
-}

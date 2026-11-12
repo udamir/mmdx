@@ -1,5 +1,6 @@
 // Render contract (§7): model + meta + resolved theme → scene tree + geometry.
 import type { IconLookup } from '../icons/types.js';
+import type { LayoutCache } from '../layout/types.js';
 import type { CanvasMeta, DiagramMeta } from '../meta/types.js';
 import type { SceneNode, SvgAttrs } from '../scene/types.js';
 import type { ResolvedTheme } from '../theme/types.js';
@@ -45,7 +46,7 @@ export interface RenderContext {
    */
   imageSizes?: ImageSizes;
   /** Bounded cache for auto-layout results (keyed by the layout input); optional. */
-  layoutCache?: { get(k: string): Map<string, Point> | undefined; set(k: string, v: Map<string, Point>): void; reserve?(n: number): void };
+  layoutCache?: LayoutCache;
 }
 
 /** Natural image sizes by URL (see `RenderContext.imageSizes`). */
