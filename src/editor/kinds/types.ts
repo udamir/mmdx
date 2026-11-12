@@ -10,6 +10,7 @@ import type { DiagramType, Diagnostic, ItemKind, ItemRef } from '../../core/type
 import type { Point } from '../../core/types.js';
 import type { EditorCore, Sel } from '../core.js';
 import type { PaletteItem, PaletteSpec } from './palette.js';
+import type { PanelCtx } from '../lib/panel.js';
 
 /** An item's text and how to write it back to Mermaid. */
 export interface ItemText {
@@ -162,6 +163,8 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   fixOf?(core: EditorCore, model: M, d: Diagnostic): { label: string; run(): void } | null;
   /** Controls of the type's own in an item's Properties, after its text. */
   properties?(core: EditorCore, model: M, ref: ItemRef): PropControl[];
+  /** The type's own sections of an item's Properties, under its label (ER: a table's attributes, a relationship's cardinalities), loaded with the type (A11d). */
+  inspector?(p: PanelCtx, host: HTMLElement, ref: ItemRef): void;
   /** One-click actions of the type's own in a single item's selection toolbar (a message's direction, a note's placement, a block's branches). */
   actions?(core: EditorCore, model: M, ref: ItemRef): ItemAction[];
   /** A connector's arrow as written in the code, which the toolbar's arrow popover changes (sequence messages); null: none. */

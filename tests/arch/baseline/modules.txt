@@ -3,7 +3,6 @@ diff/modules/bar.ts: kernel DOM ×4
 diff/modules/panels.ts: kernel DOM ×1
 diff/modules/stage.ts: kernel DOM ×4
 editor/modules/panels/code-problems.ts: kernel DOM ×1
-editor/modules/shapes/index.ts: kernel DOM ×1
 view/modules/canvas.ts: kernel DOM ×1
 view/modules/panels.ts: bare computed ×1
 view/modules/panels.ts: kernel DOM ×2

@@ -10,22 +10,11 @@ import { h } from '../../../../ui/kit/h.js';
 import type { EditorCore } from '../../../core.js';
 import { applyMeta } from '../../../ops/doc.js';
 import { canGroup } from '../../../ops/group.js';
-import type { LiveEdit } from '../../../ops/live.js';
 import { pageEff } from '../../../ops/page.js';
 import { styleWithShapes } from '../../../ops/shape.js';
 import type { FieldTarget } from '../fields.js';
 import { presetPicker } from '../../../lib/presets.js';
-
-export interface PanelCtx {
-  core: EditorCore;
-  live: LiveEdit;
-}
-
-export const sect = (host: HTMLElement, text: string): void => {
-  host.append(h('div', { class: 'sect', role: 'heading', 'aria-level': '3' }, text));
-};
-const wrapCtl = (...els: (Node | string | null)[]): HTMLElement => h('div', { class: 'ctl' }, ...els);
-export const row = (label: string, ...ctl: (Node | string | null)[]): HTMLElement => h('div', { class: 'f' }, h('label', null, label), wrapCtl(...ctl), h('span'));
+import { row, type PanelCtx } from '../../../lib/panel.js';
 
 /** Item metadata as a field target (writes go through the panel's live edit / one-shot changes). */
 export function itemTarget(p: PanelCtx, ref: ItemRef, base: Readonly<Record<string, unknown>>): FieldTarget {

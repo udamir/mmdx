@@ -11,7 +11,8 @@ import { applyMeta, diagramTypeChoices, FLOW_DIRS, setAutonumberOn, setFlowDirec
 import { choosePagePreset, pageEff, RATIOS, setPageRatio, setPageSizeMode, setPageValue } from '../../../ops/page.js';
 import { field } from '../fields.js';
 import { editKind } from '../../../kinds/registry.js';
-import { canvasTarget, row, sect, type PanelCtx } from './shared.js';
+import { canvasTarget } from './shared.js';
+import { row, sect, type PanelCtx } from '../../../lib/panel.js';
 
 const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
 

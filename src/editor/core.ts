@@ -461,7 +461,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     return this.area;
   }
 
-  /** The editor's focusable root: keyboard, paste and pointer events of the editor reach it (modules listen on it with `scope.listen`), and tooltips over the whole editor go in it. */
+  /** The editor's focusable root: keyboard, paste and pointer events of the editor reach it (modules listen on it with `scope.listen`), and what floats over the whole editor (tooltips, the Shapes menu) goes in it. */
   get eventRoot(): HTMLElement {
     return this.root;
   }

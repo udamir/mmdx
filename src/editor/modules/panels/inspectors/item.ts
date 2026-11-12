@@ -12,10 +12,10 @@ import { animationOf, setAnimation } from '../../../ops/animation.js';
 import { groupResetState, resetSelectedGroup } from '../../../ops/group.js';
 import { describe, labelSpec } from '../../../ops/label.js';
 import { field } from '../fields.js';
-import { attrEditor, relEditor } from '../props-er.js';
 import { withEdit } from '../../../kinds/registry.js';
 import { mediaSection } from './media.js';
-import { itemTarget, layerRow, lineDefaults, lineFields, pickerSection, roundedBox, row, sect, type PanelCtx } from './shared.js';
+import { itemTarget, layerRow, lineDefaults, lineFields, pickerSection, roundedBox } from './shared.js';
+import { row, sect, type PanelCtx } from '../../../lib/panel.js';
 
 function textSection(p: PanelCtx, host: HTMLElement, kind: ItemKind, id: string): void {
   const { core } = p;
@@ -72,8 +72,7 @@ function textSection(p: PanelCtx, host: HTMLElement, kind: ItemKind, id: string)
     });
   }
   host.append(h('div', { class: 'prop-label' }, inp, emoji));
-  if (kind === 'entity') attrEditor(p, host, id);
-  if (kind === 'rel') relEditor(p, host, id);
+  withEdit(core.model, (k) => k.inspector?.(p, host, { kind, id }));
 }
 
 /** The type's own controls (a state's kind and description rows, a composite's direction and regions). */

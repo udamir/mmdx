@@ -9,7 +9,8 @@ import type { ItemKind, ItemRef } from '../../../../core/types.js';
 import { h } from '../../../../ui/kit/h.js';
 import { applyMeta } from '../../../ops/doc.js';
 import { field } from '../fields.js';
-import { bulkTarget, layerRow, lineDefaults, lineFields, multiActions, pickerSection, roundedBox, sect, type PanelCtx } from './shared.js';
+import { bulkTarget, layerRow, lineDefaults, lineFields, multiActions, pickerSection, roundedBox } from './shared.js';
+import { sect, type PanelCtx } from '../../../lib/panel.js';
 
 export function multiInspector(p: PanelCtx, host: HTMLElement): void {
   const { core } = p;

@@ -12,7 +12,7 @@ import { BLOCK_MESSAGES_MEDIA } from '../../../../ui/messages/blocks-media.js';
 import { editKind } from '../../../kinds/registry.js';
 import type { ItemMedia, MediaPatch } from '../../../kinds/types.js';
 import { mediaOf, setIconOf, setImageFit, setImageOf, setMediaOf, takesImages, takesMedia } from '../../../ops/media.js';
-import { row, sect, type PanelCtx } from './shared.js';
+import { row, sect, type PanelCtx } from '../../../lib/panel.js';
 import { isFaPack, splitIconName } from '../../../../core/icons/names.js';
 
 registerMessages(EDITOR_MEDIA_MESSAGES);

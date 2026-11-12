@@ -7,6 +7,7 @@ import { DIAGRAM_TYPES } from '../../../core/kinds/info.js';
 import { kindUi } from '../../../ui/diagram/kind-ui.js';
 import type { DiagramType } from '../../../core/types.js';
 import { h, s } from '../../../ui/kit/h.js';
+import { createStatusBox, STATUS_BOX_CSS } from '../../../ui/blocks/status-box.js';
 import type { EditorCore } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 
@@ -52,10 +53,13 @@ function centerView(core: EditorCore, k = 1): void {
 
 export const canvasEmptyModule: EditorModule = {
   id: 'canvas-empty',
-  css: [EMPTY_CSS],
+  css: [STATUS_BOX_CSS, EMPTY_CSS],
   install(scope) {
     const core = scope.core;
-    const hint = h('div', { class: 'empty-hint edit-only', hidden: true }, 'Drag shapes from the toolbar on the left onto the canvas');
+    // the "nothing to show" of a diagram without items is the StatusBox block's (A5), placed over the page
+    const status = createStatusBox({ kind: null });
+    const hint = h('div', { class: 'empty-hint edit-only', hidden: true }, status.el);
+    scope.onDispose(() => status.destroy());
     const chooser = h('div', { class: 'type-chooser edit-only', role: 'dialog', 'aria-label': 'Start a diagram', hidden: true },
       h('div', { class: 'tc-title' }, 'Start a diagram'),
       h('div', { class: 'tc-sub' }, 'The Mermaid code is empty — pick a diagram type to edit it visually.'),
@@ -87,6 +91,7 @@ export const canvasEmptyModule: EditorModule = {
     const sync = (): void => {
       chooser.hidden = !isBlank(core);
       hint.hidden = !core.model.type || !core.isEmptyDiagram();
+      status.update(hint.hidden ? { kind: null } : { kind: 'empty', text: 'Drag shapes from the toolbar on the left onto the canvas' });
       placeHint();
     };
     scope.on('draw', sync);

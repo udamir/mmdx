@@ -9,6 +9,7 @@ import type { ErGeometry } from '../../../core/render/types.js';
 import type { Point } from '../../../core/types.js';
 import type { EditorCore, Sel } from '../../core.js';
 import { placeNew } from '../../ops/insert.js';
+import { attrEditor, relEditor } from './props.js';
 import { tableIcon } from '../palette.js';
 import type { EditKind, PropControl } from '../types.js';
 import { innermostAt, newestBetween, oneLine } from '../util.js';
@@ -68,6 +69,10 @@ export const EDIT: EditKind<ErModel, ErGeometry> = {
   drop(core, M, item, pt) {
     const res = addEntity(core.code, M, groupAt(core, pt));
     return placeNew(core, { code: res.code, meta: core.meta }, res.select, 'Add table', { patch: { x: pt.x, y: pt.y, ...(item.preset ? { preset: item.preset } : {}) } });
+  },
+  inspector(p, host, ref) {
+    if (ref.kind === 'entity') attrEditor(p, host, ref.id);
+    else if (ref.kind === 'rel') relEditor(p, host, ref.id);
   },
   direction: (M) => M.direction,
   properties(core, M, ref): PropControl[] {

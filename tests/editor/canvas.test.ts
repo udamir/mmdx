@@ -491,7 +491,10 @@ describe('canvas selection', () => {
     (chooser.querySelector('[data-start="sequence"]') as HTMLButtonElement).click();
     expect(core.model.type).toBe('sequence');
     expect(chooser.hidden).toBe(true);
-    expect((core.dom.wrap.querySelector('.empty-hint') as HTMLElement).hidden).toBe(false);
+    const hint = core.dom.wrap.querySelector('.empty-hint') as HTMLElement;
+    expect(hint.hidden).toBe(false);
+    // the hint is the StatusBox block's empty state (A5)
+    expect(hint.querySelector('.mmdx-status [role="status"]')?.textContent).toBe('Drag shapes from the toolbar on the left onto the canvas');
   });
 
   it('View mode: links raise a cancelable mmdx-link event', () => {

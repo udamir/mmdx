@@ -1,4 +1,4 @@
-// The ER sections of the Properties panel (A.6 rows 54–56; prototype app `attrEditor`, `relEditor`): a table's
+// The ER sections of the Properties panel, in the ER kind's chunk (A11d: loaded with the type, the `inspector` hook of its edit kind; A.6 rows 54–56; prototype app `attrEditor`, `relEditor`): a table's
 // attributes as editable lines with a style popup each (bold / italic / underline, font, size, colour, presets), and a
 // relationship's cardinalities and identifying flag. Every change is one history step.
 // The attribute style popup duplicates the table editor's presets (er-table `renderPresets`) as its own markup.
@@ -12,7 +12,7 @@ import { FONTS } from '../../../ui/diagram/fonts.js';
 import { h } from '../../../ui/kit/h.js';
 import { applyMeta } from '../../ops/doc.js';
 import { writeAttrLook } from '../../lib/er-look.js';
-import { row, sect, type PanelCtx } from './inspectors/shared.js';
+import { row, sect, type PanelCtx } from '../../lib/panel.js';
 
 /**
  * The table's attributes, one line each: the Mermaid attribute as text (`type name PK (comment)`, as in the canvas's
