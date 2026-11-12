@@ -17,12 +17,12 @@
 // drawn. Offsets of every statement, relationship token and label are kept, so the ops rewrite only what changes
 // (T11.5).
 import type { AttrKey, Cardinality, Direction, Entity, ErAttribute, ErEntityStmt, ErGroup, ErModel, ErRel, MermaidStyle } from '../../model.js';
-import { diag } from '../../types.js';
+import { diag, type Diagnostic } from '../../types.js';
 import { frontmatterValues, titleToFrontmatter } from '../../parse/frontmatter.js';
 import { guardParse, ItemBudget, LexBudget } from '../../parse/limits.js';
 import { LineScan } from '../../parse/line-scan.js';
 import { firstMatch, lexRule, prepareSource, type LexRule } from '../../parse/jison.js';
-import { labelText, lineIndex, unquotePair } from '../../parse/kit.js';
+import { labelText, lineIndex, unquotePair, type LineIndex } from '../../parse/kit.js';
 import { parseStyleList } from '../../parse/style.js';
 import { minOf } from '../../geom.js';
 
@@ -239,496 +239,521 @@ interface OpenGroup {
   members: string[];
 }
 
+/** The token cursor of a parse: the grammar looks one token ahead (two at most) and back at the one just read. */
+class Cursor {
+  i = 0;
+  constructor(private readonly toks: readonly Tok[]) {}
+  readonly peek = (k = 0): Tok => this.toks[Math.min(this.i + k, this.toks.length - 1)]!;
+  readonly take = (): Tok => this.toks[Math.min(this.i++, this.toks.length - 1)]!;
+  readonly is = (t: string, k = 0): boolean => this.peek(k).t === t;
+}
+
+/**
+ * What an ER parse holds while it reads the statements (R2): the model and its budget, the code and the prepared
+ * source with its line index, the token cursor, the lines already reported, the relationship numbering and the
+ * subgraphs open and closed so far.
+ */
+interface ErParse {
+  readonly model: ErModel;
+  readonly D: Diagnostic[];
+  readonly budget: ItemBudget;
+  /** The code with a final line break: token offsets are offsets into it (the prepared source only blanks text). */
+  readonly orig: string;
+  readonly src: string;
+  readonly lineAt: LineIndex;
+  readonly c: Cursor;
+  /** Lines with a character no rule reads (reported once, by the lexer). */
+  readonly badLines: Set<number>;
+  /** The last line a syntax error was reported on. */
+  reported: number;
+  readonly relCount: Map<string, number>;
+  /** The ends of each relationship that named no closed subgraph when it was read. */
+  readonly early: Map<ErRel, string[]>;
+  readonly open: OpenGroup[];
+  readonly closed: ErGroup[];
+  /** Members already claimed by a closed subgraph (Mermaid's makeUniq). */
+  readonly claimed: Set<string>;
+}
+
 /** Never throws: a source past the lexer's limits gives an empty model with `doc.too-complex`. */
 export function parseER(code: string): ErModel {
   return guardParse(emptyEr, () => readER(code));
 }
 
 function readER(code: string): ErModel {
-  const model = emptyEr();
-  const D = model.diagnostics;
-  const budget = new ItemBudget(D);
-  const orig = (typeof code === 'string' ? code : '') + '\n';
-  const { src, front } = prepareSource(typeof code === 'string' ? code : '');
-  const lineAt = lineIndex(src), starts = lineAt.starts;
-  const raw = (t: Tok): string => orig.slice(t.s, t.e);
+  const text = typeof code === 'string' ? code : '';
+  const { src, front } = prepareSource(text);
   const { toks, bad } = lex(src);
-  const badLines = new Set<number>();
+  const model = emptyEr();
+  const P: ErParse = {
+    model, D: model.diagnostics, budget: new ItemBudget(model.diagnostics), orig: text + '\n', src, lineAt: lineIndex(src), c: new Cursor(toks),
+    badLines: new Set(), reported: -1, relCount: new Map(), early: new Map(), open: [], closed: [], claimed: new Set(),
+  };
   for (const at of bad) {
-    const li = lineAt(at);
-    if (badLines.has(li)) continue;
-    badLines.add(li);
-    D.push(diag('error', 'er.cannot-parse', `Mermaid cannot read "${orig[at]}" here`, li));
+    const li = P.lineAt(at);
+    if (P.badLines.has(li)) continue;
+    P.badLines.add(li);
+    P.D.push(diag('error', 'er.cannot-parse', `Mermaid cannot read "${P.orig[at]}" here`, li));
   }
-
   // ---- frontmatter: the title
-  const fm = frontmatterValues(front);
-  const fmTitle = fm.get('title');
+  const fmTitle = frontmatterValues(front).get('title');
   if (fmTitle) model.title = textOf(fmTitle);
+  readStatements(P);
+  resolveER(P);
+  return model;
+}
 
-  let i = 0;
-  const peek = (k = 0): Tok => toks[Math.min(i + k, toks.length - 1)]!;
-  const take = (): Tok => toks[Math.min(i++, toks.length - 1)]!;
-  const is = (t: string, k = 0): boolean => peek(k).t === t;
-  let reported = -1;
-  const syntax = (tok: Tok, msg: string): void => {
-    const li = lineAt(tok.s);
-    if (li === reported || badLines.has(li)) return;
-    reported = li;
-    D.push(diag('error', 'er.cannot-parse', `Mermaid cannot read this line of the ER diagram: ${msg}`, li));
-  };
-  /** Skips to the next line (the next newline token; a block in between goes with it). */
-  const recover = (): void => {
-    while (!is('EOF') && !is('NL')) take();
-  };
+// ---- statements ---------------------------------------------------------------------------------------------------
 
-  const relCount = new Map<string, number>();
-  /** The ends of each relationship that named no closed subgraph when it was read. */
-  const early = new Map<ErRel, string[]>();
-  const open: OpenGroup[] = [];
-  const closed: ErGroup[] = [];
-  /** Members already claimed by a closed subgraph (Mermaid's makeUniq). */
-  const claimed = new Set<string>();
-  const parentOf = new Map<string, string>();
-
-  const touch = (id: string, li: number, alias?: string): Entity | null => {
-    let e = model.entities.get(id);
-    if (!e) {
-      if (!budget.take(li)) return null;
-      e = { id, label: id, attrs: [], order: model.entities.size, lines: new Set(), classes: [], style: {}, parent: null, stmts: [] };
-      model.entities.set(id, e);
-    }
-    if (alias !== undefined && e.alias === undefined && alias) {
-      e.alias = alias;
-      e.label = alias;
-    }
-    return e;
-  };
-  const mark = (e: Entity, from: number, to: number): void => {
-    for (let li = lineAt(from); li <= lineAt(Math.max(from, to - 1)); li++) e.lines.add(li);
-  };
-  const useClass = (cls: string, li: number): void => {
-    if (!Object.hasOwn(model.classDefs, cls) && !model.undefinedClasses.some((u) => u.cls === cls)) model.undefinedClasses.push({ cls, line: li });
-  };
-  const groupNow = (id: string): ErGroup | undefined => closed.find((g) => g.id === id);
-  const setClass = (ids: readonly string[], classes: readonly string[], li: number): void => {
-    for (const id of ids) {
-      const x = model.entities.get(id) ?? groupNow(id);
-      if (!x) continue;
-      for (const c of classes) {
-        x.classes.push(c);
-        useClass(c, li);
-      }
-    }
-  };
-  const addStyle = (ids: readonly string[], st: MermaidStyle): void => {
-    for (const id of ids) {
-      const x = model.entities.get(id) ?? groupNow(id);
-      if (x) Object.assign(x.style, st);
-    }
-  };
-
-  /** An entity name: a word, a number or a quoted name (its quotes dropped). */
-  const name = (): Tok | null => (NAME_TOKENS.has(peek().t) ? take() : null);
-  const nameOf = (t: Tok): string => (t.t === 'ENTITY_NAME' ? unquote(raw(t)) : raw(t));
-  /** `a,b,c` after `:::` or `class`. */
-  const idList = (tok = 'TEXT'): string[] | null => {
-    if (!is(tok)) return null;
-    const out = [raw(take())];
-    while (is('COMMA') && is(tok, 1)) {
-      take();
-      out.push(raw(take()));
-    }
-    return out;
-  };
-  /** `:::a,b` after a name, if any (null: `:::` without a class). */
-  const classesAfter = (): string[] | null | undefined => {
-    if (!is('SEP')) return undefined;
-    take();
-    return idList();
-  };
-  /** The styles of `style` / `classDef` up to the line's end (or `;`), as written. */
-  const styles = (): { text: string; ok: boolean } => {
-    const first = peek();
-    let last: Tok | null = null;
-    while (['STEXT', 'COLON', 'COMMA', 'BRKT'].includes(peek().t)) last = take();
-    const ok = !!last && (is('NL') || is('SEMI') || is('EOF'));
-    if (is('SEMI')) take();
-    return { text: last ? orig.slice(first.s, last.e) : '', ok };
-  };
-
-  /** The attributes of a block, up to its `}` (a bad one is reported and the block goes on at the next line). */
-  const attributes = (e: Entity | null): Tok | null => {
-    while (!is('BLOCK_STOP')) {
-      if (is('EOF') || is('NL')) return null;
-      const t0 = peek();
-      const at = lineAt(t0.s);
-      const fail = (msg: string): void => {
-        if (!badLines.has(at)) D.push(diag('error', 'er.bad-attribute', `Mermaid cannot read the attribute "${orig.slice(starts[at]!, (starts[at + 1] ?? src.length) - 1).trim()}": ${msg}`, at));
-        while (!is('BLOCK_STOP') && !is('EOF') && lineAt(peek().s) === at) take();
-      };
-      if (!is('AWORD')) {
-        fail('it must start with a type');
-        continue;
-      }
-      let type = raw(take());
-      if (is('CHAR') && peek().v === '?') {
-        take();
-        type += '?';
-      }
-      if (!is('AWORD')) {
-        fail(is('KEY') ? 'it needs a name before its keys' : 'it needs a type and a name');
-        continue;
-      }
-      const nm = raw(take());
-      const keys: AttrKey[] = [];
-      if (is('KEY')) {
-        keys.push(raw(take()).toUpperCase() as AttrKey);
-        while (is('CHAR') && peek().v === ',' && is('KEY', 1)) {
-          take();
-          keys.push(raw(take()).toUpperCase() as AttrKey);
-        }
-      }
-      const comment = is('COMMENT') ? unquote(raw(take())) : '';
-      e?.attrs.push({ type, name: nm, keys, comment });
-    }
-    return take();
-  };
-
-  /** A relationship after its first name (and its classes): cardinality, line, cardinality, name, `: label`. */
-  const relationship = (a: Tok, aClasses: string[] | undefined): string[] => {
-    const li = lineAt(a.s);
-    const aName = nameOf(a);
-    const c1 = take();
-    if (!is('LINE')) {
-      syntax(c1, 'a relationship needs "--", "..", "to" or "optionally to" between its cardinalities');
-      recover();
-      return [];
-    }
-    const ln = take();
-    if (!is('CARD')) {
-      syntax(ln, 'a relationship needs a cardinality on both sides');
-      recover();
-      return [];
-    }
-    const c2 = take();
-    const b = name();
-    if (!b) {
-      syntax(c2, 'a relationship needs an entity on both sides');
-      recover();
-      return [];
-    }
-    const bClasses = classesAfter();
-    if (bClasses === null) {
-      syntax(b, 'a class name must follow ":::"');
-      recover();
-      return [];
-    }
-    let label = '', labelTok: Tok | null = null, end = bClasses ? peek(-1).e : b.e;
-    if (is('COLON')) {
-      const colon = take();
-      if (is('WORD') || is('ENTITY_NAME') || is('TEXT')) {
-        labelTok = take();
-        label = textOf(labelTok.t === 'TEXT' ? raw(labelTok) : unquote(raw(labelTok)));
-        end = labelTok.e;
-      } else {
-        syntax(colon, 'the label after ":" must be one word or a quoted text');
-        recover();
-        return [];
-      }
-    } else {
-      const at = end;
-      D.push(diag('error', 'er.rel-label', 'Mermaid needs a label after a relationship (": label", or ": \\"\\"" for none)', li, {
-        fix: { title: 'Add an empty label', apply: (c: string) => c.slice(0, at) + ' : ""' + c.slice(at) },
-      }));
-    }
-    const bName = nameOf(b);
-    const ea = touch(aName, li), eb = touch(bName, li);
-    if (!ea || !eb || !budget.take(li)) return [aName, bName];
-    mark(ea, a.s, end);
-    mark(eb, a.s, end);
-    if (aClasses) setClass([aName], aClasses, li);
-    if (bClasses) setClass([bName], bClasses, li);
-    const key = `${aName}--${bName}`;
-    const n = (relCount.get(key) ?? 0) + 1;
-    relCount.set(key, n);
-    for (const c of [c1, c2])
-      if (c.v === 'md-parent') D.push(diag('info', 'er.md-parent', 'Mermaid\'s "u" cardinality has no marker of its own: mmdx draws it as exactly one', li));
-    const card = (c: Tok): Cardinality => (c.v === 'md-parent' ? 'one' : (c.v as Cardinality));
-    const rel: ErRel = {
-      id: n > 1 ? `${key}#${n}` : key, from: aName, to: bName, fromCard: card(c1), toCard: card(c2), identifying: ln.v === 'id', label, src: li,
-      start: a.s, end, fromAt: [a.s, a.e], toAt: [b.s, b.e], fromCardAt: [c1.s, c1.e], lineAt: [ln.s, ln.e], toCardAt: [c2.s, c2.e],
-    };
-    if (labelTok) rel.labelAt = [labelTok.s, labelTok.e];
-    model.rels.push(rel);
-    early.set(rel, [aName, bName].filter((x) => !groupNow(x)));
-    return [aName, bName];
-  };
-
-  /** An entity statement or a relationship, from its first name. Returns the names it gives its subgraph. */
-  const entityStatement = (a: Tok): string[] => {
-    const li = lineAt(a.s);
-    const aName = nameOf(a);
-    const aClasses = classesAfter();
-    if (aClasses === null) {
-      syntax(a, 'a class name must follow ":::"');
-      recover();
-      return [];
-    }
-    if (is('CARD')) return relationship(a, aClasses);
-    // ---- an entity: `A`, `A[Alias]`, `:::classes`, a block
-    let alias: string | undefined, aliasAt: [number, number] | undefined;
-    let classes = aClasses;
-    if (is('SQS') && !aClasses) {
-      const sqs = take();
-      const al = name();
-      if (!al || !is('SQE')) {
-        syntax(a, 'an alias is one word or a quoted text in square brackets');
-        recover();
-        return [];
-      }
-      const sqe = take();
-      aliasAt = [sqs.s, sqe.e];
-      // a markdown string's backticks (`"`**x**`"`) are not part of the text
-      alias = textOf(nameOf(al).replace(/^`([\s\S]*)`$/, '$1'));
-      const c = classesAfter();
-      if (c === null) {
-        syntax(a, 'a class name must follow ":::"');
-        recover();
-        return [];
-      }
-      classes = c;
-      // an alias on a relationship line: Mermaid fails; mmdx reads both, the fix gives the alias its own line
-      if (is('CARD')) {
-        const lineStart = starts[li]!, from = a.e, to = sqe.e;
-        const decl = orig.slice(a.s, to);
-        D.push(diag('error', 'er.rel-alias', 'Mermaid has no alias on a relationship line: declare it on its own line', li, {
-          fix: {
-            title: 'Move the alias to its own line',
-            apply: (c: string) => {
-              const indent = /^[^\S\n]*/.exec(c.slice(lineStart))?.[0] ?? '';
-              return c.slice(0, lineStart) + indent + decl + '\n' + c.slice(lineStart, from) + c.slice(to);
-            },
-          },
-        }));
-        touch(aName, li, alias);
-        return relationship(a, classes);
-      }
-    }
-    const e = touch(aName, li, alias);
-    let end = peek(-1).e, endLine = li, block = false, blockAt: [number, number] | undefined;
-    if (is('BLOCK_START')) {
-      const brace = take();
-      block = true;
-      const stop = attributes(e);
-      if (!stop) {
-        syntax(a, `the block of "${aName}" has no closing "}"`);
-        return [aName];
-      }
-      end = stop.e;
-      endLine = lineAt(stop.s);
-      blockAt = [brace.s, stop.e];
-      if (e) {
-        e.defLine = li;
-        e.endLine = endLine;
-      }
-    }
-    if (!e) return [aName];
-    mark(e, a.s, end);
-    const stmt: ErEntityStmt = { line: li, endLine, start: a.s, end, block, nameAt: [a.s, a.e] };
-    if (aliasAt) stmt.aliasAt = aliasAt;
-    if (blockAt) stmt.blockAt = blockAt;
-    e.stmts.push(stmt);
-    if (classes) setClass([aName], classes, li);
-    return [aName];
-  };
-
-  /** One statement; the names it gives the subgraph it is in. */
-  const statement = (): string[] => {
-    const t = peek();
-    const li = lineAt(t.s);
-    switch (t.t) {
-      case 'NL':
-        take();
-        return [];
-      case 'ACC_TITLE':
-      case 'ACC_DESCR': {
-        take();
-        const v = is('ACC_VALUE') ? textOf(raw(take()).trim()) : '';
-        if (t.t === 'ACC_TITLE') model.accTitle = v;
-        else model.accDescr = v;
-        return [];
-      }
-      case 'ACC_DESCR_BLOCK':
-        take();
-        // Mermaid drops the indentation after a line break
-        model.accDescr = textOf(raw(t).trim().replace(/\n\s+/g, '\n'));
-        return [];
-      case 'DIR': {
-        take();
-        if (open.length) open[open.length - 1]!.g.dir = t.v as Direction;
-        else {
-          model.direction = t.v as Direction;
-          model.dirLine = li;
-        }
-        return [];
-      }
-      case 'CLASSDEF':
-      case 'STYLE': {
-        take();
-        const ids = idList('STEXT');
-        const st = ids ? styles() : { text: '', ok: false };
-        if (!ids || !st.ok) {
-          syntax(t, t.t === 'STYLE' ? 'write "style id property:value,…"' : 'write "classDef name property:value,…"');
-          recover();
-          return [];
-        }
-        const parsed = parseStyleList(st.text, (msg) => D.push(diag('warning', 'er.bad-style', msg, li)));
-        if (t.t === 'STYLE') addStyle(ids, parsed);
-        else for (const id of ids) model.classDefs[id] = { ...(model.classDefs[id] ?? {}), ...parsed };
-        return [];
-      }
-      case 'CLASS': {
-        take();
-        const ids = idList();
-        const classes = ids ? idList() : null;
-        if (!ids || !classes) {
-          syntax(t, 'write "class id1,id2 className"');
-          recover();
-          return [];
-        }
-        setClass(ids, classes, li);
-        return [];
-      }
-      case 'SUBGRAPH': {
-        take();
-        const id = name();
-        if (!id) {
-          syntax(t, 'a subgraph needs an id');
-          recover();
-          return [];
-        }
-        let label = nameOf(id), headEnd = id.e;
-        if (is('SQS')) {
-          take();
-          const words: string[] = [];
-          for (let w = name(); w; w = name()) words.push(nameOf(w));
-          if (!words.length || !is('SQE')) {
-            syntax(t, 'a subgraph title is words or a quoted text in square brackets');
-            recover();
-            return [];
-          }
-          headEnd = take().e;
-          label = words.join(' ');
-        }
-        if (!is('NL') && !is('EOF')) {
-          syntax(t, 'the subgraph header must end its line');
-          recover();
-          return [];
-        }
-        if (!budget.take(li)) {
-          recover();
-          return [];
-        }
-        const g: ErGroup = {
-          id: nameOf(id), label: textOf(label).trim(), parent: null, children: [], order: model.groups.size + open.length, line: li,
-          start: t.s, end: src.length, idAt: [id.s, id.e], headEnd, lines: new Set([li]), classes: [], style: {},
-        };
-        open.push({ g, members: [] });
-        return [];
-      }
-      case 'END': {
-        take();
-        const top = open.pop();
-        if (!top) {
-          syntax(t, '"end" closes no subgraph');
-          return [];
-        }
-        top.g.endLine = lineAt(t.s);
-        top.g.end = t.s + raw(t).trimEnd().length;
-        top.g.lines.add(top.g.endLine);
-        close(top);
-        return [top.g.id];
-      }
-      default: {
-        if (NAME_TOKENS.has(t.t)) {
-          // `title …`: Mermaid reads its words as entities; mmdx takes it as the diagram's title (with a fix)
-          if (t.t === 'TEXT' && /^title$/i.test(raw(t)) && lineAt(peek(1).s) === li && ['TEXT', 'NUM', 'DECIMAL', 'ENTITY_ONE', 'ENTITY_NAME', 'WORD', 'CHAR', 'COMMA', 'COLON'].includes(peek(1).t)) {
-            const lineEnd = (starts[li + 1] ?? src.length) - 1;
-            model.title = textOf(orig.slice(t.e, lineEnd).trim());
-            D.push(diag('warning', 'er.title-statement', 'Mermaid reads the words of a `title` statement as entities in an ER diagram — the frontmatter\'s `title:` is the portable form', li, {
-              fix: { title: 'Move to the frontmatter', apply: (c: string) => titleToFrontmatter(c, li) },
-            }));
-            while (!is('EOF') && !is('NL')) take();
-            return [];
-          }
-          return entityStatement(take());
-        }
-        if (t.t === 'EOF') return [];
-        syntax(t, `unexpected "${raw(t).trim() || t.t}"`);
-        take();
-        recover();
-        return [];
-      }
-    }
-  };
-
-  /** A subgraph closes: its members (unique, not claimed by a subgraph closed before) and its `direction`. */
-  const close = (top: OpenGroup): void => {
-    const g = top.g;
-    const seen = new Set<string>();
-    for (const m of top.members) {
-      const id = m.trim();
-      if (!id || seen.has(id) || claimed.has(id) || id === g.id) continue;
-      seen.add(id);
-      g.children.push(id);
-    }
-    for (const c of g.children) claimed.add(c);
-    const prev = model.groups.get(g.id);
-    if (prev) {
-      // the same id again: one subgraph, its members added
-      for (const c of g.children) if (!prev.children.includes(c)) prev.children.push(c);
-      prev.lines = new Set([...prev.lines, ...g.lines]);
-      if (g.dir) prev.dir = g.dir;
-    } else {
-      model.groups.set(g.id, g);
-      closed.push(g);
-    }
-    if (open.length) open[open.length - 1]!.members.push(g.id);
-  };
-
-  // ---- the header, then the statements
+/** The header, then the statements, then the subgraphs left open. */
+function readStatements(P: ErParse): void {
+  const { model, D, open, c: { is, take } } = P;
   while (is('NL')) take();
-  if (is('ER')) model.headerLine = lineAt(take().s);
+  if (is('ER')) model.headerLine = P.lineAt(take().s);
   else {
     D.push(diag('error', 'er.header', 'The "erDiagram" header is missing'));
   }
-  while (!is('EOF') && !budget.over) {
-    const names = statement();
+  while (!is('EOF') && !P.budget.over) {
+    const names = statement(P);
     if (open.length) open[open.length - 1]!.members.push(...names);
   }
   for (let k = open.length - 1; k >= 0; k--) {
     const top = open[k]!;
     D.push(diag('error', 'er.unclosed', `The subgraph "${top.g.id}" has no "end"`, top.g.line, { params: { id: top.g.id } }));
-    top.g.lines.add(lineAt(src.length - 1));
+    top.g.lines.add(P.lineAt(P.src.length - 1));
     open.length = k;
-    close(top);
+    close(P, top);
   }
+}
 
-  // ---- members: an entity (or subgraph) is in the first subgraph to close that names it
-  for (const g of model.groups.values())
-    for (const c of g.children) if (!parentOf.has(c)) parentOf.set(c, g.id);
-  for (const g of model.groups.values()) {
-    const p = parentOf.get(g.id);
-    // no cycles (a subgraph named as a member of one it holds)
-    let ok = !!p;
-    for (let q = p, n = 0; ok && q && n <= model.groups.size; q = parentOf.get(q), n++) if (q === g.id) ok = false;
-    g.parent = ok ? p! : null;
+const raw = (P: ErParse, t: Tok): string => P.orig.slice(t.s, t.e);
+
+function syntax(P: ErParse, tok: Tok, msg: string): void {
+  const li = P.lineAt(tok.s);
+  if (li === P.reported || P.badLines.has(li)) return;
+  P.reported = li;
+  P.D.push(diag('error', 'er.cannot-parse', `Mermaid cannot read this line of the ER diagram: ${msg}`, li));
+}
+
+/** Skips to the next line (the next newline token; a block in between goes with it). */
+function recover(P: ErParse): void {
+  const { is, take } = P.c;
+  while (!is('EOF') && !is('NL')) take();
+}
+
+/** A syntax error, then the next line: the statement gives its subgraph no names. */
+function reject(P: ErParse, tok: Tok, msg: string): string[] {
+  syntax(P, tok, msg);
+  recover(P);
+  return [];
+}
+
+/** One statement; the names it gives the subgraph it is in. */
+function statement(P: ErParse): string[] {
+  const { model, c: { peek, take } } = P;
+  const t = peek();
+  const li = P.lineAt(t.s);
+  switch (t.t) {
+    case 'NL':
+      take();
+      return [];
+    case 'ACC_TITLE':
+    case 'ACC_DESCR': {
+      take();
+      const v = P.c.is('ACC_VALUE') ? textOf(raw(P, take()).trim()) : '';
+      if (t.t === 'ACC_TITLE') model.accTitle = v;
+      else model.accDescr = v;
+      return [];
+    }
+    case 'ACC_DESCR_BLOCK':
+      take();
+      // Mermaid drops the indentation after a line break
+      model.accDescr = textOf(raw(P, t).trim().replace(/\n\s+/g, '\n'));
+      return [];
+    case 'DIR': {
+      take();
+      if (P.open.length) P.open[P.open.length - 1]!.g.dir = t.v as Direction;
+      else {
+        model.direction = t.v as Direction;
+        model.dirLine = li;
+      }
+      return [];
+    }
+    case 'CLASSDEF':
+    case 'STYLE':
+      return styleStatement(P, t, li);
+    case 'CLASS': {
+      take();
+      const ids = idList(P);
+      const classes = ids ? idList(P) : null;
+      if (!ids || !classes) return reject(P, t, 'write "class id1,id2 className"');
+      setClass(P, ids, classes, li);
+      return [];
+    }
+    case 'SUBGRAPH':
+      return subgraphStatement(P, t, li);
+    case 'END':
+      return endStatement(P, t);
+    default:
+      return otherStatement(P, t, li);
   }
-  for (const g of model.groups.values()) g.children = g.children.filter((c) => (model.entities.has(c) || model.groups.has(c)) && parentOf.get(c) === g.id && (!model.groups.has(c) || model.groups.get(c)!.parent === g.id));
+}
+
+/** `style ids styles` / `classDef names styles`. */
+function styleStatement(P: ErParse, t: Tok, li: number): string[] {
+  const { model, D } = P;
+  P.c.take();
+  const ids = idList(P, 'STEXT');
+  const st = ids ? styles(P) : { text: '', ok: false };
+  if (!ids || !st.ok) return reject(P, t, t.t === 'STYLE' ? 'write "style id property:value,…"' : 'write "classDef name property:value,…"');
+  const parsed = parseStyleList(st.text, (msg) => D.push(diag('warning', 'er.bad-style', msg, li)));
+  if (t.t === 'STYLE') addStyle(P, ids, parsed);
+  else for (const id of ids) model.classDefs[id] = { ...(model.classDefs[id] ?? {}), ...parsed };
+  return [];
+}
+
+/** `subgraph id [title]`: the subgraph opens. */
+function subgraphStatement(P: ErParse, t: Tok, li: number): string[] {
+  const { model, c: { is, take } } = P;
+  take();
+  const id = name(P);
+  if (!id) return reject(P, t, 'a subgraph needs an id');
+  let label = nameOf(P, id), headEnd = id.e;
+  if (is('SQS')) {
+    take();
+    const words: string[] = [];
+    for (let w = name(P); w; w = name(P)) words.push(nameOf(P, w));
+    if (!words.length || !is('SQE')) return reject(P, t, 'a subgraph title is words or a quoted text in square brackets');
+    headEnd = take().e;
+    label = words.join(' ');
+  }
+  if (!is('NL') && !is('EOF')) return reject(P, t, 'the subgraph header must end its line');
+  if (!P.budget.take(li)) {
+    recover(P);
+    return [];
+  }
+  const g: ErGroup = {
+    id: nameOf(P, id), label: textOf(label).trim(), parent: null, children: [], order: model.groups.size + P.open.length, line: li,
+    start: t.s, end: P.src.length, idAt: [id.s, id.e], headEnd, lines: new Set([li]), classes: [], style: {},
+  };
+  P.open.push({ g, members: [] });
+  return [];
+}
+
+/** `end`: the innermost subgraph closes; its id is a name in the subgraph around it. */
+function endStatement(P: ErParse, t: Tok): string[] {
+  P.c.take();
+  const top = P.open.pop();
+  if (!top) {
+    syntax(P, t, '"end" closes no subgraph');
+    return [];
+  }
+  top.g.endLine = P.lineAt(t.s);
+  top.g.end = t.s + raw(P, t).trimEnd().length;
+  top.g.lines.add(top.g.endLine);
+  close(P, top);
+  return [top.g.id];
+}
+
+/** A `title` statement, an entity statement or a relationship (from a name), or an unexpected token. */
+function otherStatement(P: ErParse, t: Tok, li: number): string[] {
+  const { model, D, c: { peek, take, is } } = P;
+  if (NAME_TOKENS.has(t.t)) {
+    // `title …`: Mermaid reads its words as entities; mmdx takes it as the diagram's title (with a fix)
+    if (t.t === 'TEXT' && /^title$/i.test(raw(P, t)) && P.lineAt(peek(1).s) === li && ['TEXT', 'NUM', 'DECIMAL', 'ENTITY_ONE', 'ENTITY_NAME', 'WORD', 'CHAR', 'COMMA', 'COLON'].includes(peek(1).t)) {
+      const lineEnd = (P.lineAt.starts[li + 1] ?? P.src.length) - 1;
+      model.title = textOf(P.orig.slice(t.e, lineEnd).trim());
+      D.push(diag('warning', 'er.title-statement', 'Mermaid reads the words of a `title` statement as entities in an ER diagram — the frontmatter\'s `title:` is the portable form', li, {
+        fix: { title: 'Move to the frontmatter', apply: (c: string) => titleToFrontmatter(c, li) },
+      }));
+      while (!is('EOF') && !is('NL')) take();
+      return [];
+    }
+    return entityStatement(P, take());
+  }
+  if (t.t === 'EOF') return [];
+  syntax(P, t, `unexpected "${raw(P, t).trim() || t.t}"`);
+  take();
+  recover(P);
+  return [];
+}
+
+/** A subgraph closes: its members (unique, not claimed by a subgraph closed before) and its `direction`. */
+function close(P: ErParse, top: OpenGroup): void {
+  const { model, claimed, open } = P;
+  const g = top.g;
+  const seen = new Set<string>();
+  for (const m of top.members) {
+    const id = m.trim();
+    if (!id || seen.has(id) || claimed.has(id) || id === g.id) continue;
+    seen.add(id);
+    g.children.push(id);
+  }
+  for (const c of g.children) claimed.add(c);
+  const prev = model.groups.get(g.id);
+  if (prev) {
+    // the same id again: one subgraph, its members added
+    for (const c of g.children) if (!prev.children.includes(c)) prev.children.push(c);
+    prev.lines = new Set([...prev.lines, ...g.lines]);
+    if (g.dir) prev.dir = g.dir;
+  } else {
+    model.groups.set(g.id, g);
+    P.closed.push(g);
+  }
+  if (open.length) open[open.length - 1]!.members.push(g.id);
+}
+
+// ---- entities and relationships -----------------------------------------------------------------------------------
+
+function touch(P: ErParse, id: string, li: number, alias?: string): Entity | null {
+  const { model } = P;
+  let e = model.entities.get(id);
+  if (!e) {
+    if (!P.budget.take(li)) return null;
+    e = { id, label: id, attrs: [], order: model.entities.size, lines: new Set(), classes: [], style: {}, parent: null, stmts: [] };
+    model.entities.set(id, e);
+  }
+  if (alias !== undefined && e.alias === undefined && alias) {
+    e.alias = alias;
+    e.label = alias;
+  }
+  return e;
+}
+
+function mark(P: ErParse, e: Entity, from: number, to: number): void {
+  for (let li = P.lineAt(from); li <= P.lineAt(Math.max(from, to - 1)); li++) e.lines.add(li);
+}
+
+function useClass(P: ErParse, cls: string, li: number): void {
+  const { model } = P;
+  if (!Object.hasOwn(model.classDefs, cls) && !model.undefinedClasses.some((u) => u.cls === cls)) model.undefinedClasses.push({ cls, line: li });
+}
+
+const groupNow = (P: ErParse, id: string): ErGroup | undefined => P.closed.find((g) => g.id === id);
+
+function setClass(P: ErParse, ids: readonly string[], classes: readonly string[], li: number): void {
+  for (const id of ids) {
+    const x = P.model.entities.get(id) ?? groupNow(P, id);
+    if (!x) continue;
+    for (const c of classes) {
+      x.classes.push(c);
+      useClass(P, c, li);
+    }
+  }
+}
+
+function addStyle(P: ErParse, ids: readonly string[], st: MermaidStyle): void {
+  for (const id of ids) {
+    const x = P.model.entities.get(id) ?? groupNow(P, id);
+    if (x) Object.assign(x.style, st);
+  }
+}
+
+/** An entity name: a word, a number or a quoted name (its quotes dropped). */
+const name = (P: ErParse): Tok | null => (NAME_TOKENS.has(P.c.peek().t) ? P.c.take() : null);
+const nameOf = (P: ErParse, t: Tok): string => (t.t === 'ENTITY_NAME' ? unquote(raw(P, t)) : raw(P, t));
+
+/** `a,b,c` after `:::` or `class`. */
+function idList(P: ErParse, tok = 'TEXT'): string[] | null {
+  const { is, take } = P.c;
+  if (!is(tok)) return null;
+  const out = [raw(P, take())];
+  while (is('COMMA') && is(tok, 1)) {
+    take();
+    out.push(raw(P, take()));
+  }
+  return out;
+}
+
+/** `:::a,b` after a name, if any (null: `:::` without a class). */
+function classesAfter(P: ErParse): string[] | null | undefined {
+  if (!P.c.is('SEP')) return undefined;
+  P.c.take();
+  return idList(P);
+}
+
+/** The styles of `style` / `classDef` up to the line's end (or `;`), as written. */
+function styles(P: ErParse): { text: string; ok: boolean } {
+  const { peek, take, is } = P.c;
+  const first = peek();
+  let last: Tok | null = null;
+  while (['STEXT', 'COLON', 'COMMA', 'BRKT'].includes(peek().t)) last = take();
+  const ok = !!last && (is('NL') || is('SEMI') || is('EOF'));
+  if (is('SEMI')) take();
+  return { text: last ? P.orig.slice(first.s, last.e) : '', ok };
+}
+
+/** The attributes of a block, up to its `}` (a bad one is reported and the block goes on at the next line). */
+function attributes(P: ErParse, e: Entity | null): Tok | null {
+  const { D, lineAt, c: { peek, take, is } } = P;
+  const starts = lineAt.starts;
+  while (!is('BLOCK_STOP')) {
+    if (is('EOF') || is('NL')) return null;
+    const t0 = peek();
+    const at = lineAt(t0.s);
+    const fail = (msg: string): void => {
+      if (!P.badLines.has(at)) D.push(diag('error', 'er.bad-attribute', `Mermaid cannot read the attribute "${P.orig.slice(starts[at]!, (starts[at + 1] ?? P.src.length) - 1).trim()}": ${msg}`, at));
+      while (!is('BLOCK_STOP') && !is('EOF') && lineAt(peek().s) === at) take();
+    };
+    if (!is('AWORD')) {
+      fail('it must start with a type');
+      continue;
+    }
+    let type = raw(P, take());
+    if (is('CHAR') && peek().v === '?') {
+      take();
+      type += '?';
+    }
+    if (!is('AWORD')) {
+      fail(is('KEY') ? 'it needs a name before its keys' : 'it needs a type and a name');
+      continue;
+    }
+    const nm = raw(P, take());
+    const keys: AttrKey[] = [];
+    if (is('KEY')) {
+      keys.push(raw(P, take()).toUpperCase() as AttrKey);
+      while (is('CHAR') && peek().v === ',' && is('KEY', 1)) {
+        take();
+        keys.push(raw(P, take()).toUpperCase() as AttrKey);
+      }
+    }
+    const comment = is('COMMENT') ? unquote(raw(P, take())) : '';
+    e?.attrs.push({ type, name: nm, keys, comment });
+  }
+  return take();
+}
+
+/** A relationship after its first name (and its classes): cardinality, line, cardinality, name, `: label`. */
+function relationship(P: ErParse, a: Tok, aClasses: string[] | undefined): string[] {
+  const { D, c: { peek, take, is } } = P;
+  const li = P.lineAt(a.s);
+  const aName = nameOf(P, a);
+  const c1 = take();
+  if (!is('LINE')) return reject(P, c1, 'a relationship needs "--", "..", "to" or "optionally to" between its cardinalities');
+  const ln = take();
+  if (!is('CARD')) return reject(P, ln, 'a relationship needs a cardinality on both sides');
+  const c2 = take();
+  const b = name(P);
+  if (!b) return reject(P, c2, 'a relationship needs an entity on both sides');
+  const bClasses = classesAfter(P);
+  if (bClasses === null) return reject(P, b, 'a class name must follow ":::"');
+  let label = '', labelTok: Tok | null = null, end = bClasses ? peek(-1).e : b.e;
+  if (is('COLON')) {
+    const colon = take();
+    if (!is('WORD') && !is('ENTITY_NAME') && !is('TEXT')) return reject(P, colon, 'the label after ":" must be one word or a quoted text');
+    labelTok = take();
+    label = textOf(labelTok.t === 'TEXT' ? raw(P, labelTok) : unquote(raw(P, labelTok)));
+    end = labelTok.e;
+  } else {
+    const at = end;
+    D.push(diag('error', 'er.rel-label', 'Mermaid needs a label after a relationship (": label", or ": \\"\\"" for none)', li, {
+      fix: { title: 'Add an empty label', apply: (c: string) => c.slice(0, at) + ' : ""' + c.slice(at) },
+    }));
+  }
+  const bName = nameOf(P, b);
+  const ea = touch(P, aName, li), eb = touch(P, bName, li);
+  if (!ea || !eb || !P.budget.take(li)) return [aName, bName];
+  mark(P, ea, a.s, end);
+  mark(P, eb, a.s, end);
+  if (aClasses) setClass(P, [aName], aClasses, li);
+  if (bClasses) setClass(P, [bName], bClasses, li);
+  const key = `${aName}--${bName}`;
+  const n = (P.relCount.get(key) ?? 0) + 1;
+  P.relCount.set(key, n);
+  for (const c of [c1, c2])
+    if (c.v === 'md-parent') D.push(diag('info', 'er.md-parent', 'Mermaid\'s "u" cardinality has no marker of its own: mmdx draws it as exactly one', li));
+  const card = (c: Tok): Cardinality => (c.v === 'md-parent' ? 'one' : (c.v as Cardinality));
+  const rel: ErRel = {
+    id: n > 1 ? `${key}#${n}` : key, from: aName, to: bName, fromCard: card(c1), toCard: card(c2), identifying: ln.v === 'id', label, src: li,
+    start: a.s, end, fromAt: [a.s, a.e], toAt: [b.s, b.e], fromCardAt: [c1.s, c1.e], lineAt: [ln.s, ln.e], toCardAt: [c2.s, c2.e],
+  };
+  if (labelTok) rel.labelAt = [labelTok.s, labelTok.e];
+  P.model.rels.push(rel);
+  P.early.set(rel, [aName, bName].filter((x) => !groupNow(P, x)));
+  return [aName, bName];
+}
+
+/** An entity statement or a relationship, from its first name. Returns the names it gives its subgraph. */
+function entityStatement(P: ErParse, a: Tok): string[] {
+  const { peek, take, is } = P.c;
+  const li = P.lineAt(a.s);
+  const aName = nameOf(P, a);
+  const aClasses = classesAfter(P);
+  if (aClasses === null) return reject(P, a, 'a class name must follow ":::"');
+  if (is('CARD')) return relationship(P, a, aClasses);
+  // ---- an entity: `A`, `A[Alias]`, `:::classes`, a block
+  let alias: string | undefined, aliasAt: [number, number] | undefined;
+  let classes = aClasses;
+  if (is('SQS') && !aClasses) {
+    const sqs = take();
+    const al = name(P);
+    if (!al || !is('SQE')) return reject(P, a, 'an alias is one word or a quoted text in square brackets');
+    const sqe = take();
+    aliasAt = [sqs.s, sqe.e];
+    // a markdown string's backticks (`"`**x**`"`) are not part of the text
+    alias = textOf(nameOf(P, al).replace(/^`([\s\S]*)`$/, '$1'));
+    const c = classesAfter(P);
+    if (c === null) return reject(P, a, 'a class name must follow ":::"');
+    classes = c;
+    // an alias on a relationship line: Mermaid fails; mmdx reads both, the fix gives the alias its own line
+    if (is('CARD')) {
+      relAlias(P, a, sqe, li);
+      touch(P, aName, li, alias);
+      return relationship(P, a, classes);
+    }
+  }
+  const e = touch(P, aName, li, alias);
+  let end = peek(-1).e, endLine = li, block = false, blockAt: [number, number] | undefined;
+  if (is('BLOCK_START')) {
+    const brace = take();
+    block = true;
+    const stop = attributes(P, e);
+    if (!stop) {
+      syntax(P, a, `the block of "${aName}" has no closing "}"`);
+      return [aName];
+    }
+    end = stop.e;
+    endLine = P.lineAt(stop.s);
+    blockAt = [brace.s, stop.e];
+    if (e) {
+      e.defLine = li;
+      e.endLine = endLine;
+    }
+  }
+  if (!e) return [aName];
+  mark(P, e, a.s, end);
+  const stmt: ErEntityStmt = { line: li, endLine, start: a.s, end, block, nameAt: [a.s, a.e] };
+  if (aliasAt) stmt.aliasAt = aliasAt;
+  if (blockAt) stmt.blockAt = blockAt;
+  e.stmts.push(stmt);
+  if (classes) setClass(P, [aName], classes, li);
+  return [aName];
+}
+
+/** `A[Alias] ||--o{ B : x`: the error, with the fix that declares the alias on a line of its own. */
+function relAlias(P: ErParse, a: Tok, sqe: Tok, li: number): void {
+  const lineStart = P.lineAt.starts[li]!, from = a.e, to = sqe.e;
+  const decl = P.orig.slice(a.s, to);
+  P.D.push(diag('error', 'er.rel-alias', 'Mermaid has no alias on a relationship line: declare it on its own line', li, {
+    fix: {
+      title: 'Move the alias to its own line',
+      apply: (c: string) => {
+        const indent = /^[^\S\n]*/.exec(c.slice(lineStart))?.[0] ?? '';
+        return c.slice(0, lineStart) + indent + decl + '\n' + c.slice(lineStart, from) + c.slice(to);
+      },
+    },
+  }));
+}
+
+// ---- resolve: what needs the whole file ---------------------------------------------------------------------------
+
+function resolveER(P: ErParse): void {
+  const { model, D } = P;
+  // ---- members: an entity (or subgraph) is in the first subgraph to close that names it
+  const parentOf = subgraphTree(model);
   // a relationship names a subgraph only after the subgraph's `end` (Mermaid links it to a table of that id before,
   // which it does not draw); mmdx draws it to the subgraph
-  for (const [r, ends] of early)
+  for (const [r, ends] of P.early)
     for (const id of ends)
       if (model.groups.has(id))
         D.push(diag('warning', 'er.subgraph-later', `Mermaid links "${id}" to the subgraph only in relationships after its "end"`, r.src, { params: { id } }));
@@ -753,5 +778,20 @@ function readER(code: string): ErModel {
   }));
   // classes that have a classDef after all (a classDef may follow its use)
   model.undefinedClasses = model.undefinedClasses.filter((u) => !Object.hasOwn(model.classDefs, u.cls));
-  return model;
+}
+
+/** Each subgraph's parent and children (no cycles); returns every member's subgraph. */
+function subgraphTree(model: ErModel): Map<string, string> {
+  const parentOf = new Map<string, string>();
+  for (const g of model.groups.values())
+    for (const c of g.children) if (!parentOf.has(c)) parentOf.set(c, g.id);
+  for (const g of model.groups.values()) {
+    const p = parentOf.get(g.id);
+    // no cycles (a subgraph named as a member of one it holds)
+    let ok = !!p;
+    for (let q = p, n = 0; ok && q && n <= model.groups.size; q = parentOf.get(q), n++) if (q === g.id) ok = false;
+    g.parent = ok ? p! : null;
+  }
+  for (const g of model.groups.values()) g.children = g.children.filter((c) => (model.entities.has(c) || model.groups.has(c)) && parentOf.get(c) === g.id && (!model.groups.has(c) || model.groups.get(c)!.parent === g.id));
+  return parentOf;
 }
