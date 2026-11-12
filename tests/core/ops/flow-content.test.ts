@@ -75,10 +75,10 @@ describe('icon and image nodes (§3.6)', () => {
   it('"Convert to icon node": the label\'s leading icon becomes the node\'s, the rest its caption', async () => {
     const code = 'flowchart LR\n  C -- Three --> F["fa:fa-car Car"]';
     const r = toFlowIconNode(code, P(code), 'F')!.code;
-    expect(r).toBe('flowchart LR\n  C -- Three --> F["Car"]\n  F@{ icon: "fa:car", form: "rounded", pos: "b", h: 60 }\n');
+    expect(r).toBe('flowchart LR\n  C -- Three --> F["Car"]\n  F@{ icon: "fa:car", form: "square", h: 60, pos: "b" }\n');
     expect(setFlowMedia(code, P(code), 'F', { node: 'icon' })!.code).toBe(r);
     const az = 'flowchart LR\n  V["azure:computer-vision Vision"]';
-    expect(toFlowIconNode(az, P(az), 'V', reg)!.code).toBe('flowchart LR\n  V["Vision"]\n  V@{ icon: "azure:computer-vision", form: "rounded", pos: "b", h: 60 }\n');
+    expect(toFlowIconNode(az, P(az), 'V', reg)!.code).toBe('flowchart LR\n  V["Vision"]\n  V@{ icon: "azure:computer-vision", form: "square", h: 60, pos: "b" }\n');
     expect(toFlowIconNode(code, P(code), 'C')).toBeNull();
     await valid(r);
     expect(P(r).nodes.get('F')).toMatchObject({ shape: 'icon', label: 'Car' });

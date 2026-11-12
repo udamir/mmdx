@@ -1,6 +1,6 @@
 // Icons and images of flowchart nodes in the Mermaid code (T05, in Mermaid Chart's style): an icon or image node is
 // its label in its bracket plus the node data in a separate statement (`n4["User"]` and
-// `n4@{ icon: "tabler:user", form: "rounded", pos: "b", h: 60 }`); an icon on any other node is a `pack:name` token
+// `n4@{ icon: "tabler:user", form: "square", h: 60, pos: "b" }`); an icon on any other node is a `pack:name` token
 // at the start of its label (`fa:fa-car Car`, `azure:computer-vision Vision`). Strings are written quoted, as Mermaid
 // Chart does; existing node data is changed in place by the node data writer (parse/node-data.ts), so other keys,
 // quotes and spacing stay as written.
@@ -13,11 +13,11 @@ import { relabelFlowNode } from './ops.js';
 import { parseFlowchart } from './parse.js';
 import { uniqueId } from '../../ops/ids.js';
 import { append, indentOf, splice } from '../../ops/lines.js';
+import { mediaPatch, type MediaChange, type MediaPatch, type MediaValue } from '../../ops/media.js';
 import type { CodeResult, SelectResult } from '../../ops/types.js';
 import type { ItemRef } from '../../types.js';
 
-/** A node data value to write: a string (quoted), a number, or null to remove the key. */
-export type MediaValue = string | number | null;
+export { ICON_FORM, ICON_NODE_H, IMAGE_NODE_SIZE, type MediaPatch, type MediaValue } from '../../ops/media.js';
 
 /** What a flowchart node shows besides its label: its icon (a node's `icon` key or a label token) and its image. */
 export interface FlowMedia {
@@ -32,10 +32,6 @@ export interface FlowMedia {
   h?: number;
   constraint?: string;
 }
-
-/** Size of a new icon node's icon and a new image node's picture (Mermaid Chart's defaults). */
-export const ICON_NODE_H = 60;
-export const IMAGE_NODE_SIZE = 200;
 
 /** Whether a label token is an icon (the registry decides: registered packs and Font Awesome's form). */
 export { iconToken, leadingIcon, withIconToken, type IsIconToken } from '../../icons/icon-token.js';
@@ -121,12 +117,14 @@ export function addFlowMediaNode(code: string, model: FlowchartModel, { label, d
   return { code: append(code, ['  ' + def, stmt]), select: { kind: 'node', id } };
 }
 
-/** The keys an icon node has beyond `icon` (removed with it). */
-const ICON_NODE_KEYS = ['icon', 'form', 'pos', 'h', 'w'] as const;
-/** The keys an image node has beyond `img`. */
-const IMAGE_NODE_KEYS = ['img', 'constraint', 'pos', 'h', 'w'] as const;
-
 const nodeOf = (model: FlowchartModel, id: string): FlowNode | undefined => model.nodes.get(id);
+
+/** Writes a media change of a node's node data (the state machine of core/ops/media.ts); null when the node has no such change (a layout change of a node that is neither an icon nor an image node). */
+function changeMedia(code: string, model: FlowchartModel, id: string, change: MediaChange): CodeResult | null {
+  const p = mediaPatch(nodeOf(model, id)?.data ?? {}, change);
+  if (!p) return null;
+  return Object.keys(p).length ? writeNodeData(code, model, id, p) : { code };
+}
 
 /**
  * Sets a node's icon (`pack:name`) or removes it (null): an icon node's `icon` key; on any other node a token at the
@@ -135,16 +133,8 @@ const nodeOf = (model: FlowchartModel, id: string): FlowNode | undefined => mode
 export function setFlowIcon(code: string, model: FlowchartModel, id: string, name: string | null, isIcon: IsIconToken = faOnly): CodeResult | null {
   const n = nodeOf(model, id);
   if (!n) return null;
-  if (n.data?.icon) {
-    if (name) return writeNodeData(code, model, id, { icon: name });
-    return writeNodeData(code, model, id, Object.fromEntries(ICON_NODE_KEYS.map((k) => [k, null])));
-  }
   // an image node takes an icon as its source instead of the picture (Mermaid draws `img` first: it goes)
-  if (n.data?.img != null) {
-    if (!name) return { code };
-    const d = n.data;
-    return writeNodeData(code, model, id, { img: null, w: null, constraint: null, icon: name, form: d.form ?? 'square', h: ICON_NODE_H, pos: d.pos ?? 'b' });
-  }
+  if (n.data?.icon || n.data?.img != null) return changeMedia(code, model, id, { icon: name });
   const label = withIconToken(n.label, name, isIcon);
   return label === n.label ? { code } : relabelFlowNode(code, model, id, label);
 }
@@ -158,7 +148,7 @@ export function setFlowIconNode(code: string, model: FlowchartModel, id: string,
   const n = nodeOf(model, id);
   if (!n) return null;
   if (n.data?.icon || n.data?.img != null) return setFlowIcon(code, model, id, name, isIcon);
-  return name ? writeNodeData(code, model, id, { icon: name, form: 'square', h: ICON_NODE_H, pos: 'b' }) : { code };
+  return changeMedia(code, model, id, { icon: name });
 }
 
 /**
@@ -166,55 +156,22 @@ export function setFlowIconNode(code: string, model: FlowchartModel, id: string,
  * node (its label the caption, Mermaid Chart's default size, caption below); an icon node gives up its icon.
  */
 export function setFlowImage(code: string, model: FlowchartModel, id: string, url: string | null): CodeResult | null {
-  const n = nodeOf(model, id);
-  if (!n) return null;
-  if (!url) return n.data?.img != null ? writeNodeData(code, model, id, Object.fromEntries(IMAGE_NODE_KEYS.map((k) => [k, null]))) : { code };
-  if (n.data?.img != null) return writeNodeData(code, model, id, { img: url });
-  const d = n.data ?? {};
-  const patch: Record<string, MediaValue> = { img: url };
-  if (d.icon) Object.assign(patch, { icon: null, form: null });
-  if (d.h === undefined) patch['h'] = IMAGE_NODE_SIZE;
-  if (d.w === undefined) patch['w'] = IMAGE_NODE_SIZE;
-  if (d.pos === undefined) patch['pos'] = 'b';
-  // a picture keeps its aspect ratio unless Properties turns the lock off (Mermaid's default is off: it is written)
-  if (d.constraint === undefined) patch['constraint'] = 'on';
-  return writeNodeData(code, model, id, patch);
-}
-
-/** The layout keys of an icon or image node a toolbar or Properties changes (null removes one). */
-export interface MediaPatch {
-  pos?: string | null;
-  form?: string | null;
-  w?: number | null;
-  h?: number | null;
-  constraint?: 'on' | 'off' | null;
-  /** `icon`: a node whose label starts with an icon token becomes an icon node (T06 §3.6, "Convert to icon node"). */
-  node?: 'icon';
+  return nodeOf(model, id) ? changeMedia(code, model, id, { image: url }) : null;
 }
 
 /**
- * "Convert to icon node": the leading icon token of a node's label becomes its `icon` (Mermaid Chart's icon node: the
- * rest of the label is the caption, `form: "rounded"`, `pos: "b"`, `h: 60`); null when the label starts with no icon.
+ * "Convert to icon node": the leading icon token of a node's label becomes its `icon`, the rest of the label its caption, with a new icon node's defaults (core/ops/media.ts: a square frame, `h: 60`, the caption below); null when the label starts with no icon.
  */
 export function toFlowIconNode(code: string, model: FlowchartModel, id: string, isIcon: IsIconToken = faOnly): CodeResult | null {
   const n = nodeOf(model, id);
   const lead = n && !n.data?.icon && n.data?.img == null ? leadingIcon(n.label, isIcon) : null;
   if (!n || !lead) return null;
   const relabelled = relabelFlowNode(code, model, id, lead.rest).code;
-  return writeNodeData(relabelled, parseFlowchart(relabelled), id, { icon: lead.name, form: 'rounded', pos: 'b', h: ICON_NODE_H });
+  return changeMedia(relabelled, parseFlowchart(relabelled), id, { icon: lead.name });
 }
 
 /** Changes an icon or image node's position, frame, size or aspect lock (null: not an icon or image node). */
 export function setFlowMedia(code: string, model: FlowchartModel, id: string, patch: MediaPatch, isIcon: IsIconToken = faOnly): CodeResult | null {
   if (patch.node === 'icon') return toFlowIconNode(code, model, id, isIcon);
-  const n = nodeOf(model, id);
-  if (!n || !(n.data?.icon || n.data?.img != null)) return null;
-  const p: Record<string, MediaValue> = {};
-  for (const [k, v] of Object.entries(patch) as [keyof MediaPatch, MediaValue | undefined][]) {
-    if (v === undefined || k === 'node') continue;
-    // a frame belongs to icons, the aspect lock to images
-    if ((k === 'form' && !n.data.icon) || (k === 'constraint' && n.data.img == null)) continue;
-    p[k] = typeof v === 'number' ? Math.max(8, Math.min(2000, v)) : v;
-  }
-  return Object.keys(p).length ? writeNodeData(code, model, id, p) : { code };
+  return nodeOf(model, id) ? changeMedia(code, model, id, { layout: patch }) : null;
 }

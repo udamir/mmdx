@@ -170,7 +170,7 @@ describe('icons, links and the view', () => {
     const conv = Array.from(core.dom.root.querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent === 'Convert to icon node');
     expect(conv).toBeTruthy();
     conv!.click();
-    expect(core.code).toBe('flowchart LR\n  C -- Three --> F["Car"]\n  F@{ icon: "fa:car", form: "rounded", pos: "b", h: 60 }\n');
+    expect(core.code).toBe('flowchart LR\n  C -- Three --> F["Car"]\n  F@{ icon: "fa:car", form: "square", h: 60, pos: "b" }\n');
     await valid(core.code);
   });
 

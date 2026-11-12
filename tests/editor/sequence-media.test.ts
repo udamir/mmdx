@@ -100,7 +100,7 @@ describe('icons', () => {
     await settle();
     input($<HTMLInputElement>('.imp .ip-search')!, 'user');
     $<HTMLButtonElement>('.imp .ip-tile[aria-label="tabler:user"]')!.click();
-    expect(e.core.meta.participants?.['A']).toEqual({ icon: 'tabler:user', form: 'square', pos: 'b' });
+    expect(e.core.meta.participants?.['A']).toEqual({ icon: 'tabler:user', form: 'square', h: 60, pos: 'b' });
     expect(e.core.code).toBe(code);
     // the head is the icon in its frame, the name under it
     expect($('.el[data-kind="participant"][data-id="A"] .mmdx-icon')).not.toBeNull();
