@@ -80,8 +80,14 @@ describe('studio: opening files', () => {
     await wait(() => studio.editor?.getSource().startsWith('flowchart'));
     const ed = studio.editor!;
     const before = ed.getSource();
+    // the image path takes it instead: the image tool opens to insert it, or says the host has no upload
+    const runs = vi.spyOn(ed.core, 'run'), toasts = vi.spyOn(ed.core, 'toast');
     drop(ed.core.dom.wrap, [file('photo.png', '\u0089PNG', 'image/png')]);
     await new Promise((r) => setTimeout(r, 60));
+    const tool = runs.mock.calls.find((c) => c[0] === 'openImageTool');
+    if (tool) expect(tool[2]).toMatchObject({ insert: true, file: { name: 'photo.png' } });
+    else expect(toasts.mock.calls.map((c) => String(c[0]))).toContain(ed.core.i18n.t('media.noUpload'));
+    expect(runs.mock.calls.some((c) => c[0] === 'openFiles')).toBe(false);
     expect(confirms()).toBe(0);
     expect(ed.getSource().startsWith('flowchart')).toBe(true);
     expect(ed.getSource()).not.toContain('PNG');

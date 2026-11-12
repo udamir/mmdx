@@ -183,7 +183,7 @@ export const documentModule: EditorModule = {
       const wrap = core.overlayHost;
       const hasFiles = (ev: DragEvent): boolean => !!ev.dataTransfer && Array.from(ev.dataTransfer.types).includes('Files');
       scope.listen(wrap, 'dragover', (ev: DragEvent) => {
-        if (!hasFiles(ev) || core.mode.peek() !== 'edit' || core.version.peek()) return;
+        if (ev.defaultPrevented || !hasFiles(ev) || core.mode.peek() !== 'edit' || core.version.peek()) return;
         ev.preventDefault();
         wrap.classList.add('drop-target');
       });
