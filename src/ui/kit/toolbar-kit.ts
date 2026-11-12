@@ -5,6 +5,7 @@
 // (a shadow root), never the document.
 import { rovingKeys, type RovingHandle } from './focus.js';
 import { h, s } from './h.js';
+import { PopoverManager } from './popover.js';
 import type { I18n } from '../../i18n.js';
 
 type Translate = I18n['t'];
@@ -63,39 +64,37 @@ export interface PopHost {
 
 export function createPopHost(o: PopHostOptions): PopHost {
   const { host, bar } = o;
-  const ac = new AbortController();
-  const sig = { signal: ac.signal };
-  const root = host.getRootNode() as Document | ShadowRoot;
+  // the one popover host (X16): the manager opens, wires and closes; this keeps the named popover inside the bar
+  const pops = new PopoverManager(host);
   let open: string | null = null;
-  let menuKeys: RovingHandle | null = null;
 
-  const forget = (): void => {
+  /** Clears what the bar shows of an open popover (also after a rebuild, when the manager had nothing open). */
+  const clear = (): void => {
     open = null;
-    menuKeys?.destroy();
-    menuKeys = null;
-  };
-  const close = (returnFocus = false): void => {
-    const was = open;
-    forget();
     bar.querySelectorAll('.mtb-pop').forEach((p) => p.remove());
     bar.querySelectorAll('.mtb-btn.on').forEach((b) => {
       b.classList.remove('on');
       b.setAttribute('aria-expanded', 'false');
     });
-    if (returnFocus && was) bar.querySelector<HTMLElement>(`[data-c="${was}"]`)?.focus();
   };
-  // outside clicks and Esc, scoped to the host's root node (its shadow root), never the document
-  root.addEventListener('pointerdown', (ev) => {
-    if (open && !ev.composedPath().includes(bar)) close();
-  }, sig);
-  root.addEventListener('keydown', (ev) => {
-    const k = ev as KeyboardEvent;
-    if (k.key === 'Escape' && open) {
+  const close = (returnFocus = false): void => {
+    if (pops.isOpen) pops.close(returnFocus && open !== null);
+    else clear();
+  };
+  // outside pointerdowns and Esc, scoped to the host's root node (its shadow root), never the document
+  const dismiss = (done: (returnFocus: boolean) => void, signal: AbortSignal): void => {
+    const root = host.getRootNode();
+    root.addEventListener('pointerdown', (ev) => {
+      if (!ev.composedPath().includes(bar)) done(false);
+    }, { signal });
+    root.addEventListener('keydown', (ev) => {
+      const k = ev as KeyboardEvent;
+      if (k.key !== 'Escape') return;
       k.preventDefault();
       k.stopPropagation();
-      close(k.composedPath().includes(bar));
-    }
-  }, sig);
+      done(k.composedPath().includes(bar));
+    }, { signal });
+  };
 
   const fit = (pop: HTMLElement): void => {
     const barLeft = bar.getBoundingClientRect().left - host.getBoundingClientRect().left;
@@ -132,23 +131,23 @@ export function createPopHost(o: PopHostOptions): PopHost {
       close();
       open = name;
       btn.classList.add('on');
-      btn.setAttribute('aria-expanded', 'true');
       const pop = h('div', { class: 'mtb-pop', role: 'dialog', 'aria-label': btn.getAttribute('aria-label') ?? name });
       pop.addEventListener('pointerdown', (ev) => ev.stopPropagation());
       bar.append(pop);
       fill(pop);
-      // up / down move through the items of a menu popover
-      menuKeys = rovingKeys(pop, { orientation: 'vertical', selector: '[role^=menuitem]' });
+      // up / down move through the items of a menu popover (the toolbars' popovers hold no select to focus first)
+      pops.open(pop, btn, { className: 'mtb-pop', dismiss, onClose: clear, focus: opts.focusIn !== false, ...(opts.focus ? { focusOn: opts.focus } : {}) });
       const bl = btn.offsetLeft + (btn.parentElement?.offsetLeft ?? 0);
       pop.style.left = `${Math.max(0, Math.min(bl - 20, bar.clientWidth - pop.offsetWidth))}px`;
       fit(pop);
-      if (opts.focusIn !== false) queueMicrotask(() => pop.querySelector<HTMLElement>(opts.focus ?? '[role^=menuitem]:not(:disabled), button:not(:disabled), input')?.focus());
     },
     close,
-    reset: forget,
+    reset() {
+      open = null;
+      pops.forget();
+    },
     fit,
     destroy() {
-      ac.abort();
       close();
     },
   };

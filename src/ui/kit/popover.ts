@@ -7,6 +7,18 @@ export interface PopoverHandle {
   close(): void;
 }
 
+export interface PopoverOpenOptions {
+  onClose?: () => void;
+  focus?: boolean;
+  trap?: boolean;
+  /** What gets the focus when it moves in (default: the first enabled menu item, button, input or select). */
+  focusOn?: string;
+  /** The class the popover gets (default `mmdx-pop`, the base sheet's floating card). */
+  className?: string;
+  /** Wires what closes the popover instead of the default (a pointerdown outside it and its opener, anywhere in the document; Esc inside it), with listeners on `signal`: the floating toolbars' are scoped to their root node (toolbar-kit's createPopHost). */
+  dismiss?: (close: (returnFocus: boolean) => void, signal: AbortSignal) => void;
+}
+
 export class PopoverManager {
   private current: { el: HTMLElement; opener: HTMLElement | null; onClose?: () => void; ac: AbortController } | null = null;
 
@@ -25,7 +37,7 @@ export class PopoverManager {
    * Shows `el` (already positioned by the caller's CSS) and wires closing. Toggles if the same opener is used: the open
    * popover closes and `el` is not shown, so its `onClose` runs at once (the caller's cleanup of `el`).
    */
-  open(el: HTMLElement, opener: HTMLElement | null, opts: { onClose?: () => void; focus?: boolean; trap?: boolean } = {}): PopoverHandle {
+  open(el: HTMLElement, opener: HTMLElement | null, opts: PopoverOpenOptions = {}): PopoverHandle {
     if (this.current && opener && this.current.opener === opener) {
       this.close();
       opts.onClose?.();
@@ -34,23 +46,26 @@ export class PopoverManager {
     this.close();
     const ac = new AbortController();
     const host = this.root instanceof ShadowRoot ? this.root.host : this.root;
-    el.classList.add('mmdx-pop');
+    el.classList.add(opts.className ?? 'mmdx-pop');
     if (!el.parentNode) (this.root instanceof ShadowRoot ? this.root : this.root).append(el);
     opener?.setAttribute('aria-expanded', 'true');
     const c: NonNullable<PopoverManager['current']> = { el, opener, ac };
     if (opts.onClose) c.onClose = opts.onClose;
     this.current = c;
-    const doc = host.ownerDocument;
-    doc.addEventListener('pointerdown', (ev) => {
-      const path = ev.composedPath();
-      if (path.includes(el) || (opener && path.includes(opener))) return;
-      this.close();
-    }, { capture: true, signal: ac.signal });
-    el.addEventListener('keydown', (ev) => {
-      if (ev.key !== 'Escape') return;
-      ev.stopPropagation();
-      this.close(true);
-    }, { signal: ac.signal });
+    if (opts.dismiss) opts.dismiss((r) => this.close(r), ac.signal);
+    else {
+      const doc = host.ownerDocument;
+      doc.addEventListener('pointerdown', (ev) => {
+        const path = ev.composedPath();
+        if (path.includes(el) || (opener && path.includes(opener))) return;
+        this.close();
+      }, { capture: true, signal: ac.signal });
+      el.addEventListener('keydown', (ev) => {
+        if (ev.key !== 'Escape') return;
+        ev.stopPropagation();
+        this.close(true);
+      }, { signal: ac.signal });
+    }
     // a dialog keeps Tab inside it (the pickers): past the last control back to the first, and the other way round
     if (opts.trap)
       el.addEventListener('keydown', (ev) => {
@@ -68,8 +83,15 @@ export class PopoverManager {
     const keys = rovingKeys(el, { orientation: 'vertical', selector: '[role^=menuitem], .mmdx-menu > button' });
     ac.signal.addEventListener('abort', () => keys.destroy());
     if (opts.focus !== false)
-      queueMicrotask(() => el.querySelector<HTMLElement>('[role^=menuitem]:not(:disabled), button:not(:disabled), input, select')?.focus());
+      queueMicrotask(() => el.querySelector<HTMLElement>(opts.focusOn ?? '[role^=menuitem]:not(:disabled), button:not(:disabled), input, select')?.focus());
     return { el, close: () => this.close() };
+  }
+
+  /** Drops the open popover without touching it (no close, no `onClose`): its element went with a rebuilt host. */
+  forget(): void {
+    const c = this.current;
+    this.current = null;
+    c?.ac.abort();
   }
 
   close(returnFocus = false): void {
