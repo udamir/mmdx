@@ -16,7 +16,8 @@ import { el, text } from '../../src/core/scene/build.js';
 import { themeSection, THEME_SECTIONS } from '../../src/core/schema/style-fields.js';
 import { starterSource } from '../../src/core/starter.js';
 import { ThemeRegistry } from '../../src/core/theme/registry.js';
-import { loadedKinds, loadExtrasKind, loadKind } from '../../src/platform/kinds.js';
+import { loadDiffKind, loadedKinds, loadExtrasKind, loadKind } from '../../src/platform/kinds.js';
+import { diffDiagrams } from '../../src/diff/kinds.js';
 import { kindUi } from '../../src/ui/diagram/kind-ui.js';
 import { registerKindPlugin } from '../../src/view/kind-plugin.js';
 
@@ -89,6 +90,13 @@ describe('a kind plugin (A11e)', () => {
     expect(outline(model)).toEqual([{ text: '☑ Write the kind' }, { text: '☐ Ship it' }]);
     const r = renderSourceWith(loadedKinds(), SRC, createContext());
     expect(toPortableMermaid(SRC, r.doc.meta, model, r.theme, r.rctx.color)).toBe(SRC);
+  });
+
+  it('without a diff module, is "not compared" in a diff instead of failing it (B40, BUG-004)', async () => {
+    await expect(loadDiffKind('checklist')).resolves.toBeUndefined();
+    const d = await diffDiagrams(SRC, SRC.replace('[ ] Ship it', '[x] Ship it'));
+    expect(d.diagnostics?.map((x) => x.code)).toEqual(['kind.not-loaded']);
+    expect(d.items).toEqual([]);
   });
 
   it('has a theme section and a UI', () => {

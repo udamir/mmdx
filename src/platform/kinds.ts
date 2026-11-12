@@ -69,13 +69,9 @@ export const hasKind = (t: DiagramType): boolean => !!viewKind(t);
 export const loadKind = (t: DiagramType): Promise<void> =>
   loadOnce(`view:${t}`, () => hasKind(t), async () => void registerKinds({ [t]: (await modulesOf(t).view()).VIEW }));
 
-/** Loads a type's diff kind (resolves at once when it is loaded). */
+/** Loads a type's diff kind (resolves at once when it is loaded, or when the type has none: a plugin type without a diff module is then "not compared", B40, instead of failing the whole diff, BUG-004). */
 export const loadDiffKind = (t: DiagramType): Promise<void> =>
-  loadOnce(`diff:${t}`, () => !!diffKind(t), async () => {
-    const diff = modulesOf(t).diff;
-    if (!diff) throw new Error(`"${t}" has no diff kind`);
-    registerDiffs({ [t]: (await diff()).DIFF });
-  });
+  loadOnce(`diff:${t}`, () => !!diffKind(t) || !modulesOf(t).diff, async () => void registerDiffs({ [t]: (await modulesOf(t).diff!()).DIFF }));
 
 /** Loads a type's extras (outline, portable styles; resolves at once when they are loaded, or when the type has none). */
 export const loadExtrasKind = (t: DiagramType): Promise<void> =>
