@@ -166,7 +166,7 @@ describe('style', () => {
     expect(normalizePresetName('  My Style!! ')).toBe('my-style');
     expect(saveAsPreset(e, { kind: 'node', id: 'A' }, 'core').reason).toBe('There already is a preset "core"');
     expect(saveAsPreset(e, { kind: 'node', id: 'A' }, '  ').reason).toBeDefined();
-    expect(saveAsPreset(e, { kind: 'node', id: 'A' }, '_base').reason).toBe('"_base" is the diagram\'s base style, not a preset name');
+    expect(saveAsPreset(e, { kind: 'node', id: 'A' }, '_base').reason).toBe('There already is a preset "_base"');
     const s = saveAsPreset(e, { kind: 'node', id: 'A' }, 'Mine');
     expect(s.name).toBe('mine');
     const raw = registry.merged('default-light')!.flowchart!.nodePresets!['core']!;

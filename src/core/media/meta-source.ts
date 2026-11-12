@@ -1,4 +1,4 @@
-// The read half of image and icon items kept in metadata (ops/meta-media.ts writes them): the renderers draw such an
+// The read half of image and icon items kept in metadata (ops/media.ts writes them): the renderers draw such an
 // item as the flowchart's image node (render/media-node.ts) from what this reads.
 import type { MediaSource } from '../render/types.js';
 

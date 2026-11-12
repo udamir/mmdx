@@ -8,7 +8,7 @@ import type { SupportedModel } from '../../core/model.js';
 import type { EditorCore, Sel } from '../core.js';
 import { editKind, withEdit } from '../kinds/registry.js';
 import type { EditKind, ItemMedia, MediaPatch } from '../kinds/types.js';
-import { patchMetaMedia, setMetaIcon, setMetaImage } from '../../core/ops/meta-media.js';
+import { patchMetaMedia, setMetaIcon, setMetaImage } from '../../core/ops/media.js';
 
 /** The type sets icons: in the code (`setIcon`) or in metadata (`mediaNodesInMeta`). */
 export const takesIcons = (k: EditKind | undefined): boolean => !!(k?.setIcon || k?.mediaNodesInMeta);

@@ -70,7 +70,7 @@ export interface KeyDef {
   page?: true;
   /** A manual position or size that Auto layout forgets. */
   place?: true;
-  /** One of an image or icon item's keys (core/ops/meta-media.ts). */
+  /** One of an image or icon item's keys (core/ops/media.ts). */
   media?: true;
   /** Copy style copies it (the format painter's look; core/ops/style-ops.ts). */
   copy?: true;

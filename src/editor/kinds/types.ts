@@ -132,7 +132,7 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   setImage?(code: string, model: M, ref: ItemRef, url: string | null, core: EditorCore): CodeResult | null;
   /**
    * The type's image and icon items are metadata (state diagrams, mindmaps, sequence participants: `img` or `icon` with
-   * the flowchart image node's keys, core/ops/meta-media.ts): the editor writes them, and `setIcon`, `setImage` and
+   * the flowchart image node's keys, core/ops/media.ts): the editor writes them, and `setIcon`, `setImage` and
    * `setMedia` are not called.
    */
   mediaNodesInMeta?: boolean;

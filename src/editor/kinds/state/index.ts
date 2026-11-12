@@ -11,7 +11,7 @@ import {
   relabelState, relabelTransition, scopeOf, setCompositeDirection, setDescriptions, setNoteSide, setStateKind, stateFragment, ungroupState, type StateScope,
 } from '../../../core/kinds/state/ops.js';
 import { cloneMeta, ensure as ensureIn } from '../../../core/ops/meta-util.js';
-import { NEW_IMAGE } from '../../../core/ops/meta-media.js';
+import { NEW_IMAGE } from '../../../core/ops/media.js';
 import { metaMediaSource } from '../../../core/media/meta-source.js';
 import { metaItemMedia } from '../meta-media.js';
 import type { StateGeometry } from '../../../core/render/types.js';

@@ -6,7 +6,7 @@
 import type { MindmapModel, MindShape } from '../../../core/model.js';
 import { reparse } from '../../../core/parse/dispatch.js';
 import { addMindChild, addMindRoot, deleteMind, mindFragment, mindNodeAt, MIND_NEW, relabelMind, remapMindMeta, setMindColorBy, setMindShape } from '../../../core/kinds/mindmap/ops.js';
-import { NEW_IMAGE } from '../../../core/ops/meta-media.js';
+import { NEW_IMAGE } from '../../../core/ops/media.js';
 import { metaMediaSource } from '../../../core/media/meta-source.js';
 import { metaItemMedia } from '../meta-media.js';
 import { cloneMeta, ensure as ensureIn } from '../../../core/ops/meta-util.js';
@@ -99,7 +99,7 @@ export const EDIT: EditKind<MindmapModel, MindmapGeometry> = {
   drop: (core, M, item, pt) => addNode(core, M, pt, MIND_NEW, (MIND_SHAPES as readonly string[]).includes(item.key) ? (item.key as MindShape) : 'mm-default', 'Add node', item.preset ? { preset: item.preset } : undefined),
   // an empty URL is the placeholder: the node is selected, its picture chosen from the toolbar or Properties
   addImage: (core, M, url, pt) => addNode(core, M, pt, 'Image', 'mm-default', 'Add image', { img: url, ...NEW_IMAGE }, !!url),
-  // an image or icon node, as the flowchart's image node, in metadata (core/ops/meta-media.ts); an icon is its image's
+  // an image or icon node, as the flowchart's image node, in metadata (core/ops/media.ts); an icon is its image's
   // source, so a node has no Icon button (a `::icon()` or a token already written is still drawn)
   media(M, ref, core) {
     const n = ref.kind === 'node' ? M.nodes.get(ref.id) : undefined;

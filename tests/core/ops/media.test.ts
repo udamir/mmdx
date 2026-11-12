@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { ICON_FORM, mediaPatch, type MediaChange } from '../../../src/core/ops/media.js';
 import { setFlowIconNode, setFlowImage, setFlowMedia, toFlowIconNode } from '../../../src/core/kinds/flowchart/ops-media.js';
 import { parseFlowchart } from '../../../src/core/kinds/flowchart/parse.js';
-import { patchMetaMedia, setMetaIcon, setMetaImage } from '../../../src/core/ops/meta-media.js';
+import { patchMetaMedia, setMetaIcon, setMetaImage } from '../../../src/core/ops/media.js';
 
 const P = parseFlowchart;
 const dataOf = (code: string, id: string): Record<string, unknown> => ({ ...P(code).nodes.get(id)!.data });

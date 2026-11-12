@@ -185,8 +185,8 @@ export const canSavePreset = (env: StyleEnv, ref: ItemRef): boolean => !!presets
 export function saveAsPreset(env: StyleEnv, ref: ItemRef, rawName: string): MetaResult & { name?: string } {
   const name = normalizePresetName(rawName);
   if (!name) return { meta: env.meta, reason: 'The preset needs a name' };
-  if (name === BASE_STYLE) return { meta: env.meta, reason: `"${name}" is the diagram's base style, not a preset name` };
-  if (Object.hasOwn(presetsFor(env, ref.kind) ?? {}, name)) return { meta: env.meta, reason: `There already is a preset "${name}"` };
+  // the diagram's base style is taken too
+  if (name === BASE_STYLE || Object.hasOwn(presetsFor(env, ref.kind) ?? {}, name)) return { meta: env.meta, reason: `There already is a preset "${name}"` };
   const { kind } = ref;
   const base = presetOfItem(env, ref);
   const baseLook = isLocalPreset(env, kind, base) ? env.meta.styles[kind]![base]! : themePresetsOf(env, kind, true)[base] ?? {};

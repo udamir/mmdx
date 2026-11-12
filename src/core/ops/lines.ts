@@ -53,13 +53,8 @@ const DIRECTION = /direction\s+\w+/i;
 /** The top-level direction: the `direction` line at `dirLine` rewritten, else a new one after the header (`indent` before it); the code as it is without a header. */
 export function setDirectionLine(code: string, dirLine: number | undefined, headerLine: number, dir: string, indent = '  '): string {
   const L = code.split('\n');
-  if (dirLine !== undefined && DIRECTION.test(L[dirLine] ?? '')) {
-    L[dirLine] = L[dirLine]!.replace(DIRECTION, `direction ${dir}`);
-    return L.join('\n');
-  }
-  if (headerLine < 0) return code;
-  L.splice(headerLine + 1, 0, `${indent}direction ${dir}`);
-  return L.join('\n');
+  const own = dirLine !== undefined && DIRECTION.test(L[dirLine] ?? '') ? [dirLine] : [];
+  return own.length || headerLine >= 0 ? applyEdits(code, blockDirection(L, own, headerLine + 1, indent, dir)) : code;
 }
 
 /**

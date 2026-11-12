@@ -19,7 +19,7 @@ import type { SequenceGeometry } from '../../../core/render/types.js';
 import type { EditorCore, Sel } from '../../core.js';
 import { reparse } from '../../../core/parse/dispatch.js';
 import { applyThenStyle, focusLabel, setPreset } from '../../lib/shape-drop.js';
-import { NEW_IMAGE } from '../../../core/ops/meta-media.js';
+import { NEW_IMAGE } from '../../../core/ops/media.js';
 import { metaMediaSource } from '../../../core/media/meta-source.js';
 import { metaItemMedia } from '../meta-media.js';
 import { blockIcon, noteIcon, shapeIcon } from '../palette.js';
@@ -198,7 +198,7 @@ export const EDIT: EditKind<SequenceModel, SequenceGeometry> = {
     const res = addParticipant(core.code, M, { beforeId: right?.id ?? null });
     return applyThenStyle(core, res.code, 'Add participant', res.select, () => setPreset(core, 'participant', res.select.id, undefined, { img: url, ...NEW_IMAGE }));
   },
-  // an image or icon participant, as the flowchart's image node, in metadata (core/ops/meta-media.ts), else the picture
+  // an image or icon participant, as the flowchart's image node, in metadata (core/ops/media.ts), else the picture
   // of Mermaid's `properties` icon (read, never written: a change writes metadata); an icon is its image's source, so a
   // participant has no Icon button (a token already in its name is still drawn)
   media(M, ref, core) {
