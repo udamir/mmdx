@@ -11,8 +11,6 @@ editor/modules/canvas/select-pointer.ts: kernel DOM ×1
 editor/modules/canvas/select.ts: kernel DOM ×1
 editor/modules/canvas/structure.ts: kernel DOM ×4
 editor/modules/chrome/document.ts: kernel DOM ×1
-editor/modules/chrome/panes.ts: bare computed ×1
-editor/modules/chrome/panes.ts: kernel DOM ×1
 editor/modules/chrome/tool-dock.ts: bare computed ×2
 editor/modules/chrome/tool-dock.ts: bare core.on ×2
 editor/modules/chrome/toolbars.ts: bare core.on ×7

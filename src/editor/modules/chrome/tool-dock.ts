@@ -5,7 +5,6 @@
 // View mode. Shortcuts V, C, I, L, Esc (back to the default tool). Provides `setTool` with the editor's rules.
 import { editKind } from '../../kinds/registry.js';
 import { dockBadge, dockButton } from '../../../ui/blocks/tool-dock.js';
-import { icon } from '../../../ui/kit/h.js';
 import { I_code, I_layers, I_pointer, I_props, I_redo, I_shapes, I_undo } from '../../../ui/kit/icons.js';
 import { computed } from '../../../reactive/signal.js';
 import type { Tool } from '../../core.js';
@@ -16,7 +15,6 @@ export const EDITOR_TOOLS_CSS = /* css */ `
 [data-stage=version] .no-version { display: none !important; }
 `;
 
-const VIEW_SETTINGS_ICON = 'M2.5 11.5C4.6 7.4 8 5.5 12 5.5s7.4 1.9 9.5 6M2.5 11.5c2.1 4.1 5.5 6 9.5 6M12 14.3a2.8 2.8 0 1 0 0-5.6 2.8 2.8 0 0 0 0 5.6zM18.5 20.7a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4z';
 
 export const editorToolsModule: EditorModule = {
   id: 'editor-tools',
@@ -46,14 +44,8 @@ export const editorToolsModule: EditorModule = {
     const panelOn = (name: 'code' | 'properties' | 'layers') => computed(() => core.panels()[name]);
     const codeBtn = f.codePanel ? dockButton({ icon: I_code, label: t('tools.code'), keys: 'c', class: 'edit-only vt-code', f: 'panel-code', pressed: panelOn('code'), onClick: () => void core.run('setPanel', 'code', !core.panels.peek().code) }) : null;
     const propsBtn = f.properties ? dockButton({ icon: I_props, label: t('tools.props'), keys: 'i', class: 'edit-only no-version vt-props', f: 'panel-props', pressed: panelOn('properties'), onClick: () => void core.run('setPanel', 'properties', !core.panels.peek().properties) }) : null;
-    // Layers in Edit mode, View settings in View mode (the same right-hand card)
-    const layersBtn = f.layers ? dockButton({ icon: I_layers, label: t('tools.layers'), keys: 'l', class: 'vt-layers', f: 'panel-layers', pressed: panelOn('layers'), onClick: () => void core.run('setPanel', 'layers', !core.panels.peek().layers) }) : null;
-    if (layersBtn) {
-      const v = icon(VIEW_SETTINGS_ICON, 19);
-      v.classList.add('view-only');
-      layersBtn.el.firstElementChild?.classList.add('edit-only');
-      layersBtn.el.prepend(v);
-    }
+    // Layers in Edit mode; View mode's View settings and Code view are the viewer's modules (A16)
+    const layersBtn = f.layers ? dockButton({ icon: I_layers, label: t('tools.layers'), keys: 'l', class: 'edit-only vt-layers', f: 'panel-layers', pressed: panelOn('layers'), onClick: () => void core.run('setPanel', 'layers', !core.panels.peek().layers) }) : null;
     scope.contribute(core.dockItems, { id: 'pointer', section: 'tools', order: 10, el: pointer.el });
     scope.contribute(core.dockItems, { id: 'shapes', section: 'tools', order: 30, el: shapes.el });
     if (codeBtn) scope.contribute(core.dockItems, { id: 'code', section: 'panels', order: 10, el: codeBtn.el });
@@ -105,7 +97,7 @@ export const editorToolsModule: EditorModule = {
     core.shortcuts.add(
       { id: 'panel-code', keys: ['c'], label: t('help.code'), group: t('help.tools'), editOnly: true, readOnly: true, run: () => (f.codePanel ? void core.run('setPanel', 'code', !core.panels.peek().code) : false) },
       { id: 'panel-props', keys: ['i'], label: t('help.props'), group: t('help.tools'), editOnly: true, run: () => (f.properties ? void core.run('setPanel', 'properties', !core.panels.peek().properties) : false) },
-      { id: 'panel-layers', keys: ['l'], label: t('help.layers'), group: t('help.tools'), run: () => (f.layers ? void core.run('setPanel', 'layers', !core.panels.peek().layers) : false) },
+      { id: 'panel-layers', keys: ['l'], label: t('help.layers'), group: t('help.tools'), editOnly: true, run: () => (f.layers ? void core.run('setPanel', 'layers', !core.panels.peek().layers) : false) },
       {
         id: 'tool-default', keys: ['escape'], label: t('help.escTool'), group: t('help.tools'), editOnly: true, readOnly: true,
         run: () => {

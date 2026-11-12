@@ -1,8 +1,8 @@
 // Right column (A.2 row 21, A.7 rows 61–68): Properties and Layers as two SidePanels in the right PanelStack (the
-// stack, its splitter — the Layers height, `layersH` — and its width grip are chrome/panes.ts), each closed with × (or
-// its tool) and remembered. The Properties content (the inspectors) loads the first time it shows. In View mode only Layers shows, as "View settings", and hovering a box highlights its
-// connections (Display → hover highlight). Ported from index.html `#rightPane` and prototype/app.js (~1875–2594,
-// ~3016–3066).
+// kernel's panel stacks, view/modules/panels.ts: the splitter, the width grip, the remembered sizes), each closed with
+// × (or its tool) and remembered; Edit mode only (View mode's card is the viewer's View settings, A16). The Properties
+// content (the inspectors) loads the first time it shows. Ported from index.html `#rightPane` and prototype/app.js
+// (~1875–2594, ~3016–3066).
 import { createSidePanel } from '../../../ui/blocks/side-panel.js';
 import { h } from '../../../ui/kit/h.js';
 import type { EditorModule } from '../../module.js';
@@ -133,11 +133,8 @@ export const rightPanelsModule: EditorModule = {
         side: 'right', title: t('layers.layers'), label: t('layers.layers'), class: 'layers', actions: [newBtn], closeLabel: t('layers.close'), closeKeys: 'l',
         onClose: () => void core.run('setPanel', 'layers', false), body: layers.el, t,
       });
-      scope.contribute(core.panelItems, { id: 'layers', side: 'right', order: 20, el: panel.el });
-      scope.effect(() => {
-        const title = core.mode() === 'edit' ? t('layers.layers') : t('layers.title');
-        panel.update({ title, label: title, closeLabel: core.mode.peek() === 'edit' ? t('layers.close') : t('layers.closeView') });
-      });
+      // Edit mode only: View mode's card is the viewer's view settings (A16)
+      scope.contribute(core.panelItems, { id: 'layers', side: 'right', order: 20, el: panel.el, visible: () => core.mode() === 'edit' });
       scope.onDispose(() => {
         layers.destroy();
         panel.destroy();

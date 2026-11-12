@@ -6,7 +6,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import type { ItemRef } from '../../src/core/types.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
-import { panesModule } from '../../src/editor/modules/chrome/panes.js';
+import { panelStacksModule } from '../../src/view/modules/panels.js';
+const panesModule = panelStacksModule as unknown as import('../../src/editor/module.js').EditorModule;
 import { rightPanelsModule } from '../../src/editor/modules/panels/right-panels.js';
 
 beforeAll(() => {

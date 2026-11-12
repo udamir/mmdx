@@ -31,7 +31,7 @@ const versionToo = (m: EditorModule): EditorModule => ({ ...m, when: { ...m.when
 const erTableModule = lazyModule<EditorCore>({ id: 'er-table', when: { kind: ['er'] } }, () => import('./er-table/index.js').then((m) => m.erTableModule));
 const sequenceModule = lazyModule<EditorCore>({ id: 'sequence', when: { kind: ['sequence'] } }, () => import('./sequence/index.js').then((m) => m.sequenceModule));
 
-const ALWAYS = new Set(['history', 'tool-dock', 'pan', 'pen', 'zoom-bar', 'view-params', 'panes']);
+const ALWAYS = new Set(['history', 'tool-dock', 'pan', 'pen', 'zoom-bar', 'view-params', 'panel-stacks']);
 const VERSION = new Set(['links', 'hover-highlight', 'canvas-select', 'canvas-structure', 'code-panel', 'right-panels', 'editor-tools', 'editor-params', 'document']);
 
 export const DEFAULT_MODULES: readonly EditorModule[] = ([

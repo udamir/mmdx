@@ -123,14 +123,14 @@ export class DiagramEditor {
     this.sync = new DocumentSync({ core, setSource: (src, o) => this.setSource(src, o), autosave: options.autosave, owner: this.owner }, options.adapter);
     this.owner.add(() => this.sync.destroy());
 
-    // panel visibility from storage, then options
-    const savedPanels = core.storage.get<{ code?: boolean; properties?: boolean; layers?: boolean }>('panels') ?? {};
+    // panel visibility from storage (the kernel's panel stacks' key, A16), then options
+    const savedPanels = core.storage.get<{ code?: boolean; properties?: boolean; layers?: boolean }>('editor.panels') ?? {};
     core.setPanels({ code: true, properties: true, layers: true, ...savedPanels, ...(options.panels ?? {}) });
     this.owner.add(effect(() => {
       const p = core.panels();
       const m = core.mode();
       root.classList.toggle('no-code', !p.code || !features.codePanel || m === 'view');
-      root.classList.toggle('no-right', m === 'view' ? !p.layers : !p.properties && !p.layers);
+      root.classList.toggle('no-right', m === 'view' ? !p['view-settings'] : !p.properties && !p.layers);
       root.classList.toggle('no-layers', !p.layers);
     }));
     this.owner.add(effect(() => {
@@ -164,6 +164,8 @@ export class DiagramEditor {
     core.provide('documentName', () => core.fileName || 'diagram');
     // what the standard view modules read of the document (View mode's hover highlight)
     core.provide('documentModel', () => core.model);
+    core.provide('documentMeta', () => core.meta);
+    core.provide('documentCode', () => core.code);
     core.historyHost = {
       setClipboard: (data) => core.uiState.clipboard.set(data as NonNullable<typeof core.clipboard>),
       showVersion: (v) => core.showVersion(v),

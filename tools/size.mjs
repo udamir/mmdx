@@ -189,12 +189,12 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 253 kB (252.6 kB measured) 4.5: the ops kinds share the ops kit (a chunk of its own: +0.1–0.4 kB for one diagram type)
     // 237.7 kB (237.3 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
     // with its own modules where the type has them (A11d: they load with the type); 239 kB: the sequence diagram with
-    // its gestures is 238.6 kB measured; 239.4: with 5.9's catalog strings (239.0); 239.9: kernel enterStage/leaveStage + HistoryStage class (A13d, 239.5 measured); 240.5: shared adapter helpers (4.12, 240.1 measured)
+    // its gestures is 238.6 kB measured; 239.4: with 5.9's catalog strings (239.0); 239.9: kernel enterStage/leaveStage + HistoryStage class (A13d, 239.5 measured); 240.5: shared adapter helpers (4.12, 240.1 measured); 241.3: the kernel panel stacks (A16, 240.9 measured)
     const KIND_MODULES = { sequence: 'src/editor/modules/sequence/index.ts', er: 'src/editor/modules/er-table/index.ts' };
     for (const k of ['flowchart', 'sequence', 'er']) {
       const kind = lazy(b, `src/editor/kinds/${k}/index.ts`, b.base);
       const mods = KIND_MODULES[k] ? lazy(b, KIND_MODULES[k], new Set([...b.base, ...kind])) : [];
-      report(`editor (first ${k})`, b.size(b.base) + b.size(kind) + b.size(mods), 240.5 * KB);
+      report(`editor (first ${k})`, b.size(b.base) + b.size(kind) + b.size(mods), 241.3 * KB);
     }
     {
       // a mindmap: its kinds and the mindmap module's gestures, both loaded with the first mindmap (T08: 228.3 kB measured; the view, ops and edit kinds with the geometry of bang and cloud and the media kit, which its edit kind registers as the flowchart's does, and the drag, handles and keys of the outline)
@@ -219,8 +219,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
       // 238.2 kB (237.8 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
       // 238.7 kB (238.3 kB measured) 5.9: the kind modules' labels and toasts in the editor's message catalog (+0.4 kB)
       // 239.2 kB (238.8 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
-      // 239.7 kB (239.3 kB measured) shared adapter helpers (http, subscribers, base64) and ownPreset (4.12)
-      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 239.7 * KB);
+      // 239.7 kB (239.3 kB measured) shared adapter helpers (http, subscribers, base64) and ownPreset (4.12) · 240.4 kB (240.0 measured) the kernel panel stacks (A16)
+      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 240.4 * KB);
     }
     // a state diagram: its view, ops and edit kinds in one chunk loaded with the first state diagram (T09: 240.5 kB measured; the parser, compound layout, renderer, state shapes, ops, palette and Properties controls)
     // 249.4 kB with media in every kind and the sequence and ER fixes (T10, T11: 249 kB measured)
@@ -239,8 +239,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 252.1 kB (251.7 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
     // 252.5 kB (252.1 kB measured) 5.9: the kind modules' labels and toasts in the editor's message catalog (+0.4 kB)
     // 253 kB (252.6 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
-    // 253.5 kB (253.1 kB measured) shared adapter helpers (http, subscribers, base64) and ownPreset (4.12)
-    report('editor (first state)', b.size(b.base) + b.size(lazy(b, 'src/editor/kinds/state/index.ts', b.base)), 253.5 * KB);
+    // 253.5 kB (253.1 kB measured) shared adapter helpers (http, subscribers, base64) and ownPreset (4.12) · 254.4 kB (254.0 measured) the kernel panel stacks (A16)
+    report('editor (first state)', b.size(b.base) + b.size(lazy(b, 'src/editor/kinds/state/index.ts', b.base)), 254.4 * KB);
     // the insert dock's lazy chunks (T05): the pickers (icon picker, image tool, emoji picker and their glue), the shape palette block, the Connector and Container tools, the English emoji data (§4.5: at most 30 kB)
     const loaded = new Set([...b.base, ...lazy(b, 'src/editor/kinds/flowchart/index.ts', b.base)]);
     // 13.2 kB with the image tool's Icon tab, the overlay scrollbars of its grids and its place by the toolbar (12.8 kB measured)

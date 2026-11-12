@@ -61,7 +61,7 @@ export const EDITOR_MESSAGES: Messages = {
   'presets.saved': 'Preset "{name}" saved in this diagram', 'presets.updated': 'Preset "{name}" updated', 'presets.deleteTip': 'Delete this preset from the diagram',
   'presets.deleteTitle': 'Delete preset', 'presets.deleteMsg': 'Delete the preset "{name}"?', 'presets.deleteUsers1': 'Delete the preset "{name}"? {n} item using it goes back to the default style.',
   'presets.deleteUsersN': 'Delete the preset "{name}"? {n} items using it go back to the default style.', 'presets.delete': 'Delete',
-  'layers.close': 'Close Layers', 'layers.closeView': 'Close View settings', 'layers.new': '+ New layer', 'layers.newTip': 'New layer (takes the selected items)',
+  'layers.close': 'Close Layers', 'layers.new': '+ New layer', 'layers.newTip': 'New layer (takes the selected items)',
   // the layer list and the panel stack bring their own strings (ui/messages/blocks-panels.ts)
   'layers.hiddenSuffix': '(hidden)', 'layers.hoverConnections': 'Highlight connections on hover',
   'layers.created': 'Layer {n} created', 'layers.created1': 'Layer {n} created with {count} selected item', 'layers.createdN': 'Layer {n} created with {count} selected items',
