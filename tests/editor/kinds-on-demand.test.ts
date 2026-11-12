@@ -74,4 +74,25 @@ describe('editor kinds on demand', () => {
     // the problems of the moment it waited (unsupported) are gone once it parses
     expect(core.issueCount.peek()).toBe(0);
   });
+
+  it('a History version of a type whose parser another component loaded first waits for the editor\'s own kinds: it is not parsed meanwhile, and is parsed and drawn once they arrive; no ops lookup fails (BUG-005)', async () => {
+    const el = editor('flowchart LR\n  a --> b\n');
+    await el.whenLoaded();
+    await loadKind('er');
+    expect(viewKind('er') && !opsKind('er')).toBeTruthy();
+    const core = el.instance!.core;
+    // before the fix: the version was parsed with every registered kind, an ER model whose ops are not loaded, and the empty-state check threw (KindNotLoaded)
+    expect(() => core.showVersion({ id: 'v1', source: 'erDiagram\n  A ||--o{ B : has\n' })).not.toThrow();
+    expect(core.model).toEqual({ type: null, diagnostics: [] });
+    expect(() => core.isEmptyDiagram()).not.toThrow();
+    expect(items(el, 'node') + items(el, 'entity')).toBe(0);
+    await core.kindsReady();
+    expect(core.model.type).toBe('er');
+    expect(core.isEmptyDiagram()).toBe(false);
+    expect(items(el, 'entity')).toBe(2);
+    // the document itself is untouched, and shows again when the version closes
+    core.showVersion(null);
+    expect(core.model.type).toBe('flowchart');
+    expect(items(el, 'node')).toBe(2);
+  });
 });

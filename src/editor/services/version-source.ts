@@ -3,7 +3,6 @@
 // the document's view had (its entered group and layer override) to give it back when the document shows again.
 import { normalizeMeta, splitSource, type DiagramDocument } from '../../core/meta/index.js';
 import type { DiagramModel } from '../../core/model.js';
-import { reparse } from '../../core/parse/dispatch.js';
 import type { ItemRef } from '../../core/types.js';
 import { signal, type ReadSignal, type Signal } from '../../reactive/signal.js';
 import { elementExists } from '../../core/ops/ids.js';
@@ -25,6 +24,8 @@ export interface VersionHost {
   stopEditing(): void;
   /** Loads the kinds of the version's diagram type. */
   needKind(code: string): void;
+  /** Parses a version's code as the document's is (`editorParse`): with the editor's loaded types, an empty model while the type's kinds load. */
+  parse(code: string): DiagramModel;
   selections: { keepForVersion(exists: (r: ItemRef) => boolean, again: boolean): void; clearVersion(): void };
   /** The shown document changed: draw it and tell the panels. */
   shown(): void;
@@ -56,7 +57,7 @@ export class VersionSource {
         h.pageSelected.set(false);
       }
       // the same item stays selected from version to version while it is there
-      const model = reparse(doc.code);
+      const model = h.parse(doc.code);
       h.needKind(doc.code);
       h.selections.keepForVersion((r) => elementExists(model, r), !!cur);
       this.state.set({ id: v.id, source: v.source, doc, model });
@@ -71,5 +72,13 @@ export class VersionSource {
       }
     }
     h.shown();
+  }
+
+  /** The kinds of a diagram type arrived: the shown version is parsed again (it was an empty model while its type's kinds loaded, BUG-005). */
+  reparse(): void {
+    const cur = this.state.peek();
+    if (!cur) return;
+    const model = this.host.parse(cur.doc.code);
+    if (model.type !== cur.model.type) this.state.set({ ...cur, model });
   }
 }

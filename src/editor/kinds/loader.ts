@@ -7,6 +7,8 @@ import type { Kinds } from '../../core/kind/types.js';
 import type { ExtrasKind } from '../../core/kind/extras-types.js';
 import type { OpsKind } from '../../core/kind/ops-types.js';
 import type { ViewKind } from '../../core/kind/types.js';
+import type { DiagramModel } from '../../core/model.js';
+import { detectType, parseWith } from '../../core/parse/dispatch.js';
 import type { DiagramType } from '../../core/types.js';
 import { loadOnce } from '../../platform/kinds.js';
 import { signal } from '../../reactive/signal.js';
@@ -44,6 +46,16 @@ export const editorHasKind = (t: DiagramType): boolean => !!viewKind(t) && !!ops
 
 /** The view kinds of the types the editor can edit (their ops and edit kinds are loaded too): what its document parses with. */
 export const editorKinds = (): Kinds => Object.fromEntries(Object.entries(registeredKinds()).filter(([t]) => editorHasKind(t)));
+
+/**
+ * Parses code as the editor does (its document and a shown version): once the editor has the type's kinds (view, ops and edit), and only with the editor's types; while they load, an empty model (no problems). A viewer or a gallery may have loaded a type's parser before the editor's chunk of it, and a model of that type would reach ops that are not there yet (the editor's lookups fail closed). A tracked read of `kindsVersion`: a computed that parses runs again when a kind arrives.
+ */
+export function editorParse(code: string): DiagramModel {
+  kindsVersion();
+  const type = detectType(code);
+  if (type && !editorHasKind(type)) return { type: null, diagnostics: [] };
+  return parseWith(code, editorKinds());
+}
 
 /** Loads a type's kinds (resolves at once when they are loaded). */
 export const loadEditorKind = (t: DiagramType): Promise<void> =>

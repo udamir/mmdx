@@ -21,7 +21,7 @@ import type { DiagramModel } from '../core/model.js';
 import { own, ownOr } from '../core/own.js';
 import { opsKind, withOps } from '../core/kinds/registry.js';
 import { detectType } from '../core/parse/dispatch.js';
-import { editorHasKind, loadEditorKind } from './kinds/loader.js';
+import { editorHasKind, editorParse, loadEditorKind } from './kinds/loader.js';
 import type { DiagramType } from '../core/types.js';
 import type { ClipboardData } from '../core/ops/clipboard.js';
 import { remapMeta } from '../core/ops/document.js';
@@ -336,6 +336,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       this.uiState.inlineEditing.set(null);
     },
     needKind: (code) => this.kinds.need(code),
+    parse: (code) => untracked(() => editorParse(code)),
     selections: this.selections,
     shown: () => {
       this.storeScene.forget();
@@ -354,6 +355,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     load: loadEditorKind,
     live: () => this.host.isConnected,
     loaded: (fit) => {
+      this.versions.reparse();
       this.draw();
       if (fit && this.scene === this.storeScene && !this.version.peek()) this.viewport.setBounds(this.result.result.bounds, { fit: true });
       this.fire('model');
