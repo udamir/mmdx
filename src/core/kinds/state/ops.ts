@@ -15,7 +15,7 @@ import { encodeLabel } from '../../parse/label.js';
 import { isPseudo, parseState, pseudoId } from './parse.js';
 import type { ItemRef } from '../../types.js';
 import { copyIds, uniqueId } from '../../ops/ids.js';
-import { applyEdits, contentEnd, indentOf, type LineEdit } from '../../ops/lines.js';
+import { applyEdits, blockDirection, contentEnd, indentOf, outdentLine, setDirectionLine, type LineEdit } from '../../ops/lines.js';
 import type { CloneInto, CloneResult, CodeResult, ConnectResult, RefusableResult, SelectResult } from '../../ops/types.js';
 import { maxOf, minOf } from '../../geom.js';
 
@@ -342,31 +342,18 @@ export function setStateKind(code: string, model: StateModel, id: string, kind: 
 }
 
 /** The top-level direction: the last `direction` line rewritten, else a new one after the header. */
-export function setStateDirection(code: string, model: StateModel, dir: Direction): CodeResult {
-  const L = code.split('\n');
-  if (model.dirLine !== undefined) {
-    L[model.dirLine] = (L[model.dirLine] ?? '').replace(/direction\s+\w+/i, `direction ${dir}`);
-    return { code: L.join('\n') };
-  }
-  if (model.headerLine < 0) return { code };
-  return { code: applyEdits(code, [{ at: model.headerLine + 1, del: 0, ins: [`${rootIndent(model, L)}direction ${dir}`] }]) };
-}
+export const setStateDirection = (code: string, model: StateModel, dir: Direction): CodeResult => ({ code: setDirectionLine(code, model.dirLine, model.headerLine, dir, rootIndent(model, code.split('\n'))) });
 
 /** A composite's direction: its `direction` line rewritten, else a new one as the block's first line (null: Mermaid's TB, the line removed). */
 export function setCompositeDirection(code: string, model: StateModel, gid: string, dir: Direction | null): CodeResult {
   const g = model.groups.get(gid);
   if (!g) return { code };
   const L = code.split('\n');
-  const edits: LineEdit[] = [];
-  let found = false;
+  const own: number[] = [];
   for (const b of g.blocks)
-    for (let li = b.line + 1; li < (b.endLine ?? b.line); li++)
-      if (/^\s*direction\s+(?:TB|BT|LR|RL)\b/i.test(L[li] ?? '') && depthAt(L, b.line, li) === 1) {
-        found = true;
-        edits.push(dir ? { at: li, del: 1, ins: [`${indentOf(L[li])}direction ${dir}`] } : { at: li, del: 1, ins: [] });
-      }
-  if (!found && dir) edits.push({ at: g.blocks[0]!.line + 1, del: 0, ins: [`${indentOf(L[g.blocks[0]!.line])}  direction ${dir}`] });
-  return { code: applyEdits(code, edits) };
+    for (let li = b.line + 1; li < (b.endLine ?? b.line); li++) if (/^\s*direction\s+(?:TB|BT|LR|RL)\b/i.test(L[li] ?? '') && depthAt(L, b.line, li) === 1) own.push(li);
+  const first = g.blocks[0]!.line;
+  return { code: applyEdits(code, blockDirection(L, own, first + 1, `${indentOf(L[first])}  `, dir)) };
 }
 
 /** How many blocks are open at line `li`, counting from the block that opens on `from` (1: directly inside it). */
@@ -622,7 +609,7 @@ export function ungroupState(code: string, model: StateModel, gid: string, rewir
   for (const li of removed) edits.push({ at: li, del: 1, ins: [] });
   // the contents one level out
   for (const b of g.blocks)
-    for (let li = b.line + 1; li < (b.endLine ?? b.line); li++) if (!removed.has(li)) edits.push({ at: li, del: 1, ins: [(L[li] ?? '').replace(/^ {2}|^\t/, '')] });
+    for (let li = b.line + 1; li < (b.endLine ?? b.line); li++) if (!removed.has(li)) edits.push({ at: li, del: 1, ins: [outdentLine(L[li] ?? '')] });
   // rewired transitions in the composite's scope (the top level when the ends cannot be there)
   if (added.length) {
     const s = { g: g.parent, r: g.region };

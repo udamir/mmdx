@@ -9,6 +9,7 @@ import type { MindmapModel, MindNode, MindShape } from '../../model.js';
 import { descendantsOf, MIND_DELIMS, MIND_SHAPES, parseMindmap } from './parse.js';
 import { labelText } from '../../parse/label.js';
 import { setOwn } from '../../own.js';
+import { reindentBlock } from '../../ops/lines.js';
 import { matchMindNodes } from './ops-match.js';
 import type { ItemRef } from '../../types.js';
 import type { CloneResult, CodeResult, LineResult, MoveResult, RefusableResult } from '../../ops/types.js';
@@ -88,11 +89,6 @@ function childIndent(model: MindmapModel, id: string): string {
   return first ? first.indentText : n.indentText + model.indentUnit;
 }
 
-/** Lines re-indented from one indentation to another (blank lines stay blank). */
-function reindent(lines: readonly string[], from: string, to: string): string[] {
-  return lines.map((l) => (!l.trim() ? '' : l.startsWith(from) ? to + l.slice(from.length) : to + l.trimStart()));
-}
-
 /** Is `id` inside the subtree of `of` (or `of` itself)? */
 const within = (model: MindmapModel, id: string, of: string): boolean => {
   let cur: string | null = id;
@@ -162,7 +158,7 @@ export function reparentMind(code: string, model: MindmapModel, id: string, pare
   const i = Math.max(0, Math.min(index, kids.length));
   const at = i < kids.length ? model.nodes.get(kids[i]!)!.line : subtreeEnd(model, parentId, copy ? undefined : id) + 1;
   const indent = kids.length ? model.nodes.get(kids[0]!)!.indentText : p.indentText + model.indentUnit;
-  let block = reindent(L.slice(a, b + 1), n.indentText, indent);
+  let block = reindentBlock(L.slice(a, b + 1), n.indentText, indent);
   if (copy) block = uniqueIds(block, model);
   if (!copy && at >= a && at <= b + 1) {
     // the same place: only the indentation can change
@@ -187,7 +183,7 @@ export function moveMind(code: string, model: MindmapModel, id: string, dir: -1 
   const A = [first.line, subtreeEnd(model, first.id)], B = [second.line, subtreeEnd(model, second.id)];
   const a = L.slice(A[0]!, A[1]! + 1), between = L.slice(A[1]! + 1, B[0]!), b = L.slice(B[0]!, B[1]! + 1);
   // siblings may be written at different indentations: each takes the other's place and its indentation
-  const out = [...L.slice(0, A[0]!), ...reindent(b, second.indentText, first.indentText), ...between, ...reindent(a, first.indentText, second.indentText), ...L.slice(B[1]! + 1)];
+  const out = [...L.slice(0, A[0]!), ...reindentBlock(b, second.indentText, first.indentText), ...between, ...reindentBlock(a, first.indentText, second.indentText), ...L.slice(B[1]! + 1)];
   return { code: out.join('\n'), line: dir < 0 ? A[0]! : A[0]! + b.length + between.length };
 }
 
@@ -236,7 +232,7 @@ export function liftMind(code: string, model: MindmapModel, id: string): Refusab
   for (const c of n.children) {
     const k = model.nodes.get(c)!;
     const a = k.line, b = subtreeEnd(model, c);
-    edits.push([a, b, reindent(L.slice(a, b + 1), k.indentText, n.indentText)]);
+    edits.push([a, b, reindentBlock(L.slice(a, b + 1), k.indentText, n.indentText)]);
   }
   for (const [a, b, ins] of edits.sort((x, y) => y[0] - x[0])) L.splice(a, b - a + 1, ...ins);
   return { code: L.join('\n') };
@@ -326,7 +322,7 @@ function mapIds(a: MindmapModel, tops: readonly string[], b: MindmapModel, line:
 export function blockText(model: MindmapModel, code: string, id: string): string[] {
   const n = model.nodes.get(id);
   if (!n) return [];
-  return reindent(code.split('\n').slice(n.line, subtreeEnd(model, id) + 1), n.indentText, '');
+  return reindentBlock(code.split('\n').slice(n.line, subtreeEnd(model, id) + 1), n.indentText, '');
 }
 
 /** Plain Mermaid of copied subtrees (the system clipboard): a mindmap of them, under the first one's parent if several. */

@@ -15,7 +15,7 @@ import { own, setOwn } from '../own.js';
 import type { GeometryIndex } from '../render/types.js';
 import type { DiagramType, ItemKind, ItemRef, Point } from '../types.js';
 import { elementExists, takenIds, usedIds } from './ids.js';
-import { boxOfItem, cloneJson, cloneMeta, collOf, ensure, getM, uniqueRefs } from './meta-util.js';
+import { boxOfItem, cloneJson, cloneMeta, collOf, ensure, getM, selectionBox, snap as snapTo, uniqueRefs } from './meta-util.js';
 import { pinAutoNodes } from './positions.js';
 import type { CloneResult, DocResult } from './types.js';
 
@@ -79,16 +79,7 @@ function contentOf(code: string, meta: DiagramMeta, model: DiagramModel, geom: G
   }
   const sub = reparse(res.code);
   const { edges: _e, rels: _r, ...own } = pruneMeta(pinned, usedIds(sub));
-  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-  for (const it of items) {
-    const b = boxOfItem(geom, it);
-    if (!b) continue;
-    x0 = Math.min(x0, b.x - b.w / 2);
-    x1 = Math.max(x1, b.x + b.w / 2);
-    y0 = Math.min(y0, b.y - b.h / 2);
-    y1 = Math.max(y1, b.y + b.h / 2);
-  }
-  return { code: res.code, meta: own, links, box: x0 === Infinity ? null : { x0, y0, x1, y1 } };
+  return { code: res.code, meta: own, links, box: selectionBox(geom, items) };
 }
 
 const existsNow = (model: DiagramModel, it: ItemRef): boolean => elementExists(model, it);
@@ -112,7 +103,8 @@ export function cloneItems(code: string, meta: DiagramMeta, model: DiagramModel,
   const res: CloneResult | null = withOps(model, (k, m) => k.clone?.(code, m, items)) ?? null;
   const map = res?.map;
   if (!res || !map) return null;
-  const out = cloneMeta(pinAutoNodes(model, meta, geom).meta);
+  // pinAutoNodes returns a copy
+  const out = pinAutoNodes(model, meta, geom).meta;
   for (const [from, to] of Object.entries(map)) {
     const kind: ItemKind = withOps(model, (k, m) => k.idKind?.(m, from)) ?? 'node';
     const m = ensure(out, kind, to);
@@ -143,8 +135,6 @@ export function cloneItems(code: string, meta: DiagramMeta, model: DiagramModel,
   return { code: res.code, meta: out, selection };
 }
 
-const snapV = (v: number, snap: number): number => (!snap ? Math.round(v) : Math.round(v / snap) * snap);
-
 /**
  * ⌘V / right-click Paste: copies of the clipboard items centred at `at` (diagram units, snapped to `snap`), or
  * without it a small offset (+30, +30) from the originals. null when nothing can be pasted.
@@ -155,18 +145,10 @@ export function pasteItems(code: string, meta: DiagramMeta, model: DiagramModel,
   if (data.content && !data.items.every((it) => existsNow(model, it))) return pasteContent(code, meta, model, data.content, items, at ?? null, snap);
   let dx = 30, dy = 30;
   if (at) {
-    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-    for (const it of items) {
-      const b = boxOfItem(geom, it);
-      if (!b) continue;
-      x0 = Math.min(x0, b.x - b.w / 2);
-      x1 = Math.max(x1, b.x + b.w / 2);
-      y0 = Math.min(y0, b.y - b.h / 2);
-      y1 = Math.max(y1, b.y + b.h / 2);
-    }
-    if (x0 !== Infinity) {
-      dx = snapV(at.x - (x0 + x1) / 2, snap);
-      dy = snapV(at.y - (y0 + y1) / 2, snap);
+    const box = selectionBox(geom, items);
+    if (box) {
+      dx = snapTo(at.x - (box.x0 + box.x1) / 2, snap);
+      dy = snapTo(at.y - (box.y0 + box.y1) / 2, snap);
     }
   }
   return cloneItems(code, meta, model, geom, items, dx, dy);
@@ -188,8 +170,8 @@ function pasteContent(code: string, meta: DiagramMeta, model: DiagramModel, c: C
   if (!res || !map) return null;
   let dx = 30, dy = 30;
   if (at && c.box) {
-    dx = snapV(at.x - (c.box.x0 + c.box.x1) / 2, snap);
-    dy = snapV(at.y - (c.box.y0 + c.box.y1) / 2, snap);
+    dx = snapTo(at.x - (c.box.x0 + c.box.x1) / 2, snap);
+    dy = snapTo(at.y - (c.box.y0 + c.box.y1) / 2, snap);
   }
   const out = cloneMeta(meta);
   for (const [from, to] of Object.entries(map)) {

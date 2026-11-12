@@ -34,6 +34,23 @@ export function boxOfItem(geom: GeometryIndex | null | undefined, it: ItemRef): 
   return geom?.type ? opsKind(geom.type)?.box(geom, { kind: it.kind, id: it.id }) ?? null : null;
 }
 
+/** The rendered bounding box of items (null: none of them is drawn). */
+export function selectionBox(geom: GeometryIndex | null | undefined, items: readonly ItemRef[]): { x0: number; y0: number; x1: number; y1: number } | null {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const it of items) {
+    const b = boxOfItem(geom, it);
+    if (!b) continue;
+    x0 = Math.min(x0, b.x - b.w / 2);
+    x1 = Math.max(x1, b.x + b.w / 2);
+    y0 = Math.min(y0, b.y - b.h / 2);
+    y1 = Math.max(y1, b.y + b.h / 2);
+  }
+  return x0 === Infinity ? null : { x0, y0, x1, y1 };
+}
+
+/** A moved position snapped: 0 = exact (rounded); n = to the n-unit grid. */
+export const snap = (v: number, grid: number): number => (!grid ? Math.round(v) : Math.round(v / grid) * grid);
+
 export const selKey = (r: ItemRef): string => `${r.kind}:${r.id}`;
 
 /** Unique refs in order (prototype app `selection`). */

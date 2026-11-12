@@ -8,7 +8,7 @@ import type { DiagramModel } from '../model.js';
 import { withOps } from '../kinds/registry.js';
 import type { BoxGeom, GeometryIndex } from '../render/types.js';
 import { type ItemKind, type ItemRef } from '../types.js';
-import { boxOfItem, cloneMeta, ensure, getM, tidy } from './meta-util.js';
+import { boxOfItem, cloneMeta, ensure, getM, snap as snapTo, tidy } from './meta-util.js';
 import type { MetaResult } from './types.js';
 
 
@@ -71,9 +71,6 @@ export function groupHasPositions(model: DiagramModel, meta: DiagramMeta, ref: I
 }
 
 
-/** Snapping of moved positions: 0 = exact (rounded); n = to the n-unit grid. */
-const snapV = (v: number, snap: number): number => (!snap ? Math.round(v) : Math.round(v / snap) * snap);
-
 interface MoveTarget {
   kind: ItemKind;
   id: string;
@@ -102,7 +99,7 @@ function moveInPlace(meta: DiagramMeta, model: DiagramModel, geom: GeometryIndex
   const moveSet = (items: MoveTarget[]): void => {
     const f = items[0];
     if (!f) return;
-    shiftAll(meta, items, snapV(f.x + dx, snap) - f.x, snapV(f.y + dy, snap) - f.y);
+    shiftAll(meta, items, snapTo(f.x + dx, snap) - f.x, snapTo(f.y + dy, snap) - f.y);
   };
   if (kind === 'node' || kind === 'entity') {
     const b = boxOfItem(geom, { kind, id });
@@ -127,10 +124,10 @@ function moveInPlace(meta: DiagramMeta, model: DiagramModel, geom: GeometryIndex
     if (!items.length) return;
     // snap relative to the group's top-left
     const tl = { x: self.x - self.w / 2, y: self.y - self.h / 2 };
-    shiftAll(meta, items, snapV(tl.x + dx, snap) - tl.x, snapV(tl.y + dy, snap) - tl.y);
+    shiftAll(meta, items, snapTo(tl.x + dx, snap) - tl.x, snapTo(tl.y + dy, snap) - tl.y);
   } else if (kind === 'participant') {
     const b = boxOfItem(geom, { kind, id });
-    if (b) ensure(meta, 'participant', id).x = snapV(b.x + dx, snap);
+    if (b) ensure(meta, 'participant', id).x = snapTo(b.x + dx, snap);
   } else if (kind === 'message' || kind === 'note' || kind === 'block') {
     const m = ensure(meta, kind, id);
     m.dy = Math.max(-40, Math.round((typeof m.dy === 'number' ? m.dy : 0) + dy));
@@ -188,7 +185,7 @@ export function moveItems(model: DiagramModel, meta: DiagramMeta, geom: Geometry
   }
   const list = [...items.values()];
   const f = list[0];
-  if (f) shiftAll(out, list, snapV(f.x + dx, snap) - f.x, snapV(f.y + dy, snap) - f.y);
+  if (f) shiftAll(out, list, snapTo(f.x + dx, snap) - f.x, snapTo(f.y + dy, snap) - f.y);
   // sequence items move as dragging one does: participants sideways, messages / notes / blocks up or down
   for (const it of refs)
     if ((it.kind === 'participant' || it.kind === 'message' || it.kind === 'note' || it.kind === 'block') && !getM(out, it.kind, it.id).locked)

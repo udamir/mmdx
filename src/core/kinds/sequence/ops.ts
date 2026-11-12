@@ -20,7 +20,7 @@ import type { ItemRef } from '../../types.js';
 import { activationsBalanced } from '../../ops/activations.js';
 import { blocksOf } from '../../ops/reorder.js';
 import { uniqueId } from '../../ops/ids.js';
-import { applyEdits, indentOf, splice, type LineEdit } from '../../ops/lines.js';
+import { applyEdits, indentOf, outdentBlock, splice, type LineEdit } from '../../ops/lines.js';
 import type { ActivationResult, CodeResult, LineResult, LineSpan, RefusableResult, ResizeBlockResult, SelectResult, SwapResult } from '../../ops/types.js';
 
 export { activationsOf } from '../../ids.js';
@@ -282,10 +282,7 @@ export function unboxParticipants(code: string, model: SequenceModel, boxId: str
   if (!b) return { code };
   const L = code.split('\n');
   const edits: LineEdit[] = [{ at: b.line, del: 1, ins: [] }];
-  if (b.endLine != null) {
-    edits.push({ at: b.endLine, del: 1, ins: [] });
-    for (let i = b.line + 1; i < b.endLine; i++) edits.push({ at: i, del: 1, ins: [(L[i] ?? '').replace(/^ {2}/, '')] });
-  }
+  if (b.endLine != null) edits.push({ at: b.endLine, del: 1, ins: [] }, { at: b.line + 1, del: b.endLine - b.line - 1, ins: outdentBlock(L.slice(b.line + 1, b.endLine)) });
   return { code: applyEdits(code, edits) };
 }
 

@@ -6,6 +6,7 @@ import { applySplices } from '../parse/node-data.js';
 import { resolveShape } from '../shapes/registry.js';
 import { lineOf, rewriteStatement, statementSplice } from '../kinds/flowchart/ops-statements.js';
 import type { ConnectResult, LineResult } from './types.js';
+import { appendLine } from './lines.js';
 
 export interface NodeDefInput {
   id: string;
@@ -78,9 +79,8 @@ export function reconnectFlow(code: string, model: FlowchartModel, edgeId: strin
   if (inGroup) {
     const link = code.slice(st.links[edge.seg!]!.start, st.links[edge.seg!]!.end);
     const r = rewriteStatement(code, model, edge.stmt, { take: edge.id });
-    let out = r ? applySplices(code, [statementSplice(code, st, r.text)]) : code;
-    out = `${out.trimEnd()}\n  ${from} ${link} ${to}\n`;
-    return { code: out, from, to, line: out.split('\n').length - 2 };
+    const out = r ? applySplices(code, [statementSplice(code, st, r.text)]) : code;
+    return { ...appendLine(out, `  ${from} ${link} ${to}`), from, to };
   }
   const r = rewriteStatement(code, model, edge.stmt, { change: { id: edge.id, from, to } });
   if (!r) return { code };
@@ -89,15 +89,9 @@ export function reconnectFlow(code: string, model: FlowchartModel, edgeId: strin
 }
 
 /** `from --> to` at the end of the code. */
-export function addFlowEdge(code: string, from: string, to: string): LineResult {
-  const t = code.trimEnd();
-  return { code: `${t}\n  ${from} --> ${to}\n`, line: t.split('\n').length };
-}
+export const addFlowEdge = (code: string, from: string, to: string): LineResult => appendLine(code, `  ${from} --> ${to}`);
 
 // ---- ER: core/kinds/er/ops.ts (relText, reconnectER, addERRel)
 
 /** Sequence: a new message at the end. */
-export function addSeqMessage(code: string, from: string, to: string): LineResult {
-  const t = code.trimEnd();
-  return { code: `${t}\n  ${from}->>${to}: message\n`, line: t.split('\n').length };
-}
+export const addSeqMessage = (code: string, from: string, to: string): LineResult => appendLine(code, `  ${from}->>${to}: message`);

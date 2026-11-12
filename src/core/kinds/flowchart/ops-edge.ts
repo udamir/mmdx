@@ -61,7 +61,7 @@ export function setFlowEdgeAnimation(code: string, model: FlowchartModel, edgeId
     const r = rewriteStatement(code, model, e.stmt, { take: e.id });
     if (!r) return null;
     out = applySplices(code, [statementSplice(code, st, r.text)]);
-    out = `${out.trimEnd()}\n  ${e.from} ${uid}@${code.slice(link.start, link.end)} ${e.to}\n`;
+    out = append(out, [`  ${e.from} ${uid}@${code.slice(link.start, link.end)} ${e.to}`]);
   } else {
     const space = /\s/.test(code[link.start - 1] ?? ' ') ? '' : ' ';
     out = code.slice(0, link.start) + `${space}${uid}@` + code.slice(link.start);

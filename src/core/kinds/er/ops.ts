@@ -10,7 +10,7 @@ import { erId, erLabel, erQuoted } from './parse-id.js';
 import { applySplices, type Splice } from '../../parse/node-data.js';
 import type { ItemRef } from '../../types.js';
 import { copyIds, uniqueId } from '../../ops/ids.js';
-import { append, contentEnd, indentOf, lineStart } from '../../ops/lines.js';
+import { append, appendLine, applyEdits, blockDirection, contentEnd, indentOf, lineStart, reindentBlock, setDirectionLine, stepWidth } from '../../ops/lines.js';
 import type { CloneInto, CloneResult, CodeResult, ConnectResult, LineResult, RefusableResult, SelectResult } from '../../ops/types.js';
 import { minOf } from '../../geom.js';
 
@@ -229,10 +229,7 @@ export function reconnectER(code: string, model: ErModel, relId: string, which: 
 }
 
 /** A new relationship at the end of the code. */
-export function addERRel(code: string, from: string, to: string): LineResult {
-  const t = code.trimEnd();
-  return { code: `${t}\n  ${relText({ fromCard: 'one', toCard: 'zero-many', identifying: true, label: '' }, from, to)}\n`, line: t.split('\n').length };
-}
+export const addERRel = (code: string, from: string, to: string): LineResult => appendLine(code, `  ${relText({ fromCard: 'one', toCard: 'zero-many', identifying: true, label: '' }, from, to)}`);
 
 // ---- clipboard ----------------------------------------------------------------------------------------------------
 
@@ -260,8 +257,7 @@ export function cloneER(code: string, model: ErModel, items: readonly ItemRef[],
     }
     for (const st of e.stmts) {
       const text = applySplices(code.slice(st.start, st.end), [{ from: st.nameAt[0] - st.start, to: st.nameAt[1] - st.start, text: erId(map[id]!) }]);
-      const base = indentOf(L[st.line]).length;
-      out.push(...text.split('\n').map((l, k) => (k ? ind + l.slice(Math.min(base, indentOf(l).length)) : ind + l)));
+      out.push(...reindentBlock(text.split('\n'), indentOf(L[st.line]), ind));
     }
   }
   const rels: string[] = [];
@@ -279,16 +275,7 @@ export function cloneER(code: string, model: ErModel, items: readonly ItemRef[],
 // ---- direction ----------------------------------------------------------------------------------------------------
 
 /** Direction: the top-level `direction LR` line (rewritten, or added after the header). */
-export function setErDirection(code: string, model: ErModel, dir: Direction): CodeResult {
-  const L = code.split('\n');
-  if (model.dirLine !== undefined && /direction\s+\w+/i.test(L[model.dirLine] ?? '')) {
-    L[model.dirLine] = L[model.dirLine]!.replace(/direction\s+\w+/i, `direction ${dir}`);
-    return { code: L.join('\n') };
-  }
-  if (model.headerLine < 0) return { code };
-  L.splice(model.headerLine + 1, 0, `  direction ${dir}`);
-  return { code: L.join('\n') };
-}
+export const setErDirection = (code: string, model: ErModel, dir: Direction): CodeResult => ({ code: setDirectionLine(code, model.dirLine, model.headerLine, dir) });
 
 /** A subgraph's own direction (`direction LR` in it), or none (null: Mermaid's default). */
 export function setErGroupDirection(code: string, model: ErModel, gid: string, dir: Direction | null): CodeResult {
@@ -300,14 +287,7 @@ export function setErGroupDirection(code: string, model: ErModel, gid: string, d
   const own: number[] = [];
   for (let li = g.line + 1; li < (g.endLine ?? L.length); li++)
     if (/^\s*direction\s+(TB|BT|RL|LR)\s*$/i.test(L[li] ?? '') && !inner.some((x) => li > x.line && li < (x.endLine ?? Infinity))) own.push(li);
-  if (dir === null) return { code: L.filter((_, li) => !own.includes(li)).join('\n') };
-  if (own.length) {
-    const li = own[own.length - 1]!;
-    L[li] = L[li]!.replace(/direction\s+\w+/i, `direction ${dir}`);
-    return { code: L.join('\n') };
-  }
-  L.splice(g.line + 1, 0, `${innerIndent(code, g)}direction ${dir}`);
-  return { code: L.join('\n') };
+  return { code: applyEdits(code, blockDirection(L, own, g.line + 1, innerIndent(code, g), dir)) };
 }
 
 // ---- subgraphs (11.17+) -------------------------------------------------------------------------------------------
@@ -358,8 +338,7 @@ export function groupER(code: string, model: ErModel, items: readonly ItemRef[],
   for (const g of ids.map((x) => model.groups.get(x)).filter((g): g is ErGroup => !!g).sort((a, b) => a.line - b.line)) {
     if (g.endLine === undefined) continue; // an unclosed subgraph has no block to move
     const block = L.slice(g.line, g.endLine + 1);
-    const base = indentOf(block[0]).length;
-    moved.push(...block.map((l) => ind + '  ' + l.slice(Math.min(base, indentOf(l).length))));
+    moved.push(...reindentBlock(block, indentOf(block[0]), ind + '  '));
     sp.push({ from: lineStart(code, g.line), to: lineStart(code, g.endLine + 1), text: '' });
   }
   const block = [`${ind}subgraph ${id} [${erQuoted(title)}]`, ...ids.filter((x) => model.entities.has(x)).map((x) => `${ind}  ${erId(x)}`), ...moved, `${ind}end`];
@@ -399,9 +378,8 @@ function frameCuts(code: string, g: ErGroup): Splice[] {
   }
   // the lines between, one indentation step to the left
   for (let li = g.line + 1; li < g.endLine; li++) {
-    const s = lineStart(code, li);
-    if (code.startsWith('  ', s)) sp.push({ from: s, to: s + 2, text: '' });
-    else if (code[s] === '\t') sp.push({ from: s, to: s + 1, text: '' });
+    const s = lineStart(code, li), w = stepWidth(code.slice(s, s + 2));
+    if (w) sp.push({ from: s, to: s + w, text: '' });
   }
   return sp;
 }
@@ -432,8 +410,7 @@ export function erFragment(model: ErModel, code: string, refs: readonly ItemRef[
     ids.add(e.id);
     if (!e.stmts.length) out.push(`  ${erId(e.id)}`);
     for (const st of e.stmts) {
-      const base = indentOf(code.split('\n')[st.line]).length;
-      out.push(...code.slice(st.start, st.end).split('\n').map((l, k) => '  ' + (k ? l.slice(Math.min(base, indentOf(l).length)) : l)));
+      out.push(...reindentBlock(code.slice(st.start, st.end).split('\n'), indentOf(code.split('\n')[st.line]), '  '));
     }
   };
   for (const r of refs) {

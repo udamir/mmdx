@@ -13,7 +13,7 @@ import { cloneMeta } from '../../ops/meta-util.js';
 import { edgeText, nodeDataOf, nodeDef } from '../../ops/connect.js';
 import { rewriteStatement, statementSplice, type StatementEdit } from './ops-statements.js';
 import { copyIds, uniqueId } from '../../ops/ids.js';
-import { append, applyEdits, contentEnd, indentOf, lineStart, splice, type LineEdit } from '../../ops/lines.js';
+import { append, applyEdits, contentEnd, indentOf, lineStart, outdentLine, reindentBlock, splice, type LineEdit } from '../../ops/lines.js';
 
 /** An edge as its own statement with the link as written (`a -.->|"x"| b`), else as `edgeText` writes it. */
 export function linkOf(code: string, model: FlowchartModel, e: FlowEdge, from: string, to: string): string {
@@ -221,8 +221,7 @@ export function groupFlow(code: string, model: FlowchartModel, items: readonly I
   for (const g of [...subs].sort((a, b) => a.line - b.line)) {
     if (g.endLine == null) continue; // an unterminated subgraph has no block to move
     const block = L.slice(g.line, g.endLine + 1);
-    const base = indentOf(block[0]).length;
-    moved.push(...block.map((l) => indent + '  ' + l.slice(Math.min(base, indentOf(l).length))));
+    moved.push(...reindentBlock(block, indentOf(block[0]), indent + '  '));
     edits.push({ at: g.line, del: g.endLine - g.line + 1, ins: [] });
   }
   const block = [`${indent}subgraph ${id} ["${encodeLabel(title)}"]`, ...nodes.map((n) => `${indent}  ${n}`), ...moved, `${indent}end`];
@@ -254,7 +253,7 @@ export function ungroupFlow(code: string, model: FlowchartModel, gid: string): C
       const raw = L[i] ?? '';
       const n = model.nodes.get(raw.trim());
       const redundant = !!n && [...n.lines].some((li) => li !== i);
-      edits.push({ at: i, del: 1, ins: redundant ? [] : [raw.replace(/^ {2}/, '')] });
+      edits.push({ at: i, del: 1, ins: redundant ? [] : [outdentLine(raw)] });
     }
   }
   return { code: applyEdits(code, edits) };
