@@ -8,7 +8,7 @@ import { withKind } from '../../../core/kinds/registry.js';
 import type { ItemKind } from '../../../core/types.js';
 import type { Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
-import { connectionCount, itemLabel, markSelection, selectable, selKey } from '../../lib/canvas.js';
+import { connectionCount, itemLabel, selectable, selKey } from '../../lib/canvas.js';
 import { installNudge } from './nudge.js';
 import { installSelectGestures } from './select-gestures.js';
 import { installSelectionOverlay, SELECT_CSS } from './select-overlay.js';
@@ -133,8 +133,9 @@ export const canvasSelectModule: EditorModule = {
     // ---- events ------------------------------------------------------------------------------------------------
 
     scope.on('draw', decorateGroupEdit);
+    // the marks of a version's selection too (the document's are marked as it changes, SelectionService.watch)
     scope.on('selection', () => {
-      markSelection(core);
+      core.decorateSelection();
       announce();
     });
     scope.on('mode', decorateGroupEdit);

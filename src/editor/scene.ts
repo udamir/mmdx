@@ -16,6 +16,8 @@ export class StoreScene extends BaseScene {
   private rendered: Rendered | null = null;
   /** The overlay painters, lowest order first. */
   private readonly painters: OverlayPainter[] = [];
+  /** The drawn picture's item elements by item key, read once per paint (null: read again when asked). */
+  private drawn: Map<string, Element[]> | null = null;
 
   constructor(private readonly core: EditorCore) {
     super();
@@ -60,6 +62,7 @@ export class StoreScene extends BaseScene {
     const c = this.core;
     // the type's kinds are loading: nothing to draw yet (the canvas is cleared; the kinds' arrival draws and fits)
     const code = c.version.peek()?.doc.code ?? c.code;
+    this.drawn = null;
     if (c.kinds.pending(code)) {
       c.kinds.need(code);
       this.rendered = null;
@@ -95,12 +98,27 @@ export class StoreScene extends BaseScene {
     const sel = c.selection();
     if (sel.length > 1) for (const r of sel) mark(r, 'selected');
     if (c.inlineEditing) mark(c.inlineEditing, 'text-editing');
-    if (marks.size)
-      for (const n of Array.from(body.querySelectorAll('.el[data-id]'))) {
-        const m = marks.get(`${n.getAttribute('data-kind')}:${n.getAttribute('data-id')}`);
-        if (m) n.classList.add(...m);
-      }
+    if (marks.size) {
+      const drawn = this.drawnItems();
+      for (const [k, cls] of marks) for (const n of drawn.get(k) ?? []) n.classList.add(...cls);
+    }
     c.dom.root.classList.toggle('group-edit', !!c.enteredGroup.peek() && c.mode.peek() === 'edit');
+  }
+
+  /**
+   * The drawn picture's item elements (`.el[data-kind][data-id]`: an item's main element and its parts, in document order) by item key (`kind:id`): read once per paint of this scene, and afresh while another scene owns the canvas.
+   */
+  drawnItems(): ReadonlyMap<string, readonly Element[]> {
+    if (this.drawn && this.attached) return this.drawn;
+    const m = new Map<string, Element[]>();
+    for (const n of Array.from(this.core.dom.body.querySelectorAll('.el[data-kind][data-id]'))) {
+      const k = `${n.getAttribute('data-kind')}:${n.getAttribute('data-id')}`;
+      const list = m.get(k);
+      if (list) list.push(n);
+      else m.set(k, [n]);
+    }
+    if (this.attached) this.drawn = m;
+    return m;
   }
 
   /** Adds an overlay painter (again: nothing); returns its removal. */

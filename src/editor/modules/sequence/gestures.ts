@@ -1,25 +1,20 @@
 // Sequence gestures (A.5 rows 45–48, 50): a lifeline circle → a new message, a self message or a process; a message
 // end circle → a process to another message or the end re-attached to another lifeline; process top / bottom
 // handles; block edge handles (pull / push statements); note edge handles (span); participant ◀ ▶ swap arrows.
-import type { SeqBlockStart, SeqMessage } from '../../../core/model.js';
+import type { SeqBlockStart, SeqMessage, SequenceModel } from '../../../core/model.js';
+import type { SequenceGeometry } from '../../../core/render/types.js';
 import { addActivation, addSeqMessageAt, moveActivationEdge, reattachMessage, resizeBlockStep, setNoteSpan, toggleActivation } from '../../../core/kinds/sequence/ops.js';
 import { reparse as parse } from '../../../core/parse/dispatch.js';
 import { maxOf, minOf } from '../../../core/geom.js';
 import type { EditorCore, Gesture, Hit, Sel } from '../../core.js';
 import { elementsAt } from '../../lib/geometry.js';
 import { GESTURE } from '../../lib/priorities.js';
+import { gestureTx } from '../../ops/gesture.js';
+import { focusLabel } from '../../ops/insert.js';
 import { edgeAnchors, liveCode, seqGeom, seqLineAbove, seqModel } from './lib.js';
 import type { SeqScope, SeqState } from './state.js';
 
 const NOOP: Gesture = { move: () => undefined };
-
-/** Selects the new message and opens its text (prototype `focusLabel`). */
-function focusLabel(core: EditorCore, it: Sel): void {
-  setTimeout(() => {
-    if (!core.isSelected(it)) return;
-    if (!core.run('inlineEdit', it)) core.run('setPanel', 'properties', true);
-  }, 0);
-}
 
 /**
  * The participant whose lifeline (or head) is under the pointer, else the one whose lifeline is within ~40 px of
@@ -37,6 +32,17 @@ function lifelineAt(core: EditorCore, ev: PointerEvent, x: number, except: strin
   return best && best.d * core.viewport.state.k < 40 ? best.pid : null;
 }
 
+/** The message whose arrow is nearest to `y` among those `ok` takes (by its id and its arrow's height). */
+function nearestMessage(M: SequenceModel, gm: SequenceGeometry, y: number, ok: (id: string, my: number) => boolean): { id: string; y: number } | null {
+  let best: { id: string; y: number } | null = null;
+  for (const it of M.items) {
+    if (it.kind !== 'message') continue;
+    const mg = gm.messages.get(it.id);
+    if (mg && ok(it.id, mg.y) && (!best || Math.abs(mg.y - y) < Math.abs(best.y - y))) best = { id: it.id, y: mg.y };
+  }
+  return best;
+}
+
 /**
  * Drag from a participant's lifeline (its hover circle): sideways to another participant → a new message at that
  * height; up or down → a process (activation bar) over the messages it spans.
@@ -51,14 +57,6 @@ function lifelineDrag(core: EditorCore, st: SeqState, hit: Hit, srcId: string): 
   const a = sideC ? { x: Number(sideC.getAttribute('cx')), y: Number(sideC.getAttribute('cy')) } : { x, y: p0.y };
   st.llHover = null;
   let mode: 'act' | 'msg' | null = null;
-  const targetUnder = (ev: PointerEvent): string | null => {
-    for (const n of elementsAt(core, ev)) {
-      const h = n.closest('[data-handle="lifeline"]') ?? n.closest('.el[data-kind="participant"]');
-      const id = h?.getAttribute('data-id');
-      if (id && id !== srcId) return id;
-    }
-    return null;
-  };
   const done = (): void => {
     st.active = false;
     st.linking = null;
@@ -79,13 +77,7 @@ function lifelineDrag(core: EditorCore, st: SeqState, hit: Hit, srcId: string): 
       }
       const b = { x: p0.x + dx, y: p0.y + dy };
       // snap to a lifeline the pointer is near (within ~40px on screen), not only when exactly over it
-      let t = targetUnder(ev);
-      if (!t) {
-        let best: { pid: string; d: number } | null = null;
-        for (const [pid, q] of gm.participants)
-          if (pid !== srcId && !q.hidden && (!best || Math.abs(q.x - b.x) < best.d)) best = { pid, d: Math.abs(q.x - b.x) };
-        if (best && best.d * k < 40) t = best.pid;
-      }
+      const t = lifelineAt(core, ev, b.x, srcId);
       // let go close to the start (no other participant under the pointer): a message back to the same lifeline
       const near = Math.abs(dx) * k < 110 && Math.abs(dy) * k < 80;
       const tx = t ? gm.participants.get(t)?.x : undefined;
@@ -132,16 +124,6 @@ function actEndDrag(core: EditorCore, st: SeqState, msgId: string, pid: string):
   const which: 'from' | 'to' = msg.from === pid ? 'from' : 'to';
   const fixed = { x: which === 'from' ? m0.x1 : m0.x0, y: y0 };
   let mode: 'act' | 'end' | null = null;
-  // the message whose arrow is nearest to y (any message — the process may end on a message of another participant)
-  const nearest = (y: number): { id: string; y: number } | null => {
-    let best: { id: string; y: number } | null = null;
-    for (const it of M.items) {
-      if (it.kind !== 'message') continue;
-      const mg = gm.messages.get(it.id);
-      if (mg && it.id !== msgId && (!best || Math.abs(mg.y - y) < Math.abs(best.y - y))) best = { id: it.id, y: mg.y };
-    }
-    return best;
-  };
   return {
     move(dx, dy, ev) {
       if (!mode) {
@@ -156,7 +138,8 @@ function actEndDrag(core: EditorCore, st: SeqState, msgId: string, pid: string):
         core.drawOverlay();
         return;
       }
-      const t = nearest(y0 + dy);
+      // the message whose arrow is nearest (any message: the process may end on a message of another participant)
+      const t = nearestMessage(M, gm, y0 + dy, (id) => id !== msgId);
       st.actPreview = { x, y0, y1: t ? t.y : y0 + dy, target: t?.id };
       core.drawOverlay();
     },
@@ -200,12 +183,7 @@ function actEdgeDrag(core: EditorCore, st: SeqState, id: string, edge: 'top' | '
   return {
     move(_dx, dy) {
       const y = (edge === 'top' ? b.y0 : b.y1) + dy;
-      let best: { id: string; y: number } | null = null;
-      for (const it of M.items) {
-        if (it.kind !== 'message') continue;
-        const mg = gm.messages.get(it.id);
-        if (mg && (edge === 'top' ? mg.y < fixed : mg.y > fixed) && (!best || Math.abs(mg.y - y) < Math.abs(best.y - y))) best = { id: it.id, y: mg.y };
-      }
+      const best = nearestMessage(M, gm, y, (_id, my) => (edge === 'top' ? my < fixed : my > fixed));
       st.actPreview = { x: b.x, y0: fixed, y1: best ? best.y : y, target: best?.id };
       core.drawOverlay();
     },
@@ -244,7 +222,8 @@ function actEdgeDrag(core: EditorCore, st: SeqState, id: string, edge: 'top' | '
  * next statement outside it is pulled in, past the middle of the last statement inside it is pushed out.
  */
 function blockEdgeDrag(core: EditorCore, st: SeqState, hit: Hit, startId: string, edge: 'top' | 'bottom'): Gesture {
-  let id = startId, began = false, reason: string | undefined;
+  const tx = gestureTx(core);
+  let id = startId, reason: string | undefined;
   const p0 = hit.p;
   return {
     move(_dx, dy) {
@@ -262,10 +241,7 @@ function blockEdgeDrag(core: EditorCore, st: SeqState, hit: Hit, startId: string
           reason = r.reason;
           break;
         }
-        if (!began) {
-          core.begin();
-          began = true;
-        }
+        tx.begin();
         reason = undefined;
         liveCode(core, r.code);
         const Mn = seqModel(core);
@@ -278,19 +254,19 @@ function blockEdgeDrag(core: EditorCore, st: SeqState, hit: Hit, startId: string
     },
     end() {
       st.active = false;
-      if (began) core.commit(core.i18n.t('history.resizeBlock'));
+      tx.commit(core.i18n.t('history.resizeBlock'));
       if (reason) core.toast(reason);
     },
     cancel() {
       st.active = false;
-      if (began) core.rollback();
+      tx.rollback();
     },
   };
 }
 
 /** Stretch a note over several participants (left / right edge handles). */
 function noteEdgeDrag(core: EditorCore, st: SeqState, hit: Hit, id: string, edge: 'left' | 'right'): Gesture {
-  let began = false;
+  const tx = gestureTx(core);
   const p0 = hit.p;
   return {
     move(dx) {
@@ -309,20 +285,17 @@ function noteEdgeDrag(core: EditorCore, st: SeqState, hit: Hit, id: string, edge
       else hi = Math.max(nearest, lo);
       const r = setNoteSpan(core.code, M, id, order[lo]!.id, order[hi]!.id);
       if (r.code === core.code) return;
-      if (!began) {
-        core.begin();
-        began = true;
-      }
+      tx.begin();
       liveCode(core, r.code);
       core.draw();
     },
     end() {
       st.active = false;
-      if (began) core.commit(core.i18n.t('history.stretchNote'));
+      tx.commit(core.i18n.t('history.stretchNote'));
     },
     cancel() {
       st.active = false;
-      if (began) core.rollback();
+      tx.rollback();
     },
   };
 }

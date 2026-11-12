@@ -1,5 +1,5 @@
 // Helpers shared by the canvas modules (selection, structure, inline text, copy style, empty state): what can be
-// selected by marquee / ⌘A, item labels for announcements, the selected-class marking and small DOM utilities.
+// selected by marquee / ⌘A, item labels for announcements and small DOM utilities.
 import { opsKind, withKind } from '../../core/kinds/registry.js';
 import type { BoxGeom } from '../../core/render/types.js';
 import { el, text } from '../../core/scene/build.js';
@@ -7,6 +7,7 @@ import type { SceneNode } from '../../core/scene/types.js';
 import { itemKey, type ItemKind, type ItemRef } from '../../core/types.js';
 import type { EditorCore, Sel } from '../core.js';
 import { withEdit } from '../kinds/registry.js';
+import { sameRef } from './refs.js';
 
 /** Connector kinds: flowchart edges, ER relationships and sequence messages. */
 export { LINE_KINDS } from '../../core/item-caps.js';
@@ -30,7 +31,7 @@ export interface Selectable {
  */
 export function selectable(core: EditorCore): Selectable[] {
   const g = core.geom;
-  const drawn = new Set(Array.from(core.dom.body.querySelectorAll('.el[data-kind][data-id]')).map((n) => `${n.getAttribute('data-kind')}:${n.getAttribute('data-id')}`));
+  const drawn = core.drawnItems();
   const out: Selectable[] = [];
   const box = (kind: ItemKind, id: string, b: BoxGeom & { hidden?: boolean }): void => {
     if (!b.hidden && drawn.has(`${kind}:${id}`)) out.push({ kind, id, b });
@@ -156,25 +157,7 @@ function segmentInArea(p: readonly [number, number], q: readonly [number, number
 export const selKey = (it: ItemRef | null | undefined): string => (it ? `${it.kind}:${it.id}` : '');
 
 /** Item elements of the scene (`.el[data-kind][data-id]`) drawing one item (main element and parts). */
-export function itemEls(core: EditorCore, it: ItemRef): Element[] {
-  // matched by the selector engine (P22: every item element read and filtered here)
-  return Array.from(core.dom.body.querySelectorAll(`.el[data-kind="${attrValue(it.kind)}"][data-id="${attrValue(it.id)}"]`));
-}
-
-/** A string as the value of a double-quoted attribute selector. */
-const attrValue = (v: string): string => v.replace(/["\\]/g, '\\$&').replace(/\n/g, '\\a ').replace(/\r/g, '\\d ');
-
-/** `.selected` on every item of a multi-selection (the core does it on draw; selection changes between draws). */
-export function markSelection(core: EditorCore): void {
-  const body = core.dom.body;
-  for (const n of Array.from(body.querySelectorAll('.el.selected'))) n.classList.remove('selected');
-  const sel = core.selection();
-  if (sel.length < 2) return;
-  // one pass over the scene, however many items are selected
-  const keys = new Set<string>(sel.map(itemKey));
-  for (const n of Array.from(body.querySelectorAll('.el[data-id]')))
-    if (keys.has(`${n.getAttribute('data-kind')}:${n.getAttribute('data-id')}`)) n.classList.add('selected');
-}
+export const itemEls = (core: EditorCore, it: ItemRef): Element[] => [...(core.drawnItems().get(itemKey(it)) ?? [])];
 
 /** The first line of an item's text (for announcements and the group-edit bar). */
 export function itemLabel(core: EditorCore, it: ItemRef): string {
@@ -190,7 +173,7 @@ export function connectionCount(core: EditorCore, it: ItemRef): number {
 }
 
 /** Is the primary selection exactly this item (participant foot included)? */
-export const samePrimary = (a: Sel | null, b: Sel): boolean => !!a && a.kind === b.kind && a.id === b.id && !!a.foot === !!b.foot;
+export const samePrimary = (a: Sel | null, b: Sel): boolean => !!a && sameRef(a, b) && !!a.foot === !!b.foot;
 
 /** Element under a client point inside the editor's shadow root (falls back to the document). */
 export function elementAt(core: EditorCore, x: number, y: number): Element | null {

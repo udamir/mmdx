@@ -12,12 +12,11 @@ import { cloneMeta, ensure, tidy } from '../../../core/ops/meta-util.js';
 import { effectiveValue } from '../../../core/ops/style-env.js';
 import { el } from '../../../core/scene/build.js';
 import type { SceneNode } from '../../../core/scene/types.js';
-import type { Rect } from '../../../core/types.js';
+import { itemKey, type Rect } from '../../../core/types.js';
 import type { StyleToolbarHandle } from '../../../ui/diagram/style-toolbar.js';
 import type { Gesture } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { elementAt } from '../../lib/canvas.js';
-import { styleEnv } from '../../ops/doc.js';
 import { GESTURE, PAINT } from '../../lib/priorities.js';
 import { openRowEditor } from './row-editor.js';
 import { tableShortcuts } from './keys.js';
@@ -62,7 +61,7 @@ export const erTableModule: EditorModule = {
     const mark = (): void => {
       for (const n of Array.from(body.querySelectorAll('.el.table-in-edit'))) n.classList.remove('table-in-edit');
       if (!st.table) return;
-      for (const n of Array.from(body.querySelectorAll('.el[data-kind="entity"]'))) if (n.getAttribute('data-id') === st.table) n.classList.add('table-in-edit');
+      for (const n of core.drawnItems().get(itemKey({ kind: 'entity', id: st.table })) ?? []) n.classList.add('table-in-edit');
     };
 
     const enter = (id: string): void => {
@@ -132,7 +131,7 @@ export const erTableModule: EditorModule = {
 
     // ---- the attribute toolbar --------------------------------------------------------------------------------
 
-    const tableValue = (k: string): unknown => (st.table ? effectiveValue(styleEnv(core), { kind: 'entity', id: st.table }, k) : undefined);
+    const tableValue = (k: string): unknown => (st.table ? effectiveValue(core.styleEnv(), { kind: 'entity', id: st.table }, k) : undefined);
     const rowRect = (i: number): Rect | null => {
       const b = box();
       const r = b?.rows?.[i];

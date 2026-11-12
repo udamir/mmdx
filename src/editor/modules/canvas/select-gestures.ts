@@ -8,6 +8,7 @@ import type { ItemRef } from '../../../core/types.js';
 import type { Gesture, Hit, Sel } from '../../core.js';
 import { inArea, samePrimary, selectable, selKey } from '../../lib/canvas.js';
 import { GESTURE } from '../../lib/priorities.js';
+import { metaGesture } from '../../ops/gesture.js';
 import type { SelectScope, SelectState } from './select-state.js';
 
 const NOOP: Gesture = { move: () => undefined };
@@ -31,33 +32,10 @@ export function installSelectGestures(scope: SelectScope, st: SelectState): void
   const readOnly = (): boolean => !!core.version.peek();
   const isLane = (gid: string): boolean => core.isLane(gid);
 
-  /** A gesture that previews metadata computed from the state at its start; one history step at the end. */
-  const metaGesture = (label: string, apply: (dx: number, dy: number, ev: PointerEvent) => void): Gesture => {
-    let began = false;
-    return {
-      move(dx, dy, ev) {
-        if (!began) {
-          core.begin();
-          began = true;
-        }
-        apply(dx, dy, ev);
-        core.draw();
-      },
-      end() {
-        if (began) core.commit(label);
-        began = false;
-      },
-      cancel() {
-        if (began) core.rollback();
-        began = false;
-      },
-    };
-  };
-
   const moveGesture = (ref: ItemRef, part: string | null): Gesture => {
     const model = core.model, meta = core.meta, geom = core.geom;
     if (ref.kind === 'activation') return NOOP; // resized by its top / bottom handles
-    return metaGesture('Move', (dx, dy, ev) => {
+    return metaGesture(core, 'Move', (dx, dy, ev) => {
       const opts: MoveOpts = { snap: ev.altKey ? 0 : core.snap };
       if (part === 'label') opts.part = 'label';
       core.write({ meta: moveItem(model, meta, geom, ref, dx, dy, opts).meta });
@@ -66,7 +44,7 @@ export function installSelectGestures(scope: SelectScope, st: SelectState): void
 
   const multiMoveGesture = (keepSnapWithAlt = false): Gesture => {
     const model = core.model, meta = core.meta, geom = core.geom, sel = core.selection();
-    return metaGesture('Move', (dx, dy, ev) => {
+    return metaGesture(core, 'Move', (dx, dy, ev) => {
       const snap = ev.altKey && !keepSnapWithAlt ? 0 : core.snap;
       core.write({ meta: moveItems(model, meta, geom, sel, dx, dy, snap).meta });
     });
@@ -114,7 +92,7 @@ export function installSelectGestures(scope: SelectScope, st: SelectState): void
     // and the size goes to the code (`h` / `w` in its node data) when the drag ends, so stock Mermaid draws it the same
     const media = b.asset ? withEdit(core.model, (k, m) => k.media?.(m, s, core)) : null;
     const asset = media?.node ? b.asset : undefined;
-    const g = metaGesture('Resize', (dx, dy, ev) => {
+    const g = metaGesture(core, 'Resize', (dx, dy, ev) => {
       st.sizing = s;
       core.write({ meta: cloneMeta(meta0) });
       const m = core.ensure(kind, id);

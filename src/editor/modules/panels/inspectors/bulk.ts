@@ -7,7 +7,7 @@ import { baseStyleOf, presetsFor } from '../../../../core/ops/style-env.js';
 import { STYLE_FIELDS } from '../../../../core/schema/style-fields.js';
 import type { ItemKind, ItemRef } from '../../../../core/types.js';
 import { h } from '../../../../ui/kit/h.js';
-import { applyMeta, styleEnv } from '../../../ops/doc.js';
+import { applyMeta } from '../../../ops/doc.js';
 import { field } from '../fields.js';
 import { bulkTarget, layerRow, lineDefaults, lineFields, multiActions, pickerSection, roundedBox, sect, type PanelCtx } from './shared.js';
 
@@ -31,7 +31,7 @@ export function multiInspector(p: PanelCtx, host: HTMLElement): void {
 export function bulkInspector(p: PanelCtx, host: HTMLElement, kind: ItemKind, sel: readonly ItemRef[]): void {
   const { core } = p;
   const t = core.i18n.t;
-  const env = styleEnv(core);
+  const env = core.styleEnv();
   const refs = sel.map(({ kind: k, id }) => ({ kind: k, id }));
   const kindName = t(`props.kinds.${kind}`);
   host.append(h('div', { class: 'insp-title' }, t('props.bulkTitle', { n: refs.length, kind: kindName.startsWith('props.') ? kind : kindName })),

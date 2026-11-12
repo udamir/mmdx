@@ -7,6 +7,7 @@ import type { ItemKind } from '../../../core/types.js';
 import type { Gesture, Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { GESTURE } from '../../lib/priorities.js';
+import { sameRef } from '../../lib/refs.js';
 
 export const PAINT_CSS = /* css */ `
 .ed.tool-paint svg.canvas, .ed.tool-paint svg.canvas .el, .ed.tool-paint svg.canvas .el * { cursor: copy !important; }
@@ -39,7 +40,7 @@ export const canvasPaintModule: EditorModule = {
       const env = core.styleEnv();
       let meta = env.meta, reason: string | undefined;
       for (const target of targets) {
-        if (paintFrom && target.kind === clip.kind && target.id === paintFrom.id) continue;
+        if (paintFrom && sameRef(target, paintFrom)) continue;
         const res = pasteStyleOp({ ...env, meta }, clip, target);
         if (res.reason) reason ??= res.reason;
         else meta = res.meta;

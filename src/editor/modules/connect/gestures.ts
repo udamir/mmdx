@@ -6,6 +6,7 @@ import type { ItemKind, ItemRef } from '../../../core/types.js';
 import type { EditorCore, Gesture, Hit } from '../../core.js';
 import { deepInside, endpointBox, endpointId, geomBoxOf, portOn, projectToBox, targetAt } from '../../lib/geometry.js';
 import { GESTURE } from '../../lib/priorities.js';
+import { gestureTx, metaGesture } from '../../ops/gesture.js';
 import { createConnection, isLine, NOOP, reconnect, type LineKind } from './lib.js';
 import type { ConnScope, ConnState } from './state.js';
 
@@ -60,15 +61,12 @@ function portDrag(core: EditorCore, st: ConnState, hit: Hit, which: 'a' | 'b', k
   const orig = { side: m0[sk], at: m0[ak] };
   const current = endpointId(core, kind, id, which);
   const p0 = hit.p;
-  let began = false;
+  const tx = gestureTx(core);
   let target: { t: ItemRef; side?: Side; at?: number } | null = null;
   if (box) st.magnets = { box, side: orig.side, at: orig.at };
   return {
     move(dx, dy, ev) {
-      if (!began) {
-        core.begin();
-        began = true;
-      }
+      tx.begin();
       const m = core.ensure(kind, id);
       const cur = { x: p0.x + dx, y: p0.y + dy };
       const t = targetAt(core, ev);
@@ -104,12 +102,12 @@ function portDrag(core: EditorCore, st: ConnState, hit: Hit, which: 'a' | 'b', k
       if (target) {
         core.store.rollback();
         if (!reconnect(core, kind, id, which, target.t, target.side, target.at)) core.afterChange();
-      } else if (began) core.commit('Move connector end');
+      } else tx.commit('Move connector end');
     },
     cancel() {
       st.magnets = null;
       st.active = false;
-      if (began) core.rollback();
+      tx.rollback();
     },
   };
 }
@@ -118,7 +116,7 @@ function portDrag(core: EditorCore, st: ConnState, hit: Hit, which: 'a' | 'b', k
 function bendDrag(core: EditorCore, st: ConnState, hit: Hit, handle: Element, kind: LineKind, id: string): Gesture {
   const isNew = handle.getAttribute('data-handle') === 'bendNew';
   const j = Number(handle.getAttribute(isNew ? 'data-i' : 'data-j'));
-  let added = !isNew, began = false;
+  let added = !isNew;
   const p0 = hit.p;
   // select the line (the overlay is redrawn; the pointer is captured by the canvas)
   const p = core.primary();
@@ -126,31 +124,16 @@ function bendDrag(core: EditorCore, st: ConnState, hit: Hit, handle: Element, ki
     st.hoverEdge = null;
     core.select([{ kind, id }]);
   }
-  return {
-    move(dx, dy, ev) {
-      if (!began) {
-        core.begin();
-        began = true;
-      }
-      const m = core.ensure(kind, id);
-      const pt: [number, number] = [core.snapV(p0.x + dx, ev), core.snapV(p0.y + dy, ev)];
-      const pts = (m.points ?? []).map((q): [number, number] => [q[0], q[1]]);
-      if (!added) {
-        pts.splice(j, 0, pt);
-        added = true;
-      } else pts[j] = pt;
-      m.points = pts;
-      core.draw();
-    },
-    end() {
-      st.active = false;
-      if (began) core.commit('Bend line');
-    },
-    cancel() {
-      st.active = false;
-      if (began) core.rollback();
-    },
-  };
+  return metaGesture(core, 'Bend line', (dx, dy, ev) => {
+    const m = core.ensure(kind, id);
+    const pt: [number, number] = [core.snapV(p0.x + dx, ev), core.snapV(p0.y + dy, ev)];
+    const pts = (m.points ?? []).map((q): [number, number] => [q[0], q[1]]);
+    if (!added) {
+      pts.splice(j, 0, pt);
+      added = true;
+    } else pts[j] = pt;
+    m.points = pts;
+  }, () => (st.active = false));
 }
 
 function removeBendPoint(core: EditorCore, kind: LineKind, id: string, j: number): void {

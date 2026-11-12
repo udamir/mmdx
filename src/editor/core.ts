@@ -567,6 +567,11 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     this.selections.toggle(it);
   }
 
+  /** The drawn items' elements by item key (`kind:id`; main element and parts), read once per paint (X17): what the marquee, the toolbars' anchors and the marks look up. */
+  drawnItems(): ReadonlyMap<string, readonly Element[]> {
+    return this.storeScene.drawnItems();
+  }
+
   /** The drawn picture's selection marks (the picture itself does not depend on the selection, P4). */
   decorateSelection(): void {
     this.storeScene.decorateSelection();
@@ -875,10 +880,17 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   // ---- style environment (canvas module, additive) -----------------------------------------------------------------
 
-  /** Model, metadata and theme of the current render, for the style ops (`src/core/ops/style-env.ts`). */
+  /**
+   * The style environment of the current document, for the style ops (`src/core/ops/style-env.ts`): its model and metadata, the active theme resolved and merged unresolved (`rawTheme`, read when asked: a preset saved from a theme preset keeps its palette references), and the render's colour resolver. The one builder (X17, BUG-009): `ops/doc.ts` had a second one, with `rawTheme`.
+   */
   styleEnv(): StyleEnv {
-    const r = this.result;
-    return { model: this.model, meta: this.meta, theme: r.theme, color: (v: unknown) => r.rctx.color(v) };
+    const r = this.result, themes = this.ctx.themes;
+    return {
+      model: this.model, meta: this.meta, theme: r.theme, color: (v: unknown) => r.rctx.color(v),
+      get rawTheme() {
+        return themes.merged(r.themeId);
+      },
+    };
   }
 
   /** A swim-lane group (preset `lane`): never selected by clicks inside it, by the marquee or by ⌘A. */

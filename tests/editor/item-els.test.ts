@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-// itemEls matches by selector (P22): ids with quotes, backslashes and line breaks still find their elements only.
+// itemEls finds an item's elements in the drawn items (the store scene reads them once per paint; X17): ids with quotes, backslashes and line breaks still find their elements only.
 import { describe, expect, it } from 'vitest';
 import { itemEls } from '../../src/editor/lib/canvas.js';
+import { StoreScene } from '../../src/editor/scene.js';
 
 describe('itemEls', () => {
   it('finds an item by kind and id, whatever its id holds', () => {
@@ -15,7 +16,9 @@ describe('itemEls', () => {
         e.setAttribute('data-id', id);
         body.append(e);
       }
-    const core = { dom: { body } } as unknown as Parameters<typeof itemEls>[0];
+    const stub = { dom: { body } } as unknown as ConstructorParameters<typeof StoreScene>[0];
+    const scene = new StoreScene(stub);
+    const core = { ...stub, drawnItems: () => scene.drawnItems() } as unknown as Parameters<typeof itemEls>[0];
     for (const id of ids) {
       const found = itemEls(core, { kind: 'node', id });
       expect(found).toHaveLength(1);

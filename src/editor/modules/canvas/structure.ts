@@ -9,7 +9,7 @@ import type { DiagramModel } from '../../../core/model.js';
 import { withKind } from '../../../core/kinds/registry.js';
 import { reparse } from '../../../core/parse/dispatch.js';
 import {
-  alignItems, cloneMeta, copyItems, duplicateItems, groupHasPositions, lockedItems, moveOrder, pasteable, pasteItems, remapMeta, unlockAll as unlockAllOp, type AlignOp,
+  alignItems, cloneMeta, copyItems, duplicateItems, groupHasPositions, lockedItems, pasteable, pasteItems, remapMeta, unlockAll as unlockAllOp, type AlignOp,
 } from '../../../core/ops/index.js';
 import type { ItemRef } from '../../../core/types.js';
 import { MENU_CSS, openMenu, type MenuItem } from '../../../ui/blocks/menu.js';
@@ -17,6 +17,7 @@ import type { EditorActions, Sel } from '../../core.js';
 import { withEdit } from '../../kinds/registry.js';
 import type { EditorModule } from '../../module.js';
 import { canGroup as canGroupSel, groupResetState, resettableGroup, resetSelectedGroup } from '../../ops/group.js';
+import { moveSelection } from '../../ops/order.js';
 import { items as nItems } from '../../lib/canvas.js';
 
 /** The board's right-click menu is the Menu block. */
@@ -177,20 +178,6 @@ export const canvasStructureModule: EditorModule = {
       core.setMeta(op.endsWith('dist') ? 'Distribute' : 'Align', res.meta);
     };
 
-    const moveSelection = (dir: -1 | 1): void => {
-      const sel = core.selection();
-      if (sel.length !== 1) {
-        core.toast('Select one item to move it');
-        return;
-      }
-      const res = moveOrder(core.code, core.meta, core.model, core.geom, sel[0]!, dir);
-      if (res.reason) {
-        core.toast(res.reason);
-        return;
-      }
-      core.applyCode({ code: res.code, meta: res.meta }, 'Move in order', { select: res.selection ?? sel });
-    };
-
     // ---- right-click on the board ------------------------------------------------------------------------------
 
     const showContextMenu = (clientX: number, clientY: number, at: { x: number; y: number }): void => {
@@ -252,7 +239,7 @@ export const canvasStructureModule: EditorModule = {
       core.provide('arrange', arrange),
     ]) scope.onDispose(off);
     // ⌘[ / ⌘]: the order slider's module may provide its own; this one is the fallback.
-    scope.onDispose(core.provideDefault('moveSelection', moveSelection));
+    scope.onDispose(core.provideDefault('moveSelection', (dir) => moveSelection(core, dir)));
 
     core.shortcuts.add(
       { id: 'copy', keys: ['mod+c'], label: 'Copy', group: 'Edit', editOnly: true, readOnly: true, run: () => (core.selection().length ? copySelection() : false) },

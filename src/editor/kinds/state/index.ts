@@ -10,7 +10,7 @@ import {
   addEnd, addNote, addRegion, addStart, addState, canMakeComposite, connectState, deleteState, innerPseudo, makeComposite, reconnectState, relabelNote,
   relabelState, relabelTransition, scopeOf, setCompositeDirection, setDescriptions, setNoteSide, setStateKind, stateFragment, ungroupState, type StateScope,
 } from '../../../core/kinds/state/ops.js';
-import { cloneMeta, ensure as ensureIn } from '../../../core/ops/meta-util.js';
+import { cloneMeta } from '../../../core/ops/meta-util.js';
 import { NEW_IMAGE } from '../../../core/ops/media.js';
 import { metaMediaSource } from '../../../core/media/meta-source.js';
 import { metaItemMedia } from '../meta-media.js';
@@ -20,15 +20,14 @@ import type { ItemRef, Point } from '../../../core/types.js';
 import type { DiagramMeta } from '../../../core/meta/types.js';
 import { OPS as STATE_OPS } from '../../../core/kinds/state/ops-kind.js';
 import type { EditorCore, Sel } from '../../core.js';
-import { focusLabel } from '../../lib/shape-drop.js';
+import { placeNew } from '../../ops/insert.js';
 import { blockIcon, noteIcon, shapeIcon, type PaletteItem } from '../palette.js';
 import type { EditKind, PropControl } from '../types.js';
+import { innermostAt, newestBetween, oneLine } from '../util.js';
 
 // the editor's shape menus and previews draw any catalogue shape (metadata `shape`) and rich labels at once, as its
 // flowchart does: this chunk registers the extended geometry and the media kit statically
 registerExtendedShapes();
-
-const one = (s: string): string => s.replace(/\n/g, ' ');
 
 const KIND_NAMES: Readonly<Record<StateKind, string>> = { state: 'state', start: 'start', end: 'end', choice: 'choice', fork: 'fork', join: 'join' };
 
@@ -52,14 +51,10 @@ const geomOf = (core: EditorCore): StateGeometry | null => (core.geom.type === '
 function scopeAt(core: EditorCore, M: StateModel, pt: Point): StateScope {
   const g = geomOf(core);
   if (!g) return { g: null, r: 0 };
-  let best: { id: string; a: number } | null = null;
-  for (const [id, b] of g.groups) {
-    if (b.hidden) continue;
-    if (Math.abs(pt.x - b.x) <= b.w / 2 && Math.abs(pt.y - b.y) <= b.h / 2 && (!best || b.w * b.h < best.a)) best = { id, a: b.w * b.h };
-  }
+  const best = innermostAt(g.groups, pt);
   if (!best) return { g: null, r: 0 };
-  const G = M.groups.get(best.id);
-  if (!G || G.regions < 2) return { g: best.id, r: 0 };
+  const G = M.groups.get(best);
+  if (!G || G.regions < 2) return { g: best, r: 0 };
   // the region whose states are nearest
   let r = 0, d = Infinity;
   for (const c of G.children) {
@@ -72,7 +67,7 @@ function scopeAt(core: EditorCore, M: StateModel, pt: Point): StateScope {
       r = k;
     }
   }
-  return { g: best.id, r };
+  return { g: best, r };
 }
 
 /** The state (or composite) nearest a point in a scope (pseudo-states left out), within `max`. */
@@ -96,14 +91,10 @@ function nearest(core: EditorCore, M: StateModel, pt: Point, scope: StateScope |
 }
 
 /** Applies an op that adds an item, places it at the point (states) and opens its text. */
-function placeNew(core: EditorCore, M: StateModel, code: string, sel: Sel, pt: Point | null, history: string, extra?: Record<string, unknown>, edit = true): boolean {
+function placeState(core: EditorCore, M: StateModel, code: string, sel: Sel, pt: Point | null, history: string, extra?: Record<string, unknown>, edit = true): boolean {
   const N = parseState(code);
-  const meta = cloneMeta(remapMeta(M, core.code, N, code, core.meta));
-  if (sel.kind === 'node' && pt) Object.assign(ensureIn(meta, 'node', sel.id), { x: Math.round(pt.x), y: Math.round(pt.y) });
-  if (extra) Object.assign(ensureIn(meta, sel.kind, sel.id), extra);
-  const ok = core.applyCode({ code, meta }, history, { select: [sel] });
-  if (ok && edit && N.nodes.get(sel.id)?.kind !== 'start' && !isPseudo(sel.id)) focusLabel(core, sel);
-  return ok;
+  const patch = { ...(sel.kind === 'node' && pt ? { x: Math.round(pt.x), y: Math.round(pt.y) } : {}), ...extra };
+  return placeNew(core, { code, meta: remapMeta(M, core.code, N, code, core.meta) }, sel, history, { patch, edit: edit && N.nodes.get(sel.id)?.kind !== 'start' && !isPseudo(sel.id) });
 }
 
 /** A palette item, an icon or an image dropped at a point. */
@@ -118,7 +109,7 @@ function dropItem(core: EditorCore, M: StateModel, key: string, pt: Point, extra
       if (r.select && M.nodes.has(r.select.id)) core.select([r.select]);
       return false;
     }
-    return r.select ? placeNew(core, M, r.code, r.select, null, key === 'start' ? 'Add start' : 'Add end', undefined, false) : false;
+    return r.select ? placeState(core, M, r.code, r.select, null, key === 'start' ? 'Add start' : 'Add end', undefined, false) : false;
   }
   if (key === 'note') {
     const target = nearest(core, M, pt, null, 400, true);
@@ -130,7 +121,7 @@ function dropItem(core: EditorCore, M: StateModel, key: string, pt: Point, extra
     const r = addNote(core.code, M, target, b && pt.x < b.x ? 'left' : 'right', extra?.label ?? 'Note');
     const N = parseState(r.code);
     const n = N.notes.find((x) => x.line === r.line);
-    return n ? placeNew(core, M, r.code, { kind: 'note', id: n.id }, null, 'Add note', preset) : false;
+    return n ? placeState(core, M, r.code, { kind: 'note', id: n.id }, null, 'Add note', preset) : false;
   }
   if (key === 'composite') {
     const r = addState(core.code, M, { scope });
@@ -138,11 +129,11 @@ function dropItem(core: EditorCore, M: StateModel, key: string, pt: Point, extra
     const N = parseState(r.code);
     const res = makeComposite(r.code, N, [r.select]);
     if (res.reason || !res.select) return false;
-    return placeNew(core, M, res.code, res.select, null, 'Add composite', preset);
+    return placeState(core, M, res.code, res.select, null, 'Add composite', preset);
   }
   const kind: StateKind = key === 'choice' || key === 'fork' || key === 'join' ? key : 'state';
   const r = addState(core.code, M, { kind, scope, ...(extra?.label ? { label: extra.label } : {}) });
-  return placeNew(core, M, r.code, r.select, pt, 'Add state', { ...preset, ...extra?.meta }, kind === 'state');
+  return placeState(core, M, r.code, r.select, pt, 'Add state', { ...preset, ...extra?.meta }, kind === 'state');
 }
 
 export const EDIT: EditKind<StateModel, StateGeometry> = {
@@ -152,11 +143,11 @@ export const EDIT: EditKind<StateModel, StateGeometry> = {
       const n = M.nodes.get(id);
       if (!n) return null;
       if (n.kind === 'start' || n.kind === 'end') return { title: n.kind === 'start' ? 'Start' : 'End', sub: `${n.kind} · ${n.parent ? `in ${n.parent}` : 'top level'}` };
-      return { title: one(n.label) || id, sub: `${KIND_NAMES[n.kind]} · id ${id}${n.parent ? ` · in ${n.parent}` : ''}${n.classes.length ? ' · :::' + n.classes.join(',') : ''}` };
+      return { title: oneLine(n.label) || id, sub: `${KIND_NAMES[n.kind]} · id ${id}${n.parent ? ` · in ${n.parent}` : ''}${n.classes.length ? ' · :::' + n.classes.join(',') : ''}` };
     }
     if (kind === 'group') {
       const g = M.groups.get(id);
-      return g ? { title: one(g.label) || id, sub: `composite state · id ${id}${g.regions > 1 ? ` · ${g.regions} regions` : ''}` } : null;
+      return g ? { title: oneLine(g.label) || id, sub: `composite state · id ${id}${g.regions > 1 ? ` · ${g.regions} regions` : ''}` } : null;
     }
     if (kind === 'edge') {
       const e = M.edges.find((x) => x.id === id);
@@ -164,7 +155,7 @@ export const EDIT: EditKind<StateModel, StateGeometry> = {
     }
     if (kind === 'note') {
       const n = M.notes.find((x) => x.id === id);
-      return n ? { title: one(n.text), sub: `note ${n.side} of ${n.target}` } : null;
+      return n ? { title: oneLine(n.text), sub: `note ${n.side} of ${n.target}` } : null;
     }
     return null;
   },
@@ -196,7 +187,7 @@ export const EDIT: EditKind<StateModel, StateGeometry> = {
     const t = core.i18n.t;
     void core.dialogs
       .choose<'all' | 'keep' | null>({
-        title: t('state.deleteTitle', { name: one(g.label) }),
+        title: t('state.deleteTitle', { name: oneLine(g.label) }),
         message: t('state.deleteMsg'),
         cancel: null,
         buttons: [{ label: t('state.cancel'), value: null }, { label: t('state.keepContents'), value: 'keep' }, { label: t('state.deleteContents'), value: 'all', danger: true }],
@@ -233,12 +224,12 @@ export const EDIT: EditKind<StateModel, StateGeometry> = {
   connectable: ['node', 'group'],
   connect: (code, from, to) => connectState(code, parseState(code), from, to),
   added(M, from, to) {
-    const e = [...M.edges].reverse().find((x) => x.from === from && x.to === to);
+    const e = newestBetween(M.edges, from, to);
     return e ? { ref: { kind: 'edge', id: e.id }, ports: true } : null;
   },
   connected: { label: 'Add transition', toast: 'Transition added — double-click it to give it a label' },
   reconnect: (code, M, ref, which, target) => (ref.kind === 'edge' ? reconnectState(code, M, ref.id, which, target) : null),
-  reconnected: (M, r) => [...M.edges].reverse().find((e) => e.from === r.from && e.to === r.to)?.id,
+  reconnected: (M, r) => newestBetween(M.edges, r.from, r.to)?.id,
   // Mermaid has no shapes for states: one from the toolbar stays in metadata (mmdx only)
   palette: {
     mode: 'menu',

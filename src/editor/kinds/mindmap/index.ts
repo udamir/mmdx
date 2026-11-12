@@ -9,21 +9,20 @@ import { addMindChild, addMindRoot, deleteMind, mindFragment, mindNodeAt, MIND_N
 import { NEW_IMAGE } from '../../../core/ops/media.js';
 import { metaMediaSource } from '../../../core/media/meta-source.js';
 import { metaItemMedia } from '../meta-media.js';
-import { cloneMeta, ensure as ensureIn } from '../../../core/ops/meta-util.js';
 import { MIND_SHAPES } from '../../../core/kinds/mindmap/parse.js';
 import { registerExtendedShapes } from '../../../core/extras.js';
 import type { MindmapGeometry } from '../../../core/render/types.js';
 import type { Point } from '../../../core/types.js';
 import type { EditorCore, Sel } from '../../core.js';
-import { focusLabel } from '../../lib/shape-drop.js';
+import { placeNew } from '../../ops/insert.js';
 import { shapeIcon, type PaletteItem } from '../palette.js';
 import type { EditKind } from '../types.js';
+import { oneLine } from '../util.js';
 
 // the editor draws bang, cloud and the default node's catalogue entry, icons and rich labels at once (as its
 // flowchart does through the catalogue), so this chunk registers the geometry and the media kit statically
 registerExtendedShapes();
 
-const one = (s: string): string => s.replace(/\n/g, ' ');
 
 /** Mermaid's names of the shapes, as the menu shows them. */
 const SHAPE_NAMES: Readonly<Record<MindShape, string>> = {
@@ -60,15 +59,9 @@ function addNode(core: EditorCore, M: MindmapModel, at: Point | null, label: str
   const n = N.type === 'mindmap' ? mindNodeAt(N, res.line) : undefined;
   if (!n) return false;
   const sel: Sel = { kind: 'node', id: n.id };
-  let ok: boolean;
-  if (meta) {
-    // the new line renumbers the nodes after it: their metadata follows first
-    const m = cloneMeta(N.type === 'mindmap' ? remapMindMeta(core.meta, M, N) : core.meta);
-    Object.assign(ensureIn(m, 'node', n.id), meta);
-    ok = core.applyCode({ code: res.code, meta: m }, history, { select: [sel] });
-  } else ok = core.applyCode({ code: res.code }, history, { select: [sel] });
-  if (ok && edit) focusLabel(core, sel);
-  return ok;
+  // with metadata for the new node: the new line renumbers the nodes after it, so their metadata follows first
+  const doc = meta ? { code: res.code, meta: N.type === 'mindmap' ? remapMindMeta(core.meta, M, N) : core.meta } : { code: res.code };
+  return placeNew(core, doc, sel, history, { ...(meta ? { patch: meta } : {}), edit });
 }
 
 export const EDIT: EditKind<MindmapModel, MindmapGeometry> = {
@@ -77,7 +70,7 @@ export const EDIT: EditKind<MindmapModel, MindmapGeometry> = {
     const n = kind === 'node' ? M.nodes.get(id) : undefined;
     if (!n) return null;
     const what = n.parent ? `node · depth ${n.depth}` : 'root';
-    return { title: one(n.label) || id, sub: `${what} · id ${id} · ${n.shape === 'mm-default' ? 'default' : n.shape}${n.classes.length ? ' · :::' + n.classes.join(' ') : ''}` };
+    return { title: oneLine(n.label) || id, sub: `${what} · id ${id} · ${n.shape === 'mm-default' ? 'default' : n.shape}${n.classes.length ? ' · :::' + n.classes.join(' ') : ''}` };
   },
   text(M, { kind, id }) {
     const n = kind === 'node' ? M.nodes.get(id) : undefined;

@@ -4,6 +4,7 @@
 // the marks and the overlay, never the picture (P4).
 import { effect, untracked, type ReadSignal, type Signal } from '../../reactive/signal.js';
 import { itemKey, type ItemRef } from '../../core/types.js';
+import { sameRef } from '../lib/refs.js';
 
 /** A selected item; `foot`: a participant's copy at the bottom. */
 type Pick = ItemRef & { foot?: boolean };
@@ -56,7 +57,7 @@ export class SelectionService {
   }
 
   has(r: ItemRef): boolean {
-    return this.current().some((x) => x.kind === r.kind && x.id === r.id);
+    return this.current().some((x) => sameRef(x, r));
   }
 
   set(items: readonly Pick[]): void {
@@ -92,7 +93,7 @@ export class SelectionService {
 
   toggle(it: Pick): void {
     const cur = this.list();
-    const i = cur.findIndex((x) => x.kind === it.kind && x.id === it.id);
+    const i = cur.findIndex((x) => sameRef(x, it));
     if (i >= 0) {
       cur.splice(i, 1);
       this.set(cur);

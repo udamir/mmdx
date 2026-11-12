@@ -1,11 +1,8 @@
-// Document ops of the editor (no UI): the style environment of the current render, metadata and code + metadata
-// changes applied as one history step, and the diagram-wide settings (type, direction, autonumber) the Properties
-// panel and the page toolbar share.
+// Document ops of the editor (no UI): metadata and code + metadata changes applied as one history step, and the diagram-wide settings (type, direction, autonumber) the Properties panel and the page toolbar share.
 import type { DiagramMeta } from '../../core/meta/types.js';
 import type { Direction, DiagramType } from '../../core/model.js';
 import { setAutonumber } from '../../core/kinds/sequence/ops.js';
 import { newDiagram, setDirection } from '../../core/ops/document.js';
-import type { StyleEnv } from '../../core/ops/style-env.js';
 import { DIAGRAM_TYPES as TYPES, kindInfo } from '../../core/kinds/info.js';
 import type { MetaResult } from '../../core/ops/types.js';
 import type { EditorCore, Sel } from '../core.js';
@@ -13,12 +10,6 @@ import type { EditorCore, Sel } from '../core.js';
 /** The diagram types with their names' i18n keys (the type pickers; registered kinds too). */
 export const diagramTypeChoices = (): (readonly [DiagramType, string])[] => TYPES.map((t) => [t, kindInfo(t)!.label] as const);
 export const FLOW_DIRS: readonly (readonly [Direction, string])[] = [['TB', 'dir.TB'], ['LR', 'dir.LR'], ['BT', 'dir.BT'], ['RL', 'dir.RL']];
-
-/** The style environment (model, metadata, active theme, colour resolver) of the current document. */
-export function styleEnv(core: EditorCore): StyleEnv {
-  const r = core.result;
-  return { model: core.model, meta: core.meta, theme: r.theme, rawTheme: core.ctx.themes.merged(r.themeId), color: r.rctx.color };
-}
 
 /** Applies a metadata op as one history step; a refused op (reason) shows a toast and changes nothing. */
 export function applyMeta(core: EditorCore, label: string, res: MetaResult): boolean {

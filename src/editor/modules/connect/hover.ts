@@ -3,7 +3,8 @@
 import type { ItemKind, ItemRef } from '../../../core/types.js';
 import type { Sel } from '../../core.js';
 import { canConnect } from '../../lib/geometry.js';
-import { isLine, sameRef } from './lib.js';
+import { sameRef } from '../../lib/refs.js';
+import { isLine } from './lib.js';
 import { connBusy, edgeGeom, type ConnScope, type ConnState } from './state.js';
 
 export function installConnectHover(scope: ConnScope, st: ConnState): void {

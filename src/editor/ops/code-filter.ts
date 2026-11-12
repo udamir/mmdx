@@ -4,6 +4,7 @@ import { withOps } from '../../core/kinds/registry.js';
 import { relatedLines } from '../../core/item-lines.js';
 import type { DiagramModel } from '../../core/model.js';
 import type { ItemRef } from '../../core/types.js';
+import { sameRef } from '../lib/refs.js';
 
 /** The element whose id is exactly `tok` (any kind in the current diagram). */
 const findElement = (M: DiagramModel, tok: string): ItemRef | null => withOps(M, (k, m) => k.find(m, tok)) ?? null;
@@ -32,7 +33,7 @@ export function filterItems(M: DiagramModel, query: string): ItemRef[] | null {
   // exact ids of items without searchable text (processes)
   for (const tok of tokens) {
     const el = findElement(M, tok);
-    if (el && !out.some((r) => r.kind === el.kind && r.id === el.id)) out.push(el);
+    if (el && !out.some((r) => sameRef(r, el))) out.push(el);
   }
   return out;
 }

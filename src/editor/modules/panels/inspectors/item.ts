@@ -7,7 +7,7 @@ import { baseStyleOf, presetsFor } from '../../../../core/ops/style-env.js';
 import { STYLE_FIELDS } from '../../../../core/schema/style-fields.js';
 import type { ItemKind, ItemRef } from '../../../../core/types.js';
 import { h } from '../../../../ui/kit/h.js';
-import { applyMeta, styleEnv } from '../../../ops/doc.js';
+import { applyMeta } from '../../../ops/doc.js';
 import { animationOf, setAnimation } from '../../../ops/animation.js';
 import { groupResetState, resetSelectedGroup } from '../../../ops/group.js';
 import { describe, labelSpec } from '../../../ops/label.js';
@@ -128,7 +128,7 @@ function activationInspector(p: PanelCtx, host: HTMLElement, id: string): void {
   const ref: ItemRef = { kind: 'activation', id };
   pickerSection(p, host, ref);
   sect(host, t('props.appearance'));
-  const target = itemTarget(p, ref, baseStyleOf(styleEnv(core), 'activation', id));
+  const target = itemTarget(p, ref, baseStyleOf(core.styleEnv(), 'activation', id));
   for (const f of STYLE_FIELDS.activation) field(core.i18n, host, f, target);
   const del = h('button', { type: 'button' }, t('props.removeProcess'));
   del.addEventListener('click', () => core.run('deleteSelection'));
@@ -141,7 +141,7 @@ export function itemInspector(p: PanelCtx, host: HTMLElement, kind: ItemKind, id
   const t = core.i18n.t;
   const M = core.model;
   if (kind === 'activation') return activationInspector(p, host, id);
-  const env = styleEnv(core);
+  const env = core.styleEnv();
   const ref: ItemRef = { kind, id };
   const info = describe(M, kind, id);
   host.append(h('div', { class: 'insp-title' }, info.title), h('div', { class: 'insp-sub' }, info.sub));

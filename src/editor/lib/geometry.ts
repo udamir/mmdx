@@ -10,6 +10,7 @@ import type { Side } from '../../core/style.js';
 import type { CenterBox, ItemKind, ItemRef, Point } from '../../core/types.js';
 import type { EditorCore } from '../core.js';
 import { withEdit } from '../kinds/registry.js';
+import { sameRef } from './refs.js';
 
 
 
@@ -75,7 +76,7 @@ export function elementsAt(core: EditorCore, ev: { clientX: number; clientY: num
 export function targetAt(core: EditorCore, ev: { clientX: number; clientY: number }, exclude?: ItemRef | null): ItemRef | null {
   const kinds = kindsOf(core);
   const ok = (t: ItemRef): boolean =>
-    kinds.includes(t.kind) && canConnect(core, t.kind, t.id) && !(exclude && exclude.kind === t.kind && exclude.id === t.id);
+    kinds.includes(t.kind) && canConnect(core, t.kind, t.id) && !(exclude && sameRef(exclude, t));
   const els = elementsAt(core, ev);
   if (els.length) {
     for (const n of els) {
@@ -102,7 +103,7 @@ export function targetAt(core: EditorCore, ev: { clientX: number; clientY: numbe
 
 /** The item at end `a` (from) / `b` (to) of a connector. */
 export function endpointId(core: EditorCore, kind: ItemKind, id: string, which: 'a' | 'b'): string | null {
-  const c = (withKind(core.model, (k, m) => k.connectors(m)) ?? []).find((x) => x.ref.kind === kind && x.ref.id === id);
+  const c = (withKind(core.model, (k, m) => k.connectors(m)) ?? []).find((x) => sameRef(x.ref, { kind, id }));
   return c ? (which === 'a' ? c.from.id : c.to.id) : null;
 }
 

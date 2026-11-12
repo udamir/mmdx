@@ -14,7 +14,7 @@ import type { Sel, TextEditSession } from '../../core.js';
 import { saveItemAsPreset, presetPicker } from '../../lib/presets.js';
 import { styleWithShapes } from '../../ops/shape.js';
 import { mediaOf, mediaTargets, setImageFit, setMediaOf } from '../../ops/media.js';
-import { applyMeta, styleEnv } from '../../ops/doc.js';
+import { applyMeta } from '../../ops/doc.js';
 import { canGroup, groupResetState, resetSelectedGroup } from '../../ops/group.js';
 import { LINE_KINDS } from '../../lib/canvas.js';
 import { formatsAt, hasMarkup, toggleFormat } from '../../ops/format.js';
@@ -29,7 +29,7 @@ import { themeStyleTarget } from '../../../ui/diagram/style-toolbar/theme-target
 const BOX_LOOK: ReadonlySet<string> = new Set(['fill', 'fillOpacity', 'stroke', 'strokeWidth', 'strokeOpacity', 'radius', 'dash', 'shape', 'stack']);
 
 export function styleToolbarApi({ core, t, live, primary, multi }: BarContext, pal: PaletteApi, order: OrderSlider): ToolbarApi {
-  const env = () => styleEnv(core);
+  const env = () => core.styleEnv();
   const textTarget = (): Pick<TextEditSession, 'formats' | 'format'> | null => {
     if (core.inlineEditing) return core.textEdit?.rich ? core.textEdit : null;
     const s = primary();

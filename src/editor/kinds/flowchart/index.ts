@@ -4,12 +4,11 @@ import { addFlowEdge, edgeText, nodeDef, reconnectFlow } from '../../../core/ops
 import { deleteFlow, groupFlow, relabelFlowEdge, relabelFlowNode, relabelGroup, setFlowShape, ungroupFlow, addFlowNode } from '../../../core/kinds/flowchart/ops.js';
 import type { FlowGeometry } from '../../../core/render/types.js';
 import type { Sel, EditorCore } from '../../core.js';
-import { cloneMeta, ensure as ensureIn } from '../../../core/ops/meta-util.js';
 import { fixIdClash } from '../../../core/kinds/flowchart/ops.js';
 import { flowPresets } from '../../../core/kinds/flowchart/presets.js';
 import type { Point, ItemRef } from '../../../core/types.js';
-import { focusLabel } from '../../lib/shape-drop.js';
 import { applyDoc } from '../../ops/doc.js';
+import { placeNew } from '../../ops/insert.js';
 import { metaOnlyShapes, shapeDoc } from '../../ops/shape.js';
 import { shapeIcon, type PaletteItem } from '../palette.js';
 import { registerExtendedShapes } from '../../../core/extras.js';
@@ -19,24 +18,14 @@ import { addFlowMediaNode, flowMedia, IMAGE_NODE_SIZE, setFlowIconNode, setFlowI
 import type { SelectResult } from '../../../core/ops/types.js';
 import { flowEdgeAnimation, setFlowEdgeAnimation } from '../../../core/kinds/flowchart/ops-edge.js';
 import type { EditKind } from '../types.js';
+import { innermostAt, newestBetween, oneLine } from '../util.js';
 
 // the editor draws every catalogue shape, icons and rich labels at once: this chunk registers the geometry and the
 // media kit statically
 registerExtendedShapes();
 
-const one = (s: string): string => s.replace(/\n/g, ' ');
-
 /** The innermost visible group around a point (a dropped shape joins it). */
-function groupAt(core: EditorCore, pt: Point): string | null {
-  const gm = core.geom;
-  if (gm.type !== 'flowchart') return null;
-  let best: { id: string; a: number } | null = null;
-  gm.groups.forEach((b, id) => {
-    if (b.hidden) return;
-    if (Math.abs(pt.x - b.x) <= b.w / 2 && Math.abs(pt.y - b.y) <= b.h / 2 && (!best || b.w * b.h < best.a)) best = { id, a: b.w * b.h };
-  });
-  return (best as { id: string } | null)?.id ?? null;
-}
+const groupAt = (core: EditorCore, pt: Point): string | null => (core.geom.type === 'flowchart' ? innermostAt(core.geom.groups, pt) : null);
 
 /** A catalogue shape as a palette item: its name, the words search finds it by, its tooltip. */
 const shapeItem = (def: ShapeDef): PaletteItem => ({
@@ -57,14 +46,8 @@ const SECTIONS = SHAPE_MENU.map(({ cat, ids }) => ({
 const isIconOf = (core: EditorCore): IsIconToken => (t) => core.ctx.icons.resolve(t, 'token') !== null;
 
 /** A new node from an op placed at a point: positioned (and in the group there), its label opened for typing. */
-function placeNew(core: EditorCore, res: SelectResult & { select: ItemRef; metaShape?: string }, pt: Point, label: string, preset?: string, edit = true): boolean {
-  const meta = cloneMeta(core.meta);
-  const m = ensureIn(meta, 'node', res.select.id);
-  Object.assign(m, { x: pt.x, y: pt.y }, res.metaShape ? { shape: res.metaShape } : {}, preset ? { preset } : {});
-  const ok = core.applyCode({ code: res.code, meta }, label, { select: [res.select] });
-  if (ok && edit) focusLabel(core, res.select);
-  return ok;
-}
+const placeAt = (core: EditorCore, res: SelectResult & { select: ItemRef; metaShape?: string }, pt: Point, label: string, preset?: string, edit = true): boolean =>
+  placeNew(core, { code: res.code, meta: core.meta }, res.select, label, { patch: { x: pt.x, y: pt.y, ...(res.metaShape ? { shape: res.metaShape } : {}), ...(preset ? { preset } : {}) }, edit });
 
 /** An image's file name as its caption (`…/team-photo.png` → "team photo"); "Image" otherwise. */
 const imageLabel = (url: string): string => {
@@ -84,10 +67,10 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
     if (kind === 'node') {
       const n = M.nodes.get(id);
       // an icon or image node without a caption is named by its id
-      if (n) return { title: one(n.label) || id, sub: `node · id ${id} · ${n.shape}${n.classes.length ? ' · :::' + n.classes.join(',') : ''}` };
+      if (n) return { title: oneLine(n.label) || id, sub: `node · id ${id} · ${n.shape}${n.classes.length ? ' · :::' + n.classes.join(',') : ''}` };
     } else if (kind === 'group') {
       const g = M.groups.get(id);
-      return { title: one(g?.label || id) || id, sub: `subgraph · id ${id}` };
+      return { title: oneLine(g?.label || id) || id, sub: `subgraph · id ${id}` };
     } else if (kind === 'edge') {
       const e = M.edges.find((x) => x.id === id);
       if (e) return { title: e.label || `${e.from} → ${e.to}`, sub: `edge · ${e.from} → ${e.to} · ${e.line}` };
@@ -150,11 +133,11 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
   connectable: ['node', 'group'],
   connect: addFlowEdge,
   added(M, from, to) {
-    const e = [...M.edges].reverse().find((x) => x.from === from && x.to === to);
+    const e = newestBetween(M.edges, from, to);
     return e ? { ref: { kind: 'edge', id: e.id }, ports: true } : null;
   },
   reconnect: (code, M, ref, which, target) => (ref.kind === 'edge' ? reconnectFlow(code, M, ref.id, which, target) : null),
-  reconnected: (M, r) => (M.edges.find((e) => e.src === r.line && e.from === r.from && e.to === r.to) ?? [...M.edges].reverse().find((e) => e.from === r.from && e.to === r.to))?.id,
+  reconnected: (M, r) => (M.edges.find((e) => e.src === r.line && e.from === r.from && e.to === r.to) ?? newestBetween(M.edges, r.from, r.to))?.id,
   palette: {
     mode: 'menu',
     title: 'Shapes',
@@ -168,12 +151,12 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
   drop(core, M, item, pt) {
     // the shape goes to the code (a bracket, else `n3@{ shape: … }`); one Mermaid lacks stays in metadata
     const res = addFlowNode(core.code, M, { label: item.label.split(' /')[0]!, shape: item.key, group: groupAt(core, pt) });
-    return placeNew(core, res, pt, 'Add shape', item.preset);
+    return placeAt(core, res, pt, 'Add shape', item.preset);
   },
   // image nodes in Mermaid Chart's style: `n4["Photo"]` and `n4@{ img: "https://…", h: 100, w: 100, pos: "b" }`
   // an empty URL is the placeholder (`img: ""`): the node is selected, its picture chosen from the toolbar or Properties
   addImage: (core, M, url, pt) =>
-    placeNew(core, addFlowMediaNode(core.code, M, { label: imageLabel(url), data: { img: url, h: IMAGE_NODE_SIZE, w: IMAGE_NODE_SIZE, pos: 'b', constraint: 'on' }, group: groupAt(core, pt) }), pt, 'Add image', undefined, !!url),
+    placeAt(core, addFlowMediaNode(core.code, M, { label: imageLabel(url), data: { img: url, h: IMAGE_NODE_SIZE, w: IMAGE_NODE_SIZE, pos: 'b', constraint: 'on' }, group: groupAt(core, pt) }), pt, 'Add image', undefined, !!url),
   media(M, ref, core) {
     if (ref.kind !== 'node') return null;
     const m = flowMedia(M, ref.id, isIconOf(core));

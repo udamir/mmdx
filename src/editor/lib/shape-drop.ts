@@ -5,15 +5,6 @@ import type { EditorCore, Sel } from '../core.js';
 import type { PaletteItem } from '../kinds/palette.js';
 import { withEdit } from '../kinds/registry.js';
 
-/** Opens the new item's text (inline editor, else the properties panel; prototype `focusLabel`). */
-export function focusLabel(core: EditorCore, it: Sel | null): void {
-  if (!it) return;
-  setTimeout(() => {
-    if (!core.isSelected(it) || core.selection().length !== 1) return;
-    if (!core.run('inlineEdit', it)) core.run('setPanel', 'properties', true);
-  }, 0);
-}
-
 /**
  * Applies the rewrite and then styles the new item in the same history step (positional metadata is remapped by
  * applyCode, so the preset is set on the new id afterwards).

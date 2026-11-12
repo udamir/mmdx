@@ -7,6 +7,7 @@ import { mindNodeAt } from '../../../core/kinds/mindmap/ops.js';
 import type { MindmapGeometry } from '../../../core/render/types.js';
 import type { Point } from '../../../core/types.js';
 import type { EditorCore, Gesture, Sel } from '../../core.js';
+import { focusLabel } from '../../ops/insert.js';
 
 export const NOOP: Gesture = { move: () => undefined };
 
@@ -48,9 +49,7 @@ export function applyAt(core: EditorCore, res: { code: string; line?: number; re
   const n = res.line !== undefined ? mindNodeAt(N, res.line) : undefined;
   const sel: Sel[] = n ? [{ kind: 'node', id: n.id }] : [];
   const ok = core.applyCode(meta && n ? { code: res.code, meta: meta(M, N, n.id) } : { code: res.code }, label, { select: sel });
-  if (ok && edit && n) setTimeout(() => {
-    if (core.isSelected(sel[0]!) && !core.run('inlineEdit', sel[0]!)) core.run('setPanel', 'properties', true);
-  }, 0);
+  if (ok && edit) focusLabel(core, sel[0] ?? null);
   return ok;
 }
 

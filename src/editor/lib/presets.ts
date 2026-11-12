@@ -11,7 +11,7 @@ import type { ItemRef } from '../../core/types.js';
 import { h, icon } from '../../ui/kit/h.js';
 import { drawItemPreview, previewKind } from '../../ui/diagram/item-preview.js';
 import type { EditorCore } from '../core.js';
-import { applyMeta, styleEnv } from '../ops/doc.js';
+import { applyMeta } from '../ops/doc.js';
 
 const ICON_SAVE = 'M5 4.5h11l3 3V19a.5.5 0 0 1-.5.5h-13A.5.5 0 0 1 5 19zM8.5 4.5v4h6v-4M12 12.5v5M9.5 15h5';
 const ICON_RESET = 'M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4 4v4.5h4.5';
@@ -26,7 +26,7 @@ function resetOwnLook(core: EditorCore, ref: ItemRef): void {
 /** Save as preset: asks for a name (in-component dialog), then the item's look becomes a local preset. */
 export async function saveItemAsPreset(core: EditorCore, ref: ItemRef): Promise<boolean> {
   const t = core.i18n.t;
-  const env = styleEnv(core);
+  const env = core.styleEnv();
   const taken = presetsFor(env, ref.kind) ?? {};
   const name = await core.dialogs.prompt(t('presets.saveTitle'), {
     label: t('presets.saveLabel'),
@@ -39,14 +39,14 @@ export async function saveItemAsPreset(core: EditorCore, ref: ItemRef): Promise<
     },
   });
   if (name == null) return false;
-  const res = saveAsPreset(styleEnv(core), ref, name);
+  const res = saveAsPreset(core.styleEnv(), ref, name);
   if (!applyMeta(core, t('history.savePreset'), res)) return false;
   core.toast(t('presets.saved', { name: res.name ?? name }));
   return true;
 }
 
 function updateItemPreset(core: EditorCore, ref: ItemRef): void {
-  const res = updatePreset(styleEnv(core), ref);
+  const res = updatePreset(core.styleEnv(), ref);
   if (applyMeta(core, core.i18n.t('history.updatePreset'), res)) core.toast(core.i18n.t('presets.updated', { name: res.name ?? '' }));
 }
 
@@ -71,7 +71,7 @@ export interface PresetPickerOptions {
 /** Fills `grid` with preset tiles for the item. */
 export function presetPicker(core: EditorCore, grid: HTMLElement, ref: ItemRef, opts: PresetPickerOptions = {}): void {
   const t = core.i18n.t;
-  const env = styleEnv(core);
+  const env = core.styleEnv();
   const { kind, id } = ref;
   const cols = opts.cols ?? 2;
   const nodeShape = kind === 'node' ? nodeShapeOf(env, id) : null;

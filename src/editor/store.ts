@@ -5,6 +5,7 @@ import type { DiagramMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
 import { elementExists } from '../core/ops/ids.js';
 import { editorParse } from './kinds/loader.js';
+import { sameRefs } from './lib/refs.js';
 import type { ItemRef } from '../core/types.js';
 import { computed, signal, type ReadSignal } from '../reactive/signal.js';
 
@@ -242,10 +243,6 @@ export class DocStore {
     this.revision.update((n) => n + 1);
     this.opts.onChange?.(now, reason);
   }
-}
-
-function sameRefs(a: readonly ItemRef[], b: readonly ItemRef[]): boolean {
-  return a.length === b.length && a.every((r, i) => r.kind === b[i]!.kind && r.id === b[i]!.id);
 }
 
 /** Item existence for selection repair after undo / reload. */

@@ -7,38 +7,27 @@ import {
 } from '../../../core/kinds/er/ops.js';
 import type { ErGeometry } from '../../../core/render/types.js';
 import type { Point } from '../../../core/types.js';
-import { cloneMeta, ensure as ensureIn } from '../../../core/ops/meta-util.js';
 import type { EditorCore, Sel } from '../../core.js';
-import { focusLabel } from '../../lib/shape-drop.js';
+import { placeNew } from '../../ops/insert.js';
 import { tableIcon } from '../palette.js';
 import type { EditKind, PropControl } from '../types.js';
-
-const one = (s: string): string => s.replace(/\n/g, ' ');
+import { innermostAt, newestBetween, oneLine } from '../util.js';
 
 /** The innermost visible subgraph around a point (a dropped table joins it). */
-function groupAt(core: EditorCore, pt: Point): string | null {
-  const gm = core.geom;
-  if (gm.type !== 'er') return null;
-  let best: { id: string; a: number } | null = null;
-  gm.groups.forEach((b, id) => {
-    if (b.hidden || !Number.isFinite(b.x)) return;
-    if (Math.abs(pt.x - b.x) <= b.w / 2 && Math.abs(pt.y - b.y) <= b.h / 2 && (!best || b.w * b.h < best.a)) best = { id, a: b.w * b.h };
-  });
-  return (best as { id: string } | null)?.id ?? null;
-}
+const groupAt = (core: EditorCore, pt: Point): string | null => (core.geom.type === 'er' ? innermostAt(core.geom.groups, pt) : null);
 
 export const EDIT: EditKind<ErModel, ErGeometry> = {
   type: 'er',
   describe(M, { kind, id }) {
     if (kind === 'entity') {
       const e = M.entities.get(id);
-      if (e) return { title: one(e.label), sub: `entity · ${e.attrs.length} attributes${e.parent ? ` · in ${e.parent}` : ''}${e.classes.length ? ' · :::' + e.classes.join(',') : ''}` };
+      if (e) return { title: oneLine(e.label), sub: `entity · ${e.attrs.length} attributes${e.parent ? ` · in ${e.parent}` : ''}${e.classes.length ? ' · :::' + e.classes.join(',') : ''}` };
     } else if (kind === 'rel') {
       const r = M.rels.find((x) => x.id === id);
       if (r) return { title: r.label || id, sub: `relationship · ${r.from} (${r.fromCard}) → ${r.to} (${r.toCard})` };
     } else if (kind === 'group') {
       const g = M.groups.get(id);
-      if (g) return { title: one(g.label) || id, sub: `subgraph · id ${id} · ${g.children.length} items${g.parent ? ` · in ${g.parent}` : ''}` };
+      if (g) return { title: oneLine(g.label) || id, sub: `subgraph · id ${id} · ${g.children.length} items${g.parent ? ` · in ${g.parent}` : ''}` };
     }
     return null;
   },
@@ -65,11 +54,11 @@ export const EDIT: EditKind<ErModel, ErGeometry> = {
   connectable: ['entity', 'group'],
   connect: addERRel,
   added(M, from, to) {
-    const rel = [...M.rels].reverse().find((x) => x.from === from && x.to === to);
+    const rel = newestBetween(M.rels, from, to);
     return rel ? { ref: { kind: 'rel', id: rel.id }, ports: true } : null;
   },
   reconnect: (code, M, ref, which, target) => (ref.kind === 'rel' ? reconnectER(code, M, ref.id, which, target) : null),
-  reconnected: (M, r) => (M.rels.find((e) => e.src === r.line && e.from === r.from && e.to === r.to) ?? [...M.rels].reverse().find((e) => e.from === r.from && e.to === r.to))?.id,
+  reconnected: (M, r) => (M.rels.find((e) => e.src === r.line && e.from === r.from && e.to === r.to) ?? newestBetween(M.rels, r.from, r.to))?.id,
   palette: {
     mode: 'grid',
     title: 'Table presets — click to add, or drag onto the canvas',
@@ -78,11 +67,7 @@ export const EDIT: EditKind<ErModel, ErGeometry> = {
   },
   drop(core, M, item, pt) {
     const res = addEntity(core.code, M, groupAt(core, pt));
-    const meta = cloneMeta(core.meta);
-    Object.assign(ensureIn(meta, 'entity', res.select.id), { x: pt.x, y: pt.y }, item.preset ? { preset: item.preset } : {});
-    const ok = core.applyCode({ code: res.code, meta }, 'Add table', { select: [res.select] });
-    if (ok) focusLabel(core, res.select);
-    return ok;
+    return placeNew(core, { code: res.code, meta: core.meta }, res.select, 'Add table', { patch: { x: pt.x, y: pt.y, ...(item.preset ? { preset: item.preset } : {}) } });
   },
   direction: (M) => M.direction,
   properties(core, M, ref): PropControl[] {

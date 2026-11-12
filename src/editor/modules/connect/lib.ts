@@ -24,8 +24,6 @@ export interface Magnets {
 
 export type LineKind = 'edge' | 'rel';
 export const isLine = (k: string | null | undefined): k is LineKind => k === 'edge' || k === 'rel';
-export const sameRef = (a: ItemRef | null | undefined, b: ItemRef | null | undefined): boolean =>
-  (!a && !b) || (!!a && !!b && a.kind === b.kind && a.id === b.id);
 
 /** A second press on the same handle within 600 ms and 8 px (the prototype's double-click on handles). */
 export class DoublePress {
