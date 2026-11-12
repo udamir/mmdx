@@ -13,6 +13,9 @@ The codebase audit: correctness and safety fixes, hot paths, and the layers the 
 - The editor actions `toggleHelp`, `editTable`, `gotoMetaLine`, `unlockAll` and `pasteStyle` are gone; their keys and menus stay.
 - React wrapper: a prop is set as a property when the element has that property.
 - `@mmdx/studio/editor` no longer exports `EditorCore`. Editor modules of a host see the core through `EditorModuleApi`; `EditorModule` is a module of that API.
+- `DiagramType` is open (`BuiltinType | (string & {})`): a registered kind's type is a diagram type too, and `BuiltinType` names the five built-in ones. An exhaustive `switch` over `DiagramType` switches over `BuiltinType`, with a default for other types.
+- Message keys: one key per concept. `tb.cat.*` and `shapes.cat.*` are `palette.cat.*`; `tb.fit` / `props.fit` are `image.fit`, `tb.aspect` / `props.aspect` are `image.aspect`, `props.imageUrl` is `image.url`, `tb.changeImage` / `props.changeImage` are `image.change`; `tb.resetGroup` / `props.resetGroup` are `group.resetPositions`; `tb.resetGroupNone`, `props.resetGroupNone` and `groupReset.nothing` are `group.resetNone`. A host's `i18n` catalog renames them.
+- Editor panels: the editor's View mode shows the viewer's View settings (`view-settings`) and read-only Code view (`code-view`); Layers, Properties and Code are Edit mode's. The open panels are stored under `editor.panels` and their sizes under `editor.stack.left` / `editor.stack.right` (the old `panels`, `panes` and `layersH` keys are dropped, so remembered panel sizes reset once); a host that opened `layers` in View mode opens `view-settings`.
 
 ### Changed
 
