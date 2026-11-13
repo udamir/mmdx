@@ -66,6 +66,8 @@ configure({
   resolveUrl: (url, kind) => (kind === 'image' && url.startsWith('demo:') ? read().find((i) => i.url === url)?.data : undefined),
   // the demo's pictures are drawn from their data: URLs
   imagePolicy: { ...DEFAULT_IMAGE_POLICY, protocols: ['https:', 'data:'], maxDataBytes: 4 * 1024 * 1024 },
+  // stock Mermaid for Plain Mermaid and the fallback renderer: a bundled page names its loader (no run-time resolve)
+  mermaid: () => import('mermaid'),
 });
 
 void import('../../src/studio.js').then(() => {

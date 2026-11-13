@@ -9,7 +9,8 @@ import { SYSTEM_UI, THEME_FILES } from '../stories/support.js';
 // all shipped themes, in one shared registry and theme source (no fetch), so every story can name any of them
 const themes = createDefaultRegistry();
 for (const f of THEME_FILES) if (!themes.has(f.id)) themes.register(f);
-configure({ themes, themeSource: memoryThemeStore(THEME_FILES) });
+// stock Mermaid for Plain Mermaid and the fallback renderer: a bundled page names its loader (no run-time resolve)
+configure({ themes, themeSource: memoryThemeStore(THEME_FILES), mermaid: () => import('mermaid') });
 
 type Scheme = 'light' | 'dark';
 type Globals = Record<string, unknown> | undefined;

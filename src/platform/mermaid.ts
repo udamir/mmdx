@@ -28,7 +28,11 @@ export function renderWithMermaid(code: string, dark: boolean, icons: IconRegist
   }
   mermaidInstance ??= (async () => {
     const m = s.mermaid;
-    if (typeof m === 'function') return m();
+    // a loader may resolve to the module (`() => import('mermaid')`) or to the instance
+    if (typeof m === 'function') {
+      const r = await m();
+      return 'default' in r ? r.default : r;
+    }
     if (m) return m;
     // an opaque run-time import (old D5): a literal `import('mermaid')` made every consumer's bundler resolve the
     // optional peer and fail without it. This one works where `mermaid` resolves at run time (Node, an import map);

@@ -38,7 +38,7 @@ export interface Config {
    * A Mermaid instance, or a loader (`() => import('mermaid')` in a bundled app); default: `mermaid` imported at run
    * time where it resolves (Node, an import map).
    */
-  mermaid?: MermaidLike | (() => Promise<MermaidLike>);
+  mermaid?: MermaidLike | (() => Promise<MermaidLike | { default: MermaidLike }>);
   /** Font files for PNG export (§7.4): family name → URL or bytes. */
   fonts?: Record<string, string | ArrayBuffer>;
 }

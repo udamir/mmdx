@@ -45,4 +45,13 @@ describe('the Mermaid loader (old D5)', () => {
     fail = false;
     await expect(renderWithMermaid('pie\n  "a": 1', false)).resolves.toContain('data-ok');
   });
+
+  it('a loader may resolve to the module (`() => import(\'mermaid\')`): its default export is the instance', async () => {
+    vi.resetModules();
+    const { configure } = await import('../../src/platform/config.js');
+    const { renderWithMermaid } = await import('../../src/platform/mermaid.js');
+    const instance: MermaidLike = { initialize: () => undefined, render: async () => ({ svg: '<svg data-mod="1"></svg>' }) };
+    configure({ mermaid: async () => ({ default: instance }) });
+    await expect(renderWithMermaid('pie\n  "a": 1', false)).resolves.toContain('data-mod');
+  });
 });
