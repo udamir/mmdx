@@ -142,6 +142,8 @@ describe('History: a version as it is', () => {
     const rows = (): NodeListOf<HTMLButtonElement> => root.querySelectorAll<HTMLButtonElement>('.mmdx-panel.history .version-main');
     expect(rows()[0]!.getAttribute('aria-current')).toBe('true');
     // switching to Compare and back shows nothing new
+    const modes: unknown[] = [];
+    host.addEventListener('mmdx-history-mode', (e) => modes.push((e as CustomEvent).detail));
     root.querySelector<HTMLButtonElement>('.mmdx-panel.history [role=tab][data-tab=compare]')!.click();
     root.querySelector<HTMLButtonElement>('.mmdx-panel.history [role=tab][data-tab=history]')!.click();
     expect(ed.core.stage.peek()).toBe('document');
@@ -158,6 +160,8 @@ describe('History: a version as it is', () => {
     await wait(() => ed.core.version.peek()?.id === 'v1');
     expect(ed.core.stage.peek()).toBe('version');
     expect(ed.historySession!.pair).toEqual({ base: null, head: null, viewing: 'v1' });
+    // the tab and the version as it is reach the host as <mmdx-diff>'s mmdx-mode does (the version through the session's shown, A13)
+    expect(modes).toEqual([{ mode: 'compare', viewOnly: false }, { mode: 'history', viewOnly: false }, { mode: 'history', viewOnly: true }, { mode: 'history', viewOnly: false }, { mode: 'history', viewOnly: true }]);
     // drawn by the editor itself: the old node is on the canvas, the page too
     expect(ed.core.dom.body.querySelector('.el[data-kind=node][data-id=x]')).not.toBeNull();
     // read-only: no Shapes, Properties or Undo / Redo; the code shows the version and cannot be typed into

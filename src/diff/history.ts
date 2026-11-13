@@ -161,9 +161,22 @@ class HistoryStage {
         const what = this.session.shown().kind;
         untracked(() => core.emit('mmdx-history-show', { shown: what }));
       }),
+      // and the version panel's tab and one version as it is, as <mmdx-diff>'s mmdx-mode
+      this.modeEvents(),
     ]) this.owner.add(off);
     core.setHistoryState(true, this.api());
     core.emit('mmdx-history-open', {});
+  }
+
+  /** `mmdx-history-mode` when the version panel's tab, or whether one version shows as it is, changes. */
+  private modeEvents(): () => void {
+    let last = '';
+    return effect(() => {
+      const mode = this.tab?.() ?? 'history', viewOnly = this.session.viewOnly();
+      const now = `${mode}|${viewOnly}`;
+      if (last && now !== last) untracked(() => this.core.emit('mmdx-history-mode', { mode, viewOnly }));
+      last = now;
+    });
   }
 
   close(): void {
