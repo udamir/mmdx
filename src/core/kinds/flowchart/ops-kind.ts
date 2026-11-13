@@ -8,6 +8,7 @@ import { tidy } from '../../ops/meta-util.js';
 import type { FlowGeometry } from '../../render/types.js';
 import type { ItemRef } from '../../types.js';
 import type { OpsKind } from '../../kind/ops-types.js';
+import { flowOrderSim } from './order.js';
 import { asPresets, collectionOps, lineSpan, pinAutoPlaced, rankByLine, resetGroupScope } from '../ops-kit.js';
 
 
@@ -37,6 +38,7 @@ export const OPS: OpsKind<FlowchartModel, FlowGeometry> = {
     if (sel.kind === 'edge') return rankByLine(M.edges.map((e) => ({ id: e.id, key: e.src })), sel.id);
     return null;
   },
+  orderSim: flowOrderSim,
   copyable: (_model, it) => it.kind === 'node' || it.kind === 'group',
   copySet(model, items) {
     const nodes = new Set<string>(), groups = new Set<string>();

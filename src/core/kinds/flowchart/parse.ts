@@ -240,6 +240,9 @@ class OpenScan {
   }
 }
 
+/** A line (trimmed) whose statement goes on over the next lines: node data or a markdown string left open (`%%` comments never). */
+const opensStatement = (t: string): boolean => !t.startsWith('%%') && (openBlock(t) || openMarkdown(t));
+
 /** The statement opened on line `li`, joined with the lines up to where it closes (or the end), and its last line. */
 function joinOpen(first: string, lines: readonly string[], li: number): { raw: string; last: number } {
   const scan = new OpenScan().feed(first), parts = [first];
@@ -335,7 +338,7 @@ function readLines(P: FlowParse, lines: readonly string[]): void {
     }
     // a node data block or a markdown string written over several lines: its statement goes on until it closes
     const first = li;
-    if (!t0.startsWith('%%') && (openBlock(t0) || openMarkdown(t0))) {
+    if (opensStatement(t0)) {
       ({ raw, last: li } = joinOpen(raw, lines, li));
       t0 = raw.trim();
     }
@@ -376,6 +379,36 @@ function readFrontmatter(P: FlowParse, lines: readonly string[], li: number): nu
   if (elk) P.D.push(diag('warning', 'flow.elk', 'ELK layout hints are not supported — the built-in layout is used', P.curLine));
   for (const [k, v] of frontmatterValues(fm)) P.settings.set(k, v);
   return li;
+}
+
+/**
+ * The lines of each statement or description written over several lines (node data or a markdown string left open,
+ * `accDescr {…}`), as `readLines` joins them, frontmatter apart: runs the order walk must keep together (X11).
+ */
+export function joinedLines(code: string): number[][] {
+  const lines = code.split('\n'), out: number[][] = [];
+  const mark = (from: number, to: number): void => { if (to > from) out.push(Array.from({ length: to - from + 1 }, (_, k) => from + k)); };
+  let header = false;
+  for (let li = 0; li < lines.length; li++) {
+    let raw = lines[li] ?? '', t = raw.trim();
+    const first = li;
+    if (!t) continue;
+    const ad = /^accDescr\s*\{(.*)$/.exec(t);
+    if (ad) {
+      li = readAccDescrBlock(ad[1] ?? '', lines, li).last;
+      mark(first, li);
+      continue;
+    }
+    if (opensStatement(t)) {
+      ({ raw, last: li } = joinOpen(raw, lines, li));
+      t = raw.trim();
+      mark(first, li);
+    }
+    if (header || t.startsWith('%%')) continue;
+    if (HEADER.exec(splitStatements(t)[0]?.t ?? '')) header = true;
+    else if (isFrontmatterFence(t)) while (++li < lines.length && !isFrontmatterFence(lines[li] ?? ''));
+  }
+  return out;
 }
 
 /** One statement (`t`, at code offset `at`, on line `li`): the first kind whose syntax it has reads it. */

@@ -26,6 +26,32 @@ export interface ThemeSection {
   readonly slots: Readonly<Partial<Record<ItemKind, ThemeSlot>>>;
 }
 
+/** The code's lines after order steps, each a line of the base code (X11, P2): where an original line is now, and which one a line is. */
+export interface LineOrder {
+  at(orig: number): number;
+  orig(line: number): number;
+}
+
+/**
+ * What the order slider asks of a type while it walks the code order without parsing (X11, P2; core/ops/order.ts): the
+ * answers the type's `unit`, `blocks`, `relocate` and `orderRank` would give for the model of the code with its lines
+ * rearranged, worked out from the base model. Each answers undefined when the base model cannot tell (an order the
+ * parser resolves by what comes first, which the rearrangement may change, or a ref the type steps its own way with
+ * `orderStep`): the walk parses from that step on.
+ */
+export interface OrderSim {
+  unit(order: LineOrder, ref: ItemRef): LineSpan | null | undefined;
+  /** The blocks in the order `blocks` lists them. */
+  blocks(order: LineOrder): LineSpan[] | undefined;
+  /** `relocate` after a move to `line` (null: it gives none). */
+  relocate(order: LineOrder, ref: ItemRef, line: number): string | null | undefined;
+  rank(order: LineOrder, ref: ItemRef): number | null | undefined;
+  /** Runs of base lines that must stay together, in order (a statement or a description over several lines): a move that splits one is parsed. */
+  readonly fragile?: readonly (readonly number[])[];
+  /** Pairs of base lines whose order the parser reads (an edge id before its data): a move that turns one round is parsed. */
+  readonly keep?: readonly (readonly [number, number])[];
+}
+
 export interface OpsKind<M extends SupportedModel = SupportedModel, G extends GeometryIndex = GeometryIndex> {
   readonly type: M['type'];
 
@@ -84,6 +110,8 @@ export interface OpsKind<M extends SupportedModel = SupportedModel, G extends Ge
   relocate?(model: M, ref: ItemRef, line: number | undefined): string | undefined;
   /** Draw order among the items of one kind (null: the kind has none). */
   orderRank?(model: M, ref: ItemRef): number | null;
+  /** The order walk without a parse, for a model of `code` (null: it cannot tell for this code, and the walk parses each step). */
+  orderSim?(code: string, model: M): OrderSim | null;
   /** The order slider's end labels (default: back, front). */
   orderLabels?(ref: ItemRef): [string, string];
   /** Boxes whose hand-placed x positions trade along with an order step (sequence participants). */

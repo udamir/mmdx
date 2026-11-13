@@ -1,10 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { DiagramMeta } from '../../../src/core/meta/types.js';
 import { emptyMeta } from '../../../src/core/meta/types.js';
 import {
   applyOrderState, cloneItems, copyItems, duplicateItems, moveOrder, orderPositions, orderRank, orderStep, pasteItems, pasteable,
 } from '../../../src/core/ops/index.js';
 import { er, expectParses, flow, geomOf, seq } from './helpers.js';
+
+// the order ops' parses (BUG-007): the slider opens without one and a position is parsed when it is shown
+const parses = vi.hoisted(() => ({ n: 0 }));
+vi.mock('../../../src/core/parse/dispatch.js', async (orig) => {
+  const m = await orig<typeof import('../../../src/core/parse/dispatch.js')>();
+  return { ...m, reparse: (code: string) => (parses.n++, m.reparse(code)) };
+});
 
 const FLOW = `flowchart LR
   A["Alpha"]:::core --> B["Beta"]
@@ -76,17 +83,20 @@ describe('order', () => {
     expect(orderStep(FLOW, m, { kind: 'node', id: 'A' }, -1)).toEqual({ reason: 'Already first' });
   });
 
-  it('orderPositions lists distinct draw ranks; every state parses', () => {
+  it('orderPositions lists distinct draw ranks; opening parses nothing, showing a position parses it once', () => {
     const m = flow(FLOW);
+    parses.n = 0;
     const o = orderPositions(FLOW, m, { kind: 'node', id: 'B' });
+    expect(parses.n).toBe(0);
     expect(o.labels).toEqual(['back', 'front']);
     expect(o.states[o.index]!.code).toBe(FLOW);
+    const doc = applyOrderState({ code: FLOW, model: m, meta: emptyMeta() }, o.states[o.states.length - 1]!);
+    expect(parses.n).toBe(1);
+    expect(doc.selection).toEqual([{ kind: 'node', id: 'B' }]);
+    expect(applyOrderState({ code: FLOW, model: m, meta: emptyMeta() }, o.states[0]!).selection).toEqual([{ kind: 'node', id: 'B' }]);
     const ranks = o.states.map((s) => orderRank(s.model, s.sel));
     // one state per visible change: neighbouring states never share a rank
     for (let i = 1; i < ranks.length; i++) expect(ranks[i]).not.toBe(ranks[i - 1]);
-    for (const s of o.states) expectParses(FLOW, s.code);
-    const doc = applyOrderState({ code: FLOW, model: m, meta: emptyMeta() }, o.states[0]!);
-    expect(doc.selection).toEqual([{ kind: 'node', id: 'B' }]);
   });
 
   it('sequence: messages carry their metadata; participants trade hand-placed x', () => {
@@ -102,9 +112,10 @@ describe('order', () => {
     const bx = g.type === 'sequence' ? g.participants.get('B')!.x : 0;
     expect(p.meta.participants).toEqual({ A: { x: Math.round(bx) }, B: { x: 10 } });
     expect(moveOrder(S, md, m, g, { kind: 'participant', id: 'A' }, -1).reason).toBe('Already the first participant');
+    parses.n = 0;
     const o = orderPositions(S, m, { kind: 'message', id: 'm1' });
     expect(o.labels).toEqual(['earlier', 'later']);
     expect(o.states.length).toBeGreaterThan(1);
-    for (const st of o.states) expectParses(S, st.code);
+    expect(parses.n).toBe(0);
   });
 });

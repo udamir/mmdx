@@ -11,6 +11,7 @@ import type { LineSpan } from '../../ops/types.js';
 import type { SequenceGeometry } from '../../render/types.js';
 import type { OpsKind } from '../../kind/ops-types.js';
 import { asPresets, lineSpan } from '../ops-kit.js';
+import { seqOrderSim } from './order.js';
 
 
 export const OPS: OpsKind<SequenceModel, SequenceGeometry> = {
@@ -50,6 +51,7 @@ export const OPS: OpsKind<SequenceModel, SequenceGeometry> = {
     const it = M.items.find((x) => x.src === line && x.kind === want);
     return it && 'id' in it ? it.id : undefined;
   },
+  orderSim: seqOrderSim,
   orderLabels: (sel) => (sel.kind === 'participant' ? ['left', 'right'] : ['earlier', 'later']),
   swapBoxes: (geom) => geom.participants,
   remapMeta: remapSequenceMeta,
