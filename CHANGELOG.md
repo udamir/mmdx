@@ -24,6 +24,11 @@ The codebase audit: correctness and safety fixes, hot paths, and the layers the 
 - `whenLoaded()` also waits for the editor modules a document's type loads; the ER table editing and the sequence gestures load with their type.
 - ER attribute highlights: `italic`, `fontFamily`, `fontSize` and `preset` are checked; the page's `background` / `border` / `grid` and `iconColor` resolve palette references.
 
+- `DiffSession` has one `shown` model: `mode`, `versionsShown`, `setMode`, `applyMode` and `setVersionsShown` are replaced by `show(shown)`; `DiffSessionOptions` drops `mode` and `showVersions` and gains `drawVersions`. `mmdx-mode` is sent by `<mmdx-diff>`, not a bare session; History sends `mmdx-history-mode` for its own tab.
+- Kernel state is read-only to modules: the `ViewCore` lists are `KernelList` / `KernelSlot` (written through the module scope), `compact` and `stackInsets` and the editor's `enteredGroup`, `pageSelected`, `codeFilter`, `issueCount` are `ReadSignal`s with owner methods. Run time is unchanged; a module that wrote them gets a type error.
+- The viewer's root is a `group` labelled by the diagram; the `<svg>` is the `img`. `wheel` and `ui` are validated on the viewer and the diff.
+- Editing: "Convert to icon node" writes `form: "square"` like the other icon writers; tab-indented blocks ungroup by one tab; an ER subgraph's direction change rewrites all of its direction lines.
+
 A [migration guide](https://udamir.github.io/mmdx/guide/migration-0.5) lists what a host may notice.
 
 ### Added
