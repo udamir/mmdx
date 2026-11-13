@@ -10,7 +10,7 @@ import { escAttr, fmt, serializeNodes } from '../scene/serialize.js';
 import { withoutMarks } from '../text/marks.js';
 import type { SceneNode } from '../scene/types.js';
 import type { Rect } from '../types.js';
-import { annotate, centreOf, DIFF_COLORS, MARKS, shapeOf, type DiffColors, type DiffView, type Mark } from './annotate.js';
+import { annotate, badgeIcon, centreOf, DIFF_COLORS, MARKS, shapeOf, type DiffColors, type DiffView, type Mark } from './annotate.js';
 import { diffDiagramsWith, ignoreFacets } from './index.js';
 import type { DiagramDiff, DiffIgnore, ItemChange } from './types.js';
 import { withLayoutOf, withoutStyle } from './transform.js';
@@ -160,14 +160,13 @@ const FONT = 'system-ui, -apple-system, sans-serif';
 
 function legend(x: number, y: number, d: DiffRendered, colors: DiffColors, ink: string): SceneNode {
   const names: Record<Mark, string> = { added: 'added', removed: 'removed', content: 'content', layout: 'layout', style: 'style' };
-  const badges: Record<Mark, string> = { added: '+', removed: '−', content: 'C', layout: 'L', style: 'S' };
   const n = d.diff.counts;
   const parts: SceneNode[] = [];
   let cx = x;
   for (const m of MARKS) {
     const c = colors.marks[m].c;
     parts.push(el('rect', { x: cx, y: y - 9, width: 18, height: 18, rx: 9, fill: c }));
-    parts.push(text({ 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-family': FONT, 'font-size': 10.5, 'font-weight': 700, fill: '#ffffff' }, [{ text: badges[m], x: cx + 9, y: y + 0.5 }]));
+    parts.push(badgeIcon(m, cx + 3, y - 6, 12, '#ffffff'));
     const label = `${names[m]} ${n[m]}`;
     parts.push(text({ 'dominant-baseline': 'central', 'font-family': FONT, 'font-size': 12, fill: ink }, [{ text: label, x: cx + 24, y }]));
     cx += 24 + label.length * 7 + 16;

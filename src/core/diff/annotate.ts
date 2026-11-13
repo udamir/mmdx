@@ -5,7 +5,7 @@
 //   body     the diagram with every item tagged by its change key (`data-ck`, which pairs items across views),
 //            unchanged items dimmed and removed items faded
 // Shapes carry explicit colours (exports have no stylesheet); on screen, the element's CSS restyles them by class.
-import { el, g, text } from '../scene/build.js';
+import { el, g } from '../scene/build.js';
 import type { AttrValue, SceneNode, TextLine, TextRun } from '../scene/types.js';
 import { markRuns, markStyledRuns, hasMarks, stripMarks } from '../text/marks.js';
 import type { FontSpec, TextMeasurer } from '../text/measure.js';
@@ -14,6 +14,7 @@ import type { ItemKind, Rect } from '../types.js';
 import type { ChangeFacet, ItemChange, ItemShape } from './types.js';
 import { beforeKey, changeKey } from './merge.js';
 import { diffKind } from '../kinds/registry.js';
+import { MARK_ICONS } from './icons.js';
 
 /** A highlight colour family: the filter of a change. */
 export type Mark = 'added' | 'removed' | ChangeFacet;
@@ -75,6 +76,13 @@ export const markOf = (c: ItemChange): Mark => (c.status === 'added' ? 'added' :
 /** Badge text: `+`, `−`, or the initials of the changed facets (`C`, `L`, `S`). */
 export const badgeOf = (c: ItemChange): string => (c.status === 'added' ? '+' : c.status === 'removed' ? '−' : c.facets.map((f) => f[0]!.toUpperCase()).join(''));
 
+/** The marks a badge shows an icon for: the status, or every changed facet. */
+const badgeMarks = (c: ItemChange): Mark[] => (c.status === 'added' ? ['added'] : c.status === 'removed' ? ['removed'] : c.facets.length ? [...c.facets] : ['content']);
+
+/** The icon of a mark as a `size` px square at (x, y). */
+export const badgeIcon = (m: Mark, x: number, y: number, size: number, color: string): SceneNode =>
+  el('path', { class: 'dx-icon', d: MARK_ICONS[m], transform: `translate(${x} ${y}) scale(${size / 24})`, fill: 'none', stroke: color, 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+
 // ---- annotation -------------------------------------------------------------------------------------------------
 
 export interface AnnotateInput {
@@ -122,7 +130,7 @@ export function annotate(input: AnnotateInput, o: AnnotateOptions = {}): Annotat
     for (const c of shown) {
       const id = view === 'before' ? c.beforeId ?? c.id : view === 'after' ? c.id : changeKey(c).slice(c.kind.length + 1);
       const s = shapeOf(result.geom, c.kind, id);
-      if (s) overlay.push(highlight(changeKey(c), s, markOf(c), badgeOf(c), c.status === 'removed', colors, o.badgeScale));
+      if (s) overlay.push(highlight(changeKey(c), s, markOf(c), badgeMarks(c), c.status === 'removed', colors, o.badgeScale));
     }
   }
   const runs = view === 'merged' && o.highlights !== false ? highlighterRuns(result.body, input.measure, colors) : [];
@@ -163,7 +171,7 @@ function markedRuns(n: SceneNode): SceneNode {
   return n;
 }
 
-function highlight(key: string, s: ItemShape, mark: Mark, badge: string, dashed: boolean, colors: DiffColors, badgeScale?: number): SceneNode {
+function highlight(key: string, s: ItemShape, mark: Mark, icons: readonly Mark[], dashed: boolean, colors: DiffColors, badgeScale?: number): SceneNode {
   const { c, bg } = colors.marks[mark];
   const outline = (r: Rect, p: number, rx: number): SceneNode =>
     el('rect', { class: 'dx-outline', x: r.x - p, y: r.y - p, width: r.w + p * 2, height: r.h + p * 2, rx, fill: bg, 'fill-opacity': 0.6, stroke: c, 'stroke-width': 2.5, 'stroke-dasharray': dashed ? '7 5' : undefined, 'vector-effect': 'non-scaling-stroke' });
@@ -183,10 +191,11 @@ function highlight(key: string, s: ItemShape, mark: Mark, badge: string, dashed:
   }
   // the pill grows up and right from its anchor (an outline's corner), off the item: the CSS keeps it at a constant
   // screen size, so centred on the corner it covered the text of small or zoomed-out items
-  const w = Math.max(18, badge.length * 9 + 9);
+  // one 12 px icon per mark, 2 px apart, centred in an 18 px high pill (a circle for one icon)
+  const w = icons.length * 14 + 4;
   const pill = g({ class: 'dx-badge', transform: badgeScale && badgeScale !== 1 ? `scale(${badgeScale})` : undefined }, [
     el('rect', { x: -3, y: -15, width: w, height: 18, rx: 9, fill: c, stroke: '#ffffff', 'stroke-width': 1.5 }),
-    text({ 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-family': 'system-ui, sans-serif', 'font-size': 10.5, 'font-weight': 700, fill: '#ffffff' }, [{ text: badge, x: w / 2 - 3, y: -5.5 }]),
+    ...icons.map((m, i) => badgeIcon(m, i * 14, -12, 12, '#ffffff')),
   ]);
   parts.push(g({ transform: `translate(${anchor.x} ${anchor.y})` }, [pill]));
   return g({ class: `dx-hl dx-${mark}${dashed ? ' dx-dashed' : ''}`, 'data-key': key }, parts, { key: `hl:${key}` });

@@ -91,6 +91,7 @@ Hooks for hosts that embed mmdx in sandboxed iframes (no `allowfullscreen`, no `
 - Long runs of spaces no longer freeze the editor or the parser.
 - A node named `__v0`, `__v1`… is laid out like any other node.
 - Diff change badges sit beside the item instead of covering it.
+- Diff change badges, the exported diff legend and the diff bar's filter toggles show one set of icons (plus, minus, pen, move arrows, brush) instead of the letters `+ − C L S` and the filters' own icons; the icon sits in the middle of its badge.
 - Side by side in the editor's History is drawn like the editor.
 
 ## 0.2.0 — History and diff

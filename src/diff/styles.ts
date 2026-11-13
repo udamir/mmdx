@@ -79,7 +79,7 @@ export const DIFF_CSS = /* css */ `
 .dx-stroke { fill: none; stroke: var(--c); stroke-width: 9; stroke-opacity: .35; mix-blend-mode: var(--mmdx-diff-blend); }
 .dx-badge { transform: scale(var(--dx-inv, 1)); }
 .dx-badge rect { fill: var(--c); stroke: var(--mmdx-surface); }
-.dx-badge text { fill: var(--mmdx-surface); }
+.dx-badge .dx-icon { stroke: var(--mmdx-surface); }
 .dx-hl.dx-selected .dx-outline { stroke-width: 4.5px; fill-opacity: .9; animation: dx-pulse 1.2s ease-in-out 2; }
 .dx-hl.dx-selected .dx-stroke { stroke-opacity: .6; stroke-width: 13; }
 @keyframes dx-pulse { 50% { stroke-width: 9px; } }

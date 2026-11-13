@@ -32,7 +32,7 @@ The package is ESM only and has no runtime dependencies; `mermaid` (≥ 10) is a
 - Each viewer has an accessible name generated from the diagram ("Flowchart: 12 nodes, 14 connections"), or the one given in `label`; the diff's name carries the change counts.
 - Toolbars, menus and lists use roving focus and can be driven by the keyboard; every component lists its shortcuts under `?`.
 - The viewer's code view (`controls="code"`) is a text alternative: the diagram's Mermaid code, readable by screen readers.
-- Colour is never the only signal in the diff: removed items are dashed, badges carry `+ − C L S`, and text changes are struck out or bold.
+- Colour is never the only signal in the diff: removed items are dashed, badges carry an icon per kind of change (plus, minus, a pen for content, arrows for layout, a brush for style), and text changes are struck out or bold.
 - Animations stop under `prefers-reduced-motion: reduce`.
 
 ## Known limitations

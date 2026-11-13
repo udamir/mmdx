@@ -6,18 +6,14 @@
 // `--mmdx-diff-*` tokens: the host adopts `DIFF_TOKENS` (ui/styles/diff.ts).
 import { h, icon } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
-import { I_palette } from '../kit/icons.js';
+import { MARK_ICONS } from '../../core/diff/icons.js';
 import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
 import { Scope, type BlockHandle, type Translate } from './block.js';
 import { keepFocus } from '../kit/focus.js';
 
 /** Icons of the change filters (each drawn in its highlight colour). */
 export const FILTER_ICONS: Record<'added' | 'removed' | 'content' | 'layout' | 'style' | 'dim', string> = {
-  added: 'M5 5h14v14H5zM12 8.5v7M8.5 12h7',
-  removed: 'M5 5h14v14H5zM8.5 12h7',
-  content: 'M5 6h14M12 6v13M9 19h6',
-  layout: 'M12 4v16M4 12h16M9.5 6.5L12 4l2.5 2.5M9.5 17.5L12 20l2.5-2.5M6.5 9.5L4 12l2.5 2.5M17.5 9.5L20 12l-2.5 2.5',
-  style: I_palette,
+  ...MARK_ICONS,
   dim: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 3v18M12 7h6M12 11h8.5M12 15h7.5',
 };
 
