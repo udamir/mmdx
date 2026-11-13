@@ -23,6 +23,7 @@ import { batch, effect, signal, untracked, type Signal, type ReadSignal } from '
 import { BASE, TOKENS } from '../ui/kit/base.js';
 import type { HistoryHost, HistorySession } from './history.js';
 import { ModuleHost, Scope } from './host.js';
+import { kernelList, kernelSlot, type KernelList, type KernelSlot } from './kernel-lists.js';
 import type { ModuleScope, Registration, ViewModule } from './module.js';
 import { SceneStack, type CanvasArea, type SceneSource } from './scene.js';
 import { createShell, SHELL_CSS, type Shell } from './shell.js';
@@ -119,9 +120,10 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   readonly panels: ReadSignal<P> = this.panelsState;
   protected readonly toolState: Signal<Tool> = signal<Tool>('hand');
   readonly tool: ReadSignal<Tool> = this.toolState;
-  readonly compact: Signal<boolean>;
-  /** What the open panel stacks take from the canvas area (`--inset-l` / `--inset-r`); null: the product's CSS decides. */
-  readonly stackInsets: Signal<{ left: number; right: number } | null>;
+  /** The `compact` preset in effect (`setCompact`; automatic below a host size). */
+  readonly compact: ReadSignal<boolean>;
+  /** What the open panel stacks take from the canvas area (`--inset-l` / `--inset-r`); null: the product's CSS decides (`setStackInsets`). */
+  readonly stackInsets: ReadSignal<{ left: number; right: number } | null>;
   /** Layers shown by the host's override (viewer / diff); undefined = the document's own visibility. */
   protected readonly visibleLayersState = signal<readonly string[] | undefined>(undefined);
   readonly visibleLayers: ReadSignal<readonly string[] | undefined> = this.visibleLayersState;
@@ -135,20 +137,21 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   private readonly historySessionState = signal<HistorySession | null>(null);
   readonly historySession: ReadSignal<HistorySession | null> = this.historySessionState;
   /** The pen's strokes (claimed by the pen module), painted into every canvas the scenes add. */
-  readonly strokes: Signal<StrokeStore | null> = signal<StrokeStore | null>(null);
+  readonly strokes: KernelSlot<StrokeStore> = kernelSlot<StrokeStore>();
   /** The host's full screen, used by the zoom bar when the browser's is unavailable (sandboxed iframes); null: none. */
   private readonly hostFullscreenState = signal<HostFullscreen | null>(null);
   readonly hostFullscreen: ReadSignal<HostFullscreen | null> = this.hostFullscreenState;
+  // the lists and slots modules fill (read-only; written through a module's scope: contribute, contributeAll, claim)
   /** Buttons of the tool dock, contributed by modules. */
-  readonly dockItems: Signal<readonly DockItem[]> = signal<readonly DockItem[]>([]);
+  readonly dockItems: KernelList<DockItem> = kernelList<DockItem>();
   /** Entries of the Export menu, contributed by modules. */
-  readonly exportFormats: Signal<readonly ExportFormat[]> = signal<readonly ExportFormat[]>([]);
+  readonly exportFormats: KernelList<ExportFormat> = kernelList<ExportFormat>();
   /** The options flyout to the right of the tool dock (e.g. the pen options); null hides it. */
-  readonly dockFlyout: Signal<HTMLElement | null> = signal<HTMLElement | null>(null);
+  readonly dockFlyout: KernelSlot<HTMLElement> = kernelSlot<HTMLElement>();
   /** Controls of the view-params bar (top right) after the built-in ones, contributed by modules. */
-  readonly paramItems: Signal<readonly DockItem[]> = signal<readonly DockItem[]>([]);
+  readonly paramItems: KernelList<DockItem> = kernelList<DockItem>();
   /** Side panels of the left and right stacks, contributed by modules. */
-  readonly panelItems: Signal<readonly PanelItem[]> = signal<readonly PanelItem[]>([]);
+  readonly panelItems: KernelList<PanelItem> = kernelList<PanelItem>();
 
   /** What the kernel set up (effects, listeners, subscriptions), let go on destroy. */
   protected readonly owner = new Owner('kernel');
@@ -408,6 +411,11 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
 
   setCompact(c: boolean | 'auto'): void {
     this.shell.setCompact(c);
+  }
+
+  /** What the open panel stacks take from the canvas area (the panel stacks module measures it); null: the product's CSS decides. */
+  setStackInsets(insets: { left: number; right: number } | null): void {
+    this.shell.stackInsets.set(insets);
   }
 
   /** Insets of the canvas area covered by the open panel stacks and the tool dock (the diff's panes keep clear of them). */

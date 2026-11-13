@@ -7,6 +7,7 @@ import type { Shortcut } from '../ui/kit/keys.js';
 import type { ShortcutRegistry } from './keymap.js';
 import { Owner } from '../reactive/owner.js';
 import { computed, effect, signal, type ReadSignal } from '../reactive/signal.js';
+import { listWriter, slotWriter, type KernelList, type KernelSlot } from './kernel-lists.js';
 import { actionRegistry, eventBus } from './bus.js';
 import { matchesWhen, orderModules, type ActionsOf, type EventsOf, type GestureOf, type ModuleScope, type PainterOf, type Registration, type ViewModule } from './module.js';
 import type { Mode, SlotName, Stage } from './types.js';
@@ -339,7 +340,8 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
     return out;
   }
 
-  contribute<T>(list: { peek(): readonly T[]; set(v: readonly T[]): void }, item: T): void {
+  contribute<T>(kernelList: KernelList<T>, item: T): void {
+    const list = listWriter(kernelList);
     const add = (): void => {
       if (!list.peek().includes(item)) list.set([...list.peek(), item]);
     };
@@ -350,7 +352,8 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
     this.register({ set: (on) => (on ? add() : remove()), dispose: remove });
   }
 
-  contributeAll<T>(list: { peek(): readonly T[]; set(v: readonly T[]): void }): { set(items: readonly T[]): void } {
+  contributeAll<T>(kernelList: KernelList<T>): { set(items: readonly T[]): void } {
+    const list = listWriter(kernelList);
     let mine: readonly T[] = [];
     const put = (next: readonly T[]): void => {
       const others = list.peek().filter((x) => !mine.includes(x));
@@ -366,7 +369,8 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
     };
   }
 
-  claim<T>(slot: { peek(): T | null; set(v: T | null): void }): { set(v: T | null): void } {
+  claim<T>(kernelSlot: KernelSlot<T>): { set(v: T | null): void } {
+    const slot = slotWriter(kernelSlot);
     let mine: T | null = null;
     const show = (on: boolean): void => {
       if (on && mine !== null) slot.set(mine);

@@ -4,6 +4,7 @@
 // shortcuts, actions, gestures and painters, keep its state), resume it, and uninstall it with nothing left behind.
 import type { Shortcut } from '../ui/kit/keys.js';
 import type { ReadSignal } from '../reactive/signal.js';
+import type { KernelList, KernelSlot } from './kernel-lists.js';
 import type { Mode, SlotName, Stage } from './types.js';
 
 export interface ModuleWhen {
@@ -88,14 +89,14 @@ export interface ModuleScope<C = unknown> {
   /** An overlay painter of the core (the editor's handles and marks), muted while suspended, removed on uninstall. */
   painter(p: PainterOf<C>): void;
   /** Adds an item to a list the kernel renders (dock buttons, export formats, panels); removed while suspended. */
-  contribute<T>(list: { peek(): readonly T[]; set(v: readonly T[]): void }, item: T): void;
+  contribute<T>(list: KernelList<T>, item: T): void;
   /** The module's entries in a kernel list, replaced as a whole (`set`); out while suspended, removed on uninstall. */
-  contributeAll<T>(list: { peek(): readonly T[]; set(v: readonly T[]): void }): { set(items: readonly T[]): void };
+  contributeAll<T>(list: KernelList<T>): { set(items: readonly T[]): void };
   /**
    * A one-value kernel slot (the dock's flyout, the pen's strokes) the module fills (`set`; null gives it back):
    * cleared while the module is suspended and on uninstall, when it still holds the module's value (A7).
    */
-  claim<T>(slot: { peek(): T | null; set(v: T | null): void }): { set(v: T | null): void };
+  claim<T>(slot: KernelSlot<T>): { set(v: T | null): void };
   /** A registration made by the core (an event listener, an action, a gesture source…), muted while suspended. */
   register(r: Registration): void;
   /** A cleanup run on uninstall. */

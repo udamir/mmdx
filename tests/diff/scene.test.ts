@@ -96,7 +96,7 @@ describe('DiffScene', () => {
   it('marks the selection in every canvas and paints the pen strokes into the second canvas', async () => {
     const { core, session, scene } = mount();
     const store = new StrokeStore(memoryStorage());
-    core.strokes.set(store);
+    core.useModules([{ id: 'strokes', install: (s) => void s.claim(core.strokes).set(store) }]);
     const attachInk = vi.spyOn(DiagramCanvas.prototype, 'attachInk');
     core.pushScene(scene);
     await session.load({ before: sample('architecture', 'before'), after: sample('architecture', 'after') });

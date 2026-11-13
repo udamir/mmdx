@@ -3,7 +3,7 @@
 // fails, and so does a fixed one until its line is removed from the baseline in the same change.
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { blockContractGaps, compareBaseline, coreLayerOf, edgeViolation, importCycles, layerViolations, manualCleanupArrays, moduleViolations, readBaseline } from '../../tools/check-layers.mjs';
+import { blockContractGaps, compareBaseline, coreLayerOf, edgeViolation, importCycles, kernelSignals, layerViolations, manualCleanupArrays, moduleViolations, readBaseline, signalWrites, signalWritesIn } from '../../tools/check-layers.mjs';
 
 const ROOT = join(__dirname, '../..');
 const BASE = join(__dirname, 'baseline');
@@ -63,5 +63,28 @@ describe('modules', () => {
     const r = compareBaseline(moduleViolations(ROOT), readBaseline(join(BASE, 'modules.txt')));
     expect(r.added, 'new or grown module violations').toEqual([]);
     expect(r.fixed, 'fixed or shrunk — update these lines in tests/arch/baseline/modules.txt').toEqual([]);
+  });
+});
+
+describe('signal ownership (A7, BUG-015)', () => {
+  it('no module writes a kernel or editor-core signal beyond the baseline', () => {
+    const r = compareBaseline(signalWrites(ROOT), readBaseline(join(BASE, 'signals.txt')));
+    expect(r.added, 'a module writes a kernel signal: call its owner method, or contribute / claim through the scope').toEqual([]);
+    expect(r.fixed, 'fixed or shrunk — update these lines in tests/arch/baseline/signals.txt').toEqual([]);
+  });
+
+  it('the rule catches what it should', () => {
+    const names = kernelSignals(ROOT);
+    // the kernel's state, its lists and slots, and the editor core's
+    for (const n of ['panels', 'tool', 'compact', 'stackInsets', 'strokes', 'dockItems', 'exportFormats', 'dockFlyout', 'paramItems', 'panelItems', 'enteredGroup', 'issueCount']) expect(names.has(n), n).toBe(true);
+    const text = [
+      'core.stackInsets.set({ left: 0, right: 0 });',
+      'core.dockItems.update((l) => l);',
+      'scope.core.panels.set({});',
+      '// core.tool.set(\'hand\') in a comment',
+      'core.storage.set(\'k\', 1);',
+      'core.setStackInsets(null);',
+    ].join('\n');
+    expect([...signalWritesIn(text, names)]).toEqual([['core.stackInsets.set', 1], ['core.dockItems.update', 1], ['core.panels.set', 1]]);
   });
 });

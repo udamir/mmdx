@@ -10,6 +10,12 @@ export function layerViolations(root: string): string[];
 export function importCycles(root: string): string[];
 export const MODULE_RULES: Record<string, RegExp>;
 export function moduleViolations(root: string): string[];
+/** The names of ViewCore's and EditorCore's signal, list and slot members. */
+export function kernelSignals(root: string): Set<string>;
+/** The writes of the named signals in a module's text: `core.name.set` → count. */
+export function signalWritesIn(source: string, names: ReadonlySet<string>): Map<string, number>;
+/** Module files writing a kernel or editor-core signal: `file: core.name.set ×count`. */
+export function signalWrites(root: string): string[];
 /** Hand-kept arrays of undo functions outside reactive/owner.ts: `file: name`. */
 export function manualCleanupArrays(root: string): string[];
 /** Blocks missing their CSS export, story or test: `name: what`. */

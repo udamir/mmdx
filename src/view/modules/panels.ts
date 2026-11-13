@@ -38,7 +38,7 @@ export const panelStacksModule: ViewModule<ViewCore> = {
         const w = stacks[side]?.width() ?? 0;
         return w ? w + 12 : 0;
       };
-      core.stackInsets.set({ left: inset('left'), right: inset('right') });
+      core.setStackInsets({ left: inset('left'), right: inset('right') });
       core.fire('view');
       if (core.canvas.viewport?.auto) core.run('fitView');
     };
@@ -73,7 +73,7 @@ export const panelStacksModule: ViewModule<ViewCore> = {
     return () => {
       gone = true;
       for (const s of Object.values(stacks)) s?.destroy();
-      core.stackInsets.set(null);
+      core.setStackInsets(null);
     };
   },
 };

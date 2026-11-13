@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { h } from '../../src/ui/kit/h.js';
 import { ViewCore } from '../../src/view/core.js';
-import { lazyModule, orderModules, type ViewModule } from '../../src/view/module.js';
+import { lazyModule, orderModules, type ModuleScope, type ViewModule } from '../../src/view/module.js';
 import { BaseScene, type CanvasArea } from '../../src/view/scene.js';
 
 const mount = (o: Partial<ConstructorParameters<typeof ViewCore>[1]> = {}): ViewCore => {
@@ -430,8 +430,8 @@ describe('contributions (A7)', () => {
     const el = document.createElement('div');
     let slot!: { set(v: HTMLElement | null): void };
     let list!: { set(items: readonly { id: string; label: string; run(): void }[]): void };
-    core.exportFormats.set([{ id: 'host', label: 'Host', run: () => undefined }]);
-    core.useModules([{ id: 'm', install: (s) => {
+    const host = { id: 'host', install: (s: ModuleScope<ViewCore>) => s.contribute(core.exportFormats, { id: 'host', label: 'Host', run: () => undefined }) };
+    core.useModules([host, { id: 'm', install: (s) => {
       slot = s.claim(core.dockFlyout);
       list = s.contributeAll(core.exportFormats);
     } }]);
@@ -440,7 +440,7 @@ describe('contributions (A7)', () => {
     list.set([{ id: 'a', label: 'A', run: () => undefined }]);
     list.set([{ id: 'b', label: 'B', run: () => undefined }]);
     expect(core.exportFormats.peek().map((f) => f.id)).toEqual(['host', 'b']);
-    core.useModules([]);
+    core.useModules([host]);
     expect(core.dockFlyout.peek()).toBeNull();
     expect(core.exportFormats.peek().map((f) => f.id)).toEqual(['host']);
     core.destroy();

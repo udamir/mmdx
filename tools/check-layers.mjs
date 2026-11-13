@@ -196,6 +196,65 @@ export function moduleViolations(root) {
   return out.sort();
 }
 
+/** The kinds of class member that hold state a module could write: typed or created as a signal, list or slot. */
+const SIGNAL_TYPES = /^(Signal|ReadSignal|Computed|KernelList|KernelSlot)$/;
+const SIGNAL_MAKERS = /^(signal|computed|kernelList|kernelSlot)$/;
+
+/**
+ * The kernel's and the editor core's signal members (A7, BUG-015): the names of the members of ViewCore
+ * (view/core.ts) and EditorCore (editor/core.ts) that are typed or created as signals, kernel lists or slots —
+ * public or not, read-only or not (a cast would get past the types).
+ */
+export function kernelSignals(root) {
+  const out = new Set();
+  for (const file of ['view/core.ts', 'editor/core.ts']) {
+    const sf = ts.createSourceFile(file, readFileSync(join(root, 'src', file), 'utf8'), ts.ScriptTarget.Latest, true);
+    const visit = (n) => {
+      if (ts.isClassDeclaration(n) && /^(ViewCore|EditorCore)$/.test(n.name?.text ?? ''))
+        for (const m of n.members) {
+          if (!ts.isPropertyDeclaration(m) || !ts.isIdentifier(m.name)) continue;
+          const type = m.type && ts.isTypeReferenceNode(m.type) && ts.isIdentifier(m.type.typeName) ? m.type.typeName.text : '';
+          const init = m.initializer && ts.isCallExpression(m.initializer) && ts.isIdentifier(m.initializer.expression) ? m.initializer.expression.text : '';
+          if (SIGNAL_TYPES.test(type) || SIGNAL_MAKERS.test(init)) out.add(m.name.text);
+        }
+      ts.forEachChild(n, visit);
+    };
+    visit(sf);
+  }
+  return out;
+}
+
+/** The writes of the named signals in a module's text (comments left out): `core.name.set` → count. */
+export function signalWritesIn(source, names) {
+  const text = source.replace(/^\s*(\/\/|\*).*$/gm, '');
+  const counts = new Map();
+  // `core.…` and `scope.core.…`, not another object's `core` (`this.core` is the kernel's own code)
+  for (const m of text.matchAll(/(?:(?<![.\w$])|(?<=\bscope\.))core\.([A-Za-z_$][\w$]*)\.(set|update)\(/g)) {
+    if (!names.has(m[1])) continue;
+    const key = `core.${m[1]}.${m[2]}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/**
+ * Signal ownership (A7, BUG-015): a module never writes a kernel or editor-core signal (`core.<signal>.set(` /
+ * `.update(`); it calls the owner's method (setPanel, setStackInsets, enterGroup…) or fills a list or slot through its
+ * scope (contribute, contributeAll, claim). `file: core.name.set ×count` for every module file that does, sorted.
+ */
+export function signalWrites(root) {
+  const SRC = join(root, 'src');
+  const names = kernelSignals(root);
+  const out = [];
+  for (const dir of ['editor/modules', 'view/modules', 'diff/modules']) {
+    for (const f of walk(join(SRC, dir))) {
+      const r = relative(SRC, f).split('\\').join('/');
+      for (const [key, n] of signalWritesIn(readFileSync(f, 'utf8'), names)) out.push(`${r}: ${key} ×${n}`);
+    }
+  }
+  return out.sort();
+}
+
 /**
  * Hand-kept arrays of undo functions (`const offs: (() => void)[] = […]`, by their usual names) outside
  * reactive/owner.ts: `file: name`. Lists of callbacks that are not undo functions (waiters, an animation's steps) keep
