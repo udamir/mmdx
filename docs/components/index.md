@@ -31,8 +31,8 @@ Every attribute sets one option; object values (`source`, `adapter`, `history`, 
 
 - Properties can be set before or after the element is connected: they are kept, apply to the live component, and come back when the element is connected again.
 - An attribute set later replaces a property of the same option, and the other way round.
-- A removed attribute sets its option back to the default.
-- Options read only when the component is created (`ctx`, the editor's `autosave` and `guard-unload`, every option of `<mmdx-studio>`) warn once in the console when changed on a live one; the next component created uses the new value.
+- A removed attribute sets its option back to the default, and so does a value the option does not take (a misspelt `wheel`, `ui` or `view`).
+- Options read only when the component is created (`ctx`, the editor's `autosave` and `guard-unload`, every option of `<mmdx-studio>` but `images`) warn once in the console when changed on a live one; the next component created uses the new value.
 
 ```ts
 const viewer = document.querySelector('mmdx-viewer')!;
@@ -75,9 +75,9 @@ viewer.destroy();
 | `DiagramEditor` | `new DiagramEditor(host, options?: EditorOptions)` | The setters (`adapter`, `history`, `readOnly`, `fileName`), `setSource()`, `setMode()`, `setUi()` |
 | `DiagramDiff` | `new DiagramDiff(host, options?: DiffOptions)` | `set(patch)`, `compare()`, `setHistory()` |
 | `ThemeEditor` | `new ThemeEditor(host, options?: ThemeEditorOptions)` | `set(patch)` (resolves with the id of the open theme) |
-| `DiagramStudio` | `new DiagramStudio(host, options?: StudioOptions)` | Options are read when it is created |
+| `DiagramStudio` | `new DiagramStudio(host, options?: StudioOptions)` | Options are read when it is created; `setImages()` changes the image store |
 
-`DiagramViewer`, `DiagramEditor` and `DiagramDiff` expose their view kernel as `core` (a `ViewCore`; `EditorCore` for the editor) for modules and advanced integrations; see [Architecture](/guide/architecture).
+`DiagramViewer`, `DiagramEditor` and `DiagramDiff` expose their view kernel as `core` (a `ViewCore`; for the editor, the editor core, which a module sees as `EditorModuleApi`) for modules and advanced integrations; see [Architecture](/guide/architecture).
 
 ## Common attributes
 
@@ -98,7 +98,7 @@ Every component reports what happens through DOM events:
 
 - Names start with `mmdx-` (`mmdx-render`, `mmdx-change`, `mmdx-theme-saved`, `mmdx-history-open`…).
 - Each is a `CustomEvent` dispatched on the element (or on the host of an imperative class), with `bubbles: true` and `composed: true`, so it crosses shadow roots and can be handled further up the page.
-- The `detail` carries the data; the types are `ViewerEventMap`, `DiffEventMap` and `ThemeEditorEventMap`.
+- The `detail` carries the data; the types are `ViewerEventMap`, `EditorEventMap`, `DiffEventMap` and `ThemeEditorEventMap`.
 - Some are cancelable: `preventDefault()` stops what would happen next. `mmdx-link` (open a link: route it yourself), `mmdx-fullscreen-request`, `mmdx-save` (save yourself), `mmdx-op` (veto an edit), `mmdx-export` (upload instead of downloading), `mmdx-theme-save`, `mmdx-history-export` and `mmdx-history-restore`.
 
 ```ts

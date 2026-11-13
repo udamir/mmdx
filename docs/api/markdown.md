@@ -3,7 +3,7 @@
 Build-time plugins for Markdown pipelines: a rehype plugin and a markdown-it plugin turn each ` ```mermaid ` block into an `<mmdx-viewer>` with a pre-rendered SVG inside, so pages are readable and printable without JavaScript and become interactive when `@mmdx/studio/viewer` loads. The plugins run in Node, have no dependency on unified or markdown-it (they are typed structurally), and are synchronous.
 
 ```ts
-import { rehypeMmdx, markdownItMmdx, diagramHtml, scriptSafe, type MmdxMarkdownOptions } from '@mmdx/studio/markdown';
+import { rehypeMmdx, markdownItMmdx, diagramHtml, preloadIcons, scriptSafe, type MmdxMarkdownOptions } from '@mmdx/studio/markdown';
 ```
 
 The page only needs the viewer element in the browser:

@@ -42,7 +42,7 @@ Blocks (`src/ui/blocks`) are the UI pieces the products share: tool dock, zoom b
 
 `ViewCore` (`src/view/core.ts`) is the kernel every diagram component is built on. It holds:
 
-- **the component shell** (`src/view/component-shell.ts`), which the theme editor and the studio use too: the shadow root, the core context, i18n, storage (replaceable at run time), popovers, dialogs, the chrome scheme remembered per product, and the component's DOM events;
+- **the component shell** (`src/view/component-shell.ts`), which the theme editor and the studio use too: the shadow root, the core context, i18n, storage (replaceable at run time), popovers, the chrome scheme remembered per product, and the component's DOM events (the editor, the studio and the theme editor make their own dialogs);
 - **services**: toasts and the keymap (`src/view/keymap.ts`);
 - **state** (read-only signals): the mode (`edit` or `view`), the stage (`document`, `version` or `history`), the chrome scheme, the theme (component state: the host attribute, the user's pick, or the default following light / dark), display settings, open panels, the tool, compact, the layers shown, the host's history and full screen. Only the kernel writes them, through its methods — `setMode`, `setStage`, `setDisplay`, `setPanel`, `setTool`, `setVisibleLayers`, `setHostOptions` — and a module through its scope (below);
 - **the shell** (`src/view/shell.ts`): the shadow root's root element, the canvas area, and named slots that modules fill — `top-left`, `top-center`, `top-right`, `left-stack`, `left-dock`, `right-stack`, `bottom-center`, `bottom-right`, `canvas`, `overlay`;

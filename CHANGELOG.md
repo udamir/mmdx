@@ -2,38 +2,76 @@
 
 All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project follows [semantic versioning](https://semver.org/); below 1.0, a minor version may change public API, listed under **Changed (breaking)**.
 
-## Unreleased (0.5.0)
+## 0.5.0 — 2026-11-14
 
-The codebase audit: correctness and safety fixes, hot paths, and the layers the components are built on.
-
-### Changed (breaking)
-
-- `configure({ mermaid })`: stock Mermaid is no longer bundled automatically. The default loads it at run time (Node, import maps); a bundled app passes `mermaid: () => import('mermaid')`.
-- `ViewerOptions.rehydrate` and `Config.debug` are removed (both were ignored).
-- The editor actions `toggleHelp`, `editTable`, `gotoMetaLine`, `unlockAll` and `pasteStyle` are gone; their keys and menus stay.
-- React wrapper: a prop is set as a property when the element has that property.
-- `@mmdx/studio/editor` no longer exports `EditorCore`. Editor modules of a host see the core through `EditorModuleApi`; `EditorModule` is a module of that API.
-- `DiagramType` is open (`BuiltinType | (string & {})`): a registered kind's type is a diagram type too, and `BuiltinType` names the five built-in ones. An exhaustive `switch` over `DiagramType` switches over `BuiltinType`, with a default for other types.
-- Message keys: one key per concept. `tb.cat.*` and `shapes.cat.*` are `palette.cat.*`; `tb.fit` / `props.fit` are `image.fit`, `tb.aspect` / `props.aspect` are `image.aspect`, `props.imageUrl` is `image.url`, `tb.changeImage` / `props.changeImage` are `image.change`; `tb.resetGroup` / `props.resetGroup` are `group.resetPositions`; `tb.resetGroupNone`, `props.resetGroupNone` and `groupReset.nothing` are `group.resetNone`. A host's `i18n` catalog renames them.
-- Editor panels: the editor's View mode shows the viewer's View settings (`view-settings`) and read-only Code view (`code-view`); Layers, Properties and Code are Edit mode's. The open panels are stored under `editor.panels` and their sizes under `editor.stack.left` / `editor.stack.right` (the old `panels`, `panes` and `layersH` keys are dropped, so remembered panel sizes reset once); a host that opened `layers` in View mode opens `view-settings`.
-
-### Changed
-
-- `export.font-missing` is one `warning` with `params.fonts` in every component (the viewer sent an `info`, the diff nothing).
-- Export names drop a URL's query and hash, and `.json` / `.markdown` like the other document extensions.
-- `whenLoaded()` also waits for the editor modules a document's type loads; the ER table editing and the sequence gestures load with their type.
-- ER attribute highlights: `italic`, `fontFamily`, `fontSize` and `preset` are checked; the page's `background` / `border` / `grid` and `iconColor` resolve palette references.
-
-- `DiffSession` has one `shown` model: `mode`, `versionsShown`, `setMode`, `applyMode` and `setVersionsShown` are replaced by `show(shown)`; `DiffSessionOptions` drops `mode` and `showVersions` and gains `drawVersions`. `mmdx-mode` is sent by `<mmdx-diff>`, not a bare session; History sends `mmdx-history-mode` for its own tab.
-- Kernel state is read-only to modules: the `ViewCore` lists are `KernelList` / `KernelSlot` (written through the module scope), `compact` and `stackInsets` and the editor's `enteredGroup`, `pageSelected`, `codeFilter`, `issueCount` are `ReadSignal`s with owner methods. Run time is unchanged; a module that wrote them gets a type error.
-- The viewer's root is a `group` labelled by the diagram; the `<svg>` is the `img`. `wheel` and `ui` are validated on the viewer and the diff.
-- Editing: "Convert to icon node" writes `form: "square"` like the other icon writers; tab-indented blocks ungroup by one tab; an ER subgraph's direction change rewrites all of its direction lines.
-
-A [migration guide](https://udamir.github.io/mmdx/guide/migration-0.5) lists what a host may notice.
+The codebase audit: correctness and safety fixes, faster large documents, and the layers the components are built on.
 
 ### Added
 
-- Editor modules: `scope.gesture(source)` and `scope.painter(painter)` register a gesture source or an overlay painter, muted while the module is suspended and removed on uninstall; `EditorModuleApi.docType`, the diagram type of the document as a signal; `scope.canvas(type, f, options)` takes listener options. A guide: [Extending the editor](https://udamir.github.io/mmdx/guide/editor-modules).
+- Editor modules: `scope.gesture`, `scope.painter`, `scope.area`, `scope.slot(name).mount`, listener options on `scope.canvas`, `when: { kind }` and `replaces`; `EditorModuleApi.docType`. A guide: [Extending the editor](https://udamir.github.io/mmdx/guide/editor-modules).
+- `EditorEventMap`, the typed DOM events of `<mmdx-editor>`.
+- `ThemeStore.listWithUsage?()`, an optional bulk read for the theme library.
+- Pinch to zoom and pan on touch screens.
+- A `doc.too-complex` error for a line or statement too long to read.
+- `<mmdx-diff>` has the multi-link menu on ⌘-click.
+
+### Changed
+
+- Diff badges, the exported diff legend and the diff filters show icons instead of the letters `+ − C L S`.
+- Exported dark diffs use the screen's translucent tints.
+- `export.font-missing` is one `warning` with `params.fonts` in every component.
+- Export names drop a URL's query and hash.
+- `whenLoaded()` also waits for the editor modules of the document's type.
+- `mmdx-selection` fires on every selection change (undo, redo, load), never on construction.
+- `mmdx-history-version` of a viewer's version has `base` and `head` null; `<mmdx-diff>`'s `mmdx-view` names the tab.
+- The viewer's root is a `group` labelled by the diagram; the `<svg>` is the `img`.
+- `wheel` and `ui` are validated on the viewer and the diff.
+- Fit keeps clear of the open panels and the tool dock.
+- The editor's View mode follows links like the viewer.
+- Editing keeps blank lines in moved blocks; "Convert to icon node" writes `form: "square"`; tab-indented blocks ungroup by one tab.
+- ER highlights check `italic`, `fontFamily`, `fontSize` and `preset`; page colours resolve palette references.
+- The diff reports subgraph class changes.
+- Faster on large documents: dragging, code highlighting, diffs, the Order slider and History.
+- Sources over 32 KiB render in the worker too.
+- Library chunks are named after their diagram type.
+- The viewer is about 10 kB gzip larger; the editor's base is smaller, the ER and sequence editing load with their type.
+
+### Changed (breaking)
+
+- Stock Mermaid is not bundled: a bundled app passes `configure({ mermaid: () => import('mermaid') })`.
+- `ViewerOptions.rehydrate` and `Config.debug` are removed.
+- The editor actions `toggleHelp`, `editTable`, `gotoMetaLine`, `unlockAll`, `pasteStyle` and `openIconPicker` are removed.
+- `@mmdx/studio/editor` no longer exports `EditorCore`; modules see the core as `EditorModuleApi`.
+- `DiffSession` has one `shown` model: `show(shown)` replaces `mode`, `versionsShown`, `setMode`, `applyMode` and `setVersionsShown`.
+- Kernel state is read-only to modules: `ViewCore`'s lists are `KernelList` / `KernelSlot`, its signals `ReadSignal`s with owner setters; `DiagramEditor.core`'s services are getters.
+- `ViewActions` and `ViewEvents` are trimmed; the editor's events moved to `EditorEvents`.
+- `ViewModule`'s `install` and `enabled` are properties; a repeated module id is reported.
+- `DiagramType` is open; `BuiltinType` names the five built-in types.
+- Message keys renamed: `palette.cat.*`, `image.*`, `group.resetPositions`, `group.resetNone`; `te.inheritFont` removed.
+- Editor panels: View mode shows View settings and Code view; panel storage keys changed (sizes reset once).
+- React wrapper: a prop is set as a property when the element has that property.
+
+### Fixed
+
+- Long lines and statements no longer freeze the parsers or overflow the stack.
+- `<!--` and `<script` in an inline source no longer break the page.
+- A Markdown change report links versions only as the link policy allows.
+- `configure({ mermaid: () => import('mermaid') })` works (the module's default export is used).
+- Apps build without `mermaid` installed.
+- Reset style, Style off and Auto layout keep pictures, frames, layers and mindmap offsets.
+- Without styling, no mindmap node or sequence message is lost.
+- State diagrams and mindmaps no longer get flowchart presets; Save as preset refuses `_base`.
+- The portable export includes `_base` and per-shape styles.
+- The diff reports picture, icon, frame, animation and curve changes, ignores key order, and errors when its type is not loaded.
+- Paste style paints the whole selection; Space in a `<select>` no longer pans.
+- A sequence diagram reads its frontmatter and widens for its title.
+- 4- and 8-digit hex colours.
+- Dropping an image on the studio no longer opens it as the document.
+- `<mmdx-studio>` attributes changed after creation apply; properties set before definition are kept.
+- React wrapper: `className`, `htmlFor`, `tabIndex`, `aria-*` and `data-*` are passed; removed props reset.
+- Storage, labels, `interactive`, the pen's auto-erase and the theme editor's A4 preset.
+- Listener leaks in History, the shape palette and menus.
+- Untranslated strings in the toolbar, the canvas and History.
 
 ## 0.4.0 — 2026-11-10
 
@@ -96,8 +134,6 @@ Hooks for hosts that embed mmdx in sandboxed iframes (no `allowfullscreen`, no `
 - Long runs of spaces no longer freeze the editor or the parser.
 - A node named `__v0`, `__v1`… is laid out like any other node.
 - Diff change badges sit beside the item instead of covering it.
-- Diff change badges, the exported diff legend and the diff bar's filter toggles show one set of icons (plus, minus, pen, move arrows, brush) instead of the letters `+ − C L S` and the filters' own icons; the icon sits in the middle of its badge.
-- Exported diffs in the dark scheme (`scheme: 'dark'`) tint changed items with the translucent fills the screen uses, instead of opaque dark colours: the `--mmdx-diff-*` tokens are now made from `DIFF_COLORS`, so the two cannot drift apart.
 - Side by side in the editor's History is drawn like the editor.
 
 ## 0.2.0 — History and diff

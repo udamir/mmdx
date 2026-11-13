@@ -38,7 +38,9 @@ pnpm size             # gzip size budgets per entry point
 |---|---|
 | `src/core` | Parsers, layout, renderers, metadata, themes — pure TypeScript, no DOM; each diagram type's code in its folder, `src/core/kinds/<type>/` |
 | `src/dom` | DOM patcher, viewport, `DiagramCanvas`, pen strokes, worker client, export |
-| `src/ui` | Signals, the UI blocks (`src/ui/blocks`), toolbars, dialogs, styles and UI strings |
+| `src/reactive` | Signals and `Owner` |
+| `src/platform` | `configure()`, the shared themes, the stock Mermaid bridge, the kinds loaded on demand |
+| `src/ui` | The primitives (`src/ui/kit`: dialogs, popovers, icons, tokens and base styles), the UI blocks (`src/ui/blocks`), the diagram widgets (`src/ui/diagram`: toolbars, previews, the code editor) and the blocks' strings |
 | `src/view` | The view kernel (`ViewCore`), module host, scene sources and the standard view modules |
 | `src/diff` | The diff session, scene and modules (`<mmdx-diff>` and History) |
 | `src/editor` | The editor core (on the kernel), its store scene, its feature modules and each diagram type's edit kind (`src/editor/kinds/<type>/`) |
@@ -50,7 +52,7 @@ pnpm size             # gzip size budgets per entry point
 | `apps/studio-site/` | The demo site deployed to GitHub Pages, with the diff samples (`diff-samples/`) |
 | `docs/` | This documentation portal (VitePress) |
 | `stories/`, `.storybook/` | Storybook: the elements (the diff included), the UI pieces with mock APIs, core rendering and the semantic diff |
-| `tests/` | Vitest tests, by area (`core`, `dom`, `ui`, `view`, `editor`, `diff`, `elements`, `adapters`, `markdown`, `theme-editor`) |
+| `tests/` | Vitest tests, by area (`core`, `reactive`, `platform`, `dom`, `ui`, `view`, `editor`, `diff`, `elements`, `adapters`, `markdown`, `theme-editor`, `emoji`, `tools`), and the architecture checks (`arch`) |
 | `tools/` | Build helpers: size budgets, the inline worker source, theme generation, the Pages assembly |
 | `brand/` | Logo files |
 
@@ -60,11 +62,11 @@ pnpm size             # gzip size budgets per entry point
 
 A diagram type is a set of kinds in a folder of its own ([Architecture → Diagram kinds](/guide/architecture#diagram-kinds)). A type outside the repository is a kind plugin: it registers with `registerKindPlugin` and `registerEditorKind` and edits no file here (`tests/arch/kind-plugin.test.ts` is the smallest one). A built-in type also takes the five built-in tables:
 
-1. Add the type to `BuiltinType` (`src/core/types.ts`), its header and starter to `KIND_INFO` (`src/core/kinds/info.ts`) and its names to `KIND_NAMES`.
+1. Add the type to `BuiltinType` (`src/core/types.ts`), its header and starter to `KIND_INFO` (`src/core/kinds/info.ts`) and its names to `KIND_NAMES` (`src/core/kinds/names.ts`).
 2. Write the model (`src/core/model.ts`), the parser (`src/core/kinds/<type>/parse.ts`) and the renderer with its geometry index (`src/core/kinds/<type>/render.ts`, `src/core/render/types.ts`).
 3. Write the view, diff, ops and extras kinds (`view.ts`, `diff-kind.ts`, `ops-kind.ts`, `extras.ts` in the same folder) and add them to `all.ts`, `all-diff.ts`, `all-ops.ts` and `all-extras.ts`.
 4. Write the edit kind (`src/editor/kinds/<type>/index.ts`, re-exporting the view, ops and extras kinds) and add it to `src/editor/kinds/all.ts`.
-5. Fill the tables the compiler asks for: the kinds' importers (`kindModules` in `src/platform/kinds.ts`), the editor's (`src/editor/kinds/loader.ts`), the theme section (`src/core/theme/types.ts`, the registry's `SECTION_DEFAULTS`, the theme editor's `SECTION_UI` and `DEFAULT_SAMPLES`), and the UI (`src/ui/diagram/kind-ui.ts`: the pictogram, the preview kinds of items that share a kind with the flowchart but look different, as mindmap nodes and states do, and the type's item preview samples, `SAMPLES`, which become its `previewSamples`). Shapes only the type draws are registered by its view kind's chunk (as `src/core/shapes/state.ts` is by `src/core/kinds/state/view.ts`), so a page without that type does not load them.
+5. Fill the tables the compiler asks for: the kinds' importers (`kindModules` in `src/platform/kinds.ts`), the editor's (`src/editor/kinds/loader.ts`), the theme section (`src/core/theme/types.ts`, the registry's `SECTION_DEFAULTS`, the theme editor's sections, `SECTION_UI` in `src/core/schema/style-fields.ts`, and samples, `DEFAULT_SAMPLES` in `src/theme-editor/constants.ts`), and the UI (`src/ui/diagram/kind-ui.ts`: the pictogram, the preview kinds of items that share a kind with the flowchart but look different, as mindmap nodes and states do, and the type's item preview samples, `SAMPLES`, which become its `previewSamples`). Shapes only the type draws are registered by its view kind's chunk (as `src/core/shapes/state.ts` is by `src/core/kinds/state/view.ts`), so a page without that type does not load them.
 6. Gestures of the type's own (keys, handles, drags) go into an editor module in `src/editor/modules/<type>/`, listed in `src/editor/modules/index.ts` and allow-listed in `tests/arch/no-kind-branches.test.ts`, as the sequence, `er-table` and mindmap modules are.
 7. Add an example to `examples/` (golden snapshots for every theme follow), parser and ops tests, a size row in `tools/size.mjs`, and the docs.
 

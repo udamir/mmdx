@@ -17,7 +17,7 @@ configure({
   resolveUrl: (url, kind) => (/^[a-z]+:|^[/#?]/i.test(url) ? null : `/api/files/${encodeURIComponent(url)}`), // relative names are attachments
   iconPacks: [{ name: 'logos', loader: () => import('@iconify-json/logos/icons.json').then((m) => m.default) }],
   fonts: { Inter: '/fonts/inter.woff2' },                 // embedded into PNG exports
-  mermaid: () => import('mermaid').then((m) => m.default),
+  mermaid: () => import('mermaid'),
 });
 ```
 
@@ -93,16 +93,17 @@ Placeholders in braces (`{nodes}`) are filled in by the component. The English c
 
 | File | Strings of |
 |---|---|
-| `src/ui/i18n.ts` | The viewer: zoom, full screen, layers, pen, export, code view, errors, accessible names (`label.*`) |
-| `src/ui/messages/view.ts` | The tool dock, help, view parameters shared by every component |
-| `src/ui/messages/editor.ts` | The editor's panels and chrome |
-| `src/ui/messages/toolbar.ts` | The style toolbar and Properties |
-| `src/ui/messages/diff.ts`, `blocks-diff.ts` | `<mmdx-diff>` and History |
-| `src/ui/messages/theme-editor.ts` | `<mmdx-theme-editor>` |
+| `src/i18n.ts` | The viewer: zoom, full screen, layers, pen, export, code view, errors, accessible names (`label.*`) |
+| `src/view/messages.ts` | The tool dock, pen, view settings, code view and History button shared by every component |
+| `src/editor/messages.ts` | The editor's panels and chrome |
+| `src/editor/messages-media.ts` | The editor's insert parts that load on demand: the shape palette's sections, the pickers' toasts, the Icon and Image sections of Properties |
+| `src/ui/messages/toolbar.ts`, `toolbar-media.ts` | The style toolbar and page toolbar; the toolbar's icon, image and shape palette controls (registered when they load) |
+| `src/diff/messages.ts`, `src/ui/messages/blocks-diff.ts` | `<mmdx-diff>` and History |
+| `src/theme-editor/messages.ts` | `<mmdx-theme-editor>` |
 | `src/ui/messages/blocks.ts`, `blocks-panels.ts` | Shared UI pieces |
-| `src/ui/messages/editor-media.ts`, `toolbar-media.ts`, `blocks-media.ts` | The editor's insert dock: shape palette, icon picker, image tool, emoji picker; the icon and image controls of Properties and the toolbar (registered when they load) |
+| `src/ui/messages/blocks-media.ts` | The editor's insert dock: shape palette, icon picker, image tool, emoji picker (registered when they load) |
 
-The English strings of a component are registered when the component is first used, so a page with only viewers ships only the viewer's strings. The accessible name of a viewer (`label.flowchart`, `label.sequence`, `label.er`) can also be set per element with the `label` attribute.
+The English strings of a component are registered when the component is first used, so a page with only viewers ships only the viewer's strings. The accessible name of a viewer (`label.flowchart`, `label.sequence`, `label.er`, `label.mindmap`, `label.state`) can also be set per element with the `label` attribute.
 
 ## Per-instance overrides
 

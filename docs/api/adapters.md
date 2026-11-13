@@ -52,7 +52,7 @@ function memoryStorage(initial?: Record<string, unknown>): StorageAdapter
 In-memory storage for tests, sandboxed iframes and hosts that persist nothing; preferences last for the page's life. Values are stored as JSON, so `get` returns a copy and a later change of a stored object is not seen. `initial` seeds the keys.
 
 ```ts
-viewer.storage = memoryStorage({ panels: { code: true } });
+viewer.storage = memoryStorage({ 'viewer.panels': { 'code-view': true } }); // the Code view panel starts open
 ```
 
 ### `localStorageAdapter()`
@@ -168,6 +168,7 @@ interface ThemeStore extends ThemeSource {
   delete?(id: string): Promise<void>;
   publish?(id: string): Promise<void>;
   usage?(id: string): Promise<number>;
+  listWithUsage?(): Promise<{ info: ThemeInfo; file: ThemeFile; usage?: number }[]>;
 }
 ```
 
@@ -178,6 +179,7 @@ interface ThemeStore extends ThemeSource {
 | `delete(id)` | Optional. Removes the theme. The theme editor's *Delete* needs it (and `can-delete`), and so does *Revert*, which deletes the store's copy of a theme that also exists in the source |
 | `publish(id)` | Optional. The theme editor shows *Publish* when it exists and `can-publish` is set; unsaved changes are saved first |
 | `usage(id)` | Optional. The number of diagrams that use the theme, when the host can tell; the theme list shows it |
+| `listWithUsage()` | Optional. The list with each theme's file and usage in one read: the theme editor's library uses it, when the store has it, instead of `list()` followed by `get(id)` and `usage(id)` per theme. When it rejects, the library falls back to `list()` |
 
 When `save` reports a conflict, the theme editor asks whether to *Load theirs* (the conflicting file replaces the draft), *Overwrite* (saves again without a version) or cancel. Before every save it fires the cancelable `mmdx-theme-save` event; see [`<mmdx-theme-editor>`](/components/theme-editor).
 
@@ -613,7 +615,7 @@ An `ImageStore` is the host's image library: `<mmdx-editor>` takes it as its `im
 
 ```ts
 interface ImageStore {
-  list(o?: { cursor?: string; query?: string }): Promise<{ images: ImageInfo[]; next?: string }>;
+  list(o?: { cursor?: string; query?: string }): Promise<ImagePage>; // { images: ImageInfo[]; next?: string }
   get(id: string): Promise<ImageInfo>;
   put(file: Blob, o?: { name?: string }): Promise<ImageInfo>;
   delete?(id: string): Promise<void>;
@@ -658,7 +660,12 @@ interface ImageInfo {
 ### `memoryImageStore()`
 
 ```ts
-function memoryImageStore(initial?: readonly ImageInfo[], o?: { url?: (file: Blob, id: string) => string | Promise<string>; pageSize?: number }): ImageStore
+function memoryImageStore(initial?: readonly ImageInfo[], o?: MemoryImageStoreOptions): ImageStore
+
+interface MemoryImageStoreOptions {
+  url?: (file: Blob, id: string) => string | Promise<string>;
+  pageSize?: number;
+}
 ```
 
 A store held in memory, for demos and tests: `initial` pictures, newest first; files put are added in front with the ids `img-1`, `img-2`…; `list` pages by `pageSize` (default 50) and filters by name. A put file is referenced by a `data:` URL of it unless `o.url` gives another reference — allow `data:` in the image policy for the default.
@@ -685,7 +692,8 @@ A store behind HTTP:
 ### `UrlResolver`
 
 ```ts
-type UrlResolver = (url: string, kind: 'image' | 'link') => string | null | undefined;
+type ContentUrlKind = 'image' | 'link';
+type UrlResolver = (url: string, kind: ContentUrlKind) => string | null | undefined;
 ```
 
 What the URLs written in a diagram point at, set with [`configure({ resolveUrl })`](/api/configuration#resolveurl) or a component's `ctx`: called with each image and link URL as written, it returns the URL to use, or null / undefined to keep the written one. The image and link policies check the result; the diagram's code keeps what was written. A wrapper writes its own when its URLs mean something of its own — an issue tracker's attachments, for instance:

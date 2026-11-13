@@ -25,7 +25,7 @@ Mermaid's auto-layout and styling are hard to control. Mermaid Studio lets you l
 
 ## Features
 
-- **Visual editing** of flowcharts, sequence diagrams and ER diagrams, two-way with the Mermaid code.
+- **Visual editing** of flowcharts, sequence diagrams, ER diagrams, mindmaps and state diagrams, two-way with the Mermaid code.
 - **Viewer** for documentation: pan, zoom, layers, full screen, export, server-side rendering to SVG.
 - **Visual diff and history**: how a diagram changed between versions, in the browser or in CI.
 - **Themes** with a theme editor; diagrams follow light and dark.

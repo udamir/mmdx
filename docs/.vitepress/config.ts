@@ -138,7 +138,6 @@ export default defineConfig({
             { text: 'Browser support and limits', link: '/guide/browser-support' },
             { text: 'Architecture', link: '/guide/architecture' },
             { text: 'Extending the editor', link: '/guide/editor-modules' },
-            { text: 'Migrating to 0.5', link: '/guide/migration-0.5' },
             { text: 'Contributing', link: '/guide/contributing' },
           ],
         },

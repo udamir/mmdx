@@ -83,7 +83,7 @@ Each attribute sets the `EditorOptions` option of the same name in camelCase (`r
 | `read-only` | `readOnly` | `boolean` | `false` | View mode only: no editing, links open on click |
 | `features` | `features` | `Partial<EditorFeatures>` or `string` | all on except `open` | The parts that are on. The attribute (and a string property) lists them like the viewer's `controls` (`features="pen code-panel layers"`, or `none`); the object turns parts off. See [Features](#features) |
 | — | `history` | `HistoryAdapter \| readonly StaticVersion[] \| null` | — | The document's versions, newest first (`[{ id, message?, author?, date?, source }]`): the tool dock gets a History button |
-| — | `panels` | `{ code?, properties?, layers? }` | remembered, else all open | Which side panels are open |
+| — | `panels` | `{ code?, properties?, layers? }` | remembered, else all open | Which of Edit mode's side panels are open |
 | — | `storage` | `StorageAdapter` | `localStorage` (`mmdx.` keys), else in memory | Where UI preferences are kept (panels, light / dark, theme pick); never the document. `memoryStorage()`, `localStorageAdapter()` and `preloadedStorage(read, write)` come from `@mmdx/studio/adapters` |
 | `autosave` | — | `number \| false` | off | Debounced save through the adapter, in ms (`autosave` without a number: 1500, `false`: off). Read when the editor is created |
 | `guard-unload` | — | `boolean` | `false` | Ask before leaving the page with unsaved changes. Read when the editor is created |
@@ -116,7 +116,7 @@ Read-only properties of the element: `instance` (the `DiagramEditor`, `null` whi
 | `focusCode(line: number): void` | Opens the Code panel at a 1-based line of the Mermaid code |
 | `exportAs(kind: 'mmdx' \| 'mmd' \| 'svg' \| 'png'): Promise<void>` | Exports (fires the cancelable `mmdx-export`, then downloads) |
 | `fit(): void` | Fits the diagram into the view |
-| `plainMermaid(): Promise<void>` | Shows the diagram rendered by stock Mermaid (what GitHub or YouTrack show) in a dialog; needs `mermaid` |
+| `plainMermaid(): Promise<void>` | Shows the diagram rendered by stock Mermaid (what GitHub or YouTrack show) in a dialog; needs `mermaid` (a bundled app passes `configure({ mermaid: () => import('mermaid') })`) |
 | `toggleHistory(on?: boolean, opts?: { compare?: boolean }): void` | Opens or closes History (with a `history`); `compare` opens it on the newest change compared |
 
 `DiagramEditor` has the same methods, and also:
@@ -137,7 +137,7 @@ Read-only properties of the element: `instance` (the `DiagramEditor`, `null` whi
 
 ## Events
 
-All events bubble and are composed.
+All events bubble and are composed. Types: `EditorEventMap`.
 
 | Event | Detail | Cancelable | When |
 |---|---|---|---|
@@ -172,7 +172,7 @@ editor.features = 'code-panel properties layers';  // only these
 
 | Key | Default | Turns on |
 |---|---|---|
-| `codePanel` | `true` | The Code panel (left), with the Mermaid code and its problems |
+| `codePanel` | `true` | The Code panel (left), with the Mermaid code and its problems; in View mode the read-only Code view |
 | `metadataTab` | `true` | The Metadata tab of the Code panel (the `%%@` lines) |
 | `properties` | `true` | The Properties panel (right): fill, border, text, font, shape, arrows, line shape, presets… |
 | `layers` | `true` | The Layers panel (right; View settings in View mode) |
@@ -181,7 +181,7 @@ editor.features = 'code-panel properties layers';  // only these
 | `styleToolbar` | `true` | The floating style toolbar over the selection |
 | `pageToolbar` | `true` | The page toolbar, shown while the page is selected |
 | `autoLayout` | `true` | The `autoLayout` action: forget the manual positions of the whole diagram (hosts offer it through `editor.instance.core.run('autoLayout')`) |
-| `plainMermaid` | `true` | `plainMermaid()`: the diagram rendered by stock Mermaid in a dialog |
+| `plainMermaid` | `true` | `plainMermaid()`: the diagram rendered by stock Mermaid in a dialog (in a bundled app, give it Mermaid with `configure({ mermaid: () => import('mermaid') })`) |
 | `open` | `false` | Opening files: dropping `.mmdx`, `.mmd`, `.md` (its first Mermaid block), `.txt` or a `.json` layout sidecar on the canvas, and the `openFiles` action |
 | `themePicker` | `true` | The theme menu in the view parameters |
 | `schemeToggle` | `true` | The light / dark toggle next to the theme menu; turn it off when the host sets `ui` |
@@ -193,13 +193,13 @@ editor.features = 'code-panel properties layers';  // only these
 
 ## Panels and tools
 
-- **Tool dock** (left): Pointer (V), the [insert dock](#insert-dock) — Shapes (S; Table in an ER diagram) and Image (G) — Hand (H), the pen (P), the Code (C), Properties (I) and Layers (L) panel toggles, History (⇧H), and Undo / Redo. Edit-only tools hide in View mode.
+- **Tool dock** (left): Pointer (V), the [insert dock](#insert-dock) — Shapes (S; Table in an ER diagram) and Image (G) — Hand (H), the pen (P), the Code (C), Properties (I) and Layers (L) panel toggles, History (⇧H), and Undo / Redo. Edit-only tools hide in View mode, where the toggles are the viewer's Code view (C) and View settings (L).
 - **Code panel** (left): the Mermaid code, editable, with live parsing and its problems; the Metadata tab shows the `%%@` lines. `focusCode(line)` opens it at a line.
-- **Properties** and **Layers** (right): the selected items' style, presets and stacking; the diagram's layers. In View mode the right panel is View settings.
+- **Properties** and **Layers** (right): the selected items' style, presets and stacking; the diagram's layers. In View mode the left panel is the read-only Code view and the right panel is View settings, as in the viewer.
 - **Floating style toolbar** over the selection, and the **page toolbar** while the page is selected.
 - **Zoom bar** (bottom right) with fit, the `?` help and full screen; **view parameters** (top right) with Export, the theme menu and the light / dark toggle.
 
-`panels` sets which side panels are open (`{ code, properties, layers }`); the user's choice is remembered in `storage`.
+`panels` sets which of Edit mode's side panels are open (`{ code, properties, layers }`); the user's choice is remembered in `storage` (the open panels under `editor.panels`, their sizes under `editor.stack.left` and `editor.stack.right`).
 
 ## Auto layout
 
@@ -412,7 +412,7 @@ See [History](/guide/history).
 
 ## Read-only
 
-`read-only` (or `readOnly = true`, or `setMode('view')` on `DiagramEditor`) switches to View mode: the canvas pans on drag, arrows pan, links open on click, edit-only tools and shortcuts are gone, the Code panel is hidden and the right panel shows View settings.
+`read-only` (or `readOnly = true`, or `setMode('view')` on `DiagramEditor`) switches to View mode: the canvas pans on drag, arrows pan, links open on click, edit-only tools and shortcuts are gone, and the side panels are the viewer's: the read-only Code view (left) and View settings (right).
 
 ## Keyboard shortcuts
 
@@ -424,7 +424,7 @@ Shortcuts work while the focus is inside the editor; `?` lists those that apply 
 | `G` | Image ([insert dock](#insert-dock)) |
 | `⌘;` | Emoji, while editing text |
 | `⌘B`, `⌘I`, `⌘U`, `⇧⌘X` | Bold, italic, underline, strikethrough of the selected words (the whole text when none is selected), while editing a flowchart or mindmap label |
-| `C`, `I`, `L`, `⇧H` | Code, Properties, Layers panels; History |
+| `C`, `I`, `L`, `⇧H` | Code, Properties, Layers panels (View mode: Code view, View settings); History |
 | `F`, `0` | Fit |
 | `+` / `=`, `-` | Zoom in, zoom out |
 | Space + drag | Pan |

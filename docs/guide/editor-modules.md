@@ -37,7 +37,7 @@ interface EditorModule {
   id: string;
   replaces?: readonly string[];           // the editor's modules of these ids are out while this one is installed
   after?: readonly string[];              // install after these modules (ids), whatever the list order
-  when?: { mode?: ('edit' | 'view')[]; stage?: ('document' | 'history')[] }; // active only there; suspended elsewhere
+  when?: { mode?: ('edit' | 'view')[]; stage?: ('document' | 'version' | 'history')[]; kind?: string[] }; // active only there; suspended elsewhere (kind: installed only for these diagram types)
   enabled?: (core: EditorModuleApi) => boolean; // re-evaluated when features or options change; false uninstalls
   css?: readonly string[];                // adopted into the editor's shadow root while the module is installed
   install(scope: ModuleScope<EditorModuleApi>): void | (() => void);

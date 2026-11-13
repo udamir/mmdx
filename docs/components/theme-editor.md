@@ -57,7 +57,7 @@ Each attribute sets the `ThemeEditorOptions` option of the same name in camelCas
 
 | Attribute | Property | Type | Default | Description |
 |---|---|---|---|---|
-| — | `store` | `ThemeStore` | in memory, with the built-in themes | Where themes are read and saved: `{ list, get, save, delete?, publish?, usage?, subscribe? }` |
+| — | `store` | `ThemeStore` | in memory, with the built-in themes | Where themes are read and saved: `{ list, get, save, delete?, publish?, usage?, listWithUsage?, subscribe? }` |
 | — | `source` | `ThemeSource` | — | Read-only themes the store's themes may extend (e.g. the shipped theme files): `{ list, get, subscribe? }` |
 | `theme` | `theme` | `string` | `default-light` (the baseline) | The theme open for editing. Setting it later switches (asking about unsaved changes; if the user stays, the attribute follows the open theme). The property returns the open theme's id |
 | `can-edit` | — | `boolean` | `true` | `false`: browse and export only |
@@ -110,7 +110,7 @@ All events bubble and are composed. Types: `ThemeEditorEventMap`.
 
 ## Layout
 
-- **Theme list** (left): Baseline first, then the store's and the source's themes, tagged when edited on top of a theme file, not exported, or used by diagrams (from `store.usage`). **+ New theme** starts a theme that overrides nothing; the ⋯ menu has Duplicate, Import…, Export, Discard changes, Revert to file, Publish and Delete, as the permissions and the store allow.
+- **Theme list** (left): Baseline first, then the store's and the source's themes, tagged when edited on top of a theme file, not exported, or used by diagrams (from `store.listWithUsage` in one read when the store has it, else `store.usage`). **+ New theme** starts a theme that overrides nothing; the ⋯ menu has Duplicate, Import…, Export, Discard changes, Revert to file, Publish and Delete, as the permissions and the store allow.
 - **Main column**: the palette, then a gallery per diagram type (flowchart, sequence, ER, mindmap, state) with a tile for every item style, shape default, preset and page preset. The mindmap gallery has Root, Node, Branch (the width of a first-level branch), Sections (branch colours: one tile per section, with its fill, text and branch colour) and Page. The state diagram gallery has State (with its presets), Start, End, Choice, Fork / join, Composite state (with its presets), Composite colours (one tile per colour of the Coloured composites page preset), Note, Transition (each with its presets) and Page. Selecting a tile shows its properties and the floating style toolbar.
 - **Preview** (right): a sample diagram rendered with the theme being edited, one tab per diagram type (Flowchart, Sequence, ER, Mindmap, State); the sample code can be edited and reset.
 

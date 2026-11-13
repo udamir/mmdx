@@ -131,7 +131,7 @@ Diagrams over 300 lines render in the worker, so a slow diagram never blocks the
 
 ## Stock Mermaid
 
-Diagram types mmdx does not draw are rendered by stock Mermaid (when installed), always with `securityLevel: 'strict'`, in a detached container, one diagram at a time.
+Diagram types mmdx does not draw are rendered by stock Mermaid (when it is [configured](/guide/configuration) or resolves at run time), always with `securityLevel: 'strict'`, in a detached container, one diagram at a time.
 
 ## Content Security Policy
 

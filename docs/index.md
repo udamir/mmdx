@@ -29,7 +29,7 @@ features:
     linkText: <mmdx-editor>
   - icon: 🔍
     title: A viewer for documentation
-    details: Pan, zoom, layers, full screen, export, lazy rendering, a code view and an accessible text outline — plus server-side rendering to SVG and Markdown plugins.
+    details: Pan, zoom, layers, full screen, export, lazy rendering and a code view, with an accessible name and description for every diagram — plus server-side rendering to SVG, a text outline API and Markdown plugins.
     link: /components/viewer
     linkText: <mmdx-viewer>
   - icon: 🔀

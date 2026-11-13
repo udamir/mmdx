@@ -25,7 +25,7 @@ function createReactWrappers(React: ReactLike): MmdxReactComponents;
 
 interface ReactLike {
   createElement(type: string, props: Record<string, unknown> | null, ...children: unknown[]): unknown;
-  forwardRef<T, P>(render: (props: P, ref: unknown) => unknown): unknown;
+  forwardRef<P>(render: (props: P, ref: unknown) => unknown): unknown;
   useRef<T>(v: T | null): { current: T | null };
   useLayoutEffect(f: () => void | (() => void), deps?: unknown[]): void;
   useImperativeHandle(ref: unknown, init: () => unknown, deps?: unknown[]): void;
@@ -76,21 +76,19 @@ export const { MmdxViewer, MmdxEditor, MmdxDiff } = createReactWrappers(React as
 
 ### Properties
 
-These prop names are set as properties of the element, never as attributes: `source`, `loader`, `layers`, `themeSource`, `storage`, `adapter`, `features`, `panels`, `value`, `readOnly`, `store`, `modules`, `history`, `beforeSource`, `afterSource`, `ctx`, `samples`, `actions`. The wrapper assigns them after every render, in a layout effect, and only when the value differs (`!==`) from the element's current one, so pass stable objects (`useMemo`, module constants) for adapters and stores. Each element has only some of them; see its component page.
-
-Any other object value (for example the viewer's `fullscreen`, a `HostFullscreen` object) is not in this list and would become an attribute: set it through the [ref](#refs-and-children).
+A prop is set as a property of the element when the element has a property of that name: every property with a setter on the element's class (`source`, `adapter`, `storage`, `history`, `images`, `fullscreen`, …; see its component page), so a property added to an element needs no change of the wrapper. Before the element is defined, every object or function value is set as a property. The wrapper assigns them after every render, in a layout effect, and only when the value differs (`!==`) from the element's current one, so pass stable objects (`useMemo`, module constants) for adapters and stores. A property prop left out of a later render is reset to `undefined`.
 
 ### Attributes
 
-Every other prop becomes an attribute, with its name converted from camelCase to kebab-case: `themeDark` → `theme-dark`, `hoverHighlight` → `hover-highlight`, `guardUnload` → `guard-unload`. Kebab-case names (`theme-dark`, `aria-label`, `data-*`) pass unchanged. `true` sets an empty attribute, `false` leaves it out, and other values are passed to React as they are. `style` stays an object, as for any React element. Use `class` rather than `className`, which would become a `class-name` attribute.
+Every other prop becomes an attribute, with its name converted from camelCase to kebab-case: `themeDark` → `theme-dark`, `hoverHighlight` → `hover-highlight`, `guardUnload` → `guard-unload`. Kebab-case names (`theme-dark`, `aria-label`, `data-*`) pass unchanged, and React's names of standard attributes are mapped (`className` → `class`, `htmlFor` → `for`, `tabIndex` → `tabindex`). `true` sets an empty attribute, `false` leaves it out, and other values are passed to React as they are. `style` stays an object, as for any React element.
 
 ### Events
 
-A prop named `onMmdx` followed by a capital letter, with a function value, becomes an event listener. The name after `on` is converted to kebab-case: `onMmdxChange` → `mmdx-change`, `onMmdxThemeSaved` → `mmdx-theme-saved`, `onMmdxFullscreenRequest` → `mmdx-fullscreen-request`. The listener receives the `CustomEvent`; its `detail` is listed under [Events](/api/events). Listeners are removed and added again after every render, so inline functions are fine.
+A prop named `onMmdx` followed by a capital letter, with a function value, becomes an event listener. The name after `on` is converted to kebab-case: `onMmdxChange` → `mmdx-change`, `onMmdxThemeSaved` → `mmdx-theme-saved`, `onMmdxFullscreenRequest` → `mmdx-fullscreen-request`. The listener receives the `CustomEvent`; its `detail` is listed under [Events](/api/events). One listener per event type calls the handler of the latest render, so inline functions are fine; listeners are added and removed only when the set of `onMmdx…` props changes, and on unmount.
 
 ### Refs and children
 
-Each component forwards its `ref` to the element itself (an `HTMLElement`), for the element's methods and for properties the wrapper does not set. `children` are passed to the element unchanged, for example an inline `<script type="text/mermaid">` for the viewer.
+Each component forwards its `ref` to the element itself (an `HTMLElement`), for the element's methods and for setting properties yourself. `children` are passed to the element unchanged, for example an inline `<script type="text/mermaid">` for the viewer.
 
 ```tsx
 const viewer = useRef<HTMLElement>(null);

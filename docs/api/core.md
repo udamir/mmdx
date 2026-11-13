@@ -226,6 +226,11 @@ interface ItemMeta extends StyleProps {
   iconPos?: 'l' | 't' | 'b';   // where the label's icon is drawn: inline before the text, above, below
   iconSize?: number;
   iconColor?: string;
+  // an image or icon state (the flowchart image node's keys; `w` / `h`: the picture's or the icon's size)
+  icon?: string;               // the icon shown instead of a picture (`pack:name`)
+  form?: 'square' | 'circle' | 'rounded'; // the icon's frame
+  pos?: 't' | 'b';             // the caption above or below (default)
+  constraint?: 'on' | 'off';   // the picture keeps its aspect ratio
   // entities: per-attribute highlights (color, bold, italic, underline, fontFamily, fontSize, preset)
   attrs?: Record<string, AttrHighlight>;
   [extra: string]: unknown;
@@ -348,6 +353,7 @@ interface RenderResult {
   presetsUsed: Partial<Record<ItemKind, Map<string, number>>>; // preset name → item count, `(none)` for no preset
   diagnostics?: Diagnostic[]; // what the render reported (image.blocked, icon.unknown, image.size-unknown…)
   a11y?: { title?: string; desc?: string }; // the diagram's accTitle / accDescr: the standalone SVG's <title> and <desc>
+  missing?: { shapes?: true; media?: true }; // what was drawn without because its chunk was not loaded (shape geometry, the media kit)
 }
 ```
 
@@ -733,10 +739,10 @@ const DEFAULT_LAYER = 'default';
 
 ```ts
 function starterSource(type: StarterType): string
-// type StarterType = 'flowchart' | 'sequence' | 'er' | 'mindmap' | 'state'
+// type StarterType = DiagramType
 ```
 
-The source a new, empty diagram of the type starts from, as in the studio's New menu: `'flowchart TB\n'`, `'sequenceDiagram\n'`, `'erDiagram\n'`, `'mindmap\n  root((Topic))\n'` or `'stateDiagram-v2\n'`. Throws for an unknown type.
+The source a new, empty diagram of the type starts from, as in the studio's New menu: `'flowchart TB\n'`, `'sequenceDiagram\n'`, `'erDiagram\n'`, `'mindmap\n  root((Topic))\n'` or `'stateDiagram-v2\n'`. Throws for a type no registered kind has a starter for.
 
 ### `outline()`
 
@@ -777,10 +783,10 @@ In the browser, [`@mmdx/studio/diff`](/api/#mmdx-studio-diff) exports asynchrono
 
 ```ts
 function diffDiagrams(before: string, after: string): DiagramDiff
-function diffDiagramsWith(kinds: Kinds, before: string, after: string): DiagramDiff
+function diffDiagramsWith(kinds: Kinds, before: string, after: string, parse?: (code: string) => DiagramModel): DiagramDiff
 ```
 
-The diff of two sources (Mermaid with or without `%%@` lines). Never throws on bad input. When the two versions are different diagram types, `typeChanged` is true and the change is reported as a diagram-wide `diagram type` field.
+The diff of two sources (Mermaid with or without `%%@` lines). Never throws on bad input. When the two versions are different diagram types, `typeChanged` is true and the change is reported as a diagram-wide `diagram type` field. `diffDiagramsWith` parses with `kinds` (or with `parse` when given); when the type's diff is not loaded, the versions are not compared: the diff has a `diagram type` field and a `kind.not-loaded` error in `diagnostics`, not an empty change list.
 
 ```ts
 const diff = diffDiagrams(before, after);
@@ -799,6 +805,8 @@ interface DiagramDiff {
   /** Diagram-wide changes: page settings, local presets, palette, layers, `classDef`, direction, title, autonumber. */
   doc: FieldChange[];
   counts: Record<'added' | 'removed' | 'changed', number> & Record<ChangeFacet, number>;
+  /** Why the diff is incomplete: `kind.not-loaded` when the type's diff is not loaded. */
+  diagnostics?: Diagnostic[];
 }
 
 interface ItemChange {
@@ -989,7 +997,7 @@ Advanced: the scene layers of one view of a diff: the body with change classes a
 | `o.colors` | `DiffColors` (default `DIFF_COLORS.light`) |
 | `o.badgeScale` | Badge size factor |
 
-Returns `{ body, runs, overlay }`, each `SceneNode[]`.
+Returns `{ body, runs, overlay }`, each `SceneNode[]`. It throws an error with `code` `kind.not-loaded` when the diagram type's diff is not loaded, instead of annotating nothing.
 
 ### `FACETS`
 
@@ -1005,15 +1013,15 @@ const DIFF_COLORS: Record<'light' | 'dark', DiffColors>
 // type Mark = 'added' | 'removed' | 'content' | 'layout' | 'style'
 ```
 
-The values of the `--mmdx-diff-*` tokens, for exports and server-side rendering: a line / text colour `c` and a tinted fill `bg` per mark, and the opacity of dimmed items.
+The values of the `--mmdx-diff-*` tokens (the components' stylesheet is made from them), for exports and server-side rendering: a line / text colour `c` and a tinted fill `bg` per mark, and the opacity of dimmed items.
 
 | Mark | Light `c` / `bg` | Dark `c` / `bg` |
 |---|---|---|
-| `added` | `#1a7f37` / `#dafbe1` | `#3fb950` / `#1d4428` |
-| `removed` | `#cf222e` / `#ffebe9` | `#f85149` / `#4c2124` |
-| `content` | `#b35900` / `#fff1e0` | `#e3a33b` / `#4a3a1c` |
-| `layout` | `#0969da` / `#ddf4ff` | `#58a6ff` / `#1c3a5e` |
-| `style` | `#8250df` / `#fbefff` | `#bc8cff` / `#3c2c5e` |
+| `added` | `#1a7f37` / `#dafbe1` | `#3fb950` / `rgba(46,160,67,.22)` |
+| `removed` | `#cf222e` / `#ffebe9` | `#f85149` / `rgba(248,81,73,.22)` |
+| `content` | `#b35900` / `#fff1e0` | `#e3a33b` / `rgba(227,163,59,.2)` |
+| `layout` | `#0969da` / `#ddf4ff` | `#58a6ff` / `rgba(56,139,253,.2)` |
+| `style` | `#8250df` / `#fbefff` | `#bc8cff` / `rgba(163,113,247,.2)` |
 | `dim` | `0.28` | `0.35` |
 
 ## Diff rendering
@@ -1134,7 +1142,8 @@ interface CenterBox { x: number; y: number; w: number; h: number }
 ### Item references
 
 ```ts
-type DiagramType = 'flowchart' | 'sequence' | 'er' | 'mindmap' | 'state';
+type BuiltinType = 'flowchart' | 'sequence' | 'er' | 'mindmap' | 'state';
+type DiagramType = BuiltinType | (string & {});                           // open: a kind plugin may register more
 type ItemKind =
   | 'node' | 'group' | 'edge'                                               // flowchart (mindmaps: node; state diagrams: states, composites, transitions)
   | 'participant' | 'message' | 'note' | 'block' | 'box' | 'activation'     // sequence (note: also state diagrams)
@@ -1143,7 +1152,7 @@ interface ItemRef { kind: ItemKind; id: string }
 type ItemKey = `${ItemKind}:${string}`;                                     // 'node:a', 'edge:a->b'
 ```
 
-`ITEM_KINDS` lists every kind; `itemKey(ref)` and `parseItemKey(key)` convert between the two forms (`parseItemKey` returns null for an unknown kind).
+`DiagramType` is open as a type (any string still type-checks, while editors complete the built-in names); a value is checked against the registered kinds where it comes in, so an unknown type reads as unsupported. `BuiltinType` is the five types mmdx draws itself. `ITEM_KINDS` lists every kind; `itemKey(ref)` and `parseItemKey(key)` convert between the two forms (`parseItemKey` returns null for an unknown kind).
 
 ### Diagram models
 
@@ -1229,4 +1238,4 @@ interface UnsupportedModel {
 }
 ```
 
-`NodeShape` is one of `rect`, `rounded`, `stadium`, `subroutine`, `cylinder`, `circle`, `doublecircle`, `diamond`, `hexagon`, `parallelogram`, `parallelogram-alt`, `trapezoid`, `trapezoid-alt`, `asymmetric`, `hcyl`, `document`, `card`, `queue`. `MermaidStyle` is a validated Mermaid `style` / `classDef` / `linkStyle`: `{ fill?, stroke?, text?, strokeWidth?, dash?, fontSize? }`. Sequence messages, notes and blocks get ids in source order (`m1`, `n1`, `b1`); a message keeps its `arrow` as written (one of Mermaid's 26 tokens), with `line`, `head` and `both`, and `half`, `stick`, `reverse` for half arrows and `central` (`'from' | 'to' | 'both'`) for central connections. An ER relationship's `from` or `to` may be a subgraph's id; an entity's `parent` is the subgraph it is drawn in (Mermaid's rule: the first subgraph to close that names it). A mindmap node's id is its written id when that is unique, else `mm<k>` (its place among all nodes in code order); `MindShape` is `mm-default` (no delimiters), `rect`, `rounded`, `circle`, `bang`, `cloud` or `hexagon`. A state's `kind` (`StateKind`) is `state`, `start`, `end`, `choice`, `fork` or `join`; the start and end pseudo-states are `[*]start` / `[*]end` at the top level, `X/[*]start` inside composite X and `X/2/[*]start` in its second concurrency region; `region` is 0-based. The full definitions are in `src/core/model.ts`.
+`NodeShape` is a shape id of the [shape catalogue](/guide/shapes#the-catalogue): `rect`, `rounded`, `stadium`, `subroutine`, `cylinder`, `circle`, `doublecircle`, `diamond`, `hexagon`, `parallelogram`, `parallelogram-alt`, `trapezoid`, `trapezoid-alt`, `asymmetric`, `hcyl`, `document`, `card`, Mermaid's short names for its other flowchart shapes (`lin-rect`, `notch-pent`, `bow-rect`, …), and `choice`, `note`, the figures (`actor`, `boundary`, `control`, `entity`, `collections`, `mm-default`) and the media frames `icon` and `image`. `MermaidStyle` is a validated Mermaid `style` / `classDef` / `linkStyle`: `{ fill?, stroke?, text?, strokeWidth?, dash?, fontSize?, interpolate? }` (`interpolate`: a `linkStyle`'s curve name). Sequence messages, notes and blocks get ids in source order (`m1`, `n1`, `b1`); a message keeps its `arrow` as written (one of Mermaid's 26 tokens), with `line`, `head` and `both`, and `half`, `stick`, `reverse` for half arrows and `central` (`'from' | 'to' | 'both'`) for central connections. An ER relationship's `from` or `to` may be a subgraph's id; an entity's `parent` is the subgraph it is drawn in (Mermaid's rule: the first subgraph to close that names it). A mindmap node's id is its written id when that is unique, else `mm<k>` (its place among all nodes in code order); `MindShape` is `mm-default` (no delimiters), `rect`, `rounded`, `circle`, `bang`, `cloud` or `hexagon`. A state's `kind` (`StateKind`) is `state`, `start`, `end`, `choice`, `fork` or `join`; the start and end pseudo-states are `[*]start` / `[*]end` at the top level, `X/[*]start` inside composite X and `X/2/[*]start` in its second concurrency region; `region` is 0-based. The full definitions are in `src/core/model.ts`.

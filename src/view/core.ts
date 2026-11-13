@@ -165,7 +165,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   protected destroyed = false;
   private readonly o: ViewCoreOptions;
   private readonly shell: Shell;
-  /** The shadow root, i18n, context, storage, popovers, dialogs, scheme and events (A8: shared with the theme editor and the studio). */
+  /** The shadow root, i18n, context, storage, popovers, scheme and events (A8: shared with the theme editor and the studio). */
   private readonly component: ComponentShell;
   private readonly scenes: SceneStack;
   private readonly modules: ModuleHost<this> = new ModuleHost<this>(this);
@@ -177,7 +177,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.o = o;
     this.product = o.product;
     this.host = host;
-    // the shadow root, i18n, context, storage, popovers, dialogs, scheme and events every component has (A8)
+    // the shadow root, i18n, context, storage, popovers, scheme and events every component has (A8)
     const component = (this.component = new ComponentShell(host, { product: o.product, storage: o.storage, ctx: o.ctx, iconPacks: o.iconPacks, ui: o.ui }));
     this.i18n = component.i18n;
     this.storage = component.storage;

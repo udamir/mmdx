@@ -126,7 +126,7 @@ Read-only property of the element: `instance` (the `DiagramDiff`, `null` while n
 | `pair: DiffPair` | `{ base, head, viewing }`: the compared versions and the version shown as it is |
 | `filters: DiffFilter[]` | The shown change kinds |
 | `diagnostics: readonly Diagnostic[]` | Diagnostics of the last comparison |
-| `session: DiffSession` | The model behind the component: versions, pair, filters, the rendered diff, the selection (advanced) |
+| `session: DiffSession` | The model behind the component: versions, what is shown (`shown`: nothing, one version or a comparison; `show(shown)`), filters, the rendered diff, the selection (advanced) |
 | `core: ViewCore`, `ctx: CoreContext` | The view kernel and the core context (advanced) |
 | `destroy(): void` | Removes the component |
 

@@ -51,6 +51,7 @@ Both plugins and `diagramHtml` take the same options:
 | `prerender` | `true` | Pre-render supported diagrams to SVG; `false` emits the source only |
 | `themes` | — | Extra theme files (`ThemeFile[]`) registered before rendering, for a `theme` that is not built in |
 | `ctx` | `createContext()` | The `CoreContext` to render with |
+| `iconPacks` | — | Icon packs over the context's registry, as `configure({ iconPacks })` takes them; the rehype plugin waits for the icons a page's diagrams need (see [Icons](/guide/icons#on-the-server)) |
 
 ```ts
 import githubLight from '@mmdx/studio/themes/github-light.theme.json' with { type: 'json' };
