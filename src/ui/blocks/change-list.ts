@@ -4,7 +4,7 @@
 // stays where it is. Arrow keys, Home and End move along the rows; the selected row (else the first) is the list's
 // one tab stop. The change keys come from the host (`keyOf`, core/diff's `changeKey`), so the block needs no diff code. Replaces `changeList`, `describeChange`, `kindLabel` and `fieldRow`
 // of elements/diff/panels.ts (same DOM and classes). The change colours come from the `--mmdx-diff-*` tokens: the
-// host adopts `DIFF_TOKENS` (ui/styles/diff.ts).
+// host adopts `DIFF_TOKENS` (diff/styles.ts).
 import type { Mark } from '../../core/diff/annotate.js';
 import type { FieldChange, ItemChange } from '../../core/diff/index.js';
 import { h, icon } from '../kit/h.js';

@@ -92,6 +92,7 @@ Hooks for hosts that embed mmdx in sandboxed iframes (no `allowfullscreen`, no `
 - A node named `__v0`, `__v1`… is laid out like any other node.
 - Diff change badges sit beside the item instead of covering it.
 - Diff change badges, the exported diff legend and the diff bar's filter toggles show one set of icons (plus, minus, pen, move arrows, brush) instead of the letters `+ − C L S` and the filters' own icons; the icon sits in the middle of its badge.
+- Exported diffs in the dark scheme (`scheme: 'dark'`) tint changed items with the translucent fills the screen uses, instead of opaque dark colours: the `--mmdx-diff-*` tokens are now made from `DIFF_COLORS`, so the two cannot drift apart.
 - Side by side in the editor's History is drawn like the editor.
 
 ## 0.2.0 — History and diff

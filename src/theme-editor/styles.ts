@@ -1,5 +1,5 @@
 // <mmdx-theme-editor> (§8.3), ported from the prototype's styles.css (`.te-*`, the read-only preview viewer) and
-// scoped to the element's shadow root. Prototype variable names come from ALIASES (ui/styles/base.ts).
+// scoped to the element's shadow root. Prototype variable names come from ALIASES (ui/kit/base.ts).
 export const THEME_EDITOR_CSS = /* css */ `
 :host { display: block; position: relative; height: 100%; min-height: 480px; }
 :host([presentation="dialog"]) { display: contents; }

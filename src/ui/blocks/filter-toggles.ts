@@ -3,7 +3,7 @@
 // with the count. Replaces the filter part of the diff's `drawBar` (elements/diff.ts) and `FILTER_ICONS`
 // (elements/diff/panels.ts). The block's element is a `display: contents` span, so the buttons sit directly in the
 // flow of the host's horizontal Toolbar (arrow keys, tooltip placement). The change colours come from the
-// `--mmdx-diff-*` tokens: the host adopts `DIFF_TOKENS` (ui/styles/diff.ts).
+// `--mmdx-diff-*` tokens: the host adopts `DIFF_TOKENS` (diff/styles.ts).
 import { h, icon } from '../kit/h.js';
 import { registerMessages } from '../../i18n.js';
 import { MARK_ICONS } from '../../core/diff/icons.js';

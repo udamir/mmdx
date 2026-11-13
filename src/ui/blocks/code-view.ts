@@ -6,7 +6,7 @@
 // of elements/viewer-code.ts. Highlighting is the dependency-free tokenizer of ui/diagram/highlight.ts (`highlightLine`,
 // `highlightMetaLine`); text goes in as text nodes only. The line diff comes from the host, which computes it with
 // core/diff/text's `diffLines` (A5: the block only groups the lines it is given into hunks). The diff colours come from the `--mmdx-diff-*` tokens: in diff mode the host adopts
-// `DIFF_TOKENS` (ui/styles/diff.ts).
+// `DIFF_TOKENS` (diff/styles.ts).
 import { hunks, type LineOp } from '../../core/diff/text.js';
 import { h } from '../kit/h.js';
 import { highlightLine, highlightMetaLine, tokenNodes } from '../diagram/highlight.js';

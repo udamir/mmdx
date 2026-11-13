@@ -5,7 +5,7 @@
 // (`role=list`), the viewed version marked `aria-current`. Counts arriving later patch only their row's badges
 // (`refreshCounts()`). Replaces `historyRows` and `ago` of
 // elements/diff/panels.ts (same DOM and classes). The pick colours come from the `--mmdx-diff-*` tokens: the host
-// adopts `DIFF_TOKENS` (ui/styles/diff.ts).
+// adopts `DIFF_TOKENS` (diff/styles.ts).
 import type { VersionInfo } from '../../ports.js';
 import type { DiagramDiff } from '../../core/diff/index.js';
 import { h, icon } from '../kit/h.js';

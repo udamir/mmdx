@@ -1,27 +1,26 @@
 // <mmdx-diff> styles (§9, §10): the highlight tokens, the host box, the stage of a DiffScene (panes, titles, messages)
 // and the diff marks inside the canvases. The chrome is the blocks' own CSS (adopted by the modules that use them).
-// Every colour comes from a token: the `--mmdx-*` chrome tokens (ui/styles/base.ts) and the `--mmdx-diff-*` highlight
-// tokens below, light and dark. Hosts override any of them on the element (`mmdx-diff { --mmdx-diff-add: … }`).
+// Every colour comes from a token: the `--mmdx-*` chrome tokens (ui/kit/base.ts) and the `--mmdx-diff-*` highlight
+// tokens below, light and dark, made from core's DIFF_COLORS (the colours of exported diffs).
+// Hosts override any of them on the element (`mmdx-diff { --mmdx-diff-add: … }`).
+import { DIFF_COLORS, MARKS, type DiffColors, type Mark } from '../core/diff/annotate.js';
+
+/** The token name of each mark's colour. */
+const TOKEN: Record<Mark, string> = { added: 'add', removed: 'del', content: 'content', layout: 'layout', style: 'style' };
+
+/** A scheme's mark tokens, from the colours exports draw with (one source). */
+const markTokens = (c: DiffColors): string =>
+  MARKS.map((m) => `--mmdx-diff-${TOKEN[m]}: ${c.marks[m].c}; --mmdx-diff-${TOKEN[m]}-bg: ${c.marks[m].bg};`).join('\n  ') + `\n  --mmdx-diff-dim: ${c.dim};`;
 
 export const DIFF_TOKENS = /* css */ `
 :host {
-  --mmdx-diff-add: #1a7f37; --mmdx-diff-add-bg: #dafbe1;
-  --mmdx-diff-del: #cf222e; --mmdx-diff-del-bg: #ffebe9;
-  --mmdx-diff-content: #b35900; --mmdx-diff-content-bg: #fff1e0;
-  --mmdx-diff-layout: #0969da; --mmdx-diff-layout-bg: #ddf4ff;
-  --mmdx-diff-style: #8250df; --mmdx-diff-style-bg: #fbefff;
-  --mmdx-diff-dim: .28;
+  ${markTokens(DIFF_COLORS.light)}
   --mmdx-diff-run-ins: #aff5b4; --mmdx-diff-run-del: #ffd2cf;
   --mmdx-diff-blend: multiply;
   --mmdx-diff-tip: #1d2330; --mmdx-diff-tip-ink: #fff;
 }
 :host([data-ui="dark"]) {
-  --mmdx-diff-add: #3fb950; --mmdx-diff-add-bg: rgba(46,160,67,.22);
-  --mmdx-diff-del: #f85149; --mmdx-diff-del-bg: rgba(248,81,73,.22);
-  --mmdx-diff-content: #e3a33b; --mmdx-diff-content-bg: rgba(227,163,59,.2);
-  --mmdx-diff-layout: #58a6ff; --mmdx-diff-layout-bg: rgba(56,139,253,.2);
-  --mmdx-diff-style: #bc8cff; --mmdx-diff-style-bg: rgba(163,113,247,.2);
-  --mmdx-diff-dim: .35;
+  ${markTokens(DIFF_COLORS.dark)}
   --mmdx-diff-run-ins: rgba(46,160,67,.35); --mmdx-diff-run-del: rgba(248,81,73,.35);
   /* multiply would darken a dark canvas: translucent fills instead */
   --mmdx-diff-blend: normal;

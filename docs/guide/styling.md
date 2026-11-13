@@ -75,7 +75,7 @@ Every colour, font, radius and shadow of the chrome is a `--mmdx-*` custom prope
 | `--mmdx-z-popover` | `1000` | Stacking of popovers and menus |
 | `--mmdx-focus` | `0 0 0 2px var(--mmdx-accent)` | Focus ring (a box shadow) |
 
-The dark values live in `src/ui/styles/base.ts`. A token set on the element applies to both schemes; to set a value for one scheme only, target the resolved scheme:
+The dark values live in `src/ui/kit/base.ts`. A token set on the element applies to both schemes; to set a value for one scheme only, target the resolved scheme:
 
 ```css
 mmdx-viewer { --mmdx-accent: #0b7285; }

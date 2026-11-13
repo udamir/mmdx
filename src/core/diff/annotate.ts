@@ -30,7 +30,7 @@ export interface DiffColors {
   dim: number;
 }
 
-/** The `--mmdx-diff-*` token values (ui/styles/diff.ts) for exports and server-side rendering. */
+/** The highlight colours: exports and server-side rendering draw with them, and the `--mmdx-diff-*` tokens of the screen (diff/styles.ts DIFF_TOKENS) are made from them. */
 export const DIFF_COLORS: Record<'light' | 'dark', DiffColors> = {
   light: {
     marks: {
@@ -44,11 +44,11 @@ export const DIFF_COLORS: Record<'light' | 'dark', DiffColors> = {
   },
   dark: {
     marks: {
-      added: { c: '#3fb950', bg: '#1d4428' },
-      removed: { c: '#f85149', bg: '#4c2124' },
-      content: { c: '#e3a33b', bg: '#4a3a1c' },
-      layout: { c: '#58a6ff', bg: '#1c3a5e' },
-      style: { c: '#bc8cff', bg: '#3c2c5e' },
+      added: { c: '#3fb950', bg: 'rgba(46,160,67,.22)' },
+      removed: { c: '#f85149', bg: 'rgba(248,81,73,.22)' },
+      content: { c: '#e3a33b', bg: 'rgba(227,163,59,.2)' },
+      layout: { c: '#58a6ff', bg: 'rgba(56,139,253,.2)' },
+      style: { c: '#bc8cff', bg: 'rgba(163,113,247,.2)' },
     },
     dim: 0.35,
   },
@@ -238,7 +238,7 @@ function highlighterRuns(body: readonly SceneNode[], measure: TextMeasurer, colo
     const runs = lineRuns(n.lines);
     n.lines.forEach((l, i) => {
       const line = runs[i] ?? [];
-      // inserted words are drawn bold (ui/styles/diff.ts and the export style), as are bold runs
+      // inserted words are drawn bold (diff/styles.ts and the export style), as are bold runs
       const fontOf = (r: TextRun): FontSpec => {
         const f = r.mark === 'ins' || r.bold ? { ...base, weight: 700 } : base;
         return r.italic ? { ...f, style: 'italic' } : f;
