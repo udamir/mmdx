@@ -57,11 +57,14 @@ export interface ThemeSource {
 export type SaveResult = { version: string } | { conflict: ThemeFile };
 
 export interface ThemeStore extends ThemeSource {
+  /** `theme` is the theme editor's saved copy (the saved theme in the library and the registry): a store that keeps it keeps a copy. */
   save(theme: ThemeFile, opts: { version?: string }): Promise<SaveResult>;
   delete?(id: string): Promise<void>;
   publish?(id: string): Promise<void>;
   /** Number of diagrams that use the theme, when the host can tell. */
   usage?(id: string): Promise<number>;
+  /** The list with each theme's file and usage in one read (P19): the theme editor's library uses it when the store has it, instead of `list()`, then `get()` and `usage()` per theme. */
+  listWithUsage?(): Promise<{ info: ThemeInfo; file: ThemeFile; usage?: number }[]>;
 }
 
 // ---- history (diff §8.6): the versions of a diagram, newest first

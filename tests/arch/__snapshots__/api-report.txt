@@ -28,7 +28,7 @@ staticHistory: (versions: readonly StaticVersion[]) => HistoryAdapter
 StaticVersion (type): = VersionInfo & { source: string }
 StorageAdapter (type): { get, set, remove }
 ThemeSource (type): { list, get, subscribe? }
-ThemeStore (type): { save, delete?, publish?, usage?, list, get, subscribe? }
+ThemeStore (type): { save, delete?, publish?, usage?, listWithUsage?, list, get, subscribe? }
 UrlResolver (type): = (url: string, kind: ContentUrlKind) => string | null | undefined
 VersionInfo (type): { id, message?, author?, date?, url? }
 ## core
@@ -366,7 +366,7 @@ ThemeFile (type): { id, name?, extends?, appearance?, counterpart?, schemaVersio
 ThemeInfo (type): { id, name, appearance, extends, version? }
 ThemeSamples (type): = Partial<Record<DiagramType, string>>
 ThemeSource (type): { list, get, subscribe? }
-ThemeStore (type): { save, delete?, publish?, usage?, list, get, subscribe? }
+ThemeStore (type): { save, delete?, publish?, usage?, listWithUsage?, list, get, subscribe? }
 ## viewer
 Config (type): { themes?, themeSource?, measure?, i18n?, linkPolicy?, imagePolicy?, resolveUrl?, iconPacks?, builtinIcons?, mermaid?, fonts? }
 configure: (c: Config) => void
