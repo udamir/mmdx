@@ -7,6 +7,7 @@
 // screen, the tool dock with Hand and the pen, the view params with the theme menu and the light / dark toggle, and
 // view settings. Views: Before, Merged, After (one canvas; switching animates) and Side by side (two linked canvases).
 import { sessionHost } from '../diff/session-host.js';
+import { applyKernelPatch, kernelOptions } from '../view/kernel-options.js';
 import { attr, MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
 import { Owner } from '../reactive/owner.js';
 import { fetchText } from '../adapters/fetch-text.js';
@@ -125,14 +126,7 @@ export class DiagramDiff {
       areaClass: 'area',
       canvas: { interaction: 'pan-zoom', wheel: o.wheel ?? 'always', panOnDrag: true, maxK: 8, insets: () => this.scene?.insets() ?? { left: 8, right: 8, top: 8, bottom: 52 } },
       feature: (name) => this.o.features?.[name as DiffFeature] !== false,
-      ...(o.storage ? { storage: o.storage } : {}),
-      ...(o.ctx ? { ctx: o.ctx } : {}),
-      ...(o.iconPacks ? { iconPacks: o.iconPacks } : {}),
-      ...(o.themeSource ? { themeSource: o.themeSource } : {}),
-      ...(o.ui ? { ui: o.ui } : {}),
-      ...(o.theme ? { theme: o.theme } : {}),
-      ...(o.themeDark ? { themeDark: o.themeDark } : {}),
-      ...(o.compact !== undefined ? { compact: o.compact } : {}),
+      ...kernelOptions(o),
     });
     const core = this.core;
     this.ctx = core.ctx;
@@ -206,13 +200,11 @@ export class DiagramDiff {
     if ('filters' in patch) s.applyFilters(patch.filters);
     if ('dim' in patch && patch.dim !== undefined) s.dim.set(patch.dim);
     if ('panels' in patch) core.setPanels({ ...panelState(patch.panels) });
-    if ('storage' in patch) core.setStorage(patch.storage);
+    // the scheme, the themes, compact, storage and the main canvas's wheel as every product applies them; the wheel
+    // reaches the second canvas of Side by side too
+    applyKernelPatch(core, patch, { wheel: 'always' });
     if ('themeSource' in patch) core.setThemeSource(patch.themeSource);
     if ('ctx' in patch && patch.ctx !== ctx) warnOnce('diff: `ctx` is read when the diff is created');
-    if ('ui' in patch) core.setUi(patch.ui);
-    if ('theme' in patch) core.themes.attr.set(patch.theme ?? null);
-    if ('themeDark' in patch) core.themes.attrDark.set(patch.themeDark ?? null);
-    if ('compact' in patch) core.setCompact(patch.compact ?? 'auto');
     if ('label' in patch) this.label.set(patch.label ?? null);
     if ('actions' in patch) this.actions.set(patch.actions ?? []);
     if ('wheel' in patch) for (const c of this.scene.canvases()) c.setOptions({ wheel: patch.wheel ?? 'always' });

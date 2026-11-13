@@ -36,6 +36,7 @@ import { signal, untracked, type ReadSignal } from '../reactive/signal.js';
 import { ALIASES } from '../ui/kit/base.js';
 import { EDITOR_CSS } from './styles.js';
 import { ViewCore } from '../view/core.js';
+import { kernelOptions } from '../view/kernel-options.js';
 import type { Mode, Tool, ViewActions, ViewEvents } from '../view/types.js';
 import { StoreScene, type OverlayPainter } from './scene.js';
 import type { ChangeReason, DocStore } from './store.js';
@@ -419,14 +420,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       },
       feature: (name) => this.featureOn(name),
       loadHistory: () => import('../diff/history.js'),
-      ...(o.storage ? { storage: o.storage } : {}),
-      ...(o.ctx ? { ctx: o.ctx } : {}),
-      ...(o.iconPacks ? { iconPacks: o.iconPacks } : {}),
-      ...(o.themeSource ? { themeSource: o.themeSource } : {}),
-      ...(o.ui ? { ui: o.ui } : {}),
-      ...(o.theme ? { theme: o.theme } : {}),
-      ...(o.themeDark ? { themeDark: o.themeDark } : {}),
-      ...(o.compact !== undefined ? { compact: o.compact } : {}),
+      ...kernelOptions(o),
     });
     this.kindSource = o.kinds;
     this.store = o.store;

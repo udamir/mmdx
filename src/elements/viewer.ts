@@ -7,7 +7,7 @@
 import { fileStem } from '../ui/kit/format.js';
 import { attr, MmdxElement, readInlineSource, warnOnce, words, type AttrSpec, type Patch } from './base.js';
 import type { HistoryEventMap } from '../view/history.js';
-import { applyKernelPatch, KERNEL_OPTION_KEYS } from '../view/kernel-options.js';
+import { applyKernelPatch, KERNEL_OPTION_KEYS, kernelOptions } from '../view/kernel-options.js';
 import { fetchText } from '../adapters/fetch-text.js';
 import type { ThemeSource, HistoryAdapter, StorageAdapter, HostFullscreen } from '../ports.js';
 import type { StaticVersion } from '../adapters/history.js';
@@ -102,14 +102,7 @@ export class DiagramViewer {
       canvas: { interaction: o.interactive === false ? 'static' : 'pan-zoom', wheel: o.wheel ?? 'ctrl', panOnDrag: true, svgClass: 'scene', part: 'canvas' },
       feature: (name) => this.feature(name),
       loadHistory: () => import('../diff/history.js'),
-      ...(o.storage ? { storage: o.storage } : {}),
-      ...(o.ctx ? { ctx: o.ctx } : {}),
-      ...(o.iconPacks ? { iconPacks: o.iconPacks } : {}),
-      ...(o.themeSource ? { themeSource: o.themeSource } : {}),
-      ...(o.ui ? { ui: o.ui } : {}),
-      ...(o.theme ? { theme: o.theme } : {}),
-      ...(o.themeDark ? { themeDark: o.themeDark } : {}),
-      ...(o.compact !== undefined ? { compact: o.compact } : {}),
+      ...kernelOptions(o),
     });
     const core = this.core;
     this.ctx = core.ctx;

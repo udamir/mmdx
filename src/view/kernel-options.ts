@@ -3,7 +3,7 @@
 // drift in how they treat them.
 import type { StorageAdapter } from '../ports.js';
 import type { WheelMode } from '../dom/viewport.js';
-import type { ViewCore } from './core.js';
+import type { ViewCore, ViewCoreOptions } from './core.js';
 import type { UiOption } from './theme.js';
 
 export interface KernelOptions {
@@ -16,6 +16,23 @@ export interface KernelOptions {
 }
 
 export const KERNEL_OPTION_KEYS: readonly (keyof KernelOptions)[] = ['ui', 'theme', 'themeDark', 'compact', 'wheel', 'storage'];
+
+/** What a product passes on to its kernel when it is created: the options above it reads once, and the shared services. */
+export type KernelCreateOptions = Pick<ViewCoreOptions, 'storage' | 'ctx' | 'iconPacks' | 'themeSource' | 'ui' | 'theme' | 'themeDark' | 'compact'>;
+
+/** The kernel's options out of a product's (X12): only those set, so the kernel keeps its own defaults for the others. */
+export function kernelOptions(o: { readonly [K in keyof KernelCreateOptions]?: KernelCreateOptions[K] | undefined }): KernelCreateOptions {
+  return {
+    ...(o.storage ? { storage: o.storage } : {}),
+    ...(o.ctx ? { ctx: o.ctx } : {}),
+    ...(o.iconPacks ? { iconPacks: o.iconPacks } : {}),
+    ...(o.themeSource ? { themeSource: o.themeSource } : {}),
+    ...(o.ui ? { ui: o.ui } : {}),
+    ...(o.theme ? { theme: o.theme } : {}),
+    ...(o.themeDark ? { themeDark: o.themeDark } : {}),
+    ...(o.compact !== undefined ? { compact: o.compact } : {}),
+  };
+}
 
 /** Applies the kernel options a patch changes; `wheel` falls back to the product's default. */
 export function applyKernelPatch(core: Pick<ViewCore, 'setStorage' | 'setUi' | 'themes' | 'setCompact' | 'canvas'>, patch: { readonly [K in keyof KernelOptions]?: KernelOptions[K] | undefined }, defaults: { wheel: WheelMode }): void {
