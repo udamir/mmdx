@@ -29,17 +29,19 @@ export function diffStageModule(scene: DiffScene): ViewModule<ViewCore> {
       registerMessages(BLOCK_MESSAGES_DIFF);
       const core = scope.core;
       const t = core.i18n.t;
-      const area = core.area;
+
+      /** The scene's main canvas (Before side by side): the zoom bar's. */
+      const mainSvg = (): SVGSVGElement | null => scene.canvases()[0]?.svg ?? null;
 
       // ---- click: select a change (a drag pans); ⌘ / Ctrl-click on a link opens it
       let down: { x: number; y: number } | null = null;
-      scope.listen(area, 'pointerdown', (ev: PointerEvent) => {
+      scope.area('pointerdown', (ev) => {
         if (!canvasOf(ev.target)) return;
         down = { x: ev.clientX, y: ev.clientY };
         // the canvas takes the keyboard (shortcuts are handled on the root)
-        core.root.focus({ preventScroll: true });
+        core.focus();
       });
-      scope.listen(area, 'click', (ev: MouseEvent) => {
+      scope.area('click', (ev) => {
         if (!canvasOf(ev.target)) return;
         const target = ev.target as Element;
         const a = target.closest('a');
@@ -58,9 +60,9 @@ export function diffStageModule(scene: DiffScene): ViewModule<ViewCore> {
         session.select(session.change(key) ? key : null);
       });
       // a double click on the empty After pane fits too (the main canvas is the zoom bar's)
-      scope.listen(area, 'dblclick', (ev: MouseEvent) => {
+      scope.area('dblclick', (ev) => {
         const svg = canvasOf(ev.target);
-        if (!svg || svg === core.canvas.svg || (ev.target as Element).closest('[data-kind]')) return;
+        if (!svg || svg === mainSvg() || (ev.target as Element).closest('[data-kind]')) return;
         core.run('fitView');
       });
 
@@ -70,7 +72,7 @@ export function diffStageModule(scene: DiffScene): ViewModule<ViewCore> {
         const D = session.rendered.peek();
         if (!D) return null;
         const view = session.view.peek();
-        if (view === 'side') return svg === core.canvas.svg ? D.before.model : D.after.model;
+        if (view === 'side') return svg === mainSvg() ? D.before.model : D.after.model;
         return renderedOf(D, view).model;
       };
       const bodies = (): Element[] => scene.canvases().flatMap((c) => [...c.content.querySelectorAll(':scope > .body-layer')]);
@@ -81,7 +83,7 @@ export function diffStageModule(scene: DiffScene): ViewModule<ViewCore> {
         lit = false;
         bodies().forEach(clearHighlight);
       };
-      scope.listen(area, 'pointermove', (ev: PointerEvent) => {
+      scope.area('pointermove', (ev) => {
         const svg = canvasOf(ev.target);
         if (!svg || !core.display.peek().hoverHighlight || core.tool.peek() === 'pen' || scene.canvases().some((c) => c.viewport?.panning)) {
           clearAll();
@@ -91,7 +93,7 @@ export function diffStageModule(scene: DiffScene): ViewModule<ViewCore> {
         if (!body) return;
         lit = hoverHighlight(body, ev.target as Element, modelOf(svg)) !== '' || lit;
       });
-      scope.listen(area, 'pointerleave', clearAll);
+      scope.area('pointerleave', clearAll);
       scope.effect(() => {
         if (!core.display().hoverHighlight) untracked(clearAll);
       });

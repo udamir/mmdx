@@ -128,7 +128,7 @@ export function createIssuePill(scope: ModuleScope<EditorCore>, t: T, onOpen: ()
     const n = issues.length;
     const show = !!n && !core.panels.peek().code;
     if (show && !pill) load();
-    else if (show && pill && !unmount) unmount = scope.mount(core.slots['top-center'], pill.el);
+    else if (show && pill && !unmount) unmount = scope.slot('top-center').mount(pill.el);
     else if (!show && unmount) {
       unmount();
       unmount = null;

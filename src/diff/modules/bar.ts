@@ -136,20 +136,16 @@ export function diffBarModule(session: DiffSession): ViewModule<ViewCore> {
       // the views fold into a select when the canvas between the open panels is narrow
       const NEEDS = 440;
       const syncNarrow = (): void => {
-        const st = getComputedStyle(core.root);
-        const free = core.area.clientWidth - (parseFloat(st.getPropertyValue('--inset-l')) || 0) - (parseFloat(st.getPropertyValue('--inset-r')) || 0);
+        const width = core.areaWidth();
+        const free = width - (parseFloat(core.cssVar('--inset-l')) || 0) - (parseFloat(core.cssVar('--inset-r')) || 0);
         // with no panel on the right the bar also keeps clear of the zoom bar's corner
         const room = free - (bar.el.classList.contains('right-closed') ? 220 : 24);
-        bar.el.classList.toggle('narrow', !!core.area.clientWidth && room < NEEDS);
+        bar.el.classList.toggle('narrow', !!width && room < NEEDS);
       };
-      // the free width does not depend on pan / zoom; the ResizeObserver covers resizes. Through the scope, so a closed
+      // the free width does not depend on pan / zoom; the area's resize covers resizes. Through the scope, so a closed
       // History leaves nothing on the core behind (B9)
       scope.on('panels', syncNarrow);
-      if (typeof ResizeObserver !== 'undefined') {
-        const ro = new ResizeObserver(syncNarrow);
-        ro.observe(core.area);
-        scope.onDispose(() => ro.disconnect());
-      }
+      scope.onDispose(core.onAreaResize(syncNarrow));
       syncNarrow();
 
       // ---- keys

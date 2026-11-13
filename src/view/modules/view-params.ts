@@ -28,7 +28,7 @@ export const viewParamsModule: ViewModule<ViewCore> = {
   install(scope) {
     const core = scope.core;
     const t = core.i18n.t;
-    const within = (): Element => core.root;
+    const within = (): Element => core.eventRoot;
     const parts: { el: HTMLElement; destroy(): void }[] = [];
 
     const scheme = core.feature('scheme') ? createSchemeToggle({ scheme: core.scheme, onChange: (v) => core.chooseScheme(v), t }) : null;

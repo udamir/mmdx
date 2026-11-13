@@ -9,11 +9,14 @@ import { Owner } from '../reactive/owner.js';
 import type { ThemeSource, HistoryAdapter, HostFullscreen } from '../ports.js';
 import type { StaticVersion } from '../adapters/history.js';
 import type { CoreContext } from '../core/context.js';
+import type { DiagramModel } from '../core/model.js';
 import type { PipelineOptions } from '../core/pipeline-core.js';
 import type { IconPack } from '../core/icons/types.js';
 import type { Rect } from '../core/types.js';
 import { CANVAS_CSS, DiagramCanvas, type CanvasOptions, type Insets } from '../dom/canvas.js';
+import { clearHighlight, hoverHighlight } from '../dom/highlight.js';
 import { domImageSizes, onImageSize } from '../dom/image-sizes.js';
+import { observeSize } from '../dom/resize.js';
 import type { StrokeStore } from '../dom/pen.js';
 import { registerMessages, type I18n } from '../i18n.js';
 import { VIEW_MESSAGES } from './messages.js';
@@ -43,6 +46,9 @@ export type HistoryLoader = () => Promise<{ openHistory: HistoryOpener }>;
 export { SHELL_CSS };
 
 export type Product = 'viewer' | 'editor' | 'diff';
+
+/** What modules use of the main canvas's pan and zoom (no DOM). */
+export type PanZoom = Pick<DiagramCanvas, 'view' | 'viewport' | 'fit' | 'zoomBy' | 'zoomTo'>;
 
 export interface ViewCoreOptions {
   product: Product;
@@ -426,6 +432,54 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   /** Width of the tool dock (0 while it is not shown). */
   dockWidth(): number {
     return this.shell.dockWidth();
+  }
+
+  // ---- services for modules (R10, BUG-016: modules do not reach into `root`, `area`, `canvas` or `slots`) ----------
+
+  /** The component's focusable root: its keys, paste and pointer events reach it, and what floats over the whole component (menus, tooltips) goes in it. */
+  get eventRoot(): HTMLElement {
+    return this.root;
+  }
+
+  /** Gives the focus to the component (its root, where the shortcuts are handled), without scrolling. */
+  focus(): void {
+    this.root.focus({ preventScroll: true });
+  }
+
+  /** The component's box on screen (client px; empty before layout). */
+  rect(): DOMRect {
+    return this.root.getBoundingClientRect();
+  }
+
+  /** A CSS custom property as the root computes it (the chrome's tokens, the stacks' `--inset-l`…; '' when not set or not computed). */
+  cssVar(name: string): string {
+    return typeof getComputedStyle === 'function' ? getComputedStyle(this.root).getPropertyValue(name).trim() : '';
+  }
+
+  /** Width of the canvas area (px; 0 before layout). */
+  areaWidth(): number {
+    return this.area.clientWidth;
+  }
+
+  /** Calls `f` whenever the canvas area changes size; returns a remover. */
+  onAreaResize(f: () => void): () => void {
+    return observeSize(this.area, f);
+  }
+
+  /** Pan and zoom of the main canvas: its view, its viewport (null while static), fit and zoom. */
+  get panZoom(): PanZoom {
+    return this.canvas;
+  }
+
+  /** Paints the pen's strokes into the main canvas and lets the user draw on it there; returns a detach. */
+  attachInk(store: StrokeStore): () => void {
+    return this.canvas.attachInk(store);
+  }
+
+  /** The hover highlight at an element of the main canvas's picture: its item and what it connects to lit, the rest faded; null clears it. */
+  highlightAt(target: Element | null, model: DiagramModel | null): void {
+    if (target) hoverHighlight(this.canvas.body, target, model);
+    else clearHighlight(this.canvas.body);
   }
 
   // ---- modules ----------------------------------------------------------------------------------------------------

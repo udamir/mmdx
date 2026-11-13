@@ -62,7 +62,11 @@ export interface ModuleScope<C = unknown> {
   /** True while the module is active (not suspended). */
   readonly active: boolean;
   /** Appends DOM to a named slot; detached while suspended. */
-  slot(name: SlotName): { append(...els: (Element | null | undefined | false)[]): void };
+  slot(name: SlotName): {
+    append(...els: (Element | null | undefined | false)[]): void;
+    /** Places one element, for one the module shows and takes away repeatedly; returns its unmount (`mount`). */
+    mount(el: Element): () => void;
+  };
   /**
    * Places an element into a parent (at any time, also after install): detached while suspended, removed on
    * uninstall. Returns an unmount (removes it now and forgets it), for elements a module creates and drops repeatedly.
@@ -71,6 +75,8 @@ export interface ModuleScope<C = unknown> {
   /** A muted-while-suspended listener on a DOM target, removed on uninstall. */
   listen<K extends keyof HTMLElementEventMap>(target: EventTarget, type: K, f: (ev: HTMLElementEventMap[K]) => void, opts?: AddEventListenerOptions): void;
   listen(target: EventTarget, type: string, f: (ev: Event) => void, opts?: AddEventListenerOptions): void;
+  /** A listener on the canvas area (every canvas of the scene shown and the chrome over them), muted while suspended, removed on uninstall. */
+  area<K extends keyof HTMLElementEventMap>(type: K, f: (ev: HTMLElementEventMap[K]) => void, opts?: AddEventListenerOptions): void;
   /** A listener on the main canvas's picture (`<svg>`), muted while suspended, removed on uninstall. */
   canvas<K extends keyof SVGElementEventMap>(type: K, f: (ev: SVGElementEventMap[K]) => void, opts?: AddEventListenerOptions): void;
   /** A kernel event listener, muted while suspended, removed on uninstall. */

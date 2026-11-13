@@ -448,16 +448,11 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     return this.domCache;
   }
 
-  // ---- DOM services for modules (R10, BUG-016: modules do not reach into `dom`, `root`, `area` or `canvas`) ----------------
+  // ---- DOM services for modules (R10, BUG-016: modules do not reach into `dom`, `root`, `area` or `canvas`; eventRoot and cssVar are the kernel's) ----------------
 
   /** Where floating UI goes (bars, menus, inline editors, hints): the canvas wrapper, their positioning context; modules place what stays into it with `scope.mount`. */
   get overlayHost(): HTMLElement {
     return this.area;
-  }
-
-  /** The editor's focusable root: keyboard, paste and pointer events of the editor reach it (modules listen on it with `scope.listen`), and what floats over the whole editor (tooltips, the Shapes menu) goes in it. */
-  get eventRoot(): HTMLElement {
-    return this.root;
   }
 
   /** A key or paste meant for the canvas: the event's target is the editor's root itself, not a field or a panel in it. */
@@ -468,11 +463,6 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   /** Turns a state class of the whole editor on or off (`copying`, `table-edit`…: the editor's CSS follows it). */
   rootClass(name: string, on: boolean): void {
     this.root.classList.toggle(name, on);
-  }
-
-  /** A CSS custom property as the editor's root computes it (the chrome's tokens: `--mmdx-text`…; '' when not set or not computed). */
-  cssVar(name: string): string {
-    return typeof getComputedStyle === 'function' ? getComputedStyle(this.root).getPropertyValue(name).trim() : '';
   }
 
   /** Gives the focus back to the editor (an inline editor, a menu or a row editor closed), without scrolling. */

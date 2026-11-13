@@ -265,9 +265,9 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
     this.activeSig.set(on);
   }
 
-  slot(name: SlotName): { append(...els: (Element | null | undefined | false)[]): void } {
+  slot(name: SlotName): { append(...els: (Element | null | undefined | false)[]): void; mount(el: Element): () => void } {
     const parent = this.core.slots[name];
-    return { append: (...els) => els.forEach((el) => el && void this.mount(parent, el)) };
+    return { append: (...els) => els.forEach((el) => el && void this.mount(parent, el)), mount: (el) => this.mount(parent, el) };
   }
 
   /** Takes an element the module already placed (detached while suspended, removed on uninstall). */
@@ -295,6 +295,10 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
     };
     target.addEventListener(type, wrapped, opts);
     this.owner.add(() => target.removeEventListener(type, wrapped, opts));
+  }
+
+  area(type: string, f: (ev: never) => void, opts?: AddEventListenerOptions): void {
+    this.listen(this.core.area, type, f, opts);
   }
 
   canvas(type: string, f: (ev: never) => void, opts?: AddEventListenerOptions): void {

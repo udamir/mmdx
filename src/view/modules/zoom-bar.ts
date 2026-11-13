@@ -28,7 +28,7 @@ export const zoomBarModule: ViewModule<ViewCore> = {
     const core = scope.core;
     const t = core.i18n.t;
     const host = core.host;
-    const canvas = core.canvas;
+    const canvas = core.panZoom;
 
     const fit = (): void => {
       const b = core.contentBounds();

@@ -6,7 +6,8 @@
 import { createPanelStack, PANEL_STACK_CSS, type PanelStackHandle } from '../../ui/blocks/panel-stack.js';
 import { SIDE_PANEL_CSS } from '../../ui/blocks/side-panel.js';
 import { TABS_CSS } from '../../ui/blocks/tabs.js';
-import { computed, untracked } from '../../reactive/signal.js';
+import { Owner } from '../../reactive/owner.js';
+import { untracked } from '../../reactive/signal.js';
 import type { ViewCore } from '../core.js';
 import type { ViewModule } from '../module.js';
 
@@ -40,14 +41,15 @@ export const panelStacksModule: ViewModule<ViewCore> = {
       };
       core.setStackInsets({ left: inset('left'), right: inset('right') });
       core.fire('view');
-      if (core.canvas.viewport?.auto) core.run('fitView');
+      if (core.panZoom.viewport?.auto) core.run('fitView');
     };
     for (const side of ['left', 'right'] as const) {
       const items = scope.computed(() => core.panelItems().filter((p) => p.side === side).sort((a, b) => a.order - b.order));
       scope.effect(() => {
         const list = items();
         // one open state per panel and run: the next run (or uninstall) disposes this run's
-        const opens = list.map((p) => computed(() => !!core.panels()[p.id] && (p.visible?.() ?? true)));
+        const run = new Owner('panel-stacks');
+        const opens = list.map((p) => run.computed(() => !!core.panels()[p.id] && (p.visible?.() ?? true)));
         const panels = list.map((p, i) => ({ id: p.id, panel: p.el, open: opens[i]! }));
         untracked(() => {
           let stack = stacks[side];
@@ -56,13 +58,13 @@ export const panelStacksModule: ViewModule<ViewCore> = {
             const w = WIDTH[side];
             stack = stacks[side] = createPanelStack({
               side, panels, storage: core.storage, storageKey: `${core.product}.stack.${side}`,
-              width: { initial: w.initial, min: w.min, max: () => Math.min(w.max, (core.root.getBoundingClientRect().width || 1e4) - MIN_CANVAS) },
+              width: { initial: w.initial, min: w.min, max: () => Math.min(w.max, (core.rect().width || 1e4) - MIN_CANVAS) },
               drawerBelow: DRAWER_BELOW, container: core.host, onChange: syncInsets, part: 'panel', t: core.i18n.t,
             });
             scope.slot(`${side}-stack`).append(stack.el);
           } else stack.update({ panels });
         });
-        return () => opens.forEach((o) => o.dispose());
+        return () => run.dispose();
       });
     }
     scope.effect(() => {

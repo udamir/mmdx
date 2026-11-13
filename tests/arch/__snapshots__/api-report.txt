@@ -272,7 +272,7 @@ IconPack (type): { name, icons?, loader? }
 ignoreFacets: (diff: DiagramDiff, ignore: DiffIgnore) => DiagramDiff
 ItemChange (type): { kind, id, beforeId?, label, status, facets, fields }
 MmdxDiffElement: typeof MmdxDiffElement
-ModuleScope (type): { core, id, active, slot, mount, listen, canvas, on, provide, provideDefault, effect, computed, shortcut, gesture, painter, contribute, contributeAll, claim, register, onDispose, load }
+ModuleScope (type): { core, id, active, slot, mount, listen, area, canvas, on, provide, provideDefault, effect, computed, shortcut, gesture, painter, contribute, contributeAll, claim, register, onDispose, load }
 registerBuiltinThemes: () => Promise<void>
 registerThemes: (themes: Iterable<unknown>) => Diagnostic[]
 renderDiffToSvg: (before: string, after: string, o?: DiffRenderOptions & DiffSvgOptions & { ctx?: CoreContext; }) => Promise<string>
@@ -308,7 +308,7 @@ IconPack (type): { name, icons?, loader? }
 LoadResult (type): { source, name?, version? }
 memoryDocumentAdapter: (initial: string, name?: string) => DocumentAdapter & { readonly current: string; setRemote(src: string): void; }
 MmdxEditorElement: typeof MmdxEditorElement
-ModuleScope (type): { core, id, active, slot, mount, listen, canvas, on, provide, provideDefault, effect, computed, shortcut, gesture, painter, contribute, contributeAll, claim, register, onDispose, load }
+ModuleScope (type): { core, id, active, slot, mount, listen, area, canvas, on, provide, provideDefault, effect, computed, shortcut, gesture, painter, contribute, contributeAll, claim, register, onDispose, load }
 OverlayPainter (type): { id, order, paint, exclusive? }
 registerBuiltinThemes: () => Promise<void>
 registerThemes: (themes: Iterable<unknown>) => Diagnostic[]
@@ -378,7 +378,7 @@ HostFullscreen (type): { available, enter, exit, active? }
 IconifyJSON (type): { prefix, icons, aliases?, left?, top?, width?, height?, info?, categories?, keywords? }
 IconPack (type): { name, icons?, loader? }
 MmdxViewerElement: typeof MmdxViewerElement
-ModuleScope (type): { core, id, active, slot, mount, listen, canvas, on, provide, provideDefault, effect, computed, shortcut, gesture, painter, contribute, contributeAll, claim, register, onDispose, load }
+ModuleScope (type): { core, id, active, slot, mount, listen, area, canvas, on, provide, provideDefault, effect, computed, shortcut, gesture, painter, contribute, contributeAll, claim, register, onDispose, load }
 registerBuiltinThemes: () => Promise<void>
 registerThemes: (themes: Iterable<unknown>) => Diagnostic[]
 SceneSource (type): { id, attach, detach, invalidate, bounds, destroy? }

@@ -92,7 +92,7 @@ export function versionsModule(session: DiffSession, o: { dockButton?: boolean; 
         timeline: { onSwap: () => (c ? c.swap() : session.setPair(session.head.peek(), session.base.peek())) },
         // on both tabs' rows: in Compare, next to the Before / After picks
         menu: {
-          popovers: core.popovers, within: () => core.root,
+          popovers: core.popovers, within: () => core.eventRoot,
           entries: (id, i) => [
             ...(o.rowActions?.(id) ?? []),
             {
