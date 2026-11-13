@@ -79,7 +79,8 @@ for (const k of ['flowchart', 'sequence', 'er', 'mindmap', 'state']) {
   // flowchart 96.5, sequence 87.3, ER 91.8, mindmap 83 and state 98.6 kB A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
   // flowchart 96.5, sequence 87.7, ER 92.3, mindmap 83.4 and state 99.1 kB kernel enterStage/leaveStage + HistoryStage class (A13d)
   // flowchart 97.3, sequence 88.7, ER 93, mindmap 84.1 and state 99.8 kB kind registries open to plugin types: KindInfo, kind modules, extras, theme sections, KindUi (A11c)
-  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), ({ flowchart: 97.3, sequence: 88.7, er: 93, mindmap: 84.1, state: 99.8 })[k] * KB);
+  // flowchart 99.1, sequence 89.6, ER 94.5, mindmap 84.3 and state 101 kB (98.7, 89.2, 94.1, 83.9 and 100.6 measured) the final size pass (BUG-017): re-set to measured + 0.4 kB (the mindmap's 84.1 kB had 0.2 kB); over the last budget: the BUG-003 phase splits (the parsers and renderers over explicit records, the compound layout in steps, the graph kit's scene part the flowchart, state and ER renderers share) and the one layout cache (BUG-010)
+  report(`viewer (first ${k})`, v.size(v.base) + v.size(extra), ({ flowchart: 99.1, sequence: 89.6, er: 94.5, mindmap: 84.3, state: 101 })[k] * KB);
 }
 // a flowchart that draws one of the shapes beyond the 17 (T02.9): their geometry, 4.3 kB, loads before it renders (72.7 kB measured; 73.5 kB with media in the scene, T03; 76.3 kB with the icon registry, T04); since T06 the chunk also holds the media kit (rich labels, icons, images), which a flowchart with markdown, icon tokens, icon or image nodes loads the same way (86.8 kB measured: +5.5 kB the flowchart's own growth, +5 kB the kit); 92.7 kB with the compound layout (T07, 92.3 kB measured: the flowchart's +5.1 kB)
 // 97.1 kB with media in every kind and the sequence and ER fixes (T10, T11: 96.7 kB measured, the viewer's +2 kB)
@@ -93,7 +94,8 @@ for (const k of ['flowchart', 'sequence', 'er', 'mindmap', 'state']) {
 // 106 kB (105.6 kB measured) 4.3: the parser kit as modules of its own (frontmatter rule, kit, jison; +0.1 kB of module boundaries)
 // 106.6 kB (106.2 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
 // 107.4 kB (107.0 kB measured) kind registries open to plugin types: KindInfo, kind modules, extras, theme sections, KindUi (A11c)
-report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...flow, ...lazy(v, 'src/core/extras.ts', new Set([...v.base, ...flow]))])), 107.4 * KB);
+// 109.2 kB (108.8 kB measured) the final size pass (BUG-017): re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits (the parsers and renderers over explicit records, the compound layout in steps, the graph kit's scene part the flowchart, state and ER renderers share) and the one layout cache (BUG-010)
+report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...flow, ...lazy(v, 'src/core/extras.ts', new Set([...v.base, ...flow]))])), 109.2 * KB);
 // the built-in icon set (T04 §4.7: about 250 Tabler icons with keywords and the Font Awesome look-alikes), a lazy chunk of its own that loads with the first built-in icon; the decoder (body validation and transforms) loads with the first icon of any pack (19.1 and 2.5 kB measured; 20.1 kB in the library build)
 {
   const icons = lazy(v, 'src/icons/builtin.ts', v.base);
@@ -101,8 +103,9 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
     failed = true;
     console.log('the built-in icon set is not a lazy chunk of the viewer  FAILED');
   }
-  report('built-in icons (lazy chunk)', v.size(new Set(icons)), 25 * KB);
-  report('icon decoder (lazy chunk)', v.size(new Set(lazy(v, 'src/core/icons/decode.ts', v.base))), 2.6 * KB);
+  // 19.5 kB (19.1 kB measured) the final size pass (BUG-017): tightened to measured + 0.4 kB (§4.7: at most 25 kB); the decoder 2.9 kB (2.5 kB measured), re-set to measured + 0.4 kB, the headroom of every row
+  report('built-in icons (lazy chunk)', v.size(new Set(icons)), 19.5 * KB);
+  report('icon decoder (lazy chunk)', v.size(new Set(lazy(v, 'src/core/icons/decode.ts', v.base))), 2.9 * KB);
 }
 // the viewer with History opened on a flowchart (no `@mmdx/studio/diff` on the page any more)
 {
@@ -125,7 +128,8 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
   // 156.4 kB (156.0 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
   // 157.2 kB (156.8 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
   // 157.8 kB (157.4 kB measured) kind registries open to plugin types: KindInfo, kind modules, extras, theme sections, KindUi (A11c)
-  report('viewer + History opened', v.size(loaded) + v.size(new Set(hist)), 157.8 * KB);
+  // 159.6 kB (159.2 kB measured) the final size pass (BUG-017): re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits (the parsers and renderers over explicit records, the compound layout in steps, the graph kit's scene part the flowchart, state and ER renderers share) and the one layout cache (BUG-010)
+  report('viewer + History opened', v.size(loaded) + v.size(new Set(hist)), 159.6 * KB);
 }
 // core includes the diff engine (diffs, merged model, annotations, reports, renderDiffToSvg)
 // editor: 180 kB once the editor loads diagram types on demand (T01.9: 178.2 kB without the code of the types not shown; every type's editor code is a chunk of its own, measured in the "editor (first <type>)" rows); 188.2 kB with the view kernel (187.7 kB after the kernel split, the blocks merge and the element lifecycle; 173.2 kB measured in phase 3; 184.3 kB summed per chunk once History loads the clipboard ops on demand, which splits them into chunks of their own: 177.9 kB as one stream, as before; 165 kB before the kernel), provisional like the viewer's
@@ -160,7 +164,8 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
 // core 128.8, theme-editor 176, editor 205.2 and diff 95.2 kB kernel enterStage/leaveStage + HistoryStage class (A13d)
 // core 128.8, theme-editor 176, editor 205.7 and diff 95.6 kB shared adapter helpers (http, subscribers, base64) and ownPreset (4.12)
 // core 128.8, theme-editor 176, editor 205.7 and diff 96.1 kB kind registries open to plugin types: KindInfo, kind modules, extras, theme sections, KindUi (A11c)
-for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor', 205.7], ['diff', 96.1]]) {
+// core 126.9, theme-editor 176.3, editor 207.6 and diff 96.2 kB (126.5, 175.9, 207.2 and 95.8 measured) the final size pass (BUG-017): every one re-set to measured + 0.4 kB (core's tightened, the theme editor's and the diff's had 0.1 and 0.3 kB); the editor's order slider walk and the types' OrderSims load on demand (−0.7 kB), then re-set to measured + 0.4 kB (over the last budget: the BUG-003 flowchart parser phases, the BUG-008 popover host)
+for (const [entry, budget] of [['core', 126.9], ['theme-editor', 176.3], ['editor', 207.6], ['diff', 96.2]]) {
   const b = await bundle(entry);
   report(entry, b.size(b.base), budget * KB);
   if (entry === 'editor') {
@@ -190,11 +195,12 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 237.7 kB (237.3 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
     // with its own modules where the type has them (A11d: they load with the type); 239 kB: the sequence diagram with
     // its gestures is 238.6 kB measured; 239.4: with 5.9's catalog strings (239.0); 239.9: kernel enterStage/leaveStage + HistoryStage class (A13d, 239.5 measured); 240.5: shared adapter helpers (4.12, 240.1 measured); 241.3: the kernel panel stacks (A16, 240.9 measured)
+    // flowchart 245.1, sequence 244.3 and ER 244.1 kB (244.7, 243.9 and 243.7 measured) the final size pass (BUG-017): the order slider's walk and the types' OrderSims load on demand (−0.6 to −2.2 kB), then re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits, the BUG-008 popover host and the editor's shared helpers
     const KIND_MODULES = { sequence: 'src/editor/modules/sequence/index.ts', er: 'src/editor/modules/er-table/index.ts' };
     for (const k of ['flowchart', 'sequence', 'er']) {
       const kind = lazy(b, `src/editor/kinds/${k}/index.ts`, b.base);
       const mods = KIND_MODULES[k] ? lazy(b, KIND_MODULES[k], new Set([...b.base, ...kind])) : [];
-      report(`editor (first ${k})`, b.size(b.base) + b.size(kind) + b.size(mods), 241.3 * KB);
+      report(`editor (first ${k})`, b.size(b.base) + b.size(kind) + b.size(mods), ({ flowchart: 245.1, sequence: 244.3, er: 244.1 })[k] * KB);
     }
     {
       // a mindmap: its kinds and the mindmap module's gestures, both loaded with the first mindmap (T08: 228.3 kB measured; the view, ops and edit kinds with the geometry of bang and cloud and the media kit, which its edit kind registers as the flowchart's does, and the drag, handles and keys of the outline)
@@ -220,7 +226,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
       // 238.7 kB (238.3 kB measured) 5.9: the kind modules' labels and toasts in the editor's message catalog (+0.4 kB)
       // 239.2 kB (238.8 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
       // 239.7 kB (239.3 kB measured) shared adapter helpers (http, subscribers, base64) and ownPreset (4.12) · 240.4 kB (240.0 measured) the kernel panel stacks (A16)
-      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 240.4 * KB);
+      // 243.4 kB (243.0 kB measured) the final size pass (BUG-017): the order slider's walk and the types' OrderSims load on demand (−0.6 to −2.2 kB), then re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits, the BUG-008 popover host and the editor's shared helpers
+      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 243.4 * KB);
     }
     // a state diagram: its view, ops and edit kinds in one chunk loaded with the first state diagram (T09: 240.5 kB measured; the parser, compound layout, renderer, state shapes, ops, palette and Properties controls)
     // 249.4 kB with media in every kind and the sequence and ER fixes (T10, T11: 249 kB measured)
@@ -240,13 +247,15 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 252.5 kB (252.1 kB measured) 5.9: the kind modules' labels and toasts in the editor's message catalog (+0.4 kB)
     // 253 kB (252.6 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
     // 253.5 kB (253.1 kB measured) shared adapter helpers (http, subscribers, base64) and ownPreset (4.12) · 254.4 kB (254.0 measured) the kernel panel stacks (A16)
-    report('editor (first state)', b.size(b.base) + b.size(lazy(b, 'src/editor/kinds/state/index.ts', b.base)), 254.4 * KB);
+    // 258.4 kB (258.0 kB measured) the final size pass (BUG-017): the order slider's walk and the types' OrderSims load on demand (−0.6 to −2.2 kB), then re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits, the BUG-008 popover host and the editor's shared helpers
+    report('editor (first state)', b.size(b.base) + b.size(lazy(b, 'src/editor/kinds/state/index.ts', b.base)), 258.4 * KB);
     // the insert dock's lazy chunks (T05): the pickers (icon picker, image tool, emoji picker and their glue), the shape palette block, the Connector and Container tools, the English emoji data (§4.5: at most 30 kB)
     const loaded = new Set([...b.base, ...lazy(b, 'src/editor/kinds/flowchart/index.ts', b.base)]);
     // 13.2 kB with the image tool's Icon tab, the overlay scrollbars of its grids and its place by the toolbar (12.8 kB measured)
-    report('editor pickers (lazy chunk)', b.size(new Set(lazy(b, 'src/editor/modules/insert/media.ts', loaded))), 13.2 * KB);
+    // pickers 12 and emoji data 29.4 kB (11.6 and 29.0 kB measured) the final size pass (BUG-017): tightened to measured + 0.4 kB; the shape palette's 4 kB (3.6 measured) is that already
+    report('editor pickers (lazy chunk)', b.size(new Set(lazy(b, 'src/editor/modules/insert/media.ts', loaded))), 12 * KB);
     report('shape palette (lazy chunk)', b.size(new Set(lazy(b, 'src/ui/blocks/shape-palette.ts', loaded))), 4 * KB);
-    report('emoji data, English (lazy chunk)', b.size(new Set(lazy(b, 'src/emoji/en.ts', loaded))), 30 * KB);
+    report('emoji data, English (lazy chunk)', b.size(new Set(lazy(b, 'src/emoji/en.ts', loaded))), 29.4 * KB);
     // 234.6 kB with the icon registry (T04, 234.2 kB measured)
     // 232.1 kB with media in the scene (T03, 231.7 kB measured); 230.7 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 230.3 kB measured); 234.8 kB with the shape catalogue (T02, 234.3 kB measured); 224 kB once the editor loads diagram types on demand (220.7 kB measured); 233 kB before
     // 239.9 kB with the insert dock (T05, 239.5 kB measured: the editor's +5.4 kB)
@@ -272,7 +281,8 @@ for (const [entry, budget] of [['core', 128.8], ['theme-editor', 176], ['editor'
     // 249.3 kB (248.9 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
     // 249.8 kB (249.4 kB measured) shared adapter helpers (http, subscribers, base64) and ownPreset (4.12)
     // 250.3 kB (249.9 kB measured) the editor waits for a type's kinds before it parses (pending check)
-    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 250.3 * KB);
+    // 252.1 kB (251.7 kB measured) the final size pass (BUG-017): the order slider's walk and the types' OrderSims load on demand (−0.6 to −2.2 kB), then re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits, the BUG-008 popover host and the editor's shared helpers
+    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 252.1 * KB);
   }
 }
 
@@ -348,7 +358,8 @@ const rows = [
   // 98.2 kB (97.8 kB measured) 4.3: the parser kit as modules of its own (frontmatter rule, kit, jison; +0.1 kB of module boundaries)
   // 98.9 kB (98.5 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
   // 99.4 kB (99.0 kB measured) kind registries open to plugin types: KindInfo, kind modules, extras, theme sections, KindUi (A11c)
-  ['viewer (first flowchart)', ['src/viewer.ts', FLOW], 99.4],
+  // 101.4 kB (101.0 kB measured) the final size pass (BUG-017): re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits (the parsers and renderers over explicit records, the compound layout in steps, the graph kit's scene part the flowchart, state and ER renderers share) and the one layout cache (BUG-010)
+  ['viewer (first flowchart)', ['src/viewer.ts', FLOW], 101.4],
   // a flowchart that draws one of the shapes beyond the 17: their geometry loads before it renders (T02.9, 74.7 kB measured)
   // 75.8 kB with media in the scene (T03, 75.4 kB measured); 79 kB with the icon registry (T04, 78.6 kB measured)
   // 89.9 kB with flowchart content (T06, 89.5 kB measured: the chunk also holds the media kit)
@@ -366,9 +377,11 @@ const rows = [
   // 109 kB (108.6 kB measured) 4.3: the parser kit as modules of its own (frontmatter rule, kit, jison; +0.1 kB of module boundaries)
   // 109.6 kB (109.2 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
   // 110 kB (109.6 kB measured) two --mmdx tokens (halo, dot ring) in TOKENS for the toolbar CSS (A14)
-  ['viewer (flowchart, more shapes)', ['src/viewer.ts', FLOW, SHAPES], 110],
+  // 112.2 kB (111.8 kB measured) the final size pass (BUG-017): re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits (the parsers and renderers over explicit records, the compound layout in steps, the graph kit's scene part the flowchart, state and ER renderers share) and the one layout cache (BUG-010)
+  ['viewer (flowchart, more shapes)', ['src/viewer.ts', FLOW, SHAPES], 112.2],
   // the built-in icon set, a lazy chunk of its own (T04 §4.7: at most 25 kB)
-  ['built-in icons (lazy chunk)', [BUILTIN_ICONS], 25],
+  // 20.5 kB (20.1 kB measured) the final size pass (BUG-017): tightened to measured + 0.4 kB
+  ['built-in icons (lazy chunk)', [BUILTIN_ICONS], 20.5],
   // the History button is in the tool dock, which loads with the `history` control (246.5 kB while History imported the editor's chunk); 143 kB with the shape catalogue (142.4 kB measured); 138.9 kB once the shapes beyond the 17 load on demand (T02.9, 138.5 kB measured)
   // 140 kB with media in the scene (T03, 139.6 kB measured); 143.1 kB with the icon registry (T04, 142.7 kB measured)
   // 148.6 kB with flowchart content (T06, 148.2 kB measured)
@@ -386,7 +399,8 @@ const rows = [
   // 166.6 kB (166.2 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
   // 167.1 kB (166.7 kB measured) DiffSession split into VersionStore + DiffExporter (A13c)
   // 167.7 kB (167.3 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
-  ['viewer + History opened', ['src/viewer.ts', FLOW, 'src/view/modules/tool-dock.ts', ...HISTORY, FLOW_DIFF], 167.7],
+  // 169.5 kB (169.1 kB measured) the final size pass (BUG-017): re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits (the parsers and renderers over explicit records, the compound layout in steps, the graph kit's scene part the flowchart, state and ER renderers share) and the one layout cache (BUG-010)
+  ['viewer + History opened', ['src/viewer.ts', FLOW, 'src/view/modules/tool-dock.ts', ...HISTORY, FLOW_DIFF], 169.5],
   // the editor loads diagram types on demand (T01.9): 181 kB (178.8 kB measured; 194.6 kB before), the first document's type a chunk of its own; 191.6 kB with the shape catalogue (191.2 kB measured); 187.4 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 187 kB measured)
   // 188.4 kB with media in the scene (T03, 188 kB measured); 191.1 kB with the icon registry (T04, 190.7 kB measured)
   // 194.5 kB with the insert dock (T05, 194.1 kB measured: the dock's buttons, shortcuts and labels, the inline editor's emoji button, the media hooks of the toolbar and Properties; the pickers and the emoji data are lazy)
@@ -406,7 +420,8 @@ const rows = [
   // 185.6 kB (185.2 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
   // 186.1 kB (185.7 kB measured) 5.9: the kind modules' labels and toasts in the editor's message catalog (+0.4 kB)
   // 186.6 kB (186.2 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
-  ['editor', ['src/editor.ts'], 186.6],
+  // 186.8 kB (186.4 kB measured) the final size pass (BUG-017): the order slider's walk and the types' OrderSims load on demand (−0.6 kB), then re-set to measured + 0.4 kB (it had 0.2 kB)
+  ['editor', ['src/editor.ts'], 186.8],
   // 184.2 kB measured; 197.8 kB with the shape catalogue (197.3 kB measured); 198.2 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 197.8 kB measured: the same code as before, in more chunks, each compressed on its own)
   // 199.2 kB with media in the scene (T03, 198.8 kB measured); 201.9 kB with the icon registry (T04, 201.5 kB measured)
   // 206.9 kB with the insert dock (T05, 206.5 kB measured: the editor's part, and the flowchart's icon and image node ops and palette sections)
@@ -430,7 +445,8 @@ const rows = [
   // 232.8 kB (232.4 kB measured) 5.9: the kind modules' labels and toasts in the editor's message catalog (+0.4 kB)
   // 233.3 kB (232.9 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
   // 234.5 kB (234.1 kB measured) kind registries open to plugin types: KindInfo, kind modules, extras, theme sections, KindUi (A11c)
-  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart/index.ts'], 234.5],
+  // 238 kB (237.6 kB measured) the final size pass (BUG-017): the order slider's walk and the types' OrderSims load on demand (−0.6 to −2.2 kB), then re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits, the BUG-008 popover host and the editor's shared helpers
+  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart/index.ts'], 238],
   // the first mindmap (T08, 70.8 kB measured): the viewer and the mindmap's kind chunk (parser, tidy tree layout, renderer)
   // 72 kB with state diagrams (T09, 71.6 kB measured: the viewer's +0.5 kB)
   // 75.1 kB with media in every kind and the sequence and ER fixes (T10, T11, 74.7 kB measured)
@@ -442,7 +458,8 @@ const rows = [
   // 84.2 kB (83.8 kB measured) with Stage 2's A8 (the component shell)
   // 85.1 kB (84.7 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
   // 85.5 kB (85.1 kB measured) two --mmdx tokens (halo, dot ring) in TOKENS for the toolbar CSS (A14)
-  ['viewer (first mindmap)', ['src/viewer.ts', kindChunk('mindmap')], 85.5],
+  // 85.9 kB (85.5 kB measured) the final size pass (BUG-017): re-set to measured + 0.4 kB, the headroom of every row (it had none)
+  ['viewer (first mindmap)', ['src/viewer.ts', kindChunk('mindmap')], 85.9],
   // the first mindmap in the editor (T08, 225.7 kB measured): its kinds and the mindmap module's gestures
   // 227.9 kB with state diagrams (T09, 227.5 kB measured)
   // 232.7 kB with media in every kind and the sequence and ER fixes (T10, T11, 232.3 kB measured)
@@ -461,7 +478,8 @@ const rows = [
   // 220.8 kB (220.4 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
   // 221.2 kB (220.8 kB measured) 5.9: the kind modules' labels and toasts in the editor's message catalog (+0.4 kB)
   // 221.7 kB (221.3 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
-  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap/index.ts', 'src/editor/modules/mindmap/gestures.ts'], 221.7],
+  // 223.8 kB (223.4 kB measured) the final size pass (BUG-017): the order slider's walk and the types' OrderSims load on demand (−0.6 to −2.2 kB), then re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits, the BUG-008 popover host and the editor's shared helpers
+  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap/index.ts', 'src/editor/modules/mindmap/gestures.ts'], 223.8],
   // the first state diagram (T09, 85.6 kB measured): the viewer and the state's kind chunk (parser, compound layout, renderer, shapes)
   // 89.1 kB with media in every kind and the sequence and ER fixes (T10, T11, 88.7 kB measured)
   // 89.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (89.5 kB measured)
@@ -474,7 +492,8 @@ const rows = [
   // 100.5 kB (100.1 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
   // 101 kB (100.6 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
   // 101.5 kB (101.1 kB measured) kind registries open to plugin types: KindInfo, kind modules, extras, theme sections, KindUi (A11c)
-  ['viewer (first state)', ['src/viewer.ts', kindChunk('state')], 101.5],
+  // 102.9 kB (102.5 kB measured) the final size pass (BUG-017): re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits (the parsers and renderers over explicit records, the compound layout in steps, the graph kit's scene part the flowchart, state and ER renderers share) and the one layout cache (BUG-010)
+  ['viewer (first state)', ['src/viewer.ts', kindChunk('state')], 102.9],
   // the first state diagram in the editor (T09, 238.2 kB measured): its view, ops and edit kinds
   // 245.2 kB with media in every kind and the sequence and ER fixes (T10, T11, 244.8 kB measured)
   // 248.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (248.5 kB measured)
@@ -491,9 +510,11 @@ const rows = [
   // 235.4 kB (235.0 kB measured) A11d: the ER table and sequence gestures load with their diagram type (when.kind): the editor's first chunk is ~16 kB smaller; budgets tightened to keep it
   // 235.9 kB (235.5 kB measured) 5.9: the kind modules' labels and toasts in the editor's message catalog (+0.4 kB)
   // 236.4 kB (236.0 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
-  ['editor (first state)', ['src/editor.ts', 'src/editor/kinds/state/index.ts'], 236.4],
+  // 239.4 kB (239.0 kB measured) the final size pass (BUG-017): the order slider's walk and the types' OrderSims load on demand (−0.6 to −2.2 kB), then re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits, the BUG-008 popover host and the editor's shared helpers
+  ['editor (first state)', ['src/editor.ts', 'src/editor/kinds/state/index.ts'], 239.4],
   // the English emoji data (T05 §4.5: at most 30 kB), a lazy chunk of its own
-  ['emoji data, English (lazy chunk)', ['src/emoji/en.ts'], 30],
+  // 29.4 kB (29.0 kB measured) the final size pass (BUG-017): tightened to measured + 0.4 kB
+  ['emoji data, English (lazy chunk)', ['src/emoji/en.ts'], 29.4],
   // 240.2 kB with the shape catalogue (239.7 kB measured); 236.2 kB once the shapes beyond the 17 load on demand (T02.9, 235.8 kB measured)
   // 237.5 kB with media in the scene (T03, 237.1 kB measured); 240.2 kB with the icon registry (T04, 239.8 kB measured)
   // 243.6 kB with the insert dock (T05, 243.2 kB measured)
@@ -515,7 +536,8 @@ const rows = [
   // 235.2 kB (234.8 kB measured) 5.9: the kind modules' labels and toasts in the editor's message catalog (+0.4 kB)
   // 235.9 kB (235.5 kB measured) DiffSession split into VersionStore + DiffExporter (A13c)
   // 236.5 kB (236.1 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
-  ['editor + History opened', ['src/editor.ts', ...HISTORY], 236.5],
+  // 235.4 kB (235.0 kB measured) the final size pass (BUG-017): tightened to measured + 0.4 kB (the order slider's walk and the types' OrderSims load on demand)
+  ['editor + History opened', ['src/editor.ts', ...HISTORY], 235.4],
   // 125.2 kB while the entry re-exported the all-kinds diff
   // 92.5 kB once the per-type diffs left the entry for the diff kinds (90.9 kB measured); 94.6 kB before; 91.5 kB with the shapes on demand (T02.9, 91.1 kB measured)
   // 92.5 kB with media in the scene (T03, 92.1 kB measured); 95.1 kB with the icon registry (T04, 94.7 kB measured)
@@ -526,7 +548,8 @@ const rows = [
   // 99.9 kB (99.5 kB measured) with the codebase audit's fixes (001 Phase 1–3: the metadata key registry, the parsers' step budget and line-indexed lexers, the elements' upgrade and inline-source handling, the History working copy, the hot paths' indexes and caches)
   // 100.4 kB (100.0 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
   // 101 kB (100.6 kB measured) kind registries open to plugin types: KindInfo, kind modules, extras, theme sections, KindUi (A11c)
-  ['diff', ['src/diff.ts'], 101],
+  // 101.1 kB (100.7 kB measured) the final size pass (BUG-017): re-set to measured + 0.4 kB, the headroom of every row (it had 0.3 kB)
+  ['diff', ['src/diff.ts'], 101.1],
   // a flowchart pair with the default panels (the change list) and the flowchart's diff kind; 128 kB with the shape catalogue (127.6 kB measured); 124 kB once the shapes beyond the 17 load on demand (T02.9, 123.6 kB measured)
   // 125 kB with media in the scene (T03, 124.6 kB measured); 127.7 kB with the icon registry (T04, 127.3 kB measured)
   // 133.1 kB with flowchart content (T06, 132.7 kB measured: the flowchart's parser and renderer)
@@ -543,7 +566,8 @@ const rows = [
   // 150 kB (149.6 kB measured) 4.4: the renderers share the graph kit and the title block (one copy, its own chunks: +0.2–0.6 kB of chunk overhead for one diagram type, less code once several load)
   // 150.7 kB (150.3 kB measured) DiffSession split into VersionStore + DiffExporter (A13c)
   // 151.2 kB (150.8 kB measured) kind registries open to plugin types: KindInfo, kind modules, extras, theme sections, KindUi (A11c)
-  ['diff (first flowchart)', ['src/diff.ts', FLOW, FLOW_DIFF, 'src/diff/modules/panels.ts'], 151.2],
+  // 153.1 kB (152.7 kB measured) the final size pass (BUG-017): re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits (the parsers and renderers over explicit records, the compound layout in steps, the graph kit's scene part the flowchart, state and ER renderers share) and the one layout cache (BUG-010)
+  ['diff (first flowchart)', ['src/diff.ts', FLOW, FLOW_DIFF, 'src/diff/modules/panels.ts'], 153.1],
   // 65.8 kB with the kind descriptor: the same code in more, smaller chunks (one per kind and layer), each compressed on its own (54.6 kB as one esbuild stream); 63 kB before; 76.8 kB with the shape catalogue (76.4 kB measured); 77 kB with the shapes beyond the 17 in chunks of their own (T02.9, 76.6 kB measured: the name table and the geometry apart)
   // 78.5 kB with media in the scene (T03, 78.1 kB measured: the image policy check, `safeImageUrl` / `checkImageUrl`, is exported)
   // 84.1 kB with the icon registry (T04, 83.7 kB measured: the registry, `createIconRegistry` with its decoder for synchronous lookups on the server, `iconNamesOf`)
@@ -558,7 +582,8 @@ const rows = [
   // 146.4 kB (146 kB measured) with images in mindmaps and sequence diagrams as the flowchart's image node (render/media-node.ts in their chunks)
   // 150.6 kB (150.2 kB measured) with the codebase audit's fixes (001 Phase 1–3: the metadata key registry, the parsers' step budget and line-indexed lexers, the elements' upgrade and inline-source handling, the History working copy, the hot paths' indexes and caches)
   // 151 kB (150.6 kB measured) with Stage 1's A3 and A4 (the signals' robustness and Owner, the platform split, the kind registry's fail-closed lookups)
-  ['core', ['src/core.ts'], 151],
+  // 150.5 kB (150.1 kB measured) the final size pass (BUG-017): tightened to measured + 0.4 kB
+  ['core', ['src/core.ts'], 150.5],
 ];
 for (const [name, keys, budget] of rows) report(name, (await loads(keys)).n, budget * KB);
 // the pickers' chunks (T05), beyond what the editor with a flowchart has loaded
@@ -568,7 +593,8 @@ for (const [name, keys, budget] of rows) report(name, (await loads(keys)).n, bud
   for (const k of libClosure('src/editor/modules/insert/media.ts')) if (!have.has(k)) n += await chunkSize(k);
   // 14.5 kB (14.1 kB measured) with the image library (ImageStore: the image tool's Library, Upload and URL tabs; Source and Properties open each)
   // 15 kB with the image tool's Icon tab (the compact icon picker) and the toolbar's look (14.6 kB measured)
-  report('editor pickers (lazy chunk)', n, 15 * KB);
+  // 11.9 kB (11.5 kB measured) the final size pass (BUG-017): tightened to measured + 0.4 kB
+  report('editor pickers (lazy chunk)', n, 11.9 * KB);
 }
 // the built-in icon set is never part of an entry's static closure (it loads on first use, T04 §4.7)
 {
