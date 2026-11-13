@@ -10,10 +10,7 @@ export function sessionHost(core: ViewCore): SessionHost {
   return {
     ctx: core.ctx,
     t: core.i18n.t,
-    renderOptions: () => {
-      const d = core.display.peek(), layers = core.visibleLayers.peek();
-      return { theme: core.shownTheme(), ...(d.labels ? {} : { hideLabels: true }), ...(layers ? { visibleLayers: layers } : {}) };
-    },
+    renderOptions: () => core.renderOptions(),
     ensureTheme: (id) => core.ensureTheme(id),
     scheme: () => core.scheme.peek(),
   };

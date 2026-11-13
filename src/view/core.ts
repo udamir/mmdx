@@ -9,6 +9,7 @@ import { Owner } from '../reactive/owner.js';
 import type { ThemeSource, HistoryAdapter, HostFullscreen } from '../ports.js';
 import type { StaticVersion } from '../adapters/history.js';
 import type { CoreContext } from '../core/context.js';
+import type { PipelineOptions } from '../core/pipeline-core.js';
 import type { IconPack } from '../core/icons/types.js';
 import type { Rect } from '../core/types.js';
 import { CANVAS_CSS, DiagramCanvas, type CanvasOptions, type Insets } from '../dom/canvas.js';
@@ -362,6 +363,12 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   /** The theme every canvas draws with (component state, §7.5). */
   shownTheme(): string {
     return this.themes.current.peek();
+  }
+
+  /** What every picture of the component is drawn with (X12): the shown theme, the labels setting and the host's layer override. */
+  renderOptions(): PipelineOptions & { theme: string } {
+    const d = this.display.peek(), layers = this.visibleLayers.peek();
+    return { theme: this.shownTheme(), ...(d.labels ? {} : { hideLabels: true }), ...(layers ? { visibleLayers: layers } : {}) };
   }
 
   /** Loads the theme when it is not registered yet (built-ins on demand, others through the theme source). */

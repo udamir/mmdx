@@ -7,7 +7,7 @@
 // screen, the tool dock with Hand and the pen, the view params with the theme menu and the light / dark toggle, and
 // view settings. Views: Before, Merged, After (one canvas; switching animates) and Side by side (two linked canvases).
 import { sessionHost } from '../diff/session-host.js';
-import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
+import { attr, MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
 import { Owner } from '../reactive/owner.js';
 import { fetchText } from '../adapters/fetch-text.js';
 import type { ThemeSource, HistoryAdapter, StorageAdapter } from '../ports.js';
@@ -344,20 +344,18 @@ export class DiagramDiff {
 
 const DIFF_FEATURES: readonly DiffFeature[] = ['history', 'code', 'changes', 'views', 'filters', 'pen', 'export', 'help', 'fullscreen', 'select', 'theme', 'scheme', 'layers'];
 const DIFF_PANELS: readonly DiffPanel[] = ['history', 'code', 'changes'];
-const text = (v: string | null): string | undefined => v ?? undefined;
-/** The known entries of a list attribute. */
-const listOf = <T extends string>(known: readonly T[]) => (v: string | null): T[] | undefined => (v === null ? undefined : words(v).filter((x): x is T => known.includes(x as T)));
-const panelList = listOf(DIFF_PANELS);
+const { text } = attr;
+const panelList = attr.listOf(DIFF_PANELS);
 
 /** Attributes and the option each one sets. `features` lists the parts that are on (like the viewer's `controls`). */
 const ATTRS: Readonly<Record<string, AttrSpec<DiffOptions>>> = {
   before: ['before', text], after: ['after', text], base: ['base', text], head: ['head', text],
-  mode: ['mode', (v) => (v === 'history' || v === 'compare' ? v : undefined)],
-  view: ['view', (v) => (v && (DIFF_VIEWS as readonly string[]).includes(v) ? v : undefined)],
-  filters: ['filters', listOf(DIFF_FILTERS)], dim: ['dim', (v) => (v === null ? undefined : v !== 'false')], panels: ['panels', panelList],
+  mode: ['mode', attr.oneOf<DiffMode>(['history', 'compare'])],
+  view: ['view', attr.oneOf(DIFF_VIEWS)],
+  filters: ['filters', attr.listOf(DIFF_FILTERS)], dim: ['dim', attr.bool], panels: ['panels', panelList],
   features: ['features', (v) => (v === null ? undefined : Object.fromEntries(DIFF_FEATURES.map((f) => [f, words(v).includes(f)])))],
-  theme: ['theme', text], 'theme-dark': ['themeDark', text], ui: ['ui', text], wheel: ['wheel', text], name: ['name', text], label: ['label', text],
-  compact: ['compact', (v) => (v === null ? undefined : v === 'auto' ? 'auto' : v !== 'false')],
+  theme: ['theme', text], 'theme-dark': ['themeDark', text], ui: ['ui', attr.ui], wheel: ['wheel', attr.wheel], name: ['name', text], label: ['label', text],
+  compact: ['compact', attr.compact],
 };
 
 export class MmdxDiffElement extends MmdxElement<DiffOptions, DiagramDiff> {

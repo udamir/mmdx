@@ -12,7 +12,7 @@ import { TYPES } from '../theme-editor/constants.js';
 import { ThemeEditor } from '../theme-editor/editor.js';
 import type { ThemeEditorOptions, ThemeSamples } from '../theme-editor/types.js';
 import { isObj } from '../theme-editor/util.js';
-import { MmdxElement, warnOnce, type AttrSpec, type Patch } from './base.js';
+import { attr, MmdxElement, warnOnce, type AttrSpec, type Patch } from './base.js';
 
 export { ThemeEditor } from '../theme-editor/editor.js';
 export { contrastRatio } from '../core/theme/contrast.js';
@@ -20,13 +20,13 @@ export type { ThemeEditorEventMap, ThemeEditorOptions, ThemeSamples } from '../t
 
 // ---- custom element ------------------------------------------------------------------------------------------------
 
-const flag = (v: string | null): boolean | undefined => (v === null ? undefined : v !== 'false');
+const flag = attr.bool;
 
 /** Attributes and the option each one sets (`samples`: JSON per diagram type; not JSON is ignored). */
 const ATTRS: Readonly<Record<string, AttrSpec<ThemeEditorOptions>>> = {
-  theme: ['theme', (v) => v || undefined], 'can-edit': ['canEdit', flag], 'can-publish': ['canPublish', flag], 'can-delete': ['canDelete', flag],
-  presentation: ['presentation', (v) => (v === 'dialog' || v === 'inline' ? v : undefined)],
-  ui: ['ui', (v) => (v === 'light' || v === 'dark' || v === 'auto' ? v : undefined)],
+  theme: ['theme', attr.nonEmpty], 'can-edit': ['canEdit', flag], 'can-publish': ['canPublish', flag], 'can-delete': ['canDelete', flag],
+  presentation: ['presentation', attr.oneOf(['dialog', 'inline'])],
+  ui: ['ui', attr.ui],
   samples: ['samples', (v) => {
     try {
       const s = JSON.parse(v ?? '') as unknown;

@@ -122,10 +122,7 @@ export class TextScene extends BaseScene {
       void core.ensureTheme(theme).then((ok) => ok && again());
     }
     const t0 = now();
-    const display = core.display.peek();
-    const opts: PipelineOptions = { hideLabels: !display.labels, theme };
-    const layers = core.visibleLayers.peek();
-    if (layers) opts.visibleLayers = layers;
+    const opts: PipelineOptions = core.renderOptions();
     // the host's URL resolver is a function: it does not reach the worker
     // by size too: one long line is as slow to parse as many short ones (G13)
     if ((text.length > WORKER_THRESHOLD_CHARS || countLines(text) > WORKER_THRESHOLD_LINES) && workerAvailable() && !core.ctx.resolveUrl) {

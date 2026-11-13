@@ -5,7 +5,7 @@ import { fileStem } from '../ui/kit/format.js';
 import { OVERLAY_SCROLL_CSS } from '../ui/kit/overlay-scroll.js';
 import { ComponentShell } from '../view/component-shell.js';
 import { Owner } from '../reactive/owner.js';
-import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
+import { attr, MmdxElement, warnOnce, type AttrSpec, type Patch } from './base.js';
 import type { ImageStore } from '../ports.js';
 import { type StorageAdapter, type ThemeSource, type HistoryAdapter } from '../ports.js';
 import { fetchThemeSource, localStorageThemeStore } from '../adapters/themes.js';
@@ -468,9 +468,9 @@ export class DiagramStudio {
 
 /** Attributes, read when the studio is created. */
 const ATTRS: Readonly<Record<string, AttrSpec<StudioOptions>>> = {
-  examples: ['examples', (v) => v || undefined], themes: ['themes', (v) => v || undefined], initial: ['initial', (v) => v || undefined],
-  persist: ['persist', (v) => (v === null ? undefined : words(v).filter((p) => p === 'local'))],
-  wheel: ['wheel', (v) => (v === 'ctrl' || v === 'always' || v === 'zoom' || v === 'never' ? v : undefined)],
+  examples: ['examples', attr.nonEmpty], themes: ['themes', attr.nonEmpty], initial: ['initial', attr.nonEmpty],
+  persist: ['persist', attr.listOf(['local'])],
+  wheel: ['wheel', attr.wheel],
 };
 
 export class MmdxStudioElement extends MmdxElement<StudioOptions, DiagramStudio> {

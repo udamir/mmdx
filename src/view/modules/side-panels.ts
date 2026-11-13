@@ -13,6 +13,7 @@ import { I_code, I_layers } from '../../ui/kit/icons.js';
 import { signal } from '../../reactive/signal.js';
 import type { ViewCore } from '../core.js';
 import type { ModuleScope, ViewModule } from '../module.js';
+import { CODE_VIEW_STUB, VIEW_SETTINGS_STUB } from '../module-stubs.js';
 import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_PANELS } from '../../ui/messages/blocks-panels.js';
 
@@ -38,11 +39,9 @@ const freeKey = (core: ViewCore, key: string): string | null => (core.shortcuts.
  * drawn as it is) the card is "Layers" and lists every layer of the diagram, Default included.
  */
 const viewSettings = (o: { display: boolean }): ViewModule<ViewCore> => ({
-  id: 'view-settings',
-  after: ['panel-stacks'],
+  ...VIEW_SETTINGS_STUB,
   // the card's title says "Layers" already: the list's heading is not repeated
   css: [LAYER_LIST_CSS, '.mmdx-panel.layers-only .mmdx-layers > .mmdx-sect:first-child { display: none; }'],
-  enabled: (core) => core.feature('layers'),
   install(scope) {
     registerMessages(BLOCK_MESSAGES_PANELS); // `panel.close` is the side panel block's (one table)
     const core = scope.core;
@@ -99,10 +98,8 @@ export const viewSettingsModule: ViewModule<ViewCore> = viewSettings({ display: 
 export const diffLayersModule: ViewModule<ViewCore> = viewSettings({ display: false });
 
 export const codeViewModule: ViewModule<ViewCore> = {
-  id: 'code-view',
-  after: ['panel-stacks'],
+  ...CODE_VIEW_STUB,
   css: [CODE_VIEW_CSS],
-  enabled: (core) => core.feature('code'),
   install(scope) {
     registerMessages(BLOCK_MESSAGES_PANELS); // `panel.close` is the side panel block's (one table)
     const core = scope.core;

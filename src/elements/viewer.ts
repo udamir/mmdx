@@ -5,7 +5,7 @@
 // and the viewer's modules — the editor's chrome (tool dock, zoom bar with help, view params), every piece behind a
 // control of the `controls` attribute.
 import { fileStem } from '../ui/kit/format.js';
-import { MmdxElement, readInlineSource, warnOnce, words, type AttrSpec, type Patch } from './base.js';
+import { attr, MmdxElement, readInlineSource, warnOnce, words, type AttrSpec, type Patch } from './base.js';
 import type { HistoryEventMap } from '../view/history.js';
 import { applyKernelPatch, KERNEL_OPTION_KEYS } from '../view/kernel-options.js';
 import { fetchText } from '../adapters/fetch-text.js';
@@ -363,14 +363,13 @@ export class DiagramViewer {
 
 // ---- custom element ------------------------------------------------------------------------------------------------
 
-const bool = (v: string | null): boolean | undefined => (v === null ? undefined : v !== 'false');
-const text = (v: string | null): string | undefined => v ?? undefined;
+const { text, bool } = attr;
 
 /** Attributes and the option each one sets (absent: the option's default; the element's default fit is `width`). */
 const ATTRS: Readonly<Record<string, AttrSpec<ViewerOptions>>> = {
-  src: ['src', text], theme: ['theme', text], 'theme-dark': ['themeDark', text], fit: ['fit', (v) => v ?? 'width'], wheel: ['wheel', text],
-  fallback: ['fallback', text], label: ['label', text], ui: ['ui', text], interactive: ['interactive', bool], lazy: ['lazy', bool], labels: ['labels', bool],
-  'hover-highlight': ['hoverHighlight', bool], 'scheme-toggle': ['schemeToggle', bool], compact: ['compact', (v) => (v === null ? undefined : v === 'auto' ? 'auto' : v !== 'false')],
+  src: ['src', text], theme: ['theme', text], 'theme-dark': ['themeDark', text], fit: ['fit', (v) => v ?? 'width'], wheel: ['wheel', attr.wheel],
+  fallback: ['fallback', text], label: ['label', text], ui: ['ui', attr.ui], interactive: ['interactive', bool], lazy: ['lazy', bool], labels: ['labels', bool],
+  'hover-highlight': ['hoverHighlight', bool], 'scheme-toggle': ['schemeToggle', bool], compact: ['compact', attr.compact],
   // `list` (the former text outline) now opens the code view
   controls: ['controls', (v) => (v === null ? undefined : words(v).map((c) => (c === 'list' ? 'code' : c)))],
 };

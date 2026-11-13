@@ -6,7 +6,7 @@ import type { Diagnostic } from '../core/types.js';
 import type { ChangeReason } from '../editor/store.js';
 import type { StaticVersion } from '../adapters/history.js';
 import type { HistoryAdapter, ImageStore, DocumentAdapter, StorageAdapter, ThemeSource } from '../ports.js';
-import { MmdxElement, readInlineSource, warnOnce, words, type AttrSpec, type Patch } from '../elements/base.js';
+import { attr, MmdxElement, readInlineSource, warnOnce, words, type AttrSpec, type Patch } from '../elements/base.js';
 import { DEFAULT_FEATURES, type EditorFeatures } from '../editor/core.js';
 import type { EditorModule } from '../editor/module.js';
 import { DEFAULT_MODULES } from '../editor/modules/index.js';
@@ -36,7 +36,7 @@ export interface EditorEventMap extends HistoryEventMap {
 
 // ---- custom element ------------------------------------------------------------------------------------------------
 
-const text = (v: string | null): string | undefined => v ?? undefined;
+const { text } = attr;
 const FEATURE_NAMES = Object.keys(DEFAULT_FEATURES).filter((k) => k !== 'exportFormats') as (keyof EditorFeatures)[];
 
 /**
@@ -44,13 +44,13 @@ const FEATURE_NAMES = Object.keys(DEFAULT_FEATURES).filter((k) => k !== 'exportF
  * (`code-panel` or `codePanel`; `none`: all off); `exportFormats` keeps its default.
  */
 const ATTRS: Readonly<Record<string, AttrSpec<EditorOptions>>> = {
-  'read-only': ['readOnly', (v) => (v === null ? undefined : v !== 'false')],
-  ui: ['ui', (v) => (v === 'light' || v === 'dark' || v === 'auto' ? v : undefined)],
+  'read-only': ['readOnly', attr.bool],
+  ui: ['ui', attr.ui],
   autosave: ['autosave', (v) => (v === null ? undefined : v === 'false' ? false : Number(v) || 1500)],
-  'guard-unload': ['guardUnload', (v) => (v === null ? undefined : v !== 'false')],
-  name: ['name', (v) => v || undefined], theme: ['theme', text], 'theme-dark': ['themeDark', text],
-  compact: ['compact', (v) => (v === null ? undefined : v === 'auto' ? 'auto' : v !== 'false')],
-  wheel: ['wheel', (v) => (v === 'ctrl' || v === 'always' || v === 'zoom' || v === 'never' ? v : undefined)],
+  'guard-unload': ['guardUnload', attr.bool],
+  name: ['name', attr.nonEmpty], theme: ['theme', text], 'theme-dark': ['themeDark', text],
+  compact: ['compact', attr.compact],
+  wheel: ['wheel', attr.wheel],
   features: ['features', (v) => {
     if (v === null) return undefined;
     const on = new Set(words(v).map((w) => w.replace(/-(\w)/g, (_, c: string) => c.toUpperCase())));

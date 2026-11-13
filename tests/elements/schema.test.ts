@@ -15,4 +15,13 @@ describe('element schema', () => {
     }
     expect(MmdxStudioElement.observedAttributes).toEqual(expect.arrayContaining(['examples', 'wheel']));
   });
+
+  it('an attribute reads the same on every element: an unknown wheel or ui is the default (X12)', () => {
+    for (const el of [MmdxViewerElement, MmdxEditorElement, MmdxDiffElement]) {
+      const attrs = el.schema.attrs as Readonly<Record<string, readonly [string, (v: string | null) => unknown]>>;
+      expect(['zoom', 'bogus', null].map((v) => attrs['wheel']![1](v)), el.name).toEqual(['zoom', undefined, undefined]);
+      expect(['dark', 'bogus', null].map((v) => attrs['ui']![1](v)), el.name).toEqual(['dark', undefined, undefined]);
+      expect(['auto', 'false', '', null].map((v) => attrs['compact']![1](v)), el.name).toEqual(['auto', false, true, undefined]);
+    }
+  });
 });

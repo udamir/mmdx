@@ -8,11 +8,11 @@ import { createPenOptions, PEN_OPTIONS_CSS } from '../../ui/blocks/pen-options.j
 import { I_pen } from '../../ui/kit/icons.js';
 import type { ViewCore } from '../core.js';
 import type { ViewModule } from '../module.js';
+import { PEN_STUB } from '../module-stubs.js';
 
 export const penModule: ViewModule<ViewCore> = {
-  id: 'pen',
+  ...PEN_STUB,
   css: [PEN_OPTIONS_CSS],
-  enabled: (core) => core.feature('pen'),
   install(scope) {
     const core = scope.core;
     const t = core.i18n.t;

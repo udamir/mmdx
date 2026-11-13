@@ -7,6 +7,7 @@
 import type { ReadSignal } from '../../reactive/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import { lazyModule, type ViewModule } from '../../view/module.js';
+import { PEN_STUB, VIEW_PARAMS_STUB, VIEW_SETTINGS_STUB } from '../../view/module-stubs.js';
 import { panelStacksModule } from '../../view/modules/panels.js';
 import { panModule, toolDockModule } from '../../view/modules/tool-dock.js';
 import { zoomBarModule } from '../../view/modules/zoom-bar.js';
@@ -31,9 +32,9 @@ export function diffModules(scene: DiffScene, o: { actions: ReadSignal<readonly 
     zoomBarModule,
     toolDockModule,
     panModule,
-    lazyModule({ id: 'pen', enabled: (c) => c.feature('pen') }, () => import('../../view/modules/pen.js').then((m) => m.penModule)),
-    lazyModule({ id: 'view-params', enabled: (c) => c.feature('theme') || c.feature('scheme') || c.feature('export') }, () => import('../../view/modules/view-params.js').then((m) => m.viewParamsModule)),
-    lazyModule({ id: 'view-settings', after: ['panel-stacks'], enabled: (c) => c.feature('layers') }, () => import('../../view/modules/side-panels.js').then((m) => m.diffLayersModule)),
+    lazyModule(PEN_STUB, () => import('../../view/modules/pen.js').then((m) => m.penModule)),
+    lazyModule(VIEW_PARAMS_STUB, () => import('../../view/modules/view-params.js').then((m) => m.viewParamsModule)),
+    lazyModule(VIEW_SETTINGS_STUB, () => import('../../view/modules/side-panels.js').then((m) => m.diffLayersModule)),
     diffStageModule(scene),
     diffExportModule(session),
     hostActionsModule(session, o.actions),

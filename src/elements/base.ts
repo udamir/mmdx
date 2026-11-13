@@ -1,5 +1,7 @@
 // Importing an element module must not throw outside a browser (SSR frameworks import components on the server;
 // Node build scripts import entry points). Elements extend this instead of HTMLElement directly.
+import type { WheelMode } from '../dom/viewport.js';
+
 const ElementBase: typeof HTMLElement =
   typeof HTMLElement !== 'undefined' ? HTMLElement : (class {} as unknown as typeof HTMLElement);
 
@@ -68,6 +70,31 @@ export function readInlineSource(host: Element): string | null {
 
 /** A space-separated list attribute (`controls`, `features`): the named entries; `none` is the empty list. */
 export const words = (v: string): string[] => (v === 'none' ? [] : v.split(/[\s,]+/).filter(Boolean));
+
+const oneOf = <T extends string>(known: readonly T[]) => (v: string | null): T | undefined => (v !== null && (known as readonly string[]).includes(v) ? (v as T) : undefined);
+
+/**
+ * The attribute parsers the elements share (X12), so an attribute reads the same on every element (`wheel` and `ui`
+ * were validated on some only): an absent attribute (`null`) is the option's default (`undefined`), and so is a value
+ * the option does not take.
+ */
+export const attr = {
+  /** The text as it is. */
+  text: (v: string | null): string | undefined => v ?? undefined,
+  /** The text, an empty one being the default. */
+  nonEmpty: (v: string | null): string | undefined => v || undefined,
+  /** On unless `false`. */
+  bool: (v: string | null): boolean | undefined => (v === null ? undefined : v !== 'false'),
+  oneOf,
+  /** The known entries of a list attribute (`words`). */
+  listOf: <T extends string>(known: readonly T[]) => (v: string | null): T[] | undefined => (v === null ? undefined : words(v).filter((x): x is T => (known as readonly string[]).includes(x))),
+  /** The `compact` preset: `auto`, else on unless `false`. */
+  compact: (v: string | null): boolean | 'auto' | undefined => (v === null ? undefined : v === 'auto' ? 'auto' : v !== 'false'),
+  /** The chrome scheme (`ui`). */
+  ui: oneOf<'light' | 'dark' | 'auto'>(['light', 'dark', 'auto']),
+  /** What the mouse wheel does (`wheel`). */
+  wheel: oneOf<WheelMode>(['ctrl', 'always', 'zoom', 'never']),
+};
 
 /**
  * The custom elements' common lifecycle. Options set as properties go to one store, connected or not, and are reused
