@@ -25,7 +25,7 @@ import { canvasCenter } from '../../lib/shape-drag.js';
 registerMessages(BLOCK_MESSAGES_MEDIA);
 registerMessages(EDITOR_MEDIA_MESSAGES);
 
-export const MEDIA_CSS = /* css */ `
+const MEDIA_CSS = /* css */ `
 /* the look of the floating toolbar's popovers */
 .ins-pop.mmdx-pop { position: fixed; padding: 12px; background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: 14px;
   box-shadow: 0 10px 34px rgba(20, 30, 60, .18); }

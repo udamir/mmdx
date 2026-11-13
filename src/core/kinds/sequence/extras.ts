@@ -6,7 +6,7 @@ import { messageNumbers } from './parse.js';
 
 const one = (s: string): string => s.replace(/\s*\n\s*/g, ' ').trim();
 
-export function outlineSequence(model: SequenceModel): OutlineItem[] {
+function outlineSequence(model: SequenceModel): OutlineItem[] {
   const name = new Map(model.participants.map((p) => [p.id, one(p.label)]));
   const out: OutlineItem[] = [];
   const numbers = messageNumbers(model);

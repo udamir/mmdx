@@ -13,7 +13,7 @@ import type { ExtrasKind } from '../../kind/extras-types.js';
 
 const one = (s: string): string => s.replace(/\s*\n\s*/g, ' ').trim();
 
-export function outlineFlowchart(model: FlowchartModel): OutlineItem[] {
+function outlineFlowchart(model: FlowchartModel): OutlineItem[] {
   // an icon or image node without a caption is named by its id
   const label = (id: string): string => one(model.nodes.get(id)?.label || model.groups.get(id)?.label || id);
   const out: OutlineItem[] = [];

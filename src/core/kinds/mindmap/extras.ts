@@ -5,7 +5,7 @@ import type { ExtrasKind } from '../../kind/extras-types.js';
 
 const one = (s: string): string => s.replace(/\s*\n\s*/g, ' ').trim();
 
-export function outlineMindmap(model: MindmapModel): OutlineItem[] {
+function outlineMindmap(model: MindmapModel): OutlineItem[] {
   const root = model.root ? model.nodes.get(model.root) : undefined;
   if (!root) return [];
   const top: OutlineItem = { text: one(root.label) };

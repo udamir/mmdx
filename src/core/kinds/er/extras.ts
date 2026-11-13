@@ -5,7 +5,7 @@ import type { ExtrasKind } from '../../kind/extras-types.js';
 
 const one = (s: string): string => s.replace(/\s*\n\s*/g, ' ').trim();
 
-export function outlineEr(model: ErModel): OutlineItem[] {
+function outlineEr(model: ErModel): OutlineItem[] {
   const out: OutlineItem[] = [];
   for (const e of model.entities.values()) {
     const rels = model.rels.filter((r) => r.from === e.id);

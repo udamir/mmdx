@@ -24,7 +24,7 @@ import { deleteRows, gapAt, moveRows, renameHighlights, rowAt, rowRange, toggleR
 import type { TableContext, TableState } from './state.js';
 import { ATTR_SPEC, attrToolbarApi } from './toolbar.js';
 
-export const ER_TABLE_CSS = /* css */ `
+const ER_TABLE_CSS = /* css */ `
 .ed.table-edit .canvas .el { transition: opacity .15s; }
 .ed.table-edit .canvas .el:not(.table-in-edit) { opacity: .2; }
 .overlay .attr-sel { fill: var(--accent); fill-opacity: .12; stroke: var(--accent); pointer-events: none; }

@@ -9,7 +9,7 @@ import { join, relative } from 'node:path';
 import ts from 'typescript';
 
 const TREES = ['src', 'tests', 'stories', 'apps', '.storybook'];
-const SKIP = /[\\/](node_modules|icons[\\/]data|emoji[\\/]data)([\\/]|$)/;
+const SKIP = /[\\/](node_modules|dist|storybook-static|_site|icons[\\/]data|emoji[\\/]data)([\\/]|$)/; // build output names everything
 
 const walk = (d) => {
   let entries;

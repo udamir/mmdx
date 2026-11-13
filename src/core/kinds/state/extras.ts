@@ -6,7 +6,7 @@ import type { ExtrasKind } from '../../kind/extras-types.js';
 
 const one = (s: string): string => s.replace(/\s*\n\s*/g, ' ').trim();
 
-export function outlineState(model: StateModel): OutlineItem[] {
+function outlineState(model: StateModel): OutlineItem[] {
   const name = (id: string): string => {
     const n = model.nodes.get(id);
     if (n?.kind === 'start') return 'start';
