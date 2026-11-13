@@ -10,7 +10,6 @@ import type { ItemRef } from '../../types.js';
 import type { OpsKind } from '../../kind/ops-types.js';
 import { asPresets, collectionOps, pinAutoPlaced, resetGroupScope } from '../ops-kit.js';
 import { minOf } from '../../geom.js';
-import { stateOrderSim } from './order.js';
 
 export const OPS: OpsKind<StateModel, StateGeometry> = {
   type: 'state',
@@ -83,7 +82,7 @@ export const OPS: OpsKind<StateModel, StateGeometry> = {
   // a state's place in the code says nothing in the picture (and moving its first mention can change its kind or
   // composite): no order slider
   orderRank: () => null,
-  orderSim: stateOrderSim,
+  orderSim: () => import('./order.js'),
   relocate: (M, ref, line) => (ref.kind === 'note' && line !== undefined ? M.notes.find((n) => n.line === line)?.id : ref.kind === 'edge' ? M.edges.find((e) => e.src === line)?.id : undefined),
   remapMeta(meta, before, _bc, after) {
     const notes = remapStateNotes(meta.notes, before.notes, after.notes);

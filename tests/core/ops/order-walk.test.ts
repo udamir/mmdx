@@ -4,7 +4,7 @@
 // with an OrderSim, and it wrote the snapshot of every item of every example (and of more random documents) the new
 // one is checked against.
 import { createHash } from 'node:crypto';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 const parses = vi.hoisted(() => ({ n: 0 }));
 vi.mock('../../../src/core/parse/dispatch.js', async (orig) => {
@@ -13,10 +13,10 @@ vi.mock('../../../src/core/parse/dispatch.js', async (orig) => {
 });
 
 const { parse } = await import('../../../src/core/parse/index.js');
-const { applyOrderState, orderPositions, orderRank, orderStep } = await import('../../../src/core/ops/order.js');
+const { applyOrderState, loadOrderSim, orderPositions, orderRank, orderStep } = await import('../../../src/core/ops/order.js');
 const { withKind, withOps } = await import('../../../src/core/kinds/registry.js');
 const { emptyMeta } = await import('../../../src/core/meta/types.js');
-const { EXAMPLES } = await import('./helpers.js');
+const { EXAMPLES, loadOrderSims } = await import('./helpers.js');
 const { randomEr, randomFlowchart, randomSequence, randomState } = await import('../../fixtures/order-docs.js');
 type OrderState = import('../../../src/core/ops/order.js').OrderState;
 type DiagramModel = import('../../../src/core/model.js').DiagramModel;
@@ -59,7 +59,26 @@ const summary = (o: Positions): string =>
   `${o.index}/${o.states.length} ${o.labels.join('|')} ${createHash('sha1').update(JSON.stringify(o.states.map((s) => [s.code, s.sel, s.others]))).digest('hex').slice(0, 12)}`;
 const RANDOM = [['flowchart', randomFlowchart], ['er', randomEr], ['sequence', randomSequence], ['state', randomState]] as const;
 
+describe('the OrderSims on demand', () => {
+  it('before its type\'s OrderSim loads, the walk parses each step and finds the same positions; loadOrderSim loads it once', async () => {
+    const code = 'flowchart LR\n  A --> B\n  B --> C\n  C --> D', m = parse(code), sel: ItemRef = { kind: 'edge', id: 'B->C' };
+    parses.n = 0;
+    const before = orderPositions(code, m, sel);
+    expect(parses.n).toBeGreaterThan(0);
+    const wait = loadOrderSim(m);
+    expect(wait).toBeInstanceOf(Promise);
+    expect(loadOrderSim(m)).toBe(wait);
+    await wait;
+    expect(loadOrderSim(m)).toBeNull();
+    parses.n = 0;
+    expect(summary(orderPositions(code, m, sel))).toBe(summary(before));
+    expect(parses.n).toBe(0);
+  });
+});
+
 describe('order walk', () => {
+  beforeAll(loadOrderSims);
+
   it('opening parses nothing; a position parses once, when it is shown', () => {
     const cases: [string, ItemRef][] = [
       ['flowchart LR\n  A["Alpha"] --> B\n  subgraph G\n    C --> D\n  end\n  B --> C\n  B -->|x| C', { kind: 'node', id: 'B' }],

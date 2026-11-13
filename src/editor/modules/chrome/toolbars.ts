@@ -56,8 +56,8 @@ export const toolbarsModule: EditorModule = {
     let style: StyleToolbarHandle | null = null;
     let styleArgs: [ToolbarApi, StyleToolbarOptions] | null = null;
     let styleLoading: Promise<void> | null = null;
-    // the style toolbar code loads with the first selection (prefetched when the browser is idle)
-    const ensureStyleBar = (): Promise<void> => (styleLoading ??= import('../../../ui/diagram/style-toolbar.js').then(({ createStyleToolbar, SHAPE_PALETTE_CSS }) => {
+    // the style toolbar code loads with the first selection (prefetched when the browser is idle), and the order slider's walk with it
+    const ensureStyleBar = (): Promise<void> => (styleLoading ??= Promise.all([import('../../../ui/diagram/style-toolbar.js'), order.load()]).then(([{ createStyleToolbar, SHAPE_PALETTE_CSS }]) => {
       if (!styleArgs || style || destroyed) return;
       core.addCss([SHAPE_PALETTE_CSS]);
       style = createStyleToolbar(wrap, ...styleArgs);

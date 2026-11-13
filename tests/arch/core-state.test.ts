@@ -24,6 +24,8 @@ const ALLOWED: Record<string, string> = {
   'icons/registry.ts ids': 'id counter: registry keys',
   'icons/search.ts indexes': 'cache: the search index of a pack (WeakMap on the pack data)',
   'media/kit.ts kit': 'registry: the media kit code, once loaded',
+  'ops/order.ts sims': "registry: the types' order walks without a parse, once loaded (WeakMap on the ops kind)",
+  'ops/order.ts loads': 'registry: their loads in flight',
   'ops/lines.ts starts': 'cache: the line offsets of the last code',
   'ops/lines.ts startsOf': 'cache: the code they belong to',
   'kinds/state/ops.ts patterns': 'cache: compiled patterns by source',

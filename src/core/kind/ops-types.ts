@@ -110,8 +110,8 @@ export interface OpsKind<M extends SupportedModel = SupportedModel, G extends Ge
   relocate?(model: M, ref: ItemRef, line: number | undefined): string | undefined;
   /** Draw order among the items of one kind (null: the kind has none). */
   orderRank?(model: M, ref: ItemRef): number | null;
-  /** The order walk without a parse, for a model of `code` (null: it cannot tell for this code, and the walk parses each step). */
-  orderSim?(code: string, model: M): OrderSim | null;
+  /** Loads the order walk without a parse (the type's `order.ts`, a chunk of its own that only the order slider needs): its `orderSim` gives the walk for a model of `code` (null: it cannot tell for this code, and the walk parses each step). */
+  orderSim?(): Promise<{ orderSim(code: string, model: M): OrderSim | null }>;
   /** The order slider's end labels (default: back, front). */
   orderLabels?(ref: ItemRef): [string, string];
   /** Boxes whose hand-placed x positions trade along with an order step (sequence participants). */

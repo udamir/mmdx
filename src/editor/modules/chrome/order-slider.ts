@@ -3,7 +3,7 @@
 import { opsKind } from '../../../core/kinds/registry.js';
 import type { DiagramMeta } from '../../../core/meta/types.js';
 import type { DiagramModel } from '../../../core/model.js';
-import { applyOrderState, orderPositions, type OrderPositions } from '../../../core/ops/order.js';
+import { applyOrderState, loadOrderSim, orderPositions, type OrderPositions } from '../../../core/ops/order.js';
 import type { EditorCore } from '../../core.js';
 import { moveSelection } from '../../ops/order.js';
 
@@ -20,9 +20,11 @@ export interface OrderSlider {
   readonly active: boolean;
   /** ⌘[ / ⌘]: moves the selected item one position. */
   move(dir: -1 | 1): void;
+  /** Loads the order walk of the diagram's type (the style toolbar shows once it is here). */
+  load(): Promise<void>;
 }
 
-/** `committed`: the bar shows the new position. */
+/** `committed`: the bar shows the new position (and the slider, once the type's order walk has loaded). */
 export function createOrderSlider(core: EditorCore, t: EditorCore['i18n']['t'], committed: () => void): OrderSlider {
   let ord: OrderInfo | null = null;
   let ordering = false;
@@ -33,6 +35,12 @@ export function createOrderSlider(core: EditorCore, t: EditorCore['i18n']['t'], 
     const s = sel[0]!;
     const key = `${core.code}\u0000${s.kind}:${s.id}`;
     if (ord?.key === key) return ord;
+    // the type's order walk is a chunk of its own (loaded with the style toolbar): the slider shows once it is here
+    const wait = loadOrderSim(core.model);
+    if (wait) {
+      void wait.then(committed);
+      return null;
+    }
     const g = core.geom;
     ord = { ...orderPositions(core.code, core.model, s), key, base: { code: core.code, meta: JSON.parse(JSON.stringify(core.meta)) as DiagramMeta, model: core.model, participants: g.type ? opsKind(g.type)?.swapBoxes?.(g) ?? null : null }, shown: null };
     return ord;
@@ -71,5 +79,5 @@ export function createOrderSlider(core: EditorCore, t: EditorCore['i18n']['t'], 
     ord = null;
     committed();
   };
-  return { info: orderInfo, preview: orderPreview, commit: orderCommit, get active() { return ordering; }, move: (dir) => moveSelection(core, dir) };
+  return { info: orderInfo, preview: orderPreview, commit: orderCommit, get active() { return ordering; }, move: (dir) => moveSelection(core, dir), load: () => loadOrderSim(core.model) ?? Promise.resolve() };
 }

@@ -27,7 +27,7 @@ interface NodeFacts {
 }
 
 /** Null where the base model cannot tell the walk what a rearrangement gives (see above). */
-export function flowOrderSim(code: string, M: FlowchartModel): OrderSim | null {
+export function orderSim(code: string, M: FlowchartModel): OrderSim | null {
   if (M.idClashes.length || M.diagnostics.some((d) => /^doc\.too-/.test(d.code))) return null;
   const text = code.split('\n');
   let decls = 0, ends = 0;

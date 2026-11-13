@@ -1,10 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { DiagramMeta } from '../../../src/core/meta/types.js';
 import { emptyMeta } from '../../../src/core/meta/types.js';
 import {
   applyOrderState, cloneItems, copyItems, duplicateItems, moveOrder, orderPositions, orderRank, orderStep, pasteItems, pasteable,
 } from '../../../src/core/ops/index.js';
-import { er, expectParses, flow, geomOf, seq } from './helpers.js';
+import { er, expectParses, flow, geomOf, loadOrderSims, seq } from './helpers.js';
 
 // the order ops' parses (BUG-007): the slider opens without one and a position is parsed when it is shown
 const parses = vi.hoisted(() => ({ n: 0 }));
@@ -76,6 +76,8 @@ describe('clipboard', () => {
 });
 
 describe('order', () => {
+  beforeAll(loadOrderSims);
+
   it('orderStep follows positional ids', () => {
     const m = flow(FLOW);
     const s = orderStep(FLOW, m, { kind: 'edge', id: 'B->C' }, -1);

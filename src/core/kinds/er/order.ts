@@ -30,7 +30,7 @@ interface TableFacts {
 const LINE_LOCAL_ERRORS: ReadonlySet<string> = new Set(['er.rel-label', 'er.rel-alias']);
 
 /** Null where the base model cannot tell the walk what a rearrangement gives (see above). */
-export function erOrderSim(code: string, M: ErModel): OrderSim | null {
+export function orderSim(code: string, M: ErModel): OrderSim | null {
   const text = code.split('\n');
   if (M.diagnostics.some((d) => d.code === 'doc.too-many-items' || (d.severity === 'error' && !LINE_LOCAL_ERRORS.has(d.code)))) return null;
   let decls = 0, ends = 0;

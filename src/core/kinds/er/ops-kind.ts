@@ -8,7 +8,6 @@ import { tidy } from '../../ops/meta-util.js';
 import type { ErGeometry } from '../../render/types.js';
 import type { ItemRef } from '../../types.js';
 import type { OpsKind } from '../../kind/ops-types.js';
-import { erOrderSim } from './order.js';
 import { asPresets, collectionOps, lineSpan, pinAutoPlaced, rankByLine, resetGroupScope } from '../ops-kit.js';
 
 
@@ -45,7 +44,7 @@ export const OPS: OpsKind<ErModel, ErGeometry> = {
     if (sel.kind === 'rel') return rankByLine(M.rels.map((r) => ({ id: r.id, key: r.src })), sel.id);
     return null;
   },
-  orderSim: erOrderSim,
+  orderSim: () => import('./order.js'),
   copyable: (_model, it) => it.kind === 'entity',
   copySet(model, items) {
     const keep = new Set(items.map((it) => it.id));

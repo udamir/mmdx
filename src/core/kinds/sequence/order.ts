@@ -16,7 +16,7 @@ type Kind = 'message' | 'note' | 'block' | 'box';
 const PREFIX: Readonly<Record<Kind, string>> = { message: 'm', note: 'n', block: 'b', box: 'box' };
 
 /** Null where the base model cannot tell the walk what a rearrangement gives (see above). */
-export function seqOrderSim(code: string, M: SequenceModel): OrderSim | null {
+export function orderSim(code: string, M: SequenceModel): OrderSim | null {
   if (M.diagnostics.some((d) => /^doc\.too-/.test(d.code))) return null;
   const sim = new SeqSim(M, descriptionRuns(code));
   return sim.numbered() ? sim : null;

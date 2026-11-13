@@ -15,6 +15,7 @@ import { createStaticMeasurer } from '../../../src/core/text/measure.js';
 import { DEFAULT_IMAGE_POLICY, DEFAULT_LINK_POLICY } from '../../../src/core/validate.js';
 import { emptyMeta } from '../../../src/core/meta/types.js';
 import { NO_ICONS } from '../../../src/core/icons/names.js';
+import { loadOrderSim } from '../../../src/core/ops/order.js';
 
 const ROOT = join(__dirname, '../../..');
 
@@ -47,6 +48,11 @@ export const er = (code: string): ErModel => {
   if (m.type !== 'er') throw new Error('not an ER diagram');
   return m;
 };
+
+/** Loads every type's OrderSim (a chunk the order slider loads on demand), so `orderPositions` walks without a parse. */
+export async function loadOrderSims(): Promise<void> {
+  for (const code of ['flowchart LR', 'sequenceDiagram', 'erDiagram', 'stateDiagram-v2']) await loadOrderSim(parse(code));
+}
 
 const errorKeys = (m: DiagramModel): string[] => m.diagnostics.filter((d) => d.severity === 'error').map((d) => d.code);
 

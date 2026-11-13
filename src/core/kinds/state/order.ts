@@ -15,7 +15,7 @@ import { descriptionRuns, IDENTITY, PairIds, runOf } from '../order-kit.js';
 import { isPseudo } from './parse.js';
 
 /** Null where the base model cannot tell the walk what a rearrangement gives (see above). */
-export function stateOrderSim(code: string, M: StateModel): OrderSim | null {
+export function orderSim(code: string, M: StateModel): OrderSim | null {
   if (M.diagnostics.some((d) => d.severity === 'error' || d.code === 'doc.too-many-items')) return null;
   // the frontmatter and comments apart (the lexer reads neither)
   if (code.split('\n').some((l, li) => li >= M.headerLine && !l.trim().startsWith('%%') && continues(l))) return null;
