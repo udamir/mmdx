@@ -25,7 +25,8 @@ import { DIFF_MESSAGES } from '../diff/messages.js';
 import { batch, computed, effect, signal, untracked, type Signal } from '../reactive/signal.js';
 import { DIFF_CSS, DIFF_HOST_CSS, DIFF_TOKENS } from '../diff/styles.js';
 import { ViewCore } from '../view/core.js';
-import { diffModuleSet, type DiffAction } from '../diff/modules/index.js';
+import type { DiffAction } from '../diff/modules/index.js';
+import { standaloneModuleSet } from '../diff/modules/standalone.js';
 import { DiffScene, sceneHost } from '../diff/scene.js';
 import { DIFF_FILTERS, DIFF_VIEWS, DiffSession, type DiffMode, type DiffSource } from '../diff/session.js';
 import { type DiffExportKind, type DiffExportOptions, type DiffFilter, type DiffPair, type DiffViewName } from '../view/history.js';
@@ -168,7 +169,7 @@ export class DiagramDiff {
     core.pushScene(this.scene);
 
     core.setPanels({ ...panelState(o.panels) });
-    const set = diffModuleSet(this.scene, { actions: this.actions, ...(o.mode ? { tab: o.mode } : {}) });
+    const set = standaloneModuleSet(this.scene, { actions: this.actions, ...(o.mode ? { tab: o.mode } : {}) });
     this.tab = set.tab;
     core.useModules(set.modules);
     this.owner.add(effect(() => core.root.setAttribute('aria-label', label())));

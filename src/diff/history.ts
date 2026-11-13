@@ -27,12 +27,11 @@ import type { MenuEntry } from '../ui/blocks/menu.js';
 import type { ViewCore } from '../view/core.js';
 import type { HistoryHost, HistorySession } from '../view/history.js';
 import type { ViewModule } from '../view/module.js';
-import * as sidePanels from '../view/modules/side-panels.js';
+import { diffLayersModule } from '../view/modules/side-panels.js';
 import { historyPillModule } from './history-pill.js';
 import { DIFF_MESSAGES } from './messages.js';
 import { diffModuleSet } from './modules/index.js';
-import * as panels from './modules/panels.js';
-import type { VersionControls } from './modules/panels.js';
+import { changeListModule, codeDiffModule, versionsModule, type VersionControls } from './modules/panels.js';
 import { DiffScene, sceneHost } from './scene.js';
 import { DiffSession, type DiffMode } from './session.js';
 import type { Shown } from './shown.js';
@@ -483,8 +482,9 @@ class HistoryStage {
     };
     const set = diffModuleSet(this.scene, {
       tab,
-      code: { panels, sidePanels },
-      history: { rowActions: (id) => this.rowActions(id), controls, ownStacks: !!this.host?.ownStacks, withPanel: [pill], inStage: [documentModule] },
+      // named imports, not the modules' namespaces: the library build keeps the panels' own chunk for <mmdx-diff>
+      panels: { versionsModule, codeDiffModule, changeListModule },
+      history: { rowActions: (id) => this.rowActions(id), controls, ownStacks: !!this.host?.ownStacks, sidePanels: { diffLayersModule }, withPanel: [pill], inStage: [documentModule] },
     });
     this.tab = set.tab;
     return set.modules;

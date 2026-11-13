@@ -8,7 +8,7 @@ export {
 } from './elements/diff.js';
 export { DiffSession, type DiffSessionOptions, type DiffSource, type DiffStatus } from './diff/session.js';
 export { DiffScene, type DiffSceneOptions } from './diff/scene.js';
-export { diffModules } from './diff/modules/index.js';
+export { diffModules } from './diff/modules/standalone.js';
 // the kernel types `DiagramDiff.core`, `diffModules()` and the scene expose (component architecture §11)
 export type { ViewCore } from './view/core.js';
 export type { ViewModule, ModuleScope } from './view/module.js';
