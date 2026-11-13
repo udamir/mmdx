@@ -1,4 +1,4 @@
-// mmdx/core — the pure API (§5.5): parse, render to SVG, metadata, themes, ops. Runs in Node, workers and browsers.
+// @mmdx/studio/core — the pure API (§5.5): parse, render to SVG, metadata, themes, ops. Runs in Node, workers and browsers.
 // Every export is listed by name (A15): what this entry gives is what is written here, reviewed in
 // tests/arch/__snapshots__/exports.txt (the names) and api-report.txt (their shapes).
 export {

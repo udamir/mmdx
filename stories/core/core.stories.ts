@@ -22,7 +22,7 @@ const meta: Meta<CoreArgs> = {
     docs: {
       description: {
         component:
-          'The DOM-free core (`mmdx/core`): parse Mermaid with the `%%@` layout metadata, lay out, theme and render to an ' +
+          'The DOM-free core (`@mmdx/studio/core`): parse Mermaid with the `%%@` layout metadata, lay out, theme and render to an ' +
           'SVG string (server-side rendering, exports), and the semantic diagram diff used for merge request review.',
       },
     },

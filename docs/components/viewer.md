@@ -3,7 +3,7 @@
 A read-only, interactive diagram for documentation pages and portals: pan and zoom, layers, the presenting pen, the Mermaid code, export, full screen, the light / dark toggle with a theme menu, and the diagram's history. It loads only what its controls need, renders lazily and keeps page scroll free.
 
 ```ts
-import 'mmdx/viewer'; // <mmdx-viewer>, DiagramViewer
+import '@mmdx/studio/viewer'; // <mmdx-viewer>, DiagramViewer
 ```
 
 <MmdxDemo example="production-microservices" history controls="zoom layers pen code history export theme fullscreen" />
@@ -39,7 +39,7 @@ The source is taken in this order: the `source` property, the `src` attribute (f
 Without custom elements, mount `DiagramViewer` on any element:
 
 ```ts
-import { DiagramViewer } from 'mmdx/viewer';
+import { DiagramViewer } from '@mmdx/studio/viewer';
 
 const viewer = new DiagramViewer(host, { source, controls: ['zoom', 'fullscreen'], theme: 'github-light' });
 viewer.set({ controls: ['zoom', 'layers', 'export'] }); // only what changed is applied
@@ -68,7 +68,7 @@ viewer.addEventListener('mmdx-link', (e) => {
 
 // show the diagram's history (newest first)
 viewer.setAttribute('controls', 'zoom history');
-viewer.history = httpHistoryAdapter('/api/diagrams/arch/versions'); // from 'mmdx/adapters'
+viewer.history = httpHistoryAdapter('/api/diagrams/arch/versions'); // from '@mmdx/studio/adapters'
 ```
 
 ## Attributes and properties
@@ -169,7 +169,7 @@ The tool dock (left) shows when `pen`, `code`, `layers` or `history` is on. With
 The full-screen button puts the viewer itself into the browser's full screen. Where that is unavailable (a sandboxed iframe without `allowfullscreen`), give the viewer the host page's full screen through the `fullscreen` property (type `HostFullscreen`):
 
 ```ts
-import type { HostFullscreen } from 'mmdx/viewer';
+import type { HostFullscreen } from '@mmdx/studio/viewer';
 
 viewer.fullscreen = {
   available: () => true,
@@ -183,13 +183,13 @@ The button then shows and calls `enter()` / `exit()` within the click, and the v
 
 ## History
 
-With `controls` including `history` and a `history` property, the tool dock gets a History button (⇧H). It works as in the [editor](/components/editor), without editing and Restore: the History tab shows any version as it was (in the diff's canvas), and the Compare tab compares any version with the current one (Before, Merged, After, Side by side, filters, the change list, the code diff). Every switch animates. Back (the pill at the top, or Esc) returns to the current version. History's code loads on first use; no `mmdx/diff` import is needed. See [History](/guide/history).
+With `controls` including `history` and a `history` property, the tool dock gets a History button (⇧H). It works as in the [editor](/components/editor), without editing and Restore: the History tab shows any version as it was (in the diff's canvas), and the Compare tab compares any version with the current one (Before, Merged, After, Side by side, filters, the change list, the code diff). Every switch animates. Back (the pill at the top, or Esc) returns to the current version. History's code loads on first use; no `@mmdx/studio/diff` import is needed. See [History](/guide/history).
 
 ## Lazy rendering and workers
 
 - With `lazy` (the default) the viewer renders when it comes near the viewport, and reserves the diagram's aspect ratio meanwhile, so the page does not jump.
 - Each diagram type's parser and renderer load on first use.
-- Diagrams over 300 lines render in a module worker. `setWorkerUrl(url)` (exported by `mmdx/viewer`) lets a strict-CSP host serve the worker file itself; `useInlineWorker()` from [`mmdx/worker-inline`](/api/worker-inline) starts it from a `blob:` URL where workers cannot start from URLs. Without a worker, diagrams render on the main thread.
+- Diagrams over 300 lines render in a module worker. `setWorkerUrl(url)` (exported by `@mmdx/studio/viewer`) lets a strict-CSP host serve the worker file itself; `useInlineWorker()` from [`@mmdx/studio/worker-inline`](/api/worker-inline) starts it from a `blob:` URL where workers cannot start from URLs. Without a worker, diagrams render on the main thread.
 - A render that takes too long in the worker shows an error card instead of blocking the page.
 
 ## Mindmaps

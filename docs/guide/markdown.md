@@ -1,6 +1,6 @@
 # Markdown and docs sites
 
-`mmdx/markdown` turns ` ```mermaid ` code blocks into `<mmdx-viewer>` elements at build time, with a pre-rendered SVG inside, so pages are readable and printable without JavaScript and become interactive when `mmdx/viewer` loads. For pages rendered at run time (a CMS, a wiki), `upgradeMermaidBlocks()` does the same in the browser.
+`@mmdx/studio/markdown` turns ` ```mermaid ` code blocks into `<mmdx-viewer>` elements at build time, with a pre-rendered SVG inside, so pages are readable and printable without JavaScript and become interactive when `@mmdx/studio/viewer` loads. For pages rendered at run time (a CMS, a wiki), `upgradeMermaidBlocks()` does the same in the browser.
 
 ## What a block becomes
 
@@ -24,7 +24,7 @@ becomes
 The SVG shows until the viewer has rendered the source itself. A block may hold a `.mmdx` source with `%%@` lines; the layout and styles apply. A diagram type mmdx does not draw gets the source only, and the viewer falls back to stock Mermaid (when it is [configured](/guide/configuration) or resolves at run time). Pages need the viewer on the client:
 
 ```ts
-import 'mmdx/viewer';
+import '@mmdx/studio/viewer';
 ```
 
 This portal turns every ` ```mermaid ` block into a live viewer too (in the browser; see [VitePress](#vitepress)), like this one:
@@ -54,8 +54,8 @@ Both plugins and `diagramHtml` take the same options:
 | `iconPacks` | — | Icon packs over the context's registry, as `configure({ iconPacks })` takes them; the rehype plugin waits for the icons a page's diagrams need (see [Icons](/guide/icons#on-the-server)) |
 
 ```ts
-import githubLight from 'mmdx/themes/github-light.theme.json' with { type: 'json' };
-import githubDark from 'mmdx/themes/github-dark.theme.json' with { type: 'json' };
+import githubLight from '@mmdx/studio/themes/github-light.theme.json' with { type: 'json' };
+import githubDark from '@mmdx/studio/themes/github-dark.theme.json' with { type: 'json' };
 
 const options = { theme: 'github-light', themeDark: 'auto', themes: [githubLight, githubDark], attrs: { controls: 'zoom fullscreen' } };
 ```
@@ -71,7 +71,7 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
-import { rehypeMmdx } from 'mmdx/markdown';
+import { rehypeMmdx } from '@mmdx/studio/markdown';
 
 const file = await unified()
   .use(remarkParse)
@@ -89,7 +89,7 @@ The plugin inserts each viewer as a `raw` HTML node, so the stringifier must all
 
 ```ts
 import MarkdownIt from 'markdown-it';
-import { markdownItMmdx } from 'mmdx/markdown';
+import { markdownItMmdx } from '@mmdx/studio/markdown';
 
 const md = new MarkdownIt().use(markdownItMmdx, { attrs: { controls: 'zoom fullscreen' } });
 const html = md.render(markdown);
@@ -100,7 +100,7 @@ const html = md.render(markdown);
 `diagramHtml(source, options?, ctx?)` is the markup of one diagram, for template engines and static site generators without Markdown:
 
 ```ts
-import { diagramHtml } from 'mmdx/markdown';
+import { diagramHtml } from '@mmdx/studio/markdown';
 
 const html = diagramHtml(source, { attrs: { controls: 'zoom fullscreen' } });
 ```
@@ -139,7 +139,7 @@ const props = defineProps<{ code: string }>();
 const host = ref<HTMLElement | null>(null);
 
 onMounted(async () => {
-  await import('mmdx/viewer'); // in the browser only
+  await import('@mmdx/studio/viewer'); // in the browser only
   const el = document.createElement('mmdx-viewer');
   el.source = decodeURIComponent(props.code);
   el.setAttribute('controls', 'zoom fullscreen');
@@ -157,7 +157,7 @@ VitePress marks dark mode with a `dark` class on `<html>`; the viewers' `ui="aut
 ```js
 // astro.config.mjs
 import { defineConfig } from 'astro/config';
-import { rehypeMmdx } from 'mmdx/markdown';
+import { rehypeMmdx } from '@mmdx/studio/markdown';
 
 export default defineConfig({
   markdown: {
@@ -170,7 +170,7 @@ Load the viewer on the pages that show diagrams, for example in the layout:
 
 ```html
 <script>
-  import 'mmdx/viewer';
+  import '@mmdx/studio/viewer';
 </script>
 ```
 
@@ -184,11 +184,11 @@ Add the plugin to the docs (and blog) options of the classic preset, and load th
 
 ```js
 // docusaurus.config.js
-import { rehypeMmdx } from 'mmdx/markdown';
+import { rehypeMmdx } from '@mmdx/studio/markdown';
 
 export default {
   presets: [['classic', { docs: { rehypePlugins: [[rehypeMmdx, { themeDark: 'auto' }]] } }]],
-  clientModules: ['./src/mmdx-client.js'], // import 'mmdx/viewer';
+  clientModules: ['./src/mmdx-client.js'], // import '@mmdx/studio/viewer';
 };
 ```
 
@@ -198,14 +198,14 @@ Docusaurus compiles Markdown with MDX, which turns the tree into JSX and does no
 
 ## Run-time upgrade
 
-For pages rendered elsewhere — a CMS, a wiki, Markdown rendered in the browser — `upgradeMermaidBlocks(root?, options?)` from `mmdx/viewer` replaces the Mermaid code blocks under `root` (default `document`) with viewers:
+For pages rendered elsewhere — a CMS, a wiki, Markdown rendered in the browser — `upgradeMermaidBlocks(root?, options?)` from `@mmdx/studio/viewer` replaces the Mermaid code blocks under `root` (default `document`) with viewers:
 
 ```ts
-import { upgradeMermaidBlocks } from 'mmdx/viewer';
+import { upgradeMermaidBlocks } from '@mmdx/studio/viewer';
 
 const viewers = upgradeMermaidBlocks(document.querySelector('article')!, { controls: ['zoom', 'fullscreen'], themeDark: 'auto' });
 ```
 
 It finds `pre > code.language-mermaid`, `pre > code.lang-mermaid` and `pre.mermaid`, reads the code through `textContent`, and hands it to the viewer as its `source` property — never as HTML. Options: `theme`, `themeDark`, `controls` (an array; empty means `none`), `fit`, and `tag` (another element name). It returns the new elements. Call it again after the page renders new content (a client-side route change).
 
-See [`mmdx/markdown`](/api/markdown) for the API reference.
+See [`@mmdx/studio/markdown`](/api/markdown) for the API reference.

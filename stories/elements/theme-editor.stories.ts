@@ -44,7 +44,7 @@ const meta: Meta<ThemeEditorArgs> = {
         component:
           '`<mmdx-theme-editor>` edits diagram themes: palette, fonts, presets per item type (with live previews), page ' +
           'presets per diagram type, and sample diagrams. Themes come from a `store` (here in memory, seeded with the ' +
-          'shipped themes); `can-edit`, `can-delete` and `can-publish` gate the actions. Import `mmdx/theme-editor`.',
+          'shipped themes); `can-edit`, `can-delete` and `can-publish` gate the actions. Import `@mmdx/studio/theme-editor`.',
       },
     },
   },

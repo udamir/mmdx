@@ -5,9 +5,9 @@ App-level settings go through `configure()`, which sets the defaults every compo
 ## configure()
 
 ```ts
-import { configure } from 'mmdx/viewer'; // also exported by the editor, theme editor, diff and studio entries
-import { fetchThemeSource } from 'mmdx/adapters';
-import { DEFAULT_IMAGE_POLICY } from 'mmdx/core';
+import { configure } from '@mmdx/studio/viewer'; // also exported by the editor, theme editor, diff and studio entries
+import { fetchThemeSource } from '@mmdx/studio/adapters';
+import { DEFAULT_IMAGE_POLICY } from '@mmdx/studio/core';
 
 configure({
   themeSource: fetchThemeSource('/themes/index.json'),   // themes a component needs but the page has not loaded
@@ -44,10 +44,10 @@ Stock Mermaid always runs with `securityLevel: 'strict'`, through one queue shar
 `registerThemes(files)` registers theme files into the shared registry with no fetch; the theme menus list them. Every element entry exports it, and it returns the validation diagnostics (invalid values are dropped):
 
 ```ts
-import { registerThemes } from 'mmdx/editor';
-import { BUILTIN_THEMES } from 'mmdx/core';
-import dracula from 'mmdx/themes/dracula.theme.json';
-import roseDawn from 'mmdx/themes/rose-pine-dawn.theme.json';
+import { registerThemes } from '@mmdx/studio/editor';
+import { BUILTIN_THEMES } from '@mmdx/studio/core';
+import dracula from '@mmdx/studio/themes/dracula.theme.json';
+import roseDawn from '@mmdx/studio/themes/rose-pine-dawn.theme.json';
 
 const diagnostics = registerThemes([...BUILTIN_THEMES, dracula, roseDawn]);
 ```
@@ -60,15 +60,15 @@ A file with the id of a registered theme replaces it.
 
 ## setWorkerUrl()
 
-Diagrams over 300 lines render in a module worker. The worker file sits next to the library's chunks (`assets/render-worker-….js`) and your bundler emits it. `setWorkerUrl(url, { type })` from `mmdx/viewer` points the components at another copy — for a host with a strict CSP that serves the file itself (`worker-src 'self'`):
+Diagrams over 300 lines render in a module worker. The worker file sits next to the library's chunks (`assets/render-worker-….js`) and your bundler emits it. `setWorkerUrl(url, { type })` from `@mmdx/studio/viewer` points the components at another copy — for a host with a strict CSP that serves the file itself (`worker-src 'self'`):
 
 ```ts
-import { setWorkerUrl } from 'mmdx/viewer';
+import { setWorkerUrl } from '@mmdx/studio/viewer';
 
 setWorkerUrl('/static/mmdx/render-worker.js'); // type: 'module' by default
 ```
 
-`type: 'classic'` starts a classic worker; `useInlineWorker()` from `mmdx/worker-inline` uses it to start the worker from a `blob:` URL in [sandboxed iframes](/guide/sandboxed-iframes#worker). When no worker can start (a CSP without `worker-src`, `file://`, old engines), diagrams render on the main thread.
+`type: 'classic'` starts a classic worker; `useInlineWorker()` from `@mmdx/studio/worker-inline` uses it to start the worker from a `blob:` URL in [sandboxed iframes](/guide/sandboxed-iframes#worker). When no worker can start (a CSP without `worker-src`, `file://`, old engines), diagrams render on the main thread.
 
 ## UI strings (i18n)
 
@@ -120,9 +120,9 @@ The English strings of a component are registered when the component is first us
 | `uploadImage` | editor (property, no attribute), the `uploadImage` option of `DiagramEditor` | Uploads a picture dropped, pasted or chosen in the image tool: `async (file) => ({ url })`; without it images are added by URL only (see [Images](/components/editor#images)) |
 
 ```ts
-import { DiagramViewer } from 'mmdx/viewer';
-import { DEFAULT_LINK_POLICY } from 'mmdx/core';
-import { memoryStorage } from 'mmdx/adapters';
+import { DiagramViewer } from '@mmdx/studio/viewer';
+import { DEFAULT_LINK_POLICY } from '@mmdx/studio/core';
+import { memoryStorage } from '@mmdx/studio/adapters';
 
 const viewer = new DiagramViewer(hostElement, {
   source,
@@ -135,7 +135,7 @@ const viewer = new DiagramViewer(hostElement, {
 
 ## Storage
 
-UI preferences — open panels, panel widths, the light / dark toggle, the picked theme — are kept per component kind under keys such as `editor.ui`, `viewer.theme` and `diff.panels`. The document itself is never stored there. `mmdx/adapters` has three `StorageAdapter`s:
+UI preferences — open panels, panel widths, the light / dark toggle, the picked theme — are kept per component kind under keys such as `editor.ui`, `viewer.theme` and `diff.panels`. The document itself is never stored there. `@mmdx/studio/adapters` has three `StorageAdapter`s:
 
 | Adapter | Use |
 |---|---|

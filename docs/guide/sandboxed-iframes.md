@@ -5,11 +5,11 @@ Hosts that run mmdx in a sandboxed iframe with an opaque origin — an app insid
 ## At a glance
 
 ```ts
-import { registerThemes, type HostFullscreen } from 'mmdx/viewer';
-import { starterSource, BUILTIN_THEMES } from 'mmdx/core';
-import { preloadedStorage } from 'mmdx/adapters';
-import { useInlineWorker } from 'mmdx/worker-inline';
-import github from 'mmdx/themes/github-light.theme.json';
+import { registerThemes, type HostFullscreen } from '@mmdx/studio/viewer';
+import { starterSource, BUILTIN_THEMES } from '@mmdx/studio/core';
+import { preloadedStorage } from '@mmdx/studio/adapters';
+import { useInlineWorker } from '@mmdx/studio/worker-inline';
+import github from '@mmdx/studio/themes/github-light.theme.json';
 
 // themes: registered from your bundle, nothing is fetched (the menus list them)
 registerThemes([...BUILTIN_THEMES, github]);
@@ -78,14 +78,14 @@ viewer.addEventListener('mmdx-fullscreen-request', (e) => {
 
 ## Storage
 
-The components keep UI preferences (open panels, widths, the light / dark toggle, the picked theme) through a synchronous `StorageAdapter`; the default is `localStorage`, which an opaque origin does not have. `preloadedStorage(read, write, { onError? })` from `mmdx/adapters` serves it over the host's async key-value store:
+The components keep UI preferences (open panels, widths, the light / dark toggle, the picked theme) through a synchronous `StorageAdapter`; the default is `localStorage`, which an opaque origin does not have. `preloadedStorage(read, write, { onError? })` from `@mmdx/studio/adapters` serves it over the host's async key-value store:
 
 - it awaits `read()` once, for every stored key and value;
 - then it serves reads from memory and writes each change through `write(key, value)` in the background, in order per key (`remove(key)` writes `undefined`);
 - a failed write is ignored, or reported to `onError(error, key)`; the value stays in memory.
 
 ```ts
-import { preloadedStorage } from 'mmdx/adapters';
+import { preloadedStorage } from '@mmdx/studio/adapters';
 
 const storage = await preloadedStorage(
   () => host.storage.getAll(),                 // Promise<Record<string, unknown>>
@@ -100,7 +100,7 @@ Without any store, `memoryStorage()` keeps preferences for the page's life. The 
 
 ## Themes
 
-`registerThemes(files)` (from every element entry) registers theme files into the shared registry, with no fetch; import the files you want from `mmdx/themes/*`. Default Light is part of every component; Default Dark loads as a chunk of the library on first use, or not at all after `registerThemes(BUILTIN_THEMES)`. `registerBuiltinThemes()` resolves once both are registered.
+`registerThemes(files)` (from every element entry) registers theme files into the shared registry, with no fetch; import the files you want from `@mmdx/studio/themes/*`. Default Light is part of every component; Default Dark loads as a chunk of the library on first use, or not at all after `registerThemes(BUILTIN_THEMES)`. `registerBuiltinThemes()` resolves once both are registered.
 
 Do not set a `themeSource` that fetches. If the host stores custom themes, read them through its API and register them:
 
@@ -116,15 +116,15 @@ The built-in icon set is a chunk of the library and needs no network. Register o
 
 ## Worker
 
-Diagrams over 300 lines render in a worker. `mmdx/worker-inline` exports the render worker as one classic script (`workerSource`) and `useInlineWorker()`, which starts it from a `blob:` URL through `setWorkerUrl(url, { type: 'classic' })`:
+Diagrams over 300 lines render in a worker. `@mmdx/studio/worker-inline` exports the render worker as one classic script (`workerSource`) and `useInlineWorker()`, which starts it from a `blob:` URL through `setWorkerUrl(url, { type: 'classic' })`:
 
 ```ts
-import { useInlineWorker } from 'mmdx/worker-inline';
+import { useInlineWorker } from '@mmdx/studio/worker-inline';
 
 if (!useInlineWorker()) console.info('diagrams render on the main thread');
 ```
 
-It returns false when `Blob` or `URL.createObjectURL` is unavailable; diagrams then render on the main thread. Calling it again reuses the URL. The CSP needs `worker-src blob:`. Only pages that import it download the extra 39 kB (gzip). See [`mmdx/worker-inline`](/api/worker-inline).
+It returns false when `Blob` or `URL.createObjectURL` is unavailable; diagrams then render on the main thread. Calling it again reuses the URL. The CSP needs `worker-src blob:`. Only pages that import it download the extra 39 kB (gzip). See [`@mmdx/studio/worker-inline`](/api/worker-inline).
 
 ## Loading diagrams
 
@@ -167,10 +167,10 @@ See [Saving documents](/guide/documents#drafts).
 
 ## Starters
 
-`starterSource('flowchart' | 'sequence' | 'er' | 'mindmap' | 'state')` from `mmdx/core` is the source a new diagram starts from, as in the studio's New menu:
+`starterSource('flowchart' | 'sequence' | 'er' | 'mindmap' | 'state')` from `@mmdx/studio/core` is the source a new diagram starts from, as in the studio's New menu:
 
 ```ts
-import { starterSource, type StarterType } from 'mmdx/core';
+import { starterSource, type StarterType } from '@mmdx/studio/core';
 
 function newDiagram(type: StarterType) {
   editor.setSource(starterSource(type)); // 'flowchart TB\n', 'sequenceDiagram\n', 'erDiagram\n', 'mindmap\n  root((Topic))\n' or 'stateDiagram-v2\n'

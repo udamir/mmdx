@@ -1,6 +1,6 @@
 # What is Mermaid Studio?
 
-Mermaid Studio (`mmdx`, short mmdx) is a visual editor, viewer, theme editor and visual diff for Mermaid diagrams, shipped as framework-agnostic web components. Mermaid stays the source of truth: layout and styling live in comment lines that every Mermaid renderer ignores.
+Mermaid Studio (`@mmdx/studio`, short mmdx) is a visual editor, viewer, theme editor and visual diff for Mermaid diagrams, shipped as framework-agnostic web components. Mermaid stays the source of truth: layout and styling live in comment lines that every Mermaid renderer ignores.
 
 ## Why it exists
 
@@ -64,17 +64,17 @@ Each element is also an imperative class you can mount on any element, for hosts
 
 | Import | Provides |
 |---|---|
-| `mmdx/viewer` | `<mmdx-viewer>` and `DiagramViewer` |
-| `mmdx/editor` | `<mmdx-editor>` and `DiagramEditor`, document adapters |
-| `mmdx/theme-editor` | `<mmdx-theme-editor>` and `ThemeEditor`, theme sources and stores |
-| `mmdx/diff` | `<mmdx-diff>` and `DiagramDiff`, history adapters |
-| `mmdx` | `<mmdx-studio>` and `DiagramStudio` (also `mmdx/studio`) |
-| `mmdx/core` | Pure API without DOM: parse, render to SVG, metadata, themes, diffs and diff reports (Node, workers, browsers) |
-| `mmdx/adapters` | Storage, theme sources and stores, document adapters, history adapters |
-| `mmdx/markdown` | rehype and markdown-it plugins that turn ` ```mermaid ` blocks into viewers |
-| `mmdx/react` | Optional wrappers for React ≤ 18 |
-| `mmdx/worker-inline` | The render worker as a string, for pages that cannot start workers from URLs |
-| `mmdx/themes/*` | The built-in theme files (`default-light.theme.json`, …) |
+| `@mmdx/studio/viewer` | `<mmdx-viewer>` and `DiagramViewer` |
+| `@mmdx/studio/editor` | `<mmdx-editor>` and `DiagramEditor`, document adapters |
+| `@mmdx/studio/theme-editor` | `<mmdx-theme-editor>` and `ThemeEditor`, theme sources and stores |
+| `@mmdx/studio/diff` | `<mmdx-diff>` and `DiagramDiff`, history adapters |
+| `@mmdx/studio` | `<mmdx-studio>` and `DiagramStudio` (also `@mmdx/studio/studio`) |
+| `@mmdx/studio/core` | Pure API without DOM: parse, render to SVG, metadata, themes, diffs and diff reports (Node, workers, browsers) |
+| `@mmdx/studio/adapters` | Storage, theme sources and stores, document adapters, history adapters |
+| `@mmdx/studio/markdown` | rehype and markdown-it plugins that turn ` ```mermaid ` blocks into viewers |
+| `@mmdx/studio/react` | Optional wrappers for React ≤ 18 |
+| `@mmdx/studio/worker-inline` | The render worker as a string, for pages that cannot start workers from URLs |
+| `@mmdx/studio/themes/*` | The built-in theme files (`default-light.theme.json`, …) |
 
 The [API reference](/api/) lists every export.
 

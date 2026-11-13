@@ -30,7 +30,7 @@ const meta: Meta<StudioArgs> = {
           'Edit / View / Diff switch. The studio gives the editor the versions of the open diagram (an example\'s bundled ' +
           'history and the versions recorded with Save version or ⌘S): History in the tool dock shows them, and Diff ' +
           'compares the newest change. ' +
-          'Import `mmdx`.',
+          'Import `@mmdx/studio`.',
       },
     },
   },

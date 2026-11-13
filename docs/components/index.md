@@ -4,11 +4,11 @@ Mermaid Studio ships five custom elements. Each one renders in shadow DOM, needs
 
 | Element | Import | Class | What it is for |
 |---|---|---|---|
-| [`<mmdx-viewer>`](/components/viewer) | `mmdx/viewer` | `DiagramViewer` | Read-only diagrams for docs and portals: pan, zoom, layers, pen, code, export, full screen, history |
-| [`<mmdx-editor>`](/components/editor) | `mmdx/editor` | `DiagramEditor` | The visual editor with the code panel, properties, layers, saving through an adapter, and History |
-| [`<mmdx-diff>`](/components/diff) | `mmdx/diff` | `DiagramDiff` | How a diagram changed between two versions, item by item, and its version history |
-| [`<mmdx-theme-editor>`](/components/theme-editor) | `mmdx/theme-editor` | `ThemeEditor` | Edit the palette and every item type's style of diagram themes, with live previews |
-| [`<mmdx-studio>`](/components/studio) | `mmdx` | `DiagramStudio` | The complete standalone app: editor, examples, file open, theme editor and versions |
+| [`<mmdx-viewer>`](/components/viewer) | `@mmdx/studio/viewer` | `DiagramViewer` | Read-only diagrams for docs and portals: pan, zoom, layers, pen, code, export, full screen, history |
+| [`<mmdx-editor>`](/components/editor) | `@mmdx/studio/editor` | `DiagramEditor` | The visual editor with the code panel, properties, layers, saving through an adapter, and History |
+| [`<mmdx-diff>`](/components/diff) | `@mmdx/studio/diff` | `DiagramDiff` | How a diagram changed between two versions, item by item, and its version history |
+| [`<mmdx-theme-editor>`](/components/theme-editor) | `@mmdx/studio/theme-editor` | `ThemeEditor` | Edit the palette and every item type's style of diagram themes, with live previews |
+| [`<mmdx-studio>`](/components/studio) | `@mmdx/studio` | `DiagramStudio` | The complete standalone app: editor, examples, file open, theme editor and versions |
 
 Try them all on one page in the [playgrounds](/components/playgrounds), in the [studio](/studio/){target="_self"}, or one by one in [Storybook](/storybook/){target="_self"}.
 
@@ -19,8 +19,8 @@ Try them all on one page in the [playgrounds](/components/playgrounds), in the [
 Importing an element entry registers its tag once. Importing it twice is safe, and importing any entry in Node does not throw, so server-side rendering frameworks and build scripts can import them.
 
 ```ts
-import 'mmdx/viewer'; // defines <mmdx-viewer>
-import 'mmdx/editor'; // defines <mmdx-editor>
+import '@mmdx/studio/viewer'; // defines <mmdx-viewer>
+import '@mmdx/studio/editor'; // defines <mmdx-editor>
 ```
 
 Each entry also exports a `define…` function that registers the element under another tag name (it does nothing when the name is taken or outside a browser): `defineViewer(name?)`, `defineEditor(name?)`, `defineDiff(name?)`, `defineThemeEditor(name?)`, `defineStudio(name?)`. The element classes are exported too: `MmdxViewerElement`, `MmdxEditorElement`, `MmdxDiffElement`, `MmdxThemeEditorElement`, `MmdxStudioElement`.
@@ -62,7 +62,7 @@ Moving an element in the DOM (re-parenting, a framework reordering a list) keeps
 Each element is also a class you mount on any element. The constructor takes the host element and the options (the same names as the element's properties, attributes in camelCase), creates a shadow root on the host and starts the component. Call `destroy()` when you are done: it stops its listeners and timers and removes what it added to the DOM.
 
 ```ts
-import { DiagramViewer } from 'mmdx/viewer';
+import { DiagramViewer } from '@mmdx/studio/viewer';
 
 const viewer = new DiagramViewer(hostElement, { source, controls: ['zoom', 'fullscreen'] });
 viewer.set({ theme: 'dracula' }); // change options later

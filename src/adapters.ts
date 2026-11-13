@@ -1,4 +1,4 @@
-// mmdx/adapters — built-in host adapters (storage, themes, documents, diagram history, images, URL resolution).
+// @mmdx/studio/adapters — built-in host adapters (storage, themes, documents, diagram history, images, URL resolution).
 export {
   localStorageAdapter, memoryStorage, preloadedStorage, type PreloadedStorageOptions,
 } from './adapters/storage.js';

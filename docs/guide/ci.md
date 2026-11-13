@@ -1,13 +1,13 @@
 # Reviewing changes in CI
 
-A line diff of a `.mmdx` file shows which `%%@` lines changed, not what changed in the picture. `mmdx/core` compares two versions of a diagram item by item without a DOM, so a CI job can post a change report on every merge request that touches a diagram, with a rendered picture of the change.
+A line diff of a `.mmdx` file shows which `%%@` lines changed, not what changed in the picture. `@mmdx/studio/core` compares two versions of a diagram item by item without a DOM, so a CI job can post a change report on every merge request that touches a diagram, with a rendered picture of the change.
 
 ## The diff API
 
 Everything runs in Node 18 or newer (and in workers and browsers):
 
 ```ts
-import { diffDiagrams, ignoreFacets, diffReport, renderDiffToSvg, unifiedDiff } from 'mmdx/core';
+import { diffDiagrams, ignoreFacets, diffReport, renderDiffToSvg, unifiedDiff } from '@mmdx/studio/core';
 
 const diff = diffDiagrams(before, after);                         // what changed, item by item
 const md = diffReport(diff, { format: 'markdown', name: 'docs/arch.mmdx' });
@@ -47,7 +47,7 @@ interface ItemChange {
 }
 ```
 
-`diffDiagrams` of `mmdx/core` is synchronous and bundles every diagram kind. `mmdx/diff` exports an asynchronous `diffDiagrams` and `renderDiffToSvg` that load the parsers of the two versions' types first; use those in browser bundles.
+`diffDiagrams` of `@mmdx/studio/core` is synchronous and bundles every diagram kind. `@mmdx/studio/diff` exports an asynchronous `diffDiagrams` and `renderDiffToSvg` that load the parsers of the two versions' types first; use those in browser bundles.
 
 ## Ignoring facets
 
@@ -110,7 +110,7 @@ The script below compares every `.mmdx` file changed between two commits and wri
 // node .github/scripts/diagram-diff.mjs — needs BASE_SHA and HEAD_SHA, and the history of both commits
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { diffDiagrams, diffReport, ignoreFacets, renderDiffToSvg } from 'mmdx/core';
+import { diffDiagrams, diffReport, ignoreFacets, renderDiffToSvg } from '@mmdx/studio/core';
 
 const base = process.env.BASE_SHA;
 const head = process.env.HEAD_SHA;
@@ -174,7 +174,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --no-save mmdx
+      - run: npm install --no-save @mmdx/studio
       - run: node .github/scripts/diagram-diff.mjs
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -189,7 +189,7 @@ jobs:
 ```
 
 ::: tip
-Pull requests from forks get a read-only token, so the comment step fails there; run the comment from a `workflow_run` or `pull_request_target` workflow that does not check out the fork's code, or keep only the artifact. If your repository already depends on `mmdx`, replace the install step with your usual `npm ci` / `pnpm install`.
+Pull requests from forks get a read-only token, so the comment step fails there; run the comment from a `workflow_run` or `pull_request_target` workflow that does not check out the fork's code, or keep only the artifact. If your repository already depends on `@mmdx/studio`, replace the install step with your usual `npm ci` / `pnpm install`.
 :::
 
 GitLab CI works the same way: run the script with `CI_MERGE_REQUEST_DIFF_BASE_SHA` and `CI_COMMIT_SHA`, and post `report.md` as a merge request note through the API.

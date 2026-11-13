@@ -560,7 +560,7 @@ Inside `flowchart`, `sequence` and `er`, a key ending in `Presets` or `Shapes` m
 
 ## Theme manifest
 
-A manifest lists theme files for [`fetchThemeSource`](/api/adapters#fetchthemesource). The package ships one at `mmdx/themes/index.json`:
+A manifest lists theme files for [`fetchThemeSource`](/api/adapters#fetchthemesource). The package ships one at `@mmdx/studio/themes/index.json`:
 
 ```json
 {
@@ -578,8 +578,8 @@ A manifest lists theme files for [`fetchThemeSource`](/api/adapters#fetchthemeso
 ```
 
 ```ts
-import { configure } from 'mmdx/viewer';
-import { fetchThemeSource } from 'mmdx/adapters';
+import { configure } from '@mmdx/studio/viewer';
+import { fetchThemeSource } from '@mmdx/studio/adapters';
 
 configure({ themeSource: fetchThemeSource('/themes/index.json') });
 ```

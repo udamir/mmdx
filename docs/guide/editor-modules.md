@@ -11,7 +11,7 @@ Custom modules are an advanced extension point. The API below is the editor as m
 A module is an object with an id and an `install` function. The editor installs it with its own modules and gives it a scope. Every registration made through the scope (listeners, shortcuts, actions, gesture sources, overlay painters, DOM) is muted while the module is suspended and removed when it is uninstalled, so a module needs no cleanup code of its own for them.
 
 ```ts
-import { DiagramEditor, DEFAULT_MODULES, type EditorModule } from 'mmdx/editor';
+import { DiagramEditor, DEFAULT_MODULES, type EditorModule } from '@mmdx/studio/editor';
 
 const wordCount: EditorModule = {
   id: 'host-word-count',

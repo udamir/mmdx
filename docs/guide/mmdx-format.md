@@ -214,10 +214,10 @@ Plain Mermaid files open too: they simply have no `%%@` lines, and every item is
 
 ## Working with the format in code
 
-`mmdx/core` reads and writes the format without a DOM:
+`@mmdx/studio/core` reads and writes the format without a DOM:
 
 ```ts
-import { splitSource, joinSource, metaToLines, checkMetaLine } from 'mmdx/core';
+import { splitSource, joinSource, metaToLines, checkMetaLine } from '@mmdx/studio/core';
 
 const { doc, diagnostics } = splitSource(source); // doc.code: Mermaid only; doc.meta: the parsed metadata
 doc.meta.nodes ??= {};
@@ -227,4 +227,4 @@ const next = joinSource(doc); // Mermaid, the header comment, then the %%@ lines
 checkMetaLine('%%@ node a {"x":1}'); // { kind: 'node', id: 'a', data: { x: 1 }, known: true, dropped: [] }
 ```
 
-See [`mmdx/core`](/api/core) for the full API.
+See [`@mmdx/studio/core`](/api/core) for the full API.

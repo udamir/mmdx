@@ -7,7 +7,7 @@ Give the editor, the viewer or the diff a diagram's versions and they show its h
 Every component takes the same thing in its `history` property: a `HistoryAdapter`, or a plain list of versions with their sources, newest first.
 
 ```ts
-import { httpHistoryAdapter } from 'mmdx/diff';
+import { httpHistoryAdapter } from '@mmdx/studio/diff';
 
 editor.history = httpHistoryAdapter('/api/diagrams/arch/versions'); // or a list, or your own { list, load }
 
@@ -24,7 +24,7 @@ viewer.history = [
 | `<mmdx-viewer>` | With a `history` and the `history` control (`controls="… history"`) |
 | `<mmdx-diff>` | With a `history`, the History panel lists the versions and the reviewer picks any two |
 
-History's code loads on first use; no `mmdx/diff` import is needed on a page with only viewers or editors. Press the History button of this viewer:
+History's code loads on first use; no `@mmdx/studio/diff` import is needed on a page with only viewers or editors. Press the History button of this viewer:
 
 <MmdxDemo example="docker-deploy-sequence" history controls="zoom history code fullscreen" />
 
@@ -49,14 +49,14 @@ interface VersionInfo {
 }
 ```
 
-The components list the versions and load the sources of the versions they show, when they show them. `HistoryAdapter`, `staticHistory`, `httpHistoryAdapter` and `contentId` come from `mmdx/diff` and `mmdx/adapters`.
+The components list the versions and load the sources of the versions they show, when they show them. `HistoryAdapter`, `staticHistory`, `httpHistoryAdapter` and `contentId` come from `@mmdx/studio/diff` and `@mmdx/studio/adapters`.
 
 ## staticHistory
 
 `staticHistory(versions)` serves a list held in memory — each version is a `VersionInfo` plus its `source`. The versions may be in any order: they are listed newest first by date when every one has a date, else as given. A plain list given to `history` is wrapped in `staticHistory` for you.
 
 ```ts
-import { staticHistory } from 'mmdx/adapters';
+import { staticHistory } from '@mmdx/studio/adapters';
 
 diff.history = staticHistory(snapshots.map((s) => ({ id: s.id, date: s.savedAt, message: s.note, source: s.text })));
 ```
@@ -90,7 +90,7 @@ Requests use `credentials: 'same-origin'`, overridden by `init` (a `RequestInit`
 For a file in a Git repository, write the two calls against the host's commits and raw file APIs. GitHub:
 
 ```ts
-import type { HistoryAdapter } from 'mmdx/diff';
+import type { HistoryAdapter } from '@mmdx/studio/diff';
 
 const repo = 'acme/platform';
 const path = 'docs/arch.mmdx';
@@ -164,8 +164,8 @@ The viewer's `history` control does the same without editing, Restore or the rea
 ```html
 <mmdx-viewer src="/diagrams/arch.mmdx" controls="zoom history fullscreen"></mmdx-viewer>
 <script type="module">
-  import 'mmdx/viewer';
-  import { httpHistoryAdapter } from 'mmdx/adapters';
+  import '@mmdx/studio/viewer';
+  import { httpHistoryAdapter } from '@mmdx/studio/adapters';
   document.querySelector('mmdx-viewer').history = httpHistoryAdapter('/api/diagrams/arch/versions');
 </script>
 ```

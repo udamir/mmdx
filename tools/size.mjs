@@ -109,7 +109,7 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
   report('built-in icons (lazy chunk)', v.size(new Set(icons)), 19.5 * KB);
   report('icon decoder (lazy chunk)', v.size(new Set(lazy(v, 'src/core/icons/decode.ts', v.base))), 2.9 * KB);
 }
-// the viewer with History opened on a flowchart (no `mmdx/diff` on the page any more)
+// the viewer with History opened on a flowchart (no `@mmdx/studio/diff` on the page any more)
 {
   const loaded = new Set([...v.base, ...flow]);
   const hist = [...lazy(v, 'src/diff/history.ts', loaded), ...lazy(v, 'src/core/kinds/flowchart/diff-kind.ts', loaded)];

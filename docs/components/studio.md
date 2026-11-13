@@ -3,14 +3,14 @@
 The complete app, **Mermaid Studio**, in one element: the [editor](/components/editor), an examples gallery, opening and dropping files, the [theme editor](/components/theme-editor) in a dialog, and versions you save in the browser. It is the app of the live demo; open it in the [studio](/studio/){target="_self"}.
 
 ```ts
-import 'mmdx'; // <mmdx-studio>, DiagramStudio
+import '@mmdx/studio'; // <mmdx-studio>, DiagramStudio
 ```
 
 ## Usage
 
 ```html
 <script type="module">
-  import 'mmdx';
+  import '@mmdx/studio';
 </script>
 
 <mmdx-studio examples="./examples/index.json" themes="./themes/index.json" persist="local" style="height: 100vh"></mmdx-studio>
@@ -19,7 +19,7 @@ import 'mmdx'; // <mmdx-studio>, DiagramStudio
 The element fills its parent's height (at least 480 px). Without custom elements, mount `DiagramStudio`:
 
 ```ts
-import { DiagramStudio } from 'mmdx';
+import { DiagramStudio } from '@mmdx/studio';
 
 const studio = new DiagramStudio(host, { examples: '/examples/index.json', persist: ['local'] });
 studio.editor?.setSource(source);
@@ -60,7 +60,7 @@ The studio dispatches no events of its own; the inner editor's [events](/compone
 
 | Control | What it does |
 |---|---|
-| **＋ New** | A new flowchart, sequence diagram, ER diagram, mindmap or state diagram from the starter (`starterSource(type)` from `mmdx/core`) |
+| **＋ New** | A new flowchart, sequence diagram, ER diagram, mindmap or state diagram from the starter (`starterSource(type)` from `@mmdx/studio/core`) |
 | **Examples** | A gallery of the examples, two to a row, each with its thumbnail or a preview of its newest version in the current theme |
 | **Open** | Opens `.mmdx`, `.mmd`, `.md`, `.txt` and `.json` files; files dropped anywhere on the studio open the same way |
 | File name | The open document's name, with a dot while it has unsaved changes |

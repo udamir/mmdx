@@ -48,7 +48,7 @@ Colours in themes and diagrams are usually references to the palette, not litera
 
 When a user picks a colour in the editor, it is stored as the nearest palette colour plus a shift, so it follows theme switches too. A name the theme does not have falls back to the base theme's palette. A diagram can add its own palette colours (`%%@ style.palette <name> {"color":"#…"}`).
 
-`mmdx/core` exposes the same resolution: `resolveColor(value, palette)` and `relativeColor(hex, palette)`.
+`@mmdx/studio/core` exposes the same resolution: `resolveColor(value, palette)` and `relativeColor(hex, palette)`.
 
 ## Light and dark pairs
 
@@ -71,7 +71,7 @@ Every theme has an `appearance` (`light` or `dark`) and names the linked theme o
 | Catppuccin Latte (`catppuccin-latte`) | Catppuccin Mocha (`catppuccin-mocha`) |
 | Rosé Pine Dawn (`rose-pine-dawn`) | Dracula (`dracula`) |
 
-Default Light and Default Dark are bundled: Default Light is part of every component, Default Dark loads as a chunk of the library on first use. The others are files in `mmdx/themes/*` (`github-light.theme.json`, …, with a manifest `index.json`); load them through a [theme source](#theme-sources) or [register](#registering-themes) them. The ids `studio`, `baseline` and `studio-dark` of earlier versions are still accepted.
+Default Light and Default Dark are bundled: Default Light is part of every component, Default Dark loads as a chunk of the library on first use. The others are files in `@mmdx/studio/themes/*` (`github-light.theme.json`, …, with a manifest `index.json`); load them through a [theme source](#theme-sources) or [register](#registering-themes) them. The ids `studio`, `baseline` and `studio-dark` of earlier versions are still accepted.
 
 The `theme` control adds the light / dark toggle and the theme menu to a viewer; switch between the registered themes here (this page registers only the bundled pair):
 
@@ -95,24 +95,24 @@ The viewer shows the theme menu with `controls="theme"`; the editor and the diff
 A component looks up a theme id in the shared registry. A built-in id loads on demand. Any other id is loaded through a `ThemeSource` — the component's `themeSource` property, else the one set with `configure({ themeSource })` — and registered; a theme that extends another unknown theme pulls that one in too. When no source has the theme, the diagram is drawn with Default Light and the component reports an info diagnostic (`theme.missing`).
 
 ```ts
-import { configure } from 'mmdx/viewer';
-import { fetchThemeSource } from 'mmdx/adapters';
+import { configure } from '@mmdx/studio/viewer';
+import { fetchThemeSource } from '@mmdx/studio/adapters';
 
 // a manifest { "themes": ["default-light.theme.json", …] }, files resolved relative to it
 configure({ themeSource: fetchThemeSource('/themes/index.json') });
 ```
 
-To serve the built-in theme files, copy `node_modules/mmdx/themes/` to your site (the folder has an `index.json` manifest). A `ThemeSource` is `{ list(), get(id), subscribe?(cb) }`; write your own for any backend. `mmdx/adapters` has `fetchThemeSource(manifestUrl)`, `memoryThemeStore(themes)` and `localStorageThemeStore(storage, base?)`.
+To serve the built-in theme files, copy `node_modules/@mmdx/studio/themes/` to your site (the folder has an `index.json` manifest). A `ThemeSource` is `{ list(), get(id), subscribe?(cb) }`; write your own for any backend. `@mmdx/studio/adapters` has `fetchThemeSource(manifestUrl)`, `memoryThemeStore(themes)` and `localStorageThemeStore(storage, base?)`.
 
 ## Registering themes
 
-`registerThemes(files)` registers theme files into the shared registry every component reads, with no fetch; the theme menus list them. It is exported by every element entry and returns the validation diagnostics. Import the files you want from `mmdx/themes/*`:
+`registerThemes(files)` registers theme files into the shared registry every component reads, with no fetch; the theme menus list them. It is exported by every element entry and returns the validation diagnostics. Import the files you want from `@mmdx/studio/themes/*`:
 
 ```ts
-import { registerThemes } from 'mmdx/viewer';
-import { BUILTIN_THEMES } from 'mmdx/core';
-import github from 'mmdx/themes/github-light.theme.json';
-import githubDark from 'mmdx/themes/github-dark.theme.json';
+import { registerThemes } from '@mmdx/studio/viewer';
+import { BUILTIN_THEMES } from '@mmdx/studio/core';
+import github from '@mmdx/studio/themes/github-light.theme.json';
+import githubDark from '@mmdx/studio/themes/github-dark.theme.json';
 
 registerThemes([...BUILTIN_THEMES, github, githubDark]);
 ```
@@ -123,15 +123,15 @@ In Node, `renderToSvg` and the Markdown plugins use their own context; register 
 
 ## Validation
 
-Theme files are untrusted input. They are validated when loaded, registered or saved, and invalid values are dropped with a diagnostic; the rest of the file still applies. `validateTheme(file)` and `migrateTheme(file)` from `mmdx/core` run the same checks.
+Theme files are untrusted input. They are validated when loaded, registered or saved, and invalid values are dropped with a diagnostic; the rest of the file still applies. `validateTheme(file)` and `migrateTheme(file)` from `@mmdx/studio/core` run the same checks.
 
 ## The theme editor
 
 `<mmdx-theme-editor>` edits the palette and every item type's style with live previews, checks text contrast, and imports and exports `.theme.json` files. It reads from a `ThemeSource` and saves through a `ThemeStore` (`list`, `get`, `save`, `delete?`, `publish?`, `usage?`, `listWithUsage?`):
 
 ```ts
-import 'mmdx/theme-editor';
-import { fetchThemeSource, localStorageAdapter, localStorageThemeStore } from 'mmdx/theme-editor';
+import '@mmdx/studio/theme-editor';
+import { fetchThemeSource, localStorageAdapter, localStorageThemeStore } from '@mmdx/studio/theme-editor';
 
 const base = fetchThemeSource('/themes/index.json');  // read-only themes to start from
 const te = document.querySelector('mmdx-theme-editor')!;

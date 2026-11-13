@@ -1,9 +1,9 @@
-# mmdx/core
+# @mmdx/studio/core
 
 The DOM-free API: parse Mermaid code, split and join the `%%@` metadata, render a diagram to a standalone SVG string, manage themes, and compute, render and report diffs. It runs in Node 18 or newer, in workers and in browsers, and it is what the components use underneath. Every function is pure (no module state, no storage, no network); everything instance-scoped lives in a [`CoreContext`](#corecontext).
 
 ```ts
-import { parse, splitSource, renderToSvg, diffDiagrams, diffReport } from 'mmdx/core';
+import { parse, splitSource, renderToSvg, diffDiagrams, diffReport } from '@mmdx/studio/core';
 
 const svg = await renderToSvg(source, { theme: 'default-dark' }); // a standalone SVG string, no DOM needed
 const model = parse(splitSource(source).doc.code);                // the diagram model
@@ -11,7 +11,7 @@ const md = diffReport(diffDiagrams(before, after), { format: 'markdown' });
 ```
 
 ::: tip Bundle size
-`mmdx/core` imports the parser and renderer of every diagram type (flowchart, sequence, ER, mindmap, state) statically. Browser code that only needs to show diagrams should use the components, which load each type on first use; [`mmdx/diff`](/api/#mmdx-studio-diff) has asynchronous versions of `diffDiagrams` and `renderDiffToSvg` that do the same.
+`@mmdx/studio/core` imports the parser and renderer of every diagram type (flowchart, sequence, ER, mindmap, state) statically. Browser code that only needs to show diagrams should use the components, which load each type on first use; [`@mmdx/studio/diff`](/api/#mmdx-studio-diff) has asynchronous versions of `diffDiagrams` and `renderDiffToSvg` that do the same.
 :::
 
 ## Parsing
@@ -271,8 +271,8 @@ Build-time and server-side rendering: a source → a standalone `<svg xmlns=…>
 
 ```ts
 import { readFileSync } from 'node:fs';
-import { renderToSvg, createContext } from 'mmdx/core';
-import github from 'mmdx/themes/github-light.theme.json' with { type: 'json' };
+import { renderToSvg, createContext } from '@mmdx/studio/core';
+import github from '@mmdx/studio/themes/github-light.theme.json' with { type: 'json' };
 
 const ctx = createContext();
 ctx.themes.register(github); // themes other than Default Light / Dark are registered first
@@ -487,7 +487,7 @@ The id of the base theme (Default Light). Every other theme extends it, directly
 const BUILTIN_THEMES: readonly ThemeFile[]
 ```
 
-The house pair bundled with the core: Default Light (`default-light`) and Default Dark (`default-dark`), linked to each other. The other built-in themes are files in `mmdx/themes/*`. `registerThemes(BUILTIN_THEMES)` puts both into the components' shared registry, so they load nothing for them (see [`registerThemes()`](/api/configuration#registerthemes)).
+The house pair bundled with the core: Default Light (`default-light`) and Default Dark (`default-dark`), linked to each other. The other built-in themes are files in `@mmdx/studio/themes/*`. `registerThemes(BUILTIN_THEMES)` puts both into the components' shared registry, so they load nothing for them (see [`registerThemes()`](/api/configuration#registerthemes)).
 
 ### `createDefaultRegistry()`
 
@@ -774,10 +774,10 @@ A semantic diff of two sources compares items, not lines. Items are matched by i
 
 The diff and diff-rendering functions come in two forms:
 
-- **All kinds**: `diffDiagrams`, `renderDiff` and `renderDiffToSvg` parse and render with every diagram type. They live in `src/core/diff/all.ts`, which imports every parser and renderer statically, and only `mmdx/core` exports them. Use them in Node, CI jobs and workers.
-- **`…With`**: `diffDiagramsWith`, `renderDiffWith` and `renderDiffToSvgWith` take the diagram kinds as their first argument (view kinds by type, as in [`ALL_KINDS`](#all-kinds)). A version whose type is not in the set diffs as unsupported. The components use them with the kinds they loaded on demand, so `<mmdx-diff>` and History ship no diagram type statically. From `mmdx/core` you would normally pass `ALL_KINDS`.
+- **All kinds**: `diffDiagrams`, `renderDiff` and `renderDiffToSvg` parse and render with every diagram type. They live in `src/core/diff/all.ts`, which imports every parser and renderer statically, and only `@mmdx/studio/core` exports them. Use them in Node, CI jobs and workers.
+- **`…With`**: `diffDiagramsWith`, `renderDiffWith` and `renderDiffToSvgWith` take the diagram kinds as their first argument (view kinds by type, as in [`ALL_KINDS`](#all-kinds)). A version whose type is not in the set diffs as unsupported. The components use them with the kinds they loaded on demand, so `<mmdx-diff>` and History ship no diagram type statically. From `@mmdx/studio/core` you would normally pass `ALL_KINDS`.
 
-In the browser, [`mmdx/diff`](/api/#mmdx-studio-diff) exports asynchronous `diffDiagrams(before, after): Promise<DiagramDiff>` and `renderDiffToSvg(before, after, options): Promise<string>`: they load the parser and renderer of both versions' types first, then behave like the functions here.
+In the browser, [`@mmdx/studio/diff`](/api/#mmdx-studio-diff) exports asynchronous `diffDiagrams(before, after): Promise<DiagramDiff>` and `renderDiffToSvg(before, after, options): Promise<string>`: they load the parser and renderer of both versions' types first, then behave like the functions here.
 
 ### `diffDiagrams()`
 
@@ -1039,7 +1039,7 @@ Server-side and build-time rendering of a diff (CI bots, merge request comments)
 
 ```ts
 import { writeFileSync } from 'node:fs';
-import { renderDiffToSvg } from 'mmdx/core';
+import { renderDiffToSvg } from '@mmdx/studio/core';
 
 const svg = await renderDiffToSvg(before, after, { view: 'side', ignore: { layout: true }, titles: { before: 'main', after: 'feature-x' } });
 writeFileSync('diff.svg', svg);

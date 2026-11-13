@@ -3,8 +3,8 @@
 App-level settings that every component on the page reads: `configure()` sets the shared defaults (theme registry, theme source, text measurer, UI language, link and image policies, stock Mermaid, PNG fonts), `registerThemes()` and `registerBuiltinThemes()` fill the shared theme registry, `setWorkerUrl()` decides where the render worker comes from, and `upgradeMermaidBlocks()` turns Mermaid code blocks of a rendered page into viewers.
 
 ```ts
-import { configure, registerThemes, registerBuiltinThemes, setWorkerUrl, upgradeMermaidBlocks, type Config } from 'mmdx/viewer';
-import { fetchThemeSource } from 'mmdx/adapters';
+import { configure, registerThemes, registerBuiltinThemes, setWorkerUrl, upgradeMermaidBlocks, type Config } from '@mmdx/studio/viewer';
+import { fetchThemeSource } from '@mmdx/studio/adapters';
 
 configure({
   themeSource: fetchThemeSource('/themes/index.json'),   // themes a diagram names but the page has not loaded
@@ -19,11 +19,11 @@ configure({
 
 | Export | Entries |
 |---|---|
-| `configure`, `registerThemes`, `registerBuiltinThemes`, type `Config` | `mmdx/viewer`, `mmdx/editor`, `mmdx/theme-editor`, `mmdx/diff`, `mmdx` (also `mmdx/studio`) |
-| `setWorkerUrl`, `upgradeMermaidBlocks` | `mmdx/viewer` |
-| `useInlineWorker`, `workerSource` | `mmdx/worker-inline` (see [Inline worker](/api/worker-inline)) |
+| `configure`, `registerThemes`, `registerBuiltinThemes`, type `Config` | `@mmdx/studio/viewer`, `@mmdx/studio/editor`, `@mmdx/studio/theme-editor`, `@mmdx/studio/diff`, `@mmdx/studio` (also `@mmdx/studio/studio`) |
+| `setWorkerUrl`, `upgradeMermaidBlocks` | `@mmdx/studio/viewer` |
+| `useInlineWorker`, `workerSource` | `@mmdx/studio/worker-inline` (see [Inline worker](/api/worker-inline)) |
 
-Every entry re-exports the same functions over one shared configuration object, so `configure()` imported from the viewer entry also configures an editor on the same page, as long as both come from the same copy of the package. The types `Config` refers to come from other entries: `ThemeRegistry`, `TextMeasurer`, `LinkPolicy`, `ImagePolicy`, `createStaticMeasurer`, `DEFAULT_LINK_POLICY`, `DEFAULT_IMAGE_POLICY` and `BUILTIN_THEMES` from `mmdx/core` (see [Core](/api/core)), `ThemeSource` and `fetchThemeSource` from `mmdx/adapters` (see [Adapters](/api/adapters#fetchthemesource)).
+Every entry re-exports the same functions over one shared configuration object, so `configure()` imported from the viewer entry also configures an editor on the same page, as long as both come from the same copy of the package. The types `Config` refers to come from other entries: `ThemeRegistry`, `TextMeasurer`, `LinkPolicy`, `ImagePolicy`, `createStaticMeasurer`, `DEFAULT_LINK_POLICY`, `DEFAULT_IMAGE_POLICY` and `BUILTIN_THEMES` from `@mmdx/studio/core` (see [Core](/api/core)), `ThemeSource` and `fetchThemeSource` from `@mmdx/studio/adapters` (see [Adapters](/api/adapters#fetchthemesource)).
 
 ## Shared configuration
 
@@ -88,11 +88,11 @@ interface Config {
 
 #### `themes`
 
-The shared [`ThemeRegistry`](/api/core#themeregistry) that components created afterwards render with and whose themes their menus list. The default registry holds only Default Light; `registerThemes()` and the on-demand loading of Default Dark register into whichever registry is shared at that moment. When you pass your own registry, pass it before any component starts and include the built-in themes ([`createDefaultRegistry()`](/api/core#createdefaultregistry) from `mmdx/core` holds both): Default Dark is registered on demand only once per page.
+The shared [`ThemeRegistry`](/api/core#themeregistry) that components created afterwards render with and whose themes their menus list. The default registry holds only Default Light; `registerThemes()` and the on-demand loading of Default Dark register into whichever registry is shared at that moment. When you pass your own registry, pass it before any component starts and include the built-in themes ([`createDefaultRegistry()`](/api/core#createdefaultregistry) from `@mmdx/studio/core` holds both): Default Dark is registered on demand only once per page.
 
 #### `themeSource`
 
-Where themes come from that a diagram or the host names but the page has not registered (`ThemeSource`: `list()`, `get(id)`, optional `subscribe(cb)`). `fetchThemeSource(manifestUrl)` from `mmdx/adapters` reads a manifest and fetches theme files next to it. A component asks the source when it needs an unregistered theme; a theme that `extends` another unknown theme pulls that one in too. A theme the source does not have, or that fails to load, leaves the diagram on the base theme with an info diagnostic. Built-in theme ids are never fetched from the source. A component's own `themeSource` property wins over this one. Do not set a source that fetches in a sandboxed iframe; use `registerThemes()` there (see [Sandboxed iframes](/guide/sandboxed-iframes)).
+Where themes come from that a diagram or the host names but the page has not registered (`ThemeSource`: `list()`, `get(id)`, optional `subscribe(cb)`). `fetchThemeSource(manifestUrl)` from `@mmdx/studio/adapters` reads a manifest and fetches theme files next to it. A component asks the source when it needs an unregistered theme; a theme that `extends` another unknown theme pulls that one in too. A theme the source does not have, or that fails to load, leaves the diagram on the base theme with an info diagnostic. Built-in theme ids are never fetched from the source. A component's own `themeSource` property wins over this one. Do not set a source that fetches in a sandboxed iframe; use `registerThemes()` there (see [Sandboxed iframes](/guide/sandboxed-iframes)).
 
 #### `measure`
 
@@ -154,9 +154,9 @@ function registerThemes(themes: Iterable<unknown>): Diagnostic[];
 Registers theme files into the shared registry every component reads (the theme menus list them), with no loading: themes bundled by the host, for pages that cannot fetch theme files (sandboxed iframes). A file with the id of a registered theme replaces it. Each file is validated; the function returns the validation diagnostics ([`Diagnostic`](/api/core#diagnostic)), and invalid values are dropped.
 
 ```ts
-import { registerThemes } from 'mmdx/viewer';
-import { BUILTIN_THEMES } from 'mmdx/core';
-import github from 'mmdx/themes/github-light.theme.json';
+import { registerThemes } from '@mmdx/studio/viewer';
+import { BUILTIN_THEMES } from '@mmdx/studio/core';
+import github from '@mmdx/studio/themes/github-light.theme.json';
 
 const diagnostics = registerThemes([...BUILTIN_THEMES, github]);
 ```
@@ -190,7 +190,7 @@ function setWorkerUrl(url: URL | string, opts?: { type?: WorkerType }): void;
 Starts the render worker from `url` instead of the library's file. Hosts with a strict CSP can serve the worker file themselves (`worker-src 'self'`). `type` is the worker type: `'module'` (the default) or `'classic'`; `'classic'` is for the `blob:` URL of the [inline worker](/api/worker-inline)'s source, for pages that cannot start module workers.
 
 ```ts
-import { setWorkerUrl } from 'mmdx/viewer';
+import { setWorkerUrl } from '@mmdx/studio/viewer';
 
 setWorkerUrl('/static/mmdx-render-worker.js');
 ```
@@ -198,7 +198,7 @@ setWorkerUrl('/static/mmdx-render-worker.js');
 Each call terminates the current worker and clears an earlier failure, so the next large diagram tries the new URL; a job in flight in the old worker renders on the main thread. Call it once at startup, before the first large diagram. If the new worker fails to start, diagrams fall back to the main thread as above.
 
 ::: tip
-In a sandboxed iframe with an opaque origin, module workers from URLs fail. Use `useInlineWorker()` from [`mmdx/worker-inline`](/api/worker-inline), which calls `setWorkerUrl(blobUrl, { type: 'classic' })` for you.
+In a sandboxed iframe with an opaque origin, module workers from URLs fail. Use `useInlineWorker()` from [`@mmdx/studio/worker-inline`](/api/worker-inline), which calls `setWorkerUrl(blobUrl, { type: 'classic' })` for you.
 :::
 
 ## Markdown upgrade
@@ -225,7 +225,7 @@ It selects `pre > code.language-mermaid`, `pre > code.lang-mermaid` and `pre.mer
 | `tag` | `string` | The element to create (default `mmdx-viewer`); `<mmdx-viewer>` is defined first when it is the tag |
 
 ```ts
-import { upgradeMermaidBlocks } from 'mmdx/viewer';
+import { upgradeMermaidBlocks } from '@mmdx/studio/viewer';
 
 const viewers = upgradeMermaidBlocks(document.querySelector('article')!, { themeDark: 'auto', controls: ['zoom', 'fullscreen'] });
 ```

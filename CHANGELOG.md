@@ -1,10 +1,10 @@
 # Changelog
 
-All notable changes to `mmdx` (published as `@mmdx/studio` in 0.3.0). The project follows [semantic versioning](https://semver.org/); below 1.0, a minor version may change public API, listed under **Changed (breaking)**.
+All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project follows [semantic versioning](https://semver.org/); below 1.0, a minor version may change public API, listed under **Changed (breaking)**.
 
 ## 0.4.0 — 2026-11-14
 
-Mindmaps, state diagrams, icons and images; the package is `mmdx`.
+Mindmaps, state diagrams, icons and images.
 
 ### Added
 
@@ -27,7 +27,6 @@ Mindmaps, state diagrams, icons and images; the package is `mmdx`.
 
 ### Changed (breaking)
 
-- The package is `mmdx`: `@mmdx/studio/viewer` is `mmdx/viewer`, and so on.
 - Stock Mermaid is not bundled: a bundled app passes `configure({ mermaid: () => import('mermaid') })`.
 - The studio no longer keeps the diagram in the URL; `encodeHash` and `decodeHash` are removed.
 - `CoreContext` needs `icons` and `imagePolicy`; `rehypeMmdx` may return a promise; model types include `mindmap` and `state`, and `DiagramType` is open.

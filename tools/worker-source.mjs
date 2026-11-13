@@ -1,5 +1,5 @@
 // Build step: the render worker as one classic script in a string (`virtual:mmdx-render-worker-source`), for
-// `mmdx/worker-inline`. Pages with an opaque origin (sandboxed iframes) cannot start the worker from a URL; they start
+// `@mmdx/studio/worker-inline`. Pages with an opaque origin (sandboxed iframes) cannot start the worker from a URL; they start
 // this source from a `blob:` URL instead. esbuild bundles it as an IIFE: no imports, no module worker needed.
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';

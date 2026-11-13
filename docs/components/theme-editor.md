@@ -3,7 +3,7 @@
 Manages diagram themes: edit the colour palette and the style of every item type with live previews, check text contrast, link light and dark themes, and import and export `.theme.json` files. The baseline theme defines every style; other themes override only what differs from the theme they extend. Saved themes are validated and registered in the shared registry, so open viewers and editors redraw with them.
 
 ```ts
-import 'mmdx/theme-editor'; // <mmdx-theme-editor>, ThemeEditor, theme stores and sources
+import '@mmdx/studio/theme-editor'; // <mmdx-theme-editor>, ThemeEditor, theme stores and sources
 ```
 
 <MmdxDemo kind="theme-editor" />
@@ -13,8 +13,8 @@ import 'mmdx/theme-editor'; // <mmdx-theme-editor>, ThemeEditor, theme stores an
 Give it a store to read and save themes, and optionally a source of read-only themes to start from:
 
 ```ts
-import 'mmdx/theme-editor';
-import { fetchThemeSource, localStorageAdapter, localStorageThemeStore } from 'mmdx/theme-editor';
+import '@mmdx/studio/theme-editor';
+import { fetchThemeSource, localStorageAdapter, localStorageThemeStore } from '@mmdx/studio/theme-editor';
 
 const base = fetchThemeSource('/themes/index.json');  // read-only themes to start from
 const te = document.querySelector('mmdx-theme-editor')!;
@@ -29,7 +29,7 @@ te.source = base;
 Without a store it edits the built-in themes in memory. Without custom elements, mount `ThemeEditor`:
 
 ```ts
-import { ThemeEditor, memoryThemeStore, BUILTIN_THEMES } from 'mmdx/theme-editor';
+import { ThemeEditor, memoryThemeStore, BUILTIN_THEMES } from '@mmdx/studio/theme-editor';
 
 const te = new ThemeEditor(host, { store: memoryThemeStore(BUILTIN_THEMES), presentation: 'dialog' });
 await te.ready;
@@ -118,7 +118,7 @@ Edits change a draft: tiles and the preview follow after a short pause, unsaved 
 
 ## Store and source
 
-The `store` reads, saves and optionally deletes and publishes themes; the `source` adds read-only themes that store themes can extend. A store theme that changes a source theme is tagged as edited, and Revert to file (when the store has `delete`) drops the changes. Built-in helpers (also in `mmdx/adapters`):
+The `store` reads, saves and optionally deletes and publishes themes; the `source` adds read-only themes that store themes can extend. A store theme that changes a source theme is tagged as edited, and Revert to file (when the store has `delete`) drops the changes. Built-in helpers (also in `@mmdx/studio/adapters`):
 
 | Helper | What it is |
 |---|---|

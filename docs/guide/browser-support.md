@@ -10,8 +10,8 @@ Current Chrome, Edge and Firefox, and Safari 16.4 or newer. The components need 
 |---|---|
 | Chrome, Edge, Firefox | Current versions |
 | Safari (macOS, iOS) | 16.4 or newer |
-| Node (`mmdx/core`, `mmdx/markdown`) | 18 or newer |
-| Workers | `mmdx/core` runs in workers |
+| Node (`@mmdx/studio/core`, `@mmdx/studio/markdown`) | 18 or newer |
+| Workers | `@mmdx/studio/core` runs in workers |
 
 The package is ESM only and has no runtime dependencies; `mermaid` (≥ 10) is an optional peer dependency, loaded lazily for diagram types mmdx does not draw. mmdx is tested against Mermaid 11.17 and 12.2: the parsers and every editing op are checked against both.
 

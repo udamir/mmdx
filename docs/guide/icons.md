@@ -44,7 +44,7 @@ configure({
 ## Registering packs
 
 ```ts
-import { configure } from 'mmdx/viewer'; // also exported by the editor, diff and studio entries
+import { configure } from '@mmdx/studio/viewer'; // also exported by the editor, diff and studio entries
 import logos from '@iconify-json/logos/icons.json';
 
 configure({
@@ -86,7 +86,7 @@ Monochrome icons (Tabler, Material Design Icons, Font Awesome: drawn in `current
 `renderToSvg` loads the icons a source references before it renders, from the context's registry (the built-in set) plus `iconPacks`:
 
 ```ts
-import { renderToSvg, createContext, createIconRegistry } from 'mmdx/core';
+import { renderToSvg, createContext, createIconRegistry } from '@mmdx/studio/core';
 import logos from '@iconify-json/logos/icons.json';
 
 const svg = await renderToSvg(source, { iconPacks: [{ name: 'logos', icons: logos }] });
@@ -94,7 +94,7 @@ const svg = await renderToSvg(source, { iconPacks: [{ name: 'logos', icons: logo
 const ctx = createContext({ icons: createIconRegistry([{ name: 'logos', icons: logos }]) });
 ```
 
-The rehype plugin takes `iconPacks` too, and waits for the icons a page's diagrams need. The markdown-it plugin renders synchronously: load the icons first with `preloadIcons(ctx, sources)` from `mmdx/markdown` and pass the same `ctx`. `renderSource` with your own context draws what is loaded: call `ctx.icons.preload(iconNamesOf(source, ctx.icons))` before it.
+The rehype plugin takes `iconPacks` too, and waits for the icons a page's diagrams need. The markdown-it plugin renders synchronously: load the icons first with `preloadIcons(ctx, sources)` from `@mmdx/studio/markdown` and pass the same `ctx`. `renderSource` with your own context draws what is loaded: call `ctx.icons.preload(iconNamesOf(source, ctx.icons))` before it.
 
 ### The render worker
 

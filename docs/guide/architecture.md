@@ -9,7 +9,7 @@ Each layer imports only from the layers above it in this table; `tests/arch` che
 | Layer | Where | What it does |
 |---|---|---|
 | Reactive | `src/reactive` | Signals (`signal`, `computed`, `effect`, `batch`) and `Owner`, the disposal scope every component, block and module sets things up in |
-| Core | `src/core` | Parsers, layout, renderers, metadata, themes, diff — pure TypeScript, no DOM. The `mmdx/core` entry. Inside: base types, the kind contract (`core/kind`), resources (metadata, themes, shapes, icons, media), parse, layout, render, ops, diff and export, the kinds' implementations, and the assembly of every kind |
+| Core | `src/core` | Parsers, layout, renderers, metadata, themes, diff — pure TypeScript, no DOM. The `@mmdx/studio/core` entry. Inside: base types, the kind contract (`core/kind`), resources (metadata, themes, shapes, icons, media), parse, layout, render, ops, diff and export, the kinds' implementations, and the assembly of every kind |
 | Ports, i18n | `src/ports.ts`, `src/i18n.ts` | The host interfaces (storage, documents, themes, history, images, full screen, Mermaid) and the message catalogue — types and plain functions, no DOM |
 | DOM, adapters, platform | `src/dom`, `src/adapters`, `src/platform` | The DOM patcher, viewport, pen strokes, the render worker and its client, PNG / SVG export; the built-in host adapters; `configure()`, the shared theme registry, the stock Mermaid bridge and the diagram kinds loaded on demand |
 | UI | `src/ui` | `ui/kit`: primitives (elements, focus and roving, popovers, dialogs, icons, the tokens and base styles). `ui/blocks`: small UI pieces with no diagram knowledge — tool dock, zoom bar, menus, panels and panel stacks, code view, version and change lists, status box… `ui/diagram`: the widgets that know diagrams — style and page toolbars, item and shape previews, the code editor |
@@ -70,9 +70,9 @@ Modules never reach into one another; they talk through the kernel's typed event
 
 | Product | Modules |
 |---|---|
-| Viewer | `VIEWER_MODULES` (`mmdx/viewer`): panel stacks, zoom bar, tool dock, pan, pen, view settings, code view, view parameters, History, links, hover highlight — each enabled by a control of `controls` |
-| Editor | `DEFAULT_MODULES` (`mmdx/editor`): ER table editing, canvas gestures, connectors, sequence editing, shapes, layout, panels, chrome; most are suspended outside the `document` stage |
-| Diff | `diffModules(scene, …)` (`mmdx/diff`): panel stacks, the diff bar, versions, code diff, change list, zoom bar, tool dock, pan, pen, view parameters, export… |
+| Viewer | `VIEWER_MODULES` (`@mmdx/studio/viewer`): panel stacks, zoom bar, tool dock, pan, pen, view settings, code view, view parameters, History, links, hover highlight — each enabled by a control of `controls` |
+| Editor | `DEFAULT_MODULES` (`@mmdx/studio/editor`): ER table editing, canvas gestures, connectors, sequence editing, shapes, layout, panels, chrome; most are suspended outside the `document` stage |
+| Diff | `diffModules(scene, …)` (`@mmdx/studio/diff`): panel stacks, the diff bar, versions, code diff, change list, zoom bar, tool dock, pan, pen, view parameters, export… |
 
 The editor's `modules` property replaces its module list. A host's module is an `EditorModule` (`ViewModule<EditorModuleApi>`): its scope's `core` is the editor core as modules see it — the document and its edits, the selection, the view, the kernel's state, events and actions, the overlay and gesture hooks (`scope.gesture`, `scope.painter`). The core itself (`EditorCore`) is internal; its parts are services in `src/editor/services` (input, selection, UI state, the group tree, kind loading, the version shown, the host's services, document sync). See [Extending the editor](./editor-modules).
 
