@@ -22,7 +22,7 @@ export const TOOLBAR_MESSAGES: Messages = {
   'tb.arrange.left': 'Align left', 'tb.arrange.hcenter': 'Align centers horizontally', 'tb.arrange.right': 'Align right',
   'tb.arrange.top': 'Align top', 'tb.arrange.vcenter': 'Align centers vertically', 'tb.arrange.bottom': 'Align bottom',
   'tb.arrange.hdist': 'Distribute horizontally', 'tb.arrange.vdist': 'Distribute vertically', 'tb.arrange.need3': '{title} — select 3 or more items',
-  'tb.moveLayer': 'Move to layer', 'tb.hidden': 'hidden', 'tb.newLayer': '+ New layer', 'tb.themeFontNamed': 'Theme font ({name})',
+  'tb.moveLayer': 'Move to layer', 'tb.hidden': 'hidden', 'tb.newLayer': '+ New layer', 'tb.themeFont': 'Theme font', 'tb.themeFontNamed': 'Theme font ({name})',
   'tb.saveLink': 'Save link (Enter)', 'tb.removeLink': 'Remove link', 'tb.linkLabel': 'Link (opens in View mode)',
   'tb.opacity': 'Opacity', 'tb.thickness': 'Thickness', 'tb.corners': 'Rounded corners', 'tb.arrowHead': 'Arrow head',
   'tb.start': 'Start', 'tb.end': 'End', 'tb.mermaidArrows': 'Use Mermaid arrows',

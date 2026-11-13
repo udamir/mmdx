@@ -189,7 +189,7 @@ const CONTROLS: Readonly<Record<ToolbarControl, (k: ControlKit) => HTMLElement>>
     : k.button('shape', k.sp.shapes ? svgIcon('shape') : stackPreview(Math.max(1, stackLevel(k.e('stack'))), 24), k.sp.shapes ? k.t('tb.shapeStack') : k.t('tb.stack'))),
   font: (k) => {
     const fam = str(k.e('fontFamily'));
-    const label = FONTS.find((f) => f[0] === fam)?.[1] ?? (fam ? fam.split(',')[0]!.replace(/'/g, '') : k.api.themeFontName());
+    const label = fam ? FONTS.find((f) => f[0] === fam)?.[1] ?? fam.split(',')[0]!.replace(/'/g, '') : k.t('tb.themeFont');
     const b = k.button('font', h('span', { class: 'mtb-font' }, label), k.t('tb.font'));
     b.setAttribute('aria-label', `${k.t('tb.font')}: ${label}`);
     b.classList.add('wide');
