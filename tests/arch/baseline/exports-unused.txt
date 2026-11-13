@@ -2,7 +2,6 @@
 diff/modules/bar.ts › DIFF_BAR_CSS
 diff/modules/export.ts › HOST_ACTIONS_CSS
 diff/scene.ts › DIFF_SCENE_CSS
-theme-editor/constants.ts › DEFAULT_SAMPLES
 view/link-menu.ts › followLink
 view/link-menu.ts › linkAt
 view/link-menu.ts › menuLinks

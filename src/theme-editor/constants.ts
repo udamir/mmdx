@@ -14,7 +14,7 @@ registerExtendedShapes();
 /** A theme's font: the style pickers' fonts (one table, ui/fonts.ts, B25) without "the theme's font". */
 export const FONTS: readonly (readonly [string, string])[] = STYLE_FONTS.filter(([v]) => v !== '');
 
-export const DEFAULT_SAMPLES: Readonly<Record<BuiltinType, string>> = {
+const DEFAULT_SAMPLES: Readonly<Record<BuiltinType, string>> = {
   flowchart: `flowchart TB
   subgraph svc ["Services"]
     api["API gateway"]:::core --> auth["Auth"]:::analytics
