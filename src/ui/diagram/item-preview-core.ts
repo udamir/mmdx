@@ -19,7 +19,7 @@ import type { ResolvedTheme } from '../../core/theme/types.js';
 import type { DiagramType, ItemKind, Rect } from '../../core/types.js';
 import { patchChildren } from '../../dom/patch.js';
 import { maxOf, minOf } from '../../core/geom.js';
-import { kindUi, type PreviewKind } from './kind-ui.js';
+import { kindUi, previewSample, type PreviewKind, type PreviewSample } from './kind-ui.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -28,66 +28,6 @@ export type { PreviewKind } from './kind-ui.js';
 /** The sample an item kind of a diagram type is previewed with (the type's KindUi `previews`, else the flowchart's look). */
 export const previewKind = (type: DiagramType | null | undefined, kind: ItemKind): PreviewKind =>
   (type ? kindUi(type).previews?.[kind] : undefined) ?? (kind as PreviewKind);
-
-type Sample = (preset: string | undefined, shape?: string) => [string, Partial<DiagramMeta>];
-
-
-/** A tiny diagram per item type; the preset is applied through metadata, as on the canvas. */
-export const ITEM_SAMPLES: Readonly<Record<PreviewKind, Sample>> = {
-  node: (p, shape) => ['flowchart LR\n  n["Label"]', { nodes: { n: def({ preset: p, shape }) } }],
-  group: (p) => ['flowchart LR\n  subgraph g ["Group"]\n    a["Item"]\n  end', { groups: { g: def({ preset: p }) } }],
-  edge: (p) => ['flowchart LR\n  a["A"] -->|"label"| b["B"]', { edges: { 'a->b': def({ preset: p }) } }],
-  participant: (p, shape) => ['sequenceDiagram\n  participant A as Participant', { participants: { A: def({ preset: p, shape }) } }],
-  message: (p) => ['sequenceDiagram\n  participant A\n  participant B\n  A->>B: message', { messages: { m1: def({ preset: p }) } }],
-  note: (p) => ['sequenceDiagram\n  participant A\n  Note over A: a note', { notes: { n1: def({ preset: p }) } }],
-  block: (p) => ['sequenceDiagram\n  participant A\n  participant B\n  loop condition\n    A->>B: call\n  end', { blocks: { b1: def({ preset: p }) } }],
-  box: (p) => ['sequenceDiagram\n  box Group\n    participant A\n    participant B\n  end', { boxes: { box1: def({ preset: p }) } }],
-  lifeline: () => ['sequenceDiagram\n  participant A\n  participant B\n  A->>B: call\n  B-->>A: reply', {}],
-  activation: (p) => ['sequenceDiagram\n  participant A\n  participant B\n  A->>+B: call\n  B-->>-A: reply', { activations: { 'B:1': def({ preset: p }) } }],
-  entity: (p) => ['erDiagram\n  TABLE {\n    string id PK\n    string name\n  }', { entities: { TABLE: def({ preset: p }) } }],
-  rel: (p) => ['erDiagram\n  A ||--o{ B : label', { rels: { 'A--B': def({ preset: p }) } }],
-  'mm-root': () => ['mindmap\n  r((Topic))', {}],
-  'mm-node': (p, shape) => ['mindmap\n  r((Topic))\n    n[Idea]', { nodes: { n: def({ preset: p, shape }) } }],
-  'mm-branch': () => ['mindmap\n  r((Topic))\n    a\n      b\n        c', {}],
-  'mm-section': (p) => ['mindmap\n  r((Topic))\n    n[Idea]\n      m\n    o', { nodes: { n: { section: Number(p ?? 0) || 0 } } }],
-  'st-state': (p, shape) => ['stateDiagram-v2\n  state "State" as s', { nodes: { s: def({ preset: p, shape }) } }],
-  'st-start': () => ['stateDiagram-v2\n  [*] --> s', {}],
-  'st-end': () => ['stateDiagram-v2\n  s --> [*]', {}],
-  'st-choice': () => ['stateDiagram-v2\n  state c <<choice>>', {}],
-  'st-fork': () => ['stateDiagram-v2\n  state f <<fork>>', {}],
-  'st-composite': (p) => ['stateDiagram-v2\n  state "Composite" as g {\n    a\n  }', { groups: { g: def({ preset: p }) } }],
-  // a composite colour is previewed on the "Coloured composites" page: the colour's number picks the composite
-  // the composites before it take the colours before it (the preview is centred on the last one, `g`)
-  'st-composite-color': (p) => ['stateDiagram-v2\n' + [...Array.from({ length: Number(p ?? 0) || 0 }, (_, i) => `  state c${i} {\n    a${i}\n  }`), '  state "Composite" as g {\n    a\n  }'].join('\n'), { canvas: { composites: 'palette' } }],
-  'st-note': (p) => ['stateDiagram-v2\n  s\n  note right of s : a note', { notes: { n1: def({ preset: p }) } }],
-  'st-transition': (p) => ['stateDiagram-v2\n  a --> b : label', { edges: { 'a->b': def({ preset: p }) } }],
-};
-
-/** Drops undefined values (exactOptionalPropertyTypes; metadata never stores undefined). */
-function def(o: Record<string, string | undefined>): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(o)) if (v !== undefined) out[k] = v;
-  return out;
-}
-
-const FOCUS: Readonly<Partial<Record<PreviewKind, string>>> = {
-  participant: '[data-kind="participant"][data-id="A"]',
-  lifeline: '[data-kind="participant"][data-id="B"]',
-  activation: '[data-kind="participant"][data-id="B"]',
-  'mm-root': '[data-kind="node"][data-id="r"]',
-  'mm-node': '[data-kind="node"][data-id="n"]',
-  'mm-section': '[data-kind="node"][data-id="n"]',
-  'st-state': '[data-kind="node"][data-id="s"]',
-  'st-start': '[data-kind="node"][data-id="[*]start"]',
-  'st-end': '[data-kind="node"][data-id="[*]end"]',
-  'st-choice': '[data-kind="node"][data-id="c"]',
-  'st-fork': '[data-kind="node"][data-id="f"]',
-  'st-composite': '[data-kind="group"][data-id="g"]',
-  'st-composite-color': '[data-kind="group"][data-id="g"]',
-  'st-note': '[data-kind="note"]',
-  'st-transition': '[data-kind="edge"]',
-};
-const LEFT_ALIGNED = new Set<PreviewKind>(['block', 'box']); // their title sits at the top left
 
 export interface ItemPreviewOptions {
   /** Real size × zoom (default 1). */
@@ -129,9 +69,16 @@ export interface Sampled {
   color: (v: unknown) => string | undefined;
 }
 
+/** The sample of a preview kind, from the registered type that supplies it (KindUi `previewSamples`). */
+function sampleOf(kind: PreviewKind): PreviewSample {
+  const s = previewSample(kind);
+  if (!s) throw new Error(`no preview sample "${kind}"`);
+  return s;
+}
+
 /** Renders the sample of `kind` with the given kinds and returns the scene and the context used (no DOM). */
 export function renderItemSampleWith(env: PreviewEnv, kind: PreviewKind, preset: string | null | undefined, theme: ResolvedTheme, opts: SampleOptions = {}): Sampled {
-  const [src, m] = ITEM_SAMPLES[kind](preset || undefined, opts.shape);
+  const [src, m] = sampleOf(kind).source(preset || undefined, opts.shape);
   const meta: DiagramMeta = { ...emptyMeta(), ...clone(m) };
   if (opts.styles) meta.styles = clone(opts.styles);
   if (opts.canvas) meta.canvas = clone(opts.canvas);
@@ -154,6 +101,7 @@ export function drawItemPreviewWith(env: PreviewEnv, pic: HTMLElement, kind: Pre
   const { zoom = 1, minH = 90, maxH = 230, fit = null } = opts;
   try {
     const { result, background } = renderItemSampleWith(env, kind, preset, theme, opts);
+    const sample = sampleOf(kind);
     const svgEl = document.createElementNS(NS, 'svg');
     svgEl.setAttribute('aria-hidden', 'true');
     svgEl.style.background = background;
@@ -164,7 +112,7 @@ export function drawItemPreviewWith(env: PreviewEnv, pic: HTMLElement, kind: Pre
     svgEl.append(defs, g);
     pic.replaceChildren(svgEl);
     // the item's box in diagram units (its label included): measured when laid out, else from the geometry
-    let F = measured(svgEl, FOCUS[kind] ?? `[data-kind="${kind}"]`) ?? fromGeom(result.geom, kind);
+    let F = measured(svgEl, sample.focus ?? `[data-kind="${kind}"]`) ?? fromGeom(result.geom, kind);
     const B: Rect = result.contentBounds.w ? result.contentBounds : result.bounds;
     F ??= { x: B.x, y: B.y, x2: B.x + B.w, y2: B.y + B.h };
     const pad = 12;
@@ -189,8 +137,8 @@ export function drawItemPreviewWith(env: PreviewEnv, pic: HTMLElement, kind: Pre
       y0 = F.y2 - 24;
       H = Math.max(40, Math.min(maxH, B.y + B.h - y0));
     }
-    // messages are wider than a tile: keep the arrow head (their right end) in view
-    const x0 = LEFT_ALIGNED.has(kind) ? F.x - pad : kind === 'message' ? F.x2 + pad - W : (F.x + F.x2) / 2 - W / 2;
+    // a sample aligned at its start (a title at the top left) or its end (a message's arrow head: messages are wider than a tile)
+    const x0 = sample.align === 'start' ? F.x - pad : sample.align === 'end' ? F.x2 + pad - W : (F.x + F.x2) / 2 - W / 2;
     svgEl.setAttribute('viewBox', `${x0} ${y0} ${W} ${H}`);
     svgEl.setAttribute('width', String(W * zoom));
     svgEl.setAttribute('height', String(H * zoom));

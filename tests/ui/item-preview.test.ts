@@ -3,15 +3,25 @@ import { describe, expect, it, vi } from 'vitest';
 import { getShared, instanceContext } from '../../src/platform/config.js';
 import { parseFlowchart } from '../../src/core/kinds/flowchart/parse.js';
 import { ALL_VIEW_KINDS } from '../../src/core/kinds/all.js';
-import { drawItemPreview, drawItemPreviewWith, ITEM_SAMPLES, renderItemSample, renderItemSampleWith, type PreviewKind } from '../../src/ui/diagram/item-preview.js';
+import { drawItemPreview, drawItemPreviewWith, renderItemSample, renderItemSampleWith, type PreviewKind } from '../../src/ui/diagram/item-preview.js';
+import { kindUi, previewSample } from '../../src/ui/diagram/kind-ui.js';
 import { fitPresetGrid, shapePreview } from '../../src/ui/diagram/shape-preview.js';
 import { SHAPES } from '../../src/core/shapes/catalog.js';
 
 const theme = getShared().themes.get('default-light');
+/** Every built-in type's preview samples (each type's KindUi supplies its own, X21). */
+const SAMPLE_KINDS: PreviewKind[] = (['flowchart', 'sequence', 'er', 'mindmap', 'state'] as const).flatMap((t) => Object.keys(kindUi(t).previewSamples ?? {}));
 
 describe('item previews', () => {
+  it('each type supplies its own samples, found by preview kind', () => {
+    expect(SAMPLE_KINDS).toHaveLength(25);
+    expect(new Set(SAMPLE_KINDS).size).toBe(25);
+    expect(previewSample('st-note')).toBe(kindUi('state').previewSamples!['st-note']);
+    expect(previewSample('nothing')).toBeUndefined();
+  });
+
   it('renders every kind\'s sample with every kind loaded (the wrapper) and draws an svg into the element', () => {
-    for (const kind of Object.keys(ITEM_SAMPLES) as PreviewKind[]) {
+    for (const kind of SAMPLE_KINDS) {
       const { result, background } = renderItemSample(kind, null, theme);
       expect(result.body.length, kind).toBeGreaterThan(0);
       expect(background).toMatch(/^#|rgb/);
