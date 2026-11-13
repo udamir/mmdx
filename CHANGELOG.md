@@ -1,113 +1,46 @@
 # Changelog
 
-All notable changes to `mmdx` (published as `@mmdx/studio` from 0.3.0 to 0.4.0). The project follows [semantic versioning](https://semver.org/); below 1.0, a minor version may change public API, listed under **Changed (breaking)**.
+All notable changes to `mmdx` (published as `@mmdx/studio` in 0.3.0). The project follows [semantic versioning](https://semver.org/); below 1.0, a minor version may change public API, listed under **Changed (breaking)**.
 
-## 0.5.0 — 2026-11-14
+## 0.4.0 — 2026-11-14
 
-The codebase audit: correctness and safety fixes, faster large documents, and the layers the components are built on.
-
-### Added
-
-- Editor modules: `scope.gesture`, `scope.painter`, `scope.area`, `scope.slot(name).mount`, listener options on `scope.canvas`, `when: { kind }` and `replaces`; `EditorModuleApi.docType`. A guide: [Extending the editor](https://udamir.github.io/mmdx/guide/editor-modules).
-- `EditorEventMap`, the typed DOM events of `<mmdx-editor>`.
-- `ThemeStore.listWithUsage?()`, an optional bulk read for the theme library.
-- Pinch to zoom and pan on touch screens.
-- A `doc.too-complex` error for a line or statement too long to read.
-- `<mmdx-diff>` has the multi-link menu on ⌘-click.
-
-### Changed
-
-- Diff badges, the exported diff legend and the diff filters show icons instead of the letters `+ − C L S`.
-- Exported dark diffs use the screen's translucent tints.
-- `export.font-missing` is one `warning` with `params.fonts` in every component.
-- Export names drop a URL's query and hash.
-- `whenLoaded()` also waits for the editor modules of the document's type.
-- `mmdx-selection` fires on every selection change (undo, redo, load), never on construction.
-- `mmdx-history-version` of a viewer's version has `base` and `head` null; `<mmdx-diff>`'s `mmdx-view` names the tab.
-- The viewer's root is a `group` labelled by the diagram; the `<svg>` is the `img`.
-- `wheel` and `ui` are validated on the viewer and the diff.
-- Fit keeps clear of the open panels and the tool dock.
-- The editor's View mode follows links like the viewer.
-- Editing keeps blank lines in moved blocks; "Convert to icon node" writes `form: "square"`; tab-indented blocks ungroup by one tab.
-- ER highlights check `italic`, `fontFamily`, `fontSize` and `preset`; page colours resolve palette references.
-- The diff reports subgraph class changes.
-- Faster on large documents: dragging, code highlighting, diffs, the Order slider and History.
-- Sources over 32 KiB render in the worker too.
-- Library chunks are named after their diagram type.
-- The viewer is about 10 kB gzip larger; the editor's base is smaller, the ER and sequence editing load with their type.
-
-### Changed (breaking)
-
-- The package is `mmdx` again: `@mmdx/studio/viewer` is `mmdx/viewer`, and so on; the root is the studio entry.
-- Stock Mermaid is not bundled: a bundled app passes `configure({ mermaid: () => import('mermaid') })`.
-- `ViewerOptions.rehydrate` and `Config.debug` are removed.
-- The editor actions `toggleHelp`, `editTable`, `gotoMetaLine`, `unlockAll`, `pasteStyle` and `openIconPicker` are removed.
-- `mmdx/editor` no longer exports `EditorCore`; modules see the core as `EditorModuleApi`.
-- `DiffSession` has one `shown` model: `show(shown)` replaces `mode`, `versionsShown`, `setMode`, `applyMode` and `setVersionsShown`.
-- Kernel state is read-only to modules: `ViewCore`'s lists are `KernelList` / `KernelSlot`, its signals `ReadSignal`s with owner setters; `DiagramEditor.core`'s services are getters.
-- `ViewActions` and `ViewEvents` are trimmed; the editor's events moved to `EditorEvents`.
-- `ViewModule`'s `install` and `enabled` are properties; a repeated module id is reported.
-- `DiagramType` is open; `BuiltinType` names the five built-in types.
-- Message keys renamed: `palette.cat.*`, `image.*`, `group.resetPositions`, `group.resetNone`; `te.inheritFont` removed.
-- Editor panels: View mode shows View settings and Code view; panel storage keys changed (sizes reset once).
-- React wrapper: a prop is set as a property when the element has that property.
-
-### Fixed
-
-- Long lines and statements no longer freeze the parsers or overflow the stack.
-- `<!--` and `<script` in an inline source no longer break the page.
-- A Markdown change report links versions only as the link policy allows.
-- `configure({ mermaid: () => import('mermaid') })` works (the module's default export is used).
-- Apps build without `mermaid` installed.
-- Reset style, Style off and Auto layout keep pictures, frames, layers and mindmap offsets.
-- Without styling, no mindmap node or sequence message is lost.
-- State diagrams and mindmaps no longer get flowchart presets; Save as preset refuses `_base`.
-- The portable export includes `_base` and per-shape styles.
-- The diff reports picture, icon, frame, animation and curve changes, ignores key order, and errors when its type is not loaded.
-- Paste style paints the whole selection; Space in a `<select>` no longer pans.
-- A sequence diagram reads its frontmatter and widens for its title.
-- 4- and 8-digit hex colours.
-- Dropping an image on the studio no longer opens it as the document.
-- `<mmdx-studio>` attributes changed after creation apply; properties set before definition are kept.
-- React wrapper: `className`, `htmlFor`, `tabIndex`, `aria-*` and `data-*` are passed; removed props reset.
-- Storage, labels, `interactive`, the pen's auto-erase and the theme editor's A4 preset.
-- Listener leaks in History, the shape palette and menus.
-- Untranslated strings in the toolbar, the canvas and History.
-
-## 0.4.0 — 2026-11-10
-
-Mindmaps, state diagrams, icons and images.
+Mindmaps, state diagrams, icons and images; the package is `mmdx`.
 
 ### Added
 
 - Mindmaps and state diagrams in every component.
 - All Mermaid flowchart shapes.
 - Icons: icon packs, a built-in Tabler set, Font Awesome look-alikes.
-- Images: image and icon nodes in flowcharts, state diagrams, mindmaps and sequence diagrams, with the same keys and editing.
-- Image library from the host: the `images` property (`ImageStore`). The toolbar's Change image opens the image tool with Library, Upload, URL and Icon tabs.
+- Images: image and icon nodes in flowcharts, state diagrams, mindmaps and sequence diagrams, and an image library from the host (`images`, `ImageStore`).
 - Rich text labels, an emoji picker and animated connectors in the editor.
 - Mermaid's full sequence and ER syntax, including ER subgraphs.
-- `wheel: 'zoom'`.
+- Pinch to zoom on touch screens, and `wheel: 'zoom'`.
+- Editor modules for hosts: `EditorModuleApi`, `EditorEventMap` and a guide, [Extending the editor](https://udamir.github.io/mmdx/guide/editor-modules).
 
 ### Changed
 
-- Fit fills the whole canvas.
 - Flowchart subgraphs no longer overlap (`layout: "legacy"` keeps the old layout).
 - Sequence and ER diagrams are read and drawn as Mermaid does.
-- An icon is an image's source: no Icon buttons; ER diagrams have no icons.
 - Edits keep the Mermaid code as written.
-- Faster zoom and pan on large diagrams.
+- Faster on large diagrams: zoom, pan, dragging, diffs and History.
+- Diff badges and legends show icons instead of letters.
 
 ### Changed (breaking)
 
+- The package is `mmdx`: `@mmdx/studio/viewer` is `mmdx/viewer`, and so on.
+- Stock Mermaid is not bundled: a bundled app passes `configure({ mermaid: () => import('mermaid') })`.
 - The studio no longer keeps the diagram in the URL; `encodeHash` and `decodeHash` are removed.
-- `CoreContext` needs `icons` and `imagePolicy`.
-- `rehypeMmdx` may return a promise.
-- Model types include `mindmap` and `state`.
+- `CoreContext` needs `icons` and `imagePolicy`; `rehypeMmdx` may return a promise; model types include `mindmap` and `state`, and `DiagramType` is open.
+- `EditorCore` is no longer exported; kernel types (`ViewCore`, `ViewActions`, `ViewEvents`, `ViewModule`) are trimmed and read-only to modules; `DiffSession` has one `shown` model.
+- Removed: `ViewerOptions.rehydrate`, `Config.debug`, the editor actions `toggleHelp`, `editTable`, `gotoMetaLine`, `unlockAll`, `pasteStyle`, and the message key `te.inheritFont`.
+- Editor panel storage keys changed: remembered panel sizes reset once.
 
 ### Fixed
 
-- Quoting of ER ids, `autonumber` options, quoted `}` in node data, `classDef default`, `</br>`.
+- Long lines and statements no longer freeze the parsers.
+- Mermaid syntax: quoted ER ids, `autonumber` options, quoted `}` in node data, `classDef default`, `</br>`.
+- The diff reports changes it missed and ignores key order.
+- The React wrapper passes `className`, `aria-*` and `data-*`.
 
 ## 0.3.0 — Hooks for sandboxed hosts
 
