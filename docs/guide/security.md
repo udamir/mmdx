@@ -44,14 +44,14 @@ Diagram items can carry links — the `link` metadata key, Mermaid's `click <id>
 - an absolute URL passes only when its protocol is in the policy's `protocols`.
 
 ```ts
-// the default, DEFAULT_LINK_POLICY in @mmdx/studio/core
+// the default, DEFAULT_LINK_POLICY in mmdx/core
 { protocols: ['https:', 'http:', 'mailto:'], target: '_blank' }
 ```
 
 `javascript:`, `data:` and every protocol you do not list are rejected. Set your own policy app-wide with `configure({ linkPolicy })`, or per component through the `ctx` option:
 
 ```ts
-import { configure } from '@mmdx/studio/viewer';
+import { configure } from 'mmdx/viewer';
 
 configure({ linkPolicy: { protocols: ['https:'], target: '_self' } });
 ```
@@ -68,7 +68,7 @@ viewer.addEventListener('mmdx-link', (e) => {
 
 ## Image policy
 
-Diagrams reference images by URL; mmdx never embeds an image in a diagram file, and the editor never writes a `data:` image. Before an image URL from a diagram reaches the SVG, it goes through `checkImageUrl(url, policy)` (`@mmdx/studio/core`):
+Diagrams reference images by URL; mmdx never embeds an image in a diagram file, and the editor never writes a `data:` image. Before an image URL from a diagram reaches the SVG, it goes through `checkImageUrl(url, policy)` (`mmdx/core`):
 
 - it must be a string with no control characters, whitespace or backslashes, of at most 2048 characters;
 - an absolute URL passes only when its protocol is in the policy's `protocols`, and, when the policy lists `hosts`, its host is one of them;
@@ -76,7 +76,7 @@ Diagrams reference images by URL; mmdx never embeds an image in a diagram file, 
 - a relative URL passes only with `relative: true`, and a protocol-relative one (`//host/…`) never.
 
 ```ts
-// the default, DEFAULT_IMAGE_POLICY in @mmdx/studio/core
+// the default, DEFAULT_IMAGE_POLICY in mmdx/core
 {
   protocols: ['https:'],
   dataTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml', 'image/avif'],
@@ -89,8 +89,8 @@ So by default a diagram shows `https:` images from any host; `http:` and `data:`
 Remote images load from the image host when the diagram is shown, which tells that host the viewer's IP address and the page (SVG `<image>` has no `referrerpolicy`). For diagrams from untrusted authors, allow only the hosts you trust, or no images at all:
 
 ```ts
-import { configure } from '@mmdx/studio/viewer';
-import { DEFAULT_IMAGE_POLICY } from '@mmdx/studio/core';
+import { configure } from 'mmdx/viewer';
+import { DEFAULT_IMAGE_POLICY } from 'mmdx/core';
 
 configure({ imagePolicy: { ...DEFAULT_IMAGE_POLICY, hosts: ['images.example.com', '*.cdn.example.com'] } });
 configure({ imagePolicy: { ...DEFAULT_IMAGE_POLICY, protocols: [] } }); // no images
@@ -105,7 +105,7 @@ Icons are not images from the diagram: mmdx builds each icon's SVG itself from a
 A host decides what the URLs in its diagrams point at with `configure({ resolveUrl })` (or the `ctx` option, or `createContext({ resolveUrl })` for a render): a function called with each image and link URL as written and its kind, `'image'` or `'link'`. It returns the URL to use — a relative path made absolute against the document's folder, an attachment's name made its download URL — or null / undefined to use the URL as written; a resolver that throws leaves it as written too. The result then goes through the image or link policy like a written URL, so a resolver that makes `logo.png` into `https://tracker.example/files/logo.png` lets it show under the default policy (`relative` stays off), and one that returns an `http:` URL is still refused. The diagram's code and metadata keep what was written; only the SVG carries the resolved URLs.
 
 ```ts
-import { configure } from '@mmdx/studio/viewer';
+import { configure } from 'mmdx/viewer';
 
 configure({
   resolveUrl: (url, kind) => {
@@ -142,7 +142,7 @@ Content-Security-Policy: script-src 'self'; style-src 'self' 'unsafe-inline'; wo
 ```
 
 - Styles are adopted into each shadow root as constructable stylesheets, so the components need no inline `<style>` element where `adoptedStyleSheets` is supported.
-- The render worker loads from its own file next to the library's chunks (`worker-src 'self'`). `setWorkerUrl(url)` points the components at a copy you serve; `useInlineWorker()` from `@mmdx/studio/worker-inline` starts it from a `blob:` URL (`worker-src blob:`). Without a worker, diagrams render on the main thread.
+- The render worker loads from its own file next to the library's chunks (`worker-src 'self'`). `setWorkerUrl(url)` points the components at a copy you serve; `useInlineWorker()` from `mmdx/worker-inline` starts it from a `blob:` URL (`worker-src blob:`). Without a worker, diagrams render on the main thread.
 - Nothing is evaluated from strings, and diagram types load as chunks of the library.
 - `img-src` must allow `data:` (icons are drawn as `data:` images) and `blob:` (PNG export draws the SVG through a `blob:` image). Add the hosts of the images your diagrams show (the image policy decides which ones a diagram may use; the CSP is the browser's own check on top). PNG export also fetches those images, so `connect-src` must allow the same hosts when you offer PNG export of diagrams with remote images.
 

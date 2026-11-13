@@ -6,7 +6,7 @@ Every component reports what happens through DOM `CustomEvent`s named `mmdx-*`, 
 <mmdx-viewer src="/diagrams/architecture.mmdx" controls="zoom fullscreen"></mmdx-viewer>
 
 <script type="module">
-  import '@mmdx/studio/viewer';
+  import 'mmdx/viewer';
 
   const viewer = document.querySelector('mmdx-viewer');
   viewer.addEventListener('mmdx-render', (e) => console.log(e.detail.type, e.detail.durationMs));
@@ -42,10 +42,10 @@ Every component reports what happens through DOM `CustomEvent`s named `mmdx-*`, 
 
 ## Typed listeners
 
-The event maps are interfaces whose values are the whole `CustomEvent` types, not the details: `ViewerEventMap` from `@mmdx/studio/viewer`, `EditorEventMap` from `@mmdx/studio/editor`, `DiffEventMap` from `@mmdx/studio/diff` and `ThemeEditorEventMap` from `@mmdx/studio/theme-editor`. The package declares the tag names (`HTMLElementTagNameMap`, so `document.querySelector('mmdx-viewer')` is an `MmdxViewerElement`) but does not add the events to `HTMLElementEventMap`; a listener gets a plain `Event` until you type it:
+The event maps are interfaces whose values are the whole `CustomEvent` types, not the details: `ViewerEventMap` from `mmdx/viewer`, `EditorEventMap` from `mmdx/editor`, `DiffEventMap` from `mmdx/diff` and `ThemeEditorEventMap` from `mmdx/theme-editor`. The package declares the tag names (`HTMLElementTagNameMap`, so `document.querySelector('mmdx-viewer')` is an `MmdxViewerElement`) but does not add the events to `HTMLElementEventMap`; a listener gets a plain `Event` until you type it:
 
 ```ts
-import type { ViewerEventMap } from '@mmdx/studio/viewer';
+import type { ViewerEventMap } from 'mmdx/viewer';
 
 const viewer = document.querySelector('mmdx-viewer')!;
 viewer.addEventListener('mmdx-render', (e) => {
@@ -59,7 +59,7 @@ type RenderDetail = ViewerEventMap['mmdx-render']['detail']; // { bounds: Rect; 
 A small helper keeps the type with the event name:
 
 ```ts
-import type { DiffEventMap } from '@mmdx/studio/diff';
+import type { DiffEventMap } from 'mmdx/diff';
 
 const onDiff = <K extends keyof DiffEventMap>(target: EventTarget, type: K, f: (e: DiffEventMap[K]) => void): void =>
   target.addEventListener(type, f as EventListener);
@@ -72,9 +72,9 @@ Merge the maps into `HTMLElementEventMap` in a declaration file of your app. The
 
 ```ts
 // mmdx-events.d.ts
-import type { ViewerEventMap } from '@mmdx/studio/viewer';
-import type { DiffEventMap } from '@mmdx/studio/diff';
-import type { ThemeEditorEventMap } from '@mmdx/studio/theme-editor';
+import type { ViewerEventMap } from 'mmdx/viewer';
+import type { DiffEventMap } from 'mmdx/diff';
+import type { ThemeEditorEventMap } from 'mmdx/theme-editor';
 
 declare global {
   interface HTMLElementEventMap extends ViewerEventMap, DiffEventMap, ThemeEditorEventMap {}
@@ -86,7 +86,7 @@ Then `viewer.addEventListener('mmdx-render', (e) => e.detail.durationMs)` is typ
 
 ## `<mmdx-viewer>`
 
-Typed by `ViewerEventMap` (`@mmdx/studio/viewer`). The History events are listed [below](#history-events).
+Typed by `ViewerEventMap` (`mmdx/viewer`). The History events are listed [below](#history-events).
 
 | Event | Detail | Cancelable | Bubbles / composed | When |
 |---|---|---|---|---|
@@ -101,7 +101,7 @@ Typed by `ViewerEventMap` (`@mmdx/studio/viewer`). The History events are listed
 
 ## `<mmdx-editor>`
 
-Typed by `EditorEventMap` (`@mmdx/studio/editor`), which also declares the History events listed [below](#history-events). It sends no `mmdx-render`. `ItemRef` and `Diagnostic` come from `@mmdx/studio/core`.
+Typed by `EditorEventMap` (`mmdx/editor`), which also declares the History events listed [below](#history-events). It sends no `mmdx-render`. `ItemRef` and `Diagnostic` come from `mmdx/core`.
 
 | Event | Detail | Cancelable | Bubbles / composed | When |
 |---|---|---|---|---|
@@ -149,7 +149,7 @@ See [History](/guide/history) for what the panel does.
 
 ## `<mmdx-diff>`
 
-Typed by `DiffEventMap` (`@mmdx/studio/diff`, which also exports `DiffResult`, `ItemChange`, `DiffViewName`, `DiffMode`, `DiffFilter` and `DiffExportKind`). `DiffResult['counts']` has a number per status and facet: `added`, `removed`, `changed`, `content`, `layout`, `style`.
+Typed by `DiffEventMap` (`mmdx/diff`, which also exports `DiffResult`, `ItemChange`, `DiffViewName`, `DiffMode`, `DiffFilter` and `DiffExportKind`). `DiffResult['counts']` has a number per status and facet: `added`, `removed`, `changed`, `content`, `layout`, `style`.
 
 | Event | Detail | Cancelable | Bubbles / composed | When |
 |---|---|---|---|---|
@@ -169,7 +169,7 @@ Typed by `DiffEventMap` (`@mmdx/studio/diff`, which also exports `DiffResult`, `
 
 ## `<mmdx-theme-editor>`
 
-Typed by `ThemeEditorEventMap` (`@mmdx/studio/theme-editor`, which also exports `ThemeFile`). The theme editor sends no `mmdx-error` or `mmdx-ui`.
+Typed by `ThemeEditorEventMap` (`mmdx/theme-editor`, which also exports `ThemeFile`). The theme editor sends no `mmdx-error` or `mmdx-ui`.
 
 | Event | Detail | Cancelable | Bubbles / composed | When |
 |---|---|---|---|---|
@@ -193,7 +193,7 @@ The studio dispatches no events of its own and re-dispatches none. Its `<mmdx-ed
 
 ## `Diagnostic`
 
-`mmdx-error` and `mmdx-history-error` carry `Diagnostic` objects from `@mmdx/studio/core` (see [`Diagnostic`](/api/core#diagnostic)):
+`mmdx-error` and `mmdx-history-error` carry `Diagnostic` objects from `mmdx/core` (see [`Diagnostic`](/api/core#diagnostic)):
 
 ```ts
 interface Diagnostic {
@@ -214,13 +214,13 @@ Besides the parser's and renderer's codes (the renderer's `image.blocked`: an im
 
 ## React wrappers
 
-The wrappers of `@mmdx/studio/react` (React 18 and older) map every `onMmdx*` prop to an event listener on the element: the part after `on` goes from PascalCase to kebab case, so `onMmdxRender` listens to `mmdx-render`, `onMmdxFullscreenRequest` to `mmdx-fullscreen-request`, `onMmdxThemeSaved` to `mmdx-theme-saved` and `onMmdxHistoryOpen` to `mmdx-history-open`. Any `mmdx-*` event works this way, including the bubbling events of inner components. One listener per event type calls the handler of the latest render (it is re-attached only when the set of `onMmdx…` props changes, and removed on unmount), so inline functions are fine. The handler type is `(ev: CustomEvent) => void`; cast to an event map entry for a typed `detail`:
+The wrappers of `mmdx/react` (React 18 and older) map every `onMmdx*` prop to an event listener on the element: the part after `on` goes from PascalCase to kebab case, so `onMmdxRender` listens to `mmdx-render`, `onMmdxFullscreenRequest` to `mmdx-fullscreen-request`, `onMmdxThemeSaved` to `mmdx-theme-saved` and `onMmdxHistoryOpen` to `mmdx-history-open`. Any `mmdx-*` event works this way, including the bubbling events of inner components. One listener per event type calls the handler of the latest render (it is re-attached only when the set of `onMmdx…` props changes, and removed on unmount), so inline functions are fine. The handler type is `(ev: CustomEvent) => void`; cast to an event map entry for a typed `detail`:
 
 ```tsx
 import React from 'react';
-import '@mmdx/studio/viewer';
-import type { ViewerEventMap } from '@mmdx/studio/viewer';
-import { createReactWrappers } from '@mmdx/studio/react';
+import 'mmdx/viewer';
+import type { ViewerEventMap } from 'mmdx/viewer';
+import { createReactWrappers } from 'mmdx/react';
 
 const { MmdxViewer } = createReactWrappers(React);
 

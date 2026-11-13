@@ -1,15 +1,15 @@
-# @mmdx/studio/markdown
+# mmdx/markdown
 
-Build-time plugins for Markdown pipelines: a rehype plugin and a markdown-it plugin turn each ` ```mermaid ` block into an `<mmdx-viewer>` with a pre-rendered SVG inside, so pages are readable and printable without JavaScript and become interactive when `@mmdx/studio/viewer` loads. The plugins run in Node, have no dependency on unified or markdown-it (they are typed structurally), and are synchronous.
+Build-time plugins for Markdown pipelines: a rehype plugin and a markdown-it plugin turn each ` ```mermaid ` block into an `<mmdx-viewer>` with a pre-rendered SVG inside, so pages are readable and printable without JavaScript and become interactive when `mmdx/viewer` loads. The plugins run in Node, have no dependency on unified or markdown-it (they are typed structurally), and are synchronous.
 
 ```ts
-import { rehypeMmdx, markdownItMmdx, diagramHtml, preloadIcons, scriptSafe, type MmdxMarkdownOptions } from '@mmdx/studio/markdown';
+import { rehypeMmdx, markdownItMmdx, diagramHtml, preloadIcons, scriptSafe, type MmdxMarkdownOptions } from 'mmdx/markdown';
 ```
 
 The page only needs the viewer element in the browser:
 
 ```ts
-import '@mmdx/studio/viewer'; // defines <mmdx-viewer>
+import 'mmdx/viewer'; // defines <mmdx-viewer>
 ```
 
 ## Plugins
@@ -42,10 +42,10 @@ Register it after plugins that replace the `fence` rule themselves, so that it s
 function diagramHtml(source: string, opts?: MmdxMarkdownOptions, ctx?: CoreContext): string;
 ```
 
-The HTML for one diagram, the building block of both plugins. `ctx` defaults to `opts.ctx`, else a new `createContext()` per call. `diagramHtml` does not read `opts.themes`: to render with extra themes, pass a context that has them registered (`ctx.themes.register(file)`; see [`@mmdx/studio/core`](/api/core)).
+The HTML for one diagram, the building block of both plugins. `ctx` defaults to `opts.ctx`, else a new `createContext()` per call. `diagramHtml` does not read `opts.themes`: to render with extra themes, pass a context that has them registered (`ctx.themes.register(file)`; see [`mmdx/core`](/api/core)).
 
 ```ts
-import { diagramHtml } from '@mmdx/studio/markdown';
+import { diagramHtml } from 'mmdx/markdown';
 
 const html = diagramHtml('flowchart LR\n  a --> b', { themeDark: 'auto', attrs: { controls: 'zoom fullscreen' } });
 ```
@@ -59,8 +59,8 @@ function preloadIcons(ctx: CoreContext, sources: readonly string[]): Promise<voi
 Loads the icons these diagram sources reference into the context's icon registry (the built-in set, Font Awesome look-alikes and the packs of `ctx.icons`), for the synchronous markdown-it plugin.
 
 ```js
-import { createContext, createIconRegistry } from '@mmdx/studio/core';
-import { markdownItMmdx, preloadIcons } from '@mmdx/studio/markdown';
+import { createContext, createIconRegistry } from 'mmdx/core';
+import { markdownItMmdx, preloadIcons } from 'mmdx/markdown';
 
 const ctx = createContext({ icons: createIconRegistry([{ name: 'logos', loader: () => import('@iconify-json/logos/icons.json').then((m) => m.default) }]) });
 await preloadIcons(ctx, mermaidSourcesOfThePages);
@@ -90,7 +90,7 @@ The options of both plugins and of `diagramHtml()`.
 | `theme` | `string` | none | Theme id for every diagram: the SVG is pre-rendered with it and the viewer gets it as its `theme` attribute. Without it, or with an id the context does not know, the pre-render uses Default Light (`default-light`). |
 | `themeDark` | `string` | none | The viewers' `theme-dark` attribute: a theme id, or `auto` for the dark counterpart of the theme. Applies in the browser only; the pre-render always uses `theme`. |
 | `prerender` | `boolean` | `true` | Pre-render supported diagrams to SVG. With `false` the element holds only the source and draws in the browser. |
-| `themes` | `readonly ThemeFile[]` | none | Extra theme files (for example your site's, or files from `@mmdx/studio/themes/*`) registered into the context when the plugin is set up, before rendering. Read by `rehypeMmdx` and `markdownItMmdx`, not by `diagramHtml`. |
+| `themes` | `readonly ThemeFile[]` | none | Extra theme files (for example your site's, or files from `mmdx/themes/*`) registered into the context when the plugin is set up, before rendering. Read by `rehypeMmdx` and `markdownItMmdx`, not by `diagramHtml`. |
 | `attrs` | `Record<string, string>` | none | Viewer attributes added to every element (`controls`, `fit`, …). Names are reduced to letters, digits, `_` and `-`; values are escaped. `theme` and `themeDark` replace `attrs.theme` and `attrs['theme-dark']`; `style` is replaced when the diagram is pre-rendered. |
 | `ctx` | `CoreContext` | `createContext()` | The core context to render with (themes, text measurer, icon registry). The plugins create one per plugin instance; `diagramHtml` one per call. Pass one to share a theme registry across calls. |
 | `iconPacks` | `readonly IconPack[]` | none | Icon packs over the context's registry (which has the built-in set), as `configure({ iconPacks })` takes them. Read by `rehypeMmdx` and `markdownItMmdx`. See [Icons](/guide/icons#on-the-server). |
@@ -98,8 +98,8 @@ The options of both plugins and of `diagramHtml()`.
 See [`<mmdx-viewer>`](/components/viewer) for the attributes `attrs` can set, and [Themes](/guide/themes) for theme ids and files.
 
 ```js
-import githubLight from '@mmdx/studio/themes/github-light.theme.json' with { type: 'json' };
-import githubDark from '@mmdx/studio/themes/github-dark.theme.json' with { type: 'json' };
+import githubLight from 'mmdx/themes/github-light.theme.json' with { type: 'json' };
+import githubDark from 'mmdx/themes/github-dark.theme.json' with { type: 'json' };
 
 const options = { theme: 'github-light', themeDark: 'github-dark', themes: [githubLight, githubDark], attrs: { controls: 'zoom fullscreen' } };
 ```
@@ -145,7 +145,7 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
-import { rehypeMmdx } from '@mmdx/studio/markdown';
+import { rehypeMmdx } from 'mmdx/markdown';
 
 const file = await unified()
   .use(remarkParse)
@@ -165,7 +165,7 @@ Astro runs its syntax highlighting before your rehype plugins and `rehype-raw` a
 ```js
 // astro.config.mjs
 import { defineConfig } from 'astro/config';
-import { rehypeMmdx } from '@mmdx/studio/markdown';
+import { rehypeMmdx } from 'mmdx/markdown';
 
 export default defineConfig({
   markdown: {
@@ -179,7 +179,7 @@ Newer Astro versions deprecate `markdown.rehypePlugins` in favour of `markdown.p
 
 ```html
 <script>
-  import '@mmdx/studio/viewer';
+  import 'mmdx/viewer';
 </script>
 ```
 
@@ -190,7 +190,7 @@ Docusaurus compiles every page with MDX, which cannot compile the plugin's `raw`
 ```js
 // docusaurus.config.js
 import rehypeRaw from 'rehype-raw';
-import { rehypeMmdx } from '@mmdx/studio/markdown';
+import { rehypeMmdx } from 'mmdx/markdown';
 
 const passThrough = ['mdxFlowExpression', 'mdxJsxFlowElement', 'mdxJsxTextElement', 'mdxTextExpression', 'mdxjsEsm'];
 
@@ -216,7 +216,7 @@ export default {
 // src/mmdx.js: define the element in the browser only
 import ExecutionEnvironment from '@docusaurus/ExecutionEnvironment';
 
-if (ExecutionEnvironment.canUseDOM) import('@mmdx/studio/viewer');
+if (ExecutionEnvironment.canUseDOM) import('mmdx/viewer');
 ```
 
 ::: warning
@@ -256,7 +256,7 @@ const props = defineProps<{ code: string }>();
 const host = ref<HTMLElement | null>(null);
 
 onMounted(async () => {
-  await import('@mmdx/studio/viewer'); // in the browser only: defines <mmdx-viewer>
+  await import('mmdx/viewer'); // in the browser only: defines <mmdx-viewer>
   const el = document.createElement('mmdx-viewer');
   el.setAttribute('theme-dark', 'auto');
   el.source = decodeURIComponent(props.code);
@@ -288,7 +288,7 @@ Where markdown-it's output is served as HTML (not compiled as a template), regis
 
 ```js
 import MarkdownIt from 'markdown-it';
-import { markdownItMmdx } from '@mmdx/studio/markdown';
+import { markdownItMmdx } from 'mmdx/markdown';
 
 const md = new MarkdownIt().use(markdownItMmdx, { attrs: { controls: 'zoom fullscreen' } });
 const html = md.render(markdown);
@@ -311,10 +311,10 @@ renders the heading as usual and the block as the `<mmdx-viewer>` shown under [E
 
 ### `upgradeMermaidBlocks()`
 
-For Markdown rendered at run time (a CMS, a comment thread), `@mmdx/studio/viewer` exports `upgradeMermaidBlocks(root?, opts?)`. It replaces `pre > code.language-mermaid`, `pre > code.lang-mermaid` and `pre.mermaid` blocks under `root` (default `document`) with viewers, handing each block's `textContent` over as the `source` property, never as HTML, and returns the new elements. Options: `theme`, `themeDark`, `controls`, `fit` and `tag`. See [`upgradeMermaidBlocks()`](/api/configuration#upgrademermaidblocks).
+For Markdown rendered at run time (a CMS, a comment thread), `mmdx/viewer` exports `upgradeMermaidBlocks(root?, opts?)`. It replaces `pre > code.language-mermaid`, `pre > code.lang-mermaid` and `pre.mermaid` blocks under `root` (default `document`) with viewers, handing each block's `textContent` over as the `source` property, never as HTML, and returns the new elements. Options: `theme`, `themeDark`, `controls`, `fit` and `tag`. See [`upgradeMermaidBlocks()`](/api/configuration#upgrademermaidblocks).
 
 ```ts
-import { upgradeMermaidBlocks } from '@mmdx/studio/viewer';
+import { upgradeMermaidBlocks } from 'mmdx/viewer';
 
 upgradeMermaidBlocks(document.querySelector('article')!, { themeDark: 'auto', controls: ['zoom', 'fullscreen'] });
 ```

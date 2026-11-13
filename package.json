@@ -1,5 +1,5 @@
 {
-  "name": "@mmdx/studio",
+  "name": "mmdx",
   "version": "0.5.0",
   "description": "Styled Mermaid viewer, editor, theme editor and diagram diff as framework-agnostic web components",
   "license": "MIT",

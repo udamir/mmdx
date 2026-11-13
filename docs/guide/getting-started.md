@@ -1,21 +1,21 @@
 # Getting started
 
-Install `@mmdx/studio`, import the entry of the component you need, and put its element on the page. This page shows the four common starts: a viewer, an editor, a diff and server-side rendering.
+Install `mmdx`, import the entry of the component you need, and put its element on the page. This page shows the four common starts: a viewer, an editor, a diff and server-side rendering.
 
 ## Install
 
 ::: code-group
 
 ```bash [npm]
-npm install @mmdx/studio
+npm install mmdx
 ```
 
 ```bash [pnpm]
-pnpm add @mmdx/studio
+pnpm add mmdx
 ```
 
 ```bash [yarn]
-yarn add @mmdx/studio
+yarn add mmdx
 ```
 
 :::
@@ -41,21 +41,21 @@ yarn add mermaid
 In a bundled app, hand it over once, so your bundler includes it (mmdx never imports it by name, so builds without it work too):
 
 ```ts
-import { configure } from '@mmdx/studio/viewer';
+import { configure } from 'mmdx/viewer';
 configure({ mermaid: () => import('mermaid') });
 ```
 
 ::: tip ESM only
-The package is ESM only and targets ES2022. It has no runtime dependencies. Use it through a bundler (Vite, Rollup, esbuild, webpack) or any setup that resolves bare module specifiers. `@mmdx/studio/core` also runs in Node 18 or newer.
+The package is ESM only and targets ES2022. It has no runtime dependencies. Use it through a bundler (Vite, Rollup, esbuild, webpack) or any setup that resolves bare module specifiers. `mmdx/core` also runs in Node 18 or newer.
 :::
 
 ## Show a diagram
 
-Import `@mmdx/studio/viewer` once; it registers `<mmdx-viewer>`. Give the viewer its diagram inline, as a property, or as a URL:
+Import `mmdx/viewer` once; it registers `<mmdx-viewer>`. Give the viewer its diagram inline, as a property, or as a URL:
 
 ```html
 <script type="module">
-  import '@mmdx/studio/viewer';
+  import 'mmdx/viewer';
 </script>
 
 <mmdx-viewer controls="zoom layers fullscreen export">
@@ -84,11 +84,11 @@ See [`<mmdx-viewer>`](/components/viewer) for every attribute, property, event a
 
 ## Edit a diagram
 
-Import `@mmdx/studio/editor` and give the editor a `DocumentAdapter` that loads and saves the document:
+Import `mmdx/editor` and give the editor a `DocumentAdapter` that loads and saves the document:
 
 ```ts
-import '@mmdx/studio/editor';
-import { httpDocumentAdapter } from '@mmdx/studio/adapters';
+import 'mmdx/editor';
+import { httpDocumentAdapter } from 'mmdx/adapters';
 
 const editor = document.querySelector('mmdx-editor')!;
 editor.adapter = httpDocumentAdapter('/api/diagrams/architecture.mmdx'); // load + save with If-Match conflict detection
@@ -114,11 +114,11 @@ Give the editor a height: it fills its box. The editor below runs on an in-memor
 
 ## Review a change
 
-Import `@mmdx/studio/diff` and give `<mmdx-diff>` two versions, as URLs or sources:
+Import `mmdx/diff` and give `<mmdx-diff>` two versions, as URLs or sources:
 
 ```html
 <script type="module">
-  import '@mmdx/studio/diff';
+  import 'mmdx/diff';
 </script>
 
 <mmdx-diff before="/api/files/arch.mmdx?ref=main" after="/api/files/arch.mmdx?ref=feature-x" style="height: 720px"></mmdx-diff>
@@ -127,7 +127,7 @@ Import `@mmdx/studio/diff` and give `<mmdx-diff>` two versions, as URLs or sourc
 Or give it the whole history of a diagram (newest first) and let the reviewer pick any two versions:
 
 ```ts
-import { httpHistoryAdapter } from '@mmdx/studio/diff';
+import { httpHistoryAdapter } from 'mmdx/diff';
 
 const diff = document.querySelector('mmdx-diff')!;
 diff.history = httpHistoryAdapter('/api/diagrams/arch/versions'); // or a list: [{ id, message, author, date, source }]
@@ -139,10 +139,10 @@ See [Version history](/guide/history) and [`<mmdx-diff>`](/components/diff).
 
 ## Render on the server or at build time
 
-`@mmdx/studio/core` has no DOM dependency. `renderToSvg` turns a source into a standalone SVG string:
+`mmdx/core` has no DOM dependency. `renderToSvg` turns a source into a standalone SVG string:
 
 ```ts
-import { renderToSvg } from '@mmdx/studio/core';
+import { renderToSvg } from 'mmdx/core';
 
 const svg = await renderToSvg(source, { theme: 'default-dark' }); // a standalone SVG string, no DOM needed
 ```
@@ -150,7 +150,7 @@ const svg = await renderToSvg(source, { theme: 'default-dark' }); // a standalon
 A diff renders the same way, for example in a CI job that comments on merge requests touching `*.mmdx`:
 
 ```ts
-import { diffDiagrams, diffReport, renderDiffToSvg } from '@mmdx/studio/core';
+import { diffDiagrams, diffReport, renderDiffToSvg } from 'mmdx/core';
 
 const svg = await renderDiffToSvg(before, after, { view: 'merged', ignore: { layout: true } });
 const md = diffReport(diffDiagrams(before, after), { format: 'markdown', before: { id: baseSha }, after: { id: headSha } });
@@ -164,7 +164,7 @@ See [Server-side rendering](/guide/ssr) and [Reviewing changes in CI](/guide/ci)
 
 ```html
 <script type="module">
-  import '@mmdx/studio';
+  import 'mmdx';
 </script>
 
 <mmdx-studio examples="./examples/index.json" themes="./themes/index.json" persist="local"></mmdx-studio>

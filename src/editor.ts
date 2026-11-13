@@ -1,4 +1,4 @@
-// @mmdx/studio/editor — defines <mmdx-editor> on import (guarded) and exports the imperative class.
+// mmdx/editor — defines <mmdx-editor> on import (guarded) and exports the imperative class.
 import { defineEditor } from './elements/editor.js';
 
 export { DiagramEditor, type EditorOptions, type SaveOutcome, type SetSourceOptions } from './editor/editor.js';

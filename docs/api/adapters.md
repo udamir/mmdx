@@ -1,6 +1,6 @@
 # Adapters
 
-`@mmdx/studio/adapters` holds the host adapters: where the components keep UI preferences (`StorageAdapter`), where they read and save themes (`ThemeSource`, `ThemeStore`), how the editor loads and saves its document (`DocumentAdapter`), where the History reads the versions of a diagram (`HistoryAdapter`), where the editor's image tool finds and uploads pictures (`ImageStore`), and what the image and link URLs in a diagram point at (`UrlResolver`). The library never talks to a backend by itself: every adapter is an object of a few async functions, and the built-in ones cover memory, `localStorage`, plain HTTP and static files. The entry defines no element and loads no diagram code.
+`mmdx/adapters` holds the host adapters: where the components keep UI preferences (`StorageAdapter`), where they read and save themes (`ThemeSource`, `ThemeStore`), how the editor loads and saves its document (`DocumentAdapter`), where the History reads the versions of a diagram (`HistoryAdapter`), where the editor's image tool finds and uploads pictures (`ImageStore`), and what the image and link URLs in a diagram point at (`UrlResolver`). The library never talks to a backend by itself: every adapter is an object of a few async functions, and the built-in ones cover memory, `localStorage`, plain HTTP and static files. The entry defines no element and loads no diagram code.
 
 ```ts
 import {
@@ -9,17 +9,17 @@ import {
   memoryDocumentAdapter, httpDocumentAdapter,
   staticHistory, httpHistoryAdapter, contentId, memoryImageStore, httpImageStore, relativeUrlResolver,
   type StorageAdapter, type ThemeSource, type ThemeStore, type DocumentAdapter, type HistoryAdapter, type ImageStore, type UrlResolver,
-} from '@mmdx/studio/adapters';
+} from 'mmdx/adapters';
 ```
 
 Some element entries re-export the adapters they use, so a page that already imports the element needs no second import:
 
 | Entry | Re-exports |
 |---|---|
-| `@mmdx/studio/adapters` | Everything on this page |
-| `@mmdx/studio/editor` | The [document adapters](#documents): `DocumentAdapter`, `LoadResult`, `DocumentSaveResult`, `memoryDocumentAdapter`, `httpDocumentAdapter` |
-| `@mmdx/studio/theme-editor` | The [theme](#themes) and [storage](#storage) adapters (all of them), plus the `ThemeFile` and `ThemeInfo` types |
-| `@mmdx/studio/diff` | `staticHistory`, `httpHistoryAdapter`, `contentId`, `HistoryAdapter`, `StaticVersion`, `VersionInfo` |
+| `mmdx/adapters` | Everything on this page |
+| `mmdx/editor` | The [document adapters](#documents): `DocumentAdapter`, `LoadResult`, `DocumentSaveResult`, `memoryDocumentAdapter`, `httpDocumentAdapter` |
+| `mmdx/theme-editor` | The [theme](#themes) and [storage](#storage) adapters (all of them), plus the `ThemeFile` and `ThemeInfo` types |
+| `mmdx/diff` | `staticHistory`, `httpHistoryAdapter`, `contentId`, `HistoryAdapter`, `StaticVersion`, `VersionInfo` |
 
 ## Storage
 
@@ -108,7 +108,7 @@ interface PreloadedStorageOptions {
 Any object with the three methods works. A storage that keeps preferences for the browser tab only:
 
 ```ts
-import type { StorageAdapter } from '@mmdx/studio/adapters';
+import type { StorageAdapter } from 'mmdx/adapters';
 
 const sessionPrefs: StorageAdapter = {
   get: (key) => {
@@ -140,7 +140,7 @@ interface ThemeSource {
 | `get(id)` | The theme file with that id; rejects when there is none |
 | `subscribe(cb)` | Optional. Calls `cb` when the themes changed; returns an unsubscribe function. The theme editor re-reads its store's list on every call |
 
-`ThemeInfo` (exported by `@mmdx/studio/core` and `@mmdx/studio/theme-editor`) is the summary `list()` returns:
+`ThemeInfo` (exported by `mmdx/core` and `mmdx/theme-editor`) is the summary `list()` returns:
 
 ```ts
 interface ThemeInfo {
@@ -203,7 +203,7 @@ function memoryThemeStore(initial?: readonly ThemeFile[]): ThemeStore
 Themes held in memory: the default store of `<mmdx-theme-editor>` (seeded with the built-in themes) and of tests. Versions are counters starting at `"1"`; `save` with an `opts.version` that is not the current one returns `{ conflict }`, and `save` without a version overwrites. It has `delete` and `subscribe` (called after every save and delete), but no `publish` or `usage`. Files are copied in and out.
 
 ```ts
-import { memoryThemeStore, BUILTIN_THEMES } from '@mmdx/studio/theme-editor';
+import { memoryThemeStore, BUILTIN_THEMES } from 'mmdx/theme-editor';
 
 te.store = memoryThemeStore([...BUILTIN_THEMES, oceanTheme]);
 ```
@@ -230,13 +230,13 @@ Read-only themes from a manifest. The manifest lists theme files, resolved relat
 The manifest and every file are fetched once, on the first `list()` or `get()`, and cached; `get` returns a copy. `init` is passed to every `fetch` and defaults to `{ credentials: 'same-origin' }`. A manifest that fails (an HTTP error status, a network error) rejects the call, and the next call tries again. A theme file that answers with an HTTP error status is skipped, and so is a file without a string `id`. The source has no `subscribe`.
 
 ```ts
-import { configure } from '@mmdx/studio/viewer';
-import { fetchThemeSource } from '@mmdx/studio/adapters';
+import { configure } from 'mmdx/viewer';
+import { fetchThemeSource } from 'mmdx/adapters';
 
 configure({ themeSource: fetchThemeSource('/themes/index.json') });
 ```
 
-The package ships the built-in themes with such a manifest in `@mmdx/studio/themes/`. In a sandboxed iframe without relative `fetch`, register theme files from your bundle with `registerThemes(files)` instead; see [Embedding in sandboxed iframes](/guide/sandboxed-iframes).
+The package ships the built-in themes with such a manifest in `mmdx/themes/`. In a sandboxed iframe without relative `fetch`, register theme files from your bundle with `registerThemes(files)` instead; see [Embedding in sandboxed iframes](/guide/sandboxed-iframes).
 
 ### `localStorageThemeStore()`
 
@@ -253,7 +253,7 @@ Themes edited in this browser, layered over a read-only source: the store `<mmdx
 - `subscribe(cb)` calls `cb` after every save and delete in this store, and, while it has subscribers, when `base` reports a change. It does not see writes from other tabs.
 
 ```ts
-import { fetchThemeSource, localStorageAdapter, localStorageThemeStore } from '@mmdx/studio/theme-editor';
+import { fetchThemeSource, localStorageAdapter, localStorageThemeStore } from 'mmdx/theme-editor';
 
 const base = fetchThemeSource('/themes/index.json'); // read-only themes to start from
 te.store = localStorageThemeStore(localStorageAdapter(), base);
@@ -277,7 +277,7 @@ if (await isLocalEdit(store, base, 'github-light')) showBadge('edited in this br
 A store over a REST backend, with the theme's ETag as its version:
 
 ```ts
-import type { ThemeStore, ThemeFile } from '@mmdx/studio/theme-editor';
+import type { ThemeStore, ThemeFile } from 'mmdx/theme-editor';
 
 const api = '/api/themes';
 const store: ThemeStore = {
@@ -379,7 +379,7 @@ A document held in memory, for tests and demos. `name` defaults to `diagram`. Ve
 | `setRemote(src)` | Simulates an edit elsewhere: stores `src`, bumps the version and calls the `subscribe` callbacks. A save that follows with the old version gets a conflict |
 
 ```ts
-import { memoryDocumentAdapter } from '@mmdx/studio/editor';
+import { memoryDocumentAdapter } from 'mmdx/editor';
 
 const doc = memoryDocumentAdapter('flowchart TD\n  A --> B', 'demo');
 editor.adapter = doc;
@@ -407,7 +407,7 @@ The reference HTTP adapter: `GET` loads, `PUT` saves with `If-Match`, and `412` 
 The adapter has no `subscribe` and returns no `name`. Only `412` is a conflict: a server that answers a stale write with `409 Conflict` makes the save fail instead. The `ETag` is passed back as is, so a weak `W/"…"` tag must be one your server accepts in `If-Match`.
 
 ```ts
-import { httpDocumentAdapter } from '@mmdx/studio/editor';
+import { httpDocumentAdapter } from 'mmdx/editor';
 
 editor.adapter = httpDocumentAdapter('/api/diagrams/architecture.mmdx', {
   headers: { Authorization: `Bearer ${token}` },
@@ -434,7 +434,7 @@ curl -i -X PUT https://example.com/api/diagrams/architecture.mmdx \
 Write your own for any backend. `save` returns `{ conflict }` instead of throwing when the stored version moved on; `subscribe` pushes changes made elsewhere:
 
 ```ts
-import type { DocumentAdapter } from '@mmdx/studio/editor';
+import type { DocumentAdapter } from 'mmdx/editor';
 
 const adapter: DocumentAdapter = {
   async load() {
@@ -529,7 +529,7 @@ function staticHistory(versions: readonly StaticVersion[]): HistoryAdapter
 A history held in memory. `versions` may be in any order: when every one has a date that parses, they are listed newest first by date, else in the order given. One page, no `subscribe`; `load` of an unknown id rejects with `Unknown version <id>`. Passing a list to a `history` property does the same.
 
 ```ts
-import { staticHistory } from '@mmdx/studio/diff';
+import { staticHistory } from 'mmdx/diff';
 
 diff.history = staticHistory([
   { id: 'a1', message: 'First draft', author: 'Ann', date: '2026-10-01T09:00:00Z', source: v1 },
@@ -564,7 +564,7 @@ The response is untrusted: entries without a string `id` are dropped, and only t
 ```
 
 ```ts
-import { httpHistoryAdapter } from '@mmdx/studio/diff';
+import { httpHistoryAdapter } from 'mmdx/diff';
 
 editor.history = httpHistoryAdapter('/api/diagrams/arch/versions', { headers: { Authorization: `Bearer ${token}` } });
 ```
@@ -578,7 +578,7 @@ editor.history = httpHistoryAdapter('/api/diagrams/arch/versions', { headers: { 
 For Git hosting, write the two calls against the commits and raw file APIs. A GitHub history of one file, paged by page number:
 
 ```ts
-import type { HistoryAdapter } from '@mmdx/studio/diff';
+import type { HistoryAdapter } from 'mmdx/diff';
 
 const repo = 'acme/docs', path = 'diagrams/arch.mmdx';
 const history: HistoryAdapter = {
@@ -715,8 +715,8 @@ function relativeUrlResolver(base: string | URL): UrlResolver
 A resolver that makes relative image and link URLs (`img/logo.png`, `../guide.md`, `/files/a.png`) absolute against `base`, the folder of the document the diagram comes from; URLs with a scheme, protocol-relative ones (`//host/…`) and fragments (`#part`) stay as written, and so does a URL the base cannot resolve.
 
 ```ts
-import { configure } from '@mmdx/studio/viewer';
-import { relativeUrlResolver } from '@mmdx/studio/adapters';
+import { configure } from 'mmdx/viewer';
+import { relativeUrlResolver } from 'mmdx/adapters';
 
 configure({ resolveUrl: relativeUrlResolver(new URL('./diagrams/', location.href)) });
 ```

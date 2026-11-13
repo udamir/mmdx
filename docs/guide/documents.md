@@ -7,8 +7,8 @@
 **With an adapter**, the editor loads the document itself, saves with ⌘S / Ctrl+S or `save()`, and tracks the document's version for conflict detection:
 
 ```ts
-import '@mmdx/studio/editor';
-import { httpDocumentAdapter } from '@mmdx/studio/adapters';
+import 'mmdx/editor';
+import { httpDocumentAdapter } from 'mmdx/adapters';
 
 const editor = document.querySelector('mmdx-editor')!;
 editor.adapter = httpDocumentAdapter('/api/diagrams/architecture.mmdx');
@@ -43,7 +43,7 @@ interface DocumentAdapter {
 Write your own for any backend:
 
 ```ts
-import type { DocumentAdapter } from '@mmdx/studio/editor';
+import type { DocumentAdapter } from 'mmdx/editor';
 
 const adapter: DocumentAdapter = {
   load: async () => api.get(id),                                    // { source, version? }
@@ -52,7 +52,7 @@ const adapter: DocumentAdapter = {
 };
 ```
 
-`DocumentAdapter` and the built-in adapters are exported by `@mmdx/studio/editor` and `@mmdx/studio/adapters`.
+`DocumentAdapter` and the built-in adapters are exported by `mmdx/editor` and `mmdx/adapters`.
 
 ## httpDocumentAdapter
 
@@ -81,7 +81,7 @@ res.setHeader('ETag', etag).status(204).end();
 `memoryDocumentAdapter(source, name = 'diagram')` keeps the document in memory — for tests, demos and prototypes. Besides the adapter methods it has `current` (the saved source) and `setRemote(source)`, which simulates a change by someone else (a new version, reported to `subscribe`):
 
 ```ts
-import { memoryDocumentAdapter } from '@mmdx/studio/adapters';
+import { memoryDocumentAdapter } from 'mmdx/adapters';
 
 const adapter = memoryDocumentAdapter('flowchart LR\n  a --> b\n', 'demo');
 editor.adapter = adapter;

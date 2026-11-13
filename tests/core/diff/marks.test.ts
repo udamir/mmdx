@@ -1,7 +1,7 @@
 // Change marks of the merged diff picture (core/text/marks.ts): only the diff turns them into styled runs, and text
 // with zero-width joiners (emoji sequences, Persian and Indic words) is never taken for marked text.
 import { describe, expect, it } from 'vitest';
-import '../../../src/core.js'; // everything `@mmdx/studio/core` loads, the diff renderer included
+import '../../../src/core.js'; // everything `mmdx/core` loads, the diff renderer included
 import { createContext } from '../../../src/core/context.js';
 import { renderDiffToSvg } from '../../../src/core/diff/all.js';
 import { renderToSvg } from '../../../src/core/pipeline.js';

@@ -1,41 +1,41 @@
 # Entry points
 
-`@mmdx/studio` is split into entry points, so a page imports only what it uses: a docs page with viewers never downloads the editor, and a CI job imports the DOM-free core. This page lists every entry from the package's `exports`, what it provides and every name it exports, with links to where each is documented.
+`mmdx` is split into entry points, so a page imports only what it uses: a docs page with viewers never downloads the editor, and a CI job imports the DOM-free core. This page lists every entry from the package's `exports`, what it provides and every name it exports, with links to where each is documented.
 
 ```ts
-import '@mmdx/studio/viewer';                          // defines <mmdx-viewer>
-import { renderToSvg } from '@mmdx/studio/core';       // DOM-free API
-import { httpDocumentAdapter } from '@mmdx/studio/adapters';
+import 'mmdx/viewer';                          // defines <mmdx-viewer>
+import { renderToSvg } from 'mmdx/core';       // DOM-free API
+import { httpDocumentAdapter } from 'mmdx/adapters';
 ```
 
 ## Overview
 
 | Import | Provides |
 |---|---|
-| `@mmdx/studio/viewer` | `<mmdx-viewer>` and `DiagramViewer`: read-only diagrams for docs and portals |
-| `@mmdx/studio/editor` | `<mmdx-editor>` and `DiagramEditor`: the visual editor with the code panel; document adapters |
-| `@mmdx/studio/theme-editor` | `<mmdx-theme-editor>` and `ThemeEditor`: manage diagram themes; theme and storage adapters |
-| `@mmdx/studio/diff` | `<mmdx-diff>` and `DiagramDiff`: how a diagram changed, and its version history; history adapters; the asynchronous diff functions |
-| `@mmdx/studio` (also `@mmdx/studio/studio`) | `<mmdx-studio>` and `DiagramStudio`: the complete standalone app |
-| `@mmdx/studio/core` | The pure API without DOM: parse, render to SVG, metadata, themes, diffs and diff reports (Node, workers, browsers) |
-| `@mmdx/studio/adapters` | Storage, theme sources and stores, document adapters, history adapters |
-| `@mmdx/studio/markdown` | rehype and markdown-it plugins that turn mermaid code blocks into viewers |
-| `@mmdx/studio/react` | Optional typed wrappers for React 18 and older |
-| `@mmdx/studio/worker-inline` | The render worker as a string (`workerSource`) and `useInlineWorker()`, for pages that cannot start workers from URLs |
-| `@mmdx/studio/themes/*` | The built-in theme files (`default-light.theme.json`, …) and their manifest `index.json` |
+| `mmdx/viewer` | `<mmdx-viewer>` and `DiagramViewer`: read-only diagrams for docs and portals |
+| `mmdx/editor` | `<mmdx-editor>` and `DiagramEditor`: the visual editor with the code panel; document adapters |
+| `mmdx/theme-editor` | `<mmdx-theme-editor>` and `ThemeEditor`: manage diagram themes; theme and storage adapters |
+| `mmdx/diff` | `<mmdx-diff>` and `DiagramDiff`: how a diagram changed, and its version history; history adapters; the asynchronous diff functions |
+| `mmdx` (also `mmdx/studio`) | `<mmdx-studio>` and `DiagramStudio`: the complete standalone app |
+| `mmdx/core` | The pure API without DOM: parse, render to SVG, metadata, themes, diffs and diff reports (Node, workers, browsers) |
+| `mmdx/adapters` | Storage, theme sources and stores, document adapters, history adapters |
+| `mmdx/markdown` | rehype and markdown-it plugins that turn mermaid code blocks into viewers |
+| `mmdx/react` | Optional typed wrappers for React 18 and older |
+| `mmdx/worker-inline` | The render worker as a string (`workerSource`) and `useInlineWorker()`, for pages that cannot start workers from URLs |
+| `mmdx/themes/*` | The built-in theme files (`default-light.theme.json`, …) and their manifest `index.json` |
 
 ## Package notes
 
 - **ESM only.** The package is ES modules (ES2022) with TypeScript declarations for every entry. It has no runtime dependencies.
 - **Mermaid is an optional peer.** `mermaid` (version 10 or newer) is loaded lazily, only for diagram types mmdx does not draw itself and for the "Plain Mermaid" preview. Install it when you need those, or pass an instance with [`configure({ mermaid })`](/api/configuration).
-- **Element entries define their tag on import.** `@mmdx/studio/viewer`, `/editor`, `/theme-editor`, `/diff` and `@mmdx/studio` (`/studio`) call their `define…()` function when imported, so they are marked as side effects in `package.json`. The definition is guarded: importing an entry twice is safe, and importing any entry in Node does not throw (no `customElements` there), so server-side rendering frameworks can import them. The `define…(name)` functions take another tag name, to define the element under a name of your own. The element classes are added to `HTMLElementTagNameMap`, so `document.querySelector('mmdx-editor')` is typed.
+- **Element entries define their tag on import.** `mmdx/viewer`, `/editor`, `/theme-editor`, `/diff` and `mmdx` (`/studio`) call their `define…()` function when imported, so they are marked as side effects in `package.json`. The definition is guarded: importing an entry twice is safe, and importing any entry in Node does not throw (no `customElements` there), so server-side rendering frameworks can import them. The `define…(name)` functions take another tag name, to define the element under a name of your own. The element classes are added to `HTMLElementTagNameMap`, so `document.querySelector('mmdx-editor')` is typed.
 - **The other entries have no side effects**: `/core`, `/adapters`, `/markdown`, `/react` and `/worker-inline` define nothing on import.
-- **Diagram types load on demand.** The components load each diagram type's parser and renderer on first use, as chunks next to the entry; `@mmdx/studio/core` includes all of them statically.
-- **Theme files.** `@mmdx/studio/themes/<id>.theme.json` are the built-in themes as JSON (Default Light and Dark, GitHub Light and Dark, Catppuccin Latte and Mocha, Rosé Pine Dawn, Dracula), and `@mmdx/studio/themes/index.json` is their manifest for [`fetchThemeSource()`](/api/adapters#fetchthemesource). Import them into your bundle and register them with [`registerThemes()`](/api/configuration), or serve the folder. The file format is on the [theme file](/api/theme-file) page.
+- **Diagram types load on demand.** The components load each diagram type's parser and renderer on first use, as chunks next to the entry; `mmdx/core` includes all of them statically.
+- **Theme files.** `mmdx/themes/<id>.theme.json` are the built-in themes as JSON (Default Light and Dark, GitHub Light and Dark, Catppuccin Latte and Mocha, Rosé Pine Dawn, Dracula), and `mmdx/themes/index.json` is their manifest for [`fetchThemeSource()`](/api/adapters#fetchthemesource). Import them into your bundle and register them with [`registerThemes()`](/api/configuration), or serve the folder. The file format is on the [theme file](/api/theme-file) page.
 
 ```ts
-import github from '@mmdx/studio/themes/github-light.theme.json';
-import { registerThemes } from '@mmdx/studio/viewer';
+import github from 'mmdx/themes/github-light.theme.json';
+import { registerThemes } from 'mmdx/viewer';
 
 registerThemes([github]);
 ```
@@ -44,7 +44,7 @@ registerThemes([github]);
 
 The element classes, their options, methods and attributes are documented on the component pages; events of every component are on the [Events](/api/events) page.
 
-### `@mmdx/studio/viewer`
+### `mmdx/viewer`
 
 | Group | Exports | Documented in |
 |---|---|---|
@@ -59,7 +59,7 @@ The element classes, their options, methods and attributes are documented on the
 | | `HistorySession` | [History](/guide/history) |
 | | `ViewCore`, `ViewModule`, `ModuleScope`, `SceneSource`, `Stage`, `DiagramCanvas` (the component kernel, advanced) | [Components](/components/) |
 
-### `@mmdx/studio/editor`
+### `mmdx/editor`
 
 | Group | Exports | Documented in |
 |---|---|---|
@@ -75,9 +75,9 @@ The element classes, their options, methods and attributes are documented on the
 | | `HistorySession` | [History](/guide/history) |
 | | `EditorModule`, `EditorModuleApi` (the core as a module sees it), `Gesture`, `GestureSource`, `OverlayPainter`, `ViewCore`, `ViewModule`, `ModuleScope`, `SceneSource`, `Stage`, `DiagramCanvas` (custom editor modules, advanced) | [Editor](/components/editor) |
 
-The editor does not export the history adapters; import them from `@mmdx/studio/adapters` or `@mmdx/studio/diff` (History's code itself loads on first use either way).
+The editor does not export the history adapters; import them from `mmdx/adapters` or `mmdx/diff` (History's code itself loads on first use either way).
 
-### `@mmdx/studio/theme-editor`
+### `mmdx/theme-editor`
 
 | Group | Exports | Documented in |
 |---|---|---|
@@ -93,7 +93,7 @@ The editor does not export the history adapters; import them from `@mmdx/studio/
 | | `ThemeFile`, `ThemeInfo` | [Theme file](/api/theme-file) |
 | | `Config` | [Configuration](/api/configuration) |
 
-### `@mmdx/studio/diff`
+### `mmdx/diff`
 
 | Group | Exports | Documented in |
 |---|---|---|
@@ -116,18 +116,18 @@ The editor does not export the history adapters; import them from `@mmdx/studio/
 
 #### Asynchronous diff functions
 
-The diff entry ships no diagram parser or renderer statically. Its `diffDiagrams` and `renderDiffToSvg` load the kinds of both versions first, then work like the synchronous [`diffDiagrams()`](/api/core#diffdiagrams) and [`renderDiffToSvg()`](/api/core#renderdifftosvg) of `@mmdx/studio/core`, which include every kind.
+The diff entry ships no diagram parser or renderer statically. Its `diffDiagrams` and `renderDiffToSvg` load the kinds of both versions first, then work like the synchronous [`diffDiagrams()`](/api/core#diffdiagrams) and [`renderDiffToSvg()`](/api/core#renderdifftosvg) of `mmdx/core`, which include every kind.
 
 ```ts
-import { diffDiagrams, diffReport } from '@mmdx/studio/diff';
+import { diffDiagrams, diffReport } from 'mmdx/diff';
 
 const diff = await diffDiagrams(before, after); // never rejects on bad input
 const md = diffReport(diff, { format: 'markdown' });
 ```
 
-### `@mmdx/studio`
+### `mmdx`
 
-The package root and `@mmdx/studio/studio` are the same entry.
+The package root and `mmdx/studio` are the same entry.
 
 | Group | Exports | Documented in |
 |---|---|---|
@@ -138,7 +138,7 @@ The package root and `@mmdx/studio/studio` are the same entry.
 | | `Config` | [Configuration](/api/configuration) |
 | | `IconPack`, `IconifyJSON` (the `iconPacks` option) | [Core](/api/core#iconpack) |
 
-### `@mmdx/studio/core`
+### `mmdx/core`
 
 Every export is documented on the [core](/api/core) page.
 
@@ -158,7 +158,7 @@ Every export is documented on the [core](/api/core) page.
 | Model helpers | `ITEM_KINDS`, `itemKey`, `parseItemKey`, `diagnosticText`, `diag`, `isSupported` ([model types](/api/core#model-types)) |
 | Types | [`DiagramDocument`](/api/core#diagramdocument), `DiagramMeta`, `CanvasMeta`, `ItemMeta`, `LayerMeta`, `PageSettings` ([metadata types](/api/core#metadata-types)); [`CoreContext`](/api/core#corecontext), [`PipelineOptions`](/api/core#pipelineoptions), [`Rendered`](/api/core#rendered), `Kinds`, [`RenderResult`](/api/core#renderresult), `GeometryIndex`, `SceneNode`, `TextMeasurer`, `FontSpec`; `ThemeFile`, `ThemeInfo`, `ResolvedTheme`; `StyleProps`, `ArrowType`, `Routing`, `Side` ([theme file](/api/theme-file)); [`LinkPolicy`](/api/core#linkpolicy), [`SafeUrl`](/api/core#safeurl); [`ImagePolicy`](/api/core#imagepolicy), `ImageBlockReason`, `ImageDataType`, [`SafeImageUrl`](/api/core#safeimageurl), [`UrlResolver`, `ContentUrlKind`](/api/core#urlresolver); [`IconPack`](/api/core#iconpack), `IconifyJSON`, `IconifyIcon`, `IconifyAlias`, `IconifyInfo`, `IconRegistryOptions`, `IconResult`, `IconData`, `IconForm`, `IconMissing`, `IconPackInfo`, `IconSnapshot`; `StarterType`; [`DiagramDiff`, `ItemChange`, `FieldChange`](/api/core#diagramdiff), `ChangeFacet`, `ChangeStatus`, `DiffIgnore`, `DiffView`, `VersionInfo`, [`ReportOptions`](/api/core#reportoptions), `UnifiedDiffOptions`, `Merged`, [`DiffRenderOptions`](/api/core#diffrenderoptions), [`DiffSvgOptions`](/api/core#diffsvgoptions), [`DiffHide`](/api/core#diffhide), `DiffRendered`; the model types `Diagnostic`, `Rect`, `Point`, `CenterBox`, `ItemRef`, `ItemKey`, `ItemKind`, `DiagramType`, `BuiltinType`, `SourceRange`, `Severity`, `DiagnosticFix`, `DiagramModel`, `SupportedModel`, `BaseModel`, `FlowchartModel`, `SequenceModel`, `ErModel`, `MindmapModel`, `StateModel`, `UnsupportedModel` and their item types (`FlowNode`, `FlowEdge`, `Participant`, `SeqItem`, `Entity`, `ErRel`, `MindNode`, `StateNode`, `MermaidStyle`, `NodeShape`, …) ([model types](/api/core#model-types)) |
 
-### `@mmdx/studio/adapters`
+### `mmdx/adapters`
 
 Every export is documented on the [adapters](/api/adapters) page.
 
@@ -171,7 +171,7 @@ Every export is documented on the [adapters](/api/adapters) page.
 | Images | [`memoryImageStore`](/api/adapters#memoryimagestore), [`httpImageStore`](/api/adapters#httpimagestore); types [`ImageStore`](/api/adapters#imagestore), [`ImageInfo`](/api/adapters#imageinfo), `ImagePage`, `MemoryImageStoreOptions` |
 | URLs | [`relativeUrlResolver`](/api/adapters#relativeurlresolver); types [`UrlResolver`](/api/adapters#urlresolver), `ContentUrlKind` |
 
-### `@mmdx/studio/markdown`
+### `mmdx/markdown`
 
 Build-time plugins (Node) that turn mermaid code blocks into `<mmdx-viewer>` elements with a pre-rendered SVG inside. See the [markdown](/api/markdown) page.
 
@@ -180,9 +180,9 @@ Build-time plugins (Node) that turn mermaid code blocks into `<mmdx-viewer>` ele
 | Functions | `rehypeMmdx`, `markdownItMmdx`, `diagramHtml`, `preloadIcons`, `scriptSafe` |
 | Types | `MmdxMarkdownOptions` |
 
-The run-time helper `upgradeMermaidBlocks` comes from `@mmdx/studio/viewer`.
+The run-time helper `upgradeMermaidBlocks` comes from `mmdx/viewer`.
 
-### `@mmdx/studio/react`
+### `mmdx/react`
 
 Typed wrappers for React 18 and older; import the element entries you use as well. See the [React](/api/react) page.
 
@@ -191,7 +191,7 @@ Typed wrappers for React 18 and older; import the element entries you use as wel
 | Functions | `createReactWrappers(React)` |
 | Types | `MmdxReactComponents` |
 
-### `@mmdx/studio/worker-inline`
+### `mmdx/worker-inline`
 
 The render worker as one classic script, for pages that cannot start module workers from URLs (sandboxed iframes with an opaque origin). See the [worker-inline](/api/worker-inline) page.
 
@@ -200,6 +200,6 @@ The render worker as one classic script, for pages that cannot start module work
 | Functions | `useInlineWorker()` |
 | Constants | `workerSource` |
 
-### `@mmdx/studio/themes/*`
+### `mmdx/themes/*`
 
 JSON files, not code: `default-light.theme.json`, `default-dark.theme.json`, `github-light.theme.json`, `github-dark.theme.json`, `catppuccin-latte.theme.json`, `catppuccin-mocha.theme.json`, `rose-pine-dawn.theme.json`, `dracula.theme.json`, and the manifest `index.json`. See the [theme file](/api/theme-file) page.

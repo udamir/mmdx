@@ -3,7 +3,7 @@
 The visual editor for flowcharts, sequence diagrams, ER diagrams, mindmaps and state diagrams. Everything done on the canvas is written back to the Mermaid code, and code edits update the canvas live; layout and looks are stored as `%%@` comment lines in the same text. It loads and saves through a document adapter (with conflict detection and live updates), or works on a value you set, and shows the document's History when you give it the versions.
 
 ```ts
-import '@mmdx/studio/editor'; // <mmdx-editor>, DiagramEditor
+import 'mmdx/editor'; // <mmdx-editor>, DiagramEditor
 ```
 
 <MmdxDemo kind="editor" example="simple-flow" history />
@@ -13,8 +13,8 @@ import '@mmdx/studio/editor'; // <mmdx-editor>, DiagramEditor
 With an adapter, the editor loads the document, saves it with the Save button and ⌘S, detects conflicts and applies remote updates:
 
 ```ts
-import '@mmdx/studio/editor';
-import { httpDocumentAdapter } from '@mmdx/studio/adapters';
+import 'mmdx/editor';
+import { httpDocumentAdapter } from 'mmdx/adapters';
 
 const editor = document.querySelector('mmdx-editor')!;
 editor.adapter = httpDocumentAdapter('/api/diagrams/architecture.mmdx'); // GET / PUT with If-Match
@@ -35,7 +35,7 @@ editor.addEventListener('mmdx-change', (e) => store.save(e.detail.source));
 Write your own adapter for any backend:
 
 ```ts
-import type { DocumentAdapter } from '@mmdx/studio/editor';
+import type { DocumentAdapter } from 'mmdx/editor';
 
 const adapter: DocumentAdapter = {
   load: async () => api.get(id),                                     // { source, name?, version? }
@@ -44,10 +44,10 @@ const adapter: DocumentAdapter = {
 };
 ```
 
-The built-in adapters are `httpDocumentAdapter(url)` and `memoryDocumentAdapter(source, name)` (from `@mmdx/studio/editor` and `@mmdx/studio/adapters`). Without custom elements, mount `DiagramEditor`:
+The built-in adapters are `httpDocumentAdapter(url)` and `memoryDocumentAdapter(source, name)` (from `mmdx/editor` and `mmdx/adapters`). Without custom elements, mount `DiagramEditor`:
 
 ```ts
-import { DiagramEditor } from '@mmdx/studio/editor';
+import { DiagramEditor } from 'mmdx/editor';
 
 const editor = new DiagramEditor(host, { value: source, features: { pen: false }, name: 'architecture' });
 editor.setSource(next, { history: 'push' });
@@ -84,7 +84,7 @@ Each attribute sets the `EditorOptions` option of the same name in camelCase (`r
 | `features` | `features` | `Partial<EditorFeatures>` or `string` | all on except `open` | The parts that are on. The attribute (and a string property) lists them like the viewer's `controls` (`features="pen code-panel layers"`, or `none`); the object turns parts off. See [Features](#features) |
 | — | `history` | `HistoryAdapter \| readonly StaticVersion[] \| null` | — | The document's versions, newest first (`[{ id, message?, author?, date?, source }]`): the tool dock gets a History button |
 | — | `panels` | `{ code?, properties?, layers? }` | remembered, else all open | Which of Edit mode's side panels are open |
-| — | `storage` | `StorageAdapter` | `localStorage` (`mmdx.` keys), else in memory | Where UI preferences are kept (panels, light / dark, theme pick); never the document. `memoryStorage()`, `localStorageAdapter()` and `preloadedStorage(read, write)` come from `@mmdx/studio/adapters` |
+| — | `storage` | `StorageAdapter` | `localStorage` (`mmdx.` keys), else in memory | Where UI preferences are kept (panels, light / dark, theme pick); never the document. `memoryStorage()`, `localStorageAdapter()` and `preloadedStorage(read, write)` come from `mmdx/adapters` |
 | `autosave` | — | `number \| false` | off | Debounced save through the adapter, in ms (`autosave` without a number: 1500, `false`: off). Read when the editor is created |
 | `guard-unload` | — | `boolean` | `false` | Ask before leaving the page with unsaved changes. Read when the editor is created |
 | `name` | — | `string` | `diagram` | File name stem of exports; an adapter's `load()` result may set it with `name` |
@@ -255,7 +255,7 @@ The image tool has these tabs, each where the host provides it, and an **Icon** 
 The store decides what a picture is referenced by: a plain URL, or a reference of its own (`asset:42`) that the host's [`resolveUrl`](/guide/configuration) maps to a URL when the diagram is drawn, so the diagram keeps the reference and the store can move its files.
 
 ```ts
-import { httpImageStore } from '@mmdx/studio/adapters';
+import { httpImageStore } from 'mmdx/adapters';
 
 editor.images = httpImageStore('/api/images'); // GET (list), GET /<id>, POST (multipart), DELETE /<id>
 ```
@@ -400,10 +400,10 @@ With a `history`, the History button of the tool dock (⇧H) opens the version p
 - **Back** (the pill at the top, or Esc) returns to the current version and keeps the panel; closing the panel only hides it while a version or comparison shows (the History button brings it back), and leaves History otherwise.
 - **Restore this version** (Edit mode, in an older version's ⋯ menu) opens it in the editor as an undoable change, after the cancelable `mmdx-history-restore`.
 
-History's code loads on first use; no `@mmdx/studio/diff` import is needed. `historySession` gives the `<mmdx-diff>` methods while it is open (`pair` is all `null` while nothing older is picked). Where the versions come from is up to the host — a Git history, your backend's revisions, or snapshots you keep:
+History's code loads on first use; no `mmdx/diff` import is needed. `historySession` gives the `<mmdx-diff>` methods while it is open (`pair` is all `null` while nothing older is picked). Where the versions come from is up to the host — a Git history, your backend's revisions, or snapshots you keep:
 
 ```ts
-import { httpHistoryAdapter } from '@mmdx/studio/adapters';
+import { httpHistoryAdapter } from 'mmdx/adapters';
 
 editor.history = httpHistoryAdapter('/api/diagrams/arch/versions'); // or a list, or your own { list, load }
 ```

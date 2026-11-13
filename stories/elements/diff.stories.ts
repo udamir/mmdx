@@ -54,7 +54,7 @@ const meta: Meta<DiffArgs> = {
           'metadata diff narrowed to the selected change and History (compare two versions, or view one) on the left, the ' +
           'change list and Layers on the right. The chrome: Pan and the magic pen in the tool dock, the zoom bar with help, ' +
           'the theme menu, the light / dark toggle and Export (PNG, SVG, sources, patch, Markdown / JSON report) top right. ' +
-          'Import `@mmdx/studio/diff`. The editor and the viewer have the same comparison in their History (Elements/Editor → With ' +
+          'Import `mmdx/diff`. The editor and the viewer have the same comparison in their History (Elements/Editor → With ' +
           'history); here it stands alone, as a merge request review would embed it.',
       },
     },

@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project follows [semantic versioning](https://semver.org/); below 1.0, a minor version may change public API, listed under **Changed (breaking)**.
+All notable changes to `mmdx` (published as `@mmdx/studio` from 0.3.0 to 0.4.0). The project follows [semantic versioning](https://semver.org/); below 1.0, a minor version may change public API, listed under **Changed (breaking)**.
 
 ## 0.5.0 — 2026-11-14
 
@@ -38,10 +38,11 @@ The codebase audit: correctness and safety fixes, faster large documents, and th
 
 ### Changed (breaking)
 
+- The package is `mmdx` again: `@mmdx/studio/viewer` is `mmdx/viewer`, and so on; the root is the studio entry.
 - Stock Mermaid is not bundled: a bundled app passes `configure({ mermaid: () => import('mermaid') })`.
 - `ViewerOptions.rehydrate` and `Config.debug` are removed.
 - The editor actions `toggleHelp`, `editTable`, `gotoMetaLine`, `unlockAll`, `pasteStyle` and `openIconPicker` are removed.
-- `@mmdx/studio/editor` no longer exports `EditorCore`; modules see the core as `EditorModuleApi`.
+- `mmdx/editor` no longer exports `EditorCore`; modules see the core as `EditorModuleApi`.
 - `DiffSession` has one `shown` model: `show(shown)` replaces `mode`, `versionsShown`, `setMode`, `applyMode` and `setVersionsShown`.
 - Kernel state is read-only to modules: `ViewCore`'s lists are `KernelList` / `KernelSlot`, its signals `ReadSignal`s with owner setters; `DiagramEditor.core`'s services are getters.
 - `ViewActions` and `ViewEvents` are trimmed; the editor's events moved to `EditorEvents`.

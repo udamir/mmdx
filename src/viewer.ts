@@ -1,4 +1,4 @@
-// @mmdx/studio/viewer — defines <mmdx-viewer> on import (guarded) and exports the imperative class.
+// mmdx/viewer — defines <mmdx-viewer> on import (guarded) and exports the imperative class.
 import { defineViewer } from './elements/viewer.js';
 
 export { DiagramViewer, MmdxViewerElement, defineViewer, type ViewerOptions, type ViewerControl, type ViewerEventMap, type HostFullscreen } from './elements/viewer.js';

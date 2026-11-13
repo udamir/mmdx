@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/udamir/mmdx/actions/workflows/ci.yml"><img src="https://github.com/udamir/mmdx/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://www.npmjs.com/package/@mmdx/studio"><img src="https://img.shields.io/npm/v/@mmdx/studio.svg" alt="npm"></a>
+  <a href="https://www.npmjs.com/package/mmdx"><img src="https://img.shields.io/npm/v/mmdx.svg" alt="npm"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
 </p>
 
@@ -35,14 +35,14 @@ Mermaid's auto-layout and styling are hard to control. Mermaid Studio lets you l
 ## Install
 
 ```bash
-npm install @mmdx/studio
+npm install mmdx
 ```
 
 ## Quick start
 
 ```html
 <script type="module">
-  import '@mmdx/studio/viewer';
+  import 'mmdx/viewer';
 </script>
 
 <mmdx-viewer controls="zoom layers fullscreen export">
@@ -54,8 +54,8 @@ npm install @mmdx/studio
 ```
 
 ```ts
-import '@mmdx/studio/editor';
-import { httpDocumentAdapter } from '@mmdx/studio/adapters';
+import 'mmdx/editor';
+import { httpDocumentAdapter } from 'mmdx/adapters';
 
 document.querySelector('mmdx-editor')!.adapter = httpDocumentAdapter('/api/diagrams/architecture.mmdx');
 ```

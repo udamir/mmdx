@@ -1,11 +1,11 @@
-# @mmdx/studio/react
+# mmdx/react
 
 Optional React wrappers for React 18 and older, which pass every prop to a custom element as an attribute and do not listen to custom events. The wrappers set object values as properties and wire `onMmdx…` props to the `mmdx-*` events. They hold no logic and have no React dependency: you pass your React in. React 19 handles properties and custom events natively, so there the elements can be used directly (see [React 19](#react-19)).
 
 ```tsx
 import React from 'react';
-import '@mmdx/studio/viewer';
-import { createReactWrappers } from '@mmdx/studio/react';
+import 'mmdx/viewer';
+import { createReactWrappers } from 'mmdx/react';
 
 const { MmdxViewer } = createReactWrappers(React); // also MmdxEditor, MmdxThemeEditor, MmdxStudio, MmdxDiff
 
@@ -13,7 +13,7 @@ const { MmdxViewer } = createReactWrappers(React); // also MmdxEditor, MmdxTheme
 ```
 
 ::: warning Import the element entries
-`@mmdx/studio/react` does not define any element. Import the entry of each element you render (`@mmdx/studio/viewer`, `@mmdx/studio/editor`, `@mmdx/studio/diff`, …; see [Entry points](/api/)) before the components mount, so that properties land on the defined element.
+`mmdx/react` does not define any element. Import the entry of each element you render (`mmdx/viewer`, `mmdx/editor`, `mmdx/diff`, …; see [Entry points](/api/)) before the components mount, so that properties land on the defined element.
 :::
 
 ## Functions
@@ -50,21 +50,21 @@ interface MmdxReactComponents {
 
 | Component | Element | Element entry | Attributes, properties and events |
 | --- | --- | --- | --- |
-| `MmdxViewer` | `<mmdx-viewer>` | `@mmdx/studio/viewer` | [Viewer](/components/viewer) |
-| `MmdxEditor` | `<mmdx-editor>` | `@mmdx/studio/editor` | [Editor](/components/editor) |
-| `MmdxThemeEditor` | `<mmdx-theme-editor>` | `@mmdx/studio/theme-editor` | [Theme editor](/components/theme-editor) |
-| `MmdxStudio` | `<mmdx-studio>` | `@mmdx/studio/studio` | [Studio](/components/studio) |
-| `MmdxDiff` | `<mmdx-diff>` | `@mmdx/studio/diff` | [Diff](/components/diff) |
+| `MmdxViewer` | `<mmdx-viewer>` | `mmdx/viewer` | [Viewer](/components/viewer) |
+| `MmdxEditor` | `<mmdx-editor>` | `mmdx/editor` | [Editor](/components/editor) |
+| `MmdxThemeEditor` | `<mmdx-theme-editor>` | `mmdx/theme-editor` | [Theme editor](/components/theme-editor) |
+| `MmdxStudio` | `<mmdx-studio>` | `mmdx/studio` | [Studio](/components/studio) |
+| `MmdxDiff` | `<mmdx-diff>` | `mmdx/diff` | [Diff](/components/diff) |
 
 The components accept the element's attributes, properties and events as props (see [Props](#props)); the package declares no per-component prop types, and each component is typed `unknown`. In TypeScript, cast the result once to a React component type. With `@types/react` 19, the `React` argument also needs a cast, because its `forwardRef` signature does not match `ReactLike`:
 
 ```tsx
 // mmdx-react.ts
 import * as React from 'react';
-import '@mmdx/studio/viewer';
-import '@mmdx/studio/editor';
-import '@mmdx/studio/diff';
-import { createReactWrappers, type MmdxReactComponents } from '@mmdx/studio/react';
+import 'mmdx/viewer';
+import 'mmdx/editor';
+import 'mmdx/diff';
+import { createReactWrappers, type MmdxReactComponents } from 'mmdx/react';
 
 type MmdxProps = Record<string, unknown> & { children?: React.ReactNode };
 type MmdxComponent = React.ForwardRefExoticComponent<MmdxProps & React.RefAttributes<HTMLElement>>;
@@ -125,7 +125,7 @@ export function Diagram({ source }: { source: string }) {
 
 ```tsx
 import { useMemo } from 'react';
-import { httpDocumentAdapter } from '@mmdx/studio/adapters';
+import { httpDocumentAdapter } from 'mmdx/adapters';
 import { MmdxEditor } from './mmdx-react';
 
 export function DiagramEditor({ url }: { url: string }) {
@@ -158,7 +158,7 @@ export function DiagramDiff({ before, after }: { before: string; after: string }
 React 19 sets a prop as a property when the element has a property of that name, as an attribute otherwise, and listens to a custom event for a function prop named `on` plus the event name. Use the elements directly, with the same rule about importing the element entries first:
 
 ```tsx
-import '@mmdx/studio/viewer';
+import 'mmdx/viewer';
 
 export function Diagram({ source }: { source: string }) {
   return (
@@ -195,4 +195,4 @@ declare module 'react' {
 }
 ```
 
-The element classes (`MmdxViewerElement` from `@mmdx/studio/viewer`, and the others from their entries) are registered in `HTMLElementTagNameMap`, so `document.querySelector('mmdx-viewer')` and `document.createElement('mmdx-viewer')` are typed.
+The element classes (`MmdxViewerElement` from `mmdx/viewer`, and the others from their entries) are registered in `HTMLElementTagNameMap`, so `document.querySelector('mmdx-viewer')` and `document.createElement('mmdx-viewer')` are typed.

@@ -1,10 +1,10 @@
 # Inline worker
 
-`@mmdx/studio/worker-inline` is the render worker as a string, for pages that cannot start it from a URL: sandboxed iframes with an opaque origin, where module workers from URLs fail. `useInlineWorker()` starts it from a `blob:` URL, so large diagrams (over 300 lines or 32 KiB) render off the main thread there too. Import it next to `@mmdx/studio/viewer` or `@mmdx/studio/editor`.
+`mmdx/worker-inline` is the render worker as a string, for pages that cannot start it from a URL: sandboxed iframes with an opaque origin, where module workers from URLs fail. `useInlineWorker()` starts it from a `blob:` URL, so large diagrams (over 300 lines or 32 KiB) render off the main thread there too. Import it next to `mmdx/viewer` or `mmdx/editor`.
 
 ```ts
-import '@mmdx/studio/viewer';
-import { useInlineWorker } from '@mmdx/studio/worker-inline';
+import 'mmdx/viewer';
+import { useInlineWorker } from 'mmdx/worker-inline';
 
 useInlineWorker(); // before the first large diagram renders
 ```
@@ -50,8 +50,8 @@ const workerSource: string;
 The render worker as one classic script with no imports: the worker module and everything it uses, bundled by esbuild as a minified IIFE when the library is built. Use it when you start the worker yourself, for example from a URL your host provides:
 
 ```ts
-import { setWorkerUrl } from '@mmdx/studio/viewer';
-import { workerSource } from '@mmdx/studio/worker-inline';
+import { setWorkerUrl } from 'mmdx/viewer';
+import { workerSource } from 'mmdx/worker-inline';
 
 const url = URL.createObjectURL(new Blob([workerSource], { type: 'text/javascript' }));
 setWorkerUrl(url, { type: 'classic' });
@@ -61,7 +61,7 @@ This is what `useInlineWorker()` does. Start the script as a classic worker (`ty
 
 ## Relation to `setWorkerUrl()`
 
-[`setWorkerUrl(url, { type })`](/api/configuration#setworkerurl) from `@mmdx/studio/viewer` decides where the render worker comes from; `type` is `'module'` by default and `'classic'` for this entry's source. `useInlineWorker()` is a shortcut for `setWorkerUrl(blobUrlOf(workerSource), { type: 'classic' })`. Both act on the same worker client as the viewer, so import them from the same copy of the package as the viewer (one bundle, one `node_modules` copy); otherwise the call configures a worker client the viewer does not use.
+[`setWorkerUrl(url, { type })`](/api/configuration#setworkerurl) from `mmdx/viewer` decides where the render worker comes from; `type` is `'module'` by default and `'classic'` for this entry's source. `useInlineWorker()` is a shortcut for `setWorkerUrl(blobUrlOf(workerSource), { type: 'classic' })`. Both act on the same worker client as the viewer, so import them from the same copy of the package as the viewer (one bundle, one `node_modules` copy); otherwise the call configures a worker client the viewer does not use.
 
 ## How it is built
 

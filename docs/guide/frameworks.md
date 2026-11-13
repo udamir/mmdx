@@ -8,7 +8,7 @@ Import the entry once; it registers the element. Importing it twice is safe.
 
 ```html
 <script type="module">
-  import '@mmdx/studio/viewer';
+  import 'mmdx/viewer';
 
   const viewer = document.querySelector('#arch');
   viewer.addEventListener('mmdx-render', (e) => console.log(e.detail.type, e.detail.durationMs));
@@ -62,9 +62,9 @@ The [events reference](/api/events) lists every event and its detail.
 React 19 sets properties on custom elements and listens to their events natively: a prop whose name is a property of the element is set as a property, others become attributes, and `on` + the event name adds a listener.
 
 ```tsx
-import '@mmdx/studio/viewer';
-import '@mmdx/studio/editor';
-import { httpDocumentAdapter } from '@mmdx/studio/adapters';
+import 'mmdx/viewer';
+import 'mmdx/editor';
+import { httpDocumentAdapter } from 'mmdx/adapters';
 
 const adapter = httpDocumentAdapter('/api/diagrams/arch.mmdx');
 
@@ -81,12 +81,12 @@ Keep object props stable (module scope, `useMemo`, `useRef`): a new adapter obje
 
 ## React 18 and older
 
-React 18 passes every prop as an attribute and does not listen to custom events. `@mmdx/studio/react` has wrappers that set object props as properties and turn `onMmdx*` props into listeners:
+React 18 passes every prop as an attribute and does not listen to custom events. `mmdx/react` has wrappers that set object props as properties and turn `onMmdx*` props into listeners:
 
 ```tsx
 import React from 'react';
-import '@mmdx/studio/viewer';
-import { createReactWrappers } from '@mmdx/studio/react';
+import 'mmdx/viewer';
+import { createReactWrappers } from 'mmdx/react';
 
 const { MmdxViewer } = createReactWrappers(React); // also MmdxEditor, MmdxThemeEditor, MmdxStudio, MmdxDiff
 
@@ -98,7 +98,7 @@ const { MmdxViewer } = createReactWrappers(React); // also MmdxEditor, MmdxTheme
 - A prop is set as a property when the element has a property of that name (the [properties](#properties-and-attributes) above: `source`, `adapter`, `history`, `features`, …); before the element is defined, any object or function prop is. Other props are attributes, camelCase turned into kebab-case (`themeDark` → `theme-dark`, `guardUnload` → `guard-unload`); `true` is an empty attribute and `false` removes it.
 - The ref is the element.
 
-The wrappers are typed loosely (the fields of `MmdxReactComponents` are `unknown`); cast them to a component type of your own in TypeScript. See [`@mmdx/studio/react`](/api/react).
+The wrappers are typed loosely (the fields of `MmdxReactComponents` are `unknown`); cast them to a component type of your own in TypeScript. See [`mmdx/react`](/api/react).
 
 ## Vue
 
@@ -117,8 +117,8 @@ Then bind properties with `.prop` and listen with `@`:
 
 ```vue
 <script setup lang="ts">
-import '@mmdx/studio/editor';
-import { httpDocumentAdapter } from '@mmdx/studio/adapters';
+import 'mmdx/editor';
+import { httpDocumentAdapter } from 'mmdx/adapters';
 
 const adapter = httpDocumentAdapter('/api/diagrams/arch.mmdx');
 const dirty = defineModel<boolean>('dirty');
@@ -137,7 +137,7 @@ Allow custom elements in the component (or module) with `CUSTOM_ELEMENTS_SCHEMA`
 
 ```ts
 import { Component, CUSTOM_ELEMENTS_SCHEMA, input } from '@angular/core';
-import '@mmdx/studio/viewer';
+import 'mmdx/viewer';
 
 @Component({
   selector: 'app-diagram',
@@ -162,7 +162,7 @@ Svelte sets a prop as a property when the element has that property (import the 
 ```svelte
 <script>
   import { onMount } from 'svelte';
-  import '@mmdx/studio/viewer';
+  import 'mmdx/viewer';
 
   export let source;
   let viewer;
@@ -186,7 +186,7 @@ Importing any entry in Node does not throw, so Next.js, Nuxt, SvelteKit, Angular
 Each element is also an imperative class you can mount on any element, for hosts where `customElements.define` is not allowed (or a framework wrapper you write yourself):
 
 ```ts
-import { DiagramViewer } from '@mmdx/studio/viewer';
+import { DiagramViewer } from 'mmdx/viewer';
 
 const viewer = new DiagramViewer(hostElement, { source, controls: ['zoom', 'fullscreen'] });
 viewer.set({ theme: 'default-dark' }); // change options later
@@ -195,11 +195,11 @@ viewer.destroy();                      // when done
 
 | Class | Entry |
 |---|---|
-| `DiagramViewer` | `@mmdx/studio/viewer` |
-| `DiagramEditor` | `@mmdx/studio/editor` |
-| `DiagramDiff` | `@mmdx/studio/diff` |
-| `ThemeEditor` | `@mmdx/studio/theme-editor` |
-| `DiagramStudio` | `@mmdx/studio` |
+| `DiagramViewer` | `mmdx/viewer` |
+| `DiagramEditor` | `mmdx/editor` |
+| `DiagramDiff` | `mmdx/diff` |
+| `ThemeEditor` | `mmdx/theme-editor` |
+| `DiagramStudio` | `mmdx` |
 
 The constructors take the host element and the options object (`ViewerOptions`, `EditorOptions`, …): the same options as the element's attributes and properties, camelCase. Importing the entry still registers its tag; `defineViewer(name?)`, `defineEditor(name?)` and the other `define*` functions register a tag under another name.
 
@@ -207,10 +207,10 @@ The constructors take the host element and the options object (`ViewerOptions`, 
 
 The element entries add their tags to `HTMLElementTagNameMap`, so `document.querySelector('mmdx-editor')` and `document.createElement('mmdx-viewer')` are typed as `MmdxEditorElement` and `MmdxViewerElement`, with their properties and methods.
 
-The events are `CustomEvent`s that are not declared on `HTMLElementEventMap`, so a listener receives an `Event`. The entries export event maps to cast with — `ViewerEventMap` (`@mmdx/studio/viewer`), `EditorEventMap` (`@mmdx/studio/editor`), `DiffEventMap` (`@mmdx/studio/diff`), `ThemeEditorEventMap` (`@mmdx/studio/theme-editor`):
+The events are `CustomEvent`s that are not declared on `HTMLElementEventMap`, so a listener receives an `Event`. The entries export event maps to cast with — `ViewerEventMap` (`mmdx/viewer`), `EditorEventMap` (`mmdx/editor`), `DiffEventMap` (`mmdx/diff`), `ThemeEditorEventMap` (`mmdx/theme-editor`):
 
 ```ts
-import type { ViewerEventMap } from '@mmdx/studio/viewer';
+import type { ViewerEventMap } from 'mmdx/viewer';
 
 const viewer = document.querySelector('mmdx-viewer')!;
 viewer.addEventListener('mmdx-render', (e) => {
@@ -226,8 +226,8 @@ For JSX (React 19 and other JSX setups), declare the tags you use:
 ```ts
 // mmdx.d.ts
 import type * as React from 'react';
-import type { MmdxViewerElement } from '@mmdx/studio/viewer';
-import type { MmdxEditorElement } from '@mmdx/studio/editor';
+import type { MmdxViewerElement } from 'mmdx/viewer';
+import type { MmdxEditorElement } from 'mmdx/editor';
 
 type Props<E> = Partial<Omit<E, keyof HTMLElement>> & React.HTMLAttributes<E> & { [attr: string]: unknown };
 

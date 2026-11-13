@@ -1,4 +1,4 @@
-// @mmdx/studio/diff — defines <mmdx-diff> on import (guarded) and exports the imperative class, its session, the history adapters and the part of the core's diff API that needs no diagram kind. Kinds load on demand: `diffDiagrams` and `renderDiffToSvg` are asynchronous and load the kinds of both versions first, so the entry ships no parser or renderer statically (the synchronous all-kinds `diffDiagrams` stays in `@mmdx/studio/core`).
+// mmdx/diff — defines <mmdx-diff> on import (guarded) and exports the imperative class, its session, the history adapters and the part of the core's diff API that needs no diagram kind. Kinds load on demand: `diffDiagrams` and `renderDiffToSvg` are asynchronous and load the kinds of both versions first, so the entry ships no parser or renderer statically (the synchronous all-kinds `diffDiagrams` stays in `mmdx/core`).
 import { defineDiff } from './elements/diff.js';
 
 export {

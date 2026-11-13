@@ -1,13 +1,13 @@
 # Server-side rendering
 
-`@mmdx/studio/core` renders diagrams to SVG without a DOM — in Node, in workers, at build time. Pages can ship the rendered SVG, readable and printable without JavaScript, and let `<mmdx-viewer>` take over once it loads.
+`mmdx/core` renders diagrams to SVG without a DOM — in Node, in workers, at build time. Pages can ship the rendered SVG, readable and printable without JavaScript, and let `<mmdx-viewer>` take over once it loads.
 
 ## renderToSvg
 
 `renderToSvg(source, options)` is the one-call API: a source in, a standalone SVG document (`<svg xmlns=…>`) out.
 
 ```ts
-import { renderToSvg } from '@mmdx/studio/core';
+import { renderToSvg } from 'mmdx/core';
 
 const svg = await renderToSvg(source, { theme: 'default-dark' }); // a standalone SVG string, no DOM needed
 ```
@@ -26,7 +26,7 @@ It never throws on bad input: a source it cannot parse renders what it can, and 
 
 ```ts
 import { writeFile } from 'node:fs/promises';
-import { renderToSvg } from '@mmdx/studio/core';
+import { renderToSvg } from 'mmdx/core';
 
 const source = `flowchart LR
   a[Start] --> b{Check} --> c[Done]
@@ -39,7 +39,7 @@ await writeFile('diagram.svg', await renderToSvg(source));
 When you need more than the string — diagnostics, the diagram type, its size — run the pipeline in two steps:
 
 ```ts
-import { createContext, renderSource, standaloneSvg } from '@mmdx/studio/core';
+import { createContext, renderSource, standaloneSvg } from 'mmdx/core';
 
 const ctx = createContext();
 const r = renderSource(source, ctx, { theme: 'default-light' });
@@ -67,7 +67,7 @@ const svg = standaloneSvg(r, ctx, { ssr: true });
 A `CoreContext` holds everything instance-scoped the core needs; there are no module singletons.
 
 ```ts
-import { createContext, createStaticMeasurer, DEFAULT_LINK_POLICY } from '@mmdx/studio/core';
+import { createContext, createStaticMeasurer, DEFAULT_LINK_POLICY } from 'mmdx/core';
 
 const ctx = createContext({
   measure: createStaticMeasurer(),                       // the default
@@ -91,15 +91,15 @@ Reuse one context for many diagrams: it caches layouts and text widths.
 The default context knows Default Light and Default Dark. Register any other theme file in its registry before rendering with it:
 
 ```ts
-import { createContext, renderToSvg } from '@mmdx/studio/core';
-import githubDark from '@mmdx/studio/themes/github-dark.theme.json' with { type: 'json' };
+import { createContext, renderToSvg } from 'mmdx/core';
+import githubDark from 'mmdx/themes/github-dark.theme.json' with { type: 'json' };
 
 const ctx = createContext();
 const diagnostics = ctx.themes.register(githubDark); // validated; invalid values are dropped
 const svg = await renderToSvg(source, { theme: 'github-dark', ctx });
 ```
 
-A theme the registry does not have is reported as an info diagnostic (`theme.missing`) and Default Light is used. The theme files are plain JSON in `node_modules/@mmdx/studio/themes/`; read them with `fs` where JSON imports are not available.
+A theme the registry does not have is reported as an info diagnostic (`theme.missing`) and Default Light is used. The theme files are plain JSON in `node_modules/mmdx/themes/`; read them with `fs` where JSON imports are not available.
 
 ## Measuring text in Node
 
@@ -108,7 +108,7 @@ Layout depends on text widths. In a browser the components measure with a canvas
 Text in fonts much wider or narrower than that can come out a little tight or loose. Bring your own measurer for exact widths — any object with `width(text, font)` and a `kind`:
 
 ```ts
-import { createContext, type TextMeasurer } from '@mmdx/studio/core';
+import { createContext, type TextMeasurer } from 'mmdx/core';
 
 const measure: TextMeasurer = {
   kind: 'custom',
@@ -133,10 +133,10 @@ flowchart LR
 </mmdx-viewer>
 ```
 
-Without JavaScript the page shows the SVG; once `@mmdx/studio/viewer` loads, the diagram becomes interactive. `diagramHtml(source, options)` from `@mmdx/studio/markdown` writes exactly this markup — the pre-rendered SVG, an `aspect-ratio` style and the source — for any template engine:
+Without JavaScript the page shows the SVG; once `mmdx/viewer` loads, the diagram becomes interactive. `diagramHtml(source, options)` from `mmdx/markdown` writes exactly this markup — the pre-rendered SVG, an `aspect-ratio` style and the source — for any template engine:
 
 ```ts
-import { diagramHtml } from '@mmdx/studio/markdown';
+import { diagramHtml } from 'mmdx/markdown';
 
 const html = diagramHtml(source, { attrs: { controls: 'zoom fullscreen' }, themeDark: 'auto' });
 ```
@@ -145,7 +145,7 @@ Diagram types mmdx does not draw get the source only, and the viewer falls back 
 
 ## Importing element entries in Node
 
-Importing any entry in Node does not throw: the element classes fall back to a plain base class where `HTMLElement` does not exist, and the tags are defined only where `customElements` exists. Server-side rendering frameworks (Next.js, Nuxt, SvelteKit, Astro…) can import `@mmdx/studio/viewer` in shared code; the element upgrades in the browser. Only `@mmdx/studio/core` (and `@mmdx/studio/markdown`, built on it) renders anything on the server.
+Importing any entry in Node does not throw: the element classes fall back to a plain base class where `HTMLElement` does not exist, and the tags are defined only where `customElements` exists. Server-side rendering frameworks (Next.js, Nuxt, SvelteKit, Astro…) can import `mmdx/viewer` in shared code; the element upgrades in the browser. Only `mmdx/core` (and `mmdx/markdown`, built on it) renders anything on the server.
 
 ## Diffs on the server
 

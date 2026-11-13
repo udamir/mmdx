@@ -3,7 +3,7 @@
 How a diagram changed between two versions, item by item (not line by line). Nodes, edges, tables, subgraphs, participants, messages, mindmap nodes, states and transitions are matched across the versions — renamed nodes, shifted sequence messages and moved mindmap branches included — and every change is **added**, **removed** or **changed**, with each change of a kept item classified as **content** (labels, shapes, connections, attributes, message text), **layout** (positions, sizes, bend points) or **style** (colours, presets, classes, theme). Give it two versions for a merge request review, or a diagram's whole history and let the reviewer pick any two.
 
 ```ts
-import '@mmdx/studio/diff'; // <mmdx-diff>, DiagramDiff, history adapters
+import 'mmdx/diff'; // <mmdx-diff>, DiagramDiff, history adapters
 ```
 
 <MmdxDemo kind="diff" example="production-microservices" history panels="history changes" />
@@ -28,7 +28,7 @@ await diff.compare(baseSource, headSource); // or set diff.beforeSource / diff.a
 The whole history of a diagram (newest first), with the History panel to pick any two versions:
 
 ```ts
-import { httpHistoryAdapter } from '@mmdx/studio/diff';
+import { httpHistoryAdapter } from 'mmdx/diff';
 
 diff.history = httpHistoryAdapter('/api/diagrams/arch/versions'); // or a list: [{ id, message, author, date, source }]
 diff.setAttribute('panels', 'history changes');
@@ -37,7 +37,7 @@ diff.setAttribute('panels', 'history changes');
 Without custom elements, mount `DiagramDiff`:
 
 ```ts
-import { DiagramDiff } from '@mmdx/studio/diff';
+import { DiagramDiff } from 'mmdx/diff';
 
 const diff = new DiagramDiff(host, { beforeSource, afterSource, view: 'side', filters: ['added', 'removed', 'content'] });
 diff.set({ view: 'merged' });
@@ -224,7 +224,7 @@ Code and History stack on the left (Code on top, a splitter between them), so al
 
 ## History
 
-With a `history`, the History panel lists the versions. History adapters come from `@mmdx/studio/diff` and `@mmdx/studio/adapters`:
+With a `history`, the History panel lists the versions. History adapters come from `mmdx/diff` and `mmdx/adapters`:
 
 - `staticHistory(versions)`: a list held in memory (a plain list given as `history` works the same way).
 - `httpHistoryAdapter(url, init?)`: `GET url` returns `{ versions: [{ id, message, author, date }], next? }` newest first (`next` pages with `?cursor=`), and `GET url/<id>` returns the source of one version.
@@ -232,7 +232,7 @@ With a `history`, the History panel lists the versions. History adapters come fr
 For GitLab, GitHub or any backend, write the two calls against their commits and raw file APIs:
 
 ```ts
-import type { HistoryAdapter } from '@mmdx/studio/diff';
+import type { HistoryAdapter } from 'mmdx/diff';
 
 const adapter: HistoryAdapter = {
   list: async (cursor) => ({ versions: await commitsOf('docs/arch.mmdx', cursor) }), // [{ id: sha, message, author, date }]
