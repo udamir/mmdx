@@ -46,15 +46,23 @@ export interface HistorySession {
 }
 
 /**
- * What a product that edits its document offers History (A7: an explicit port instead of probing actions): its own
- * scene for a version, a Restore and an item clipboard. A product without one (the viewer) gets History's own scene.
+ * What a product offers History (A7: an explicit port instead of probing actions): its panel stacks, and for one that
+ * edits its document its own scene for a version, a Restore and an item clipboard. A product without a scene of its
+ * own (the viewer) gets History's.
  */
 export interface HistoryHost {
+  /** The host's own panel stacks hold History's panels (its set has a `panel-stacks` module): History brings none. */
+  ownStacks?: boolean;
+  /**
+   * History's panels that are the host's own under another id, `{ history: host }`: over a comparison the History
+   * panel opens and closes with the host's (the editor's Layers stands for the comparison's `view-settings`).
+   */
+  panels?: Readonly<Record<string, string>>;
   /**
    * Shows a version of the document read-only in the host's own scene, drawn as the document is (History's version
-   * view), or the document again (null). Nothing writes the document while a version shows.
+   * view), or the document again (null). Nothing writes the document while a version shows. None: History's scene shows it.
    */
-  showVersion(version: { id: string; source: string } | null): void;
+  showVersion?(version: { id: string; source: string } | null): void;
   /** Opens a version in the document as one undoable change (History's Restore). */
   restoreVersion?(source: string, version: { id: string }): void;
   /** Puts copied items on the host's item clipboard (copying from History). */

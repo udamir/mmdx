@@ -120,7 +120,6 @@ describe('DiffScene', () => {
     const { core, session, scene } = mount();
     core.pushScene(scene);
     await session.load({ history: versions });
-    session.setVersionsShown(true);
     session.viewVersion(versions[2].id);
     await session.refresh();
     expect(core.area.querySelector('.pane-title b')!.textContent).toBe(versions[2].id);
@@ -141,7 +140,6 @@ describe('DiffScene', () => {
     expect(core.canvas.content.querySelector('.dx-layer')).not.toBeNull();
     // the first picture has nothing to move from
     expect(replace).not.toHaveBeenCalled();
-    session.setVersionsShown(true);
     session.viewVersion(versions[2].id);
     await session.refresh();
     expect(animated()).toBe(true);

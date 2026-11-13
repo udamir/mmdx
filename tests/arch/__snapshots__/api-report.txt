@@ -260,7 +260,7 @@ DiffResult (type): { type, typeChanged, items, doc, counts, diagnostics? }
 DiffScene: typeof DiffScene
 DiffSceneOptions (type): { reducedMotion, label?, canvas?, versionTitle?, hostLook? }
 DiffSession: typeof DiffSession
-DiffSessionOptions (type): { ctx, t, emit, renderOptions, ensureTheme?, scheme, name, showVersions?, pick?, view?, mode?, filters?, dim? }
+DiffSessionOptions (type): { ctx, t, emit, renderOptions, ensureTheme?, scheme, name, drawVersions?, pick?, view?, filters?, dim? }
 DiffSource (type): = | { history: HistoryAdapter | readonly StaticVersion[]; base?: string | undefined; head?: string | undefined } | { before: string | null | Promise<string | null>; after: string | null | Promise<string | null>; base?: string | undefined; head?: string | undefined }
 DiffStatus (type): { kind, text, retry? }
 DiffViewName (type): = DiffView | 'side'

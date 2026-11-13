@@ -8,7 +8,9 @@
 // rendering and export half of elements/diff.ts.
 // Every load starts a generation: a list, a page, a source, a render or a change count that arrives for an older one is dropped.
 // The session is a facade (A13c): the versions, their sources and counts are a VersionStore, the exports a
-// DiffExporter, and what is shown one `shown` model (nothing, a version as it is, a comparison).
+// DiffExporter, and what is shown one `shown` model (nothing, a version as it is, a comparison) — the one History reads
+// and drives too (decision 2026-11-12). The version panel's tab is not the session's: it is the panel's own state
+// (diffModuleSet), and the host turns History mode on and off (`show`).
 import { contentId, staticHistory, type StaticVersion } from '../adapters/history.js';
 import type { DiffExportKind, DiffExportOptions, DiffFilter, DiffPair, DiffViewName } from '../view/history.js';
 import { type HistoryAdapter } from '../ports.js';
@@ -32,7 +34,7 @@ import { VersionStore, type Counts } from './version-store.js';
 /** How long the document must rest before History follows it (a working copy row, a comparison that shows it). */
 const SOURCE_DEBOUNCE_MS = 150;
 
-/** The version panel's tab: compare two versions, or view one as it is. */
+/** The version panel's tab (the panel's own state, diffModuleSet): compare two versions, or view one as it is. */
 export type DiffMode = 'compare' | 'history';
 export const DIFF_VIEWS: readonly DiffViewName[] = ['before', 'merged', 'after', 'side'];
 export const DIFF_FILTERS: readonly DiffFilter[] = ['added', 'removed', 'content', 'layout', 'style'];
@@ -63,15 +65,17 @@ export interface DiffSessionOptions {
   scheme(): 'light' | 'dark';
   /** File name stem of exports. */
   name(): string;
-  /** Asks the host to show the version list (`viewVersion` from code). */
-  showVersions?(): void;
+  /**
+   * The viewed version is drawn by the session (`plain`; default). False: the host draws it in a scene of its own
+   * (History in the editor), so the session only says which one is shown.
+   */
+  drawVersions?: boolean;
   /**
    * A loaded history opens on its newest change (default). False: nothing is picked, compared or rendered until a
    * version is (History in place, where the document shows until then).
    */
   pick?: boolean;
   view?: DiffViewName;
-  mode?: DiffMode;
   filters?: readonly DiffFilter[];
   dim?: boolean;
 }
@@ -92,9 +96,8 @@ export class DiffSession {
   readonly base = signal<string | null>(null);
   readonly head = signal<string | null>(null);
   readonly viewing = signal<string | null>(null);
-  readonly mode: Signal<DiffMode>;
-  /** The host shows the version panel (History mode needs it: one version as it is). */
-  readonly versionsShown = signal(false);
+  /** What kind of thing is shown (with base, head and viewing: `shown`). */
+  private readonly showing = signal<Shown['kind']>('compare');
   /** True while one version is shown as it is (no diff, no diff controls). */
   readonly viewOnly: ReadSignal<boolean>;
   /** What is shown: nothing, the viewed version as it is (History mode), or the compared pair. */
@@ -139,17 +142,16 @@ export class DiffSession {
     this.o = o;
     this.store = new VersionStore({ gen: () => this.loadSeq, destroyed: () => this.destroyed, shows: (id) => this.shows(id), loadError: (e) => this.loadError(e) });
     ({ versions: this.versions, hasMore: this.hasMore, hasHistory: this.hasHistory, countsRev: this.countsRev } = this.store);
-    this.mode = signal<DiffMode>(o.mode ?? 'compare');
     this.view = signal<DiffViewName>(o.view ?? 'merged');
     this.dim = signal(o.dim ?? true);
     const f = DiffSession.filterState(o.filters);
     this.ignore = signal<DiffIgnore>(f.ignore);
     this.hide = signal<DiffHide>(f.hide);
-    this.viewOnly = computed(() => this.hasHistory() && this.versionsShown() && this.mode() === 'history');
+    this.viewOnly = computed(() => this.hasHistory() && this.showing() === 'version');
     this.shown = computed((): Shown => {
       if (this.viewOnly()) return { kind: 'version', id: this.viewing() };
       const base = this.base(), head = this.head();
-      return base && head ? { kind: 'compare', base, head } : { kind: 'none' };
+      return base && head && this.showing() !== 'none' ? { kind: 'compare', base, head } : { kind: 'none' };
     });
     this.unsupported = computed(() => {
       const D = this.rendered();
@@ -300,19 +302,17 @@ export class DiffSession {
     return this.load();
   }
 
-  /** Compares two versions by id (no-op for the same version on both sides); leaves History mode (one version as it is) for Compare. */
+  /** Compares two versions by id (no-op for the same version on both sides); leaves History mode (one version as it is) for the comparison. */
   setPair(base: string | null, head: string | null): void {
     if (!base || !head || base === head) return;
-    const leave = this.mode.peek() === 'history';
-    if (base === this.base.peek() && head === this.head.peek() && !leave) return;
+    if (base === this.base.peek() && head === this.head.peek() && this.showing.peek() === 'compare') return;
     batch(() => {
       this.base.set(base);
       this.head.set(head);
       this.selected.set(null);
-      if (leave) this.mode.set('compare');
+      this.showing.set('compare');
     });
     this.o.emit('mmdx-version', { base, head });
-    if (leave) this.emitMode();
     void this.refresh();
   }
 
@@ -337,56 +337,43 @@ export class DiffSession {
     else if (id !== this.head.peek()) this.setPair(id, this.head.peek());
   }
 
-  /** Shows one version as it is (History mode). */
+  /** Shows one version as it is (History mode; the host shows its version panel). Emits `mmdx-version`. */
   viewVersion(id: string): void {
     if (!this.versions.peek().some((v) => v.id === id)) return;
-    const was = this.mode.peek();
-    batch(() => {
-      this.viewing.set(id);
-      this.mode.set('history');
-      this.versionsShown.set(true);
-      this.dropStalePlain();
-    });
-    this.o.showVersions?.();
+    this.show({ kind: 'version', id });
     this.o.emit('mmdx-version', { base: this.base.peek(), head: this.head.peek(), viewing: id });
-    if (was !== 'history') this.emitMode();
-    void this.refresh();
   }
 
-  /** The version panel's tab: compare two versions, or view one as it is. Emits `mmdx-mode`. */
-  setMode(m: DiffMode): void {
-    if (this.applyMode(m)) this.emitMode();
-  }
-
-  /** Sets the tab without an event (host options); renders again when what is shown changes. False when it was set already. */
-  applyMode(m: DiffMode): boolean {
-    if (m === this.mode.peek()) return false;
-    const was = this.viewOnly.peek();
+  /**
+   * Shows nothing, one version as it is, or a comparison, without an event: the host's transitions (History, and the
+   * `<mmdx-diff>` version panel turning History mode on and off). A version keeps the compared pair for later; nothing
+   * forgets it. Renders again when the picture changes.
+   */
+  show(next: Shown): void {
+    const was = this.shown.peek();
     batch(() => {
-      this.mode.set(m);
-      if (m === 'history' && !this.viewing.peek()) this.viewing.set(this.head.peek());
+      if (next.kind === 'none') {
+        this.base.set(null);
+        this.head.set(null);
+        this.viewing.set(null);
+      } else if (next.kind === 'version') {
+        this.viewing.set(next.id ?? this.viewing.peek() ?? this.head.peek());
+      } else {
+        if (next.base !== this.base.peek() || next.head !== this.head.peek()) this.selected.set(null);
+        this.base.set(next.base);
+        this.head.set(next.head);
+      }
+      this.showing.set(next.kind);
       this.dropStalePlain();
     });
-    if (was !== this.viewOnly.peek()) void this.refresh();
-    return true;
-  }
-
-  /** The host shows or hides the version panel: History mode starts or ends with it (`mmdx-mode`). */
-  setVersionsShown(on: boolean): void {
-    if (on === this.versionsShown.peek()) return;
-    const was = this.viewOnly.peek();
-    batch(() => {
-      this.versionsShown.set(on);
-      this.dropStalePlain();
-    });
-    if (was === this.viewOnly.peek()) return;
-    this.emitMode();
+    const now = this.shown.peek();
+    if (now.kind === 'none' || sameShown(was, now)) return;
     void this.refresh();
   }
 
   /** Shows Before, Merged, After or Side by side. Emits `mmdx-view`. */
   setView(view: DiffViewName): void {
-    if (this.applyView(view)) this.o.emit('mmdx-view', { view, mode: this.mode.peek() });
+    if (this.applyView(view)) this.o.emit('mmdx-view', { view, mode: this.viewOnly.peek() ? 'history' : 'compare' });
   }
 
   /** Sets the view without an event (host options). False when it was set already or cannot be shown. */
@@ -542,6 +529,14 @@ export class DiffSession {
     const t0 = now();
     const ro = this.o.renderOptions();
     try {
+      if (this.viewOnly.peek() && this.o.drawVersions === false) {
+        // the host draws the viewed version: nothing to render here
+        batch(() => {
+          this.setPlain(null, null);
+          this.status.set(null);
+        });
+        return;
+      }
       if (this.viewOnly.peek()) {
         const id = this.viewing.peek();
         const src = await this.sourceOf(id);
@@ -600,11 +595,6 @@ export class DiffSession {
     if (this.o.ensureTheme && !this.o.ctx.themes.has(theme)) await this.o.ensureTheme(theme);
   }
 
-  /** `mmdx-mode`: the tab changed, or History mode (one version as it is) started or ended with the version panel. */
-  private emitMode(): void {
-    this.o.emit('mmdx-mode', { mode: this.mode.peek(), viewOnly: this.viewOnly.peek() });
-  }
-
   private setPlain(r: Rendered | null, id: string | null): void {
     this.plainOf = r ? id : null;
     this.plain.set(r);
@@ -614,7 +604,7 @@ export class DiffSession {
   private dropStalePlain(): void {
     if (this.plain.peek() && this.plainOf === this.viewing.peek()) return;
     this.setPlain(null, null);
-    if (this.viewOnly.peek()) this.status.set({ kind: 'loading', text: this.o.t('diff.history.loading') });
+    if (this.viewOnly.peek() && this.o.drawVersions !== false) this.status.set({ kind: 'loading', text: this.o.t('diff.history.loading') });
   }
 
   private filtersChanged(): void {
@@ -642,6 +632,9 @@ export class DiffSession {
     this.o.emit('mmdx-error', { diagnostics: [{ severity: 'error', code: 'load.failed', message: e instanceof Error ? e.message : String(e) }] });
   }
 }
+
+const sameShown = (a: Shown, b: Shown): boolean =>
+  a.kind === b.kind && (a.kind !== 'version' || a.id === (b as typeof a).id) && (a.kind !== 'compare' || (a.base === (b as typeof a).base && a.head === (b as typeof a).head));
 
 /** The code or metadata part of a source as lines (code diff panel). */
 export const sourceLines = (src: string, tab: 'code' | 'meta'): string[] => sourcePart(src, tab).replace(/\n$/, '').split('\n');

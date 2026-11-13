@@ -137,6 +137,8 @@ export class DiagramViewer {
     core.provide('documentCode', () => this.scene.rendered?.doc.code ?? (this.scene.text !== null ? splitSource(this.scene.text).doc.code : null));
     core.provide('documentSource', () => this.scene.text);
     core.provide('documentName', () => this.fileName);
+    // History's panels go in the viewer's stacks (loaded when History opens); History's scene shows a version
+    core.historyHost = { ownStacks: true };
     if (o.history) core.setHostOptions({ history: o.history });
     if (o.fullscreen) core.setHostOptions({ fullscreen: o.fullscreen });
 

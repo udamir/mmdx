@@ -170,6 +170,9 @@ export class DiagramEditor {
     core.provide('documentMeta', () => core.meta);
     core.provide('documentCode', () => core.code);
     core.historyHost = {
+      // History's panels go in the editor's stacks; over a comparison its view settings open and close with Layers
+      ownStacks: true,
+      panels: { 'view-settings': 'layers' },
       setClipboard: (data) => core.uiState.clipboard.set(data as NonNullable<typeof core.clipboard>),
       showVersion: (v) => core.showVersion(v),
       restoreVersion: (source, v) => {

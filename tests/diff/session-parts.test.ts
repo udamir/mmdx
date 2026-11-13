@@ -44,7 +44,7 @@ describe('DiffSession shown', () => {
     await s.exportAs('mmdx', { version: 'before' });
     expect(exports.at(-1)).toMatchObject({ name: `doc-${versions[1]!.id}.mmdx`, data: versions[1]!.source });
 
-    s.setMode('compare');
+    s.show({ kind: 'compare', base: s.base.peek()!, head: s.head.peek()! });
     expect(s.shown.peek().kind).toBe('compare');
     s.destroy();
   });

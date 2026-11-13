@@ -11,7 +11,9 @@
 // copy follows the document.
 // Session events reach the host as `mmdx-history-*`. Loaded on first use: the viewer and the editor bundles never
 // contain the diff. One HistoryStage per open History; the kernel's `enterStage` / `leaveStage` push and pop the
-// comparison's scene and put the tool aside (A13d).
+// comparison's scene and put the tool aside (A13d). What is shown is the session's one `shown` model (decision
+// 2026-11-12: also the version the editor shows in its own scene), the version panel's tab is the module set's, and
+// what History needs of its host (its scene, its panel stacks, its panels under other ids) is the host's HistoryHost.
 import { sessionHost } from './session-host.js';
 import type { ItemKind } from '../core/types.js';
 import type { Rendered } from '../core/pipeline-core.js';
@@ -19,33 +21,26 @@ import { transitionFrom, type MorphState } from '../dom/morph.js';
 import { reducedMotion } from '../dom/motion.js';
 import { registerMessages } from '../i18n.js';
 import { Owner } from '../reactive/owner.js';
-import { computed, effect, signal, untracked, type ReadSignal } from '../reactive/signal.js';
+import { computed, effect, untracked, type ReadSignal, type Signal } from '../reactive/signal.js';
 import { PILL_CSS } from '../ui/blocks/pill.js';
 import type { MenuEntry } from '../ui/blocks/menu.js';
 import type { ViewCore } from '../view/core.js';
 import type { HistoryHost, HistorySession } from '../view/history.js';
 import type { ViewModule } from '../view/module.js';
-import { panelStacksModule } from '../view/modules/panels.js';
-import { diffLayersModule } from '../view/modules/side-panels.js';
+import * as sidePanels from '../view/modules/side-panels.js';
 import { historyPillModule } from './history-pill.js';
 import { DIFF_MESSAGES } from './messages.js';
-import { diffBarModule } from './modules/bar.js';
-import { diffExportModule } from './modules/export.js';
-import { changeListModule, codeDiffModule, versionsModule, type VersionControls } from './modules/panels.js';
-import { diffStageModule } from './modules/stage.js';
+import { diffModuleSet } from './modules/index.js';
+import * as panels from './modules/panels.js';
+import type { VersionControls } from './modules/panels.js';
 import { DiffScene, sceneHost } from './scene.js';
 import { DiffSession, type DiffMode } from './session.js';
+import type { Shown } from './shown.js';
 import { DIFF_CSS, DIFF_TOKENS } from './styles.js';
 import { WORKING_COPY, withWorkingCopy } from './working-copy.js';
 
 export { HISTORY_PILL_CSS, I_SWAP } from './history-pill.js';
 export { WORKING_COPY, type HistorySource, type WorkingCopyAdapter } from './working-copy.js';
-
-/**
- * The comparison's layers card: its own module id, so a host whose `view-settings` is a document-stage module (the
- * viewer) does not shadow it — the host's set drops an added module whose id it has (B43).
- */
-const HISTORY_LAYERS = { ...diffLayersModule, id: 'history-view-settings' };
 
 const EN: Record<string, string> = {
   'history.working': 'Working copy (not saved as a version)',
@@ -64,16 +59,13 @@ const EN: Record<string, string> = {
 };
 
 /** Session events reach the host under their History names. */
-const EVENTS = new Set(['mmdx-compare', 'mmdx-version', 'mmdx-select', 'mmdx-view', 'mmdx-mode', 'mmdx-filters', 'mmdx-export', 'mmdx-error']);
+const EVENTS = new Set(['mmdx-compare', 'mmdx-version', 'mmdx-select', 'mmdx-view', 'mmdx-filters', 'mmdx-export', 'mmdx-error']);
 
 export interface HistoryController {
   close(): void;
   /** Compares the newest change (the studio's Diff): the working copy or the newest version with the one before. */
   compareNewest(): void;
 }
-
-/** What History shows: nothing picked (the document), a version as it is, or a comparison. */
-type Picked = 'none' | 'version' | 'compare';
 
 /** Opens History on a host (the viewer or the editor): the version panel, nothing picked unless `compare`. */
 export function openHistory(core: ViewCore, o: { onClose(): void; compare?: boolean }): HistoryController {
@@ -88,16 +80,15 @@ export function openHistory(core: ViewCore, o: { onClose(): void; compare?: bool
  */
 class HistoryStage {
   private readonly t: ViewCore['i18n']['t'];
-  /** The product's own version scene, Restore and clipboard (the editor); none: History's own scene shows a version. */
+  /** What the product offers History: its version scene, Restore and clipboard (the editor), its panel stacks. */
   private readonly host: HistoryHost | null;
+  /** The host shows a version in its own scene (the editor); otherwise History's DiffScene does. */
   private readonly ownScene: boolean;
+  /** What is shown (nothing picked: the document; a version as it is; a comparison): the session's one model. */
   private readonly session: DiffSession;
   private readonly scene: DiffScene;
-  // ---- what is shown, and what the panel marks
-  private readonly shown = signal<Picked>('none');
-  /** The version shown (or loading) on the History tab; null: the current one (the document, editable). */
-  private readonly viewing = signal<string | null>(null);
-  private readonly tab = signal<DiffMode>('history');
+  /** The version panel's tab (the module set's state). */
+  private tab: Signal<DiffMode> | null = null;
   private closed = false;
   /** Bumped by every pick: a version that loads after a newer pick is not shown. */
   private seq = 0;
@@ -114,23 +105,30 @@ class HistoryStage {
     registerMessages(EN);
     this.t = core.i18n.t;
     this.host = core.historyHost;
-    this.ownScene = !!this.host;
+    this.ownScene = !!this.host?.showVersion;
     this.session = new DiffSession({
       ...sessionHost(core),
       pick: false,
+      drawVersions: !this.ownScene,
       emit: (type, detail, cancelable) => (EVENTS.has(type) ? core.emit(type.replace(/^mmdx-/, 'mmdx-history-'), detail, cancelable) : true),
       name: () => core.run('documentName') ?? 'diagram',
-      showVersions: () => void core.run('setPanel', 'history', true),
     });
-    this.session.versionsShown.set(true);
-    const t = this.t;
-    const sceneLabel = computed(() => (this.shown() === 'version' ? t('diff.labelVersion', { id: this.label(this.viewing()) }) : t('history.label')));
+    const t = this.t, shown = this.session.shown;
+    const sceneLabel = computed(() => {
+      const s = shown();
+      return s.kind === 'version' ? t('diff.labelVersion', { id: this.label(s.id) }) : t('history.label');
+    });
     // the Back pill names the viewed version: no title of it over the picture
     this.scene = new DiffScene(sceneHost(core), this.session, { reducedMotion, label: sceneLabel, canvas: () => ({ panOnDrag: true }), versionTitle: false, hostLook: this.ownScene });
   }
 
   private label(id: string | null): string {
     return id === WORKING_COPY ? this.t('history.workingShort') : id ?? '';
+  }
+
+  /** What is shown now: nothing picked, a version, or a comparison. */
+  private kind(): Shown['kind'] {
+    return this.session.shown.peek().kind;
   }
 
   // ---- open and close ---------------------------------------------------------------------------------------------
@@ -140,10 +138,9 @@ class HistoryStage {
     const core = this.core, history = core.history.peek();
     if (!history) throw new Error('No history');
     core.addCss([DIFF_TOKENS, DIFF_CSS, PILL_CSS]);
-    if (compare) this.tab.set('compare');
     core.setHistoryState(true, null);
     core.setPanels({ history: true });
-    this.removeModules = core.addModules(this.modules());
+    this.removeModules = core.addModules(this.modules(compare ? 'compare' : 'history'));
     this.loaded = this.session.load({ history: withWorkingCopy(history, () => core.run('documentSource') ?? '', this.t('history.working')) });
     if (compare) this.compareNewest();
     for (const off of [
@@ -153,7 +150,7 @@ class HistoryStage {
       // History button brings the panel back, Back / Esc leave)
       effect(() => {
         const on = !!core.panels()['history'];
-        if (!on) untracked(() => queueMicrotask(() => this.shown.peek() === 'none' && this.close()));
+        if (!on) untracked(() => queueMicrotask(() => this.kind() === 'none' && this.close()));
       }),
       // the history went away
       effect(() => {
@@ -161,7 +158,7 @@ class HistoryStage {
       }),
       // the host is told what History shows (the studio's mode switch follows a comparison)
       effect(() => {
-        const what = this.shown();
+        const what = this.session.shown().kind;
         untracked(() => core.emit('mmdx-history-show', { shown: what }));
       }),
     ]) this.owner.add(off);
@@ -235,8 +232,9 @@ class HistoryStage {
     // the comparison's first picture morphs from the one shown, from the same place on screen
     this.scene.continueFrom(this.snapshot());
     this.inDiff = true;
+    // History's panels the host has under its own ids open as the host's are (the editor's Layers: view settings)
     const p = core.panels.peek();
-    if ('layers' in p) core.setPanels({ 'view-settings': !!p['layers'] });
+    for (const [mine, its] of this.panelPairs()) if (its in p) core.setPanels({ [mine]: !!p[its] });
     const tool = core.tool.peek();
     this.keepingFocus(() => core.canvas.preservePlacement(() => core.enterStage('history', { scene: this.scene, tool: tool === 'hand' || tool === 'pen' ? tool : 'hand' })));
   }
@@ -249,16 +247,21 @@ class HistoryStage {
     this.keepingFocus(() => core.canvas.preservePlacement(() => {
       core.leaveStage();
       const p = core.panels.peek();
-      if ('view-settings' in p && 'layers' in p) core.setPanels({ layers: !!p['view-settings'] });
+      for (const [mine, its] of this.panelPairs()) if (mine in p && its in p) core.setPanels({ [its]: !!p[mine] });
     }));
+  }
+
+  /** `[History's panel, the host's]` for each panel the host has under another id (HistoryHost.panels). */
+  private panelPairs(): [string, string][] {
+    return Object.entries(this.host?.panels ?? {});
   }
 
   /** The document back on the canvas (animated): out of a comparison, a version of the host's scene put away. */
   private backToDocument(): void {
-    const version = this.ownScene && this.shown.peek() === 'version';
+    const version = this.ownScene && this.kind() === 'version';
     this.animated(() => {
       this.leaveDiff();
-      if (version) this.host?.showVersion(null);
+      if (version) this.host?.showVersion?.(null);
     });
     this.core.setStage('document');
   }
@@ -275,10 +278,9 @@ class HistoryStage {
   /** Nothing picked: the document as it is (editable in the editor). */
   showDocument(): void {
     this.seq++;
-    if (this.shown.peek() === 'none') return;
+    if (this.kind() === 'none') return;
     this.backToDocument();
-    this.viewing.set(null);
-    this.shown.set('none');
+    this.session.show({ kind: 'none' });
     // nothing shown and the panel closed: History is left
     if (!this.core.panels.peek()['history']) this.close();
   }
@@ -293,11 +295,11 @@ class HistoryStage {
     if (id === WORKING_COPY || id === this.current()) return this.showDocument();
     const core = this.core;
     const ticket = ++this.seq;
-    this.viewing.set(id);
     if (!this.ownScene) {
+      // History's scene draws it (the session renders the version)
       this.enterDiff();
-      this.session.viewVersion(id);
-      this.shown.set('version');
+      this.session.show({ kind: 'version', id });
+      core.emit('mmdx-history-version', { base: null, head: null, viewing: id });
       return;
     }
     let source: string;
@@ -305,7 +307,6 @@ class HistoryStage {
       source = await this.session.sourceOf(id);
     } catch (e) {
       if (ticket !== this.seq || this.closed) return;
-      this.viewing.set(this.shown.peek() === 'version' ? this.viewing.peek() : null);
       this.failed(e);
       return;
     }
@@ -315,9 +316,10 @@ class HistoryStage {
       core.setStage('version');
       const tool = core.tool.peek();
       if (tool !== 'pointer' && tool !== 'hand' && tool !== 'pen') core.run('setTool', 'pointer');
-      this.host?.showVersion({ id, source });
+      this.host?.showVersion?.({ id, source });
     });
-    this.shown.set('version');
+    // the host's scene draws it; the session only says which version is shown
+    this.session.show({ kind: 'version', id });
     core.emit('mmdx-history-version', { base: null, head: null, viewing: id });
   }
 
@@ -325,12 +327,10 @@ class HistoryStage {
   compare(base: string | null | undefined, head: string | null | undefined): void {
     if (!base || !head || base === head || this.closed) return;
     this.seq++;
-    const version = this.ownScene && this.shown.peek() === 'version';
+    const version = this.ownScene && this.kind() === 'version';
     // the comparison morphs from the version on the canvas; the document is put back under it (not painted meanwhile)
     this.enterDiff();
-    if (version) this.host?.showVersion(null);
-    this.viewing.set(null);
-    this.shown.set('compare');
+    if (version) this.host?.showVersion?.(null);
     this.session.setPair(base, head);
   }
 
@@ -364,15 +364,15 @@ class HistoryStage {
   compareNewest(): void {
     void this.loaded.then(() => {
       if (this.closed) return;
-      this.tab.set('compare');
+      this.tab?.set('compare');
       const top = this.ids()[0];
       if (top) void this.compareRow(top);
     });
   }
 
   private swap(): void {
-    const { base, head } = this.session.pair;
-    if (this.shown.peek() === 'compare') this.compare(head, base);
+    const s = this.session.shown.peek();
+    if (s.kind === 'compare') this.compare(s.head, s.base);
   }
 
   // ---- Restore (Edit mode) and Copy -------------------------------------------------------------------------------
@@ -436,32 +436,26 @@ class HistoryStage {
 
   // ---- modules and the session facade -----------------------------------------------------------------------------
 
-  private modules(): ViewModule<ViewCore>[] {
-    const core = this.core, s = this.session, shown = this.shown;
-    const inHistory = (m: ViewModule<ViewCore>): ViewModule<ViewCore> => ({ ...m, when: { ...m.when, stage: ['history'] } });
-    // a host with panel stacks of its own (the editor's) has no `panel-stacks` module to install after
-    const ownStacks = core.has('setPanel');
-    const inHostStacks = (m: ViewModule<ViewCore>): ViewModule<ViewCore> => (ownStacks && m.after ? { ...m, after: m.after.filter((a) => a !== 'panel-stacks') } : m);
+  /** The module set over this session (diffModuleSet, A13), with History's own: the Back pill and what view settings read. */
+  private modules(tab: DiffMode): ViewModule<ViewCore>[] {
+    const s = this.session;
     const controls: VersionControls = {
-      tab: this.tab,
-      base: computed(() => (shown() === 'compare' ? s.base() : null)),
-      head: computed(() => (shown() === 'compare' ? s.head() : null)),
-      // the History tab marks what shows: a version, else the current one (the document)
-      viewing: computed(() => (shown() === 'version' ? this.viewing() : shown() === 'none' ? s.versions()[0]?.id ?? null : null)),
-      row: (id) => void (this.tab.peek() === 'compare' ? this.compareRow(id) : this.showVersion(id)),
+      row: (id, on) => void (on === 'compare' ? this.compareRow(id) : this.showVersion(id)),
       pick: (side, id) => {
-        if (shown.peek() !== 'compare') return void this.compareRow(id);
-        this.compare(side === 'before' ? id : s.base.peek(), side === 'after' ? id : s.head.peek());
+        const now = s.shown.peek();
+        if (now.kind !== 'compare') return void this.compareRow(id);
+        this.compare(side === 'before' ? id : now.base, side === 'after' ? id : now.head);
       },
       swap: () => this.swap(),
-      comparePrevious: (id) => {
-        this.tab.set('compare');
-        void this.previousOf(id).then((prev) => this.compare(prev, id));
-      },
+      comparePrevious: (id) => void this.previousOf(id).then((prev) => this.compare(prev, id)),
     };
-    const comparing: ReadSignal<boolean> = computed(() => shown() === 'compare');
+    const comparing: ReadSignal<boolean> = computed(() => s.shown().kind === 'compare');
+    const viewing: ReadSignal<string | null> = computed(() => {
+      const now = s.shown();
+      return now.kind === 'version' ? now.id : null;
+    });
     const pill = historyPillModule({
-      t: this.t, label: (id) => this.label(id), comparing, viewing: this.viewing, base: s.base, head: s.head,
+      t: this.t, label: (id) => this.label(id), comparing, viewing, base: s.base, head: s.head,
       swap: () => this.swap(), showDocument: () => this.showDocument(), copySelected: () => void this.copySelected(),
     });
     // what view settings (layers, display) read over a comparison: its After version
@@ -474,22 +468,24 @@ class HistoryStage {
         scope.provide('documentCode', () => after()?.doc.code ?? null);
       },
     };
-    return ([
-      // the version panel, whatever History shows (in the host's own panel stacks)
-      versionsModule(s, { dockButton: false, rowActions: (id) => this.rowActions(id), controls }),
-      pill,
-      // the host's own panel stacks hold the comparison's panels too (same widths); one without them gets the kernel's
-      ...[...(ownStacks ? [] : [panelStacksModule]), diffBarModule(s), codeDiffModule(s), changeListModule(s), diffStageModule(this.scene), diffExportModule(s), documentModule, HISTORY_LAYERS].map(inHistory),
-    ] as ViewModule<ViewCore>[]).map(inHostStacks);
+    const set = diffModuleSet(this.scene, {
+      tab,
+      code: { panels, sidePanels },
+      history: { rowActions: (id) => this.rowActions(id), controls, ownStacks: !!this.host?.ownStacks, withPanel: [pill], inStage: [documentModule] },
+    });
+    this.tab = set.tab;
+    return set.modules;
   }
 
   /** `historySession`: the `<mmdx-diff>` methods over what History shows. */
   private api(): HistorySession {
-    const s = this.session, shown = this.shown, viewing = this.viewing;
+    const s = this.session, shown = s.shown;
     return {
       setPair: (base, head) => this.compare(base, head),
       viewVersion: (id) => {
-        this.tab.set('history');
+        this.tab?.set('history');
+        // History's own scene shows it with the version list (the editor's scene, as the list is)
+        if (!this.ownScene) void this.core.run('setPanel', 'history', true);
         void this.showVersion(id);
       },
       setView: (v) => s.setView(v),
@@ -498,11 +494,11 @@ class HistoryStage {
       next: () => s.next(),
       prev: () => s.prev(),
       get pair() {
-        const what = shown.peek();
-        return { base: what === 'compare' ? s.base.peek() : null, head: what === 'compare' ? s.head.peek() : null, viewing: what === 'version' ? viewing.peek() : null };
+        const now = shown.peek();
+        return { base: now.kind === 'compare' ? now.base : null, head: now.kind === 'compare' ? now.head : null, viewing: now.kind === 'version' ? now.id : null };
       },
-      getDiff: () => (shown.peek() === 'compare' ? s.getDiff() : null),
-      exportAs: (kind, opts) => (shown.peek() === 'none' ? Promise.resolve() : s.exportAs(kind, opts ?? {})), // as getDiff (B23)
+      getDiff: () => (shown.peek().kind === 'compare' ? s.getDiff() : null),
+      exportAs: (kind, opts) => (shown.peek().kind === 'none' ? Promise.resolve() : s.exportAs(kind, opts ?? {})), // as getDiff (B23)
       close: () => this.close(),
     };
   }

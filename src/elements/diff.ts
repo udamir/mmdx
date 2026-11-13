@@ -22,10 +22,10 @@ import { reducedMotion } from '../dom/motion.js';
 import type { WheelMode } from '../dom/viewport.js';
 import { registerMessages } from '../i18n.js';
 import { DIFF_MESSAGES } from '../diff/messages.js';
-import { computed, effect, signal, untracked } from '../reactive/signal.js';
+import { batch, computed, effect, signal, untracked, type Signal } from '../reactive/signal.js';
 import { DIFF_CSS, DIFF_HOST_CSS, DIFF_TOKENS } from '../diff/styles.js';
 import { ViewCore } from '../view/core.js';
-import { diffModules, type DiffAction } from '../diff/modules/index.js';
+import { diffModuleSet, type DiffAction } from '../diff/modules/index.js';
 import { DiffScene, sceneHost } from '../diff/scene.js';
 import { DIFF_FILTERS, DIFF_VIEWS, DiffSession, type DiffMode, type DiffSource } from '../diff/session.js';
 import { type DiffExportKind, type DiffExportOptions, type DiffFilter, type DiffPair, type DiffViewName } from '../view/history.js';
@@ -112,6 +112,11 @@ export class DiagramDiff {
   private readonly o: DiffOptions;
   private readonly actions = signal<readonly DiffAction[]>([]);
   private readonly label = signal<string | null>(null);
+  /** The version panel's tab (the module set's state). */
+  private readonly tab: Signal<DiffMode>;
+  /** The tab and History mode last announced (`mmdx-mode`); `quiet` while host options set them. */
+  private announced = '';
+  private quiet = false;
   private readonly owner = new Owner('diff');
   private destroyed = false;
 
@@ -138,15 +143,10 @@ export class DiagramDiff {
 
     const session = (this.session = new DiffSession({
       ...sessionHost(core),
-      emit: (type, detail, cancelable) => core.emit(type, detail, cancelable),
+      // the view's event names the panel's tab
+      emit: (type, detail, cancelable) => core.emit(type, type === 'mmdx-view' ? { ...(detail as object), mode: this.tab.peek() } : detail, cancelable),
       name: () => this.o.name ?? 'diagram',
-      showVersions: () => {
-        if (!core.feature('history')) return;
-        session.versionsShown.set(true);
-        core.run('setPanel', 'history', true);
-      },
       ...(o.view ? { view: o.view } : {}),
-      ...(o.mode ? { mode: o.mode } : {}),
       ...(o.filters ? { filters: o.filters } : {}),
       ...(o.dim !== undefined ? { dim: o.dim } : {}),
     }));
@@ -168,12 +168,18 @@ export class DiagramDiff {
     core.pushScene(this.scene);
 
     core.setPanels({ ...panelState(o.panels) });
-    core.useModules(diffModules(this.scene, { actions: this.actions }));
+    const set = diffModuleSet(this.scene, { actions: this.actions, ...(o.mode ? { tab: o.mode } : {}) });
+    this.tab = set.tab;
+    core.useModules(set.modules);
     this.owner.add(effect(() => core.root.setAttribute('aria-label', label())));
-    // History mode needs the version panel
+    // History mode: the History tab of the version panel, with the panel shown, shows one version as it is
     this.owner.add(effect(() => {
-      const on = !!core.panels()['history'] && core.feature('history');
-      untracked(() => session.setVersionsShown(on));
+      const on = this.tab() === 'history' && !!core.panels()['history'] && core.feature('history');
+      untracked(() => {
+        if (on) session.show({ kind: 'version', id: null });
+        else if (session.shown.peek().kind === 'version') this.showPair();
+        this.announceMode();
+      });
     }));
     // a type that cannot be drawn: the code diff shows the changes
     this.owner.add(effect(() => {
@@ -196,7 +202,12 @@ export class DiagramDiff {
     const core = this.core, s = this.session;
     // options and attributes set the state without an event, as the filters do
     if ('view' in patch && patch.view) s.applyView(patch.view);
-    if ('mode' in patch && patch.mode) s.applyMode(patch.mode);
+    if ('mode' in patch && patch.mode) {
+      this.quiet = true;
+      this.tab.set(patch.mode);
+      this.quiet = false;
+      this.announceMode(true);
+    }
     if ('filters' in patch) s.applyFilters(patch.filters);
     if ('dim' in patch && patch.dim !== undefined) s.dim.set(patch.dim);
     if ('panels' in patch) core.setPanels({ ...panelState(patch.panels) });
@@ -214,7 +225,7 @@ export class DiagramDiff {
       return;
     }
     if (('base' in patch || 'head' in patch) && s.versions.peek().length) {
-      s.setPair(patch.base ?? s.base.peek(), patch.head ?? s.head.peek());
+      this.setPair(patch.base ?? s.base.peek() ?? '', patch.head ?? s.head.peek() ?? '');
       return;
     }
     s.scheduleRefresh();
@@ -233,14 +244,26 @@ export class DiagramDiff {
     return this.load();
   }
 
-  /** Compares two versions of the history by id. */
+  /** Compares two versions of the history by id; History mode gives way to the comparison (the Compare tab). */
   setPair(baseId: string, headId: string): void {
     this.session.setPair(baseId, headId);
+    if (this.session.shown.peek().kind !== 'compare') return;
+    this.tab.set('compare');
+    this.announceMode();
   }
 
-  /** Shows one version as it is (History mode). */
+  /** Shows one version as it is (History mode: the version panel's History tab, shown). */
   viewVersion(id: string): void {
-    this.session.viewVersion(id);
+    const s = this.session;
+    if (!s.versions.peek().some((v) => v.id === id)) return;
+    s.viewVersion(id);
+    // the tab and the panel together: History mode starts once, on the version just shown
+    if (this.core.feature('history'))
+      batch(() => {
+        this.tab.set('history');
+        this.core.run('setPanel', 'history', true);
+      });
+    this.announceMode();
   }
 
   setView(view: DiffViewName): void {
@@ -315,6 +338,24 @@ export class DiagramDiff {
     this.core.destroy();
   }
 
+  // ---- History mode -----------------------------------------------------------------------------------------------
+
+  /** Out of History mode: the compared pair again. */
+  private showPair(): void {
+    const s = this.session, base = s.base.peek(), head = s.head.peek();
+    s.show(base && head ? { kind: 'compare', base, head } : { kind: 'none' });
+  }
+
+  /** `mmdx-mode` when the tab or History mode changed since it was last announced (`quiet`: host options, no event). */
+  private announceMode(quiet = false): void {
+    const mode = this.tab.peek(), viewOnly = this.session.viewOnly.peek();
+    const now = `${mode}|${viewOnly}`;
+    if (now === this.announced) return;
+    const first = !this.announced;
+    this.announced = now;
+    if (!quiet && !this.quiet && !first) this.core.emit('mmdx-mode', { mode, viewOnly });
+  }
+
   // ---- loading ----------------------------------------------------------------------------------------------------
 
   private load(): Promise<void> {
@@ -322,7 +363,8 @@ export class DiagramDiff {
     const src: DiffSource = o.history
       ? { history: o.history, base: o.base, head: o.head }
       : { before: this.fetchSide(o.beforeSource, o.before), after: this.fetchSide(o.afterSource, o.after), base: o.base, head: o.head };
-    return this.session.load(src);
+    // a history coming or going turns History mode on or off silently: what is announced next is a change from here
+    return this.session.load(src).then(() => this.announceMode(true));
   }
 
   private async fetchSide(source: string | undefined, url: string | undefined): Promise<string | null> {
