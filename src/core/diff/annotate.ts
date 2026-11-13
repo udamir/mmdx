@@ -13,7 +13,7 @@ import type { GeometryIndex, RenderResult } from '../render/types.js';
 import type { ItemKind, Rect } from '../types.js';
 import type { ChangeFacet, ItemChange, ItemShape } from './types.js';
 import { beforeKey, changeKey } from './merge.js';
-import { diffKind } from '../kinds/registry.js';
+import { requireKind } from '../kinds/registry.js';
 import { MARK_ICONS } from './icons.js';
 
 /** A highlight colour family: the filter of a change. */
@@ -58,9 +58,13 @@ export const DIFF_COLORS: Record<'light' | 'dark', DiffColors> = {
 
 export type { ItemShape };
 
-/** Where an item is drawn, from the renderer's geometry index. */
+/**
+ * Where an item is drawn, from the renderer's geometry index (null: the item is not drawn, or the picture has no type).
+ * Fails closed like the rest of the diff (B40): throws KindNotLoaded (`kind.not-loaded`) when the type's diff kind is
+ * not loaded, instead of annotating nothing. A diff without its kind has no changes to annotate (diffDiagramsWith).
+ */
 export function shapeOf(geom: GeometryIndex, kind: ItemKind, id: string): ItemShape | null {
-  return geom.type ? diffKind(geom.type)?.shape(geom, { kind, id }) ?? null : null;
+  return geom.type ? requireKind(geom.type, 'diff').shape(geom, { kind, id }) ?? null : null;
 }
 
 export const centreOf = (s: ItemShape): { x: number; y: number } => (s.t === 'rect' ? { x: s.r.x + s.r.w / 2, y: s.r.y + s.r.h / 2 } : s.mid);
