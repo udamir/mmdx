@@ -28,11 +28,10 @@ describe('ComponentShell', () => {
     other.destroy();
   });
 
-  it('makes its dialogs on first use and emits nothing once destroyed', () => {
+  it('emits nothing once destroyed', () => {
     const host = document.createElement('div');
     document.body.append(host);
     const shell = new ComponentShell(host, { product: 'viewer', storage: memoryStorage(), schemeKey: 'ui' });
-    expect(shell.dialogs).toBe(shell.dialogs);
     const seen = vi.fn();
     host.addEventListener('mmdx-test', seen);
     expect(shell.emit('mmdx-test', { a: 1 })).toBe(true);

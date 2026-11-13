@@ -157,7 +157,9 @@ export class DiagramStudio {
     this.shadow.append(root);
     this.pops = shell.popovers;
     this.toaster = new Toaster(root);
-    this.dialogs = shell.dialogs;
+    // the studio's own confirm and choice dialogs (the shell carries none: a viewer or a diff never opens one, BUG-017)
+    this.dialogs = new Dialogs(shell.shadow, shell.i18n.t);
+    shell.owner.add(() => this.dialogs.destroy());
     this.versions = new StudioVersions(this.storage, () => this.syncHistory());
     this.gallery = new ExamplesGallery({
       dialogs: this.dialogs, examples: () => this.examples, history: (ex) => this.versions.fetchHistory(ex), alive: () => !this.destroyed,

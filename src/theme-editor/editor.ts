@@ -58,7 +58,7 @@ export class ThemeEditor {
   /** Resolves when the theme list is loaded and the first theme is open. */
   ready: Promise<void>;
   private o: ThemeEditorOptions;
-  /** The shadow root, i18n, context, storage, popovers, dialogs, scheme and events (A8: the kernel's component shell, without a scene kernel). */
+  /** The shadow root, i18n, context, storage, popovers, scheme and events (A8: the kernel's component shell, without a scene kernel). */
   private readonly shell: ComponentShell;
   private readonly storage: StorageAdapter;
   private readonly i18n: I18n;
@@ -131,7 +131,8 @@ export class ThemeEditor {
     this.dlg = h('div', { class: 'te-dialog', role: 'region', 'aria-labelledby': titleId, tabindex: '-1', part: 'panel' }, this.head, this.body, this.fileInput);
     this.frame = h('div', { class: 'te-overlay' });
     this.shadow.append(this.frame);
-    this.dialogs = shell.dialogs;
+    // its own confirm and choice dialogs (the shell carries none: a viewer or a diff never opens one, BUG-017)
+    this.dialogs = new Dialogs(shell.shadow, shell.i18n.t);
     this.pops = shell.popovers;
     this.toaster = new Toaster(this.shadow);
 
