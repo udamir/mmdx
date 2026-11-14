@@ -180,8 +180,8 @@ describe('VersionList', () => {
   });
 
   it('timeline: the pair is a range of dots, a dot moves the nearer end, the pair\'s own dot swaps them', () => {
-    const onPick = vi.fn(), onSwap = vi.fn();
-    const vl = createVersionList(props({ onPick, timeline: { onSwap } }));
+    const onPick = vi.fn(), onSwap = vi.fn(), onPair = vi.fn();
+    const vl = createVersionList(props({ onPick, timeline: { onSwap, onPair } }));
     document.body.append(vl.el);
     expect(vl.el.querySelector('.versions.timeline')).not.toBeNull();
     expect(vl.el.querySelector('.pick')).toBeNull();
@@ -196,30 +196,118 @@ describe('VersionList', () => {
     expect(rails[0]!.classList.contains('first') && rails[2]!.classList.contains('last')).toBe(true);
     nodes()[0]!.click();
     expect(onSwap).toHaveBeenCalledOnce();
-    // below the range: its bottom end (Before) moves
+    // a pair from elsewhere, below the range: its bottom end (Before) moves
     expect(nodes()[2]!.getAttribute('aria-label')).toBe('Use c1 as before');
     nodes()[2]!.click();
-    expect(onPick).toHaveBeenLastCalledWith('before', 'c1');
-    // inside the range: the nearer end (a tie: the top one), also when the pair is swapped
-    vl.update({ base: 'c1', head: 'c3' });
-    nodes()[1]!.click();
-    expect(onPick).toHaveBeenLastCalledWith('after', 'c2');
-    expect(nodes()[1]!.classList.contains('in')).toBe(true);
-    vl.update({ base: 'c3', head: 'c1' });
-    expect(nodes().map((n) => n.textContent)).toEqual(['B', '', 'A']);
-    nodes()[1]!.click();
+    expect(onPair).toHaveBeenLastCalledWith('c1', 'c3');
+    // inside the range of a pair from elsewhere: the nearer end (a tie: the top one), also when the pair is swapped
+    const fresh = (): ReturnType<typeof createVersionList> => {
+      vl.destroy();
+      const next = createVersionList(props({ onPick, timeline: { onSwap, onPair } }));
+      document.body.append(next.el);
+      return next;
+    };
+    let v2 = fresh();
+    const nodes2 = (): HTMLButtonElement[] => [...v2.el.querySelectorAll<HTMLButtonElement>('.vnode')];
+    v2.update({ base: 'c1', head: 'c3' });
+    nodes2()[1]!.click();
+    expect(onPair).toHaveBeenLastCalledWith('c1', 'c2');
+    expect(nodes2()[1]!.classList.contains('in')).toBe(true);
+    v2 = fresh();
+    v2.update({ base: 'c3', head: 'c1' });
+    expect(nodes2().map((n) => n.textContent)).toEqual(['B', '', 'A']);
+    nodes2()[1]!.click();
+    expect(onPair).toHaveBeenLastCalledWith('c2', 'c1');
+    // nothing compared yet: the first dot is a pick
+    v2 = fresh();
+    v2.update({ base: null, head: null });
+    nodes2()[1]!.click();
     expect(onPick).toHaveBeenLastCalledWith('before', 'c2');
+    v2.destroy();
+    const vl2 = createVersionList(props({ timeline: { onSwap, onPair } }));
+    document.body.append(vl2.el);
+    const n3 = (): HTMLButtonElement[] => [...vl2.el.querySelectorAll<HTMLButtonElement>('.vnode')];
     // more versions to load: the line runs on past the last row
-    vl.update({ hasMore: true });
-    expect(vl.el.querySelectorAll('.vrail')[2]!.classList.contains('last')).toBe(false);
+    vl2.update({ hasMore: true });
+    expect(vl2.el.querySelectorAll('.vrail')[2]!.classList.contains('last')).toBe(false);
     // up / down keep to the dots
-    nodes()[0]!.focus();
-    key(nodes()[0]!, 'ArrowDown');
-    expect(document.activeElement).toBe(nodes()[1]);
+    n3()[0]!.focus();
+    key(n3()[0]!, 'ArrowDown');
+    expect(document.activeElement).toBe(n3()[1]);
+  });
+
+  it('timeline: the pair is the last two dots clicked, the newer one After (Before while swapped)', () => {
+    const onPick = vi.fn(), onPair = vi.fn();
+    const more: VersionInfo[] = [...versions, { id: 'c0' }];
+    const vl = createVersionList(props({ versions: more, base: null, head: null, onPick, timeline: { onSwap: () => undefined, onPair } }));
+    document.body.append(vl.el);
+    const node = (id: string): HTMLButtonElement => vl.el.querySelector<HTMLButtonElement>(`[data-f="node:${id}"]`)!;
+    // the first dot: a pick (the host pairs it with the newest version)
+    node('c1').click();
+    expect(onPick).toHaveBeenLastCalledWith('before', 'c1');
+    vl.update({ base: 'c1', head: 'c3' });
+    // the second one is paired with the first, whichever end is nearer
+    node('c2').click();
+    expect(onPair).toHaveBeenLastCalledWith('c1', 'c2');
+    vl.update({ base: 'c1', head: 'c2' });
+    // the third with the second, the newer one After
+    node('c0').click();
+    expect(onPair).toHaveBeenLastCalledWith('c0', 'c2');
+    vl.update({ base: 'c0', head: 'c2' });
+    node('c3').click();
+    expect(onPair).toHaveBeenLastCalledWith('c0', 'c3');
+    vl.update({ base: 'c0', head: 'c3' });
+    expect(node('c1').getAttribute('aria-label')).toBe('Use c1 as before');
+    // swapped (After the older one): the newer one stays Before
+    vl.update({ base: 'c3', head: 'c0' });
+    node('c1').click();
+    expect(onPair).toHaveBeenLastCalledWith('c3', 'c1');
+  });
+
+  it('timeline: After or Before dragged to another row moves that end there; onto the other end it swaps them', () => {
+    const onSwap = vi.fn(), onPair = vi.fn();
+    const more: VersionInfo[] = [...versions, { id: 'c0' }];
+    const vl = createVersionList(props({ versions: more, base: 'c2', head: 'c3', timeline: { onSwap, onPair } }));
+    document.body.append(vl.el);
+    // jsdom lays nothing out: each row is 40 px high, one under the other
+    [...vl.el.querySelectorAll<HTMLElement>('.version')].forEach((r, i) => {
+      r.getBoundingClientRect = () => ({ top: i * 40, bottom: i * 40 + 40, left: 0, right: 200, width: 200, height: 40, x: 0, y: i * 40, toJSON: () => ({}) });
+    });
+    const node = (id: string): HTMLElement => vl.el.querySelector<HTMLElement>(`[data-f="node:${id}"]`)!;
+    const drag = (el: HTMLElement, y0: number, y1: number): void => {
+      el.dispatchEvent(new MouseEvent('pointerdown', { button: 0, clientY: y0, bubbles: true }));
+      el.dispatchEvent(new MouseEvent('pointermove', { clientY: (y0 + y1) / 2, bubbles: true }));
+      el.dispatchEvent(new MouseEvent('pointermove', { clientY: y1, bubbles: true }));
+      expect(el.classList.contains('dragging')).toBe(true);
+      el.dispatchEvent(new MouseEvent('pointerup', { clientY: y1, bubbles: true }));
+      el.click(); // the click a release fires: not a swap
+    };
+    // Before (c2, row 1) to c0 (row 3)
+    const b = node('c2');
+    b.dispatchEvent(new MouseEvent('pointerdown', { button: 0, clientY: 60, bubbles: true }));
+    b.dispatchEvent(new MouseEvent('pointermove', { clientY: 140, bubbles: true }));
+    expect(vl.el.querySelector('.version.drop')?.getAttribute('data-id')).toBe('c0');
+    b.dispatchEvent(new MouseEvent('pointerup', { clientY: 140, bubbles: true }));
+    expect(vl.el.querySelector('.version.drop')).toBeNull();
+    b.click();
+    expect(onPair).toHaveBeenLastCalledWith('c0', 'c3');
+    expect(onSwap).not.toHaveBeenCalled();
+    // After (c3, row 0) to c1 (row 2)
+    drag(node('c3'), 20, 100);
+    expect(onPair).toHaveBeenLastCalledWith('c2', 'c1');
+    // After onto Before: a swap
+    drag(node('c3'), 20, 60);
+    expect(onSwap).toHaveBeenCalledOnce();
+    // a press without a move is a click: a swap
+    node('c3').dispatchEvent(new MouseEvent('pointerdown', { button: 0, clientY: 20, bubbles: true }));
+    node('c3').dispatchEvent(new MouseEvent('pointerup', { clientY: 21, bubbles: true }));
+    node('c3').click();
+    expect(onSwap).toHaveBeenCalledTimes(2);
+    expect(onPair).toHaveBeenCalledTimes(2);
   });
 
   it('timeline: a tab switch animates the rows for a moment; a re-render carries on from the time since the switch', () => {
-    const vl = createVersionList(props({ mode: 'history', timeline: { onSwap: () => undefined } }));
+    const vl = createVersionList(props({ mode: 'history', timeline: { onSwap: () => undefined, onPair: () => undefined } }));
     const versionsEl = (): HTMLElement => vl.el.querySelector<HTMLElement>('.versions')!;
     expect(versionsEl().classList.contains('anim')).toBe(false);
     vl.update({ mode: 'compare' });

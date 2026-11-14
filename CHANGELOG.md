@@ -2,6 +2,12 @@
 
 All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project follows [semantic versioning](https://semver.org/); below 1.0, a minor version may change public API, listed under **Changed (breaking)**.
 
+## Unreleased
+
+### Fixed
+
+- Compare: two versions can be picked on the timeline (the last two clicked), and A and B can be dragged to another version.
+
 ## 0.4.0 — 2026-11-14
 
 Mindmaps, state diagrams, icons and images.

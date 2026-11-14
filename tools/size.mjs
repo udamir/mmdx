@@ -132,7 +132,8 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
   // 157.8 kB (157.4 kB measured) kind registries open to plugin types: KindInfo, kind modules, extras, theme sections, KindUi (A11c)
   // 159.6 kB (159.2 kB measured) the final size pass (BUG-017): re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits (the parsers and renderers over explicit records, the compound layout in steps, the graph kit's scene part the flowchart, state and ER renderers share) and the one layout cache (BUG-010)
   // 161 kB (160.6 measured): the 001 view/diff stream (BUG-013–016, BUG-023: the kernel lists and services, the shared attribute parsers and kernel options, History on the session's one shown model) after the size pass, re-set to measured + 0.4 kB; then ComponentShell without the dialogs (the studio and the theme editor make their own, BUG-017: −0.8 to −1.1 kB in every viewer and diff row), tightened to measured + 0.4 kB
-  report('viewer + History opened', v.size(loaded) + v.size(new Set(hist)), 160.1 * KB);
+  // 160.7 kB (160.3 measured): the Compare timeline's pair from the last two dots clicked and After / Before dragged to another row, measured + 0.4 kB
+  report('viewer + History opened', v.size(loaded) + v.size(new Set(hist)), 160.7 * KB);
 }
 // core includes the diff engine (diffs, merged model, annotations, reports, renderDiffToSvg)
 // editor: 180 kB once the editor loads diagram types on demand (T01.9: 178.2 kB without the code of the types not shown; every type's editor code is a chunk of its own, measured in the "editor (first <type>)" rows); 188.2 kB with the view kernel (187.7 kB after the kernel split, the blocks merge and the element lifecycle; 173.2 kB measured in phase 3; 184.3 kB summed per chunk once History loads the clipboard ops on demand, which splits them into chunks of their own: 177.9 kB as one stream, as before; 165 kB before the kernel), provisional like the viewer's
@@ -290,7 +291,8 @@ for (const [entry, budget] of [['core', 126.9], ['theme-editor', 176.3], ['edito
     // 250.3 kB (249.9 kB measured) the editor waits for a type's kinds before it parses (pending check)
     // 252.1 kB (251.7 kB measured) the final size pass (BUG-017): the order slider's walk and the types' OrderSims load on demand (−0.6 to −2.2 kB), then re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits, the BUG-008 popover host and the editor's shared helpers
     // 253.2 kB (252.8 measured): the 001 view/diff stream (BUG-013–016, BUG-023: the kernel lists and services, the shared attribute parsers and kernel options, History on the session's one shown model) after the size pass, re-set to measured + 0.4 kB
-    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 253.2 * KB);
+    // 253.9 kB (253.5 measured): the Compare timeline's pair from the last two dots clicked and After / Before dragged to another row, measured + 0.4 kB
+    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 253.9 * KB);
   }
 }
 
@@ -411,7 +413,8 @@ const rows = [
   // 167.7 kB (167.3 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
   // 169.5 kB (169.1 kB measured) the final size pass (BUG-017): re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits (the parsers and renderers over explicit records, the compound layout in steps, the graph kit's scene part the flowchart, state and ER renderers share) and the one layout cache (BUG-010)
   // 170.3 kB (169.9 measured): the 001 view/diff stream (BUG-013–016, BUG-023: the kernel lists and services, the shared attribute parsers and kernel options, History on the session's one shown model) after the size pass, re-set to measured + 0.4 kB; then ComponentShell without the dialogs (the studio and the theme editor make their own, BUG-017: −0.8 to −1.1 kB in every viewer and diff row), tightened to measured + 0.4 kB
-  ['viewer + History opened', ['src/viewer.ts', FLOW, 'src/view/modules/tool-dock.ts', ...HISTORY, FLOW_DIFF], 169.4],
+  // 170 kB (169.6 measured): the Compare timeline's pair from the last two dots clicked and After / Before dragged to another row, measured + 0.4 kB
+  ['viewer + History opened', ['src/viewer.ts', FLOW, 'src/view/modules/tool-dock.ts', ...HISTORY, FLOW_DIFF], 170],
   // the editor loads diagram types on demand (T01.9): 181 kB (178.8 kB measured; 194.6 kB before), the first document's type a chunk of its own; 191.6 kB with the shape catalogue (191.2 kB measured); 187.4 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 187 kB measured)
   // 188.4 kB with media in the scene (T03, 188 kB measured); 191.1 kB with the icon registry (T04, 190.7 kB measured)
   // 194.5 kB with the insert dock (T05, 194.1 kB measured: the dock's buttons, shortcuts and labels, the inline editor's emoji button, the media hooks of the toolbar and Properties; the pickers and the emoji data are lazy)
@@ -555,7 +558,8 @@ const rows = [
   // 236.5 kB (236.1 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
   // 235.4 kB (235.0 kB measured) the final size pass (BUG-017): tightened to measured + 0.4 kB (the order slider's walk and the types' OrderSims load on demand)
   // 236.2 kB (235.8 measured): the 001 view/diff stream (BUG-013–016, BUG-023: the kernel lists and services, the shared attribute parsers and kernel options, History on the session's one shown model) after the size pass, re-set to measured + 0.4 kB
-  ['editor + History opened', ['src/editor.ts', ...HISTORY], 236.2],
+  // 237.1 kB (236.7 measured): the Compare timeline's pair from the last two dots clicked and After / Before dragged to another row, measured + 0.4 kB
+  ['editor + History opened', ['src/editor.ts', ...HISTORY], 237.1],
   // 125.2 kB while the entry re-exported the all-kinds diff
   // 92.5 kB once the per-type diffs left the entry for the diff kinds (90.9 kB measured); 94.6 kB before; 91.5 kB with the shapes on demand (T02.9, 91.1 kB measured)
   // 92.5 kB with media in the scene (T03, 92.1 kB measured); 95.1 kB with the icon registry (T04, 94.7 kB measured)
@@ -587,7 +591,8 @@ const rows = [
   // 151.2 kB (150.8 kB measured) kind registries open to plugin types: KindInfo, kind modules, extras, theme sections, KindUi (A11c)
   // 153.1 kB (152.7 kB measured) the final size pass (BUG-017): re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits (the parsers and renderers over explicit records, the compound layout in steps, the graph kit's scene part the flowchart, state and ER renderers share) and the one layout cache (BUG-010)
   // 154.2 kB (153.8 measured): the 001 view/diff stream (BUG-013–016, BUG-023: the kernel lists and services, the shared attribute parsers and kernel options, History on the session's one shown model) after the size pass, re-set to measured + 0.4 kB; then ComponentShell without the dialogs (the studio and the theme editor make their own, BUG-017: −0.8 to −1.1 kB in every viewer and diff row), tightened to measured + 0.4 kB
-  ['diff (first flowchart)', ['src/diff.ts', FLOW, FLOW_DIFF, 'src/diff/modules/panels.ts'], 153.3],
+  // 153.9 kB (153.5 measured): the Compare timeline's pair from the last two dots clicked and After / Before dragged to another row, measured + 0.4 kB
+  ['diff (first flowchart)', ['src/diff.ts', FLOW, FLOW_DIFF, 'src/diff/modules/panels.ts'], 153.9],
   // 65.8 kB with the kind descriptor: the same code in more, smaller chunks (one per kind and layer), each compressed on its own (54.6 kB as one esbuild stream); 63 kB before; 76.8 kB with the shape catalogue (76.4 kB measured); 77 kB with the shapes beyond the 17 in chunks of their own (T02.9, 76.6 kB measured: the name table and the geometry apart)
   // 78.5 kB with media in the scene (T03, 78.1 kB measured: the image policy check, `safeImageUrl` / `checkImageUrl`, is exported)
   // 84.1 kB with the icon registry (T04, 83.7 kB measured: the registry, `createIconRegistry` with its decoder for synchronous lookups on the server, `iconNamesOf`)

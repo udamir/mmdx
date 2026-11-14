@@ -46,10 +46,13 @@ export interface VersionListProps {
   menu?: { entries: (id: string, index: number) => readonly MenuEntry[]; popovers: PopoverManager; within?: () => Element | undefined; modes?: readonly ('compare' | 'history')[] };
   /**
    * Compare mode as a timeline instead of the Before / After picks: a line down the rows with a dot per version, After
-   * and Before as filled dots with their initials (A green, B red) and the line between them drawn as the range. A dot
-   * moves the nearer end of the range to its version (`onPick`); After's or Before's own dot swaps them (`onSwap`).
+   * and Before as filled dots with their initials (A green, B red) and the line between them drawn as the range. The pair
+   * is the last two dots clicked, the newer one After unless the pair is swapped (`onPair`; the first click, with nothing
+   * compared, is `onPick`);
+   * a pair that came from elsewhere moves its nearer end. After's or Before's own dot swaps them (`onSwap`), or is
+   * dragged to another row: that end moves there (`onPair`), onto the other end it swaps them.
    */
-  timeline?: { onSwap: () => void };
+  timeline?: { onSwap: () => void; onPair: (base: string, head: string) => void };
   t: Translate;
   part?: string;
 }
@@ -98,6 +101,9 @@ export const VERSION_LIST_CSS = /* css */ `
 .mmdx-version-list .vnode.after { background: var(--mmdx-diff-add); }
 .mmdx-version-list .vnode .ini { display: block; text-box: trim-both cap alphabetic; }
 .mmdx-version-list .vnode:focus-visible { outline: 2px solid var(--mmdx-accent); outline-offset: 2px; }
+.mmdx-version-list .vnode.on { cursor: grab; touch-action: none; }
+.mmdx-version-list .vnode.on.dragging { cursor: grabbing; z-index: 2; transform: translate(-50%, calc(-50% + var(--dy, 0px))); }
+.mmdx-version-list .version.drop { box-shadow: inset 0 0 0 2px var(--mmdx-accent); }
 .mmdx-version-list .version.tl .version-main { padding-left: 2px; }
 /* switching tabs: the rail grows in from the left, its dots pop in row by row, the range draws down; back to History,
    the rows slide back. --vt: the time since the switch, so a re-render mid-way carries on instead of restarting. */
@@ -134,6 +140,12 @@ export function createVersionList(props: VersionListProps): VersionListHandle {
     const shownCounts = new Map<string, Counts>();
     let switchedAt = -Infinity;
     const ANIM_MS = 700;
+    /** The dot clicked last while it is an end of the pair: the next click keeps it and moves the other end. */
+    let anchor: string | null = null;
+    /** Set by a drag's release: the click that follows it is not a swap. */
+    let dragged = false;
+    // drags of After's or Before's dot: the row under the pointer, the end to move there
+    const DRAG_PX = 4;
 
     // up / down: the same control (row, Before, After) in the next row, else the row itself
     const keys = rovingKeys(el, {
@@ -156,6 +168,57 @@ export function createVersionList(props: VersionListProps): VersionListHandle {
             c.removed ? h('span', { class: 'del' }, `−${c.removed}`) : null,
             c.changed ? h('span', { class: 'chg' }, `~${c.changed}`) : null,
             n ? null : h('span', null, t('diff.history.noChanges')));
+    };
+
+    /** After's or Before's dot follows the pointer down the rows; released over another row, that end moves there. */
+    const drag = (fx: Scope, node: HTMLElement, side: 'before' | 'after', own: string, other: string | null): void => {
+      fx.on(node, 'pointerdown', (e) => {
+        if (e.button !== 0) return;
+        const y0 = e.clientY;
+        let moving = false;
+        let over: HTMLElement | null = null;
+        const rowAt = (y: number): HTMLElement | null =>
+          [...el.querySelectorAll<HTMLElement>('.version')].find((r) => { const b = r.getBoundingClientRect(); return y >= b.top && y < b.bottom; }) ?? null;
+        const mark = (r: HTMLElement | null): void => {
+          if (r === over) return;
+          over?.classList.remove('drop');
+          over = r && r.dataset['id'] !== own ? r : null;
+          over?.classList.add('drop');
+        };
+        const move = (ev: PointerEvent): void => {
+          if (!moving && Math.abs(ev.clientY - y0) < DRAG_PX) return;
+          if (!moving) {
+            moving = true;
+            node.classList.add('dragging');
+          }
+          node.style.setProperty('--dy', `${ev.clientY - y0}px`);
+          mark(rowAt(ev.clientY));
+        };
+        const end = (ev: PointerEvent): void => {
+          node.removeEventListener('pointermove', move);
+          node.removeEventListener('pointerup', end);
+          node.removeEventListener('pointercancel', end);
+          if (node.hasPointerCapture?.(ev.pointerId)) node.releasePointerCapture(ev.pointerId);
+          node.classList.remove('dragging');
+          node.style.removeProperty('--dy');
+          const target = over?.dataset['id'] ?? null;
+          mark(null);
+          if (!moving) return;
+          // the click that follows the release is not a swap
+          dragged = true;
+          setTimeout(() => (dragged = false));
+          if (ev.type === 'pointercancel' || !target) return;
+          anchor = target;
+          if (target === other) return p.timeline!.onSwap();
+          if (!other) return p.onPick(side, target);
+          if (side === 'after') p.timeline!.onPair(other, target);
+          else p.timeline!.onPair(target, other);
+        };
+        node.setPointerCapture?.(e.pointerId);
+        node.addEventListener('pointermove', move);
+        node.addEventListener('pointerup', end);
+        node.addEventListener('pointercancel', end);
+      });
     };
 
     const render = (): void => {
@@ -183,14 +246,27 @@ export function createVersionList(props: VersionListProps): VersionListHandle {
         // the end that a dot moves: the nearer one (above the range: the top one, below: the bottom one)
         const topSide: 'before' | 'after' = bi === top ? 'before' : 'after';
         const bottomSide: 'before' | 'after' = topSide === 'before' ? 'after' : 'before';
-        const side: 'before' | 'after' = !ranged ? (bi < 0 ? 'before' : 'after') : i < top ? topSide : i > bottom ? bottomSide : i - top <= bottom - i ? topSide : bottomSide;
+        const nearer: 'before' | 'after' = !ranged ? (bi < 0 ? 'before' : 'after') : i < top ? topSide : i > bottom ? bottomSide : i - top <= bottom - i ? topSide : bottomSide;
+        // the end that stays: the dot clicked before (still an end of the pair), else the one the nearer end leaves
+        const keep = !ranged ? null : anchor && anchor !== v.id && (anchor === base || anchor === head) ? anchor : nearer === 'before' ? head! : base!;
+        const ki = keep ? p.versions.findIndex((x) => x.id === keep) : -1;
+        // the newer one After, or Before while the pair is swapped (After the older one)
+        const side: 'before' | 'after' = keep ? ((i < ki) === (hi <= bi) ? 'after' : 'before') : nearer;
         const label = on ? t(isBefore ? 'diff.history.swapBefore' : 'diff.history.swapAfter', { id: v.id })
           : t(side === 'before' ? 'diff.history.useAsBefore' : 'diff.history.useAsAfter', { id: v.id });
         const node = h('button', {
           type: 'button', class: `vnode${on ? ` on ${isBefore ? 'before' : 'after'}` : inRange ? ' in' : ''}`, 'data-f': `node:${v.id}`, 'data-col': 'node',
           title: label, 'aria-label': label, ...(on ? { 'aria-pressed': 'true' } : {}),
         }, on ? h('span', { class: 'ini', 'aria-hidden': 'true' }, t(isBefore ? 'diff.history.beforeShort' : 'diff.history.afterShort')) : null);
-        fx.on(node, 'click', () => (on ? tl!.onSwap() : p.onPick(side, v.id)));
+        fx.on(node, 'click', () => {
+          if (dragged) return void (dragged = false);
+          if (on) return tl!.onSwap();
+          anchor = v.id;
+          if (!keep) return p.onPick(side, v.id);
+          if (side === 'after') tl!.onPair(keep, v.id);
+          else tl!.onPair(v.id, keep);
+        });
+        if (on) drag(fx, node, isBefore ? 'before' : 'after', v.id, isBefore ? head : base);
         const last = i === p.versions.length - 1 && !p.hasMore;
         return h('span', { class: `vrail${i === 0 ? ' first' : ''}${last ? ' last' : ''}`, style: `--i: ${Math.min(i, 12)}` },
           inRange && top !== bottom ? h('span', { class: `vrange${i === top ? ' top' : ''}${i === bottom ? ' bottom' : ''}` }) : null,
