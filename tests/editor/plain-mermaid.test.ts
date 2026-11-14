@@ -5,8 +5,8 @@ import { DiagramEditor } from '../../src/editor/editor.js';
 import { documentModule, parseMermaidSvg } from '../../src/editor/modules/chrome/document.js';
 
 // stock Mermaid is not loaded in the tests: its render returns a small SVG saying which scheme it was asked for
-vi.mock('../../src/config.js', async (orig) => ({
-  ...(await orig<typeof import('../../src/config.js')>()),
+vi.mock('../../src/platform/mermaid.js', async (orig) => ({
+  ...(await orig<typeof import('../../src/platform/mermaid.js')>()),
   renderWithMermaid: vi.fn(async (_code: string, dark: boolean) => `<svg xmlns="http://www.w3.org/2000/svg" data-dark="${dark}"><rect width="5" height="5"/></svg>`),
 }));
 
@@ -57,5 +57,22 @@ describe('Plain Mermaid: the dialog', () => {
     close.click();
     expect(host.shadowRoot!.querySelector('.mmdx-dialog')).toBeNull();
     ed.destroy();
+  });
+
+  test('says which mmdx-only content stock Mermaid does not get (T10.6)', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const src = 'mindmap\n  root\n    a[fa:fa-car Car]\n    b[Photo]\n%%@ node b {"img":"https://example.com/p.png"}\n';
+    const ed = new DiagramEditor(host, { value: src, modules: [documentModule], storage: memoryStorage() });
+    await ed.core.run('plainMermaid');
+    const card = host.shadowRoot!.querySelector<HTMLElement>('.mmdx-dialog.mm-card')!;
+    expect(card.querySelector('.mm-only')!.textContent).toBe('1 image is mmdx-only and is not in the portable file');
+    ed.destroy();
+    const plain = document.createElement('div');
+    document.body.append(plain);
+    const ed2 = new DiagramEditor(plain, { value: 'mindmap\n  root\n    a[fa:fa-car Car]\n', modules: [documentModule], storage: memoryStorage() });
+    await ed2.core.run('plainMermaid');
+    expect(plain.shadowRoot!.querySelector('.mm-only')).toBeNull();
+    ed2.destroy();
   });
 });

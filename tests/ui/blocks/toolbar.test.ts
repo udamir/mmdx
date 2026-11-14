@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
+import { nextIdle } from '../../../src/dom/idle.js';
 import { createIconButton } from '../../../src/ui/blocks/button.js';
 import { createSchemeToggle } from '../../../src/ui/blocks/scheme-toggle.js';
 import { createToolbar } from '../../../src/ui/blocks/toolbar.js';
-import { createI18n } from '../../../src/ui/i18n.js';
-import { signal } from '../../../src/ui/signal.js';
+import { createI18n } from '../../../src/i18n.js';
+import { signal } from '../../../src/reactive/signal.js';
 
 const key = (el: Element, k: string): KeyboardEvent => {
   const ev = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true });
@@ -53,7 +54,9 @@ describe('Toolbar', () => {
     expect(items.map((x) => x.tabIndex)).toEqual([0, -1, -1]);
     (document.activeElement as HTMLElement).blur();
     items[0]!.hidden = true;
+    // the stop follows when the page is idle (checking visibility forces a layout), once for any number of mutations
     await tick();
+    await nextIdle();
     expect(items.map((x) => x.tabIndex)).toEqual([-1, 0, -1]);
   });
 

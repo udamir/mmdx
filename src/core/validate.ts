@@ -3,15 +3,20 @@
 // can reach the scene. Anything that is not a well-formed value is dropped (callers report a diagnostic).
 // The SVG serializer escapes attribute values as a second line of defence.
 
-const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+/** A hex colour: 3, 4, 6 or 8 digits (the alpha digits included). The one colour grammar (X6): theme/colors.ts reads it too. */
+export const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const NUM = String.raw`[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?`;
 const PCT = String.raw`${NUM}%?`;
 const FUNC = new RegExp(
   String.raw`^(?:rgba?|hsla?)\(\s*${PCT}(?:\s*[,\s]\s*${PCT}){2}(?:\s*[,/]\s*${PCT})?\s*\)$`,
   'i',
 );
+/** The relative adjustment of a palette reference: `~±h,±s,±l` (or `~=h,±s,±l`, an absolute hue). */
+const REL_ADJUST = String.raw`~(=?[+-]?[\d.]+),([+-]?[\d.]+),([+-]?[\d.]+)`;
+/** A palette reference with a relative adjustment, `@name~±h,±s,±l` / `@name~=h,±s,±l`: the name and the three parts. */
+export const COLOR_REL = new RegExp(String.raw`^@([\w-]+)${REL_ADJUST}$`);
 /** Palette reference: `@name` or `@name~±h,±s,±l` / `@name~=h,±s,±l`. */
-export const COLOR_REF = /^@[\w-]+(?:~=?[+-]?[\d.]+,[+-]?[\d.]+,[+-]?[\d.]+)?$/;
+export const COLOR_REF = new RegExp(String.raw`^@[\w-]+(?:${REL_ADJUST})?$`);
 
 /** CSS named colours (level 4). Kept complete so stock Mermaid diagrams keep their colours. */
 const NAMED = new Set(
@@ -32,14 +37,12 @@ const NAMED = new Set(
   ).split(' '),
 );
 
-export const isNamedColor = (v: string): boolean => NAMED.has(v.toLowerCase());
-
 /** A concrete CSS colour the serializer may emit: hex, rgb()/hsl() with numbers only, a named colour, `none`, `transparent`, `currentColor`. */
 export function isColorLiteral(v: unknown): v is string {
   if (typeof v !== 'string') return false;
   const s = v.trim();
   if (!s || s.length > 64) return false;
-  if (HEX.test(s) || FUNC.test(s)) return true;
+  if (HEX_COLOR.test(s) || FUNC.test(s)) return true;
   const l = s.toLowerCase();
   return l === 'none' || l === 'transparent' || l === 'currentcolor' || NAMED.has(l);
 }
@@ -49,18 +52,17 @@ export function isColorValue(v: unknown): v is string {
   return isColorLiteral(v) || (typeof v === 'string' && COLOR_REF.test(v.trim()));
 }
 
-export function cleanColor(v: unknown): string | undefined {
-  return isColorValue(v) ? v.trim() : undefined;
-}
-
 export function isFiniteNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v);
 }
 
 /** Number or numeric string → number, else undefined. */
+// compiled once: toNumber runs per style key per render (P22)
+const NUMBER_RE = new RegExp(`^${NUM}(?:px)?$`, 'i');
+
 export function toNumber(v: unknown): number | undefined {
   if (isFiniteNumber(v)) return v;
-  if (typeof v === 'string' && v.trim() !== '' && new RegExp(`^${NUM}(?:px)?$`, 'i').test(v.trim())) {
+  if (typeof v === 'string' && v.trim() !== '' && NUMBER_RE.test(v.trim())) {
     const n = parseFloat(v);
     return Number.isFinite(n) ? n : undefined;
   }
@@ -105,6 +107,27 @@ export interface LinkPolicy {
 
 export const DEFAULT_LINK_POLICY: LinkPolicy = { protocols: ['https:', 'http:', 'mailto:'], target: '_blank' };
 
+/** What a URL from diagram content is for. */
+export type ContentUrlKind = 'image' | 'link';
+
+/**
+ * The host's resolver of content URLs (`configure({ resolveUrl })`): the URL to use for one written in a diagram — a
+ * relative path made absolute, an attachment's name made its download URL — or null / undefined to use it as written.
+ * The result goes through the image or link policy like a written URL; the diagram's code keeps what was written.
+ */
+export type UrlResolver = (url: string, kind: ContentUrlKind) => string | null | undefined;
+
+/** A content URL through the host's resolver: as written without one, when it declines, or when it throws. */
+export function resolveContentUrl(raw: unknown, kind: ContentUrlKind, resolve: UrlResolver | undefined): unknown {
+  if (!resolve || typeof raw !== 'string' || !raw.trim()) return raw;
+  try {
+    const r = resolve(raw.trim(), kind);
+    return typeof r === 'string' ? r : raw;
+  } catch {
+    return raw;
+  }
+}
+
 declare const SAFE_URL: unique symbol;
 /** A URL that passed `safeUrl()` — the only kind the scene accepts for `href`. */
 export type SafeUrl = string & { readonly [SAFE_URL]: true };
@@ -128,3 +151,40 @@ export function safeUrl(raw: unknown, policy: LinkPolicy = DEFAULT_LINK_POLICY):
   const proto = scheme[1]!.toLowerCase() + ':';
   return policy.protocols.includes(proto) ? (s as SafeUrl) : null;
 }
+
+// ---- images -----------------------------------------------------------------------------------------------------
+
+/** MIME types of the `data:` images the content policy can accept. */
+export type ImageDataType = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' | 'image/svg+xml' | 'image/avif';
+
+/**
+ * Which image URLs diagram content may use (T03; checked by `checkImageUrl`, core/media/policy.ts). Content references
+ * images by URL only (no embedding): `https:` by default, `http:` and `data:` are off until the host enables them.
+ * Icons are not content: mmdx builds their `data:` URIs itself (`svgImageUrl`, core/media/svg-url.ts), so this policy
+ * never sees them.
+ */
+export interface ImagePolicy {
+  /** Allowed protocols, lower case with the colon. Default `['https:']`; `[]` turns content images off. */
+  protocols: readonly ('https:' | 'http:' | 'data:')[];
+  /** With `data:` enabled: the accepted MIME types (base64 only). */
+  dataTypes: readonly ImageDataType[];
+  /** With `data:` enabled: the largest decoded image in bytes (default 256 KiB). */
+  maxDataBytes: number;
+  /** Host names remote images may come from; `*.example.com` matches its subdomains. Default: any host. */
+  hosts?: readonly string[];
+  /** Relative URLs (`./img/logo.png`), resolved against the page that shows the diagram. Default off. */
+  relative?: boolean;
+}
+
+export const DEFAULT_IMAGE_POLICY: ImagePolicy = {
+  protocols: ['https:'],
+  dataTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml', 'image/avif'],
+  maxDataBytes: 256 * 1024,
+};
+
+declare const SAFE_IMAGE_URL: unique symbol;
+/**
+ * An image URL the scene may put into `<image href>`: one that passed `checkImageUrl()` (content, core/media/policy.ts),
+ * or an icon URI mmdx built itself (`svgImageUrl`, core/media/svg-url.ts). Nothing else creates it.
+ */
+export type SafeImageUrl = string & { readonly [SAFE_IMAGE_URL]: true };

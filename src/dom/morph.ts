@@ -1,6 +1,7 @@
 // Morph (diff §9.2): three states of one diagram (before → merged → after) shown in one canvas, with animated
 // transitions. Items are paired by their change key (`data-ck`); paired items with the same structure tween their
-// geometry, path data and colours, changed text flips, items only one side has fade, and the highlight layers
+// geometry, path data and colours, changed text flips, an image whose picture changed cross-fades, items only one
+// side has fade, and the highlight layers
 // cross-fade. `replace` animates the same way from what is shown to new states (another version or pair). With
 // reduced motion the switch is instant.
 import { ease, TRANSITION_MS as DURATION } from './motion.js';
@@ -12,6 +13,12 @@ const COLORS = new Set(['fill', 'stroke', 'stop-color']);
 const LAYERS = ['dx-layer', 'dx-runs'];
 
 type Tween = (t: number) => void;
+
+/**
+ * Over this many items a switch is instant: pairing and tweening every item costs more than the frame budget, and
+ * copying what is shown for the transition is wasted (the previous review's morph item threshold).
+ */
+export const MORPH_MAX_ITEMS = 1500;
 
 const NUM = /-?\d*\.?\d+(?:e[-+]?\d+)?/gi;
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
@@ -59,15 +66,25 @@ function attrTween(el: Element, name: string, a: string | null, b: string | null
 const attrNames = (a: Element, b: Element): Set<string> =>
   new Set([...a.getAttributeNames(), ...b.getAttributeNames()].filter((n) => n !== 'class' && !n.startsWith('data-')));
 
+interface Flip {
+  a: Element;
+  b: Element;
+  /** An image with another picture: the old one fades out where it was while the new one moves and fades in. */
+  image?: boolean;
+}
+
 /** Pairs two item subtrees: their tweens, or null when the structure differs (they cross-fade instead). */
-function pair(a: Element, b: Element, flips: { a: Element; b: Element }[]): Tween[] | null {
+function pair(a: Element, b: Element, flips: Flip[]): Tween[] | null {
   if (a.tagName !== b.tagName) return null;
   const out: Tween[] = [];
   if (b.tagName === 'text' && (a.textContent !== b.textContent || a.children.length !== b.children.length)) {
     flips.push({ a, b });
     return out;
   }
+  const swap = b.tagName === 'image' && a.getAttribute('href') !== b.getAttribute('href');
+  if (swap) flips.push({ a, b, image: true });
   for (const n of attrNames(a, b)) {
+    if (swap && n === 'href') continue;
     const va = a.getAttribute(n), vb = b.getAttribute(n);
     const tw = attrTween(b, n, va, vb);
     if (tw === null && va !== vb) return null;
@@ -99,6 +116,9 @@ const keyOf = (e: Element): string => {
 };
 
 /** Outermost item groups by pairing key. */
+/** At most MORPH_MAX_ITEMS items to pair. */
+const small = (root: Element): boolean => root.querySelectorAll(ITEM).length <= MORPH_MAX_ITEMS;
+
 function items(root: Element): Map<string, Element> {
   const m = new Map<string, Element>();
   for (const e of root.querySelectorAll(ITEM)) if (!e.parentElement?.closest(ITEM)) m.set(keyOf(e), e);
@@ -151,11 +171,13 @@ export class Morph {
    */
   replace(states: MorphState[], i: number, animate: boolean): void {
     this.running?.finish();
-    const from: MorphState = { defs: [...this.defs.children].map((n) => n.cloneNode(true) as Element), content: this.content.cloneNode(true) as Element };
+    // what is shown is copied only when it will animate
+    const moving = animate && this.content.childElementCount > 0 && this.animates() && small(this.content) && !!states[i] && small(states[i].content);
+    const from: MorphState | null = moving ? { defs: [...this.defs.children].map((n) => n.cloneNode(true) as Element), content: this.content.cloneNode(true) as Element } : null;
     this.states = states;
     this.current = i;
     this.show(i);
-    if (animate && from.content.childElementCount && !this.reducedMotion() && typeof requestAnimationFrame !== 'undefined') this.running = this.transition(from);
+    if (from) this.running = this.transition(from);
   }
 
   go(i: number, animate = true): void {
@@ -164,7 +186,11 @@ export class Morph {
     const from = this.states[this.current]!;
     this.current = i;
     this.show(i);
-    if (animate && !this.reducedMotion() && typeof requestAnimationFrame !== 'undefined') this.running = this.transition(from);
+    if (animate && this.animates() && small(from.content) && small(this.content)) this.running = this.transition(from);
+  }
+
+  private animates(): boolean {
+    return !this.reducedMotion() && typeof requestAnimationFrame !== 'undefined';
   }
 
   finish(): void {
@@ -195,7 +221,7 @@ export function transitionFrom(defs: Element, content: Element, from: MorphState
   const root = content;
   const tweens: Tween[] = [];
   const cleanup: (() => void)[] = [];
-  const flips: { a: Element; b: Element }[] = [];
+  const flips: Flip[] = [];
   const fade = (el: Element, a: number, b: number, after?: () => void): void => {
     const s = (el as SVGElement).style;
     tweens.push((t) => (s.opacity = String(lerp(a, b, t))));
@@ -216,7 +242,7 @@ export function transitionFrom(defs: Element, content: Element, from: MorphState
       fade(b, 0, 1);
       continue;
     }
-    const local: { a: Element; b: Element }[] = [];
+    const local: Flip[] = [];
     const tw = pair(a, b, local);
     if (tw) {
       tweens.push(...tw);
@@ -245,7 +271,14 @@ export function transitionFrom(defs: Element, content: Element, from: MorphState
   }
   // changed text: the old text flips out where it was, the new one flips in, both sliding with the item
   const anims: Animation[] = [];
-  for (const { a, b } of flips) {
+  for (const { a, b, image } of flips) {
+    if (image) {
+      const ghost = a.cloneNode(true) as Element;
+      b.before(ghost);
+      fade(ghost, 1, 0, () => ghost.remove());
+      fade(b, 0, 1);
+      continue;
+    }
     const old = a.cloneNode(true) as Element;
     b.before(old);
     const pa = firstPos(a), pb = firstPos(b);

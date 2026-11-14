@@ -1,0 +1,18 @@
+{
+ "versions": [
+  {
+   "id": "e41b0d9",
+   "message": "Fault mode",
+   "author": "Lee",
+   "date": "2026-11-01T11:00:00.000Z",
+   "source": "stateDiagram-v2\n  direction LR\n  [*] --> Red\n  Red --> Green : timer 30 s\n  Green --> Yellow : timer 25 s\n  Yellow --> Red : timer 5 s\n  Red --> Flashing : fault\n  Green --> Flashing : fault\n  Yellow --> Flashing : fault\n  Flashing --> Red : reset\n  Flashing : amber blinks\n  Flashing : until a technician resets it\n\n%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----\n%%@ canvas {\"v\":1}\n%%@ node Red {\"preset\":\"error\"}\n%%@ node Green {\"preset\":\"done\"}\n%%@ node Yellow {\"preset\":\"waiting\"}\n%%@ node Flashing {\"preset\":\"idle\"}\n"
+  },
+  {
+   "id": "77ac3f5",
+   "message": "Three lights",
+   "author": "Lee",
+   "date": "2026-10-29T10:20:00.000Z",
+   "source": "stateDiagram-v2\n  direction LR\n  [*] --> Red\n  Red --> Green : timer 30 s\n  Green --> Yellow : timer 25 s\n  Yellow --> Red : timer 5 s\n"
+  }
+ ]
+}

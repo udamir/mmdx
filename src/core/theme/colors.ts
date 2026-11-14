@@ -7,16 +7,18 @@
 //                      theme the same shift is applied to that theme's "lime" ("=210" instead of a hue shift
 //                      when the palette colour is a grey: the hue is then kept as is).
 // Anything else ("none", "transparent", rgba(...)) passes through unchanged.
-import { COLOR_KEYS } from '../meta/sanitize.js';
-import { isColorLiteral } from '../validate.js';
+import { COLOR_KEYS } from '../meta/keys.js';
+import { COLOR_REL, HEX_COLOR, isColorLiteral } from '../validate.js';
 import type { ResolvedTheme } from './types.js';
 
 export type Palette = Readonly<Record<string, string>>;
 export type Rgb = [number, number, number];
 export type Hsl = [number, number, number];
 
-const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
-const REL = /^@([\w-]+)~(=?[+-]?[\d.]+),([+-]?[\d.]+),([+-]?[\d.]+)$/;
+// the one colour grammar (validate.ts): hex of 3, 4, 6 or 8 digits (the alpha digits are not part of the colour
+// here, B39) and the relative palette reference
+const HEX = HEX_COLOR;
+const REL = COLOR_REL;
 
 export const isColorRef = (v: unknown): v is string => typeof v === 'string' && (v[0] === '@' || REL.test(v));
 export const refName = (v: unknown): string | null => (typeof v === 'string' && v[0] === '@' ? v.slice(1).split('~')[0]! : null);
@@ -24,8 +26,8 @@ export const refName = (v: unknown): string | null => (typeof v === 'string' && 
 export function hexToRgb(hex: string | null | undefined): Rgb | null {
   if (!hex || !HEX.test(hex)) return null;
   let h = hex.slice(1);
-  if (h.length === 3) h = h.replace(/./g, (c) => c + c);
-  const n = parseInt(h, 16);
+  if (h.length <= 4) h = h.replace(/./g, (c) => c + c);
+  const n = parseInt(h.slice(0, 6), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 export const rgbToHex = (r: number, g: number, b: number): string =>
@@ -147,11 +149,17 @@ export function createColorResolver(theme: Pick<ResolvedTheme, 'palette' | 'base
   }
   // prototype order: the theme's own palette, then the diagram palette, then baseline names the theme lacks
   const merged: Record<string, string> = { ...theme.basePalette, ...own, ...theme.palette };
+  // a render resolves the same few colours for every item: remember them (bounded: the values come from the document)
+  const memo = new Map<string, string | undefined>();
   return (v) => {
     if (typeof v !== 'string') return undefined;
+    if (memo.has(v)) return memo.get(v);
     const s = v.trim();
     const r = s[0] === '@' ? resolveColor(s, merged) : s;
-    return isColorLiteral(r) ? r.trim() : undefined;
+    const out = isColorLiteral(r) ? r.trim() : undefined;
+    if (memo.size >= 1024) memo.clear();
+    memo.set(v, out);
+    return out;
   };
 }
 

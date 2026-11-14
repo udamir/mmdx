@@ -7,10 +7,10 @@ import { dockButton } from '../../ui/blocks/tool-dock.js';
 import type { ViewCore } from '../core.js';
 import { I_HISTORY } from '../icons.js';
 import type { ViewModule } from '../module.js';
+import { HISTORY_STUB } from '../module-stubs.js';
 
 export const historyModule: ViewModule<ViewCore> = {
-  id: 'history',
-  enabled: (core) => !!core.loadHistory && core.feature('history'),
+  ...HISTORY_STUB,
   install(scope) {
     const core = scope.core;
     const t = core.i18n.t;

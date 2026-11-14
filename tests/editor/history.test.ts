@@ -2,10 +2,10 @@
 // History in the editor (component architecture §8.2, R11): open History, copy an item of an old version, go Back,
 // paste it into the current document — even though the document no longer has it.
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { HistoryAdapter } from '../../src/adapters/history.js';
+import type { HistoryAdapter } from '../../src/ports.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
-import { loadKind } from '../../src/view/kinds.js';
+import { loadKind } from '../../src/platform/kinds.js';
 import { changeKey } from '../../src/core/diff/merge.js';
 import { WORKING_COPY } from '../../src/diff/history.js';
 
@@ -142,6 +142,8 @@ describe('History: a version as it is', () => {
     const rows = (): NodeListOf<HTMLButtonElement> => root.querySelectorAll<HTMLButtonElement>('.mmdx-panel.history .version-main');
     expect(rows()[0]!.getAttribute('aria-current')).toBe('true');
     // switching to Compare and back shows nothing new
+    const modes: unknown[] = [];
+    host.addEventListener('mmdx-history-mode', (e) => modes.push((e as CustomEvent).detail));
     root.querySelector<HTMLButtonElement>('.mmdx-panel.history [role=tab][data-tab=compare]')!.click();
     root.querySelector<HTMLButtonElement>('.mmdx-panel.history [role=tab][data-tab=history]')!.click();
     expect(ed.core.stage.peek()).toBe('document');
@@ -158,6 +160,8 @@ describe('History: a version as it is', () => {
     await wait(() => ed.core.version.peek()?.id === 'v1');
     expect(ed.core.stage.peek()).toBe('version');
     expect(ed.historySession!.pair).toEqual({ base: null, head: null, viewing: 'v1' });
+    // the tab and the version as it is reach the host as <mmdx-diff>'s mmdx-mode does (the version through the session's shown, A13)
+    expect(modes).toEqual([{ mode: 'compare', viewOnly: false }, { mode: 'history', viewOnly: false }, { mode: 'history', viewOnly: true }, { mode: 'history', viewOnly: false }, { mode: 'history', viewOnly: true }]);
     // drawn by the editor itself: the old node is on the canvas, the page too
     expect(ed.core.dom.body.querySelector('.el[data-kind=node][data-id=x]')).not.toBeNull();
     // read-only: no Shapes, Properties or Undo / Redo; the code shows the version and cannot be typed into
@@ -300,7 +304,7 @@ describe('History: Restore, the working copy, destroy', () => {
     expect(events).not.toContain('mmdx-history-restore');
   });
 
-  it('the working copy check reads the newest version once, not on every document change', async () => {
+  it('the working copy check reads neither the history nor the newest version on every document change', async () => {
     const a = gated(Promise.resolve());
     await open(a);
     await wait(() => a.lists > 0 && a.loads.includes('v2'));
@@ -311,11 +315,28 @@ describe('History: Restore, the working copy, destroy', () => {
       ed.setSource(`flowchart LR\n  a[${label}] --> b[End]\n`);
       await new Promise((r) => setTimeout(r, 30));
     }
-    // the list was read again on each change; the newest version's source was not
-    expect(a.lists).toBe(lists + 3);
+    await new Promise((r) => setTimeout(r, 250));
+    // the working copy's row follows the document without reading the history again (B10), nor the newest source
+    expect(a.lists).toBe(lists);
     expect(newest()).toBe(n);
     ed.historySession!.setPair('v2', WORKING_COPY);
     await wait(() => ed.historySession!.getDiff()?.items.some((c) => c.status === 'changed'));
+  });
+
+  it('exportAs exports nothing while History shows no version and no comparison (B23)', async () => {
+    await open(gated(Promise.resolve()));
+    const exports: unknown[] = [];
+    // the host takes the export (cancels the download)
+    ed.core.host.addEventListener('mmdx-history-export', (e) => {
+      exports.push((e as CustomEvent).detail);
+      e.preventDefault();
+    });
+    await ed.historySession!.exportAs('mmdx');
+    expect(exports).toEqual([]);
+    ed.historySession!.setPair('v1', 'v2');
+    await wait(() => ed.historySession?.getDiff());
+    await ed.historySession!.exportAs('mmdx', { version: 'before' });
+    expect(exports).toHaveLength(1);
   });
 
   it('destroying the host with History open closes it without giving the canvas back (no repaint, no event)', async () => {

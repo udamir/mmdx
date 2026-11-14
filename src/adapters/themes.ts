@@ -1,24 +1,10 @@
 // Theme sources and stores (§8.3). Read: viewer, editor and theme editor share a ThemeSource. Write: the theme
 // editor saves through a ThemeStore. The library never talks to a backend by itself.
+import type { StorageAdapter, ThemeSource, ThemeStore } from '../ports.js';
 import { BASE_THEME_ID } from '../core/theme/builtin-ids.js';
 import type { ThemeFile, ThemeInfo } from '../core/theme/types.js';
-import type { StorageAdapter } from './storage.js';
-
-export interface ThemeSource {
-  list(): Promise<ThemeInfo[]>;
-  get(id: string): Promise<ThemeFile>;
-  subscribe?(cb: () => void): () => void;
-}
-
-export type SaveResult = { version: string } | { conflict: ThemeFile };
-
-export interface ThemeStore extends ThemeSource {
-  save(theme: ThemeFile, opts: { version?: string }): Promise<SaveResult>;
-  delete?(id: string): Promise<void>;
-  publish?(id: string): Promise<void>;
-  /** Number of diagrams that use the theme, when the host can tell. */
-  usage?(id: string): Promise<number>;
-}
+import { okFetch } from './http.js';
+import { createSubscribers } from './subscribers.js';
 
 const info = (t: ThemeFile, version?: string): ThemeInfo => {
   const i: ThemeInfo = {
@@ -37,10 +23,8 @@ const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 export function memoryThemeStore(initial: readonly ThemeFile[] = []): ThemeStore {
   const themes = new Map<string, { file: ThemeFile; version: number }>();
   for (const t of initial) themes.set(t.id, { file: clone(t), version: 1 });
-  const subs = new Set<() => void>();
-  const notify = (): void => {
-    for (const cb of subs) cb();
-  };
+  const subs = createSubscribers();
+  const notify = (): void => subs.notify();
   return {
     async list() {
       return [...themes.values()].map((t) => info(t.file, String(t.version)));
@@ -62,10 +46,7 @@ export function memoryThemeStore(initial: readonly ThemeFile[] = []): ThemeStore
       themes.delete(id);
       notify();
     },
-    subscribe(cb) {
-      subs.add(cb);
-      return () => subs.delete(cb);
-    },
+    subscribe: (cb) => subs.add(cb),
   };
 }
 
@@ -78,8 +59,7 @@ export function fetchThemeSource(manifestUrl: string, init: RequestInit = { cred
   const load = (): Promise<Map<string, ThemeFile>> =>
     (all ??= (async () => {
       const base = new URL(manifestUrl, typeof location !== 'undefined' ? location.href : 'http://localhost/');
-      const res = await fetch(base, init);
-      if (!res.ok) throw new Error(`Theme manifest ${base.href}: HTTP ${res.status}`);
+      const res = await okFetch(base, init, `Theme manifest ${base.href}`);
       const manifest = (await res.json()) as { themes?: unknown };
       const files = Array.isArray(manifest.themes) ? manifest.themes.filter((f): f is string => typeof f === 'string') : [];
       const loaded = await Promise.all(
@@ -114,10 +94,8 @@ export function localStorageThemeStore(storage: StorageAdapter, base?: ThemeSour
     const v = storage.get<Record<string, ThemeFile>>(key);
     return v && typeof v === 'object' ? v : {};
   };
-  const subs = new Set<() => void>();
-  const notify = (): void => {
-    for (const cb of subs) cb();
-  };
+  const subs = createSubscribers();
+  const notify = (): void => subs.notify();
   let unsubBase: (() => void) | undefined;
   return {
     async list() {
@@ -146,10 +124,10 @@ export function localStorageThemeStore(storage: StorageAdapter, base?: ThemeSour
       notify();
     },
     subscribe(cb) {
-      subs.add(cb);
+      const off = subs.add(cb);
       if (base?.subscribe && !unsubBase) unsubBase = base.subscribe(notify);
       return () => {
-        subs.delete(cb);
+        off();
         if (!subs.size) {
           unsubBase?.();
           unsubBase = undefined;

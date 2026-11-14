@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createSidePanel, SIDE_PANEL_CSS } from '../../src/ui/blocks/side-panel.js';
 import { createTabs, TABS_CSS } from '../../src/ui/blocks/tabs.js';
-import { createI18n } from '../../src/ui/i18n.js';
-import { signal } from '../../src/ui/signal.js';
+import { createI18n } from '../../src/i18n.js';
+import { signal } from '../../src/reactive/signal.js';
 import { chromeHost, SMALL_FLOW } from '../support.js';
 
 type Args = { head: 'title' | 'tabs'; side: 'left' | 'right'; resizable: boolean; ui: 'light' | 'dark' };

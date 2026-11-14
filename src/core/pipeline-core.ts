@@ -1,11 +1,13 @@
 // Derivation pipeline (§6.4): source → split → parse → theme → render, for a given set of diagram kinds (parsers +
 // renderers). pipeline.ts binds it to every kind; the viewer binds it to the kind it loaded (§R5).
-import type { CoreContext } from './context.js';
+import type { CoreContext } from './context-base.js';
 import { hiddenByLayers } from './layers.js';
 import { splitSource, type DiagramDocument } from './meta/index.js';
 import type { DiagramModel } from './model.js';
-import { parseWith, type ParserSet } from './parse/dispatch.js';
-import { renderSvgString, renderWith, type RendererSet } from './render/dispatch.js';
+import type { Kinds } from './kind/types.js';
+import { parseWith } from './parse/dispatch.js';
+import { TOO_BIG_CODES } from './parse/limits.js';
+import { renderSvgString, renderWith } from './render/dispatch.js';
 import type { RenderContext, RenderResult } from './render/types.js';
 import { createColorResolver, diagramPaletteOf } from './theme/colors.js';
 import { BASELINE } from './theme/registry.js';
@@ -13,11 +15,7 @@ import type { ResolvedTheme } from './theme/types.js';
 import { Lru } from './text/measure.js';
 import type { Diagnostic, Point } from './types.js';
 
-/** Diagram types a pipeline can handle. */
-export interface Kinds {
-  parsers: ParserSet;
-  renderers: RendererSet;
-}
+export type { Kinds } from './kind/types.js';
 
 export interface PipelineOptions {
   /** Theme to draw with (default: baseline). Diagrams do not carry a theme: the host or the user picks it. */
@@ -46,18 +44,29 @@ export interface Rendered {
 }
 
 const layoutCaches = new WeakMap<CoreContext, Lru<string, Map<string, Point>>>();
+/** The last colour resolver per instance: kept while the theme and the diagram palette stay (a drag renders often). */
+const resolvers = new WeakMap<CoreContext, { theme: ResolvedTheme; palette: string; color: RenderContext['color'] }>();
 
 /** The render context for one theme and diagram palette, with the instance's bounded layout cache. */
 export function renderContext(ctx: CoreContext, theme: ResolvedTheme, doc: DiagramDocument): RenderContext {
   let cache = layoutCaches.get(ctx);
-  if (!cache) layoutCaches.set(ctx, (cache = new Lru(64)));
-  return {
+  if (!cache) layoutCaches.set(ctx, (cache = new Lru(64, 8192)));
+  // resolved themes are not changed in place (the registry makes a new one), so the object tells a theme apart
+  const palette = diagramPaletteOf(doc.meta.styles), key = JSON.stringify(palette);
+  let c = resolvers.get(ctx);
+  if (c?.theme !== theme || c.palette !== key) resolvers.set(ctx, (c = { theme, palette: key, color: createColorResolver(theme, palette) }));
+  const r: RenderContext = {
     measure: ctx.measure,
     idPrefix: ctx.idPrefix,
     linkPolicy: ctx.linkPolicy,
-    color: createColorResolver(theme, diagramPaletteOf(doc.meta.styles)),
+    imagePolicy: ctx.imagePolicy,
+    icons: ctx.icons,
+    color: c.color,
     layoutCache: cache,
   };
+  if (ctx.imageSizes) r.imageSizes = ctx.imageSizes;
+  if (ctx.resolveUrl) r.resolveUrl = ctx.resolveUrl;
+  return r;
 }
 
 /** Picks the theme: the given one, else baseline; reports a theme the registry does not have. */
@@ -77,15 +86,15 @@ export function renderDocumentWith(kinds: Kinds, doc: DiagramDocument, model: Di
   const ropts: Parameters<typeof renderWith>[5] = { hidden };
   if (opts.hideLabels) ropts.hideLabels = true;
   if (opts.tableView?.length) ropts.tableView = opts.tableView;
-  const result = renderWith(kinds.renderers, model, doc.meta, picked.theme, rctx, ropts);
-  return { theme: picked.theme, themeId: picked.id, rctx, result, diagnostics: picked.diagnostics };
+  const result = renderWith(kinds, model, doc.meta, picked.theme, rctx, ropts);
+  return { theme: picked.theme, themeId: picked.id, rctx, result, diagnostics: [...picked.diagnostics, ...(result.diagnostics ?? [])] };
 }
 
-/** Full pipeline from source text. Never throws on bad input. */
-export function renderSourceWith(kinds: Kinds, src: string, ctx: CoreContext, opts: PipelineOptions = {}): Rendered {
+/** Full pipeline from source text. Never throws on bad input. `parse` reads the code (a caller's memo: a diff parses each version once). */
+export function renderSourceWith(kinds: Kinds, src: string, ctx: CoreContext, opts: PipelineOptions = {}, parse: (code: string) => DiagramModel = (c) => parseWith(c, kinds)): Rendered {
   const split = splitSource(src);
-  const model = parseWith(split.doc.code, kinds.parsers);
-  const tooLarge = model.diagnostics.some((d) => d.code === 'doc.too-large' || d.code === 'doc.too-many-items');
+  const model = parse(split.doc.code);
+  const tooLarge = model.diagnostics.some((d) => TOO_BIG_CODES.has(d.code));
   const r = renderDocumentWith(kinds, split.doc, model, ctx, opts);
   return {
     doc: split.doc,

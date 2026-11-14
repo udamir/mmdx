@@ -2,9 +2,9 @@
 // Save. The buttons follow the draft's signals.
 import { createIconButton } from '../ui/blocks/button.js';
 import { createToolbar } from '../ui/blocks/toolbar.js';
-import { h } from '../ui/h.js';
-import { ICONS } from '../ui/icons.js';
-import { formatKeys } from '../ui/shortcuts.js';
+import { h } from '../ui/kit/h.js';
+import { I_redo, I_undo } from '../ui/kit/icons.js';
+import { formatKeys } from '../ui/kit/keys.js';
 import type { Env } from './env.js';
 import { derived } from './util.js';
 
@@ -43,8 +43,8 @@ export function header(env: Env, roTag: HTMLElement, a: HeaderActions): HTMLElem
   zoom.el.title = t('te.previewSize');
 
   const undoT = t('te.undo', { keys: formatKeys('mod+z') }), redoT = t('te.redo', { keys: formatKeys('mod+shift+z') });
-  const undo = createIconButton({ icon: ICONS.undo, iconSize: 15, label: undoT, tip: undoT, keys: 'mod+z', class: 'te-undo', disabled: derived(() => !draft.canUndo()), onClick: () => a.undo() });
-  const redo = createIconButton({ icon: ICONS.redo, iconSize: 15, label: redoT, tip: redoT, keys: 'mod+shift+z', class: 'te-redo', disabled: derived(() => !draft.canRedo()), onClick: () => a.redo() });
+  const undo = createIconButton({ icon: I_undo, iconSize: 15, label: undoT, tip: undoT, keys: 'mod+z', class: 'te-undo', disabled: derived(() => !draft.canUndo()), onClick: () => a.undo() });
+  const redo = createIconButton({ icon: I_redo, iconSize: 15, label: redoT, tip: redoT, keys: 'mod+shift+z', class: 'te-redo', disabled: derived(() => !draft.canRedo()), onClick: () => a.redo() });
   const save = createIconButton({
     icon: null, text: t('te.saveBtn'), label: t('te.saveBtn'), tip: t('te.saveTitle', { keys: formatKeys('mod+s') }), keys: 'mod+s', class: 'te-save primary small',
     disabled: derived(() => !draft.dirty() || !env.canEdit()), onClick: () => a.save(),

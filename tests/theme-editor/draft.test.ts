@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BUILTIN_THEMES } from '../../src/core/theme/builtin.js';
-import { ThemeRegistry } from '../../src/core/theme/registry.js';
+import { BASELINE, ThemeRegistry } from '../../src/core/theme/registry.js';
 import { Draft } from '../../src/theme-editor/draft.js';
-import { effect, signal } from '../../src/ui/signal.js';
+import { effect, signal } from '../../src/reactive/signal.js';
 
 const THEME = {
   id: 'mine', name: 'Mine', extends: 'default-light',
@@ -133,5 +133,37 @@ describe('Draft', () => {
     expect(low.lowContrast({ ...sel, preset: null })).toBeNull();
     expect(low.stylePath(sel)).toEqual(['flowchart', 'nodePresets', 'faint']);
     expect(low.stylePath({ ...sel, preset: null, shape: 'rect', shapesKey: 'nodeShapes' })).toEqual(['flowchart', 'nodeShapes', 'rect']);
+  });
+
+  it('a tile\'s own values and what its empty fields inherit (X18: the inheritance chain in one place)', () => {
+    const d = make();
+    const item = { type: 'flowchart' as const, kind: 'node', presets: 'nodePresets', preset: null, fields: [], props: null as never };
+    const core = { ...item, preset: 'core' };
+    const parentNode = (d.parent.peek()!['flowchart'] as Record<string, Record<string, unknown>>)['node']!;
+    expect(d.ownFor(item)).toEqual({ fill: '@cream' });
+    expect(d.ownFor(core)).toEqual({ fill: '#ffffff', text: '#111111' });
+    expect(d.ownFor({ ...item, kind: 'edge' })).toEqual({});
+    // an item's default inherits the parent's item style; a preset the item style under the parent's preset
+    expect(d.inheritedFor(item)).toEqual(parentNode);
+    expect(d.inheritedFor(core)['stroke']).toBe(parentNode['stroke']);
+    // in a theme every field inherits; in the baseline only presets and shape defaults do
+    expect([d.inheritsFor(item), d.inheritsFor(core)]).toEqual([true, true]);
+    const base = make({ id: BASELINE, flowchart: { node: { fill: '#eeeeee' } } });
+    expect([base.inheritsFor(item), base.inheritsFor(core), base.inheritsFor({ ...item, shape: 'rect', shapesKey: 'nodeShapes' })]).toEqual([false, true, true]);
+    expect(base.inheritedFor(core)).toEqual({ fill: '#eeeeee' });
+  });
+});
+
+describe('Draft.merged (P19)', () => {
+  it('merges once per change: tile reads share it, an edit makes a new one', () => {
+    const d = make();
+    const m = d.merged.peek();
+    const sel = { type: 'flowchart', kind: 'node', preset: 'core', presets: 'nodePresets', fields: [], props: {} } as unknown as Parameters<Draft['effectiveFor']>[0];
+    expect(d.effectiveFor(sel)['fill']).toBe('#ffffff');
+    expect(d.allPresets('flowchart' as never, 'nodePresets')['core']).toMatchObject({ text: '#111111' });
+    expect(d.merged.peek()).toBe(m);
+    d.set(['flowchart', 'nodePresets', 'core', 'fill'], '#000000');
+    expect(d.merged.peek()).not.toBe(m);
+    expect(d.effectiveFor(sel)['fill']).toBe('#000000');
   });
 });

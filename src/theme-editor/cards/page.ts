@@ -1,8 +1,8 @@
 // Appearance, font & page: whether the theme is light or dark (a label for pickers, not a switch between variants),
 // the linked theme of the other appearance, the font, and the page colours.
 import { createSegmented } from '../../ui/blocks/segmented.js';
-import { h } from '../../ui/h.js';
-import { signal } from '../../ui/signal.js';
+import { h } from '../../ui/kit/h.js';
+import { signal } from '../../reactive/signal.js';
 import { FONTS } from '../constants.js';
 import type { Env } from '../env.js';
 import { fieldRow } from '../fields.js';
@@ -41,14 +41,10 @@ export function pageCard(env: Env, box: HTMLElement): void {
   const hint = h('div', { class: 'te-hint' }, curLink ? t('te.counterpartHint', { other: t(other === 'dark' ? 'te.dark' : 'te.light') }) : t('te.counterpartMissing'));
   if (!curLink) hint.classList.add('warn');
   box.append(h('div', { class: 'te-f', dataset: { dirty: 'counterpart' } }, h('label', null, t('te.counterpart')), link), hint);
-  const sel = h('select', { 'aria-label': t('te.font') });
+  // the font: a field row whose inherit option names the parent's font family (a font not in the list is offered too)
   const cur = typeof raw['font'] === 'string' ? raw['font'] : undefined;
-  if (!draft.isBase()) sel.append(new Option(t('te.inheritFont', { name: fontName(inherited?.['font']) }), ''));
-  for (const [v, l] of FONTS) sel.append(new Option(l, v));
-  if (cur && !FONTS.some(([v]) => v === cur)) sel.append(new Option(fontName(cur), cur));
-  sel.value = cur ?? '';
-  sel.addEventListener('change', () => draft.set(['font'], sel.value || undefined));
-  box.append(h('div', { class: 'te-f', dataset: { dirty: 'font' } }, h('label', null, t('te.font')), sel));
+  const fonts = cur && !FONTS.some(([v]) => v === cur) ? [...FONTS, [cur, fontName(cur)] as const] : FONTS;
+  fieldRow(env, box, { label: t('te.font'), type: 'select', options: fonts }, ['font'], inherited?.['font'], { inheritLabel: fontName });
   const canvas = obj(inherited?.['canvas']);
   fieldRow(env, box, { label: t('te.pageBg'), type: 'color' }, ['canvas', 'background'], canvas['background']);
   fieldRow(env, box, { label: t('te.pageBorder'), type: 'color' }, ['canvas', 'border'], canvas['border']);

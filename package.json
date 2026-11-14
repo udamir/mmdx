@@ -1,6 +1,6 @@
 {
   "name": "@mmdx/studio",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Styled Mermaid viewer, editor, theme editor and diagram diff as framework-agnostic web components",
   "license": "MIT",
   "author": "Damir Yusipov",
@@ -87,11 +87,18 @@
     },
     "./themes/*": "./themes/*"
   },
+  "bin": {
+    "mmdx-icons": "tools/mmdx-icons.mjs"
+  },
   "files": [
     "dist",
     "themes",
+    "tools/mmdx-icons.mjs",
+    "tools/icons/convert.mjs",
+    "tools/icons/naming",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "THIRD-PARTY-NOTICES"
   ],
   "publishConfig": {
     "access": "public"
@@ -101,17 +108,19 @@
     "docs:dev": "vitepress dev docs --port 8791",
     "storybook": "storybook dev -p 6006 --no-open",
     "build:storybook": "storybook build -o storybook-static",
-    "build": "npm run build:lib && npm run build:types && npm run build:site",
+    "build": "pnpm run build:lib && pnpm run build:types && pnpm run build:site",
     "build:lib": "vite build --config vite.lib.config.ts",
     "build:types": "tsc -p tsconfig.build.json",
     "build:site": "vite build --config apps/studio-site/vite.config.ts",
     "build:docs": "vitepress build docs",
-    "build:pages": "npm run build:docs && npm run build:site && npm run build:storybook && node tools/pages.mjs",
+    "build:pages": "pnpm run build:docs && pnpm run build:site && pnpm run build:storybook && node tools/pages.mjs",
     "preview:pages": "vite preview --outDir _site --base /mmdx/ --port 8792",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.core.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "size": "node tools/size.mjs"
+    "size": "node tools/size.mjs",
+    "build:icons": "node tools/build-icons.mjs",
+    "build:emoji": "node tools/build-emoji.mjs"
   },
   "peerDependencies": {
     "mermaid": ">=10"
@@ -122,15 +131,18 @@
     }
   },
   "devDependencies": {
+    "@iconify-json/tabler": "^1.2.43",
     "@storybook/addon-a11y": "^10.6.5",
     "@storybook/addon-docs": "^10.6.5",
     "@storybook/web-components-vite": "^10.6.5",
     "@types/node": "^24.19.2",
     "diff": "^9.0.0",
+    "emojibase-data": "^18.0.0",
     "esbuild": "^0.28.2",
     "jsdom": "^26.1.0",
     "lit": "^3.3.3",
-    "mermaid": "^11.17.2",
+    "mermaid": "~12.2.0",
+    "mermaid-11": "npm:mermaid@11.17.2",
     "storybook": "^10.6.5",
     "typescript": "^5.9.3",
     "vite": "^7.3.7",

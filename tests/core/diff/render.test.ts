@@ -112,3 +112,27 @@ describe('reports', () => {
     }
   });
 });
+
+describe('report links (old D7)', () => {
+  it('a version URL is linked only when the link policy allows it, and cannot end the link early', async () => {
+    const { diffReport } = await import('../../../src/core/diff/report.js');
+    const { diffDiagrams } = await import('../../../src/core/diff/all.js');
+    const d = diffDiagrams('flowchart LR\n  A', 'flowchart LR\n  A --> B');
+    const md = (url: string): string => diffReport(d, { format: 'markdown', name: 'x', before: { id: 'v1', url }, after: { id: 'v2' } });
+    expect(md('javascript:alert(1)')).not.toContain('javascript:');
+    expect(md('https://example.com/a>b')).toContain('(<https://example.com/a%3Eb>)');
+    expect(md('https://example.com/v1')).toContain('[`v1`](<https://example.com/v1>)');
+  });
+});
+
+describe('renderDiffWith parses each code once (P13)', () => {
+  it('two versions: two parses, not four', async () => {
+    const { renderDiffWith } = await import('../../../src/core/diff/render.js');
+    const { ALL_KINDS } = await import('../../../src/core/pipeline.js');
+    let parses = 0;
+    const flow = ALL_KINDS.flowchart!;
+    const kinds = { ...ALL_KINDS, flowchart: { ...flow, parse: (code: string) => (parses++, flow.parse(code)) } };
+    renderDiffWith(kinds, 'flowchart LR\n  A --> B\n', 'flowchart LR\n  A --> C\n', createContext());
+    expect(parses).toBe(2);
+  });
+});

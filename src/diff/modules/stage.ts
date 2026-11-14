@@ -3,14 +3,15 @@
 // `mmdx-link`, then the link policy's target); hovering an item highlights what it connects to (view settings);
 // the selected change is announced. Keys: Esc clears the selection, ⌘Z takes back the last pen stroke. Replaces the
 // plain `links` and `hoverHighlight` modules inside a diff, and the canvas listeners of elements/diff.ts.
-import { describeChange } from '../../ui/blocks/change-list.js';
+import { describeChange } from '../../ui/diagram/change-text.js';
 import { renderedOf } from '../../core/diff/render.js';
 import type { DiagramModel } from '../../core/model.js';
 import { clearHighlight, HIGHLIGHT_CSS, hoverHighlight } from '../../dom/highlight.js';
-import { registerMessages } from '../../ui/i18n.js';
+import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../../ui/messages/blocks-diff.js';
-import { untracked } from '../../ui/signal.js';
+import { untracked } from '../../reactive/signal.js';
 import type { ViewCore } from '../../view/core.js';
+import { onLinkClick } from '../../view/link-menu.js';
 import type { ViewModule } from '../../view/module.js';
 import type { DiffScene } from '../scene.js';
 
@@ -28,31 +29,26 @@ export function diffStageModule(scene: DiffScene): ViewModule<ViewCore> {
       registerMessages(BLOCK_MESSAGES_DIFF);
       const core = scope.core;
       const t = core.i18n.t;
-      const area = core.area;
+
+      /** The scene's main canvas (Before side by side): the zoom bar's. */
+      const mainSvg = (): SVGSVGElement | null => scene.canvases()[0]?.svg ?? null;
 
       // ---- click: select a change (a drag pans); ⌘ / Ctrl-click on a link opens it
       let down: { x: number; y: number } | null = null;
-      scope.listen(area, 'pointerdown', (ev: PointerEvent) => {
+      scope.area('pointerdown', (ev) => {
         if (!canvasOf(ev.target)) return;
         down = { x: ev.clientX, y: ev.clientY };
         // the canvas takes the keyboard (shortcuts are handled on the root)
-        core.root.focus({ preventScroll: true });
+        core.focus();
       });
-      scope.listen(area, 'click', (ev: MouseEvent) => {
+      scope.area('click', (ev) => {
         if (!canvasOf(ev.target)) return;
         const target = ev.target as Element;
         const a = target.closest('a');
         if (a) ev.preventDefault();
         if (!down || Math.hypot(ev.clientX - down.x, ev.clientY - down.y) > 4 || core.tool.peek() === 'pen') return;
-        const href = a?.getAttribute('href');
-        if (href && (ev.metaKey || ev.ctrlKey)) {
-          const item = a!.closest('[data-id]');
-          if (!core.emit('mmdx-link', { href, id: item?.getAttribute('data-id') ?? null }, true)) return;
-          const where = core.ctx.linkPolicy.target ?? '_blank';
-          if (where === '_blank') window.open(href, '_blank', 'noopener,noreferrer');
-          else window.location.assign(href);
-          return;
-        }
+        // the multi-link menu too, as the viewer's
+        if ((ev.metaKey || ev.ctrlKey) && onLinkClick(core, ev)) return;
         if (!core.feature('select') || session.viewOnly.peek() || !session.rendered.peek()) return;
         // a highlight carries the change key; an item drawn in this view has it on `data-ck` (minus the part prefix
         // of edge labels)
@@ -64,9 +60,9 @@ export function diffStageModule(scene: DiffScene): ViewModule<ViewCore> {
         session.select(session.change(key) ? key : null);
       });
       // a double click on the empty After pane fits too (the main canvas is the zoom bar's)
-      scope.listen(area, 'dblclick', (ev: MouseEvent) => {
+      scope.area('dblclick', (ev) => {
         const svg = canvasOf(ev.target);
-        if (!svg || svg === core.canvas.svg || (ev.target as Element).closest('[data-kind]')) return;
+        if (!svg || svg === mainSvg() || (ev.target as Element).closest('[data-kind]')) return;
         core.run('fitView');
       });
 
@@ -76,21 +72,28 @@ export function diffStageModule(scene: DiffScene): ViewModule<ViewCore> {
         const D = session.rendered.peek();
         if (!D) return null;
         const view = session.view.peek();
-        if (view === 'side') return svg === core.canvas.svg ? D.before.model : D.after.model;
+        if (view === 'side') return svg === mainSvg() ? D.before.model : D.after.model;
         return renderedOf(D, view).model;
       };
       const bodies = (): Element[] => scene.canvases().flatMap((c) => [...c.content.querySelectorAll(':scope > .body-layer')]);
-      const clearAll = (): void => bodies().forEach(clearHighlight);
-      scope.listen(area, 'pointermove', (ev: PointerEvent) => {
+      // something is lit: a pointer move with the highlight off (or a pan) clears only then (P8)
+      let lit = false;
+      const clearAll = (): void => {
+        if (!lit) return;
+        lit = false;
+        bodies().forEach(clearHighlight);
+      };
+      scope.area('pointermove', (ev) => {
         const svg = canvasOf(ev.target);
         if (!svg || !core.display.peek().hoverHighlight || core.tool.peek() === 'pen' || scene.canvases().some((c) => c.viewport?.panning)) {
           clearAll();
           return;
         }
         const body = svg.querySelector(':scope > .vp > .content > .body-layer');
-        if (body) hoverHighlight(body, ev.target as Element, modelOf(svg));
+        if (!body) return;
+        lit = hoverHighlight(body, ev.target as Element, modelOf(svg)) !== '' || lit;
       });
-      scope.listen(area, 'pointerleave', clearAll);
+      scope.area('pointerleave', clearAll);
       scope.effect(() => {
         if (!core.display().hoverHighlight) untracked(clearAll);
       });

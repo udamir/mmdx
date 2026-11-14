@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createFilterToggles, FILTER_ICONS, type FilterToggle } from '../../../src/ui/blocks/filter-toggles.js';
 import { createToolbar } from '../../../src/ui/blocks/toolbar.js';
-import { createI18n } from '../../../src/ui/i18n.js';
+import { createI18n } from '../../../src/i18n.js';
 
 const t = createI18n().t;
 const filters = (on: Partial<Record<string, boolean>> = {}): FilterToggle[] =>

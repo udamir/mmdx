@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createFilterToggles, FILTER_ICONS, FILTER_TOGGLES_CSS, type FilterToggle } from '../../src/ui/blocks/filter-toggles.js';
 import { createToolbar, TOOLBAR_CSS } from '../../src/ui/blocks/toolbar.js';
-import { createI18n } from '../../src/ui/i18n.js';
-import { DIFF_TOKENS } from '../../src/ui/styles/diff.js';
+import { createI18n } from '../../src/i18n.js';
+import { DIFF_TOKENS } from '../../src/diff/styles.js';
 import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; dim: boolean };

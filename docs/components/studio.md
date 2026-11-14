@@ -30,15 +30,17 @@ The studio has no backend: saving downloads the file, and documents, versions, e
 
 ## Attributes and properties
 
-The attributes are read when the studio is created; changing them later has no effect (a property set on a live studio warns once).
+The attributes are read when the studio is created; changing them later has no effect (a property set on a live studio warns once), except `images`.
 
 | Attribute | Property | Type | Default | Description |
 |---|---|---|---|---|
 | `examples` | — | `string` | — | URL of the examples manifest. Without it, Examples shows nothing and a new studio opens a flowchart starter |
 | `themes` | — | `string` | — | URL of a theme manifest (`themes/index.json`). `?themes=<url>` on the page overrides it |
 | `persist` | — | `'local'[]` | `local` | `local` keeps the last document in browser storage; empty keeps nothing |
-| `initial` | — | `string` | the first example | Example id to open when nothing is stored and the URL holds no diagram |
+| `initial` | — | `string` | the first example | Example id to open when nothing is stored |
+| `wheel` | — | `'always' \| 'zoom' \| 'ctrl' \| 'never'` | `always` | The mouse wheel on the canvas (the editor's `wheel`) |
 | — | `storage` | `StorageAdapter` | `localStorage` (`mmdx.` keys), else in memory | Where the document, the versions, edited themes and preferences are kept |
+| — | `images` | [`ImageStore`](/api/adapters#images) or `null` | `null` | The host's image store, handed to the editor: its image library and where uploads go (see the editor's [`images`](/components/editor#images)). It can be set at any time |
 
 Read-only properties of the element: `instance` (the `DiagramStudio`, `null` while not connected) and `editor` (the inner `DiagramEditor`).
 
@@ -48,7 +50,7 @@ Read-only properties of the element: `instance` (the `DiagramStudio`, `null` whi
 |---|---|
 | `openFiles(files: FileList \| File[]): Promise<void>` | Opens files as the Open button does: `.mmdx`, `.mmd`, `.md` (its first Mermaid block), `.txt`, and a `.json` layout sidecar merged into the diagram. Asks before discarding unsaved changes |
 
-`DiagramStudio` (`new DiagramStudio(host, options?: StudioOptions)`) has `openFiles()`, the `editor` getter and `destroy()`.
+`DiagramStudio` (`new DiagramStudio(host, options?: StudioOptions)`) has `openFiles()`, `setImages(store)`, the `editor` getter and `destroy()`.
 
 ## Events
 
@@ -58,14 +60,14 @@ The studio dispatches no events of its own; the inner editor's [events](/compone
 
 | Control | What it does |
 |---|---|
-| **＋ New** | A new flowchart, sequence diagram or ER diagram from the starter (`starterSource(type)` from `@mmdx/studio/core`) |
+| **＋ New** | A new flowchart, sequence diagram, ER diagram, mindmap or state diagram from the starter (`starterSource(type)` from `@mmdx/studio/core`) |
 | **Examples** | A gallery of the examples, two to a row, each with its thumbnail or a preview of its newest version in the current theme |
 | **Open** | Opens `.mmdx`, `.mmd`, `.md`, `.txt` and `.json` files; files dropped anywhere on the studio open the same way |
 | File name | The open document's name, with a dot while it has unsaved changes |
 | **Edit / View / Diff** | The mode switch (below) |
 | **Save version** | Records the current diagram as a version, with a message, in its history |
 | **Theme editor** | Opens `<mmdx-theme-editor>` in a dialog; saved themes apply to the open diagram |
-| **Plain Mermaid** | The diagram rendered by stock Mermaid, as GitHub or YouTrack show it |
+| **Plain Mermaid** | The diagram rendered by stock Mermaid, as GitHub or YouTrack show it (the editor's `plainMermaid()`; a bundled app gives it Mermaid with `configure({ mermaid: () => import('mermaid') })`) |
 
 Opening a document while the current one has unsaved changes asks first.
 

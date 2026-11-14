@@ -3,36 +3,59 @@
 // keymap) and the shared state (mode, stage, chrome scheme, theme, display, panels, tool, compact), and puts together
 // the shell with its named slots (shell.ts), the scene stack with the canvas area (scene.ts), the events and actions
 // (bus.ts) and the module host (host.ts). Products are compositions: a kernel, a scene source and a set of modules.
-import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
-import type { ThemeSource } from '../adapters/themes.js';
-import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
-import { getShared, instanceContext } from '../config.js';
+import { ComponentShell } from './component-shell.js';
+import { type StorageAdapter } from '../ports.js';
+import { Owner } from '../reactive/owner.js';
+import type { ThemeSource, HistoryAdapter, HostFullscreen } from '../ports.js';
+import type { StaticVersion } from '../adapters/history.js';
 import type { CoreContext } from '../core/context.js';
+import type { DiagramModel } from '../core/model.js';
+import type { PipelineOptions } from '../core/pipeline-core.js';
+import type { IconPack } from '../core/icons/types.js';
 import type { Rect } from '../core/types.js';
 import { CANVAS_CSS, DiagramCanvas, type CanvasOptions, type Insets } from '../dom/canvas.js';
+import { clearHighlight, hoverHighlight } from '../dom/highlight.js';
+import { domImageSizes, onImageSize } from '../dom/image-sizes.js';
+import { observeSize } from '../dom/resize.js';
 import type { StrokeStore } from '../dom/pen.js';
-import { registerMessages, type I18n } from '../ui/i18n.js';
-import { VIEW_MESSAGES } from '../ui/messages/view.js';
-import { PopoverManager, Toaster } from '../ui/popover.js';
-import { ShortcutRegistry } from '../ui/shortcuts.js';
-import { computed, effect, signal, untracked, type ReadSignal, type Signal } from '../ui/signal.js';
-import { BASE, TOKENS, watchUiScheme } from '../ui/styles/base.js';
-import type { HistoryLoader, HistorySession } from './history.js';
+import { registerMessages, type I18n } from '../i18n.js';
+import { VIEW_MESSAGES } from './messages.js';
+import { PopoverManager, Toaster } from '../ui/kit/popover.js';
+import { ShortcutRegistry } from './keymap.js';
+import { batch, effect, signal, untracked, type Signal, type ReadSignal } from '../reactive/signal.js';
+import { BASE, TOKENS } from '../ui/kit/base.js';
+import type { HistoryHost, HistorySession } from './history.js';
 import { ModuleHost, Scope } from './host.js';
+import { kernelList, kernelSlot, type KernelList, type KernelSlot } from './kernel-lists.js';
 import type { ModuleScope, Registration, ViewModule } from './module.js';
 import { SceneStack, type CanvasArea, type SceneSource } from './scene.js';
 import { createShell, SHELL_CSS, type Shell } from './shell.js';
-import { schemeState, themeLoader, ThemeState, type Scheme, type SchemeState, type UiOption } from './theme.js';
-import type { Display, DockItem, ExportFormat, HostFullscreen, Mode, PanelItem, SlotName, Stage, Tool, ViewActions, ViewEvents } from './types.js';
+import { themeLoader, ThemeState, type Scheme, type UiOption } from './theme.js';
+import type { Display, DockItem, ExportFormat, Mode, PanelItem, SlotName, Stage, Tool, ViewActions, ViewEvents } from './types.js';
+
+
+/**
+ * Opens History on a component (src/diff/history.ts): the version panel, nothing picked; `compare` opens on the
+ * newest change compared. `onClose` runs when it is left. `compareNewest` compares the newest change of an open one.
+ */
+export type HistoryOpener = (core: ViewCore, o: { onClose(): void; compare?: boolean }) => { close(): void; compareNewest(): void };
+
+/** Loads the History code on first use (`() => import('…/diff/history.js')`): the kernel never imports the diff. */
+export type HistoryLoader = () => Promise<{ openHistory: HistoryOpener }>;
 
 export { SHELL_CSS };
 
 export type Product = 'viewer' | 'editor' | 'diff';
 
+/** What modules use of the main canvas's pan and zoom (no DOM). */
+export type PanZoom = Pick<DiagramCanvas, 'view' | 'viewport' | 'fit' | 'zoomBy' | 'zoomTo'>;
+
 export interface ViewCoreOptions {
   product: Product;
   storage?: StorageAdapter;
   ctx?: Partial<CoreContext>;
+  /** The component's own icon packs, over the shared ones of `configure({ iconPacks })` (T04). */
+  iconPacks?: readonly IconPack[];
   themeSource?: ThemeSource;
   /** Chrome scheme: `light` | `dark` | `auto` (the remembered toggle, else the page). */
   ui?: UiOption;
@@ -43,7 +66,7 @@ export interface ViewCoreOptions {
   /** The product's own CSS, adopted after the tokens and the base sheet. */
   css: readonly string[];
   /** The shell's root element: its class and role. */
-  root: { class: string; role: 'img' | 'application' | 'group'; label?: string; roleDescription?: string };
+  root: { class: string; role: 'application' | 'group'; label?: string; roleDescription?: string };
   /** Class of the canvas area (`canvas-wrap` in the editor, `stage` in the viewer). */
   areaClass: string;
   canvas: CanvasOptions;
@@ -71,6 +94,10 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   readonly shortcuts = new ShortcutRegistry();
   /** Loads the History code; null: no History in this component. */
   readonly loadHistory: HistoryLoader | null;
+  /** What the product offers History (its own version scene, Restore, clipboard); null: History brings its scene. */
+  historyHost: HistoryHost | null = null;
+  /** What `enterStage` put aside (its scene, the tool), given back by `leaveStage`. */
+  private staged: { scene: SceneSource | null; tool: Tool } | null = null;
 
   // ---- shell
   /** The root element inside the shadow root. */
@@ -83,52 +110,66 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   readonly canvas: DiagramCanvas;
   readonly canvasArea: CanvasArea;
 
-  // ---- state (signals)
-  readonly mode: Signal<Mode>;
-  readonly stage: Signal<Stage> = signal<Stage>('document');
+  // ---- state (signals): read here, written through the kernel's methods (A7: setMode, setStage, setDisplay,
+  // setPanel, setTool, setVisibleLayers, setHostOptions, setHistoryState) or a module's scope (contribute, claim)
+  protected readonly modeState: Signal<Mode>;
+  readonly mode: ReadSignal<Mode>;
+  protected readonly stageState: Signal<Stage> = signal<Stage>('document');
+  readonly stage: ReadSignal<Stage> = this.stageState;
   /** The chrome's light / dark scheme. */
-  readonly scheme: Signal<Scheme>;
+  readonly scheme: ReadSignal<Scheme>;
   readonly themes: ThemeState;
-  readonly display: Signal<Display> = signal<Display>({ labels: true, hoverHighlight: true });
+  protected readonly displayState: Signal<Display> = signal<Display>({ labels: true, hoverHighlight: true, animate: true });
+  readonly display: ReadSignal<Display> = this.displayState;
   /** Open panels by name. */
-  readonly panels: Signal<P> = signal<P>({} as P);
-  readonly tool: Signal<Tool> = signal<Tool>('hand');
-  readonly compact: Signal<boolean>;
-  /** What the open panel stacks take from the canvas area (`--inset-l` / `--inset-r`); null: the product's CSS decides. */
-  readonly stackInsets: Signal<{ left: number; right: number } | null>;
+  protected readonly panelsState: Signal<P> = signal<P>({} as P);
+  readonly panels: ReadSignal<P> = this.panelsState;
+  protected readonly toolState: Signal<Tool> = signal<Tool>('hand');
+  readonly tool: ReadSignal<Tool> = this.toolState;
+  /** The `compact` preset in effect (`setCompact`; automatic below a host size). */
+  readonly compact: ReadSignal<boolean>;
+  /** What the open panel stacks take from the canvas area (`--inset-l` / `--inset-r`); null: the product's CSS decides (`setStackInsets`). */
+  readonly stackInsets: ReadSignal<{ left: number; right: number } | null>;
   /** Layers shown by the host's override (viewer / diff); undefined = the document's own visibility. */
-  readonly visibleLayers: Signal<readonly string[] | undefined> = signal<readonly string[] | undefined>(undefined);
+  protected readonly visibleLayersState = signal<readonly string[] | undefined>(undefined);
+  readonly visibleLayers: ReadSignal<readonly string[] | undefined> = this.visibleLayersState;
   /** The document's versions (host-provided); null: no History. */
-  readonly history: Signal<HistoryAdapter | readonly StaticVersion[] | null> = signal<HistoryAdapter | readonly StaticVersion[] | null>(null);
-  /** History is open: its version panel, whatever it shows (set by History). */
-  readonly historyOpen: Signal<boolean> = signal(false);
+  private readonly historyState = signal<HistoryAdapter | readonly StaticVersion[] | null>(null);
+  readonly history: ReadSignal<HistoryAdapter | readonly StaticVersion[] | null> = this.historyState;
+  /** History is open: its version panel, whatever it shows (set by History, `setHistoryState`). */
+  private readonly historyOpenState = signal(false);
+  readonly historyOpen: ReadSignal<boolean> = this.historyOpenState;
   /** The open History's session (the `<mmdx-diff>` methods), null while History is closed (§8.3). */
-  readonly historySession: Signal<HistorySession | null> = signal<HistorySession | null>(null);
-  /** The pen's strokes (set by the pen module), painted into every canvas the scenes add. */
-  readonly strokes: Signal<StrokeStore | null> = signal<StrokeStore | null>(null);
+  private readonly historySessionState = signal<HistorySession | null>(null);
+  readonly historySession: ReadSignal<HistorySession | null> = this.historySessionState;
+  /** The pen's strokes (claimed by the pen module), painted into every canvas the scenes add. */
+  readonly strokes: KernelSlot<StrokeStore> = kernelSlot<StrokeStore>();
   /** The host's full screen, used by the zoom bar when the browser's is unavailable (sandboxed iframes); null: none. */
-  readonly hostFullscreen: Signal<HostFullscreen | null> = signal<HostFullscreen | null>(null);
+  private readonly hostFullscreenState = signal<HostFullscreen | null>(null);
+  readonly hostFullscreen: ReadSignal<HostFullscreen | null> = this.hostFullscreenState;
+  // the lists and slots modules fill (read-only; written through a module's scope: contribute, contributeAll, claim)
   /** Buttons of the tool dock, contributed by modules. */
-  readonly dockItems: Signal<readonly DockItem[]> = signal<readonly DockItem[]>([]);
+  readonly dockItems: KernelList<DockItem> = kernelList<DockItem>();
   /** Entries of the Export menu, contributed by modules. */
-  readonly exportFormats: Signal<readonly ExportFormat[]> = signal<readonly ExportFormat[]>([]);
+  readonly exportFormats: KernelList<ExportFormat> = kernelList<ExportFormat>();
   /** The options flyout to the right of the tool dock (e.g. the pen options); null hides it. */
-  readonly dockFlyout: Signal<HTMLElement | null> = signal<HTMLElement | null>(null);
+  readonly dockFlyout: KernelSlot<HTMLElement> = kernelSlot<HTMLElement>();
   /** Controls of the view-params bar (top right) after the built-in ones, contributed by modules. */
-  readonly paramItems: Signal<readonly DockItem[]> = signal<readonly DockItem[]>([]);
+  readonly paramItems: KernelList<DockItem> = kernelList<DockItem>();
   /** Side panels of the left and right stacks, contributed by modules. */
-  readonly panelItems: Signal<readonly PanelItem[]> = signal<readonly PanelItem[]>([]);
+  readonly panelItems: KernelList<PanelItem> = kernelList<PanelItem>();
 
-  protected readonly cleanups: (() => void)[] = [];
+  /** What the kernel set up (effects, listeners, subscriptions), let go on destroy. */
+  protected readonly owner = new Owner('kernel');
   protected readonly ac = new AbortController();
   protected destroyed = false;
   private readonly o: ViewCoreOptions;
   private readonly shell: Shell;
+  /** The shadow root, i18n, context, storage, popovers, scheme and events (A8: shared with the theme editor and the studio). */
+  private readonly component: ComponentShell;
   private readonly scenes: SceneStack;
   private readonly modules: ModuleHost<this> = new ModuleHost<this>(this);
-  private readonly schemeState: SchemeState;
   private readonly loadTheme: (id: string) => Promise<boolean>;
-  private prefs: StorageAdapter;
   private source: ThemeSource | undefined;
 
   constructor(host: HTMLElement, o: ViewCoreOptions) {
@@ -136,13 +177,14 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.o = o;
     this.product = o.product;
     this.host = host;
-    this.i18n = getShared().i18n;
-    this.prefs = o.storage ?? defaultStorage();
-    this.storage = { get: (k) => this.prefs.get(k), set: (k, v) => this.prefs.set(k, v), remove: (k) => this.prefs.remove(k) };
-    this.ctx = instanceContext(o.ctx);
+    // the shadow root, i18n, context, storage, popovers, scheme and events every component has (A8)
+    const component = (this.component = new ComponentShell(host, { product: o.product, storage: o.storage, ctx: o.ctx, iconPacks: o.iconPacks, ui: o.ui }));
+    this.i18n = component.i18n;
+    this.storage = component.storage;
+    this.ctx = component.ctx;
     this.source = o.themeSource;
     this.loadHistory = o.loadHistory ?? null;
-    this.shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
+    this.shadow = component.shadow;
 
     // ---- shell, canvas area, scenes
     const shell = (this.shell = createShell(host, this.shadow, { root: o.root, areaClass: o.areaClass, css: [TOKENS, BASE, SHELL_CSS, CANVAS_CSS, ...o.css], compact: o.compact ?? 'auto' }));
@@ -152,30 +194,58 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.live = shell.live;
     this.compact = shell.compact;
     this.stackInsets = shell.stackInsets;
-    const canvasOptions = (): CanvasOptions => ({ ...o.canvas, insets: o.canvas.insets ?? (() => this.insets()) });
+    // fit() uses the whole canvas: the panels float over it, so the diagram is as large as the window allows
+    // pan and zoom fire `view` in every product, as documented (B45: only the editor fired it)
+    const canvasOptions = (): CanvasOptions => ({
+      ...o.canvas,
+      onView: (v) => {
+        o.canvas.onView?.(v);
+        this.modules.bus.fire('view', undefined);
+      },
+    });
     this.canvas = new DiagramCanvas(this.area, canvasOptions());
     shell.placeAreaSlots();
     this.scenes = new SceneStack(this.area, this.canvas, canvasOptions, () => this.modules.bus.fire('draw', undefined));
     this.canvasArea = this.scenes.area;
-    this.popovers = new PopoverManager(this.shadow);
+    this.popovers = component.popovers;
     this.toaster = new Toaster(this.root);
-    this.cleanups.push(() => this.toaster.destroy(), () => this.popovers.close());
+    this.owner.add(() => this.toaster.destroy());
 
     // ---- state
-    this.mode = signal<Mode>(o.initialMode ?? 'view');
-    this.schemeState = schemeState(this.storage, `${o.product}.ui`, o.ui);
-    this.scheme = this.schemeState.scheme;
+    this.modeState = signal<Mode>(o.initialMode ?? 'view');
+    this.mode = this.modeState;
+    this.scheme = component.scheme;
     this.themes = new ThemeState({ registry: this.ctx.themes, storage: this.storage, product: o.product, scheme: this.scheme, theme: o.theme, themeDark: o.themeDark });
     this.loadTheme = themeLoader(this.ctx.themes, () => this.source, () => !this.destroyed);
-    this.cleanups.push(watchUiScheme(() => this.schemeState.apply()));
-    this.cleanups.push(this.ctx.themes.onChange(() => {
+    // an icon pack (or the icon code) finished loading: what was drawn as an empty box or a placeholder can show now
+    this.owner.add(this.ctx.icons.onChange(() => {
+      if (!this.destroyed) this.invalidate();
+    }));
+    // an image node without a size is drawn at its picture's size once the browser has loaded it (T06): once more
+    this.ctx.imageSizes ??= domImageSizes;
+    this.owner.add(onImageSize(() => {
+      if (!this.destroyed) this.invalidate();
+    }));
+    // the display settings the picture shows (the labels, the visible layers) repaint it; the hover highlight and the
+    // animation change no picture (P20: every writer called invalidate, whatever it changed)
+    const shows = (): string => `${this.display().labels}|${JSON.stringify(this.visibleLayers() ?? null)}`;
+    let painted = untracked(shows);
+    this.owner.add(effect(() => {
+      const now = shows();
+      if (now === painted) return;
+      painted = now;
+      untracked(() => this.invalidate());
+    }));
+    // animated edges (`e1@{ animate: true }`) move unless the view settings turn them off (or the system asks for less motion)
+    this.owner.add(effect(() => void (this.root.dataset['edgeAnim'] = this.display().animate ? 'on' : 'off')));
+    this.owner.add(this.ctx.themes.onChange(() => {
       if (this.destroyed) return;
       this.themes.themesChanged();
     }));
-    this.cleanups.push(effect(() => void this.host.setAttribute('data-ui', this.scheme())));
+    this.owner.add(effect(() => void this.host.setAttribute('data-ui', this.scheme())));
     // the theme reaches every canvas through the attached scene; a scheme flip that keeps the theme repaints nothing
     let shown = `${this.themes.current.peek()}#${this.themes.rev.peek()}`;
-    this.cleanups.push(effect(() => {
+    this.owner.add(effect(() => {
       const now = `${this.themes.current()}#${this.themes.rev()}`;
       if (now === shown) return;
       shown = now;
@@ -184,7 +254,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
         this.invalidate();
       });
     }));
-    this.cleanups.push(effect(() => {
+    this.owner.add(effect(() => {
       const m = this.mode(), st = this.stage();
       untracked(() => this.refreshModules());
       this.root.dataset['mode'] = m;
@@ -205,6 +275,10 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   // ---- styles -----------------------------------------------------------------------------------------------------
 
   /** Adds CSS to the shadow root (deduplicated by identity). */
+  removeCss(css: readonly string[]): void {
+    this.shell.removeCss(css);
+  }
+
   addCss(css: readonly string[]): void {
     this.shell.addCss(css);
   }
@@ -228,7 +302,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
    */
   emit(type: string, detail: unknown, cancelable = false): boolean {
     if (this.destroyed) return true;
-    return this.host.dispatchEvent(new CustomEvent(type, { detail, bubbles: true, composed: true, cancelable }));
+    return this.component.emit(type, detail, cancelable);
   }
 
   toast(msg: string, opts: { error?: boolean } = {}): void {
@@ -240,6 +314,13 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   /** Provides a named action; a provider registered during a module's install is muted while the module is suspended. */
   provide<K extends keyof A>(name: K, f: A[K]): () => void {
     const r = this.modules.actions.provide(name, f, this.modules.installing);
+    this.attribute(r, 'provide');
+    return () => r.dispose();
+  }
+
+  /** Provides an action that answers only when no other provider does (a module's fallback). */
+  provideDefault<K extends keyof A>(name: K, f: A[K]): () => void {
+    const r = this.modules.actions.provide(name, f, this.modules.installing, true);
     this.attribute(r, 'provide');
     return () => r.dispose();
   }
@@ -293,6 +374,12 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     return this.themes.current.peek();
   }
 
+  /** What every picture of the component is drawn with (X12): the shown theme, the labels setting and the host's layer override. */
+  renderOptions(): PipelineOptions & { theme: string } {
+    const d = this.display.peek(), layers = this.visibleLayers.peek();
+    return { theme: this.shownTheme(), ...(d.labels ? {} : { hideLabels: true }), ...(layers ? { visibleLayers: layers } : {}) };
+  }
+
   /** Loads the theme when it is not registered yet (built-ins on demand, others through the theme source). */
   ensureTheme(id: string): Promise<boolean> {
     return this.loadTheme(id);
@@ -300,12 +387,12 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
 
   /** Sets the chrome scheme option (`ui`): explicit light / dark, or `auto` (the remembered choice, else the page). */
   setUi(ui: UiOption | undefined): void {
-    this.schemeState.setUi(ui);
+    this.component.setUi(ui);
   }
 
   /** The user toggles the chrome scheme: remembered per product, the theme is not touched. */
   chooseScheme(s: Scheme): void {
-    this.schemeState.choose(s);
+    this.component.chooseScheme(s);
     this.emit('mmdx-ui', { ui: s });
   }
 
@@ -322,8 +409,7 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
 
   /** Changes where UI preferences live: the remembered scheme and theme pick are read from it again. */
   setStorage(s: StorageAdapter | undefined): void {
-    this.prefs = s ?? defaultStorage();
-    this.schemeState.apply();
+    this.component.setStorage(s);
     this.themes.reload();
   }
 
@@ -333,9 +419,67 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.shell.setCompact(c);
   }
 
-  /** Insets of the canvas area that fit() keeps clear: the open panel stacks and the tool dock. */
+  /** What the open panel stacks take from the canvas area (the panel stacks module measures it); null: the product's CSS decides. */
+  setStackInsets(insets: { left: number; right: number } | null): void {
+    this.shell.stackInsets.set(insets);
+  }
+
+  /** Insets of the canvas area covered by the open panel stacks and the tool dock (the diff's panes keep clear of them). */
   insets(): Insets {
     return this.shell.insets();
+  }
+
+  /** Width of the tool dock (0 while it is not shown). */
+  dockWidth(): number {
+    return this.shell.dockWidth();
+  }
+
+  // ---- services for modules (R10, BUG-016: modules do not reach into `root`, `area`, `canvas` or `slots`) ----------
+
+  /** The component's focusable root: its keys, paste and pointer events reach it, and what floats over the whole component (menus, tooltips) goes in it. */
+  get eventRoot(): HTMLElement {
+    return this.root;
+  }
+
+  /** Gives the focus to the component (its root, where the shortcuts are handled), without scrolling. */
+  focus(): void {
+    this.root.focus({ preventScroll: true });
+  }
+
+  /** The component's box on screen (client px; empty before layout). */
+  rect(): DOMRect {
+    return this.root.getBoundingClientRect();
+  }
+
+  /** A CSS custom property as the root computes it (the chrome's tokens, the stacks' `--inset-l`…; '' when not set or not computed). */
+  cssVar(name: string): string {
+    return typeof getComputedStyle === 'function' ? getComputedStyle(this.root).getPropertyValue(name).trim() : '';
+  }
+
+  /** Width of the canvas area (px; 0 before layout). */
+  areaWidth(): number {
+    return this.area.clientWidth;
+  }
+
+  /** Calls `f` whenever the canvas area changes size; returns a remover. */
+  onAreaResize(f: () => void): () => void {
+    return observeSize(this.area, f);
+  }
+
+  /** Pan and zoom of the main canvas: its view, its viewport (null while static), fit and zoom. */
+  get panZoom(): PanZoom {
+    return this.canvas;
+  }
+
+  /** Paints the pen's strokes into the main canvas and lets the user draw on it there; returns a detach. */
+  attachInk(store: StrokeStore): () => void {
+    return this.canvas.attachInk(store);
+  }
+
+  /** The hover highlight at an element of the main canvas's picture: its item and what it connects to lit, the rest faded; null clears it. */
+  highlightAt(target: Element | null, model: DiagramModel | null): void {
+    if (target) hoverHighlight(this.canvas.body, target, model);
+    else clearHighlight(this.canvas.body);
   }
 
   // ---- modules ----------------------------------------------------------------------------------------------------
@@ -365,6 +509,11 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     return this.modules.ids;
   }
 
+  /** Resolves once the modules' lazy parts asked for so far have loaded (a kind's modules after its document loads). */
+  modulesReady(): Promise<void> {
+    return this.modules.settled();
+  }
+
   /** Runs `f` with registrations attributed to a module's scope (lazy parts, late registrations). */
   inScope(scope: ModuleScope<this>, f: () => void): void {
     if (scope instanceof Scope) this.modules.within(scope, f);
@@ -384,14 +533,82 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
     this.ac.abort();
     this.modules.clear();
     this.scenes.destroy();
-    for (const c of this.cleanups.splice(0).reverse()) {
-      try {
-        c();
-      } catch (e) {
-        console.error('[mmdx] cleanup failed', e);
-      }
-    }
+    this.owner.dispose();
     this.shell.destroy();
+    this.component.destroy();
+  }
+
+  // ---- owners of the state (A7) ----------------------------------------------------------------------------------
+
+  setMode(m: Mode): void {
+    this.modeState.set(m);
+  }
+
+  /** Shows a stage of the component (History drives it: `version`, `history`; `document` is back). */
+  setStage(st: Stage): void {
+    this.stageState.set(st);
+  }
+
+  /**
+   * Shows a stage with its own scene over the document's (History's comparison, A7 `StageController`): the scene is
+   * pushed, the tool put aside (and `tool` taken, when given); `leaveStage` gives both back. Entering again while
+   * entered only sets the stage.
+   */
+  enterStage(st: Stage, o: { scene?: SceneSource; tool?: Tool } = {}): void {
+    if (!this.staged) {
+      this.staged = { scene: o.scene ?? null, tool: this.toolState.peek() };
+      this.setStage(st);
+      if (o.tool && o.tool !== this.toolState.peek()) this.setTool(o.tool);
+      if (o.scene) this.pushScene(o.scene);
+    } else this.setStage(st);
+  }
+
+  /** Back from `enterStage`: the stage's scene popped, the `document` stage, the tool put aside back. False when not entered. */
+  leaveStage(): boolean {
+    const st = this.staged;
+    if (!st) return false;
+    this.staged = null;
+    if (st.scene && this.scene === st.scene) this.popScene();
+    this.setStage('document');
+    this.setTool(st.tool);
+    return true;
+  }
+
+  /** The display settings (labels, hover highlight, animation); the picture repaints itself where they show. */
+  setDisplay(patch: Partial<Display>): void {
+    this.displayState.set({ ...this.displayState.peek(), ...patch });
+  }
+
+  /** Opens or closes a panel (the stack modules only render what is open). */
+  setPanel(name: keyof P & string, open: boolean): void {
+    this.setPanels({ [name]: open } as Partial<P>);
+  }
+
+  setPanels(patch: Partial<P>): void {
+    this.panelsState.set({ ...this.panelsState.peek(), ...patch });
+  }
+
+  setTool(t: Tool): void {
+    this.toolState.set(t);
+  }
+
+  /** The host's layer override (undefined: the document's own visibility). */
+  setVisibleLayers(ids: readonly string[] | undefined): void {
+    this.visibleLayersState.set(ids);
+  }
+
+  /** What the host page gives the component: its versions (History) and its full screen. */
+  setHostOptions(o: { history?: HistoryAdapter | readonly StaticVersion[] | null; fullscreen?: HostFullscreen | null }): void {
+    if (o.history !== undefined) this.historyState.set(o.history);
+    if (o.fullscreen !== undefined) this.hostFullscreenState.set(o.fullscreen);
+  }
+
+  /** History says whether it is open and which session it shows (src/diff/history.ts). */
+  setHistoryState(open: boolean, session: HistorySession | null): void {
+    batch(() => {
+      this.historyOpenState.set(open);
+      this.historySessionState.set(session);
+    });
   }
 
   get isDestroyed(): boolean {
@@ -399,4 +616,3 @@ export class ViewCore<A extends object = ViewActions, P extends Readonly<Record<
   }
 }
 
-const defaultStorage = (): StorageAdapter => (typeof localStorage !== 'undefined' ? localStorageAdapter() : memoryStorage());

@@ -32,20 +32,8 @@ export type Tool = 'pointer' | 'hand' | 'pen' | 'shapes' | 'paint';
 export interface Display {
   labels: boolean;
   hoverHighlight: boolean;
-}
-
-/**
- * Full screen provided by the host page, for components in sandboxed iframes without `allowfullscreen` (the host can
- * show the frame in a modal instead). The zoom bar's full-screen button uses it when the browser's full screen is
- * unavailable.
- */
-export interface HostFullscreen {
-  /** Whether the host can show the component full screen now. */
-  available(): boolean;
-  enter(): Promise<void>;
-  exit(): Promise<void>;
-  /** Whether the host shows it full screen, for hosts that can leave full screen by themselves (read on toggle and on window resize). */
-  active?(): boolean;
+  /** Animated edges move (T06; `prefers-reduced-motion` stops them as well). */
+  animate: boolean;
 }
 
 /** An export entry contributed by a module (`exportFormats`). */
@@ -61,14 +49,11 @@ export interface ExportFormat {
 /** Actions every component may provide; modules call them through `core.run()`. */
 export interface ViewActions {
   fitView(): void;
-  toggleHelp(on?: boolean): void;
   /**
    * Opens or closes the History of the document (when there is a history). Opening shows the version panel only;
    * `compare`: opens on the newest change compared (the studio's Diff).
    */
   toggleHistory(on?: boolean, opts?: { compare?: boolean }): void;
-  /** Export formats of the installed modules, in menu order. */
-  exportFormats(): ExportFormat[];
   setTool(tool: Tool): void;
   setPanel(name: string, open: boolean): void;
   /** The shown document's model (hover highlight, labels). */
@@ -81,39 +66,25 @@ export interface ViewActions {
   documentSource(): string | null;
   /** File name stem of exports. */
   documentName(): string;
-  /** Opens a version in the document as one undoable change (the editor; History's Restore). */
-  restoreVersion(source: string, version: { id: string }): void;
-  /** Puts copied items on the host's item clipboard (the editor; copying from History). */
-  setClipboard(data: unknown): void;
-  /**
-   * Shows a version of the document read-only in the host's own scene, drawn as the document is (the editor;
-   * History's version view), or the document again (null). Nothing writes the document while a version shows.
-   */
-  showVersion(version: { id: string; source: string } | null): void;
 }
 
 /**
- * Kernel events, by name → payload (`void`: none). An open map: a product extends it (`interface MyEvents extends
- * ViewEvents { … }`) and passes it to `ViewCore<Actions, Panels, MyEvents>`.
+ * Kernel events, by name → payload (`void`: none): the ones every product fires (A6). An open map: a product extends
+ * it with its own (`interface MyEvents extends ViewEvents { … }`, as the editor's EditorEvents) and passes it to
+ * `ViewCore<Actions, Panels, MyEvents>`.
  */
 export interface ViewEvents {
   /** The attached scene painted. */
   draw: void;
-  /** Pan, zoom or the canvas insets changed. */
+  /** Pan, zoom or the canvas insets changed (fired in every product, B45). */
   view: void;
+  /** The theme shown changed (a pick, a scheme flip to another theme, a registered theme's update). */
   theme: void;
-  mode: void;
-  stage: void;
-  tool: void;
+  /** A panel opened or closed, or what a panel shows changed. */
   panels: void;
-  model: void;
-  selection: void;
-  overlay: void;
   /** The shown document changed (a new source). */
   document: void;
 }
-
-export type ViewEvent = keyof ViewEvents;
 
 /** A button a module adds to the tool dock (the toolDock module renders them by section, then order). */
 export interface DockItem {

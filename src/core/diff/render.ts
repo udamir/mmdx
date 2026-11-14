@@ -1,6 +1,8 @@
 // Rendering a diff (§7.5): both versions, the merged picture, the filtered change list and one shared coordinate space, from two sources. `renderDiffToSvgWith` composes any view into one standalone SVG (exports, CI bots, SSR). Everything here renders with the given diagram kinds (component architecture §9.1: <mmdx-diff> loads the kinds of both versions on demand); the all-kinds wrappers are in all.ts, so a bundle that loads kinds ships none statically.
-import { createContext, type CoreContext } from '../context.js';
-import { isSupported } from '../model.js';
+import { diffKind } from '../kinds/registry.js';
+import type { CoreContext } from '../context-base.js';
+import { isSupported, type DiagramModel } from '../model.js';
+import { parseWith } from '../parse/dispatch.js';
 import { renderDocumentWith, renderSourceWith, type Kinds, type PipelineOptions, type Rendered } from '../pipeline-core.js';
 import { pageScene } from '../render/page.js';
 import { el, g, text } from '../scene/build.js';
@@ -8,11 +10,12 @@ import { escAttr, fmt, serializeNodes } from '../scene/serialize.js';
 import { withoutMarks } from '../text/marks.js';
 import type { SceneNode } from '../scene/types.js';
 import type { Rect } from '../types.js';
-import { annotate, centreOf, DIFF_COLORS, MARKS, shapeOf, type DiffColors, type DiffView, type Mark } from './annotate.js';
+import { annotate, badgeIcon, centreOf, DIFF_COLORS, MARKS, shapeOf, type DiffColors, type DiffView, type Mark } from './annotate.js';
 import { diffDiagramsWith, ignoreFacets } from './index.js';
 import type { DiagramDiff, DiffIgnore, ItemChange } from './types.js';
 import { withLayoutOf, withoutStyle } from './transform.js';
 import { mergeDiagrams, type Merged } from './merge.js';
+import { maxOf } from '../geom.js';
 
 // The merged picture measures its labels without the change marks (annotate turns them into styled runs). One derived
 // context per context, so its layout cache lives as long as the caller's.
@@ -65,7 +68,10 @@ const union = (a: Rect, b: Rect): Rect => {
 export function renderDiffWith(kinds: Kinds, before: string, after: string, ctx: CoreContext, o: DiffRenderOptions = {}): DiffRendered {
   const ignore = o.ignore ?? {};
   const hide = o.hide ?? {};
-  const raw = diffDiagramsWith(kinds, before, after);
+  // each code parsed once (P13): the diff and the two renders read the same models; only a style-less code is new
+  const models = new Map<string, DiagramModel>();
+  const parse = (code: string): DiagramModel => models.get(code) ?? models.set(code, parseWith(code, kinds)).get(code)!;
+  const raw = diffDiagramsWith(kinds, before, after, parse);
   const ignored = ignoreFacets(raw, ignore);
   const items = ignored.items.map((c) => (hide[c.status as 'added' | 'removed'] ? { ...c, status: 'unchanged' as const } : c));
   const diff: DiagramDiff = {
@@ -79,14 +85,14 @@ export function renderDiffWith(kinds: Kinds, before: string, after: string, ctx:
     srcAfter = withoutStyle(srcAfter);
   }
   // sequence metadata is keyed by position, so its layout cannot be transplanted by id
-  const layoutAligned = !!ignore.layout && raw.type !== 'sequence' && !raw.typeChanged;
+  const layoutAligned = !!ignore.layout && !diffKind(raw.type)?.positionalIds && !raw.typeChanged;
   if (layoutAligned) srcBefore = withLayoutOf(srcBefore, srcAfter);
   const { ignore: _i, hide: _h, ...pipe } = o;
   // both versions with one theme (a fair comparison): the forced one, else the after version's own
-  const ra = renderSourceWith(kinds, srcAfter, ctx, pipe);
+  const ra = renderSourceWith(kinds, srcAfter, ctx, pipe, parse);
   const theme = ra.themeId;
   const popts: PipelineOptions = { ...pipe, theme };
-  const rb = renderSourceWith(kinds, srcBefore, ctx, popts);
+  const rb = renderSourceWith(kinds, srcBefore, ctx, popts, parse);
 
   const pos = (c: ItemChange): { x: number; y: number } => {
     const s = c.status === 'removed' ? shapeOf(rb.result.geom, c.kind, c.beforeId ?? c.id) : shapeOf(ra.result.geom, c.kind, c.id);
@@ -154,14 +160,13 @@ const FONT = 'system-ui, -apple-system, sans-serif';
 
 function legend(x: number, y: number, d: DiffRendered, colors: DiffColors, ink: string): SceneNode {
   const names: Record<Mark, string> = { added: 'added', removed: 'removed', content: 'content', layout: 'layout', style: 'style' };
-  const badges: Record<Mark, string> = { added: '+', removed: '−', content: 'C', layout: 'L', style: 'S' };
   const n = d.diff.counts;
   const parts: SceneNode[] = [];
   let cx = x;
   for (const m of MARKS) {
     const c = colors.marks[m].c;
     parts.push(el('rect', { x: cx, y: y - 9, width: 18, height: 18, rx: 9, fill: c }));
-    parts.push(text({ 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-family': FONT, 'font-size': 10.5, 'font-weight': 700, fill: '#ffffff' }, [{ text: badges[m], x: cx + 9, y: y + 0.5 }]));
+    parts.push(badgeIcon(m, cx + 3, y - 6, 12, '#ffffff'));
     const label = `${names[m]} ${n[m]}`;
     parts.push(text({ 'dominant-baseline': 'central', 'font-family': FONT, 'font-size': 12, fill: ink }, [{ text: label, x: cx + 24, y }]));
     cx += 24 + label.length * 7 + 16;
@@ -180,7 +185,7 @@ export function diffSvg(d: DiffRendered, o: DiffSvgOptions = {}): string {
       : [{ page: pageOf(d, view, o, colors) }];
   const gap = 32, titleH = view === 'side' ? 32 : 0, legendH = o.legend === false ? 0 : 36;
   const width = pages.reduce((w, p) => w + p.page.bounds.w, 0) + gap * (pages.length - 1);
-  const height = Math.max(...pages.map((p) => p.page.bounds.h)) + titleH + legendH;
+  const height = maxOf(pages.map((p) => p.page.bounds.h)) + titleH + legendH;
   const defs = new Map<string, SceneNode>();
   const body: SceneNode[] = [];
   let dx = 0;
@@ -200,8 +205,9 @@ export function diffSvg(d: DiffRendered, o: DiffSvgOptions = {}): string {
 }
 
 /** Server-side and build-time rendering of a diff (CI bots, MR comments) with the given diagram kinds: two sources → one standalone SVG of a view. Uses the static text measurer unless the context brings another one. Works in Node and workers (no DOM). `renderDiffToSvg` (all.ts) uses every kind. */
-export async function renderDiffToSvgWith(kinds: Kinds, before: string, after: string, o: DiffRenderOptions & DiffSvgOptions & { ctx?: CoreContext } = {}): Promise<string> {
-  const ctx = o.ctx ?? createContext();
+/** `ctx` is given (B41: a default here would put the built-in themes in every bundle that renders a diff). */
+export async function renderDiffToSvgWith(kinds: Kinds, before: string, after: string, o: DiffRenderOptions & DiffSvgOptions & { ctx: CoreContext }): Promise<string> {
+  const ctx = o.ctx;
   const ropts: DiffRenderOptions = {};
   if (o.theme) ropts.theme = o.theme;
   if (o.ignore) ropts.ignore = o.ignore;

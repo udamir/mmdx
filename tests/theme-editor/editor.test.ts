@@ -1,15 +1,16 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { memoryThemeStore, type ThemeStore } from '../../src/adapters/themes.js';
+import { memoryThemeStore } from '../../src/adapters/themes.js';
+import { type ThemeStore } from '../../src/ports.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { BUILTIN_THEMES } from '../../src/core/theme/builtin.js';
 import type { ThemeFile } from '../../src/core/theme/types.js';
 import { ThemeEditor } from '../../src/theme-editor/editor.js';
 import type { ThemeEditorOptions } from '../../src/theme-editor/types.js';
-import { drawItemPreview } from '../../src/ui/item-preview.js';
+import { drawItemPreview } from '../../src/ui/diagram/item-preview.js';
 
-vi.mock('../../src/ui/item-preview.js', async (orig) => {
-  const m = await orig<typeof import('../../src/ui/item-preview.js')>();
+vi.mock('../../src/ui/diagram/item-preview.js', async (orig) => {
+  const m = await orig<typeof import('../../src/ui/diagram/item-preview.js')>();
   return { ...m, drawItemPreview: vi.fn(m.drawItemPreview) };
 });
 
@@ -48,6 +49,24 @@ describe('ThemeEditor', () => {
     await te.ready;
     expect(te.themeId).toBe('default-dark');
     expect(await id).toBe('default-dark');
+  });
+
+  it('a store with listWithUsage is read once: no get or usage per theme (P19); without it, the list then each theme', async () => {
+    const store = memoryThemeStore(BUILTIN_THEMES);
+    const get = vi.fn(store.get), usage = vi.fn(async () => 3);
+    const bulk: ThemeStore = { ...store, get, usage, listWithUsage: async () => Promise.all((await store.list()).map(async (info) => ({ info, file: await store.get(info.id), usage: 2 }))) };
+    const { te, root } = mount({ store: bulk });
+    await te.ready;
+    expect(get).not.toHaveBeenCalled();
+    expect(usage).not.toHaveBeenCalled();
+    expect(root.querySelector('.te-ttag')!.textContent).toContain('used by 2 diagrams');
+    te.destroy();
+    const each: ThemeStore = { ...store, get, usage };
+    const { te: te2, root: root2 } = mount({ store: each });
+    await te2.ready;
+    expect(get).toHaveBeenCalledTimes((await store.list()).length);
+    expect(usage).toHaveBeenCalledTimes((await store.list()).length);
+    expect(root2.querySelector('.te-ttag')!.textContent).toContain('used by 3 diagrams');
   });
 
   it('set({ theme }) resolves with the theme open: the old one when the user stays', async () => {

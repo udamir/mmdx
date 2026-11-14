@@ -1,0 +1,248 @@
+// The editor's pickers (T05 §4.3–4.5), a lazy chunk of the insert module: the icon picker over the icon registry
+// (`searchIcons`, previews by `iconImage`), the image tool (the host's image library and upload —
+// its image store, else `uploadImage` —, the image policy's check, an offer to reduce big pictures) and the emoji picker (the emoji data, a chunk of its own per locale). Each opens as a
+// dialog popover beside its button, with Tab kept inside. A chosen icon goes on the selected items (`setIcon`); the image
+// tool in insert mode adds an image item through the edit kind (`addImage`), else it sets the selected item's image.
+import { checkImageUrl } from '../../../core/media/policy.js';
+import { iconImage } from '../../../core/icons/draw.js';
+import { searchIcons } from '../../../core/icons/search.js';
+import type { ItemRef, Point } from '../../../core/types.js';
+import { loadEmoji, searchEmoji, withTone } from '../../../emoji/data.js';
+import { h } from '../../../ui/kit/h.js';
+import { registerMessages } from '../../../i18n.js';
+import { BLOCK_MESSAGES_MEDIA } from '../../../ui/messages/blocks-media.js';
+import { EDITOR_MEDIA_MESSAGES } from '../../messages-media.js';
+import { createEmojiPicker, EMOJI_PICKER_CSS } from '../../../ui/blocks/emoji-picker.js';
+import { createIconPicker, ICON_PICKER_CSS } from '../../../ui/blocks/icon-picker.js';
+import { createImagePicker, IMAGE_PICKER_CSS, type ImageTab } from '../../../ui/blocks/image-picker.js';
+import type { ImageInfo } from '../../../ports.js';
+import { reduceImage, imageSize } from '../../../dom/downscale.js';
+import type { EditorCore } from '../../core.js';
+import { editKind, withEdit } from '../../kinds/registry.js';
+import { mediaOf, mediaTargets, setIconOf, setImageOf, takesIcons } from '../../ops/media.js';
+import { canvasCenter } from '../../lib/shape-drag.js';
+
+registerMessages(BLOCK_MESSAGES_MEDIA);
+registerMessages(EDITOR_MEDIA_MESSAGES);
+
+const MEDIA_CSS = /* css */ `
+/* the look of the floating toolbar's popovers */
+.ins-pop.mmdx-pop { position: fixed; padding: 12px; background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: 14px;
+  box-shadow: 0 10px 34px rgba(20, 30, 60, .18); }
+`;
+
+const RECENT_EMOJI = 'emoji.recent', TONE = 'emoji.tone';
+
+const remember = (core: EditorCore, key: string, v: string, n: number): void => {
+  const list = (core.storage.get<string[]>(key) ?? []).filter((x) => typeof x === 'string' && x !== v);
+  core.storage.set(key, [v, ...list].slice(0, n));
+};
+
+/** The chrome's text colour (monochrome icon previews): a colour literal, else the default ink. */
+function inkOf(core: EditorCore): string {
+  const v = core.cssVar('--mmdx-text');
+  return /^#[0-9a-f]{3,8}$/i.test(v) ? v : '#1f2328';
+}
+
+/** Puts a popover beside its anchor (right of a dock button, below anything else), inside the viewport. */
+function place(el: HTMLElement, anchor: HTMLElement | null, core: EditorCore): void {
+  const r = anchor?.getBoundingClientRect() ?? core.overlayHost.getBoundingClientRect();
+  const vw = typeof innerWidth === 'number' ? innerWidth : 1024, vh = typeof innerHeight === 'number' ? innerHeight : 768;
+  const w = el.offsetWidth || 360, ht = el.offsetHeight || 420;
+  const dock = !!anchor?.closest('.tool-dock');
+  let left = dock ? r.right + 10 : r.left, top = dock ? r.top - 20 : r.bottom + 6;
+  // from the floating toolbar: where its own popovers open — 8 px under the bar (above it without room), by the button
+  const bar = anchor?.closest<HTMLElement>('.mtb');
+  if (bar) {
+    const b = bar.getBoundingClientRect();
+    left = r.left - 20;
+    top = b.bottom + 8 + ht <= vh - 8 || b.top - 8 - ht < 8 ? b.bottom + 8 : b.top - 8 - ht;
+  }
+  if (!anchor) {
+    left = r.left + r.width / 2 - w / 2;
+    top = r.top + 60;
+  }
+  const x = Math.round(Math.max(8, Math.min(left, vw - w - 8))), y = Math.round(Math.max(8, Math.min(top, vh - ht - 8)));
+  el.style.left = `${x}px`;
+  el.style.top = `${y}px`;
+  // a transformed or contained ancestor makes `fixed` relative to it (an embedding page's frame): measured and taken off
+  const at = el.getBoundingClientRect();
+  if (at.width && (at.left !== x || at.top !== y)) {
+    el.style.left = `${Math.round(2 * x - at.left)}px`;
+    el.style.top = `${Math.round(2 * y - at.top)}px`;
+  }
+}
+
+/** Opens `content` as a dialog popover (Tab kept inside, Esc and an outside press close it). */
+function openPop(core: EditorCore, content: HTMLElement, anchor: HTMLElement | null, onClose: () => void): HTMLElement {
+  const pop = h('div', { class: 'ins-pop' }, content);
+  core.shadow.append(pop);
+  // placed again when its size changes (another tab of the image tool), so it stays by its bar
+  const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => place(pop, anchor, core)) : null;
+  core.popovers.open(pop, anchor, { onClose: () => {
+    ro?.disconnect();
+    onClose();
+  }, trap: true });
+  place(pop, anchor, core);
+  ro?.observe(pop);
+  return pop;
+}
+
+/** Where an insert-mode choice lands: the given point, else the middle of the canvas (snapped). */
+const spot = (core: EditorCore, at?: Point): Point => {
+  const p = at ?? canvasCenter(core);
+  return { x: core.snapV(p.x), y: core.snapV(p.y) };
+};
+
+// ---- the image tool's Icon tab --------------------------------------------------------------------------------------
+
+/** The icon picker for `targets` (a pick sets their icon and closes the popover). */
+function iconPicker(core: EditorCore, targets: readonly ItemRef[]): { el: HTMLElement; focus(): void; destroy(): void } {
+  core.addCss([ICON_PICKER_CSS, MEDIA_CSS]);
+  const reg = core.ctx.icons;
+  const ink = inkOf(core);
+  const picker = createIconPicker({
+    t: core.i18n.t,
+    packs: () => reg.packList().map((p) => ({
+      name: p.name, title: p.info?.name ?? p.name, loaded: p.loaded, failed: p.failed, builtin: p.builtin,
+      ...(p.info?.license?.title ? { license: p.info.license.title } : {}),
+    })),
+    find: (q) => {
+      if (q) return searchIcons(reg, q, { limit: 600 }).map((x) => x.name);
+      const out: string[] = [];
+      for (const name of reg.packNames()) {
+        const icons = reg.packData(name)?.icons ?? {};
+        for (const [n, ic] of Object.entries(icons)) if (!ic.hidden) out.push(`${name}:${n}`);
+      }
+      return out;
+    },
+    preview: (name) => iconImage(reg, name, { color: ink, size: 28 }).href,
+    current: targets.length === 1 ? mediaOf(core, targets[0]!)?.icon ?? null : null,
+    onPick: (name) => {
+      setIconOf(core, targets, name);
+      core.popovers.close(true);
+    },
+  });
+  // the packs are lazy chunks: listed once they are in (there are no pack filters to load one by)
+  const off = reg.onChange(() => picker.refresh());
+  for (const p of reg.packList()) if (!p.loaded && !p.failed) void reg.load(p.name);
+  return {
+    el: picker.el,
+    focus: () => picker.focus(),
+    destroy() {
+      off();
+      picker.destroy();
+    },
+  };
+}
+
+// ---- image tool ------------------------------------------------------------------------------------------------------
+
+export function openImageTool(core: EditorCore, anchor: HTMLElement | null, o: { insert?: boolean; file?: File; at?: Point; tab?: ImageTab }): void {
+  if (anchor && core.popovers.isOpenFor(anchor)) return core.popovers.close();
+  core.addCss([IMAGE_PICKER_CSS, MEDIA_CSS]);
+  const t = core.i18n.t;
+  const kind = editKind(core.model.type);
+  const targets = o.insert ? [] : mediaTargets(core, 'image');
+  const insert = !targets.length;
+  if (insert && !kind?.addImage) return core.toast(t('media.noImages'));
+  const current = targets.length === 1 ? mediaOf(core, targets[0]!)?.image ?? '' : '';
+  // an image may be an icon instead of a picture: the Icon tab sets the selected items' image to an icon (a plain item
+  // becomes an icon node)
+  const media = targets.map((r) => mediaOf(core, r));
+  const iconTargets = !insert && takesIcons(kind) ? targets : [];
+  const icons = iconTargets.length ? iconPicker(core, iconTargets) : null;
+  // a tab of the image tool, not a dialog of its own
+  icons?.el.setAttribute('role', 'group');
+  const tab = o.tab ?? (icons && media.every((m) => m?.node === 'icon') ? 'icon' : undefined);
+  const close = (): void => core.popovers.close(true);
+  const upload = core.upload;
+  const store = core.images;
+  const picker = createImagePicker({
+    t,
+    value: current,
+    ...(tab ? { tab } : {}),
+    icon: icons?.el ?? null,
+    onIconTab: () => icons?.focus(),
+    library: store ? (q) => store.list(q) : null,
+    thumbUrl: (img) => thumbUrl(core, img),
+    submitLabel: insert ? t('image.add') : t('image.replace'),
+    check: (url) => {
+      const r = checkImageUrl(url, core.ctx.imagePolicy, core.ctx.resolveUrl);
+      return 'reason' in r ? t(`image.reason.${r.reason}`) : null;
+    },
+    upload: upload ? async (file) => (await upload(file)).url : null,
+    measure: imageSize,
+    reduce: reduceImage,
+    onSubmit: (url) => {
+      // the URL passed the policy in the block; checked again here (an upload's URL as well)
+      if ('reason' in checkImageUrl(url, core.ctx.imagePolicy, core.ctx.resolveUrl)) return core.toast(t('media.blocked'), { error: true });
+      if (insert) withEdit(core.model, (k, m) => k.addImage?.(core, m, url, spot(core, o.at)));
+      else setImageOf(core, targets, url);
+      close();
+    },
+    onRemove: !insert && targets.some((r) => !!mediaOf(core, r)?.image) ? () => {
+      setImageOf(core, targets, null);
+      close();
+    } : null,
+    onRefused: (msg) => core.toast(msg),
+  });
+  // the library follows the store (a picture added or removed elsewhere)
+  const off = store?.subscribe?.(() => void picker.refresh());
+  openPop(core, picker.el, anchor, () => {
+    off?.();
+    icons?.destroy();
+    picker.destroy();
+  });
+  if (o.file) void picker.takeFile(o.file);
+}
+
+/**
+ * A library tile's picture: the record's `thumb`, else its `url` through the host's `resolveUrl` — loaded by the
+ * browser in the editor's own UI, so only web and inline picture URLs (null: a blank tile).
+ */
+function thumbUrl(core: EditorCore, img: ImageInfo): string | null {
+  const raw = img.thumb ?? img.url;
+  let url: unknown = raw;
+  try {
+    url = img.thumb ? raw : core.ctx.resolveUrl?.(raw, 'image') ?? raw;
+  } catch {
+    url = raw;
+  }
+  return typeof url === 'string' && /^(https?:|blob:|data:image\/)/i.test(url.trim()) ? url.trim() : null;
+}
+
+// ---- emoji picker ----------------------------------------------------------------------------------------------------
+
+/** Opens the emoji picker; the emoji go to `onPick` (it stays open for more), `onClose` runs when it closes. */
+export function pickEmoji(core: EditorCore, anchor: HTMLElement, onPick: (emoji: string) => void, onClose?: () => void): void {
+  if (core.popovers.isOpenFor(anchor)) return core.popovers.close();
+  core.addCss([EMOJI_PICKER_CSS, MEDIA_CSS]);
+  const t = core.i18n.t;
+  const box = h('div', { class: 'ep-wait', role: 'status' }, t('emoji.loading'));
+  let destroy: (() => void) | null = null;
+  let open = true;
+  openPop(core, box, anchor, () => {
+    open = false;
+    destroy?.();
+    onClose?.();
+  });
+  void loadEmoji(core.i18n.locale).then((data) => {
+    if (!open) return;
+    const picker = createEmojiPicker({
+      t, data, search: (q) => searchEmoji(data, q), withTone,
+      recent: core.storage.get<string[]>(RECENT_EMOJI) ?? [],
+      tone: core.storage.get<number>(TONE) ?? 0,
+      onTone: (n) => core.storage.set(TONE, n),
+      onPick: (e) => {
+        remember(core, RECENT_EMOJI, e, 27);
+        onPick(e);
+      },
+    });
+    destroy = () => picker.destroy();
+    box.replaceWith(picker.el);
+    picker.focus();
+  }, () => {
+    box.textContent = t('emoji.failed');
+  });
+}

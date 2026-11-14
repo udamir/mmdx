@@ -32,6 +32,8 @@ Register a file with [`registerThemes`](/api/configuration#registerthemes), serv
 | `flowchart` | `FlowchartTheme` | `node`, `group`, `edge`, their `…Presets`, `nodeShapes` and `pagePresets` |
 | `sequence` | `SequenceTheme` | `participant`, `message`, `note`, `block`, `box`, `lifeline`, `activation`, their `…Presets`, `participantShapes`, `layout` and `pagePresets` |
 | `er` | `ErTheme` | `entity`, `rel`, their `…Presets` and `pagePresets` |
+| `mindmap` | `MindmapTheme` | `root`, `node`, `nodeShapes`, `nodePresets`, `branch`, `sections` and `pagePresets` |
+| `state` | `StateTheme` | `node`, `nodeShapes`, `nodePresets`, `start`, `end`, `choice`, `fork`, `composite`, `compositePresets`, `compositeColors`, `note`, `notePresets`, `transition`, `transitionPresets` and `pagePresets` |
 
 Any other top-level key (the built-in files carry `source`, for example) is kept as it is and never read by a renderer.
 
@@ -205,14 +207,14 @@ Sizing keys are set in themes; most items take their size from the layout or fro
 | `curve` | `number` | −100–100 | Curvature of a curved line (`1` is the default; `0` is straight) |
 | `routing` | `string` | `curved`, `orthogonal`, `straight` | How a relationship line is routed |
 | `labelAt` | `number` | 0–1 | Label position along a relationship line |
-| `replyDash` | `string` | As `dash` | Dash pattern of reply messages (`-->>`) |
+| `replyDash` | `string` | As `dash` | Dash pattern of dotted messages (`-->>`, `-->`, `--x`, `--)` and the dotted half arrows); `"4 3"` in the built-in themes. A preset's or the message's own `dash` wins |
 | `labelOnLine` | `boolean` | | Message label sits on the line instead of above it |
 
 ### Sequence and ER
 
 | Key | Type | Allowed values | Meaning |
 |---|---|---|---|
-| `showTag` | `boolean` | | Show the block kind (`loop`, `alt`, …) in a tag at the block's corner |
+| `showTag` | `boolean` | | Show the block kind (`loop`, `alt`, …) in a tag at the block's corner, as Mermaid does (`true` in the built-in themes; the page setting `blockTags: false` hides the tags, a block's own `showTag` wins) |
 | `attrSize` | `number` | 0–1000 | Font size of ER attributes |
 | `attrColor` | colour | Colour value | Colour of ER attributes |
 | `mode` | `string` | `compact`, `table` | ER table layout: attributes as text, or as columns |
@@ -264,7 +266,7 @@ Node presets: `client`, `ui`, `core`, `analytics`, `worker`, `domain`, `api`, `s
 
 ### `nodeShapes`
 
-The default style of each node shape, applied after `node` and before presets: `"nodeShapes": { "diamond": { "fill": "@cream" } }`. Shape names are open-ended, so a theme may style shapes a newer renderer knows. The node shapes are `rect`, `rounded`, `stadium`, `circle`, `doublecircle`, `diamond`, `hexagon`, `cylinder`, `hcyl` (horizontal cylinder), `subroutine`, `parallelogram`, `parallelogram-alt`, `trapezoid`, `trapezoid-alt`, `asymmetric`, `document`, `card`.
+The default style of each node shape, applied after `node` and before presets: `"nodeShapes": { "diamond": { "fill": "@cream" } }`. A key is a shape's id or any name the [shape catalogue](/guide/shapes#the-catalogue) knows for it — Mermaid's short name or an alias (`"cyl"`, `"lean-r"`, `"disk"`) — and is matched to the shape's id when the theme is used; where two keys name one shape, the id's own key wins. Names the catalogue does not know are kept, so a theme may style shapes a newer renderer knows. The ids are those of the catalogue: `rect`, `rounded`, `stadium`, `subroutine`, `cylinder`, `circle`, `doublecircle`, `diamond`, `hexagon`, `parallelogram`, `parallelogram-alt`, `trapezoid`, `trapezoid-alt`, `asymmetric`, `hcyl`, `document`, `card` for the shapes mmdx drew before 0.4, and Mermaid's short names for the others (`lin-cyl`, `notch-pent`, `bow-rect`, …).
 
 ## `sequence`
 
@@ -326,14 +328,14 @@ Spacing of the sequence layout, in px unless noted. A diagram's page settings (`
   "participant": { "fill": "@paper", "stroke": "@ink", "strokeWidth": 2.2, "radius": 16, "text": "@ink", "fontSize": 30, "fontWeight": 400, "minW": 300, "h": 86, "padX": 24, "shape": "box" },
   "lifeline": { "color": "@ink", "width": 2.2, "dash": "0.1 6" },
   "activation": { "fill": "@paper", "stroke": "@ink", "strokeWidth": 2.4, "w": 14 },
-  "message": { "color": "@ink", "width": 2.6, "arrow": "filled", "labelSize": 16, "labelColor": "@ink", "dash": "", "replyDash": "", "labelOnLine": true },
+  "message": { "color": "@ink", "width": 2.6, "arrow": "filled", "labelSize": 16, "labelColor": "@ink", "dash": "", "replyDash": "4 3", "labelOnLine": true },
   "note": { "fill": "@cream", "stroke": "@ink", "strokeWidth": 1.4, "fontSize": 15, "text": "@ink", "radius": 4 },
-  "block": { "fill": "@pale-lime", "stroke": "@ink", "strokeWidth": 2.6, "labelSize": 20, "labelColor": "@ink", "showTag": false, "radius": 0 },
+  "block": { "fill": "@pale-lime", "stroke": "@ink", "strokeWidth": 2.6, "labelSize": 20, "labelColor": "@ink", "showTag": true, "radius": 0 },
   "box": { "fill": "@smoke", "stroke": "@frame", "strokeWidth": 1.2, "labelSize": 16 }
 }
 ```
 
-Participant presets: `blue`, `green`, `yellow`, `pink`. Activation presets: `accent`, `info`, `error`, `async`. Message presets: `big`, `async`, `error`. Note presets: `info`, `warning`, `error`, `plain`. Block presets: `blue`, `rose`, `none`. Box presets: `blue`, `green`, `rose`, `outline`. Page presets: `document`, `compact`, `spacious`, `mirrored`.
+Participant presets: `blue`, `green`, `yellow`, `pink`. Activation presets: `accent`, `info`, `error`, `async`. Message presets: `big`, `async`, `error`. Note presets: `info`, `warning`, `error`, `plain`. Block presets: `blue`, `rose`, `none`. Box presets: `blue`, `green`, `rose`, `outline`. Page presets: `document`, `compact`, `spacious`, `mirrored`, `plain-blocks` (Blocks without kind tags: `blockTags: false`).
 :::
 
 ## `er`
@@ -351,7 +353,9 @@ Participant presets: `blue`, `green`, `yellow`, `pink`. Activation presets: `acc
 | `entity` | `fill`, `stroke`, `text`, `strokeWidth`, `radius`, `stack`, `titleSize`, `attrSize`, `attrColor`, `mode`, `showTypes`, `showComments`, `pkUnderline`, `maxW` | `padX`, `padY`, `minW`, `titleWeight`, `fontFamily`, `fillOpacity`, `strokeOpacity` |
 | `rel` | `color`, `width`, `dash`, `labelSize`, `labelColor`, `curve`, `routing`, `labelAt` | `fontWeight`, `fontFamily`, `strokeOpacity` |
 
-An identifying relationship (`--`) is always solid; `dash` applies to non-identifying ones (`..`). A diagram's page `routing` overrides the theme's `rel.routing` unless the relationship sets its own.
+An identifying relationship (`--`, `to`) is always solid; `dash` applies to non-identifying ones (`..`, `.-`, `-.`, `optionally to`). A diagram's page `routing` overrides the theme's `rel.routing` unless the relationship sets its own.
+
+ER subgraphs (Mermaid 11.17+) have no section of their own: their frames take the flowchart's `group` style and `groupPresets` (a subgraph without a preset takes `box` when the theme defines it), and a Mermaid class that names a group preset gives the frame that preset. Mermaid `classDef` / `style` values on tables and subgraphs apply over the theme; their `color` colours a table's title and attributes, or a subgraph's title.
 
 ::: details Default Light values
 ```json
@@ -364,11 +368,117 @@ An identifying relationship (`--`) is always solid; `dash` applies to non-identi
 Entity presets: `mint`, `peach`, `yellow`, `gold`, `sky`, `blue`, `lavender`, `white`. Relationship presets: `strong`, `muted`. Page presets: `whiteboard`, `schema`, `slide`.
 :::
 
+## `mindmap`
+
+| Key | Type | Holds |
+|---|---|---|
+| `root` | `StyleProps` | Style of the root node; its `shape` is the root's shape when the code gives it no delimiters (`rounded` in Default Light) |
+| `node` | `StyleProps` | Base style of every other node |
+| `nodeShapes` | `Record<string, StyleProps>` | Default style per node shape, keyed by shape name, as in `flowchart.nodeShapes` |
+| `nodePresets` | `Record<string, StyleProps>` | Named node presets, also picked by a node's `:::class` of that name |
+| `branch` | `StyleProps` | The lines from a parent to its children: `width` is the width of a first-level branch; deeper ones taper in Mermaid's proportions (11 / 8 / 5 / 3 px at the default 11) |
+| `sections` | `Record<string, StyleProps>` | The branch colours, `"0"` … `"11"`: `fill` and `text` of shaped nodes, `color` of the branch and of a default node's underline |
+| `pagePresets` | `Record<string, PageSettings>` | Page presets of mindmaps |
+
+| Item | Editable keys | Also read |
+|---|---|---|
+| `root`, `node` | `fill`, `stroke`, `text`, `strokeWidth`, `fontSize`, `fontWeight`, `radius`, `shape` | `padX`, `padY`, `minW`, `minH`, `fontFamily`, `color` (branch and underline colour), `strokeOpacity` |
+| `branch` | `width` | |
+| `sections` | `fill`, `text`, `color` | |
+
+Each child of the root starts a section and its subtree keeps it (Mermaid's rule: the i-th child takes section i % 11); with `colorBy: depth` in the diagram's frontmatter each depth takes one instead, and a node's metadata `section` gives it and its subtree another. A shaped node is filled with its section's `fill` and outlined in its `color`; a node without delimiters is its label over an underline in the section's `color`. Presets and the node's own style apply over the section's colours. The page presets set `mindLayout` (`both`, `right` or `down`); see [Mindmaps](/guide/mindmap).
+
+::: details Default Light values
+```json
+{
+  "root": { "fill": "@charcoal", "stroke": "@charcoal", "text": "@paper", "strokeWidth": 0, "fontSize": 20, "fontWeight": 600, "radius": 24, "padX": 26, "padY": 16, "shape": "rounded" },
+  "node": { "text": "@ink", "fontSize": 16, "fontWeight": 400, "strokeWidth": 1.6, "radius": 10, "padX": 12, "padY": 8 },
+  "branch": { "width": 11 },
+  "sections": {
+    "0": { "fill": "@sky", "text": "@ink", "color": "@azure" },
+    "1": { "fill": "@peach", "text": "@ink", "color": "@rust" },
+    "2": { "fill": "@mint", "text": "@ink", "color": "@jade" },
+    "3": { "fill": "@lavender", "text": "@ink", "color": "@iris" },
+    "4": { "fill": "@rose", "text": "@ink", "color": "@coral" },
+    "5": { "fill": "@butter", "text": "@ink", "color": "@bronze" },
+    "6": { "fill": "@sage", "text": "@ink", "color": "@emerald" },
+    "7": { "fill": "@ice", "text": "@ink", "color": "@teal" },
+    "8": { "fill": "@pink", "text": "@ink", "color": "@magenta" },
+    "9": { "fill": "@pale-lime", "text": "@ink", "color": "@forest" },
+    "10": { "fill": "@apricot", "text": "@ink", "color": "@brown" },
+    "11": { "fill": "@violet", "text": "@ink", "color": "@red" }
+  }
+}
+```
+
+The sections are palette references, so every theme that extends Default Light recolours them with its own palette. Node presets: `idea`, `urgent`, `done`, `question` (a cloud), `muted`, `plain`. Page presets: `both` (Both sides), `right` (To the right), `down` (Top down).
+:::
+
+## `state`
+
+| Key | Type | Holds |
+|---|---|---|
+| `node` | `StyleProps` | A state: a rounded box with its title centred (with description rows: the title, a divider and the rows under it) |
+| `nodeShapes` | `Record<string, StyleProps>` | Default style per shape, for states given a catalogue shape in metadata (`shape`) |
+| `nodePresets` | `Record<string, StyleProps>` | Named state presets, also picked by a state's `:::class` or `class` of that name |
+| `start` | `StyleProps` | The start pseudo-state: a filled dot (`fill`, `w` its diameter) |
+| `end` | `StyleProps` | The end pseudo-state: a dot in a ring (`fill`, `stroke`, `strokeWidth`, `w`) |
+| `choice` | `StyleProps` | `<<choice>>`: a diamond (`w` its size) |
+| `fork` | `StyleProps` | `<<fork>>` and `<<join>>`: a filled bar across the flow (`fill`, `w` its length, `h` its thickness) |
+| `composite` | `StyleProps` | A composite state: its frame and title band (`pad`, `padTop`, `titleSize`, …) |
+| `compositePresets` | `Record<string, StyleProps>` | Named composite presets, also picked by a composite's class of that name |
+| `compositeColors` | `Record<string, StyleProps>` | The colours of composites under the page setting `composites: "palette"`: `"0"`, `"1"`, … taken in turn by the composite's place in the code |
+| `note` | `StyleProps` | A note: a folded-corner box beside its state; `color` is its dashed line's colour |
+| `notePresets` | `Record<string, StyleProps>` | Named note presets |
+| `transition` | `StyleProps` | A transition: an arrow with a label (`color`, `width`, `dash`, `arrow`, `labelSize`, `labelColor`, `curve`) |
+| `transitionPresets` | `Record<string, StyleProps>` | Named transition presets |
+| `pagePresets` | `Record<string, PageSettings>` | Page presets of state diagrams |
+
+| Item | Editable keys | Also read |
+|---|---|---|
+| `node` | `fill`, `stroke`, `text`, `strokeWidth`, `fontSize`, `fontWeight`, `radius`, `shape`, `dash` | `padX`, `padY`, `minW`, `minH`, `fontFamily` |
+| `start` | `fill`, `w` | |
+| `end`, `choice` | `fill`, `stroke`, `strokeWidth`, `w` | |
+| `fork` | `fill`, `w`, `h` | |
+| `composite` | `fill`, `stroke`, `strokeWidth`, `radius`, `stack`, `titleSize`, `titleColor`, `titleWeight`, `titleAlign`, `pad`, `padTop` | `fontFamily` |
+| `compositeColors` | `fill`, `stroke` | |
+| `note` | `fill`, `stroke`, `strokeWidth`, `dash`, `text`, `fontSize`, `color` | `padX`, `padY`, `minW`, `minH`, `fontFamily` |
+| `transition` | `color`, `width`, `dash`, `arrow`, `labelColor`, `labelSize`, `curve` | `fontFamily` |
+
+A state is drawn with, in order: `node`, its shape's default from `nodeShapes`, the diagram's base style, its preset, `classDef default`, its other classes' `classDef`s, its `style` line and its metadata. A composite under `composites: "palette"` takes its colour from `compositeColors` over `composite`, with its preset and own style over that. The page presets of Default Light are `whiteboard`, `grid`, `technical` (orthogonal transitions) and `colored` (Coloured composites, `composites: "palette"`); see [State diagrams](/guide/state).
+
+::: details Default Light values
+```json
+{
+  "node": { "fill": "@paper", "stroke": "@ink", "strokeWidth": 1.4, "text": "@ink", "fontSize": 15, "fontWeight": 400, "radius": 10, "stack": false, "shape": "rect", "minW": 64, "minH": 38, "padX": 14, "padY": 9 },
+  "start": { "fill": "@ink", "w": 14 },
+  "end": { "fill": "@paper", "stroke": "@ink", "strokeWidth": 1.6, "w": 18 },
+  "choice": { "fill": "@paper", "stroke": "@ink", "strokeWidth": 1.4, "w": 28 },
+  "fork": { "fill": "@ink", "w": 70, "h": 7 },
+  "composite": { "fill": "@mist", "stroke": "@silver", "strokeWidth": 1.2, "radius": 12, "stack": false, "titleSize": 14, "titleColor": "@title", "titleWeight": 600, "titleAlign": "center", "pad": 16, "padTop": 34 },
+  "compositeColors": {
+    "0": { "fill": "@pale-blue", "stroke": "@azure" },
+    "1": { "fill": "@peach", "stroke": "@rust" },
+    "2": { "fill": "@sage", "stroke": "@jade" },
+    "3": { "fill": "@lavender", "stroke": "@iris" },
+    "4": { "fill": "@pale-rose", "stroke": "@coral" },
+    "5": { "fill": "@butter", "stroke": "@bronze" },
+    "6": { "fill": "@ice", "stroke": "@teal" },
+    "7": { "fill": "@pale-lime", "stroke": "@forest" }
+  },
+  "note": { "fill": "@cream", "stroke": "@ochre", "text": "@ink", "strokeWidth": 1, "fontSize": 13, "color": "@ochre" },
+  "transition": { "color": "@line", "width": 1.3, "dash": "", "arrow": "filled", "labelSize": 12, "labelColor": null, "curve": 1 }
+}
+```
+
+The composite colours are palette references, so every theme that extends Default Light recolours them with its own palette. State presets: `active`, `done`, `waiting`, `error`, `idle`, `highlight`. Composite presets: `plain`, `tinted`, `lane` (a dashed frame without fill). Note presets: `info`, `warning`. Transition presets: `success`, `error`, `async` (dashed), `strong`. Page presets: `whiteboard` (Whiteboard), `grid` (Grid paper), `technical` (Technical — right angles), `colored` (Coloured composites).
+:::
+
 ## Presets
 
 ### Item presets
 
-Each `…Presets` key is a record of named style objects (`StyleProps`). An item uses a preset when its metadata names it (`%%@ node api {"preset": "core"}`) or, in flowcharts, when it has a Mermaid class of that name (`api:::core`). A diagram may define presets of its own (`%%@ style.node <name> {…}`); one with the same name as a theme preset replaces it in that diagram. A preset that sets `shape` changes the item's shape; `for` only records which shape the preset belongs to.
+Each `…Presets` key is a record of named style objects (`StyleProps`). An item uses a preset when its metadata names it (`%%@ node api {"preset": "core"}`) or, in flowcharts, mindmaps and state diagrams, when it has a Mermaid class of that name (`api:::core`; in a state diagram also `class api core`, for states and composites). A diagram may define presets of its own (`%%@ style.node <name> {…}`); one with the same name as a theme preset replaces it in that diagram. A preset that sets `shape` changes the item's shape; `for` only records which shape the preset belongs to.
 
 ```json
 {
@@ -383,7 +493,7 @@ Each `…Presets` key is a record of named style objects (`StyleProps`). An item
 
 ### `pagePresets`
 
-Page presets are per diagram type (`flowchart.pagePresets`, `sequence.pagePresets`, `er.pagePresets`) and chosen by `%%@ canvas {"preset": "<name>"}`. Each holds page settings plus a display `label`:
+Page presets are per diagram type (`flowchart.pagePresets`, `sequence.pagePresets`, `er.pagePresets`, `mindmap.pagePresets`, `state.pagePresets`) and chosen by `%%@ canvas {"preset": "<name>"}`. Each holds page settings plus a display `label`:
 
 | Key | Type | Allowed values | Meaning |
 |---|---|---|---|
@@ -399,6 +509,9 @@ Page presets are per diagram type (`flowchart.pagePresets`, `sequence.pagePreset
 | `mirror` | `boolean` | | Sequence: participant heads at the bottom too |
 | `blockSpan` | `string` | `full`, `touched` | Sequence: block width |
 | `margin` | `number` | 0–100000 | Sequence: space left of the first participant |
+| `blockTags` | `boolean` | | Sequence: `false` hides the blocks' kind tags (a block's own `showTag` wins) |
+| `mindLayout` | `string` | `both`, `right`, `down` | Mindmap: both sides of the root, to the right, or top down |
+| `composites` | `string` | `single`, `palette` | State diagram: every composite in the `composite` style, or each in a colour of `compositeColors` |
 
 ```json
 {

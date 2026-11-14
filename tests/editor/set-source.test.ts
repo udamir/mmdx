@@ -2,10 +2,11 @@
 // Restoring a draft: <mmdx-editor>.setSource passes `fit` and `markSaved` through, and whenLoaded() / mmdx-load tell
 // the host when the adapter's document is in.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { memoryDocumentAdapter, type DocumentAdapter } from '../../src/adapters/documents.js';
+import { memoryDocumentAdapter } from '../../src/adapters/documents.js';
+import { type DocumentAdapter } from '../../src/ports.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
-import { defineEditor, type MmdxEditorElement } from '../../src/editor/editor.js';
-import { loadKind } from '../../src/view/kinds.js';
+import { defineEditor, type MmdxEditorElement } from '../../src/elements/editor.js';
+import { loadKind } from '../../src/platform/kinds.js';
 
 beforeAll(async () => {
   (globalThis as { ResizeObserver?: unknown }).ResizeObserver ??= class { observe(): void {} disconnect(): void {} };

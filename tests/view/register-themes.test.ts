@@ -2,7 +2,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { ensureBuiltinThemes, getShared, registerBuiltinThemes, registerThemes } from '../../src/config.js';
+import { getShared } from '../../src/platform/config.js';
+import { ensureBuiltinThemes, registerBuiltinThemes, registerThemes } from '../../src/platform/themes.js';
 import { BUILTIN_THEMES } from '../../src/core/theme/builtin.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { DiagramViewer } from '../../src/elements/viewer.js';

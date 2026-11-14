@@ -22,11 +22,18 @@ export interface Rect {
   h: number;
 }
 
-export type DiagramType = 'flowchart' | 'sequence' | 'er';
+/** The diagram types mmdx ships (their kinds are in core/kinds and editor/kinds). */
+export type BuiltinType = 'flowchart' | 'sequence' | 'er' | 'mindmap' | 'state';
+
+/**
+ * A diagram type: a built-in one or one a kind plugin registered (A11e). Open as a type; a value is checked against
+ * the kind registry where it comes in (`kindInfo`, `isDiagramType`), so an unknown type reads as unsupported.
+ */
+export type DiagramType = BuiltinType | (string & {});
 
 export type ItemKind =
-  | 'node' | 'group' | 'edge' // flowchart
-  | 'participant' | 'message' | 'note' | 'block' | 'box' | 'activation' // sequence
+  | 'node' | 'group' | 'edge' // flowchart (and state diagrams: states, composites, transitions)
+  | 'participant' | 'message' | 'note' | 'block' | 'box' | 'activation' // sequence (notes: also state diagrams)
   | 'entity' | 'rel'; // ER
 
 export const ITEM_KINDS: readonly ItemKind[] = [

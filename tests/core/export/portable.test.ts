@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { toPortableMermaid, stripMetaLines, PORTABLE_MARKER } from '../../../src/core/export/portable.js';
+import { mmdxOnlyContent, toPortableMermaid, stripMetaLines, PORTABLE_MARKER } from '../../../src/core/export/portable.js';
+// the style lines come from each type's extras kind (core's entry registers them all)
+import '../../../src/core/kinds/all-extras.js';
 import { splitSource } from '../../../src/core/meta/index.js';
 import { emptyMeta } from '../../../src/core/meta/types.js';
 import { parse } from '../../../src/core/parse/index.js';
@@ -77,10 +79,63 @@ describe('toPortableMermaid', () => {
     expect(out).toMatch(/^linkStyle 0 /m);
   });
 
+  it('uses the renderer\'s layers: the diagram\'s _base styles reach the output (B14)', () => {
+    const code = 'flowchart LR\n  A --> B\n';
+    const meta = { ...emptyMeta(), styles: { node: { _base: { fill: '#123456' } }, edge: { _base: { color: '#654321' } } } };
+    const theme = registry.get('default-light');
+    const out = toPortableMermaid(code, meta, parse(code), theme, createColorResolver(theme));
+    expect(out).toMatch(/^classDef studioDefault .*fill:#123456/m);
+    expect(out).toMatch(/^linkStyle 0 .*stroke:#654321/m);
+  });
+
   it('strips %%@ lines left in the code; sequence / ER pass through', () => {
     const src = 'sequenceDiagram\n  A->>B: x\n%%@ message m1 {"color":"@lime"}\n';
     expect(stripMetaLines(src)).toBe('sequenceDiagram\n  A->>B: x\n');
     const theme = registry.get('default-light');
     expect(toPortableMermaid(src, emptyMeta(), parse(src), theme, createColorResolver(theme))).toBe('sequenceDiagram\n  A->>B: x\n');
+  });
+});
+
+describe('mmdx-only content (T10.6)', () => {
+  const STATE = `stateDiagram-v2
+  state "fa:fa-cog Running" as run
+  state "tabler:user Waiting" as wait
+  [*] --> run
+  run --> wait
+  wait --> [*]
+%%@ node run {"img":"https://example.com/a.png","iconPos":"t","shape":"hex"}
+%%@ node wait {"shape":"stadium","img":""}
+%%@ node gone {"img":"https://example.com/b.png","shape":"hex"}
+`;
+  const MIND = `mindmap
+  root((Root))
+    a[fa:fa-car Car]
+    ::icon(fa fa-book)
+    b[Plain]
+%%@ node b {"img":"https://example.com/p.png"}
+`;
+
+  it('label tokens and ::icon stay (they are code); metadata images and shapes are dropped', () => {
+    const out = portable(STATE);
+    expect(out).toContain('state "fa:fa-cog Running" as run');
+    expect(out).toContain('state "tabler:user Waiting" as wait');
+    expect(out).not.toMatch(/img|shape|iconPos|%%@/);
+    const mind = portable(MIND);
+    expect(mind).toContain('a[fa:fa-car Car]');
+    expect(mind).toContain('::icon(fa fa-book)');
+    expect(mind).not.toContain('example.com');
+  });
+
+  it('lists the items with a metadata image or shape the code still has (an image not chosen yet is no content)', () => {
+    const only = (src: string): ReturnType<typeof mmdxOnlyContent> => {
+      const { doc } = splitSource(src);
+      return mmdxOnlyContent(doc.meta, parse(doc.code));
+    };
+    expect(only(STATE)).toEqual({ images: [{ kind: 'node', id: 'run' }], shapes: [{ kind: 'node', id: 'run' }, { kind: 'node', id: 'wait' }] });
+    expect(only(MIND)).toEqual({ images: [{ kind: 'node', id: 'b' }], shapes: [] });
+    expect(only('flowchart LR\n  A --> B\n%%@ node A {"fill":"#fff"}')).toEqual({ images: [], shapes: [] });
+    // a flowchart's shape in metadata (not in its code) is mmdx-only too
+    expect(only('flowchart LR\n  A --> B\n%%@ node A {"shape":"hex"}').shapes).toEqual([{ kind: 'node', id: 'A' }]);
+    expect(only('pie\n  "a" : 1')).toEqual({ images: [], shapes: [] });
   });
 });

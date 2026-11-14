@@ -13,7 +13,7 @@ Current Chrome, Edge and Firefox, and Safari 16.4 or newer. The components need 
 | Node (`@mmdx/studio/core`, `@mmdx/studio/markdown`) | 18 or newer |
 | Workers | `@mmdx/studio/core` runs in workers |
 
-The package is ESM only and has no runtime dependencies; `mermaid` (≥ 10) is an optional peer dependency, loaded lazily for diagram types mmdx does not draw.
+The package is ESM only and has no runtime dependencies; `mermaid` (≥ 10) is an optional peer dependency, loaded lazily for diagram types mmdx does not draw. mmdx is tested against Mermaid 11.17 and 12.2: the parsers and every editing op are checked against both.
 
 ## Graceful degradation
 
@@ -24,7 +24,7 @@ The package is ESM only and has no runtime dependencies; `mermaid` (≥ 10) is a
 | `adoptedStyleSheets` | Styles go into `<style>` elements in the shadow root |
 | `localStorage` (private mode, sandboxed iframes, quota errors) | UI preferences are kept in memory |
 | The Fullscreen API (`allowfullscreen` missing) | The viewer's full-screen button shows only with a host [`fullscreen`](/guide/sandboxed-iframes#full-screen) handler |
-| `mermaid` not installed | Diagram types mmdx does not draw show an error card with their source (`fallback="source"` shows the source only) |
+| `mermaid` not installed or not configured | Diagram types mmdx does not draw show an error card with their source (`fallback="source"` shows the source only) |
 | JavaScript | Server-rendered SVG inside `<mmdx-viewer>` stays readable and printable (see [SSR](/guide/ssr)) |
 
 ## Accessibility
@@ -32,16 +32,16 @@ The package is ESM only and has no runtime dependencies; `mermaid` (≥ 10) is a
 - Each viewer has an accessible name generated from the diagram ("Flowchart: 12 nodes, 14 connections"), or the one given in `label`; the diff's name carries the change counts.
 - Toolbars, menus and lists use roving focus and can be driven by the keyboard; every component lists its shortcuts under `?`.
 - The viewer's code view (`controls="code"`) is a text alternative: the diagram's Mermaid code, readable by screen readers.
-- Colour is never the only signal in the diff: removed items are dashed, badges carry `+ − C L S`, and text changes are struck out or bold.
+- Colour is never the only signal in the diff: removed items are dashed, badges carry an icon per kind of change (plus, minus, a pen for content, arrows for layout, a brush for style), and text changes are struck out or bold.
 - Animations stop under `prefers-reduced-motion: reduce`.
 
 ## Known limitations
 
-- The Mermaid parsers cover the commonly used subset of flowchart, sequence and ER syntax; other diagram types fall back to stock Mermaid.
+- The Mermaid parsers cover the commonly used subset of flowchart syntax, read sequence statements as Mermaid's lexer reads them, and cover the whole ER, mindmap and state diagram syntax; other diagram types fall back to stock Mermaid.
 - Connectors are routed between ports (curved, orthogonal or straight) through optional bend points; there is no obstacle avoidance.
 - A sequence diagram's layout follows its message order; metadata can shift participants and add vertical space.
 - PNG export uses fonts installed locally unless they are registered with `configure({ fonts })`.
-- The diff draws flowchart, sequence and ER diagrams; for other types (and a change of diagram type) it shows the code diff. It runs on the main thread, also for large diagrams, and it never writes history: the studio keeps the versions you save in browser storage, and hosts provide history through an adapter.
+- The diff draws flowchart, sequence, ER, mindmap and state diagrams; for other types (and a change of diagram type) it shows the code diff. It runs on the main thread, also for large diagrams, and it never writes history: the studio keeps the versions you save in browser storage, and hosts provide history through an adapter.
 - Text measured on the server (`createStaticMeasurer`) is an estimate; the browser re-renders with real font metrics.
 
 ## Limits

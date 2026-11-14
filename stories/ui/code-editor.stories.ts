@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
-import { CODE_EDITOR_CSS, createCodeEditor, highlightLine, highlightMetaLine } from '../../src/ui/code-editor.js';
+import { CODE_EDITOR_CSS, createCodeEditor, highlightLine, highlightMetaLine } from '../../src/ui/diagram/code-editor.js';
 import { chromeHost, example } from '../support.js';
 
 type CodeArgs = { value: string; lineNumbers: boolean; meta: boolean; markers: boolean; readOnly: boolean; ui: 'light' | 'dark' };

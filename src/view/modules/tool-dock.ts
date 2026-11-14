@@ -3,7 +3,7 @@
 // pen options) in the left-dock slot; it is not shown while nothing is in it. The pan module adds the Hand tool
 // (H) and Esc back to it.
 import { createToolDock, dockButton, TOOL_DOCK_CSS, type ToolDockGroup } from '../../ui/blocks/tool-dock.js';
-import { ICONS } from '../../ui/icons.js';
+import { I_hand } from '../../ui/kit/icons.js';
 import type { ViewCore } from '../core.js';
 import type { ViewModule } from '../module.js';
 import type { DockItem } from '../types.js';
@@ -47,11 +47,11 @@ export const panModule: ViewModule<ViewCore> = {
     const core = scope.core;
     const t = core.i18n.t;
     const hand = dockButton({
-      icon: ICONS.hand, label: t('tools.hand'), keys: 'h', class: 'vt-hand', f: 'tool-hand',
+      icon: I_hand, label: t('tools.hand'), keys: 'h', class: 'vt-hand', f: 'tool-hand',
       pressed: scope.computed(() => core.tool() === 'hand'), onClick: () => core.run('setTool', 'hand'),
     });
     scope.contribute(core.dockItems, { id: 'hand', section: 'tools', order: 20, el: hand.el });
-    if (!core.has('setTool')) scope.provide('setTool', (tool) => core.tool.set(tool));
+    scope.provideDefault('setTool', (tool) => core.setTool(tool));
     // H, unless a module installed earlier owns it (the editor's canvas)
     if (!core.shortcuts.list({ mode: 'edit' }).some((s) => s.keys.includes('h')))
       scope.shortcut({ id: 'tool-hand', keys: ['h'], label: t('help.hand'), group: t('help.tools'), run: () => void core.run('setTool', 'hand') });

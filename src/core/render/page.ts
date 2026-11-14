@@ -16,7 +16,9 @@ export const isClear = (c: string | null | undefined): boolean => !c || c === 'n
  * A preset holds page settings: background, border, grid, pad, routing, ratio, and the sequence layout
  * (gap, rowH, mirror, blockSpan).
  */
-export const pagePresets = (theme: ResolvedTheme, type: DiagramType): PagePresets => theme[type].pagePresets ?? {};
+export const pagePresets = (theme: ResolvedTheme, type: DiagramType): PagePresets =>
+  // a kind plugin's section is a key of the resolved theme beside the built-in ones (theme/registry.ts)
+  (theme as unknown as Partial<Record<string, { pagePresets?: PagePresets }>>)[type]?.pagePresets ?? {};
 
 /** Page settings in effect: theme page defaults < the diagram's page preset < the diagram's own settings. */
 export function effectivePage(type: DiagramType | null, meta: DiagramMeta, theme: ResolvedTheme): CanvasMeta {

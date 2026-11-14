@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
-import { h } from '../../src/ui/h.js';
+import { h } from '../../src/ui/kit/h.js';
 import { ViewCore } from '../../src/view/core.js';
-import { lazyModule, orderModules, type ViewModule } from '../../src/view/module.js';
+import { lazyModule, orderModules, type ModuleScope, type ViewModule } from '../../src/view/module.js';
 import { BaseScene, type CanvasArea } from '../../src/view/scene.js';
 
 const mount = (o: Partial<ConstructorParameters<typeof ViewCore>[1]> = {}): ViewCore => {
   const host = document.createElement('div');
   document.body.append(host);
-  return new ViewCore(host, { product: 'viewer', storage: memoryStorage(), css: [], root: { class: 'root', role: 'img' }, areaClass: 'stage', canvas: { interaction: 'pan-zoom' }, ...o });
+  return new ViewCore(host, { product: 'viewer', storage: memoryStorage(), css: [], root: { class: 'root', role: 'group' }, areaClass: 'stage', canvas: { interaction: 'pan-zoom' }, ...o });
 };
 
 const key = (core: ViewCore, k: string): void => {
@@ -66,7 +66,7 @@ describe('module host', () => {
     expect(calls).toEqual(['mode:view', 'draw', 'click', 'fit', 'key']);
     calls.length = 0;
 
-    core.stage.set('history');
+    core.setStage('history');
     expect(core.moduleScope('probe')?.active).toBe(false);
     expect(core.slots['top-right'].contains(btn)).toBe(false);
     core.fire('draw');
@@ -74,10 +74,10 @@ describe('module host', () => {
     expect(core.has('fitView')).toBe(false);
     expect(core.run('fitView')).toBeUndefined();
     key(core, 'x');
-    core.mode.set('edit');
+    core.setMode('edit');
     expect(calls).toEqual([]);
 
-    core.stage.set('document');
+    core.setStage('document');
     expect(core.slots['top-right'].contains(btn)).toBe(true);
     expect(calls).toEqual(['mode:edit']);
     core.fire('draw');
@@ -106,9 +106,9 @@ describe('module host', () => {
     expect(core.moduleIds).toEqual(['a', 'b', 'c']);
     const order = (): string[] => [...core.slots['bottom-right'].children].map((e) => e.className);
     expect(order()).toEqual(['a', 'b', 'c']);
-    core.mode.set('edit');
+    core.setMode('edit');
     expect(order()).toEqual(['a', 'c']);
-    core.mode.set('view');
+    core.setMode('view');
     expect(order()).toEqual(['a', 'b', 'c']);
   });
 
@@ -152,27 +152,27 @@ describe('module scope', () => {
     expect(late.isConnected).toBe(true);
     core.fire('draw');
     core.run('fitView');
-    core.tool.set('pen');
+    core.setTool('pen');
     expect(calls).toEqual(['pen:false', 'draw', 'fit', 'pen:true']);
     calls.length = 0;
-    core.stage.set('history');
+    core.setStage('history');
     expect(late.isConnected).toBe(false);
     core.fire('draw');
     expect(core.has('fitView')).toBe(false);
-    core.stage.set('document');
+    core.setStage('document');
     expect(late.isConnected).toBe(true);
     const again = h('b');
     const unmount = s.mount(core.slots.overlay, again);
-    core.stage.set('history');
+    core.setStage('history');
     unmount();
-    core.stage.set('document');
+    core.setStage('document');
     expect(again.isConnected).toBe(false);
     expect(core.slots.overlay.childNodes.length).toBe(1);
     core.useModules([]);
     expect(late.isConnected).toBe(false);
     calls.length = 0;
     core.fire('draw');
-    core.tool.set('hand');
+    core.setTool('hand');
     expect(core.has('fitView')).toBe(false);
     expect(calls).toEqual([]);
   });
@@ -195,9 +195,9 @@ describe('module scope', () => {
     core.useModules([m]);
     await core.moduleScope('lazy')!.load();
     expect(el.parentNode).toBe(core.root);
-    core.stage.set('history');
+    core.setStage('history');
     expect(el.isConnected).toBe(false);
-    core.stage.set('document');
+    core.setStage('document');
     expect(el.parentNode).toBe(core.root);
     core.useModules([]);
     expect(el.isConnected).toBe(false);
@@ -222,7 +222,7 @@ describe('module scope', () => {
     const core = mount();
     const seen: string[] = [];
     core.useModules([
-      { id: 'switch', install: () => void core.stage.set('history') },
+      { id: 'switch', install: () => void core.setStage('history') },
       { id: 'doc-only', when: { stage: ['document'] }, install: (scope) => scope.effect(() => void seen.push('active')) },
     ]);
     expect(core.stage.peek()).toBe('history');
@@ -367,5 +367,82 @@ describe('theme', () => {
     expect(theme).not.toHaveBeenCalled();
     core.themes.follow();
     expect(theme).toHaveBeenCalledOnce();
+  });
+});
+
+describe('the view event (B45)', () => {
+  it('fires on pan and zoom in a viewer kernel, not only in the editor', () => {
+    const core = mount();
+    let n = 0;
+    core.on('view', () => n++);
+    core.canvas.viewport!.panBy(10, 0);
+    expect(n).toBeGreaterThan(0);
+    core.destroy();
+  });
+});
+
+describe('module host semantics (A6)', () => {
+  const mod = (id: string, extra: Partial<ViewModule<ViewCore>> = {}): ViewModule<ViewCore> => ({ id, install: () => undefined, ...extra });
+
+  it('an added set replaces modules by id when it says so; an id offered twice is reported, the first kept', () => {
+    const core = mount();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    core.useModules([mod('a'), mod('b')]);
+    const off = core.addModules([mod('b2', { replaces: ['b'] }), mod('a')]);
+    expect(core.moduleIds.sort()).toEqual(['a', 'b2']);
+    expect(String(warn.mock.calls[0]?.[0])).toContain('module a is offered twice');
+    off();
+    expect(core.moduleIds.sort()).toEqual(['a', 'b']);
+    warn.mockRestore();
+    core.destroy();
+  });
+
+  it('a default provider answers only when no other one does, whatever the order', () => {
+    const core = mount();
+    core.useModules([
+      mod('own', { install: (s) => s.provide('documentName', () => 'own') }),
+      mod('fallback', { install: (s) => s.provideDefault('documentName', () => 'fallback') }),
+    ]);
+    expect(core.run('documentName')).toBe('own');
+    core.useModules([mod('fallback', { install: (s) => s.provideDefault('documentName', () => 'fallback') })]);
+    expect(core.run('documentName')).toBe('fallback');
+    core.destroy();
+  });
+
+  it('a module\'s sheet goes when it is uninstalled, unless another module still uses it', () => {
+    const core = mount();
+    const CSS = '.probe-a { color: red }';
+    // jsdom adopts no sheets: the shell's <style> fallback holds them
+    const sheets = (): string[] => [...core.shadow.querySelectorAll('style')].map((s) => s.textContent ?? '');
+    core.useModules([mod('one', { css: [CSS] }), mod('two', { css: [CSS] })]);
+    expect(sheets().some((t) => t.includes('probe-a'))).toBe(true);
+    core.useModules([mod('two', { css: [CSS] })]);
+    expect(sheets().some((t) => t.includes('probe-a'))).toBe(true);
+    core.useModules([]);
+    expect(sheets().some((t) => t.includes('probe-a'))).toBe(false);
+    core.destroy();
+  });
+});
+
+describe('contributions (A7)', () => {
+  it('claim fills a one-value slot while active and gives it back on uninstall; contributeAll replaces the module\'s entries', () => {
+    const core = mount();
+    const el = document.createElement('div');
+    let slot!: { set(v: HTMLElement | null): void };
+    let list!: { set(items: readonly { id: string; label: string; run(): void }[]): void };
+    const host = { id: 'host', install: (s: ModuleScope<ViewCore>) => s.contribute(core.exportFormats, { id: 'host', label: 'Host', run: () => undefined }) };
+    core.useModules([host, { id: 'm', install: (s) => {
+      slot = s.claim(core.dockFlyout);
+      list = s.contributeAll(core.exportFormats);
+    } }]);
+    slot.set(el);
+    expect(core.dockFlyout.peek()).toBe(el);
+    list.set([{ id: 'a', label: 'A', run: () => undefined }]);
+    list.set([{ id: 'b', label: 'B', run: () => undefined }]);
+    expect(core.exportFormats.peek().map((f) => f.id)).toEqual(['host', 'b']);
+    core.useModules([host]);
+    expect(core.dockFlyout.peek()).toBeNull();
+    expect(core.exportFormats.peek().map((f) => f.id)).toEqual(['host']);
+    core.destroy();
   });
 });

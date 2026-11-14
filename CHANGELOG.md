@@ -2,12 +2,44 @@
 
 All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project follows [semantic versioning](https://semver.org/); below 1.0, a minor version may change public API, listed under **Changed (breaking)**.
 
-## Unreleased
+## 0.4.0 — 2026-11-14
+
+Mindmaps, state diagrams, icons and images.
+
+### Added
+
+- Mindmaps and state diagrams in every component.
+- All Mermaid flowchart shapes.
+- Icons: icon packs, a built-in Tabler set, Font Awesome look-alikes.
+- Images: image and icon nodes in flowcharts, state diagrams, mindmaps and sequence diagrams, and an image library from the host (`images`, `ImageStore`).
+- Rich text labels, an emoji picker and animated connectors in the editor.
+- Mermaid's full sequence and ER syntax, including ER subgraphs.
+- Pinch to zoom on touch screens, and `wheel: 'zoom'`.
+- Editor modules for hosts: `EditorModuleApi`, `EditorEventMap` and a guide, [Extending the editor](https://udamir.github.io/mmdx/guide/editor-modules).
+
+### Changed
+
+- Flowchart subgraphs no longer overlap (`layout: "legacy"` keeps the old layout).
+- Sequence and ER diagrams are read and drawn as Mermaid does.
+- Edits keep the Mermaid code as written.
+- Faster on large diagrams: zoom, pan, dragging, diffs and History.
+- Diff badges and legends show icons instead of letters.
 
 ### Changed (breaking)
 
-- **`<mmdx-studio>` keeps no diagram in the URL**: no `#d=…` in the address bar and no Share button; `persist` takes only `local`.
-- **`encodeHash` and `decodeHash` are removed** from `@mmdx/studio` and `@mmdx/studio/adapters`.
+- Stock Mermaid is not bundled: a bundled app passes `configure({ mermaid: () => import('mermaid') })`.
+- The studio no longer keeps the diagram in the URL; `encodeHash` and `decodeHash` are removed.
+- `CoreContext` needs `icons` and `imagePolicy`; `rehypeMmdx` may return a promise; model types include `mindmap` and `state`, and `DiagramType` is open.
+- `EditorCore` is no longer exported; kernel types (`ViewCore`, `ViewActions`, `ViewEvents`, `ViewModule`) are trimmed and read-only to modules; `DiffSession` has one `shown` model.
+- Removed: `ViewerOptions.rehydrate`, `Config.debug`, the editor actions `toggleHelp`, `editTable`, `gotoMetaLine`, `unlockAll`, `pasteStyle`, and the message key `te.inheritFont`.
+- Editor panel storage keys changed: remembered panel sizes reset once.
+
+### Fixed
+
+- Long lines and statements no longer freeze the parsers.
+- Mermaid syntax: quoted ER ids, `autonumber` options, quoted `}` in node data, `classDef default`, `</br>`.
+- The diff reports changes it missed and ignores key order.
+- The React wrapper passes `className`, `aria-*` and `data-*`.
 
 ## 0.3.0 — Hooks for sandboxed hosts
 

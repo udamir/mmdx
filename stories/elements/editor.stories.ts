@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import '../../src/editor.js';
 import { memoryDocumentAdapter } from '../../src/adapters/documents.js';
 import { DEFAULT_FEATURES, type EditorFeatures } from '../../src/editor/core.js';
-import type { MmdxEditorElement } from '../../src/editor/editor.js';
+import type { MmdxEditorElement } from '../../src/elements/editor.js';
 import { example, exampleHistory, SMALL_ER, SMALL_FLOW, SMALL_SEQUENCE, uiArg } from '../support.js';
 
 type Toggle = Exclude<keyof EditorFeatures, 'exportFormats'>;
@@ -81,7 +81,7 @@ const meta: Meta<EditorArgs> = {
     ui: uiArg,
     height: { control: { type: 'number', min: 320, step: 40 } },
     exportFormats: { control: 'check', options: ['mmdx', 'mmd', 'svg', 'png'] },
-    historyOf: { control: 'select', options: ['', 'production-microservices', 'docker-deploy-sequence', 'atom-schema-er', 'microservice-patterns', 'fusion-services', 'simple-flow'], description: 'Give the editor the version history of an example (overrides `source` with its newest version): the History button in the tool dock.' },
+    historyOf: { control: 'select', options: ['', 'production-microservices', 'docker-deploy-sequence', 'atom-schema-er', 'microservice-patterns', 'fusion-services', 'simple-flow', 'product-mindmap', 'study-notes', 'order-lifecycle', 'traffic-light'], description: 'Give the editor the version history of an example (overrides `source` with its newest version): the History button in the tool dock.' },
     ...Object.fromEntries(TOGGLES.map((k) => [k, { control: 'boolean', description: FEATURE_DOCS[k], table: { category: 'features' } }])),
   },
   args: {
@@ -107,6 +107,16 @@ export const EntityRelationship: Story = { name: 'ER diagram', args: { source: e
 export const SmallSequence: Story = { name: 'Sequence: activations, notes, autonumber', args: { source: SMALL_SEQUENCE } };
 
 export const SmallEr: Story = { name: 'ER: tables and relations', args: { source: SMALL_ER } };
+
+/** A mindmap (T08): Tab adds a child, Enter a sibling, drag a node onto another to re-parent it, Space folds a branch. */
+export const Mindmap: Story = { args: { source: example('product-mindmap') } };
+
+export const MindmapHistory: Story = { name: 'With history: mindmap', args: { historyOf: 'product-mindmap' } };
+
+/** A state diagram (T09): the States menu (state, start, end, choice, fork, join, composite, note), connect from the dots, ⌘G makes a composite, Properties edit a state's kind and description rows. */
+export const StateDiagram: Story = { name: 'State diagram', args: { source: example('order-lifecycle') } };
+
+export const StateHistory: Story = { name: 'With history: state diagram', args: { historyOf: 'order-lifecycle' } };
 
 export const AutoLayout: Story = {
   name: 'Pure Mermaid (auto layout)',

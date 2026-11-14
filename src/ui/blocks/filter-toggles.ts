@@ -3,21 +3,17 @@
 // with the count. Replaces the filter part of the diff's `drawBar` (elements/diff.ts) and `FILTER_ICONS`
 // (elements/diff/panels.ts). The block's element is a `display: contents` span, so the buttons sit directly in the
 // flow of the host's horizontal Toolbar (arrow keys, tooltip placement). The change colours come from the
-// `--mmdx-diff-*` tokens: the host adopts `DIFF_TOKENS` (ui/styles/diff.ts).
-import { h, icon } from '../h.js';
-import { registerMessages } from '../i18n.js';
-import { I_palette } from '../icons.js';
+// `--mmdx-diff-*` tokens: the host adopts `DIFF_TOKENS` (diff/styles.ts).
+import { h, icon } from '../kit/h.js';
+import { registerMessages } from '../../i18n.js';
+import { MARK_ICONS } from '../../core/diff/icons.js';
 import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
-import { Scope, type BlockHandle, type Translate } from './block.js';
-import { keepFocus } from './focus.js';
+import { defineBlock, type BlockHandle, type Translate } from './block.js';
+import { keepFocus } from '../kit/focus.js';
 
 /** Icons of the change filters (each drawn in its highlight colour). */
 export const FILTER_ICONS: Record<'added' | 'removed' | 'content' | 'layout' | 'style' | 'dim', string> = {
-  added: 'M5 5h14v14H5zM12 8.5v7M8.5 12h7',
-  removed: 'M5 5h14v14H5zM8.5 12h7',
-  content: 'M5 6h14M12 6v13M9 19h6',
-  layout: 'M12 4v16M4 12h16M9.5 6.5L12 4l2.5 2.5M9.5 17.5L12 20l2.5-2.5M6.5 9.5L4 12l2.5 2.5M17.5 9.5L20 12l-2.5 2.5',
-  style: I_palette,
+  ...MARK_ICONS,
   dim: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 3v18M12 7h6M12 11h8.5M12 15h7.5',
 };
 
@@ -73,47 +69,36 @@ export const FILTER_TOGGLES_CSS = /* css */ `
 
 export function createFilterToggles(props: FilterTogglesProps): FilterTogglesHandle {
   registerMessages(BLOCK_MESSAGES_DIFF);
-  let p = { ...props };
-  let fx = new Scope();
-  const el = h('span', { class: 'mmdx-filters', role: 'group' });
+  return defineBlock<FilterTogglesProps, FilterTogglesHandle>(props, (p, scope) => {
+    const el = h('span', { class: 'mmdx-filters', role: 'group' });
 
-  const render = (): void => {
-    fx.dispose();
-    fx = new Scope();
-    const t = p.t;
-    el.setAttribute('aria-label', t('diff.filters'));
-    if (p.part) el.setAttribute('part', p.part);
-    else el.removeAttribute('part');
-    const parts: HTMLElement[] = p.filters.map((f) => {
-      const b = h('button', {
-        type: 'button', class: `flt flt-${f.id} ${f.on ? 'on' : 'off'}`, 'aria-pressed': String(f.on), 'aria-label': t('diff.filter.name', { label: f.label, n: f.count }), 'data-f': `flt-${f.id}`,
-        'data-tip': t('diff.filter.tip', { label: f.label, n: f.count, action: f.on ? t('diff.filter.hide') : t('diff.filter.show') }),
-      }, icon(f.icon), f.count ? h('span', { class: 'cnt', 'aria-hidden': 'true' }, String(f.count)) : null);
-      fx.on(b, 'click', () => p.onToggle(f.id));
-      return b;
-    });
-    const dim = p.dim;
-    if (dim) {
-      const b = h('button', {
-        type: 'button', class: `mmdx-dim${dim.on ? ' on' : ''}`, 'aria-pressed': String(dim.on), 'aria-label': dim.label, 'data-tip': dim.label, 'data-f': 'dim',
-      }, icon(dim.icon));
-      fx.on(b, 'click', () => p.onDim?.());
-      if (parts.length) parts.push(h('span', { class: 'mmdx-sep', role: 'separator', 'aria-orientation': 'vertical' }));
-      parts.push(b);
-    }
-    el.replaceChildren(...parts);
-  };
-  render();
+    const render = (): void => {
+      const fx = scope.renew();
+      const t = p.t;
+      el.setAttribute('aria-label', t('diff.filters'));
+      if (p.part) el.setAttribute('part', p.part);
+      else el.removeAttribute('part');
+      const parts: HTMLElement[] = p.filters.map((f) => {
+        const b = h('button', {
+          type: 'button', class: `flt flt-${f.id} ${f.on ? 'on' : 'off'}`, 'aria-pressed': String(f.on), 'aria-label': t('diff.filter.name', { label: f.label, n: f.count }), 'data-f': `flt-${f.id}`,
+          'data-tip': t('diff.filter.tip', { label: f.label, n: f.count, action: f.on ? t('diff.filter.hide') : t('diff.filter.show') }),
+        }, icon(f.icon), f.count ? h('span', { class: 'cnt', 'aria-hidden': 'true' }, String(f.count)) : null);
+        fx.on(b, 'click', () => p.onToggle(f.id));
+        return b;
+      });
+      const dim = p.dim;
+      if (dim) {
+        const b = h('button', {
+          type: 'button', class: `mmdx-dim${dim.on ? ' on' : ''}`, 'aria-pressed': String(dim.on), 'aria-label': dim.label, 'data-tip': dim.label, 'data-f': 'dim',
+        }, icon(dim.icon));
+        fx.on(b, 'click', () => p.onDim?.());
+        if (parts.length) parts.push(h('span', { class: 'mmdx-sep', role: 'separator', 'aria-orientation': 'vertical' }));
+        parts.push(b);
+      }
+      el.replaceChildren(...parts);
+    };
 
-  return {
-    el,
-    update(next) {
-      p = { ...p, ...next };
-      keepFocus(el, render);
-    },
-    destroy() {
-      fx.dispose();
-      el.remove();
-    },
-  };
+    // the first render has nothing to keep the focus on
+    return { el, render: (next?: Partial<FilterTogglesProps>) => (next ? keepFocus(el, render) : render()) };
+  });
 }

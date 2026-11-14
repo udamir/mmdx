@@ -1,0 +1,2 @@
+# Layer violations — baseline of today's violations (2026-11-11, e726eb1); may only shrink. See tools/check-layers.mjs.
+editor/core.ts → diff/history.ts [dynamic] (product → product editor → diff)

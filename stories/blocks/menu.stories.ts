@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { attachMenu, createMenu, MENU_CSS, type MenuEntry } from '../../src/ui/blocks/menu.js';
-import { PopoverManager } from '../../src/ui/popover.js';
+import { PopoverManager } from '../../src/ui/kit/popover.js';
 import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; open: boolean };

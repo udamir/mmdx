@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Morph, type MorphState } from '../../src/dom/morph.js';
+import { Morph, MORPH_MAX_ITEMS, type MorphState } from '../../src/dom/morph.js';
 import { TRANSITION_MS } from '../../src/dom/motion.js';
 import { Viewport } from '../../src/dom/viewport.js';
 
@@ -85,6 +85,20 @@ describe('Morph.replace (switching to another version)', () => {
     expect(rectOf(content, 'node:a')!.getAttribute('x')).toBe('30');
   });
 
+  it('over MORPH_MAX_ITEMS items a switch is instant, with no copy of what was shown', () => {
+    const many = (x: number) => state(Object.fromEntries(Array.from({ length: MORPH_MAX_ITEMS + 1 }, (_, i) => [`node:n${i}`, x])));
+    const content = svg('g');
+    const m = new Morph(svg('defs'), content, [many(0), many(5)], 0);
+    const clone = vi.spyOn(content, 'cloneNode');
+    m.replace([many(100)], 0, true);
+    expect(clone).not.toHaveBeenCalled();
+    expect(frames.size).toBe(0);
+    expect(rectOf(content, 'node:n0')!.getAttribute('x')).toBe('100');
+    const small = new Morph(svg('defs'), svg('g'), [state({ 'node:a': 0 }), state({ 'node:a': 9 })], 0);
+    small.go(1);
+    expect(frames.size).toBe(1);
+  });
+
   it('a second switch while one runs finishes the first', () => {
     const content = svg('g');
     const m = new Morph(svg('defs'), content, [state({ 'node:a': 0, 'node:b': 0 })], 0);
@@ -96,6 +110,40 @@ describe('Morph.replace (switching to another version)', () => {
     run(1000);
     run(1000 + TRANSITION_MS);
     expect(rectOf(content, 'node:a')!.getAttribute('x')).toBe('200');
+  });
+});
+
+describe('Morph: images', () => {
+  const withImage = (href: string, x: number): MorphState => {
+    const content = svg('g');
+    const it = svg('g', { 'data-ck': 'node:a' });
+    it.append(svg('image', { href, x, y: 0, width: 10, height: 10 }));
+    content.append(it);
+    return { defs: [], content };
+  };
+  const images = (root: Element): Element[] => [...root.querySelectorAll('image')];
+
+  it('an image moves like a rect; another picture cross-fades', () => {
+    const content = svg('g');
+    const m = new Morph(svg('defs'), content, [withImage('https://example.com/a.png', 0)], 0);
+    m.replace([withImage('https://example.com/a.png', 100)], 0, true);
+    expect(images(content)).toHaveLength(1);
+    run(1000);
+    run(1000 + TRANSITION_MS / 2);
+    expect(Number(images(content)[0]!.getAttribute('x'))).toBeCloseTo(50);
+    run(1000 + TRANSITION_MS);
+
+    m.replace([withImage('https://example.com/b.png', 0)], 0, true);
+    const [old, now] = images(content);
+    expect(old!.getAttribute('href')).toBe('https://example.com/a.png');
+    expect(now!.getAttribute('href')).toBe('https://example.com/b.png');
+    run(2000);
+    run(2000 + TRANSITION_MS / 2);
+    expect(Number(opacity(old!))).toBeCloseTo(0.5);
+    expect(Number(opacity(now!))).toBeCloseTo(0.5);
+    expect(Number(now!.getAttribute('x'))).toBeCloseTo(50);
+    run(2000 + TRANSITION_MS);
+    expect(images(content).map((i) => i.getAttribute('href'))).toEqual(['https://example.com/b.png']);
   });
 });
 

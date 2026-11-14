@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
+import { forgetKinds } from '../../src/core/kinds/registry.js';
+import { registerExtendedShapes } from '../../src/core/extras.js';
+import { forgetMediaKit } from '../../src/core/media/kit.js';
+import { forgetShapes, shapeById } from '../../src/core/shapes/registry.js';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DiagramViewer, dedent, defineViewer, type HostFullscreen, type MmdxViewerElement } from '../../src/elements/viewer.js';
-import { hasKind, loadKind } from '../../src/view/kinds.js';
+import { hasKind, loadKind } from '../../src/platform/kinds.js';
 import { memoryStorage } from '../../src/adapters/storage.js';
 
 const example = (f: string): string => readFileSync(resolve(__dirname, '../../examples', f), 'utf8');
@@ -15,6 +19,7 @@ beforeAll(() => {
 
 describe('kinds on demand', () => {
   it('loads the parser and renderer of a diagram type before the first render', async () => {
+    forgetKinds();
     expect(hasKind('er')).toBe(false);
     const host = document.createElement('div');
     document.body.append(host);
@@ -25,6 +30,82 @@ describe('kinds on demand', () => {
     expect(hasKind('er')).toBe(true);
     expect(host.shadowRoot!.querySelectorAll('.el[data-kind="entity"]').length).toBe(2);
     host.remove();
+  });
+
+  describe('the shapes beyond the 17 (T02.9)', () => {
+    afterEach(() => registerExtendedShapes());
+    const show = async (source: string): Promise<ShadowRoot> => {
+      const host = document.createElement('div');
+      document.body.append(host);
+      const rendered = new Promise((r) => host.addEventListener('mmdx-render', r, { once: true }));
+      new DiagramViewer(host, { lazy: false, source });
+      await rendered;
+      return host.shadowRoot!;
+    };
+
+    it('load before a flowchart that draws one renders, which then shows the shape', async () => {
+      forgetShapes();
+      expect(shapeById('bolt')).toBeUndefined();
+      const sr = await show('flowchart LR\n  A@{ shape: bolt } --> B');
+      expect(shapeById('bolt')).toBeDefined();
+      const a = sr.querySelector('.el[data-kind="node"][data-id="A"]')!;
+      expect(a.querySelector('path')?.getAttribute('d')).toMatch(/^M[\d.,]+ L/);
+      expect(a.querySelector('rect')).toBeNull();
+      sr.host.remove();
+    });
+
+    it('the media kit (T06) loads with them: a markdown label and an icon node draw once it has', async () => {
+      forgetMediaKit();
+      const sr = await show('flowchart LR\n  A["`**bold** text`"] --> n1\n  n1["User"]\n  n1@{ icon: "fa:user", form: "rounded" }');
+      expect(sr.querySelector('.el[data-id="A"] tspan[font-weight="700"]')?.textContent).toBe('bold');
+      expect(sr.querySelector('.el[data-id="n1"] image')).not.toBeNull();
+      sr.host.remove();
+    });
+
+    it('load for a shape a node takes from its metadata too', async () => {
+      forgetShapes();
+      const sr = await show('flowchart LR\n  A --> B\n%%@ node A {"shape":"collections"}');
+      expect(shapeById('collections')).toBeDefined();
+      expect(sr.querySelectorAll('.el[data-kind="node"][data-id="A"] path').length).toBe(2);
+      sr.host.remove();
+    });
+
+    it('a mindmap (T08) loads its kind, then bang, cloud and the media kit for its shapes, icons and markdown', async () => {
+      forgetKinds();
+      forgetShapes();
+      forgetMediaKit();
+      const sr = await show(example('product-mindmap.mmdx'));
+      expect(hasKind('mindmap')).toBe(true);
+      expect(shapeById('bang')).toBeDefined();
+      expect(sr.querySelectorAll('.el.mm-node').length).toBe(25);
+      expect(sr.querySelector('.el[data-id="launch"] path')).not.toBeNull();
+      expect(sr.querySelector('.el.mm-node tspan[font-weight="700"]')?.textContent).toBe('Faster');
+      expect(sr.querySelector('[aria-label="Mindmap: 25 nodes"]')).not.toBeNull();
+      sr.host.remove();
+    });
+
+    it('a state diagram (T09) loads its kind with its five shapes, and not the shapes beyond them', async () => {
+      forgetKinds();
+      forgetShapes();
+      forgetMediaKit();
+      const sr = await show(example('traffic-light.mmdx'));
+      expect(hasKind('state')).toBe(true);
+      expect(shapeById('sm-circ')).toBeDefined();
+      expect(shapeById('bolt')).toBeUndefined();
+      expect(sr.querySelectorAll('.el.st-state').length).toBe(4);
+      expect(sr.querySelector('.el[data-id="[*]start"] path')).not.toBeNull();
+      expect(sr.querySelector('[aria-label="State diagram: 4 states, 8 transitions"]')).not.toBeNull();
+      sr.host.remove();
+    });
+
+    it('do not load for a flowchart of the 17', async () => {
+      forgetShapes();
+      const sr = await show('flowchart LR\n  a[(DB)] --> b{Q} --> c([End])\n  d@{ shape: cyl }');
+      expect(sr.querySelectorAll('.el[data-kind="node"]').length).toBe(4);
+      expect(shapeById('bolt')).toBeUndefined();
+      expect(shapeById('collections')).toBeUndefined();
+      sr.host.remove();
+    });
   });
 });
 
@@ -55,7 +136,20 @@ afterEach(() => {
     expect(sr.querySelectorAll('.el[data-kind="node"]').length).toBe(2);
     expect(sr.querySelectorAll('.el[data-kind="edge"]').length).toBe(1);
     expect(rendered).toMatchObject({ type: 'flowchart' });
-    expect(sr.querySelector('.root')!.getAttribute('aria-label')).toBe('Flowchart: 2 nodes, 1 connections');
+    // the picture is the image with the name; the root (a group holding the controls) is named after it (BUG-023)
+    const picture = sr.querySelector('svg[role=img]')!;
+    expect(picture.getAttribute('aria-label')).toBe('Flowchart: 2 nodes, 1 connections');
+    expect(sr.querySelector('.root')!.getAttribute('aria-labelledby')).toBe(picture.id);
+  });
+
+  it('names the diagram with its accTitle and describes it with its accDescr (T06.8)', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    hosts.push(host);
+    new DiagramViewer(host, { lazy: false, source: 'flowchart LR\n  accTitle: Order flow\n  accDescr {\n    From cart\n    to delivery\n  }\n  a --> b' });
+    const picture = host.shadowRoot!.querySelector('svg[role=img]')!;
+    expect(picture.getAttribute('aria-label')).toBe('Order flow');
+    expect(picture.getAttribute('aria-description')).toBe('From cart\nto delivery');
   });
 
   it('renders every example without errors', () => {
@@ -90,6 +184,30 @@ afterEach(() => {
       expect(host.shadowRoot!.querySelectorAll('.el[data-kind="node"]').length).toBe(1);
       resolve();
     }, 50));
+  });
+
+  it('setLayers() and the labels repaint; the hover highlight and the animation do not (P20)', async () => {
+    const src = 'flowchart LR\n  a -- go --> b\n%%@ layer L1 {"name":"One"}\n%%@ node b {"layer":"L1"}';
+    const { host, v } = mount({ source: src });
+    const core = (v as unknown as { core: { display: { peek(): object }; setDisplay(d: object): void; on(e: string, f: () => void): () => void } }).core;
+    const settle = () => new Promise((r) => setTimeout(r, 30));
+    const nodes = () => host.shadowRoot!.querySelectorAll('.el[data-kind="node"]').length;
+    // the first paint, and whatever it loaded on the way (a busy machine is slow), are over
+    await vi.waitFor(() => expect(host.shadowRoot!.querySelectorAll('.elabel').length).toBe(1));
+    await settle();
+    let draws = 0;
+    core.on('draw', () => draws++);
+    v.setLayers(['default']);
+    await vi.waitFor(() => expect(nodes()).toBe(1));
+    const once = draws;
+    expect(once).toBeGreaterThan(0);
+    v.setLayers(['default']);
+    core.setDisplay({ hoverHighlight: false, animate: false });
+    await settle();
+    expect(draws).toBe(once);
+    v.set({ labels: false });
+    // the labels setting repaints with no invalidate() of its own
+    await vi.waitFor(() => expect(host.shadowRoot!.querySelectorAll('.elabel').length).toBe(0));
   });
 
   it('toSvg() returns a standalone document', () => {
@@ -142,7 +260,8 @@ describe('code view (controls="code")', () => {
     expect(btn().getAttribute('aria-pressed')).toBe('true');
     btn().click();
     expect(sr.querySelector('.mmdx-stack.open')).toBeNull();
-    expect(sr.querySelector('.root')!.getAttribute('role')).toBe('img');
+    // a group with the code view closed too: the picture alone is the image (BUG-023)
+    expect(sr.querySelector('.root')!.getAttribute('role')).toBe('group');
     host.remove();
   });
 });
@@ -169,7 +288,7 @@ describe('<mmdx-viewer> attributes', () => {
     const v = el.instance!;
     await vi.waitFor(() => expect(v.core.moduleScope('pen')).not.toBeNull());
     const pen = v.core.moduleScope('pen');
-    v.core.tool.set('pen');
+    v.core.setTool('pen');
     // the diagram follows the chrome to dark (nothing picked)
     const dark = new Promise((r) => el.addEventListener('mmdx-render', r, { once: true }));
     v.core.chooseScheme('dark');
@@ -181,7 +300,7 @@ describe('<mmdx-viewer> attributes', () => {
     expect(v.core.moduleScope('pen')).toBe(pen);
     expect(v.core.tool.peek()).toBe('pen');
     expect(v.core.scheme.peek()).toBe('dark');
-    expect(v.core.root.getAttribute('aria-label')).toBe('Deploy flow');
+    expect(v.core.canvas.svg.getAttribute('aria-label')).toBe('Deploy flow');
     await new Promise((r) => setTimeout(r, 200));
     expect(renders).not.toHaveBeenCalled();
     el.remove();
@@ -358,5 +477,103 @@ describe('host full screen', () => {
     el.setControls(['zoom', 'fullscreen']);
     expect(sr.querySelector<HTMLButtonElement>('.fs-btn')!.hidden).toBe(false);
     el.remove();
+  });
+});
+
+describe('inline sources round-trip (B17)', () => {
+  it('scriptSafe breaks </script, <script and <!--; the viewer and the editor read the text back as written', async () => {
+    const { scriptSafe, readInlineSource } = await import('../../src/elements/base.js');
+    const src = 'flowchart LR\n  a["</script> <!--<script> x"] --> b';
+    const safe = scriptSafe(src);
+    expect(safe).not.toMatch(/<\/script|<script|<!--/i);
+    const host = document.createElement('div');
+    host.innerHTML = `<script type="text/mermaid">\n    ${safe.split('\n').join('\n    ')}\n  </script>`;
+    expect(readInlineSource(host)).toBe(src);
+  });
+
+  it('the editor element opens an inline source as the viewer does', async () => {
+    const { defineEditor } = await import('../../src/elements/editor.js');
+    defineEditor();
+    const el = document.createElement('mmdx-editor');
+    el.innerHTML = '<script type="text/mermaid">\n    flowchart LR\n      a["<\\/script>"] --> b\n  </script>';
+    document.body.append(el);
+    expect((el as unknown as { getSource(): string }).getSource()).toContain('flowchart LR\n  a["</script>"] --> b');
+    el.remove();
+  });
+});
+
+describe('viewer state sync (B19, B20)', () => {
+  const mount = (opts: ConstructorParameters<typeof DiagramViewer>[1]): { host: HTMLElement; v: DiagramViewer } => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    return { host, v: new DiagramViewer(host, { lazy: false, ...opts }) };
+  };
+  it('a code panel restored from storage makes the root a group and pinned', async () => {
+    const storage = memoryStorage();
+    storage.set('viewer.panels', { 'code-view': true });
+    const { host } = mount({ source: 'flowchart LR\n  a --> b', controls: ['code'], storage });
+    const root = (): Element => host.shadowRoot!.querySelector('.root')!;
+    await vi.waitFor(() => expect(root().classList.contains('pinned')).toBe(true));
+    expect(root().getAttribute('role')).toBe('group');
+  });
+
+  it('removing the label gives the diagram\'s own name back; interactive follows at run time', async () => {
+    const { host, v } = mount({ source: 'flowchart LR\n  accTitle: The flow\n  a --> b', label: 'Host label' });
+    const root = (): Element => host.shadowRoot!.querySelector('.root')!;
+    const picture = (): Element => host.shadowRoot!.querySelector('svg[role=img]')!;
+    await vi.waitFor(() => expect(picture().getAttribute('aria-label')).toBe('Host label'));
+    v.set({ label: undefined });
+    expect(picture().getAttribute('aria-label')).toBe('The flow');
+    expect(root().classList.contains('can-pan')).toBe(true);
+    v.set({ interactive: false });
+    expect(root().classList.contains('can-pan')).toBe(false);
+  });
+
+  it('the view event fires on a pan of the viewer (B45)', async () => {
+    const { host, v } = mount({ source: 'flowchart LR\n  a --> b' });
+    await vi.waitFor(() => expect(host.shadowRoot!.querySelector('.el[data-kind="node"]')).not.toBeNull());
+    let n = 0;
+    v.core.on('view', () => n++);
+    v.core.canvas.viewport!.panBy(10, 0);
+    expect(n).toBeGreaterThan(0);
+  });
+});
+
+describe('theme menu (B44)', () => {
+  it('lists the themes of the host\'s theme source before any is registered', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const themeSource = { list: async () => [{ id: 'brand-x', name: 'Brand X', appearance: 'light' as const, extends: null }], get: async () => ({ id: 'brand-x', name: 'Brand X' }) };
+    const v = new DiagramViewer(host, { lazy: false, source: 'flowchart LR\n  a --> b', controls: ['theme'], themeSource, storage: memoryStorage() });
+    const sr = host.shadowRoot!;
+    await vi.waitFor(() => expect(sr.querySelector('.mmdx-theme-btn')).not.toBeNull());
+    await new Promise((r) => setTimeout(r, 20));
+    sr.querySelector<HTMLButtonElement>('.mmdx-theme-btn')!.click();
+    await vi.waitFor(() => expect([...sr.querySelectorAll('[role=menu] [role=menuitemradio], [role=menu] [role=menuitem]')].map((x) => x.textContent)).toEqual(expect.arrayContaining([expect.stringContaining('Brand X')])));
+    v.destroy();
+  });
+});
+
+
+describe('roles (BUG-023)', () => {
+  const FOCUSABLE = 'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"]), [contenteditable]:not([contenteditable="false"])';
+  it('no element with role=img holds a control: the picture is the image, the root a group named after it', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const versions = [{ id: 'v2', source: 'flowchart LR\n  a --> b --> c' }, { id: 'v1', source: 'flowchart LR\n  a --> b' }];
+    const v = new DiagramViewer(host, { lazy: false, source: 'flowchart LR\n  a --> b --> c', controls: ['zoom', 'fullscreen', 'pen', 'code', 'layers', 'export', 'theme', 'history'], history: versions, storage: memoryStorage() });
+    const sr = host.shadowRoot!;
+    await vi.waitFor(() => expect(sr.querySelector('.tool-dock .vt-code-view')).not.toBeNull());
+    v.core.setPanels({ 'code-view': true, 'view-settings': true });
+    await v.core.modulesReady();
+    const images = [...sr.querySelectorAll('[role=img]')];
+    expect(images.length).toBeGreaterThan(0);
+    for (const img of images) expect(img.querySelector(FOCUSABLE), `${img.tagName}.${img.getAttribute('class')} holds a control`).toBeNull();
+    const root = sr.querySelector('.root')!;
+    expect(root.getAttribute('role')).toBe('group');
+    expect(root.querySelector(FOCUSABLE)).not.toBeNull();
+    expect(sr.getElementById(root.getAttribute('aria-labelledby')!)!.getAttribute('aria-label')).toBe('Flowchart: 3 nodes, 2 connections');
+    v.destroy();
+    host.remove();
   });
 });

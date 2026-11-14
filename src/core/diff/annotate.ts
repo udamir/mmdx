@@ -5,14 +5,16 @@
 //   body     the diagram with every item tagged by its change key (`data-ck`, which pairs items across views),
 //            unchanged items dimmed and removed items faded
 // Shapes carry explicit colours (exports have no stylesheet); on screen, the element's CSS restyles them by class.
-import { el, g, text } from '../scene/build.js';
-import type { AttrValue, SceneNode } from '../scene/types.js';
-import { markRuns, hasMarks, stripMarks } from '../text/marks.js';
+import { el, g } from '../scene/build.js';
+import type { AttrValue, SceneNode, TextLine, TextRun } from '../scene/types.js';
+import { markRuns, markStyledRuns, hasMarks, stripMarks } from '../text/marks.js';
 import type { FontSpec, TextMeasurer } from '../text/measure.js';
 import type { GeometryIndex, RenderResult } from '../render/types.js';
 import type { ItemKind, Rect } from '../types.js';
-import type { ChangeFacet, ItemChange } from './types.js';
+import type { ChangeFacet, ItemChange, ItemShape } from './types.js';
 import { beforeKey, changeKey } from './merge.js';
+import { requireKind } from '../kinds/registry.js';
+import { MARK_ICONS } from './icons.js';
 
 /** A highlight colour family: the filter of a change. */
 export type Mark = 'added' | 'removed' | ChangeFacet;
@@ -28,7 +30,7 @@ export interface DiffColors {
   dim: number;
 }
 
-/** The `--mmdx-diff-*` token values (ui/styles/diff.ts) for exports and server-side rendering. */
+/** The highlight colours: exports and server-side rendering draw with them, and the `--mmdx-diff-*` tokens of the screen (diff/styles.ts DIFF_TOKENS) are made from them. */
 export const DIFF_COLORS: Record<'light' | 'dark', DiffColors> = {
   light: {
     marks: {
@@ -42,11 +44,11 @@ export const DIFF_COLORS: Record<'light' | 'dark', DiffColors> = {
   },
   dark: {
     marks: {
-      added: { c: '#3fb950', bg: '#1d4428' },
-      removed: { c: '#f85149', bg: '#4c2124' },
-      content: { c: '#e3a33b', bg: '#4a3a1c' },
-      layout: { c: '#58a6ff', bg: '#1c3a5e' },
-      style: { c: '#bc8cff', bg: '#3c2c5e' },
+      added: { c: '#3fb950', bg: 'rgba(46,160,67,.22)' },
+      removed: { c: '#f85149', bg: 'rgba(248,81,73,.22)' },
+      content: { c: '#e3a33b', bg: 'rgba(227,163,59,.2)' },
+      layout: { c: '#58a6ff', bg: 'rgba(56,139,253,.2)' },
+      style: { c: '#bc8cff', bg: 'rgba(163,113,247,.2)' },
     },
     dim: 0.35,
   },
@@ -54,40 +56,15 @@ export const DIFF_COLORS: Record<'light' | 'dark', DiffColors> = {
 
 // ---- shapes -----------------------------------------------------------------------------------------------------
 
-export type ItemShape = { t: 'rect'; r: Rect } | { t: 'path'; d: string; label: Rect | null; mid: { x: number; y: number } };
+export type { ItemShape };
 
-const box = (b: { x: number; y: number; w: number; h: number }): Rect => ({ x: b.x - b.w / 2, y: b.y - b.h / 2, w: b.w, h: b.h });
-
-/** Where an item is drawn, from the renderer's geometry index. */
+/**
+ * Where an item is drawn, from the renderer's geometry index (null: the item is not drawn, or the picture has no type).
+ * Fails closed like the rest of the diff (B40): throws KindNotLoaded (`kind.not-loaded`) when the type's diff kind is
+ * not loaded, instead of annotating nothing. A diff without its kind has no changes to annotate (diffDiagramsWith).
+ */
 export function shapeOf(geom: GeometryIndex, kind: ItemKind, id: string): ItemShape | null {
-  const rect = (b: { x: number; y: number; w: number; h: number; hidden?: boolean } | undefined): ItemShape | null => (b && !b.hidden ? { t: 'rect', r: box(b) } : null);
-  const path = (e: { d: string; label: { x: number; y: number; w: number; h: number } | null; points: [number, number][]; a: { x: number; y: number }; b: { x: number; y: number } } | undefined): ItemShape | null => {
-    if (!e) return null;
-    const p = e.points[Math.floor(e.points.length / 2)];
-    const mid = e.label ? { x: e.label.x, y: e.label.y } : p ? { x: p[0], y: p[1] } : { x: (e.a.x + e.b.x) / 2, y: (e.a.y + e.b.y) / 2 };
-    return { t: 'path', d: e.d, label: e.label ? box(e.label) : null, mid };
-  };
-  switch (geom.type) {
-    case 'flowchart':
-      return kind === 'node' ? rect(geom.nodes.get(id)) : kind === 'group' ? rect(geom.groups.get(id)) : kind === 'edge' ? path(geom.edges.get(id)) : null;
-    case 'er':
-      return kind === 'entity' ? rect(geom.entities.get(id)) : kind === 'rel' ? path(geom.rels.get(id)) : null;
-    case 'sequence': {
-      if (kind === 'participant') return rect(geom.participants.get(id));
-      if (kind === 'note') return rect(geom.notes.get(id));
-      if (kind === 'block') return rect(geom.blocks.get(id));
-      if (kind === 'box') return rect(geom.boxes.get(id));
-      if (kind === 'message') {
-        const m = geom.messages.get(id);
-        if (!m) return null;
-        const x0 = Math.min(m.x0, m.x1), x1 = Math.max(m.x0, m.x1);
-        return { t: 'rect', r: m.self ? { x: x0 - 6, y: m.y - 26, w: x1 - x0 + 40, h: 62 } : { x: x0, y: m.y - 26, w: x1 - x0, h: 36 } };
-      }
-      return null;
-    }
-    default:
-      return null;
-  }
+  return geom.type ? requireKind(geom.type, 'diff').shape(geom, { kind, id }) ?? null : null;
 }
 
 export const centreOf = (s: ItemShape): { x: number; y: number } => (s.t === 'rect' ? { x: s.r.x + s.r.w / 2, y: s.r.y + s.r.h / 2 } : s.mid);
@@ -100,11 +77,15 @@ export const focusRect = (s: ItemShape): Rect => (s.t === 'rect' ? s.r : s.label
 /** The highlight colour of a change: its status, or its first changed facet. */
 export const markOf = (c: ItemChange): Mark => (c.status === 'added' ? 'added' : c.status === 'removed' ? 'removed' : c.facets[0] ?? 'content');
 
-/** Every filter a change belongs to: its status, or each facet it changed in. */
-export const marksOf = (c: ItemChange): Mark[] => (c.status === 'added' ? ['added'] : c.status === 'removed' ? ['removed'] : c.facets.length ? [...c.facets] : ['content']);
-
 /** Badge text: `+`, `−`, or the initials of the changed facets (`C`, `L`, `S`). */
 export const badgeOf = (c: ItemChange): string => (c.status === 'added' ? '+' : c.status === 'removed' ? '−' : c.facets.map((f) => f[0]!.toUpperCase()).join(''));
+
+/** The marks a badge shows an icon for: the status, or every changed facet. */
+const badgeMarks = (c: ItemChange): Mark[] => (c.status === 'added' ? ['added'] : c.status === 'removed' ? ['removed'] : c.facets.length ? [...c.facets] : ['content']);
+
+/** The icon of a mark as a `size` px square at (x, y). */
+export const badgeIcon = (m: Mark, x: number, y: number, size: number, color: string): SceneNode =>
+  el('path', { class: 'dx-icon', d: MARK_ICONS[m], transform: `translate(${x} ${y}) scale(${size / 24})`, fill: 'none', stroke: color, 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
 
 // ---- annotation -------------------------------------------------------------------------------------------------
 
@@ -153,7 +134,7 @@ export function annotate(input: AnnotateInput, o: AnnotateOptions = {}): Annotat
     for (const c of shown) {
       const id = view === 'before' ? c.beforeId ?? c.id : view === 'after' ? c.id : changeKey(c).slice(c.kind.length + 1);
       const s = shapeOf(result.geom, c.kind, id);
-      if (s) overlay.push(highlight(changeKey(c), s, markOf(c), badgeOf(c), c.status === 'removed', colors, o.badgeScale));
+      if (s) overlay.push(highlight(changeKey(c), s, markOf(c), badgeMarks(c), c.status === 'removed', colors, o.badgeScale));
     }
   }
   const runs = view === 'merged' && o.highlights !== false ? highlighterRuns(result.body, input.measure, colors) : [];
@@ -179,25 +160,32 @@ function decorateBody(nodes: readonly SceneNode[], keyIn: (kind: string, id: str
   });
 }
 
+/** The lines of a text split at the change marks: plain lines by their text, rich ones (core/text/rich.ts) by their runs. */
+const lineRuns = (lines: readonly TextLine[]): TextRun[][] =>
+  lines.some((l) => l.runs) ? markStyledRuns(lines.map((l) => l.runs ?? [{ text: l.text, mark: null }])) : markRuns(lines.map((l) => l.text));
+
 /** Text with change marks (the merged picture) as runs of removed and added words, its `text` without them. */
 function markedRuns(n: SceneNode): SceneNode {
   if (n.t === 'text') {
     if (!n.lines.some((l) => hasMarks(l.text))) return n;
-    const runs = markRuns(n.lines.map((l) => l.text));
+    const runs = lineRuns(n.lines);
     return { ...n, lines: n.lines.map((l, i) => ({ ...l, text: stripMarks(l.text), runs: runs[i] ?? [] })) };
   }
   if (n.t === 'g' || n.t === 'a') return { ...n, children: n.children.map(markedRuns) };
   return n;
 }
 
-function highlight(key: string, s: ItemShape, mark: Mark, badge: string, dashed: boolean, colors: DiffColors, badgeScale?: number): SceneNode {
+function highlight(key: string, s: ItemShape, mark: Mark, icons: readonly Mark[], dashed: boolean, colors: DiffColors, badgeScale?: number): SceneNode {
   const { c, bg } = colors.marks[mark];
   const outline = (r: Rect, p: number, rx: number): SceneNode =>
     el('rect', { class: 'dx-outline', x: r.x - p, y: r.y - p, width: r.w + p * 2, height: r.h + p * 2, rx, fill: bg, 'fill-opacity': 0.6, stroke: c, 'stroke-width': 2.5, 'stroke-dasharray': dashed ? '7 5' : undefined, 'vector-effect': 'non-scaling-stroke' });
   const parts: SceneNode[] = [];
   let anchor: { x: number; y: number };
   if (s.t === 'rect') {
-    parts.push(outline(s.r, 8, 10));
+    // a shape's own outline (a diamond, a circle), grown like the box frame
+    parts.push(s.d
+      ? el('path', { class: 'dx-outline', d: s.d, fill: bg, 'fill-opacity': 0.6, stroke: c, 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-dasharray': dashed ? '7 5' : undefined, 'vector-effect': 'non-scaling-stroke' })
+      : outline(s.r, 8, 10));
     anchor = { x: s.r.x + s.r.w + 8, y: s.r.y - 8 };
   } else {
     parts.push(el('path', { class: 'dx-stroke', d: s.d, fill: 'none', stroke: c, 'stroke-width': 9, 'stroke-opacity': 0.35, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-dasharray': dashed ? '14 8' : undefined }));
@@ -207,10 +195,11 @@ function highlight(key: string, s: ItemShape, mark: Mark, badge: string, dashed:
   }
   // the pill grows up and right from its anchor (an outline's corner), off the item: the CSS keeps it at a constant
   // screen size, so centred on the corner it covered the text of small or zoomed-out items
-  const w = Math.max(18, badge.length * 9 + 9);
+  // one 12 px icon per mark, 2 px apart, centred in an 18 px high pill (a circle for one icon)
+  const w = icons.length * 14 + 4;
   const pill = g({ class: 'dx-badge', transform: badgeScale && badgeScale !== 1 ? `scale(${badgeScale})` : undefined }, [
     el('rect', { x: -3, y: -15, width: w, height: 18, rx: 9, fill: c, stroke: '#ffffff', 'stroke-width': 1.5 }),
-    text({ 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-family': 'system-ui, sans-serif', 'font-size': 10.5, 'font-weight': 700, fill: '#ffffff' }, [{ text: badge, x: w / 2 - 3, y: -5.5 }]),
+    ...icons.map((m, i) => badgeIcon(m, i * 14, -12, 12, '#ffffff')),
   ]);
   parts.push(g({ transform: `translate(${anchor.x} ${anchor.y})` }, [pill]));
   return g({ class: `dx-hl dx-${mark}${dashed ? ' dx-dashed' : ''}`, 'data-key': key }, parts, { key: `hl:${key}` });
@@ -250,17 +239,23 @@ function highlighterRuns(body: readonly SceneNode[], measure: TextMeasurer, colo
     if (n.attrs['font-style'] === 'italic') base.style = 'italic';
     const anchor = n.attrs['text-anchor'] ?? 'start';
     const central = n.attrs['dominant-baseline'] === 'central';
-    const runs = markRuns(n.lines.map((l) => l.text));
+    const runs = lineRuns(n.lines);
     n.lines.forEach((l, i) => {
       const line = runs[i] ?? [];
-      // inserted words are drawn bold (ui/styles/diff.ts and the export style)
-      const widths = line.map((r) => measure.width(r.text, r.mark === 'ins' ? { ...base, weight: 700 } : base));
+      // inserted words are drawn bold (diff/styles.ts and the export style), as are bold runs
+      const fontOf = (r: TextRun): FontSpec => {
+        const f = r.mark === 'ins' || r.bold ? { ...base, weight: 700 } : base;
+        return r.italic ? { ...f, style: 'italic' } : f;
+      };
+      const widths = line.map((r) => (r.icon ? r.icon.size : measure.width(r.text, fontOf(r))));
       const total = widths.reduce((a, b) => a + b, 0);
-      let x = anchor === 'middle' ? l.x - total / 2 : anchor === 'end' ? l.x - total : l.x;
+      // a line with icons starts at its left edge, and its runs after an icon at their own place
+      let x = l.anchor ? l.x : anchor === 'middle' ? l.x - total / 2 : anchor === 'end' ? l.x - total : l.x;
       const top = central ? l.y - size * 0.66 : l.y - size * 0.92;
       line.forEach((r, j) => {
         const w = widths[j]!;
-        if (r.mark && r.text.trim()) {
+        if (r.x !== undefined) x = r.x;
+        if (r.mark && (r.icon || r.text.trim())) {
           const m = colors.marks[r.mark === 'ins' ? 'added' : 'removed'];
           out.push(el('rect', { class: `run-${r.mark}`, x: x - 1, y: top, width: w + 2, height: size * 1.32, rx: 2, fill: m.bg, 'fill-opacity': 0.7 }));
         }

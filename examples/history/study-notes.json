@@ -1,0 +1,18 @@
+{
+ "versions": [
+  {
+   "id": "a61f9c2",
+   "message": "Fold the exam tips",
+   "author": "Sam",
+   "date": "2026-11-01T18:20:00.000Z",
+   "source": "---\nconfig:\n  mindmap:\n    colorBy: depth\n---\nmindmap\n  root(Cell biology)\n    cells[Cell types]\n      Prokaryotes\n        Bacteria\n        Archaea\n      Eukaryotes\n        Animal cells\n        Plant cells\n    organelles)Organelles(\n      Nucleus\n      ::icon(fa fa-flask)\n      Mitochondria\n      Chloroplasts\n      :::idea\n    processes[\"Processes (core)\"]\n      Mitosis\n      Meiosis\n      Photosynthesis\n    exam[\"`**Exam** tips\n*review* weekly`\"]\n      Flash cards\n      Past papers\n\n%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----\n%%@ canvas {\"v\":1,\"mindLayout\":\"right\"}\n"
+  },
+  {
+   "id": "0d7e4b5",
+   "message": "First notes",
+   "author": "Sam",
+   "date": "2026-10-27T08:30:00.000Z",
+   "source": "mindmap\n  root(Cell biology)\n    cells[Cell types]\n      Prokaryotes\n      Eukaryotes\n    organelles)Organelles(\n      Nucleus\n      Mitochondria\n    processes[\"Processes (core)\"]\n      Mitosis\n      Meiosis\n"
+  }
+ ]
+}

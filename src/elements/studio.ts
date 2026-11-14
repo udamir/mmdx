@@ -1,40 +1,42 @@
 // <mmdx-studio> (§8.4, UC4): the standalone all-in-one app — editor, theme editor (dialog), file menu, examples
 // gallery, appearance toggle — the prototype's index.html, packaged as one element. The studio gives the editor the
 // open document's versions (an example's bundled history and the versions saved here), shown by the editor's History.
-import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../ui/blocks/overlay-scroll.js';
-import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
-import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
-import { fetchThemeSource, localStorageThemeStore, type ThemeSource } from '../adapters/themes.js';
-import { ensureBuiltinThemes, getShared } from '../config.js';
-import { defineEditor, type DiagramEditor, type MmdxEditorElement } from '../editor/editor.js';
-import { readDocumentFiles } from '../editor/modules/chrome/document.js';
+import { fileStem } from '../ui/kit/format.js';
+import { OVERLAY_SCROLL_CSS } from '../ui/kit/overlay-scroll.js';
+import { ComponentShell } from '../view/component-shell.js';
+import { Owner } from '../reactive/owner.js';
+import { attr, MmdxElement, warnOnce, type AttrSpec, type Patch } from './base.js';
+import type { ImageStore } from '../ports.js';
+import { type StorageAdapter, type ThemeSource, type HistoryAdapter } from '../ports.js';
+import { fetchThemeSource, localStorageThemeStore } from '../adapters/themes.js';
+import { okFetch } from '../adapters/http.js';
+import { getShared } from '../platform/config.js';
+import { ensureBuiltinThemes } from '../platform/themes.js';
+import { type DiagramEditor } from '../editor/editor.js';
+import { defineEditor, type MmdxEditorElement } from './editor.js';
+import { ExamplesGallery, type ExampleInfo } from './studio-gallery.js';
+import { StudioVersions } from './studio-versions.js';
+import { readDocumentFiles } from '../editor/lib/files.js';
 import { download } from '../dom/export.js';
-import { renderSource, standaloneSvg } from '../core/pipeline.js';
+import type { WheelMode } from '../dom/viewport.js';
+import { DIAGRAM_TYPES } from '../core/kinds/info.js';
+import { kindUi } from '../ui/diagram/kind-ui.js';
 import { starterSource, type StarterType } from '../core/starter.js';
-import { contentId, type HistoryAdapter, type StaticVersion } from '../adapters/history.js';
 import type { BlockHandle } from '../ui/blocks/block.js';
 import { createSegmented, type SegmentedOption, type SegmentedProps } from '../ui/blocks/segmented.js';
 import { MENU_CSS, openMenu } from '../ui/blocks/menu.js';
-import { h, icon } from '../ui/h.js';
-import { signal } from '../ui/signal.js';
-import { ICONS } from '../ui/icons.js';
-import { logoMark } from '../ui/logo.js';
-import { PopoverManager, Toaster } from '../ui/popover.js';
-import { Dialogs, DIALOG_CSS } from '../ui/dialog.js';
-import { adoptStyles, ALIASES, BASE, resolveUiScheme, TOKENS, watchUiScheme } from '../ui/styles/base.js';
+import { h, icon } from '../ui/kit/h.js';
+import { effect, signal } from '../reactive/signal.js';
+import { I_close, I_eye, I_folder, I_palette, I_save } from '../ui/kit/icons.js';
+import { logoMark } from '../ui/kit/logo.js';
+import { PopoverManager, Toaster } from '../ui/kit/popover.js';
+import { Dialogs, DIALOG_CSS } from '../ui/kit/dialog.js';
+import { adoptStyles, ALIASES, BASE, TOKENS } from '../ui/kit/base.js';
 
 /** The studio's mode switch: the editor's Edit and View, and Diff (its History, compared with the version before). */
 export type StudioMode = 'edit' | 'view' | 'diff';
 
-export interface ExampleInfo {
-  id: string;
-  title: string;
-  file: string;
-  thumbnail?: string;
-  tags?: string[];
-  /** A history file of the example: `{ versions: [{ id, message, author?, date?, source }] }`, newest first. */
-  history?: string;
-}
+export type { ExampleInfo } from './studio-gallery.js';
 
 export interface StudioOptions {
   /** Examples manifest URL: `{ examples: [{ id, title, file, thumbnail?, tags? }] }`. */
@@ -46,12 +48,13 @@ export interface StudioOptions {
   /** Example id to open when nothing is stored. */
   initial?: string;
   storage?: StorageAdapter;
+  /** The host's image store: the editor's image library, and where its uploads go (see the editor's `images`). */
+  images?: ImageStore | null;
+  /** What the mouse wheel does on the canvas: see the editor's `wheel`. */
+  wheel?: WheelMode;
 }
 
 const STORE_KEY = 'studio.doc';
-/** Versions saved in the studio, per document (browser storage, never the server). */
-const VERSIONS_KEY = 'studio.versions';
-const MAX_VERSIONS = 30;
 
 const STUDIO_CSS = /* css */ `
 :host { display: block; height: 100%; min-height: 480px; }
@@ -88,6 +91,8 @@ mmdx-editor { position: absolute; inset: 0; height: auto; min-height: 0; }
 `;
 
 export class DiagramStudio {
+  /** The shadow root, storage, popovers, dialogs, scheme and events (A8: the kernel's component shell). */
+  private readonly shell: ComponentShell;
   private readonly shadow: ShadowRoot;
   private readonly o: StudioOptions;
   private readonly storage: StorageAdapter;
@@ -97,43 +102,49 @@ export class DiagramStudio {
   private readonly toaster: Toaster;
   private readonly dialogs: Dialogs;
   private readonly ac = new AbortController();
-  private readonly cleanups: (() => void)[] = [];
+  private readonly owner = new Owner('studio');
   private examples: ExampleInfo[] = [];
   private themeSource: ThemeSource | undefined;
   private name = 'diagram';
-  /** Which document is open (`example:<id>`, `file:<name>`): the key of its saved versions. */
-  private docKey = 'file:diagram';
-  /** The bundled history of the open example, newest first. */
-  private bundled: StaticVersion[] = [];
+  /** The open document's versions: saved here and, for an example, bundled with it (its key: `example:<id>`, `file:<name>`). */
+  private readonly versions: StudioVersions;
+  /** The examples gallery. */
+  private readonly gallery: ExamplesGallery;
   /** The editor's History source: this document's versions, read fresh every time it opens. */
   private history!: HistoryAdapter;
-  private ui: 'light' | 'dark' | 'auto';
   /** Bumps on every document opened: a slow load (an example, a file) started before gives up. */
   private openSeq = 0;
   private destroyed = false;
 
+  /** The host's image store: the editor's image library and where its uploads go. */
+  setImages(store: ImageStore | null): void {
+    this.editorEl.images = store;
+  }
+
   constructor(private readonly host: HTMLElement, opts: StudioOptions = {}) {
     this.o = { ...opts };
-    this.storage = opts.storage ?? (typeof localStorage !== 'undefined' ? localStorageAdapter() : memoryStorage());
-    this.shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
+    const shell = (this.shell = new ComponentShell(host, { product: 'studio', storage: opts.storage, schemeKey: 'ui' }));
+    this.storage = shell.storage;
+    this.shadow = shell.shadow;
     adoptStyles(this.shadow, [TOKENS, ALIASES, BASE, DIALOG_CSS, MENU_CSS, OVERLAY_SCROLL_CSS, STUDIO_CSS]);
     defineEditor();
-    this.ui = this.storage.get<'light' | 'dark'>('ui') ?? 'auto';
 
     this.editorEl = document.createElement('mmdx-editor');
     this.editorEl.features = { open: true };
-    this.editorEl.setAttribute('ui', this.ui);
+    this.editorEl.setAttribute('ui', shell.scheme.peek());
+    if (opts.wheel) this.editorEl.setAttribute('wheel', opts.wheel);
+    if (opts.images) this.editorEl.images = opts.images;
     this.nameEl = h('span', { class: 'name', title: 'File name' });
     const newBtn = h('button', { type: 'button', class: 'primary', 'aria-haspopup': 'menu', 'aria-expanded': 'false', onclick: () => this.openNewMenu(newBtn) }, '＋ New');
     const exBtn = h('button', { type: 'button', onclick: () => void this.openGallery() }, 'Examples');
-    const openBtn = h('button', { type: 'button', title: 'Open .mmdx / .mmd / .md / .layout.json', onclick: () => this.pickFiles() }, icon(ICONS.folder), 'Open');
+    const openBtn = h('button', { type: 'button', title: 'Open .mmdx / .mmd / .md / .layout.json', onclick: () => this.pickFiles() }, icon(I_folder), 'Open');
     const modeSwitch = (this.modeSwitch = createSegmented<StudioMode>({
       label: 'Mode', options: this.modeOptions(), value: this.mode, buttonClass: 'mode', f: 'mode',
       onChange: (m) => this.setMode(m),
     }));
-    const saveVersion = h('button', { type: 'button', title: 'Record the current diagram as a version in its history (see History in the tool dock)', onclick: () => void this.saveVersion() }, icon(ICONS.save), 'Save version');
-    const themesBtn = h('button', { type: 'button', title: 'Edit the diagram themes', onclick: () => void this.openThemeEditor() }, icon(ICONS.palette), 'Theme editor');
-    const plainBtn = h('button', { type: 'button', title: 'Render with stock Mermaid (what YouTrack / GitHub show)', onclick: () => void this.editorEl.plainMermaid() }, icon(ICONS.eye), 'Plain Mermaid');
+    const saveVersion = h('button', { type: 'button', title: 'Record the current diagram as a version in its history (see History in the tool dock)', onclick: () => void this.saveVersion() }, icon(I_save), 'Save version');
+    const themesBtn = h('button', { type: 'button', title: 'Edit the diagram themes', onclick: () => void this.openThemeEditor() }, icon(I_palette), 'Theme editor');
+    const plainBtn = h('button', { type: 'button', title: 'Render with stock Mermaid (what YouTrack / GitHub show)', onclick: () => void this.editorEl.plainMermaid() }, icon(I_eye), 'Plain Mermaid');
     const top = h('header', { class: 'top', part: 'toolbar' },
       h('div', { class: 'brand' }, h('span', { class: 'logo', 'aria-hidden': 'true' }, logoMark(24)), 'Mermaid Studio'),
       h('div', { class: 'grp' }, newBtn, exBtn, openBtn),
@@ -144,10 +155,20 @@ export class DiagramStudio {
     const main = h('div', { class: 'main' }, this.editorEl, h('div', { class: 'drop' }, 'Drop a .mmdx / .mmd / .md file'));
     const root = h('div', { class: 'studio' }, top, main);
     this.shadow.append(root);
-    this.pops = new PopoverManager(this.shadow);
+    this.pops = shell.popovers;
     this.toaster = new Toaster(root);
-    this.dialogs = new Dialogs(this.shadow, getShared().i18n.t);
-    this.history = this.historyAdapter();
+    // the studio's own confirm and choice dialogs (the shell carries none: a viewer or a diff never opens one, BUG-017)
+    this.dialogs = new Dialogs(shell.shadow, shell.i18n.t);
+    shell.owner.add(() => this.dialogs.destroy());
+    this.versions = new StudioVersions(this.storage, () => this.syncHistory());
+    this.gallery = new ExamplesGallery({
+      dialogs: this.dialogs, examples: () => this.examples, history: (ex) => this.versions.fetchHistory(ex), alive: () => !this.destroyed,
+      look: () => {
+        const core = this.editorEl.instance?.core;
+        return core ? { theme: core.shownTheme(), ctx: core.ctx } : null;
+      },
+    });
+    this.history = this.versions.adapter();
 
     const sig = { signal: this.ac.signal };
     this.editorEl.addEventListener('mmdx-change', () => this.persist(), sig);
@@ -159,22 +180,19 @@ export class DiagramStudio {
     this.editorEl.addEventListener('mmdx-history-show', (ev) => this.mode.set((ev as CustomEvent<{ shown: string }>).detail.shown === 'compare' ? 'diff' : docMode()), sig);
     this.editorEl.addEventListener('mmdx-history-close', () => this.mode.set(docMode()), sig);
     this.editorEl.addEventListener('mmdx-ui', (ev) => {
-      const ui = (ev as CustomEvent<{ ui: 'light' | 'dark' }>).detail.ui;
-      this.ui = ui;
-      this.storage.set('ui', ui);
-      this.applyScheme();
+      this.shell.chooseScheme((ev as CustomEvent<{ ui: 'light' | 'dark' }>).detail.ui);
     }, sig);
     // save = download the styled file (the studio has no backend) and record a version in the history
     this.editorEl.addEventListener('mmdx-save', (ev) => {
       ev.preventDefault();
       const src = this.editorEl.getSource();
       download(`${this.name}.mmdx`, src);
-      this.recordVersion(src, `Saved ${this.name}.mmdx`);
+      this.versions.record(src, `Saved ${this.name}.mmdx`);
       this.editorEl.instance?.markSaved();
     }, sig);
     // files dropped on the editor or opened from its menu: the studio opens them (its name, versions, unsaved check)
     const off = this.editorEl.instance?.core.provide('openFiles', (files) => this.openFiles(files));
-    if (off) this.cleanups.push(off);
+    if (off) this.owner.add(off);
     // what the editor took (a drop on its canvas) is not opened again here
     root.addEventListener('dragover', (ev) => {
       if (ev.defaultPrevented || !ev.dataTransfer?.types.includes('Files')) return;
@@ -190,8 +208,11 @@ export class DiagramStudio {
       ev.preventDefault();
       void this.openFiles(ev.dataTransfer.files);
     }, sig);
-    this.cleanups.push(watchUiScheme(() => this.applyScheme()));
-    this.applyScheme();
+    this.owner.add(effect(() => {
+      const s = shell.scheme();
+      this.host.setAttribute('data-ui', s);
+      this.editorEl.setAttribute('ui', s);
+    }));
     void this.boot();
   }
 
@@ -207,9 +228,9 @@ export class DiagramStudio {
     if (this.destroyed) return;
     this.destroyed = true;
     this.ac.abort();
-    for (const c of this.cleanups.splice(0)) c();
-    this.pops.close();
+    this.owner.dispose();
     this.toaster.destroy();
+    this.shell.destroy();
     this.shadow.replaceChildren();
   }
 
@@ -258,8 +279,8 @@ export class DiagramStudio {
     if (!this.o.examples) return;
     try {
       const base = new URL(this.o.examples, location.href);
-      const r = await fetch(base);
-      const m = (await r.json()) as { examples?: unknown };
+      // an error status: no examples (it was read as JSON before)
+      const m = (await (await okFetch(base)).json()) as { examples?: unknown };
       const list = Array.isArray(m.examples) ? m.examples : [];
       this.examples = list.filter((e): e is ExampleInfo => !!e && typeof e === 'object' && typeof (e as ExampleInfo).file === 'string')
         .map((e) => ({ ...e, id: e.id ?? e.file, title: e.title ?? e.file, file: new URL(e.file, base).href, ...(typeof e.history === 'string' ? { history: new URL(e.history, base).href } : {}) }));
@@ -270,7 +291,7 @@ export class DiagramStudio {
 
   private persist(): void {
     const src = this.editorEl.getSource();
-    if (this.persistModes().includes('local')) this.storage.set(STORE_KEY, { src, name: this.name, key: this.docKey });
+    if (this.persistModes().includes('local')) this.storage.set(STORE_KEY, { src, name: this.name, key: this.versions.key });
   }
 
   // ---- documents --------------------------------------------------------------------------------------------------
@@ -278,12 +299,12 @@ export class DiagramStudio {
   private open(src: string, name: string, opts: { markSaved?: boolean; key?: string | undefined } = {}): void {
     if (this.destroyed) return;
     this.openSeq++;
-    this.name = name.replace(/\.(mmdx|mmd|md|txt)$/i, '') || 'diagram';
-    this.docKey = opts.key ?? `file:${this.name}`;
-    this.bundled = [];
+    this.name = fileStem(name);
+    this.versions.key = opts.key ?? `file:${this.name}`;
+    this.versions.bundled = [];
     this.editorEl.instance?.toggleHistory(false);
     this.syncHistory();
-    void this.loadBundled().then(() => {
+    void this.versions.loadBundled(this.examples, () => !this.destroyed).then(() => {
       if (!this.destroyed) this.syncHistory();
     });
     this.nameEl.textContent = this.name;
@@ -295,16 +316,14 @@ export class DiagramStudio {
 
   private async openExample(ex: ExampleInfo): Promise<void> {
     const seq = this.openSeq;
-    if (this.editorEl.dirty && !(await this.dialogs.confirm('Discard changes?', 'The current diagram has unsaved changes.', { ok: 'Discard', danger: true }))) return;
+    if (!(await this.confirmDiscard())) return;
     try {
       // an example with a history opens at its newest version (the example file is where the history starts)
       const key = `example:${ex.id}`;
-      const newest = (await this.fetchHistory(ex))[0];
+      const newest = (await this.versions.fetchHistory(ex))[0];
       let src = newest?.source;
       if (src === undefined) {
-        const r = await fetch(ex.file);
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        src = await r.text();
+        src = await (await okFetch(ex.file)).text();
       }
       // something else was opened while the example loaded: it stays
       if (this.destroyed || seq !== this.openSeq) return;
@@ -319,7 +338,7 @@ export class DiagramStudio {
       label,
       run: async (): Promise<void> => {
         const seq = this.openSeq;
-        if (this.editorEl.dirty && !(await this.dialogs.confirm('Discard changes?', 'The current diagram has unsaved changes.', { ok: 'Discard', danger: true }))) return;
+        if (!(await this.confirmDiscard())) return;
         if (seq !== this.openSeq) return;
         this.open(starterSource(type), `untitled-${type}`);
         this.toaster.show('New diagram — add shapes from the Shapes menu on the left');
@@ -327,7 +346,7 @@ export class DiagramStudio {
     });
     openMenu({
       popovers: this.pops, opener, label: 'New diagram', align: 'left', within: this.host,
-      entries: [item('Flowchart', 'flowchart'), item('Sequence diagram', 'sequence'), item('Entity–relationship (ER) diagram', 'er')].map((e) => ({ label: e.label, run: () => void e.run() })),
+      entries: DIAGRAM_TYPES.map((t) => item(kindUi(t).names.title, t)).map((e) => ({ label: e.label, run: () => void e.run() })),
     });
   }
 
@@ -336,65 +355,13 @@ export class DiagramStudio {
       this.toaster.show('No examples configured');
       return;
     }
-    let picked: ExampleInfo | null = null;
-    // a preview of each example (its own thumbnail, else its newest version rendered here), the file icon meanwhile
-    let open = true;
-    const thumbOf = (ex: ExampleInfo): HTMLElement => {
-      if (ex.thumbnail) return h('div', { class: 'thumb' }, h('img', { src: ex.thumbnail, alt: '' }));
-      const box = h('div', { class: 'thumb loading' }, icon(ICONS.file, 32));
-      void this.preview(ex).then((url) => {
-        box.classList.remove('loading');
-        if (url && open) box.replaceChildren(h('img', { src: url, alt: '' }));
-      });
-      return box;
-    };
-    const grid = h('div', { class: 'gallery' }, ...this.examples.map((ex) => h('button', { type: 'button', class: 'card', onclick: (ev: Event) => {
-      picked = ex;
-      (ev.currentTarget as HTMLElement).closest('.mmdx-dialog')?.querySelector<HTMLButtonElement>('button.primary')?.click();
-    } },
-      thumbOf(ex),
-      h('b', null, ex.title),
-      ex.tags?.length ? h('span', { class: 'tags' }, ex.tags.join(' · ')) : null)));
-    // the panels' thin scrollbar over the cards
-    const scroll = createOverlayScroll(h('div', { class: 'gallery-box' }, grid));
-    const box = grid.parentElement!;
-    box.append(...scroll.thumbs);
-    const v = await this.dialogs.choose<'open' | 'cancel'>({ title: 'Examples', body: box, class: 'examples', cancel: 'cancel', buttons: [{ label: 'Close', value: 'cancel' }, { label: 'Open', value: 'open', primary: true }] });
-    open = false;
-    scroll.destroy();
-    if (v === 'open' && picked) await this.openExample(picked);
+    const ex = await this.gallery.pick();
+    if (ex) await this.openExample(ex);
   }
 
-  /** Previews of the examples (the newest version, in the editor's theme) as SVG images, rendered once per theme. */
-  private readonly previews = new Map<string, Promise<string | null>>();
-
-  private preview(ex: ExampleInfo): Promise<string | null> {
-    const core = this.editorEl.instance?.core;
-    if (!core) return Promise.resolve(null);
-    const theme = core.shownTheme();
-    const key = `${ex.id}|${theme}`;
-    let p = this.previews.get(key);
-    if (!p) {
-      p = (async (): Promise<string | null> => {
-        let src = (await this.fetchHistory(ex))[0]?.source;
-        if (src === undefined) {
-          const r = await fetch(ex.file);
-          if (!r.ok) return null;
-          src = await r.text();
-        }
-        // one preview per task: the dialog stays responsive while they render
-        await new Promise((r) => setTimeout(r, 0));
-        if (this.destroyed) return null;
-        const svg = standaloneSvg(renderSource(src, core.ctx, { theme }), core.ctx);
-        return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-      })().catch(() => null).then((url) => {
-        // a failed one is tried again next time
-        if (!url) this.previews.delete(key);
-        return url;
-      });
-      this.previews.set(key, p);
-    }
-    return p;
+  /** Nothing unsaved, or the user lets it go. */
+  private async confirmDiscard(): Promise<boolean> {
+    return !this.editorEl.dirty || this.dialogs.confirm('Discard changes?', 'The current diagram has unsaved changes.', { ok: 'Discard', danger: true });
   }
 
   private pickFiles(): void {
@@ -415,7 +382,7 @@ export class DiagramStudio {
     const list = Array.from(files);
     if (!list.length) return;
     const seq = this.openSeq;
-    if (this.editorEl.dirty && !(await this.dialogs.confirm('Discard changes?', 'The current diagram has unsaved changes.', { ok: 'Discard', danger: true }))) return;
+    if (!(await this.confirmDiscard())) return;
     try {
       const read = await readDocumentFiles(list, () => this.editorEl.getSource());
       if (!read || this.destroyed || seq !== this.openSeq) return;
@@ -451,82 +418,17 @@ export class DiagramStudio {
 
   // ---- history ------------------------------------------------------------------------------------------------------
 
-  /** The example's bundled history (when the open document is an example that has one). */
-  private async loadBundled(): Promise<void> {
-    const key = this.docKey;
-    const ex = key.startsWith('example:') ? this.examples.find((e) => `example:${e.id}` === key) : undefined;
-    if (!ex) return;
-    const list = await this.fetchHistory(ex);
-    if (!this.destroyed && key === this.docKey) this.bundled = list;
-  }
-
-  private readonly histories = new Map<string, Promise<StaticVersion[]>>();
-
-  /** An example's history file (fetched once), newest first; empty when it has none or it cannot be read. */
-  private fetchHistory(ex: ExampleInfo): Promise<StaticVersion[]> {
-    if (!ex.history) return Promise.resolve([]);
-    let p = this.histories.get(ex.history);
-    if (!p) {
-      p = fetch(ex.history).then(async (r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const m = (await r.json()) as { versions?: unknown };
-        return (Array.isArray(m.versions) ? m.versions : []).filter((v): v is StaticVersion =>
-          !!v && typeof v === 'object' && typeof (v as StaticVersion).id === 'string' && typeof (v as StaticVersion).source === 'string');
-      }).catch(() => []);
-      this.histories.set(ex.history, p);
-    }
-    return p;
-  }
-
-  private saved(): StaticVersion[] {
-    const all = this.storage.get<Record<string, StaticVersion[]>>(VERSIONS_KEY) ?? {};
-    const list = all[this.docKey];
-    return Array.isArray(list) ? list.filter((v) => v && typeof v.id === 'string' && typeof v.source === 'string') : [];
-  }
-
-  /** Records a version of the open document (newest first; the same source twice in a row is one version). */
-  private recordVersion(src: string, message: string): boolean {
-    const list = this.saved();
-    const newest = list[0]?.source ?? this.bundled[0]?.source;
-    if (newest === src) return false;
-    const all = this.storage.get<Record<string, StaticVersion[]>>(VERSIONS_KEY) ?? {};
-    const v: StaticVersion = { id: contentId(`${Date.now()}\n${src}`), message, author: 'You', date: new Date().toISOString(), source: src };
-    all[this.docKey] = [v, ...list].slice(0, MAX_VERSIONS);
-    this.storage.set(VERSIONS_KEY, all);
-    this.syncHistory();
-    return true;
-  }
-
   private async saveVersion(): Promise<void> {
     const message = await this.dialogs.prompt('Save version', { label: 'What changed?', value: '', ok: 'Save version' });
     if (message === null) return;
-    const ok = this.recordVersion(this.editorEl.getSource(), message.trim() || 'Saved version');
+    const ok = this.versions.record(this.editorEl.getSource(), message.trim() || 'Saved version');
     this.toaster.show(ok ? 'Version saved — see it in History (tool dock)' : 'Nothing changed since the last version');
   }
 
   /** The editor shows History once the document has a version. */
   private syncHistory(): void {
-    this.editorEl.history = this.saved().length || this.bundled.length ? this.history : null;
+    this.editorEl.history = this.versions.any ? this.history : null;
     this.modeSwitch?.update({ options: this.modeOptions() });
-  }
-
-  /** The open document's versions, newest first: the ones saved here, then the example's bundled history. */
-  private historyAdapter(): HistoryAdapter {
-    const all = (): StaticVersion[] => [...this.saved(), ...this.bundled];
-    return {
-      list: async () => ({ versions: all().map(({ source: _s, ...v }) => v) }),
-      load: async (id) => {
-        const v = all().find((x) => x.id === id);
-        if (!v) throw new Error(`Unknown version ${id}`);
-        return v.source;
-      },
-    };
-  }
-
-  private applyScheme(): void {
-    const s = resolveUiScheme(this.ui === 'auto' ? null : this.ui);
-    this.host.setAttribute('data-ui', s);
-    this.editorEl.setAttribute('ui', s);
   }
 
   // ---- theme editor (dialog) ----------------------------------------------------------------------------------------
@@ -542,11 +444,11 @@ export class DiagramStudio {
     const te = document.createElement('mmdx-theme-editor') as HTMLElement & { store?: unknown; source?: unknown };
     const store = localStorageThemeStore(this.storage, this.themeSource);
     te.store = store;
-    te.setAttribute('ui', resolveUiScheme(this.ui === 'auto' ? null : this.ui));
+    te.setAttribute('ui', this.shell.scheme.peek());
     // the theme the diagram is shown in (component state, §7.5; documents no longer carry one)
     const current = this.editorEl.instance?.theme;
     if (current) te.setAttribute('theme', current);
-    const close = h('button', { type: 'button', 'aria-label': 'Close theme editor', onclick: () => void done() }, icon(ICONS.close));
+    const close = h('button', { type: 'button', 'aria-label': 'Close theme editor', onclick: () => void done() }, icon(I_close));
     const back = h('div', { class: 'themes-dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Theme editor' },
       h('div', { class: 'box' }, h('div', { class: 'head' }, h('b', null, 'Diagram themes'), close), te));
     const done = async (): Promise<void> => {
@@ -568,21 +470,24 @@ export class DiagramStudio {
 
 /** Attributes, read when the studio is created. */
 const ATTRS: Readonly<Record<string, AttrSpec<StudioOptions>>> = {
-  examples: ['examples', (v) => v || undefined], themes: ['themes', (v) => v || undefined], initial: ['initial', (v) => v || undefined],
-  persist: ['persist', (v) => (v === null ? undefined : words(v).filter((p) => p === 'local'))],
+  examples: ['examples', attr.nonEmpty], themes: ['themes', attr.nonEmpty], initial: ['initial', attr.nonEmpty],
+  persist: ['persist', attr.listOf(['local'])],
+  wheel: ['wheel', attr.wheel],
 };
 
 export class MmdxStudioElement extends MmdxElement<StudioOptions, DiagramStudio> {
-  protected attrs(): typeof ATTRS {
-    return ATTRS;
-  }
+  static override readonly schema = { attrs: ATTRS };
 
   protected create(o: StudioOptions): DiagramStudio {
     return new DiagramStudio(this, o);
   }
 
-  protected apply(_s: DiagramStudio, patch: Patch<StudioOptions>): void {
-    for (const k of Object.keys(patch)) warnOnce(`studio: \`${k}\` is read when the studio is created`);
+  protected apply(s: DiagramStudio, patch: Patch<StudioOptions>): void {
+    for (const k of Object.keys(patch)) {
+      // the image store goes to the editor at any time; the rest is read when the studio is created
+      if (k === 'images') s.setImages(patch.images ?? null);
+      else warnOnce(`studio: \`${k}\` is read when the studio is created`);
+    }
   }
 
   get storage(): StorageAdapter | undefined {
@@ -590,6 +495,14 @@ export class MmdxStudioElement extends MmdxElement<StudioOptions, DiagramStudio>
   }
   set storage(v: StorageAdapter | undefined) {
     this.setOpt({ storage: v });
+  }
+
+  /** The host's image store, handed to the editor (at any time). */
+  get images(): ImageStore | null {
+    return this.props.images ?? null;
+  }
+  set images(v: ImageStore | null) {
+    this.setOpt({ images: v });
   }
 
   get editor(): DiagramEditor | undefined {

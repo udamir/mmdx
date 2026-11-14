@@ -1,6 +1,6 @@
 # Inline worker
 
-`@mmdx/studio/worker-inline` is the render worker as a string, for pages that cannot start it from a URL: sandboxed iframes with an opaque origin, where module workers from URLs fail. `useInlineWorker()` starts it from a `blob:` URL, so diagrams over 300 lines render off the main thread there too. Import it next to `@mmdx/studio/viewer` or `@mmdx/studio/editor`.
+`@mmdx/studio/worker-inline` is the render worker as a string, for pages that cannot start it from a URL: sandboxed iframes with an opaque origin, where module workers from URLs fail. `useInlineWorker()` starts it from a `blob:` URL, so large diagrams (over 300 lines or 32 KiB) render off the main thread there too. Import it next to `@mmdx/studio/viewer` or `@mmdx/studio/editor`.
 
 ```ts
 import '@mmdx/studio/viewer';
@@ -11,7 +11,7 @@ useInlineWorker(); // before the first large diagram renders
 
 ## When to use it
 
-The viewer renders diagrams with more than 300 source lines in a render worker (see [Render worker](/api/configuration#render-worker)). By default it starts that worker as a module worker from the library's own file, which works on ordinary pages. A page with an opaque origin (an app inside another product, a plugin frame: a sandboxed iframe without `allow-same-origin`) cannot start module workers from URLs; there the worker fails to start and every diagram renders on the main thread, which can block the page for large diagrams.
+The viewer renders diagrams with more than 300 source lines or 32 KiB of source in a render worker (see [Render worker](/api/configuration#render-worker)). By default it starts that worker as a module worker from the library's own file, which works on ordinary pages. A page with an opaque origin (an app inside another product, a plugin frame: a sandboxed iframe without `allow-same-origin`) cannot start module workers from URLs; there the worker fails to start and every diagram renders on the main thread, which can block the page for large diagrams.
 
 Use this entry on such pages. Pages that can start the worker from its file do not need it, and pages with a strict CSP that serve the worker file themselves use [`setWorkerUrl()`](/api/configuration#setworkerurl) instead. See [Sandboxed iframes](/guide/sandboxed-iframes) for the other hooks such hosts need.
 

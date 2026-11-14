@@ -2,9 +2,11 @@
 // slots modules fill, the styles adopted into the shadow root, the insets of the canvas area (what fit() keeps clear
 // of, and the `--inset-l` / `--inset-r` of the open panel stacks), and the `compact` preset (§7.6).
 import type { Insets } from '../dom/canvas.js';
-import { h } from '../ui/h.js';
-import { effect, signal, type Signal } from '../ui/signal.js';
-import { adoptStyles } from '../ui/styles/base.js';
+import { Owner } from '../reactive/owner.js';
+import { observeSize } from '../dom/resize.js';
+import { h } from '../ui/kit/h.js';
+import { effect, signal, type Signal } from '../reactive/signal.js';
+import { adoptStyles } from '../ui/kit/base.js';
 import type { SlotName } from './types.js';
 
 const COMPACT_W = 560;
@@ -27,7 +29,7 @@ export const SHELL_CSS = /* css */ `
 
 export interface ShellOptions {
   /** The shell's root element: its class and role. */
-  root: { class: string; role: 'img' | 'application' | 'group'; label?: string; roleDescription?: string };
+  root: { class: string; role: 'application' | 'group'; label?: string; roleDescription?: string };
   /** Class of the canvas area. */
   areaClass: string;
   css: readonly string[];
@@ -52,17 +54,23 @@ export interface Shell {
   placeAreaSlots(): void;
   /** Adds CSS to the shadow root (deduplicated by identity). */
   addCss(css: readonly string[]): void;
+  /** Gives back sheets added with addCss: a sheet goes once every adder gave it back (a module's, on uninstall). */
+  removeCss(css: readonly string[]): void;
   /**
    * Insets of the canvas area that fit() keeps clear: the open panel stacks and the tool dock. Measured from the
    * layout boxes (offsets), not the painted ones, so a panel still sliding in counts where it will be.
    */
   insets(): Insets;
+  /** Width of the tool dock (what is shown in the left-dock slot); 0 while nothing is. */
+  dockWidth(): number;
   setCompact(c: boolean | 'auto'): void;
   destroy(): void;
 }
 
 export function createShell(host: HTMLElement, shadow: ShadowRoot, o: ShellOptions): Shell {
   const css = [...o.css];
+  /** How many times each added sheet was added (the product's own sheets are never given back). */
+  const uses = new Map<string, number>();
   /** `<style>` elements of engines without adopted stylesheets (each sheet once; removed on destroy). */
   const styleEls = new Map<string, HTMLStyleElement>();
   const adopt = (): void => {
@@ -91,7 +99,8 @@ export function createShell(host: HTMLElement, shadow: ShadowRoot, o: ShellOptio
 
   const compact = signal(false);
   const stackInsets = signal<{ left: number; right: number } | null>(null, (a, b) => a === b || (!!a && !!b && a.left === b.left && a.right === b.right));
-  const cleanups: (() => void)[] = [
+  const owner = new Owner('shell');
+  for (const off of [
     effect(() => void root.classList.toggle('compact', compact())),
     effect(() => {
       const s = stackInsets(), st = root.style;
@@ -103,7 +112,7 @@ export function createShell(host: HTMLElement, shadow: ShadowRoot, o: ShellOptio
         st.removeProperty('--inset-r');
       }
     }),
-  ];
+  ]) owner.add(off);
 
   // the `compact` preset: on, off, or automatic below a host size
   let compactOption = o.compact;
@@ -112,11 +121,7 @@ export function createShell(host: HTMLElement, shadow: ShadowRoot, o: ShellOptio
     const r = host.getBoundingClientRect();
     compact.set(!!r.width && (r.width < COMPACT_W || r.height < COMPACT_H));
   };
-  if (typeof ResizeObserver !== 'undefined') {
-    const ro = new ResizeObserver(syncCompact);
-    ro.observe(host);
-    cleanups.push(() => ro.disconnect());
-  }
+  owner.add(observeSize(host, syncCompact));
   syncCompact();
 
   return {
@@ -126,11 +131,32 @@ export function createShell(host: HTMLElement, shadow: ShadowRoot, o: ShellOptio
     },
     addCss(add) {
       let changed = false;
-      for (const c of add)
-        if (c && !css.includes(c)) {
+      for (const c of add) {
+        if (!c) continue;
+        uses.set(c, (uses.get(c) ?? 0) + 1);
+        if (!css.includes(c)) {
           css.push(c);
           changed = true;
         }
+      }
+      if (changed) adopt();
+    },
+    removeCss(list) {
+      let changed = false;
+      for (const c of list) {
+        const n = uses.get(c);
+        if (!n) continue;
+        if (n > 1) {
+          uses.set(c, n - 1);
+          continue;
+        }
+        uses.delete(c);
+        if (o.css.includes(c)) continue;
+        css.splice(css.indexOf(c), 1);
+        styleEls.get(c)?.remove();
+        styleEls.delete(c);
+        changed = true;
+      }
       if (changed) adopt();
     },
     insets() {
@@ -142,12 +168,17 @@ export function createShell(host: HTMLElement, shadow: ShadowRoot, o: ShellOptio
       for (const e of shown(slots['right-stack'])) if (w) r = Math.max(r, w - e.offsetLeft);
       return { left: l + 8, right: r + 8, top: 56, bottom: 56 };
     },
+    dockWidth() {
+      let w = 0;
+      for (const e of slots['left-dock'].children) if (e instanceof HTMLElement && !e.hidden) w = Math.max(w, e.offsetWidth);
+      return w;
+    },
     setCompact(c) {
       compactOption = c;
       syncCompact();
     },
     destroy() {
-      for (const c of cleanups.splice(0).reverse()) c();
+      owner.dispose();
       root.remove();
       for (const el of styleEls.values()) el.remove();
       styleEls.clear();

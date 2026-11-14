@@ -1,19 +1,20 @@
 // TextScene (component architecture §7.3): the viewer's scene source. Source text → async render (the worker over
-// 300 lines, the diagram kind's parser and renderer loaded on demand), server-rendered SVG adoption, the Mermaid
-// fallback for unsupported types, the error card, and the reserved aspect ratio. Draws with the kernel's theme and
-// display settings.
-import { renderWithMermaid } from '../../config.js';
+// 300 lines, the diagram kind's parser and renderer and the shapes beyond the 17 loaded on demand), server-rendered SVG
+// adoption, the Mermaid fallback for unsupported types, the error card, and the reserved aspect ratio. Draws with the
+// kernel's theme and display settings.
+import { renderWithMermaid } from '../../platform/mermaid.js';
 import { splitSource } from '../../core/meta/index.js';
 import { detectType } from '../../core/parse/dispatch.js';
+import { TOO_BIG_CODES } from '../../core/parse/limits.js';
 import { renderSourceWith, type PipelineOptions, type Rendered } from '../../core/pipeline-core.js';
 import { pageScene } from '../../core/render/page.js';
 import { BUILTIN_IDS } from '../../core/theme/builtin-ids.js';
 import { diagnosticText, type Diagnostic, type Rect } from '../../core/types.js';
 import { cancelIdle, idle } from '../../dom/idle.js';
-import { renderInWorker, workerAvailable, WORKER_THRESHOLD_LINES } from '../../dom/worker-client.js';
-import { h } from '../../ui/h.js';
+import { renderInWorker, workerAvailable, WORKER_THRESHOLD_CHARS, WORKER_THRESHOLD_LINES } from '../../dom/worker-client.js';
+import { h } from '../../ui/kit/h.js';
 import type { ViewCore } from '../core.js';
-import { lazyKinds, type KindsProvider } from '../kinds.js';
+import { drawShapes, hasKind, loadedKinds, loadKind, loadShapes } from '../../platform/kinds.js';
 import { BaseScene } from '../scene.js';
 
 export type FitMode = 'contain' | 'width' | 'none';
@@ -27,10 +28,7 @@ export interface TextSceneOptions {
   /** The element that carries the aspect ratio (`--mmdx-aspect`) and the `fit="none"` size. */
   stage: HTMLElement;
   onRendered(r: Rendered, durationMs: number): void;
-  onFallback(): void;
   onError(diags: Diagnostic[]): void;
-  /** Parsers and renderers of the diagram kinds (default: loaded on first use). */
-  kinds?: KindsProvider;
 }
 
 export class TextScene extends BaseScene {
@@ -43,13 +41,11 @@ export class TextScene extends BaseScene {
   private renderSeq = 0;
   private handle = 0;
   private destroyed = false;
-  private readonly kinds: KindsProvider;
   /** A message to show once attached again (an error that came while History had the canvas). */
   private deferred: (() => void) | null = null;
 
   constructor(private readonly core: ViewCore, private readonly o: TextSceneOptions) {
     super();
-    this.kinds = o.kinds ?? lazyKinds;
   }
 
   /** Shows a new source (renders now). */
@@ -110,8 +106,8 @@ export class TextScene extends BaseScene {
     };
     // the parser and renderer of this diagram type load on first use
     const type = detectType(text);
-    if (type && !this.kinds.has(type)) {
-      this.kinds.load(type).then(again, () => {
+    if (type && !hasKind(type)) {
+      loadKind(type).then(again, () => {
         if (!this.destroyed && text === this.text) this.showError([{ severity: 'error', code: 'load.failed', message: `Could not load the ${type} renderer` }], text);
       });
       return;
@@ -126,21 +122,35 @@ export class TextScene extends BaseScene {
       void core.ensureTheme(theme).then((ok) => ok && again());
     }
     const t0 = now();
-    const display = core.display.peek();
-    const opts: PipelineOptions = { hideLabels: !display.labels, theme };
-    const layers = core.visibleLayers.peek();
-    if (layers) opts.visibleLayers = layers;
-    if (countLines(text) > WORKER_THRESHOLD_LINES && workerAvailable()) {
+    const opts: PipelineOptions = core.renderOptions();
+    // the host's URL resolver is a function: it does not reach the worker
+    // by size too: one long line is as slow to parse as many short ones (G13)
+    if ((text.length > WORKER_THRESHOLD_CHARS || countLines(text) > WORKER_THRESHOLD_LINES) && workerAvailable() && !core.ctx.resolveUrl) {
       const seq = ++this.renderSeq;
       void renderInWorker(text, core.ctx, opts, this).then((wr) => {
         if (this.destroyed || seq !== this.renderSeq || text !== this.text) return;
         if (wr && 'error' in wr) this.showError([{ severity: 'error', code: 'doc.too-large', message: 'Rendering this diagram took too long' }], text);
-        else this.apply(wr ?? renderSourceWith(this.kinds.kinds(), text, core.ctx, opts), t0, true);
+        else if (wr) this.apply(wr, t0, true);
+        else this.renderHere(text, opts, t0);
       });
       return;
     }
     ++this.renderSeq;
-    this.apply(renderSourceWith(this.kinds.kinds(), text, core.ctx, opts), t0, true);
+    this.renderHere(text, opts, t0);
+  }
+
+  /**
+   * Renders on the main thread. A shape whose geometry is not loaded yet (the shapes beyond the 17) loads first and the
+   * render runs again; should it fail to load, the render with that shape as a rectangle shows.
+   */
+  private renderHere(text: string, opts: PipelineOptions, t0: number): void {
+    const [r, missing] = drawShapes(() => renderSourceWith(loadedKinds(), text, this.core.ctx, opts));
+    if (!missing) {
+      this.apply(r, t0, true);
+      return;
+    }
+    const current = (): boolean => !this.destroyed && text === this.text;
+    void loadShapes().then(() => current() && this.renderNow(), () => current() && this.apply(r, t0, true));
   }
 
   private apply(r: Rendered, t0: number, announce: boolean): void {
@@ -183,7 +193,6 @@ export class TextScene extends BaseScene {
     this.area?.main.clear();
     this.bounds.set(null);
     this.o.stage.hidden = true;
-    this.o.onFallback();
     const mode = this.o.fallback();
     if (mode === 'error') return this.showError(r.diagnostics, text);
     if (mode === 'source') {
@@ -193,7 +202,7 @@ export class TextScene extends BaseScene {
     const t = this.core.i18n.t;
     this.o.msg.replaceChildren(h('div', { class: 'loading' }, t('loading')));
     try {
-      const svg = await renderWithMermaid(text, this.core.scheme.peek() === 'dark');
+      const svg = await renderWithMermaid(text, this.core.scheme.peek() === 'dark', this.core.ctx.icons);
       if (this.destroyed || text !== this.text || this.missed()) return;
       const box = h('div', { class: 'fallback', part: 'canvas' });
       // stock Mermaid output, rendered with securityLevel "strict" (sanitised by Mermaid's DOMPurify)
@@ -216,7 +225,6 @@ export class TextScene extends BaseScene {
     const t = this.core.i18n.t;
     this.o.stage.hidden = true;
     this.bounds.set(null);
-    this.o.onFallback();
     const bad = new Set(diags.map((d) => d.range?.line).filter((l): l is number => l !== undefined));
     const pre = h('pre', null, ...source.split('\n').slice(0, 2000).map((l, i) => h('span', { class: bad.has(i) ? 'bad' : '' }, l || ' ')));
     const copy = h('button', {
@@ -228,7 +236,7 @@ export class TextScene extends BaseScene {
       },
     }, t('error.copy'));
     this.o.msg.replaceChildren(h('div', { class: 'error', role: 'alert' },
-      h('h2', null, diags.some((d) => d.code === 'doc.too-large' || d.code === 'doc.too-many-items') ? t('error.tooLarge') : t('error.title')),
+      h('h2', null, diags.some((d) => TOO_BIG_CODES.has(d.code)) ? t('error.tooLarge') : t('error.title')),
       h('ul', null, ...diags.slice(0, 20).map((d) => h('li', null, diagnosticText(d)))),
       source ? pre : null,
       source ? h('div', { class: 'actions' }, copy) : null));

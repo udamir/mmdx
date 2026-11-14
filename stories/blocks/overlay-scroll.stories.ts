@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
-import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../../src/ui/blocks/overlay-scroll.js';
+import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../../src/ui/kit/overlay-scroll.js';
 import { chromeHost, example } from '../support.js';
 
 type Args = { ui: 'light' | 'dark' };

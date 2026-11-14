@@ -1,0 +1,2 @@
+# Import cycles (value and type imports) — baseline of today's (2026-11-11, after A2: core has none); may only shrink.
+# The view's (History ↔ kernel) went with A6; the editor's (core ↔ kinds ↔ scene ↔ store) went with BUG-016: the core and the store take the kind loader from the editor, and the scene reads a structural host.

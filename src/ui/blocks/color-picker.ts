@@ -2,10 +2,10 @@
 // and None — opened from a colour chip through the host's PopoverManager (Esc / outside click closes, the focus
 // returns to the chip) and placed beside its opener inside the viewport (below it, above when there is no room).
 // Arrow keys move through the swatches with one tab stop.
-import { h } from '../h.js';
-import type { PopoverManager } from '../popover.js';
-import { Scope, type BlockHandle } from './block.js';
-import { rovingKeys } from './focus.js';
+import { h } from '../kit/h.js';
+import type { PopoverManager } from '../kit/popover.js';
+import { defineBlock, type BlockHandle } from './block.js';
+import { rovingKeys } from '../kit/focus.js';
 
 export interface ColorPickerProps {
   /** Accessible name of the dialog ("Choose a colour for Fill"). */
@@ -39,44 +39,32 @@ export const COLOR_PICKER_CSS = /* css */ `
 const isHex = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
 
 export function createColorPicker(props: ColorPickerProps): BlockHandle<ColorPickerProps> {
-  let p = { ...props };
-  let fx = new Scope();
-  const el = h('div', { role: 'dialog' });
-  const grid = h('div', { class: 'mmdx-cp-grid', role: 'group' });
-  const keys = rovingKeys(grid, { orientation: 'both', selector: '.mmdx-cp-sw', roving: true, current: (l) => l.find((b) => b.getAttribute('aria-pressed') === 'true') });
-  const render = (): void => {
-    fx.dispose();
-    fx = new Scope();
-    el.className = ['mmdx-color-picker', p.class].filter(Boolean).join(' ');
-    el.setAttribute('aria-label', p.label);
-    grid.setAttribute('aria-label', p.paletteLabel);
-    grid.replaceChildren(...p.colors.map(({ name, value }) => {
-      const b = h('button', { type: 'button', class: 'mmdx-cp-sw', title: name, 'aria-label': name, 'aria-pressed': String(p.value === `@${name}`) });
-      b.style.background = value;
-      fx.on(b, 'click', () => p.onPick(`@${name}`, true));
-      return b;
-    }));
-    const custom = h('input', { type: 'color', 'aria-label': p.customLabel });
-    custom.value = isHex(p.custom) ? p.custom : '#888888';
-    fx.on(custom, 'change', () => p.onPick(custom.value, false));
-    const none = h('button', { type: 'button', class: 'mmdx-cp-none', 'aria-pressed': String(p.value === 'none') }, p.noneLabel);
-    fx.on(none, 'click', () => p.onPick('none', true));
-    el.replaceChildren(h('div', { class: 'mmdx-cp-title', 'aria-hidden': 'true' }, p.paletteLabel), grid, h('div', { class: 'mmdx-cp-row' }, custom, h('span', { 'aria-hidden': 'true' }, p.customLabel), none));
-    keys.sync();
-  };
-  render();
-  return {
-    el,
-    update(next) {
-      p = { ...p, ...next };
-      render();
-    },
-    destroy() {
-      fx.dispose();
-      keys.destroy();
-      el.remove();
-    },
-  };
+  return defineBlock(props, (p, scope) => {
+    const el = h('div', { role: 'dialog' });
+    const grid = h('div', { class: 'mmdx-cp-grid', role: 'group' });
+    const keys = rovingKeys(grid, { orientation: 'both', selector: '.mmdx-cp-sw', roving: true, current: (l) => l.find((b) => b.getAttribute('aria-pressed') === 'true') });
+    scope.add(() => keys.destroy());
+    const render = (): void => {
+      const fx = scope.renew();
+      el.className = ['mmdx-color-picker', p.class].filter(Boolean).join(' ');
+      el.setAttribute('aria-label', p.label);
+      grid.setAttribute('aria-label', p.paletteLabel);
+      grid.replaceChildren(...p.colors.map(({ name, value }) => {
+        const b = h('button', { type: 'button', class: 'mmdx-cp-sw', title: name, 'aria-label': name, 'aria-pressed': String(p.value === `@${name}`) });
+        b.style.background = value;
+        fx.on(b, 'click', () => p.onPick(`@${name}`, true));
+        return b;
+      }));
+      const custom = h('input', { type: 'color', 'aria-label': p.customLabel });
+      custom.value = isHex(p.custom) ? p.custom : '#888888';
+      fx.on(custom, 'change', () => p.onPick(custom.value, false));
+      const none = h('button', { type: 'button', class: 'mmdx-cp-none', 'aria-pressed': String(p.value === 'none') }, p.noneLabel);
+      fx.on(none, 'click', () => p.onPick('none', true));
+      el.replaceChildren(h('div', { class: 'mmdx-cp-title', 'aria-hidden': 'true' }, p.paletteLabel), grid, h('div', { class: 'mmdx-cp-row' }, custom, h('span', { 'aria-hidden': 'true' }, p.customLabel), none));
+      keys.sync();
+    };
+    return { el, render };
+  });
 }
 
 /** Places a fixed popover below `anchor` (above it when there is no room below), inside the viewport. */

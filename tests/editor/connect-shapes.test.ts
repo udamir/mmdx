@@ -16,23 +16,45 @@ const press = (el: Element, type: string, x = 0, y = 0): void => {
 };
 
 describe('shapes menu', () => {
-  test('flowchart: 11 shapes; S toggles; clicking an item adds a node in the middle and closes the menu; undo', () => {
+  test('flowchart: the catalogue by category; S toggles; clicking an item adds a node in the middle and closes the menu; undo', async () => {
     const { core, ed } = mount('flowchart TB\n  A["A"]\n', [shapesModule]);
     const menu = menuOf(core);
     expect(menu.hidden).toBe(true);
     core.dom.root.dispatchEvent(new KeyboardEvent('keydown', { key: 's', bubbles: true }));
     expect(menu.hidden).toBe(false);
-    expect(menu.querySelectorAll('.pal-item').length).toBe(11);
-    const queue = [...menu.querySelectorAll('.pal-item')].find((b) => b.textContent === 'Queue')!;
+    await vi.dynamicImportSettled();
+    // Mermaid Chart's compact grid: three sections, no search field, no recently used row
+    expect([...menu.querySelectorAll('.sp-head')].map((x) => x.textContent)).toEqual(['Basic', 'Process', 'Technical']);
+    expect([...menu.querySelectorAll('.sp-grid')].map((g) => g.querySelectorAll('.sp-tile').length)).toEqual([20, 19, 16]);
+    expect(menu.querySelector('.sp-search')).toBeNull();
+    expect(menu.querySelector('.sp-title')).toBeNull();
+    const queue = menu.querySelector('.sp-tile[data-key="hcyl"]')!;
+    expect(queue.getAttribute('aria-label')).toBe('Queue');
     press(queue, 'pointerdown');
     press(queue, 'pointerup');
     expect(menu.hidden).toBe(true);
     const sel = core.primary()!;
     expect(sel.kind).toBe('node');
     expect(lines(core)).toContain(`${sel.id}["Queue"]`);
-    expect(core.getM('node', sel.id).shape).toBe('hcyl'); // not a Mermaid shape: rect + meta shape
+    // no bracket for it: the shape goes in a separate node data statement (T02.6), not in metadata
+    expect(lines(core)).toContain(`${sel.id}@{ shape: h-cyl }`);
+    expect(core.getM('node', sel.id).shape).toBeUndefined();
     ed.undo();
     expect(core.model.type === 'flowchart' && core.model.nodes.has(sel.id)).toBe(false);
+    // opened again: still no recently used row
+    core.run('toggleShapesMenu');
+    expect(menu.querySelector('.sp-head')!.textContent).toBe('Basic');
+  });
+
+  test('flowchart: every shape of the catalogue\'s palette categories is in the menu, once', async () => {
+    const { PICKER_CATEGORIES, shapesIn } = await import('../../src/core/shapes/catalog.js');
+    const { core } = mount('flowchart TB\n  A["A"]\n', [shapesModule]);
+    core.run('toggleShapesMenu');
+    await vi.dynamicImportSettled();
+    const keys = new Set([...menuOf(core).querySelectorAll('.sp-tile')].map((b) => b.getAttribute('data-key')));
+    expect(PICKER_CATEGORIES.flatMap(shapesIn).map((d) => d.id).filter((id) => !keys.has(id))).toEqual([]);
+    // each shape once
+    expect(menuOf(core).querySelectorAll('.sp-tile').length).toBe(keys.size);
   });
 
   test('a shape dropped inside a subgraph joins it (addShape action), with a preset', () => {
@@ -45,15 +67,12 @@ describe('shapes menu', () => {
     expect(core.getM('node', id)).toMatchObject({ x: core.snapV(g!.x + 3), y: core.snapV(g!.y + 3), preset: 'warning' });
   });
 
-  test('preset submenu opens beside a hovered item with a default tile', () => {
+  test('no preset submenu: hovering an item opens nothing beside the menu', async () => {
     const { core } = mount('flowchart TB\n  A["A"]\n', [shapesModule]);
     core.run('toggleShapesMenu');
-    const item = menuOf(core).querySelector('.pal-item')!;
-    item.dispatchEvent(new MouseEvent('pointerenter'));
-    const sub = subOf(core);
-    expect(sub.hidden).toBe(false);
-    expect(sub.querySelector('.pp-name')?.textContent).toBe('default');
-    expect(sub.style.getPropertyValue('--cols')).not.toBe('');
+    await vi.dynamicImportSettled();
+    menuOf(core).querySelector('.sp-tile')!.dispatchEvent(new MouseEvent('pointerenter'));
+    expect(subOf(core).hidden).toBe(true);
   });
 
   test('sequence: participant before the one right of the drop point; note over the nearest; loop around the nearest message', () => {

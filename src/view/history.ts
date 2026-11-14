@@ -1,8 +1,34 @@
 // The History session facade (component architecture §8.3): what `editor.historySession` / `viewer.historySession`
 // return while History is open — the `<mmdx-diff>` methods over the session History shows.
-import type { DiagramDiff as DiffResult } from '../core/diff/types.js';
-import type { DiffExportKind, DiffExportOptions, DiffFilter, DiffPair, DiffViewName } from '../diff/session.js';
-import type { ViewCore } from './core.js';
+// The contract types live here, not in diff/ (A6): the kernel holds a session, the diff implements it.
+import type { Diagnostic } from '../core/types.js';
+import type { DiffView } from '../core/diff/annotate.js';
+import type { ChangeFacet, DiagramDiff as DiffResult } from '../core/diff/types.js';
+
+export type DiffViewName = DiffView | 'side';
+export type DiffFilter = 'added' | 'removed' | ChangeFacet;
+export type DiffExportKind = 'svg' | 'png' | 'mmdx' | 'mmd' | 'diff' | 'json' | 'md';
+
+export interface DiffExportOptions {
+  /** The view of an image (default: the current one). */
+  view?: DiffViewName;
+  /** Which version a source export writes (default: after, or the viewed one in History mode). */
+  version?: 'before' | 'after' | 'viewed';
+  highlights?: boolean;
+  legend?: boolean;
+  /** PNG scale (1–4, default 2). */
+  scale?: number;
+  scheme?: 'light' | 'dark';
+  /** Reports and patches with the filters applied (default true). */
+  filtered?: boolean;
+}
+
+/** The two compared versions and the shown one (`viewing` only while one version is viewed as it is). */
+export interface DiffPair {
+  base: string | null;
+  head: string | null;
+  viewing: string | null;
+}
 
 export interface HistorySession {
   setPair(base: string, head: string): void;
@@ -20,10 +46,38 @@ export interface HistorySession {
 }
 
 /**
- * Opens History on a component (src/diff/history.ts): the version panel, nothing picked; `compare` opens on the
- * newest change compared. `onClose` runs when it is left. `compareNewest` compares the newest change of an open one.
+ * What a product offers History (A7: an explicit port instead of probing actions): its panel stacks, and for one that
+ * edits its document its own scene for a version, a Restore and an item clipboard. A product without a scene of its
+ * own (the viewer) gets History's.
  */
-export type HistoryOpener = (core: ViewCore, o: { onClose(): void; compare?: boolean }) => { close(): void; compareNewest(): void };
+export interface HistoryHost {
+  /** The host's own panel stacks hold History's panels (its set has a `panel-stacks` module): History brings none. */
+  ownStacks?: boolean;
+  /**
+   * History's panels that are the host's own under another id, `{ history: host }`: over a comparison the History
+   * panel opens and closes with the host's (the editor's Layers stands for the comparison's `view-settings`).
+   */
+  panels?: Readonly<Record<string, string>>;
+  /**
+   * Shows a version of the document read-only in the host's own scene, drawn as the document is (History's version
+   * view), or the document again (null). Nothing writes the document while a version shows. None: History's scene shows it.
+   */
+  showVersion?(version: { id: string; source: string } | null): void;
+  /** Opens a version in the document as one undoable change (History's Restore). */
+  restoreVersion?(source: string, version: { id: string }): void;
+  /** Puts copied items on the host's item clipboard (copying from History). */
+  setClipboard?(data: unknown): void;
+}
 
-/** Loads the History code on first use (`() => import('…/diff/history.js')`): the kernel never imports the diff. */
-export type HistoryLoader = () => Promise<{ openHistory: HistoryOpener }>;
+/** The DOM events History sends from the element it opens in (the viewer, the editor, the studio's editor). */
+export interface HistoryEventMap {
+  'mmdx-history-open': CustomEvent<Record<string, never>>;
+  'mmdx-history-close': CustomEvent<Record<string, never>>;
+  /** What History shows: nothing picked, one version as it is, or a comparison. */
+  'mmdx-history-show': CustomEvent<{ shown: 'none' | 'version' | 'compare' }>;
+  /** The versions shown (`viewing`: the one shown as it is). */
+  'mmdx-history-version': CustomEvent<{ base: string | null; head: string | null; viewing: string | null }>;
+  /** Before a version is restored into the document; cancelable. */
+  'mmdx-history-restore': CustomEvent<{ id: string; source: string }>;
+  'mmdx-history-error': CustomEvent<{ diagnostics: Diagnostic[] }>;
+}

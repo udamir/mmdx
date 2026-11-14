@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DocStore } from '../../src/editor/store.js';
 
 const SRC = 'flowchart LR\n  a --> b\n';
@@ -84,5 +84,25 @@ describe('DocStore', () => {
     s.setCode('flowchart TB\n  a --> b');
     s.undo();
     expect(reasons).toEqual(['load', 'code', 'undo']);
+  });
+});
+
+describe('serialising the source (P14)', () => {
+  it('once per commit, twice per undo', () => {
+    const changes: string[] = [];
+    const s = new DocStore({ onChange: (src) => void changes.push(src) });
+    s.load('flowchart LR\n  a --> b\n%%@ node a {"x":10,"y":20}');
+    const spy = vi.spyOn(s, 'source');
+    s.mutate('Move', () => {
+      s.meta.peek().nodes!['a']!.x = 30;
+    });
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(changes.at(-1)).toContain('"x":30');
+    expect(s.dirty.peek()).toBe(true);
+    spy.mockClear();
+    s.undo();
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(changes.at(-1)).toContain('"x":10');
+    expect(s.dirty.peek()).toBe(false);
   });
 });

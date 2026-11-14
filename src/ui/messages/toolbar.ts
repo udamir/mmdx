@@ -1,5 +1,5 @@
 // English strings of the style toolbar and page toolbar (ui/style-toolbar, ui/page-toolbar). Registered on first use (registerMessages), so the viewer does not ship them.
-import type { Messages } from '../i18n.js';
+import type { Messages } from '../../i18n.js';
 
 export const TOOLBAR_MESSAGES: Messages = {
   // ---- style toolbar (ui/style-toolbar)
@@ -12,20 +12,21 @@ export const TOOLBAR_MESSAGES: Messages = {
   'tb.activationAdd': 'Show as process on {p} — activation bar (+/− in Mermaid)', 'tb.editGroupDone': 'Finish editing the group (Esc)',
   'tb.editGroup': 'Edit group — fade everything else; move, resize and style the items inside (or double-click the group)',
   'tb.ungroup': 'Ungroup ({keys}) — keeps the contents', 'tb.delete': 'Delete ({keys}) — removes it from the Mermaid code',
-  'tb.orderSeq': 'Order in the Mermaid code — earlier / later ({keys})', 'tb.order': 'Order in the Mermaid code — send backward / bring forward ({keys})',
+  'tb.orderSeq': 'Order in the Mermaid code — earlier / later ({keys})', 'tb.orderMind': 'Order among its siblings — earlier / later ({keys})', 'tb.order': 'Order in the Mermaid code — send backward / bring forward ({keys})',
   'tb.layer': 'Layer — move to another layer', 'tb.presets': 'Style presets', 'tb.reset': 'Back to the inherited style',
   'tb.resetNone': 'Nothing changed here', 'tb.more': 'More', 'tb.shape': 'Shape', 'tb.single': 'Single', 'tb.stacked': 'Stacked',
-  'tb.double': 'Double', 'tb.usePreset': 'Use style preset', 'tb.alignH': 'Align {v}', 'tb.alignV': 'Vertical {v}',
+  'tb.double': 'Double', 'tb.alignH': 'Align {v}', 'tb.alignV': 'Vertical {v}',
   'tb.pos.left': 'left', 'tb.pos.center': 'center', 'tb.pos.right': 'right', 'tb.pos.top': 'top', 'tb.pos.middle': 'middle', 'tb.pos.bottom': 'bottom',
   'tb.zindex': 'Change z-index', 'tb.zindexN': 'Change z-index: {n}',
   'tb.orderNone': 'Nothing to reorder it with here — it is the only item in its container.',
   'tb.arrange.left': 'Align left', 'tb.arrange.hcenter': 'Align centers horizontally', 'tb.arrange.right': 'Align right',
   'tb.arrange.top': 'Align top', 'tb.arrange.vcenter': 'Align centers vertically', 'tb.arrange.bottom': 'Align bottom',
   'tb.arrange.hdist': 'Distribute horizontally', 'tb.arrange.vdist': 'Distribute vertically', 'tb.arrange.need3': '{title} — select 3 or more items',
-  'tb.moveLayer': 'Move to layer', 'tb.hidden': 'hidden', 'tb.newLayer': '+ New layer', 'tb.themeFontNamed': 'Theme font ({name})',
+  'tb.moveLayer': 'Move to layer', 'tb.hidden': 'hidden', 'tb.newLayer': '+ New layer', 'tb.themeFont': 'Theme font', 'tb.themeFontNamed': 'Theme font ({name})',
   'tb.saveLink': 'Save link (Enter)', 'tb.removeLink': 'Remove link', 'tb.linkLabel': 'Link (opens in View mode)',
   'tb.opacity': 'Opacity', 'tb.thickness': 'Thickness', 'tb.corners': 'Rounded corners', 'tb.arrowHead': 'Arrow head',
   'tb.start': 'Start', 'tb.end': 'End', 'tb.mermaidArrows': 'Use Mermaid arrows',
+  'tb.codeArrow': 'Mermaid arrow', 'tb.codeArrowSolid': 'Solid', 'tb.codeArrowDotted': 'Dotted (reply)',
   'tb.arrow.none': 'none', 'tb.arrow.open': 'open', 'tb.arrow.filled': 'filled', 'tb.arrow.arrow': 'arrow', 'tb.arrow.circle': 'circle',
   'tb.arrow.dot': 'dot', 'tb.arrow.cross': 'cross', 'tb.routing.curved': 'curved', 'tb.routing.orthogonal': 'right angles',
   'tb.routing.straight': 'straight', 'tb.curvature': 'Curvature', 'tb.resetCurve': 'Reset curve',
@@ -41,7 +42,10 @@ export const TOOLBAR_MESSAGES: Messages = {
   'tb.kind.node': 'Nodes', 'tb.kind.group': 'Groups', 'tb.kind.edge': 'Connectors', 'tb.kind.participant': 'Participants',
   'tb.kind.message': 'Messages', 'tb.kind.note': 'Notes', 'tb.kind.block': 'Blocks', 'tb.kind.box': 'Boxes',
   'tb.kind.activation': 'Processes', 'tb.kind.entity': 'Tables', 'tb.kind.rel': 'Relationships', 'tb.kind.attr': 'Attributes',
-  'tb.italic': 'Italic', 'tb.underline': 'Underline',
+  'tb.italic': 'Italic', 'tb.underline': 'Underline', 'tb.strike': 'Strikethrough',
+  'tb.animation': 'Animation', 'tb.anim.off': 'Not animated', 'tb.anim.fast': 'Animated — fast (Mermaid: animate: true)', 'tb.anim.slow': 'Animated — slow (Mermaid: animation: slow)',
+  'tb.format': 'Text format — bold, italic, underline, strikethrough: the selected words, or the whole text when none is selected',
+  'tb.wholeOnly': 'Styles the whole text — clear the text selection to use it',
   'tb.tableStyle': 'Table style — layout and columns', 'tb.layout': 'Layout', 'tb.layout.compact': 'Compact', 'tb.layout.table': 'Table',
   'tb.showTypes': 'Show types', 'tb.showComments': 'Show comments', 'tb.pkUnderline': 'Underline primary keys',
   // ---- page toolbar (ui/page-toolbar)

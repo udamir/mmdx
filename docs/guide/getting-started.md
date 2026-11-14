@@ -20,7 +20,7 @@ yarn add @mmdx/studio
 
 :::
 
-`mermaid` (≥ 10) is an optional peer dependency. Install it only for diagram types mmdx does not draw itself (anything but flowchart, sequence and ER) and for the editor's "Plain Mermaid" preview; it is loaded lazily, on first use:
+`mermaid` (≥ 10) is an optional peer dependency. Install it only for diagram types mmdx does not draw itself (anything but flowchart, sequence, ER, mindmap and state diagrams) and for the editor's "Plain Mermaid" preview; it is loaded lazily, on first use (in Node and with an import map it is found on its own):
 
 ::: code-group
 
@@ -37,6 +37,13 @@ yarn add mermaid
 ```
 
 :::
+
+In a bundled app, hand it over once, so your bundler includes it (mmdx never imports it by name, so builds without it work too):
+
+```ts
+import { configure } from '@mmdx/studio/viewer';
+configure({ mermaid: () => import('mermaid') });
+```
 
 ::: tip ESM only
 The package is ESM only and targets ES2022. It has no runtime dependencies. Use it through a bundler (Vite, Rollup, esbuild, webpack) or any setup that resolves bare module specifiers. `@mmdx/studio/core` also runs in Node 18 or newer.

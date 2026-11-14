@@ -91,3 +91,48 @@ describe('diff transforms', () => {
     expect(splitSource(withLayoutOf(a, b)).doc.meta.nodes?.['desktop']).toEqual({ x: 665, y: 110, w: 150, h: 60 });
   });
 });
+
+describe('flowchart node data (B5)', () => {
+  const node = (d: ReturnType<typeof diffDiagrams>, id: string) => d.items.find((i) => i.kind === 'node' && i.id === id);
+
+  it('an image URL change is a content change', () => {
+    const d = diffDiagrams('flowchart LR\n  A@{ img: "a.png" }\n', 'flowchart LR\n  A@{ img: "b.png" }\n');
+    expect(node(d, 'A')?.fields).toEqual([{ facet: 'content', field: 'image', before: 'a.png', after: 'b.png' }]);
+  });
+
+  it('an icon change is a content change', () => {
+    const d = diffDiagrams('flowchart LR\n  A@{ icon: "fa:user" }\n', 'flowchart LR\n  A@{ icon: "fa:car" }\n');
+    expect(node(d, 'A')?.facets).toEqual(['content']);
+  });
+
+  it('the frame of an image node is layout', () => {
+    const d = diffDiagrams('flowchart LR\n  A@{ img: "a.png", pos: "t", h: 60 }\n', 'flowchart LR\n  A@{ img: "a.png", pos: "b", h: 90 }\n');
+    expect(node(d, 'A')?.fields.map((f) => [f.facet, f.field])).toEqual([['layout', 'image frame']]);
+  });
+
+  it('an edge animation change is a style change', () => {
+    const d = diffDiagrams('flowchart LR\n  A e1@--> B\n  e1@{ animate: true }\n', 'flowchart LR\n  A e1@--> B\n');
+    expect(d.items.find((i) => i.kind === 'edge')?.fields.map((f) => f.field)).toEqual(['animation']);
+  });
+});
+
+describe('structural equality (B12)', () => {
+  it('reordered style keys, classDef keys and nested canvas keys are no change', () => {
+    const a = 'flowchart LR\n  A\n  classDef hot fill:#f00,stroke:#000\n  style A fill:#0f0,stroke:#00f\n';
+    const b = 'flowchart LR\n  A\n  classDef hot stroke:#000,fill:#f00\n  style A stroke:#00f,fill:#0f0\n';
+    const d = diffDiagrams(a, b);
+    expect(d.items.every((i) => i.status === 'unchanged')).toBe(true);
+    expect(d.doc).toEqual([]);
+    const m = (o: string) => `flowchart LR\n  A\n%%@ canvas ${o}\n`;
+    expect(diffDiagrams(m('{"future":{"a":1,"b":2}}'), m('{"future":{"b":2,"a":1}}')).doc).toEqual([]);
+  });
+
+  it('same() still tells arrays in order and real changes apart', async () => {
+    const { same } = await import('../../../src/core/diff/kit.js');
+    expect(same([1, 2], [2, 1])).toBe(false);
+    expect(same({ a: 1, b: undefined }, { a: 1 })).toBe(true);
+    expect(same({ a: { x: 1 } }, { a: { x: 2 } })).toBe(false);
+    expect(same(NaN, NaN)).toBe(true);
+    expect(same(null, undefined)).toBe(false);
+  });
+});

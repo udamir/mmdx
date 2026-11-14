@@ -2,15 +2,15 @@
 // (asking about unsaved changes), save (validated, conflict-checked, light / dark links kept mutual), create,
 // duplicate, import, export, revert, delete and publish. Dialogs, toasts, downloads and events go through the ports
 // the editor passes in.
-import type { ThemeStore } from '../adapters/themes.js';
+import type { ThemeStore } from '../ports.js';
 import type { CoreContext } from '../core/context.js';
 import { BUILTIN_THEMES } from '../core/theme/builtin.js';
 import { BASELINE, ThemeRegistry } from '../core/theme/registry.js';
-import { THEME_SCHEMA_VERSION, type ThemeFile } from '../core/theme/types.js';
+import { THEME_SCHEMA_VERSION, type ThemeFile, type ThemeInfo } from '../core/theme/types.js';
 import { validateTheme } from '../core/theme/validate.js';
 import type { Translate } from '../ui/blocks/block.js';
-import type { Dialogs } from '../ui/dialog.js';
-import { signal } from '../ui/signal.js';
+import type { Dialogs } from '../ui/kit/dialog.js';
+import { signal } from '../reactive/signal.js';
 import type { Draft } from './draft.js';
 import type { Entry, ThemeEditorEventMap, ThemeEditorOptions } from './types.js';
 import { clone, obj, slug, type Obj } from './util.js';
@@ -84,20 +84,23 @@ export class ThemeLibrary {
       }));
     }
     const store = this.store;
-    const infos = await store.list().catch(() => []);
-    await Promise.all(infos.map(async (i) => {
-      const f = await store.get(i.id).catch(() => null);
-      if (!f) return;
+    // one bulk read when the store has it (P19), else the list, then each theme's file and usage
+    const bulk = store.listWithUsage ? await store.listWithUsage().catch(() => null) : null;
+    const infos = bulk ? bulk.map((x) => x.info) : await store.list().catch(() => []);
+    const add = (i: ThemeInfo, f: ThemeFile, usage: number | undefined): void => {
       const prev = files.get(f.id);
       const e: Entry = { file: f, inStore: true, inSource: !!prev };
       if (i.version !== undefined) e.version = i.version;
       if (prev?.sourceFile) e.sourceFile = prev.sourceFile;
-      if (store.usage) {
-        const n = await store.usage(f.id).catch(() => undefined);
-        if (n !== undefined) e.usage = n;
-      }
+      if (usage !== undefined) e.usage = usage;
       files.set(f.id, e);
-    }));
+    };
+    if (bulk) for (const x of bulk) add(x.info, x.file, x.usage);
+    else
+      await Promise.all(infos.map(async (i) => {
+        const f = await store.get(i.id).catch(() => null);
+        if (f) add(i, f, store.usage ? await store.usage(f.id).catch(() => undefined) : undefined);
+      }));
     // baseline first, then the store's / source's order
     const order = [BASELINE, ...infos.map((i) => i.id), ...files.keys()];
     return new Map([...new Set(order)].filter((id) => files.has(id)).map((id) => [id, files.get(id)!]));
@@ -182,14 +185,16 @@ export class ThemeLibrary {
   /** Writes a validated file through the store (mmdx-theme-save first; conflict dialog on a version clash). */
   private async persist(file: ThemeFile, force = false): Promise<boolean> {
     const { t, emit, toast } = this.ports;
-    if (!emit('mmdx-theme-save', { theme: clone(file) }, true)) {
+    // one copy of the file for the events, the store, the library entry and the registry (P19: it was cloned five times); the caller keeps `file`
+    const saved = clone(file);
+    if (!emit('mmdx-theme-save', { theme: saved }, true)) {
       toast(t('te.saveCancelled'));
       return false;
     }
     const entry = this.files.peek().get(file.id);
     let res;
     try {
-      res = await this.store.save(clone(file), !force && entry?.inStore && entry.version !== undefined ? { version: entry.version } : {});
+      res = await this.store.save(saved, !force && entry?.inStore && entry.version !== undefined ? { version: entry.version } : {});
     } catch (e) {
       toast(t('te.saveFailed', { msg: message(e) }), true);
       return false;
@@ -215,10 +220,10 @@ export class ThemeLibrary {
       }
       return false;
     }
-    this.setEntry({ ...(entry ?? { inStore: true, inSource: false }), file: clone(file), inStore: true, version: res.version });
+    this.setEntry({ ...(entry ?? { inStore: true, inSource: false }), file: saved, inStore: true, version: res.version });
     // open viewers and editors pick the saved theme up through the shared registry
-    this.ports.ctx.themes.register(clone(file));
-    emit('mmdx-theme-saved', { theme: clone(file), version: res.version });
+    this.ports.ctx.themes.register(saved);
+    emit('mmdx-theme-saved', { theme: saved, version: res.version });
     toast(t('te.saved', { name: file.name ?? file.id }));
     return true;
   }

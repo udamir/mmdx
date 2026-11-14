@@ -1,10 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
-import { HISTORY_PILL_CSS, I_CLOSE, I_SWAP } from '../../src/diff/history.js';
+import { HISTORY_PILL_CSS, I_SWAP } from '../../src/diff/history.js';
+import { I_close as I_CLOSE } from '../../src/ui/kit/icons.js';
 import { createPill, PILL_CSS } from '../../src/ui/blocks/pill.js';
-import { h, icon } from '../../src/ui/h.js';
-import { DIFF_TOKENS } from '../../src/ui/styles/diff.js';
-import { createI18n } from '../../src/ui/i18n.js';
-import { signal } from '../../src/ui/signal.js';
+import { h, icon } from '../../src/ui/kit/h.js';
+import { DIFF_TOKENS } from '../../src/diff/styles.js';
+import { createI18n } from '../../src/i18n.js';
+import { signal } from '../../src/reactive/signal.js';
 import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; kind: 'version' | 'compare' | 'remote' };

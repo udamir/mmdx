@@ -135,6 +135,24 @@ describe('canvas selection', () => {
     expect(core.code.trim()).toBe('sequenceDiagram');
   });
 
+  it('a marquee reports the selection only when it changes (B11, P5)', () => {
+    const { core } = mount(FLOW);
+    const g = core.geom;
+    if (g.type !== 'flowchart') throw new Error();
+    const a = g.nodes.get('A')!;
+    const fired: string[] = [];
+    core.on('selection', () => fired.push(sel(core).sort().join(',')));
+    // from above-left of A, growing in eight steps: empty for the first ones, then A only for the rest
+    const p0 = core.toScreen({ x: a.x - a.w / 2 - 10, y: a.y - a.h / 2 - 10 });
+    const p1 = core.toScreen({ x: a.x + a.w / 2 + 10, y: a.y + a.h / 2 + 4 });
+    pid++;
+    pointer(core.dom.svg, 'pointerdown', p0.x, p0.y);
+    for (let i = 1; i <= 8; i++) pointer(core.dom.svg, 'pointermove', p0.x + ((p1.x - p0.x) * i) / 8, p0.y + ((p1.y - p0.y) * i) / 8);
+    pointer(core.dom.svg, 'pointerup', p1.x, p1.y);
+    expect(sel(core)).toEqual(['node:A']);
+    expect(fired).toEqual(['node:A']);
+  });
+
   it('marquee left to right takes what is fully inside, right to left what it touches', () => {
     const { core } = mount(FLOW);
     const g = core.geom;
@@ -162,6 +180,7 @@ describe('canvas selection', () => {
     pid++;
     pointer(core.dom.svg, 'pointerdown', p0.x, p0.y);
     pointer(core.dom.svg, 'pointermove', p0.x - 60, p0.y + 20);
+    core.flushPreview(); // the move draws on the next frame
     expect(core.dom.overlay.querySelector('.marquee')!.classList.contains('crossing')).toBe(true);
     pointer(core.dom.svg, 'pointerup', p0.x - 60, p0.y + 20);
   });
@@ -212,6 +231,41 @@ describe('canvas selection', () => {
     expect(ed.getSource()).toMatch(/%%@/);
     ed.undo();
     expect(core.getM('node', 'A').x).toBeUndefined();
+  });
+
+  it('a quick release ends the move where the pointer was let go, not at its last move', () => {
+    const { core } = mount(FLOW);
+    const c = center(core, 'A');
+    pid++;
+    pointer(itemEl(core, 'node', 'A'), 'pointerdown', c.x, c.y);
+    pointer(core.dom.svg, 'pointermove', c.x + 10, c.y);
+    pointer(core.dom.svg, 'pointerup', c.x + 60, c.y);
+    const g = core.geom;
+    if (g.type !== 'flowchart') throw new Error();
+    expect(core.toScreen(g.nodes.get('A')!).x).toBeCloseTo(c.x + 60, 0);
+  });
+
+  it('a double-click that dragged neither edits the text nor enters a group; a plain one does', () => {
+    const { core } = mount(FLOW);
+    const dbl = (at: { x: number; y: number }): void => {
+      itemEl(core, 'node', 'A').dispatchEvent(new MouseEvent('dblclick', { bubbles: true, composed: true, cancelable: true, clientX: at.x, clientY: at.y, detail: 2 }));
+    };
+    const editing = (): boolean => !!core.dom.wrap.querySelector('textarea.inline-edit');
+    let c = center(core, 'A');
+    drag(core, itemEl(core, 'node', 'A'), c);
+    drag(core, itemEl(core, 'node', 'A'), c, 40, 0); // a press, then a quick drag
+    c = center(core, 'A');
+    dbl(c);
+    expect(editing()).toBe(false);
+    drag(core, itemEl(core, 'node', 'A'), c, 0, 30); // the drag before a press
+    c = center(core, 'A');
+    drag(core, itemEl(core, 'node', 'A'), c);
+    dbl(c);
+    expect(editing()).toBe(false);
+    drag(core, itemEl(core, 'node', 'A'), c);
+    drag(core, itemEl(core, 'node', 'A'), c);
+    dbl(c);
+    expect(editing()).toBe(true);
   });
 
   it('arrow keys nudge by 1 / Shift by 10 and undo', () => {
@@ -423,6 +477,7 @@ describe('canvas selection', () => {
     pid++;
     pointer(handle, 'pointerdown', hx, hy);
     pointer(core.dom.svg, 'pointermove', hx + 40, hy + 20);
+    core.flushPreview(); // the move draws on the next frame
     const m = core.getM('node', 'B');
     expect(core.dom.overlay.querySelector('.size-badge-text')?.textContent).toBe(`${m.w} × ${m.h}`);
     pointer(core.dom.svg, 'pointerup', hx + 40, hy + 20);
@@ -436,7 +491,10 @@ describe('canvas selection', () => {
     (chooser.querySelector('[data-start="sequence"]') as HTMLButtonElement).click();
     expect(core.model.type).toBe('sequence');
     expect(chooser.hidden).toBe(true);
-    expect((core.dom.wrap.querySelector('.empty-hint') as HTMLElement).hidden).toBe(false);
+    const hint = core.dom.wrap.querySelector('.empty-hint') as HTMLElement;
+    expect(hint.hidden).toBe(false);
+    // the hint is the StatusBox block's empty state (A5)
+    expect(hint.querySelector('.mmdx-status [role="status"]')?.textContent).toBe('Drag shapes from the toolbar on the left onto the canvas');
   });
 
   it('View mode: links raise a cancelable mmdx-link event', () => {
@@ -452,5 +510,25 @@ describe('canvas selection', () => {
     });
     target!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     expect(got).toEqual({ href: 'https://example.com/docs', id: 'A' });
+  });
+
+  it('View mode: a sequence participant with several Mermaid links opens a menu of them (T11, S13)', () => {
+    const { ed, core } = mount('sequenceDiagram\n  link A: Docs @ https://docs.example.com\n  link A: Status @ https://status.example.com\n  A->>B: hi\n');
+    ed.setMode('view');
+    const head = core.dom.body.querySelector('[data-kind="participant"][data-id="A"] a');
+    expect(head).toBeTruthy();
+    const got: unknown[] = [];
+    (core.dom.shadow.host as HTMLElement).addEventListener('mmdx-link', (ev) => {
+      got.push((ev as CustomEvent).detail);
+      ev.preventDefault();
+    });
+    head!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    // no link followed yet: the menu lists both
+    expect(got).toEqual([]);
+    const items = [...core.dom.shadow.querySelectorAll<HTMLButtonElement>('.link-menu [role=menuitem]')];
+    expect(items.map((b) => [b.textContent, b.title])).toEqual([['Docs', 'https://docs.example.com'], ['Status', 'https://status.example.com']]);
+    items[1]!.click();
+    expect(got).toEqual([{ href: 'https://status.example.com', id: 'A' }]);
+    expect(core.dom.shadow.querySelector('.link-menu')).toBeNull();
   });
 });

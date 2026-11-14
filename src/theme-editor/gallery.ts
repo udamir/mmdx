@@ -9,9 +9,9 @@ import { isColorLiteral } from '../core/validate.js';
 import { createSegmented } from '../ui/blocks/segmented.js';
 import { createTileGallery, type Tile } from '../ui/blocks/tile-gallery.js';
 import { createToolbar } from '../ui/blocks/toolbar.js';
-import { h } from '../ui/h.js';
-import { drawItemPreview, type PreviewKind } from '../ui/item-preview.js';
-import { shapePreview } from '../ui/style-toolbar.js';
+import { h } from '../ui/kit/h.js';
+import { drawItemPreview, type PreviewKind } from '../ui/diagram/item-preview.js';
+import { shapePreview } from '../ui/diagram/style-toolbar.js';
 import { LINE_KINDS, SHAPE_TABS, UNDRAWN, type ShapeTabs } from './constants.js';
 import type { Env, GalleryRef } from './env.js';
 import type { TileSel } from './types.js';
@@ -88,7 +88,7 @@ export function itemGallery(env: Env, box: HTMLElement, type: DiagramType, it: T
   const props = h('div', { class: 'te-props' });
   box.dataset['item'] = `${type}.${it.key}`;
   // nodes / participants: one tab per shape; each shape has its own default style and its own presets
-  const tabs = SHAPE_TABS[it.key];
+  const tabs = SHAPE_TABS[it.preview ?? it.key];
   const curShape = (): string => (tabs ? (env.tabShape[it.key] ??= tabs.def) : '');
   const shapesPath = (shape: string): string => `${type}.${tabs?.key ?? ''}.${shape}`;
   const names = (): string[] => {
@@ -116,9 +116,8 @@ export function itemGallery(env: Env, box: HTMLElement, type: DiagramType, it: T
     pics.set(key, pic);
     const capText = preset ?? (tabs ? t('te.shapeDefault', { shape: shapeLabel() }) : t('te.default'));
     const cap = h('span', { class: 'te-tile-cap' }, capText);
-    const rawT = obj(draft.current()?.[type]);
-    if (preset !== null && !draft.isBase() && Object.keys(obj(obj(rawT[it.presets ?? ''])[preset])).length) cap.append(dotmark());
-    if (preset === null && Object.keys(obj(tabs ? obj(rawT[tabs.key])[curShape()] : rawT[it.key])).length && (!draft.isBase() || tabs)) cap.append(dotmark());
+    // the tile sets values of its own (a baseline preset's are all its own: no mark)
+    if (Object.keys(draft.ownFor(s)).length && (preset === null ? draft.inheritsFor(s) : !draft.isBase())) cap.append(dotmark());
     // WCAG AA: text colour on the fill
     const ratio = draft.lowContrast(s);
     const warn = ratio === null ? null : t('te.lowContrast', { ratio: (Math.floor(ratio * 10) / 10).toFixed(1) });
@@ -137,7 +136,7 @@ export function itemGallery(env: Env, box: HTMLElement, type: DiagramType, it: T
     if (!pic) return;
     const th = typeof getComputedStyle === 'function' ? parseFloat(getComputedStyle(gallery.el).getPropertyValue('--th')) : NaN;
     const shape = tabs ? curShape() : undefined;
-    drawItemPreview(pic, it.key as PreviewKind, key === DEFAULT ? null : key, draft.resolved.peek(), { zoom: env.zoom.peek(), minH: Number.isFinite(th) && th > 0 ? th : 90, ctx: env.ctx, ...(shape ? { shape } : {}) });
+    drawItemPreview(pic, (it.preview ?? it.key) as PreviewKind, key === DEFAULT ? null : key, draft.resolved.peek(), { zoom: env.zoom.peek(), minH: Number.isFinite(th) && th > 0 ? th : 90, ctx: env.ctx, ...(shape ? { shape } : {}) });
   };
 
   const selected = derived(() => {

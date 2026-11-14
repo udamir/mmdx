@@ -4,8 +4,10 @@
 // the tiles they affect and the preview after a short pause. Can be mounted into any element; <mmdx-theme-editor>
 // wraps it.
 import { memoryThemeStore } from '../adapters/themes.js';
-import { localStorageAdapter, memoryStorage, type StorageAdapter } from '../adapters/storage.js';
-import { ensureBuiltinThemes, getShared, instanceContext } from '../config.js';
+import { ComponentShell } from '../view/component-shell.js';
+import { Owner } from '../reactive/owner.js';
+import { type StorageAdapter } from '../ports.js';
+import { ensureBuiltinThemes } from '../platform/themes.js';
 import type { CoreContext } from '../core/context.js';
 import { THEME_SECTIONS } from '../core/schema/style-fields.js';
 import { BUILTIN_THEMES } from '../core/theme/builtin.js';
@@ -21,22 +23,23 @@ import { TABS_CSS } from '../ui/blocks/tabs.js';
 import { TILE_GALLERY_CSS } from '../ui/blocks/tile-gallery.js';
 import { TOOLBAR_CSS as BAR_CSS } from '../ui/blocks/toolbar.js';
 import { ZOOM_BAR_CSS } from '../ui/blocks/zoom-bar.js';
-import { DIALOG_CSS, Dialogs } from '../ui/dialog.js';
-import { h } from '../ui/h.js';
-import { registerMessages, type I18n } from '../ui/i18n.js';
-import { THEME_EDITOR_MESSAGES } from '../ui/messages/theme-editor.js';
+import { DIALOG_CSS, Dialogs } from '../ui/kit/dialog.js';
+import { h } from '../ui/kit/h.js';
+import { registerMessages, type I18n } from '../i18n.js';
+import { THEME_EDITOR_MESSAGES } from './messages.js';
 import { TOOLBAR_MESSAGES } from '../ui/messages/toolbar.js';
-import { PopoverManager, Toaster } from '../ui/popover.js';
-import { formatKeys, ShortcutRegistry } from '../ui/shortcuts.js';
-import { effect, signal, untracked } from '../ui/signal.js';
-import { createStyleToolbar, type StyleToolbarHandle } from '../ui/style-toolbar.js';
-import { ALIASES, adoptStyles, BASE, resolveUiScheme, TOKENS, watchUiScheme } from '../ui/styles/base.js';
-import { THEME_EDITOR_CSS } from '../ui/styles/theme-editor.js';
-import { TOOLBAR_CSS } from '../ui/styles/toolbar.js';
+import { PopoverManager, Toaster } from '../ui/kit/popover.js';
+import { formatKeys } from '../ui/kit/keys.js';
+import { ShortcutRegistry } from '../view/keymap.js';
+import { effect, signal, untracked } from '../reactive/signal.js';
+import { createStyleToolbar, type StyleToolbarHandle } from '../ui/diagram/style-toolbar.js';
+import { ALIASES, adoptStyles, BASE, TOKENS } from '../ui/kit/base.js';
+import { THEME_EDITOR_CSS } from './styles.js';
+import { STYLE_TOOLBAR_CSS } from '../ui/diagram/toolbar-styles.js';
 import { card } from './cards/card.js';
 import { pageCard } from './cards/page.js';
 import { paletteCard } from './cards/palette.js';
-import { SHAPE_TABS, TOOLBAR_EXCLUDE, UNDRAWN } from './constants.js';
+import { SHAPE_TABS, UNDRAWN } from './constants.js';
 import { Draft } from './draft.js';
 import type { Env, GalleryRef } from './env.js';
 import { disableIfReadOnly, renderErrors } from './fields.js';
@@ -55,7 +58,9 @@ export class ThemeEditor {
   /** Resolves when the theme list is loaded and the first theme is open. */
   ready: Promise<void>;
   private o: ThemeEditorOptions;
-  private storage: StorageAdapter;
+  /** The shadow root, i18n, context, storage, popovers, scheme and events (A8: the kernel's component shell, without a scene kernel). */
+  private readonly shell: ComponentShell;
+  private readonly storage: StorageAdapter;
   private readonly i18n: I18n;
   private readonly shadow: ShadowRoot;
   private readonly frame: HTMLElement;
@@ -74,7 +79,7 @@ export class ThemeEditor {
   private readonly toaster: Toaster;
   private readonly keys = new ShortcutRegistry();
   private readonly ac = new AbortController();
-  private readonly offs: (() => void)[] = [];
+  private readonly owner = new Owner('theme editor');
   private readonly draft: Draft;
   private readonly lib: ThemeLibrary;
   private readonly env: Env;
@@ -92,7 +97,9 @@ export class ThemeEditor {
   private readonly view = signal(0);
   /** Bumps when options the views show change (canEdit, canDelete, canPublish). */
   private readonly rev = signal(0);
-  private mainScope = new Scope();
+  /** Owns the main column's scope, renewed by each `renderMain`. */
+  private readonly mainRounds = new Scope();
+  private mainScope = this.mainRounds.renew();
   private viewT: ReturnType<typeof setTimeout> | undefined;
   private laidOut = false;
   private destroyed = false;
@@ -102,11 +109,12 @@ export class ThemeEditor {
     void ensureBuiltinThemes();
     registerMessages(TOOLBAR_MESSAGES);
     this.o = { ...options };
-    this.i18n = getShared().i18n;
-    this.ctx = instanceContext(options.ctx);
-    this.storage = options.storage ?? (typeof localStorage !== 'undefined' ? localStorageAdapter() : memoryStorage());
-    this.shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
-    adoptStyles(this.shadow, [TOKENS, ALIASES, BASE, DIALOG_CSS, TOOLBAR_CSS, BAR_CSS, ZOOM_BAR_CSS, TABS_CSS, SEGMENTED_CSS, MENU_CSS, DISCLOSURE_CSS, TILE_GALLERY_CSS, COLOR_PICKER_CSS, THEME_EDITOR_CSS]);
+    const shell = (this.shell = new ComponentShell(host, { product: 'theme-editor', storage: options.storage, ctx: options.ctx, ui: options.ui }));
+    this.i18n = shell.i18n;
+    this.ctx = shell.ctx;
+    this.storage = shell.storage;
+    this.shadow = shell.shadow;
+    adoptStyles(this.shadow, [TOKENS, ALIASES, BASE, DIALOG_CSS, STYLE_TOOLBAR_CSS, BAR_CSS, ZOOM_BAR_CSS, TABS_CSS, SEGMENTED_CSS, MENU_CSS, DISCLOSURE_CSS, TILE_GALLERY_CSS, COLOR_PICKER_CSS, THEME_EDITOR_CSS]);
     const t = this.i18n.t;
     this.readPrefs();
 
@@ -123,8 +131,9 @@ export class ThemeEditor {
     this.dlg = h('div', { class: 'te-dialog', role: 'region', 'aria-labelledby': titleId, tabindex: '-1', part: 'panel' }, this.head, this.body, this.fileInput);
     this.frame = h('div', { class: 'te-overlay' });
     this.shadow.append(this.frame);
-    this.dialogs = new Dialogs(this.shadow, t);
-    this.pops = new PopoverManager(this.shadow);
+    // its own confirm and choice dialogs (the shell carries none: a viewer or a diff never opens one, BUG-017)
+    this.dialogs = new Dialogs(shell.shadow, shell.i18n.t);
+    this.pops = shell.popovers;
     this.toaster = new Toaster(this.shadow);
 
     // the draft reads the library's registry (created next) only when it resolves
@@ -160,7 +169,7 @@ export class ThemeEditor {
 
     this.layout(); // before the toolbar: it scopes its listeners to the root node of its host
     // the canvas's floating style toolbar, editing the selected tile's style
-    this.toolbar = createStyleToolbar(this.body, styleApi(this.env, () => this.toolbar), { exclude: TOOLBAR_EXCLUDE, reset: true, i18n: this.i18n });
+    this.toolbar = createStyleToolbar(this.body, styleApi(this.env, () => this.toolbar), { reset: true, i18n: this.i18n });
     const sig = { signal: this.ac.signal };
     this.main.addEventListener('scroll', () => this.toolbar.place(), sig);
     this.main.addEventListener('pointerdown', (ev) => {
@@ -182,8 +191,7 @@ export class ThemeEditor {
     this.listView = listView(this.env, this.list, () => this.o, () => this.fileInput.click());
     this.wire();
     this.wireKeys();
-    this.offs.push(watchUiScheme(() => this.applyScheme()));
-    this.applyScheme();
+    this.owner.add(effect(() => void this.host.setAttribute('data-ui', shell.scheme())));
     this.ready = this.lib.load(options.theme);
   }
 
@@ -216,10 +224,10 @@ export class ThemeEditor {
     const prev = this.o;
     this.o = { ...this.o, ...patch };
     const id = (): string => this.draft.id.peek();
-    if ('ui' in patch) this.applyScheme();
+    if ('ui' in patch) this.shell.setUi(this.o.ui);
     if ('presentation' in patch && patch.presentation !== prev.presentation) this.layout();
     if ('storage' in patch && patch.storage) {
-      this.storage = patch.storage;
+      this.shell.setStorage(patch.storage);
       this.readPrefs();
     }
     if (('store' in patch && patch.store && patch.store !== prev.store) || ('source' in patch && patch.source !== prev.source)) {
@@ -290,13 +298,14 @@ export class ThemeEditor {
     this.lib.destroy();
     this.dialogs.destroy();
     this.ac.abort();
-    for (const off of this.offs.splice(0)) off();
-    this.mainScope.dispose();
+    this.owner.dispose();
+    this.mainRounds.dispose();
     this.listView.destroy();
     this.preview.destroy();
     this.toolbar.destroy();
     this.pops.close();
     this.toaster.destroy();
+    this.shell.destroy();
     this.draft.dispose();
     this.frame.remove();
   }
@@ -335,11 +344,6 @@ export class ThemeEditor {
     this.laidOut = true;
   }
 
-  private applyScheme(): void {
-    const ui = this.o.ui;
-    this.host.setAttribute('data-ui', resolveUiScheme(ui === 'auto' || !ui ? null : ui));
-  }
-
   private readPrefs(): void {
     const s = this.storage.get<unknown>('teSamples');
     const samples: Record<string, string> = {};
@@ -351,7 +355,7 @@ export class ThemeEditor {
 
   /** The effects that keep the views in step with the draft and the library. */
   private wire(): void {
-    const fx = (f: () => void): void => void this.offs.push(effect(f));
+    const fx = (f: () => void): void => this.owner.effect(f);
     // the main column: a theme opened, undo / redo / discard, or the options it shows changed
     fx(() => {
       this.draft.epoch();
@@ -423,8 +427,7 @@ export class ThemeEditor {
   private renderMain(): void {
     const t = this.i18n.t;
     const env = this.env;
-    this.mainScope.dispose();
-    this.mainScope = new Scope();
+    this.mainScope = this.mainRounds.renew();
     // built from the draft as it is: nothing is left to catch up with
     clearTimeout(this.viewT);
     this.draft.takeTouched();
@@ -447,9 +450,9 @@ export class ThemeEditor {
       this.main.append(h('div', { class: 'te-type', role: 'heading', 'aria-level': '3', dataset: { dirty: sec.type } }, env.tf(`te.section.${sec.type}`, sec.title)));
       const onOpen = (): void => this.previewType.set(sec.type);
       for (const it of sec.items) {
-        const tabs = SHAPE_TABS[it.key];
+        const tabs = SHAPE_TABS[it.preview ?? it.key];
         const dirty = [`${sec.type}.${it.key}`, it.presets ? `${sec.type}.${it.presets}` : '', tabs ? `${sec.type}.${tabs.key}` : ''].filter(Boolean);
-        this.main.append(card(env, { key: `${sec.type}.${it.key}`, title: env.tf(`te.item.${it.key}`, it.label), fill: (box) => itemGallery(env, box, sec.type, it), onOpen, dirty }));
+        this.main.append(card(env, { key: `${sec.type}.${it.key}`, title: env.tf(`te.item.${sec.type}.${it.key}`, env.tf(`te.item.${it.key}`, it.label)), fill: (box) => itemGallery(env, box, sec.type, it), onOpen, dirty }));
       }
       this.main.append(card(env, { key: `${sec.type}.pagePresets`, title: t('te.pageCard'), fill: (box) => pagePresetGallery(env, box, sec.type), hint: t('te.pageHint'), onOpen, dirty: [`${sec.type}.pagePresets`] }));
     }

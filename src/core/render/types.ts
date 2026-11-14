@@ -1,10 +1,26 @@
 // Render contract (§7): model + meta + resolved theme → scene tree + geometry.
+import type { IconLookup } from '../icons/types.js';
+import type { LayoutCache } from '../layout/types.js';
 import type { CanvasMeta, DiagramMeta } from '../meta/types.js';
-import type { SceneNode } from '../scene/types.js';
-import type { FontSpec, TextMeasurer } from '../text/measure.js';
-import type { ItemKind, Point, Rect } from '../types.js';
-import type { LinkPolicy } from '../validate.js';
+import type { SceneNode, SvgAttrs } from '../scene/types.js';
 import type { ResolvedTheme } from '../theme/types.js';
+import type { TextMeasurer } from '../text/measure.js';
+import type { Diagnostic, ItemKind, Point, Rect } from '../types.js';
+import type { ImagePolicy, LinkPolicy, UrlResolver } from '../validate.js';
+
+/** How a text block is drawn (render/common.ts `textBlock`, the media kit's `richText`). */
+export interface TextOpts {
+  size: number;
+  weight?: number | string | undefined;
+  color?: string | undefined;
+  family: string;
+  anchor?: 'start' | 'middle' | 'end';
+  /** Line height as a multiple of the size. */
+  lh?: number;
+  cls?: string;
+  underline?: boolean;
+  extra?: SvgAttrs;
+}
 
 /** Everything a renderer needs from its environment; instance-scoped, never global. */
 export interface RenderContext {
@@ -12,13 +28,30 @@ export interface RenderContext {
   /** Prefix for every `<defs>` id (markers, patterns) so several diagrams can share a page. */
   idPrefix: string;
   linkPolicy: LinkPolicy;
+  /** Which image URLs from diagram content are drawn (core/media/image.ts draws the others as placeholders). */
+  imagePolicy: ImagePolicy;
+  /** The host's resolver of content URLs (images and links), applied before the policies check them. */
+  resolveUrl?: UrlResolver;
+  /** Icon lookups (T04): renderers draw icons through core/icons/draw.ts (`drawIcon`, `iconResolver`). */
+  icons: IconLookup;
   /**
    * Resolves a stored colour (palette reference `@x` / `@x~…`, the diagram palette `style.palette`, or a literal)
    * against the active theme. Returns undefined for anything that is not a valid colour.
    */
   color(v: unknown): string | undefined;
+  /**
+   * Natural sizes of content images (T06: an image node without `w` / `h`): the size when known, undefined while it
+   * loads (the browser's lookup starts loading it and the component renders again when it arrives), null when it
+   * cannot be known. Absent (SSR, the render worker): images without a size are drawn 96 × 96.
+   */
+  imageSizes?: ImageSizes;
   /** Bounded cache for auto-layout results (keyed by the layout input); optional. */
-  layoutCache?: { get(k: string): Map<string, Point> | undefined; set(k: string, v: Map<string, Point>): void };
+  layoutCache?: LayoutCache;
+}
+
+/** Natural image sizes by URL (see `RenderContext.imageSizes`). */
+export interface ImageSizes {
+  get(url: string): { w: number; h: number } | null | undefined;
 }
 
 /** Item ids hidden by layers, per collection kind. */
@@ -41,6 +74,10 @@ export interface BoxGeom {
   h: number;
   stack?: boolean | number | undefined;
   hidden?: boolean;
+  /** The catalogue shape drawn in the box, when not a rectangle (connector ends, magnets and highlight frames follow its outline). */
+  shape?: string;
+  /** An icon or image node's asset (its icon or picture, without the frame; centre and size): resizing the node sizes it. */
+  asset?: { x: number; y: number; w: number; h: number };
 }
 
 export interface Port extends Point {
@@ -90,11 +127,34 @@ export interface ErGeometry {
    * `head`: height of the title section (from the top; the attributes are below it). `rows`: the attribute rows of a
    * table (y = top), plus the empty row for a new one (`add`) in table view.
    */
-  entities: Map<string, BoxGeom & { head?: number; rows?: { name: string; y: number; h: number; add?: boolean }[] }>;
+  entities: Map<string, BoxGeom & { head?: number; rows?: { name: string; y: number; h: number; add?: boolean }[]; auto?: boolean }>;
   rels: Map<string, EdgeGeom>;
+  /** Subgraph frames (11.17+, T11.6): `fixed` when placed by hand (metadata x / y / w / h). */
+  groups: Map<string, BoxGeom & { fixed?: boolean; hidden?: boolean }>;
 }
 
-export type GeometryIndex = FlowGeometry | SequenceGeometry | ErGeometry | { type: null };
+export interface MindmapGeometry {
+  type: 'mindmap';
+  /** Node boxes; `side`: where the node grows from its parent (r, l, d; the root has none), `depth` from the root. */
+  nodes: Map<string, BoxGeom & { side?: 'l' | 'r' | 'd'; depth: number; parent: string | null; section: number }>;
+  /** Branch paths, keyed by the child's id. */
+  branches: Map<string, string>;
+  root: string | null;
+}
+
+export interface StateGeometry {
+  type: 'state';
+  /** States and pseudo-states; `auto`: placed by the layout (not by hand). */
+  nodes: Map<string, BoxGeom & { auto?: boolean }>;
+  /** Composites; `fixed`: a frame placed by hand. */
+  groups: Map<string, BoxGeom & { fixed: boolean }>;
+  /** Transitions. */
+  edges: Map<string, EdgeGeom>;
+  /** Notes, beside their state. */
+  notes: Map<string, BoxGeom>;
+}
+
+export type GeometryIndex = FlowGeometry | SequenceGeometry | ErGeometry | MindmapGeometry | StateGeometry | { type: null };
 
 export interface PageStyle {
   /** `transparent` when not set. */
@@ -118,13 +178,57 @@ export interface RenderResult {
   geom: GeometryIndex;
   /** Preset name → number of items using it, per kind (`(none)` for items without a preset). */
   presetsUsed: Partial<Record<ItemKind, Map<string, number>>>;
+  /** What the render reported (`image.blocked`); absent when nothing. */
+  diagnostics?: Diagnostic[];
+  /** The diagram's own accessible title and description (`accTitle`, `accDescr`): the SVG's `<title>` and `<desc>`. */
+  a11y?: { title?: string; desc?: string };
+  /** What the render drew without because it was not loaded (A18): shapes' geometry, the media kit. */
+  missing?: Misses;
 }
 
-/** Shared font helper: the family a style asks for, else the theme font. */
-export const fontOf = (size: number, weight: number | string | undefined, family: string): FontSpec => ({
-  size,
-  weight: weight ?? 400,
-  family,
-});
+/** What a render lacked (core/shapes/misses.ts collects it). */
+export interface Misses {
+  shapes?: true;
+  media?: true;
+}
 
 export type { DiagramMeta };
+
+/** What every diagram renderer receives from `render()` (index.ts). */
+export interface RenderEnv {
+  ctx: RenderContext;
+  theme: ResolvedTheme;
+  /** The diagram's metadata with `canvas` replaced by the effective page settings (theme < preset < diagram). */
+  meta: DiagramMeta & { canvas: CanvasMeta };
+  opts: RenderOptions;
+  /** Colour behind labels (halo) and inside markers: the page background, or the paper colour on a clear page. */
+  paper: string;
+  /** Page padding around the content. */
+  pad: number;
+  /** What the render reports (an image the policy refused: `image.blocked`); merged into the pipeline's diagnostics. */
+  diagnostics: Diagnostic[];
+}
+
+export interface SubResult {
+  defs: SceneNode[];
+  body: SceneNode[];
+  bounds: Rect;
+  geom: GeometryIndex;
+  presetsUsed: Partial<Record<ItemKind, Map<string, number>>>;
+  /** The diagram's accessible title and description, when its code gives them. */
+  a11y?: { title?: string; desc?: string };
+}
+
+/** What an icon or image node is made of: its source and layout keys (node data, or a state's metadata). */
+export interface MediaSource {
+  /** The picture's URL (`""`: not chosen yet, the placeholder); undefined: an icon node. */
+  img?: string | undefined;
+  icon?: string | undefined;
+  form?: string | undefined;
+  /** The caption's side: `t` above, else below. */
+  pos?: string | undefined;
+  w?: number | undefined;
+  h?: number | undefined;
+  constraint?: string | undefined;
+  fit?: string | undefined;
+}

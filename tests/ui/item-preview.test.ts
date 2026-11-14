@@ -1,17 +1,27 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
-import { getShared, instanceContext } from '../../src/config.js';
-import { parseFlowchart } from '../../src/core/parse/flowchart.js';
-import { ALL_PARSERS } from '../../src/core/parse/index.js';
-import { ALL_RENDERERS } from '../../src/core/render/index.js';
-import { drawItemPreview, drawItemPreviewWith, ITEM_SAMPLES, renderItemSample, renderItemSampleWith, type PreviewKind } from '../../src/ui/item-preview.js';
-import { fitPresetGrid, shapePreview } from '../../src/ui/shape-preview.js';
+import { getShared, instanceContext } from '../../src/platform/config.js';
+import { parseFlowchart } from '../../src/core/kinds/flowchart/parse.js';
+import { ALL_VIEW_KINDS } from '../../src/core/kinds/all.js';
+import { drawItemPreview, drawItemPreviewWith, renderItemSample, renderItemSampleWith, type PreviewKind } from '../../src/ui/diagram/item-preview.js';
+import { kindUi, previewSample } from '../../src/ui/diagram/kind-ui.js';
+import { fitPresetGrid, shapePreview } from '../../src/ui/diagram/shape-preview.js';
+import { SHAPES } from '../../src/core/shapes/catalog.js';
 
 const theme = getShared().themes.get('default-light');
+/** Every built-in type's preview samples (each type's KindUi supplies its own, X21). */
+const SAMPLE_KINDS: PreviewKind[] = (['flowchart', 'sequence', 'er', 'mindmap', 'state'] as const).flatMap((t) => Object.keys(kindUi(t).previewSamples ?? {}));
 
 describe('item previews', () => {
+  it('each type supplies its own samples, found by preview kind', () => {
+    expect(SAMPLE_KINDS).toHaveLength(25);
+    expect(new Set(SAMPLE_KINDS).size).toBe(25);
+    expect(previewSample('st-note')).toBe(kindUi('state').previewSamples!['st-note']);
+    expect(previewSample('nothing')).toBeUndefined();
+  });
+
   it('renders every kind\'s sample with every kind loaded (the wrapper) and draws an svg into the element', () => {
-    for (const kind of Object.keys(ITEM_SAMPLES) as PreviewKind[]) {
+    for (const kind of SAMPLE_KINDS) {
       const { result, background } = renderItemSample(kind, null, theme);
       expect(result.body.length, kind).toBeGreaterThan(0);
       expect(background).toMatch(/^#|rgb/);
@@ -33,7 +43,7 @@ describe('item previews', () => {
 
   it('the injectable variant renders with the kinds and the context it is given', () => {
     const parse = vi.fn(parseFlowchart);
-    const env = { kinds: { parsers: { flowchart: { ...ALL_PARSERS.flowchart!, parse } }, renderers: { flowchart: ALL_RENDERERS.flowchart! } }, ctx: instanceContext() };
+    const env = { kinds: { flowchart: { ...ALL_VIEW_KINDS.flowchart!, parse } }, ctx: instanceContext() };
     const { result } = renderItemSampleWith(env, 'node', null, theme);
     expect(parse).toHaveBeenCalledOnce();
     expect(result.body.length).toBeGreaterThan(0);
@@ -52,6 +62,11 @@ describe('shape previews', () => {
     expect(svg.getAttribute('aria-hidden')).toBe('true');
     expect(svg.querySelector('path')).not.toBeNull();
     expect(shapePreview('nope').childElementCount).toBe(0);
+  });
+
+  it('draws every catalogue shape (the same drawing as the canvas) and the participant shapes', () => {
+    for (const s of SHAPES) expect(shapePreview(s.id).childElementCount, s.id).toBeGreaterThan(0);
+    for (const name of ['box', 'actor', 'database', 'hcyl']) expect(shapePreview(name).childElementCount, name).toBeGreaterThan(0);
   });
 
   it('fitPresetGrid sizes the submenu to its tiles and the room', () => {

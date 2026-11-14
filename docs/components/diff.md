@@ -1,6 +1,6 @@
 # `<mmdx-diff>`
 
-How a diagram changed between two versions, item by item (not line by line). Nodes, edges, tables, participants and messages are matched across the versions — renamed nodes and shifted sequence messages included — and every change is **added**, **removed** or **changed**, with each change of a kept item classified as **content** (labels, shapes, connections, attributes, message text), **layout** (positions, sizes, bend points) or **style** (colours, presets, classes, theme). Give it two versions for a merge request review, or a diagram's whole history and let the reviewer pick any two.
+How a diagram changed between two versions, item by item (not line by line). Nodes, edges, tables, subgraphs, participants, messages, mindmap nodes, states and transitions are matched across the versions — renamed nodes, shifted sequence messages and moved mindmap branches included — and every change is **added**, **removed** or **changed**, with each change of a kept item classified as **content** (labels, shapes, connections, attributes, message text), **layout** (positions, sizes, bend points) or **style** (colours, presets, classes, theme). Give it two versions for a merge request review, or a diagram's whole history and let the reviewer pick any two.
 
 ```ts
 import '@mmdx/studio/diff'; // <mmdx-diff>, DiagramDiff, history adapters
@@ -84,7 +84,7 @@ Each attribute sets the `DiffOptions` option of the same name in camelCase (`the
 | `theme-dark` | — | `string` | — | The theme while the chrome is dark; `auto` picks the dark theme linked to `theme` |
 | `ui` | — | `'light' \| 'dark' \| 'auto'` | `auto` | Chrome colour scheme |
 | `compact` | — | `boolean \| 'auto'` | `auto` | The compact chrome (smaller, icon-only); automatic on small hosts |
-| `wheel` | — | `'always' \| 'ctrl' \| 'never'` | `always` | `always`: the wheel pans and ⌘ / Ctrl + wheel or pinch zooms; `ctrl`: only ⌘ / Ctrl + wheel zooms; `never` |
+| `wheel` | — | `'always' \| 'zoom' \| 'ctrl' \| 'never'` | `always` | `always`: the wheel pans and ⌘ / Ctrl + wheel or pinch zooms; `zoom`: the wheel zooms at the pointer, Shift + wheel pans; `ctrl`: only ⌘ / Ctrl + wheel zooms; `never` |
 | `name` | — | `string` | `diagram` | File name stem of exports |
 | `label` | — | `string` | generated | Accessible name, e.g. "Diagram diff: 2 added, 1 removed, 5 changed" |
 | — | `loader` | `(url: string) => Promise<string>` | `fetch` | How `before` and `after` are fetched |
@@ -92,6 +92,7 @@ Each attribute sets the `DiffOptions` option of the same name in camelCase (`the
 | — | `storage` | `StorageAdapter` | `localStorage` (`mmdx.` keys), else in memory | Where UI preferences are kept (panels, light / dark, theme pick) |
 | — | `themeSource` | `ThemeSource` | `configure({ themeSource })` | Where themes the page has not loaded come from |
 | — | `ctx` | `Partial<CoreContext>` | the shared context | Read when the component is created |
+| — | — | `iconPacks: IconPack[]` | — | `DiagramDiff` option: icon packs of this component over the shared ones (see [Icons](/guide/icons#registering-packs)); read when it is created |
 
 Read-only property of the element: `instance` (the `DiagramDiff`, `null` while not connected).
 
@@ -125,7 +126,7 @@ Read-only property of the element: `instance` (the `DiagramDiff`, `null` while n
 | `pair: DiffPair` | `{ base, head, viewing }`: the compared versions and the version shown as it is |
 | `filters: DiffFilter[]` | The shown change kinds |
 | `diagnostics: readonly Diagnostic[]` | Diagnostics of the last comparison |
-| `session: DiffSession` | The model behind the component: versions, pair, filters, the rendered diff, the selection (advanced) |
+| `session: DiffSession` | The model behind the component: versions, what is shown (`shown`: nothing, one version or a comparison; `show(shown)`), filters, the rendered diff, the selection (advanced) |
 | `core: ViewCore`, `ctx: CoreContext` | The view kernel and the core context (advanced) |
 | `destroy(): void` | Removes the component |
 
@@ -160,7 +161,23 @@ Options and attributes set the view, mode and filters without an event; the even
 - **After**: the new version, with its added and changed items highlighted.
 - **Side by side**: two canvases, panned and zoomed together.
 
-Switching between Before, Merged and After animates: moved items glide, colours blend and changed text flips; switching to another pair or version animates the same way, and the view glides to the new fit. Colour is never the only signal: removed items are dashed, badges carry `+ − C L S`, and text changes are struck out or bold. The diff draws flowchart, sequence and ER diagrams; for other types (and a change of diagram type) it opens the code diff.
+Switching between Before, Merged and After animates: moved items glide, colours blend and changed text flips; switching to another pair or version animates the same way, and the view glides to the new fit. Colour is never the only signal: removed items are dashed, badges carry `+ − C L S`, and text changes are struck out or bold. The diff draws flowchart, sequence, ER, mindmap and state diagrams; for other types (and a change of diagram type) it opens the code diff.
+
+### Sequence diagrams
+
+Participants are matched by id; messages are aligned in code order by their ends, text and arrow, so messages inserted above others shift them without changing them; notes by their participants, blocks by their kind and condition. A message's arrow is compared as written — `->>` and `-->>`, a half arrow, a central connection's `()` — so a changed arrow is a content change, as are a message's text and process markers, a participant's name, kind, type, box and order, a note's text and placement and a block's condition. See [Sequence diagrams](/guide/sequence#history-and-diff).
+
+### ER diagrams
+
+Tables and subgraphs are matched by id, relationships by their ends (then in order among parallel ones). A table or a subgraph moved into another subgraph is a layout change, as are a subgraph's `direction` and the diagram's; names, attributes, cardinalities, lines, relationship labels and subgraph titles are content; Mermaid classes, `style`, `classDef` and metadata looks are style. The merged picture keeps a removed table and a removed subgraph in their old subgraph. See [ER diagrams](/guide/er#history-and-diff).
+
+### Mindmaps
+
+A mindmap's nodes are matched by their written id, then by their place in the tree (the path of labels from the root and the rank among siblings with the same label), then by label and matched parent, then by label alone, so a branch moved under another parent is one node that moved, not a removal and an addition. A new parent (`parent`) and a new place among the siblings (`order`) are layout changes, as are `side`, `dx` / `dy` and `collapsed`; the label, the shape, the `::icon()` and a metadata image are content; `:::` classes and metadata looks are style; Colours by branch or by depth is a change of the whole page. The merged picture keeps removed nodes under their old parent at their old place and marks renamed labels word by word; a moved node is drawn in its new place, without an arrow from the old one. See [Mindmaps](/guide/mindmap#history-and-diff).
+
+### State diagrams
+
+States and composites are matched by id, and a removed and an added state with the same title and kind are one renamed state, whose transitions and notes follow it; transitions are matched by their ends (through renames), then in order among parallel ones; notes by their state and side, then in order, and a note that only changed sides is one that moved. The start and end pseudo-states (`[*]start`, `X/[*]end`…) are matched by id. A state or composite moved into another composite or concurrency region is a layout change, as are a composite's `direction` and number of regions, a note's side and the top-level `direction`; a title, a description row, a kind (state, choice, fork, join), a transition label, a note's text and a `click` link are content; classes, `style`, `classDef` and metadata looks are style. The merged picture keeps a removed state inside its old composite and region, a removed composite with its contents, and marks changed text word by word. See [State diagrams](/guide/state#history-and-diff).
 
 ## Filters
 

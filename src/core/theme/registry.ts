@@ -7,18 +7,35 @@
 //
 // One instance per CoreContext: no module state, no storage, no network. Loading belongs to a ThemeSource, browser
 // edits to a ThemeStore (§8.3); they hand files to `register`.
-import type { Diagnostic } from '../types.js';
+import type { BuiltinType, Diagnostic } from '../types.js';
+import { DIAGRAM_TYPES } from '../kinds/info.js';
 import { BASE_THEME_ID, currentThemeId } from './builtin-ids.js';
 import { resolveThemeColors } from './colors.js';
 import type { ResolvedTheme, ThemeFile, ThemeInfo } from './types.js';
 import { validateTheme } from './validate.js';
 
 /** The base theme (Default Light): every other theme extends it. */
+/** The empty section of each diagram type: every key present (ResolvedTheme), filled by the theme file. */
+const SECTION_DEFAULTS: { readonly [T in BuiltinType]: () => ResolvedTheme[T] } = {
+  flowchart: () => ({ node: {}, nodePresets: {}, group: {}, groupPresets: {}, edge: {}, edgePresets: {}, pagePresets: {} }),
+  sequence: () => ({
+    participant: {}, participantPresets: {}, lifeline: {}, activation: {}, activationPresets: {}, message: {},
+    messagePresets: {}, note: {}, notePresets: {}, block: {}, blockPresets: {}, box: {}, boxPresets: {}, layout: {},
+    pagePresets: {},
+  }),
+  er: () => ({ entity: {}, entityPresets: {}, rel: {}, relPresets: {}, pagePresets: {} }),
+  mindmap: () => ({ root: {}, node: {}, nodePresets: {}, branch: {}, sections: {}, pagePresets: {} }),
+  state: () => ({
+    node: {}, nodePresets: {}, start: {}, end: {}, choice: {}, fork: {}, composite: {}, compositePresets: {}, compositeColors: {}, note: {},
+    notePresets: {}, transition: {}, transitionPresets: {}, pagePresets: {},
+  }),
+};
+
 export const BASELINE = BASE_THEME_ID;
 /** Longest `extends` chain followed above a theme before it is rooted on baseline. */
-export const MAX_EXTENDS_DEPTH = 5;
+const MAX_EXTENDS_DEPTH = 5;
 /** Font used when not even the baseline theme names one (default-light.theme.json's font). */
-export const DEFAULT_FONT = "'Open Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
+const DEFAULT_FONT = "'Open Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
 const DEFAULT_PAD = 16;
 
 type Obj = Record<string, unknown>;
@@ -28,11 +45,17 @@ const isObj = (v: unknown): v is Obj => !!v && typeof v === 'object' && !Array.i
 /** Objects merge key by key; anything else (arrays included) replaces. Inputs are not modified. */
 export function deepMerge(base: Obj | null | undefined, over: Obj | null | undefined): Obj {
   const out: Obj = clone(base ?? {});
+  mergeInto(out, over, true);
+  return out;
+}
+
+/** Merges `over` into `out` (which the caller owns): a copy of each value of `over` unless `copy` is false (it owns them too). One clone per level, not two (P22). */
+function mergeInto(out: Obj, over: Obj | null | undefined, copy: boolean): void {
   for (const [k, v] of Object.entries(over ?? {})) {
     const cur = out[k];
-    out[k] = isObj(v) && isObj(cur) ? deepMerge(cur, v) : clone(v);
+    if (isObj(v) && isObj(cur)) mergeInto(cur, v, copy);
+    else out[k] = copy ? clone(v) : v;
   }
-  return out;
 }
 
 /** A theme id as registered: earlier ids of the built-in themes map to the current ones, none to the base theme. */
@@ -42,6 +65,7 @@ export class ThemeRegistry {
   readonly #files = new Map<string, ThemeFile>();
   readonly #cache = new Map<string, ResolvedTheme>();
   readonly #listeners = new Set<() => void>();
+  #list: ThemeInfo[] | null = null;
 
   constructor(files: Iterable<unknown> = []) {
     for (const f of files) this.#add(f);
@@ -77,6 +101,12 @@ export class ThemeRegistry {
   }
 
   list(): ThemeInfo[] {
+    // read per toolbar and menu refresh: built once per change of the registered themes (P22)
+    this.#list ??= this.#buildList();
+    return this.#list.map((x) => ({ ...x }));
+  }
+
+  #buildList(): ThemeInfo[] {
     const ids = [...new Set([BASELINE, ...this.#files.keys()])].filter((id) => this.has(id));
     return ids.map((id) => {
       const t = this.#files.get(id)!;
@@ -103,8 +133,10 @@ export class ThemeRegistry {
     seen.add(tid);
     let p = canonicalId(parent);
     if (seen.has(p) || depth >= MAX_EXTENDS_DEPTH) p = BASELINE;
-    const base = this.#merge(p, seen, depth + 1);
-    return { ...(deepMerge(base as Obj | null, rest as Obj) as Omit<ThemeFile, 'id'>), id: tid, name: name || tid, extends: parent || BASELINE };
+    // both are fresh copies: merged in place
+    const out = (this.#merge(p, seen, depth + 1) ?? {}) as Obj;
+    mergeInto(out, rest as Obj, false);
+    return { ...(out as Omit<ThemeFile, 'id'>), id: tid, name: name || tid, extends: parent || BASELINE };
   }
 
   /** Theme ready for rendering: inherited, every colour reference turned into a colour. Unknown ids → baseline. */
@@ -143,6 +175,7 @@ export class ThemeRegistry {
 
   #changed(): void {
     this.#cache.clear();
+    this.#list = null;
     for (const f of [...this.#listeners]) f();
   }
 
@@ -150,11 +183,8 @@ export class ThemeRegistry {
   #resolve(m: ThemeFile, basePalette: Record<string, string>): ResolvedTheme {
     const palette = m.palette ?? {};
     const t = resolveThemeColors(m, palette, basePalette);
-    const fc = t.flowchart ?? {};
-    const sq = t.sequence ?? {};
-    const er = t.er ?? {};
     const font = t.font ?? this.#files.get(BASELINE)?.font ?? DEFAULT_FONT;
-    return {
+    const out: ResolvedTheme = {
       id: t.id,
       name: t.name || t.id,
       appearance: t.appearance === 'dark' ? 'dark' : 'light',
@@ -162,17 +192,15 @@ export class ThemeRegistry {
       basePalette: { ...basePalette },
       font,
       canvas: { ...t.canvas, pad: t.canvas?.pad ?? DEFAULT_PAD },
-      flowchart: {
-        node: {}, nodePresets: {}, group: {}, groupPresets: {}, edge: {}, edgePresets: {}, pagePresets: {},
-        ...fc,
-      },
-      sequence: {
-        participant: {}, participantPresets: {}, lifeline: {}, activation: {}, activationPresets: {}, message: {},
-        messagePresets: {}, note: {}, notePresets: {}, block: {}, blockPresets: {}, box: {}, boxPresets: {}, layout: {},
-        pagePresets: {},
-        ...sq,
-      },
-      er: { entity: {}, entityPresets: {}, rel: {}, relPresets: {}, pagePresets: {}, ...er },
+      flowchart: { ...SECTION_DEFAULTS.flowchart(), ...t.flowchart },
+      sequence: { ...SECTION_DEFAULTS.sequence(), ...t.sequence },
+      er: { ...SECTION_DEFAULTS.er(), ...t.er },
+      mindmap: { ...SECTION_DEFAULTS.mindmap(), ...t.mindmap },
+      state: { ...SECTION_DEFAULTS.state(), ...t.state },
     };
+    // a kind plugin's section (A11e): as the theme file has it, {} when it has none
+    const file = t as unknown as Record<string, unknown>, more = out as unknown as Record<string, unknown>;
+    for (const type of DIAGRAM_TYPES) if (!Object.hasOwn(SECTION_DEFAULTS, type)) more[type] = { ...(file[type] as object | undefined) };
+    return out;
   }
 }

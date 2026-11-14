@@ -1,0 +1,26 @@
+mindmap
+  root((Product launch))
+    Goals
+      Grow active users
+      **Faster** onboarding
+      Fewer support tickets
+    research[User research]
+      Interviews
+      Surveys
+      Usage analytics
+    launch))Launch((
+      Private beta
+      Public beta
+      Press kit
+    risks{{Risks}}
+      Scope creep
+      Budget
+      Hiring
+    team(Team)
+      fa:fa-code Engineering
+      fa:fa-pen Design
+      fa:fa-bullhorn Marketing
+    Timeline
+      Q1 discovery
+      Q2 build
+      Q3 launch

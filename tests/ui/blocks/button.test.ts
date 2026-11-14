@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ariaKeys, tipText } from '../../../src/ui/blocks/block.js';
 import { createIconButton, createToggleButton } from '../../../src/ui/blocks/button.js';
-import { signal } from '../../../src/ui/signal.js';
+import { signal } from '../../../src/reactive/signal.js';
 
 afterEach(() => {
   document.body.replaceChildren();

@@ -27,6 +27,8 @@ Only the base theme (Default Light) defines everything; other themes `extend` it
 | `flowchart` | `node`, `group`, `edge`, their `…Presets`, `nodeShapes` (per-shape defaults) and `pagePresets` |
 | `sequence` | `participant`, `message`, `note`, `block`, `box`, `lifeline`, `activation`, their `…Presets`, `participantShapes`, `layout` and `pagePresets` |
 | `er` | `entity`, `rel`, their `…Presets` and `pagePresets` |
+| `mindmap` | `root`, `node` and `nodePresets`, `nodeShapes`, `branch`, `sections` (the section colours) and `pagePresets` |
+| `state` | `node`, `composite`, `transition`, `note`, their `…Presets`, `start`, `end`, `choice`, `fork`, `nodeShapes`, `compositeColors` and `pagePresets` |
 
 The [theme file reference](/api/theme-file) lists every key.
 
@@ -125,7 +127,7 @@ Theme files are untrusted input. They are validated when loaded, registered or s
 
 ## The theme editor
 
-`<mmdx-theme-editor>` edits the palette and every item type's style with live previews, checks text contrast, and imports and exports `.theme.json` files. It reads from a `ThemeSource` and saves through a `ThemeStore` (`list`, `get`, `save`, `delete?`, `publish?`):
+`<mmdx-theme-editor>` edits the palette and every item type's style with live previews, checks text contrast, and imports and exports `.theme.json` files. It reads from a `ThemeSource` and saves through a `ThemeStore` (`list`, `get`, `save`, `delete?`, `publish?`, `usage?`, `listWithUsage?`):
 
 ```ts
 import '@mmdx/studio/theme-editor';

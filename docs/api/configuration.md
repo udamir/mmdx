@@ -1,6 +1,6 @@
 # Configuration
 
-App-level settings that every component on the page reads: `configure()` sets the shared defaults (theme registry, theme source, text measurer, UI language, link policy, stock Mermaid, PNG fonts), `registerThemes()` and `registerBuiltinThemes()` fill the shared theme registry, `setWorkerUrl()` decides where the render worker comes from, and `upgradeMermaidBlocks()` turns Mermaid code blocks of a rendered page into viewers.
+App-level settings that every component on the page reads: `configure()` sets the shared defaults (theme registry, theme source, text measurer, UI language, link and image policies, stock Mermaid, PNG fonts), `registerThemes()` and `registerBuiltinThemes()` fill the shared theme registry, `setWorkerUrl()` decides where the render worker comes from, and `upgradeMermaidBlocks()` turns Mermaid code blocks of a rendered page into viewers.
 
 ```ts
 import { configure, registerThemes, registerBuiltinThemes, setWorkerUrl, upgradeMermaidBlocks, type Config } from '@mmdx/studio/viewer';
@@ -11,7 +11,7 @@ configure({
   i18n: { locale: 'de', messages: { 'zoom.fit': 'Einpassen' } },
   linkPolicy: { protocols: ['https:', 'mailto:'], target: '_blank' },
   fonts: { Inter: '/fonts/inter.woff2' },                 // embedded into PNG exports
-  mermaid: () => import('mermaid').then((m) => m.default),
+  mermaid: () => import('mermaid'),
 });
 ```
 
@@ -23,7 +23,7 @@ configure({
 | `setWorkerUrl`, `upgradeMermaidBlocks` | `@mmdx/studio/viewer` |
 | `useInlineWorker`, `workerSource` | `@mmdx/studio/worker-inline` (see [Inline worker](/api/worker-inline)) |
 
-Every entry re-exports the same functions over one shared configuration object, so `configure()` imported from the viewer entry also configures an editor on the same page, as long as both come from the same copy of the package. The types `Config` refers to come from other entries: `ThemeRegistry`, `TextMeasurer`, `LinkPolicy`, `createStaticMeasurer`, `DEFAULT_LINK_POLICY` and `BUILTIN_THEMES` from `@mmdx/studio/core` (see [Core](/api/core)), `ThemeSource` and `fetchThemeSource` from `@mmdx/studio/adapters` (see [Adapters](/api/adapters#fetchthemesource)).
+Every entry re-exports the same functions over one shared configuration object, so `configure()` imported from the viewer entry also configures an editor on the same page, as long as both come from the same copy of the package. The types `Config` refers to come from other entries: `ThemeRegistry`, `TextMeasurer`, `LinkPolicy`, `ImagePolicy`, `createStaticMeasurer`, `DEFAULT_LINK_POLICY`, `DEFAULT_IMAGE_POLICY` and `BUILTIN_THEMES` from `@mmdx/studio/core` (see [Core](/api/core)), `ThemeSource` and `fetchThemeSource` from `@mmdx/studio/adapters` (see [Adapters](/api/adapters#fetchthemesource)).
 
 ## Shared configuration
 
@@ -33,20 +33,20 @@ Every entry re-exports the same functions over one shared configuration object, 
 function configure(c: Config): void;
 ```
 
-Sets app-level defaults. Only the fields you pass change; the others keep their current value, so several calls add up. `fonts` is merged with the fonts given before; every other field replaces the previous value (`i18n` replaces the whole catalog: a second call with other `messages` drops the first call's).
+Sets app-level defaults. Only the fields you pass change; the others keep their current value, so several calls add up. `fonts` is merged with the fonts given before and `iconPacks` with the packs registered before (a pack of a registered name replaces it); every other field replaces the previous value (`i18n` replaces the whole catalog: a second call with other `messages` drops the first call's).
 
 Call it before creating elements. Most values are copied into a component when it is created, so a later call applies to components created afterwards; a few are read each time they are used:
 
 | Field | Read |
 |---|---|
-| `themes`, `measure`, `linkPolicy` | When a component is created (they form its core context) |
+| `themes`, `measure`, `linkPolicy`, `imagePolicy`, `resolveUrl` | When a component is created (they form its core context) |
 | `i18n` | When a component is created |
 | `themeSource` | Each time a component needs a theme that is not registered |
-| `mermaid` | On the first render with stock Mermaid; later changes have no effect |
+| `iconPacks`, `builtinIcons` | On each render: packs registered later reach every component (one shared icon registry) |
+| `mermaid` | On the first render with stock Mermaid; a later call replaces it from the next such render (the icon packs are registered with it again) |
 | `fonts` | On each PNG export |
-| `debug` | Not read in this version |
 
-A component can override the shared values for itself: the `ctx` option of the viewer, editor, theme editor and diff takes a `Partial<CoreContext>` (`themes`, `measure`, `linkPolicy`, `locale`, `idPrefix`), and the `themeSource` property of `<mmdx-viewer>` and `<mmdx-diff>` takes precedence over the shared `themeSource`. `ctx` is read only when the component is created.
+A component can override the shared values for itself: the `ctx` option of the viewer, editor, theme editor and diff takes a `Partial<CoreContext>` (`themes`, `measure`, `linkPolicy`, `imagePolicy`, `resolveUrl`, `icons`, `locale`, `idPrefix`), the `iconPacks` option of the viewer, editor and diff adds icon packs of the component's own over the shared ones, and the `themeSource` property of `<mmdx-viewer>` and `<mmdx-diff>` takes precedence over the shared `themeSource`. `ctx` is read only when the component is created.
 
 ### `Config`
 
@@ -57,12 +57,18 @@ interface Config {
   measure?: TextMeasurer;
   i18n?: { locale: string; messages?: Messages };
   linkPolicy?: LinkPolicy;
-  /** A Mermaid instance, or a loader; default: `import('mermaid')` when installed. */
-  mermaid?: MermaidLike | (() => Promise<MermaidLike>);
+  /** Which image URLs diagrams may show: `https:` only by default; `http:` and `data:` can be enabled. */
+  imagePolicy?: ImagePolicy;
+  /** Resolves the image and link URLs diagrams point at before the policies check them (null: as written). */
+  resolveUrl?: UrlResolver;
+  /** Icon packs (as Mermaid's `registerIconPacks` takes them); merged across calls. */
+  iconPacks?: IconPack[];
+  /** The built-in Tabler subset under `tabler` (default true). */
+  builtinIcons?: boolean;
+  /** A Mermaid instance, or a loader (`() => import('mermaid')` in a bundled app); default: `mermaid` imported at run time where it resolves (Node, an import map). */
+  mermaid?: MermaidLike | (() => Promise<MermaidLike | { default: MermaidLike }>);
   /** Font files for PNG export: family name → URL or bytes. */
   fonts?: Record<string, string | ArrayBuffer>;
-  /** Logs ops and exposes getState() (dev). */
-  debug?: boolean;
 }
 ```
 
@@ -73,9 +79,12 @@ interface Config {
 | `measure` | [`TextMeasurer`](/api/core#createstaticmeasurer) | A canvas measurer, or the static measurer where no 2D canvas works (jsdom) |
 | `i18n` | `{ locale: string; messages?: Messages }` | `locale: 'en'`, the bundled English strings |
 | `linkPolicy` | [`LinkPolicy`](/api/core#linkpolicy) | `{ protocols: ['https:', 'http:', 'mailto:'], target: '_blank' }` |
-| `mermaid` | `MermaidLike \| (() => Promise<MermaidLike>)` | `import('mermaid')` (the optional peer dependency) |
+| `imagePolicy` | [`ImagePolicy`](/api/core#imagepolicy) | `DEFAULT_IMAGE_POLICY`: `https:` from any host; no `data:`, `http:` or relative URLs |
+| `resolveUrl` | [`UrlResolver`](/api/core#urlresolver) | none: URLs as written |
+| `iconPacks` | [`IconPack`](/api/core#iconpack)`[]` | none (the built-in set only) |
+| `builtinIcons` | `boolean` | `true` |
+| `mermaid` | `MermaidLike \| (() => Promise<MermaidLike \| { default: MermaidLike }>)` | `mermaid` imported at run time where it resolves (Node, an import map) |
 | `fonts` | `Record<string, string \| ArrayBuffer>` | `{}` |
-| `debug` | `boolean` | `false` |
 
 #### `themes`
 
@@ -97,17 +106,29 @@ The UI language: `locale` (a BCP 47 tag) and an optional catalog of `messages` (
 
 Which link URLs a diagram may carry and how they open ([`LinkPolicy`](/api/core#linkpolicy)): `protocols` lists the allowed protocols in lower case with the colon (relative URLs always pass), `target` is the `target` for opened links (`'_blank'`, `'_self'`, `'_top'` or `'_parent'`; `_blank` when omitted). A link the policy rejects is not rendered as a link.
 
+#### `imagePolicy`
+
+Which image URLs a diagram may show ([`ImagePolicy`](/api/core#imagepolicy)): `protocols` (`'https:'`, `'http:'`, `'data:'`; `[]` turns images off), `hosts` (an allow-list of host names, `*.example.com` for subdomains), `relative` (allow relative URLs), and for `data:` URLs `dataTypes` and `maxDataBytes`. An image the policy refuses is drawn as a placeholder and reported as an `image.blocked` warning. Icons are drawn by mmdx itself and do not go through it. Diagrams rendered in the render worker use the component's policy. See [Security](/guide/security#image-policy).
+
+#### `resolveUrl`
+
+What the URLs diagrams point at mean ([`UrlResolver`](/api/core#urlresolver)): `(url, kind) => string | null | undefined`, called with each image (`kind` `'image'`) and link (`'link'`) URL as written. It returns the URL to use — a relative path made absolute, an attachment's name made its download URL — or null / undefined to use the URL as written (a resolver that throws: as written too). The result goes through the image or link policy like a written URL; the diagram's code keeps what was written. While a resolver is set, diagrams render on the main thread (a function does not reach the render worker). See [Security](/guide/security#resolving-urls).
+
+#### `iconPacks`
+
+Icon packs diagrams draw `pack:name` icons from ([`IconPack`](/api/core#iconpack): `{ name, icons }` with an Iconify JSON pack, or `{ name, loader }` with a function that resolves to one). `name` is the prefix diagrams write and overrides the pack's own `prefix`. A loader is called the first time a diagram shows one of the pack's icons, once per page, and a failed load is tried again 30 s later; while it loads, its icons are drawn as empty boxes and the components render again when it is done. Packs of several calls are merged; a pack of a registered name replaces it, and a `tabler` pack replaces the built-in subset. Stock Mermaid receives the same packs. The icon packs are one shared registry, so packs registered after a component started reach it too. See [Icons](/guide/icons).
+
+#### `builtinIcons`
+
+Whether the built-in Tabler subset is registered under `tabler` (default `true`): about 250 generic icons in a chunk loaded on first use, which also draws look-alikes for common Font Awesome names when no Font Awesome pack is registered (`icon.fa-fallback`).
+
 #### `mermaid`
 
-The stock Mermaid used for diagram types mmdx does not draw itself (the viewer's `fallback="mermaid"`, the default) and for the editor's Plain Mermaid preview. Pass a `MermaidLike` instance or a loader that resolves to one; without it, the first such render runs `import('mermaid')`, which needs the optional `mermaid` package installed. The instance is resolved once per page, on first use. Renders go through one queue shared by all components (Mermaid keeps global configuration), in a detached container, with `securityLevel: 'strict'` and Mermaid's `dark` or `default` theme following the component's scheme.
+The stock Mermaid used for diagram types mmdx does not draw itself (the viewer's `fallback="mermaid"`, the default) and for the editor's Plain Mermaid preview. Before a render it receives the component's icon packs through `registerIconPacks` (the built-in set as `tabler` included), each time the set of packs changed. Pass a `MermaidLike` instance or a loader that resolves to one or to a module whose default export is one (`() => import('mermaid')`); without it, the first such render imports `mermaid` at run time, which works where the module resolves without a bundler (Node, an import map); a bundled app passes `() => import('mermaid')`. A failed load is tried again on the next render. The instance is resolved on first use and kept until `configure({ mermaid })` sets another. Renders go through one queue shared by all components (Mermaid keeps global configuration), in a detached container, with `securityLevel: 'strict'`, Mermaid's `dark` or `default` theme following the component's scheme, the `classic` look and the `dagre` layout — given explicitly, since Mermaid 12 changed their defaults (`redux-color`, `neo`, ELK), so the fallback looks the same with Mermaid 10, 11 or 12. `configure({ mermaid })` after a fallback render replaces the instance: the next render uses the new one.
 
 #### `fonts`
 
 Font files embedded into PNG exports, keyed by font family name: a URL (fetched at export time) or the font's bytes. An export embeds the families the SVG uses and finds here; generic families (`sans-serif`, `system-ui`…) are skipped, and families without a source, with a name outside letters, digits, spaces, `.`, `_` and `-`, or whose file fails to load are left to the machine's local fonts. Fonts from several `configure()` calls are merged.
-
-#### `debug`
-
-Declared for development (logging operations and exposing a state getter). In this version the flag is stored but no component reads it.
 
 ### `MermaidLike`
 
@@ -115,6 +136,8 @@ Declared for development (logging operations and exposing a state getter). In th
 interface MermaidLike {
   initialize(cfg: Record<string, unknown>): void;
   render(id: string, text: string, container?: Element): Promise<{ svg: string }>;
+  /** Mermaid 11.1+; mmdx forwards its icon packs through it. */
+  registerIconPacks?(packs: { name: string; icons?: unknown; loader?: () => Promise<unknown> }[]): void;
 }
 ```
 
@@ -152,7 +175,7 @@ Nothing loads when both built-in themes are registered already (for example afte
 
 ## Render worker
 
-The viewer renders diagrams with more than 300 source lines (`WORKER_THRESHOLD_LINES`) in a render worker, so parsing and layout do not block the page; smaller diagrams render on the main thread. One worker serves every viewer on the page. Jobs run one at a time, in order; a job's 2 s timeout starts when the worker takes it, and a viewer's newer job replaces its older one still waiting. A job that times out restarts the worker and is reported as too large (the viewer shows "Rendering this diagram took too long"); the jobs behind it run in the new worker.
+The viewer renders diagrams with more than 300 source lines (`WORKER_THRESHOLD_LINES`) or more than 32 KiB of source (`WORKER_THRESHOLD_CHARS`, in UTF-16 code units) in a render worker, so parsing and layout do not block the page; smaller diagrams render on the main thread. One worker serves every viewer on the page. Jobs run one at a time, in order; a job's 2 s timeout starts when the worker takes it, and a viewer's newer job replaces its older one still waiting. A job that times out restarts the worker and is reported as too large (the viewer shows "Rendering this diagram took too long"); the jobs behind it run in the new worker.
 
 When workers are unavailable (no `Worker`, a CSP without `worker-src`, `file://`, a worker that fails to start), every diagram renders on the main thread from then on; the job that was running when the worker failed renders on the main thread too. The editor and the diff always render on the main thread.
 
@@ -250,9 +273,9 @@ Texts may contain `{name}` placeholders, replaced by the parameter of that name 
 
 Every key with its English text, grouped by the component that registers it. A key that two tables share is listed once (the texts are the same).
 
-::: details Viewer base strings (42 keys)
+::: details Viewer base strings (40 keys)
 
-Bundled with every component (`src/ui/i18n.ts`): zoom, full screen, view settings, pen, export, code view, errors and the diagram's accessible label.
+Bundled with every component (`src/i18n.ts`): zoom, full screen, view settings, pen, export, code view, errors and the diagram's accessible label.
 
 | Key | English |
 |---|---|
@@ -268,20 +291,17 @@ Bundled with every component (`src/ui/i18n.ts`): zoom, full screen, view setting
 | `layers.display` | Display |
 | `layers.labels` | Connector labels |
 | `layers.hover` | Hover highlight |
+| `layers.animate` | Animate edges |
 | `layers.show` | Show layer |
 | `layers.hide` | Hide layer |
 | `layers.default` | Default |
-| `pen.title` | Magic pen (P) |
 | `pen.erase` | Erase all strokes |
-| `pen.fade` | Auto erase |
 | `pen.keep` | Keep |
 | `export.title` | Export |
 | `export.svg` | SVG image |
 | `export.png` | PNG image (2×) |
 | `export.mmdx` | Styled Mermaid (.mmdx) |
 | `export.mmd` | Portable Mermaid (.mmd) |
-| `codeView.show` | Show Mermaid code |
-| `codeView.hide` | Show diagram |
 | `codeView.label` | Mermaid code |
 | `codeView.copy` | Copy |
 | `codeView.copied` | Copied |
@@ -289,10 +309,11 @@ Bundled with every component (`src/ui/i18n.ts`): zoom, full screen, view setting
 | `error.copy` | Copy source |
 | `error.copied` | Copied |
 | `error.tooLarge` | Diagram too large |
-| `error.unsupported` | Unsupported diagram type |
 | `label.flowchart` | `Flowchart: {nodes} nodes, {edges} connections` |
 | `label.sequence` | `Sequence diagram: {participants} participants, {messages} messages` |
 | `label.er` | `ER diagram: {entities} tables, {rels} relationships` |
+| `label.mindmap` | `Mindmap: {nodes} nodes` |
+| `label.state` | `State diagram: {states} states, {transitions} transitions` |
 | `label.empty` | Empty diagram |
 | `label.unsupported` | Diagram |
 | `help.title` | Shortcuts |
@@ -301,9 +322,9 @@ Bundled with every component (`src/ui/i18n.ts`): zoom, full screen, view setting
 
 :::
 
-::: details View kernel (20 keys)
+::: details View kernel (22 keys)
 
-Registered by every component with a canvas (`src/ui/messages/view.ts`): the tool dock, shortcuts help and view settings.
+Registered by every component with a canvas (`src/view/messages.ts`): the tool dock, shortcuts help and view settings.
 
 | Key | English |
 |---|---|
@@ -326,13 +347,15 @@ Registered by every component with a canvas (`src/ui/messages/view.ts`): the too
 | `help.history` | History of this diagram (when it has one) |
 | `viewParams.title` | View |
 | `export.failed` | `{kind} export failed: {msg}` |
+| `export.imagesMissing` | `{n} of the images could not be included (blocked by the image host)` |
 | `panel.close` | Close |
+| `view.links` | Links |
 
 :::
 
 ::: details UI blocks (79 keys)
 
-Registered by each block when it is created (`src/ui/messages/blocks*.ts`): pen options, zoom bar, help popup, theme menu, export menu, panels, layer list, code view, version list, change list and filter toggles.
+Registered by each block when it is created (`src/ui/messages/blocks.ts`, `blocks-panels.ts`, `blocks-diff.ts`): pen options, zoom bar, help popup, theme menu, export menu, panels, layer list, code view, version list, change list and filter toggles.
 
 | Key | English |
 |---|---|
@@ -418,9 +441,98 @@ Registered by each block when it is created (`src/ui/messages/blocks*.ts`): pen 
 
 :::
 
+::: details Media pickers (80 keys)
+
+Registered by the shape palette, the icon, image and emoji pickers, the style toolbar and the editor's image tools when they are first used (`src/ui/messages/blocks-media.ts`): keys `palette.*`, `icons.*`, `image.*` and `emoji.*`.
+
+| Key | English |
+|---|---|
+| `palette.search` | Search shapes |
+| `palette.searchPlaceholder` | Search shapes… |
+| `palette.cat.basic` | Basic |
+| `palette.cat.process` | Process |
+| `palette.cat.technical` | Technical |
+| `palette.cat.annotation` | Annotation |
+| `palette.cat.figure` | Figures |
+| `palette.cat.media` | Media |
+| `palette.results` | Results |
+| `palette.none` | `No shapes match “{q}”` |
+| `palette.shapes` | Shapes |
+| `icons.title` | Choose an icon… |
+| `icons.search` | Search icons |
+| `icons.searchPlaceholder` | Search icons |
+| `icons.none` | `No icons match “{q}”` |
+| `icons.empty` | No icons in this pack |
+| `icons.grid` | Icons |
+| `icons.license` | `Licence: {license}` |
+| `image.title` | Image |
+| `image.url` | Image URL |
+| `image.change` | Change image |
+| `image.fit` | Fit |
+| `image.aspect` | Keep aspect ratio |
+| `image.urlPlaceholder` | `https://…` |
+| `image.add` | Add image |
+| `image.replace` | Replace image |
+| `image.remove` | Remove image |
+| `image.drop` | Drop an image here, paste it, or |
+| `image.choose` | choose a file |
+| `image.types` | PNG, JPEG, GIF, WebP, SVG or AVIF |
+| `image.uploading` | `Uploading {name}…` |
+| `image.uploadFailed` | `Upload failed: {msg}` |
+| `image.notImage` | `{name} is not an image` |
+| `image.big` | `{name} is {w} × {h} px.` |
+| `image.reduce` | `Reduce to {n} px` |
+| `image.asIs` | Upload as is |
+| `image.noUpload` | Images can be added by URL; uploading is not configured here |
+| `image.source` | Image source |
+| `image.tabLibrary` | Library |
+| `image.tabUpload` | Upload |
+| `image.tabUrl` | URL |
+| `image.tabIcon` | Icon |
+| `image.library` | Image library |
+| `image.librarySearch` | Search images |
+| `image.libraryMore` | Load more |
+| `image.libraryLoading` | Loading images… |
+| `image.libraryEmpty` | No images in the library yet |
+| `image.libraryNone` | `No images match “{query}”` |
+| `image.libraryFailed` | `The library could not be loaded: {msg}` |
+| `image.libraryBlocked` | `{name} cannot be used here: {why}` |
+| `image.reason.invalid` | This is not a valid image URL |
+| `image.reason.protocol` | Only https images are allowed here (http images are blocked; use https) |
+| `image.reason.data-off` | data: images are blocked here; use an https URL |
+| `image.reason.data-type` | This data: image type is not allowed |
+| `image.reason.data-size` | This data: image is too large |
+| `image.reason.host` | Images from this host are not allowed here |
+| `image.reason.relative` | Relative image URLs are not allowed here; use a full https URL |
+| `emoji.title` | Emoji |
+| `emoji.search` | Search emoji |
+| `emoji.searchPlaceholder` | Search emoji |
+| `emoji.recent` | Recent |
+| `emoji.none` | `No emoji match “{q}”` |
+| `emoji.tone` | Skin tone |
+| `emoji.loading` | Loading emoji… |
+| `emoji.failed` | Emoji could not be loaded |
+| `emoji.tone.0` | Default |
+| `emoji.tone.1` | Light |
+| `emoji.tone.2` | Medium-light |
+| `emoji.tone.3` | Medium |
+| `emoji.tone.4` | Medium-dark |
+| `emoji.tone.5` | Dark |
+| `emoji.group.smileys` | `Smileys & emotion` |
+| `emoji.group.people` | `People & body` |
+| `emoji.group.animals` | `Animals & nature` |
+| `emoji.group.food` | `Food & drink` |
+| `emoji.group.travel` | `Travel & places` |
+| `emoji.group.activities` | Activities |
+| `emoji.group.objects` | Objects |
+| `emoji.group.symbols` | Symbols |
+| `emoji.group.flags` | Flags |
+
+:::
+
 ::: details Dialogs (3 keys)
 
-The in-component confirmation and name dialogs (`src/ui/dialog.ts`).
+The in-component confirmation and name dialogs (`src/ui/kit/dialog.ts`).
 
 | Key | English |
 |---|---|
@@ -430,9 +542,9 @@ The in-component confirmation and name dialogs (`src/ui/dialog.ts`).
 
 :::
 
-::: details Editor (303 keys)
+::: details Editor (430 keys)
 
-Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problems, properties, attributes, page settings, presets and document commands.
+Registered by `<mmdx-editor>` (`src/editor/messages.ts`, `src/editor/messages-media.ts`): code panel, problems, properties, attributes, page settings, presets, images and icons, and document commands.
 
 | Key | English |
 |---|---|
@@ -466,6 +578,9 @@ Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problem
 | `problems.fixLabel` | Fix id clash |
 | `problems.renamed` | `Subgraph renamed to "{id}" — its title is unchanged` |
 | `problems.undefinedClass` | `class "{cls}" is not defined — no classDef or style preset with this name` |
+| `problems.metaShape1` | 1 shape is only in layout data — stock Mermaid shows a rectangle |
+| `problems.metaShapeN` | `{n} shapes are only in layout data — stock Mermaid shows rectangles` |
+| `problems.fixMetaShape` | Write shapes to the Mermaid code |
 | `problems.count1` | `{n} problem` |
 | `problems.countN` | `{n} problems` |
 | `problems.inCode` | in the Mermaid code |
@@ -562,6 +677,8 @@ Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problem
 | `type.flowchart` | Flowchart |
 | `type.sequence` | Sequence diagram |
 | `type.er` | ER diagram |
+| `type.mindmap` | Mindmap |
+| `type.state` | State diagram |
 | `type.empty` | Empty |
 | `type.unsupported` | `Unsupported: {kw}` |
 | `type.switchTitle` | `Start a new {type}?` |
@@ -598,11 +715,14 @@ Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problem
 | `page.lock` | Lock proportions |
 | `page.unlock` | Unlock proportions |
 | `page.seqLayout` | Sequence layout |
+| `page.mindLayout` | Mindmap |
+| `page.colorBy` | Colours |
+| `page.colorByBranch` | by branch |
+| `page.colorByDepth` | by depth |
 | `page.badgeTip` | `{type} — click for the page settings (type, preset, background, size…)` |
 | `presets.default` | default |
 | `presets.auto` | auto |
 | `presets.autoArrow` | `auto → {name}` |
-| `presets.shapeDefault` | `{shape} default` |
 | `presets.tip` | `Style preset "{name}"` |
 | `presets.tipLocal` | `Style preset "{name}" (this diagram)` |
 | `presets.tipAuto` | Automatic: from the Mermaid class / shape |
@@ -629,7 +749,6 @@ Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problem
 | `presets.deleteUsersN` | `Delete the preset "{name}"? {n} items using it go back to the default style.` |
 | `presets.delete` | Delete |
 | `layers.close` | Close Layers |
-| `layers.closeView` | Close View settings |
 | `layers.new` | `+ New layer` |
 | `layers.newTip` | New layer (takes the selected items) |
 | `layers.hiddenSuffix` | (hidden) |
@@ -648,13 +767,55 @@ Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problem
 | `order.later` | later |
 | `order.left` | left |
 | `order.right` | right |
-| `group.noEr` | Mermaid ER diagrams have no groups |
+| `group.noMindmap` | A mindmap has branches, not groups |
 | `group.selectBoxes` | Select boxes or groups to group |
 | `group.selectParticipants` | Select participants to group them into a box |
 | `group.alreadyBoxed` | A participant is already in a box — ungroup it first |
+| `state.kind` | Kind |
+| `state.kind.state` | State |
+| `state.kind.choice` | Choice |
+| `state.kind.fork` | Fork |
+| `state.kind.join` | Join |
+| `state.rows` | Description rows |
+| `state.rowsHint` | One row per line (shown under the name) |
+| `state.direction` | Direction |
+| `state.dirDefault` | Top to bottom (Mermaid’s default) |
+| `er.dirDefault` | As the diagram (Mermaid’s default) |
+| `state.addRegion` | Add region |
+| `state.addRegionTip` | A concurrency region (--) at the end of the composite, with a new state in it |
+| `state.noteSide` | Side |
+| `state.left` | left |
+| `state.right` | right |
+| `state.deleteTitle` | `Delete “{name}”` |
+| `state.deleteMsg` | The composite holds states. Delete them too, or keep them where the composite was? |
+| `state.cancel` | Cancel |
+| `state.keepContents` | Keep contents |
+| `state.deleteContents` | Delete with contents |
+| `state.deletedKept` | Composite removed — its states stay. ⌘/Ctrl+Z to undo |
+| `state.deletedAll` | Composite and its states deleted — ⌘/Ctrl+Z to undo |
+| `seq.arrow` | Message arrow |
+| `seq.reverse` | Reverse the message |
+| `seq.reattached` | `Message re-attached to {p}` |
+| `seq.reattach` | Re-attach message |
+| `seq.noteLeft` | Note left of the participant |
+| `seq.noteRight` | Note right of the participant |
+| `seq.noteOver` | Note over the participant |
+| `seq.placement` | Note placement |
+| `seq.place.left of` | left of |
+| `seq.place.right of` | right of |
+| `seq.place.over` | over |
+| `seq.addBranch` | `Add branch ({word})` |
+| `seq.addBranchTip` | `A new “{word}” branch at the end of the block` |
+| `seq.deleteBranch` | `Delete branch “{label}”` |
+| `seq.deleteBranchTip` | Removes the branch with its messages |
+| `seq.deleteLastBranch` | Delete the last branch |
+| `seq.branches` | `Branch conditions ({word})` |
+| `seq.branchesHint` | One condition per line, in order (the block’s own condition is its text) |
 | `tools.pointer` | `Select & edit` |
 | `tools.shapes` | Shapes — drag onto the canvas or click to add |
 | `tools.table` | Table — drag onto the canvas or click to add |
+| `tools.mindShapes` | Shapes — add a node to the selected one |
+| `tools.stateShapes` | States — drag onto the canvas or click to add |
 | `tools.code` | Mermaid code — show or hide the left panel |
 | `tools.props` | Properties — show or hide the Properties panel |
 | `tools.layers` | Layers — show or hide the Layers panel |
@@ -671,13 +832,13 @@ Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problem
 | `export.mmdxTip` | Mermaid with the layout and styles as %%@ lines — opens in this editor with everything kept |
 | `export.mmdTip` | Plain Mermaid with classDef / linkStyle colours — renders in YouTrack, GitHub, … |
 | `export.pngTip` | At 2× resolution |
-| `more.title` | More |
-| `more.open` | Open… |
-| `more.openTip` | Open .mmdx / .mmd / .md / .txt (+ .layout.json) |
-| `more.autoLayout` | Auto layout |
-| `more.autoLayoutTip` | Forget manual positions of the whole diagram |
-| `more.plain` | Plain Mermaid |
-| `more.plainTip` | Render with stock Mermaid (what YouTrack / GitHub show) |
+| `export.only.image1` | 1 image |
+| `export.only.imageN` | `{n} images` |
+| `export.only.shape1` | 1 shape |
+| `export.only.shapeN` | `{n} shapes` |
+| `export.only.and` | `{a} and {b}` |
+| `export.only1` | `{what} is mmdx-only and is not in the portable file` |
+| `export.onlyN` | `{what} are mmdx-only and are not in the portable file` |
 | `plain.title` | Plain Mermaid render |
 | `plain.close` | Close |
 | `plain.rendering` | Rendering with stock Mermaid… |
@@ -726,25 +887,103 @@ Registered by `<mmdx-editor>` (`src/ui/messages/editor.ts`): code panel, problem
 | `history.resetLabel` | Reset label offset |
 | `history.resetCurve` | Reset curve |
 | `history.frame` | Fixed frame |
+| `history.animation` | Animation |
+| `props.anim.off` | Off |
+| `props.anim.fast` | Fast |
+| `props.anim.slow` | Slow |
 | `history.pagePreset` | Page preset |
 | `history.pageSize` | Page size |
 | `history.pageRatio` | Proportions |
 | `history.direction` | Direction |
 | `history.autonumber` | Message numbers |
 | `history.newDiagram` | New diagram |
-| `history.theme` | Theme |
 | `history.order` | Move in order |
 | `history.paletteAdd` | Add colour |
 | `history.paletteRemove` | Remove colour |
 | `history.autoLayout` | Auto layout |
 | `history.lock` | Lock |
 | `history.unlock` | Unlock |
+| `history.resetGroup` | Reset positions in this group |
+| `groupReset.done` | Positions in the group reset |
+| `group.resetNone` | Nothing to reset — the group has no hand-placed positions |
+| `groupReset.select` | Select a group to reset the positions in it |
+| `group.resetPositions` | Reset positions in this group |
+| `props.resetGroupTip` | Forget the hand-placed positions inside the group; auto layout arranges its contents again |
+| `tools.image` | Image — a picture by its URL, or an icon |
+| `help.image` | Image |
+| `help.emoji` | Emoji while editing text |
+| `props.emoji` | Insert emoji (⌘/Ctrl+;) |
+| `media.noUpload` | Images can be added by URL; uploading is not configured here |
+| `media.noImages` | Images cannot be added to this diagram type |
+| `history.icon` | Icon |
+| `history.image` | Image |
+| `history.media` | `Icon & image` |
+| `help.mm.child` | Add a child to the selected node |
+| `help.mm.sibling` | Add a sibling after the selected node (on the root: a child) |
+| `help.mm.outdent` | Move the node out of its parent |
+| `help.mm.indent` | Move the node under the one above it |
+| `help.mm.up` | Move the node up among its siblings |
+| `help.mm.down` | Move the node down among its siblings |
+| `help.mm.walk` | Select the parent, a child or a sibling |
+| `help.mm.edit` | Edit the node’s text |
+| `help.mm.fold` | Fold or unfold the selected branch |
+| `help.mm.lift` | Delete the node, keep its children |
+| `help.mm.duplicate` | Duplicate the selected branches |
+| `help.mm.paste` | Paste branches or indented text under the selected node |
+| `help.table.escape` | Clear the attribute selection, then leave the table |
+| `help.table.delete` | Delete the selected attributes |
+| `help.table.selectAll` | Select every attribute of the table |
+| `help.table.editRow` | Edit the selected attribute (the empty row: a new one) |
+| `help.table.moveRows` | Move the selected attributes up / down |
+| `help.table.rows` | Select the previous / next attribute |
+| `history.addProcess` | Add process |
+| `seq.processAdded` | `Process added on {p}` |
+| `history.addMessage` | Add message |
+| `history.resizeProcess` | Resize process |
+| `history.resizeBlock` | Resize block |
+| `history.stretchNote` | Stretch note |
+| `history.paste` | Paste |
+| `shapes.loadFailed` | `Could not load the shapes: {e}` |
+| `help.shapesMenu` | Shapes menu |
+| `insert.pickersFailed` | `Could not load the editor's pickers: {e}` |
+| `history.formatText` | Format text |
+| `history.removeProcess` | Remove process |
+| `history.showProcess` | Show as process |
+| `seq.processRemoved` | `Process removed from {p}` |
+| `seq.processOff` | `Process on {p} removed` |
+| `seq.processOn` | `{p} is now active between the two messages` |
+| `history.switchSide` | Switch side |
+| `history.copyNode` | Copy node |
+| `history.moveNode` | Move node |
+| `history.addNode` | Add node |
+| `shapes.dragTip` | drag onto the canvas or click to add (Alt-click: give the selected nodes this shape) |
+| `media.blocked` | This image URL is not allowed here |
+| `props.icon` | Icon |
+| `props.image` | Image |
+| `props.imageNone` | No image |
+| `props.iconTokenMmdx` | Shown by mmdx only: stock Mermaid draws Font Awesome icons in labels and shows this one as text |
+| `props.toIconNode` | Convert to icon node |
+| `props.setImage` | Set image |
+| `props.removeImage` | Remove image |
+| `props.labelPos` | Label |
+| `props.iconForm` | Frame |
+| `props.mediaW` | Width |
+| `props.mediaH` | Height |
+| `media.pos.t` | above |
+| `media.pos.b` | below |
+| `media.form.none` | none |
+| `media.form.square` | square |
+| `media.form.circle` | circle |
+| `media.form.rounded` | rounded |
+| `media.fit.contain` | contain |
+| `media.fit.cover` | cover |
+| `media.fit.stretch` | stretch |
 
 :::
 
-::: details Style toolbar and page toolbar (173 keys)
+::: details Style toolbar and page toolbar (198 keys)
 
-Registered by the editor and the theme editor (`src/ui/messages/toolbar.ts`): keys `tb.*` (style toolbar) and `ptb.*` (page toolbar).
+Registered by the editor and the theme editor (`src/ui/messages/toolbar.ts`, `src/ui/messages/toolbar-media.ts`): keys `tb.*` (style toolbar) and `ptb.*` (page toolbar).
 
 | Key | English |
 |---|---|
@@ -778,6 +1017,10 @@ Registered by the editor and the theme editor (`src/ui/messages/toolbar.ts`): ke
 | `tb.ungroup` | `Ungroup ({keys}) — keeps the contents` |
 | `tb.delete` | `Delete ({keys}) — removes it from the Mermaid code` |
 | `tb.orderSeq` | `Order in the Mermaid code — earlier / later ({keys})` |
+| `tb.orderMind` | `Order among its siblings — earlier / later ({keys})` |
+| `tb.codeArrow` | Mermaid arrow |
+| `tb.codeArrowSolid` | Solid |
+| `tb.codeArrowDotted` | Dotted (reply) |
 | `tb.order` | `Order in the Mermaid code — send backward / bring forward ({keys})` |
 | `tb.layer` | Layer — move to another layer |
 | `tb.presets` | Style presets |
@@ -788,7 +1031,6 @@ Registered by the editor and the theme editor (`src/ui/messages/toolbar.ts`): ke
 | `tb.single` | Single |
 | `tb.stacked` | Stacked |
 | `tb.double` | Double |
-| `tb.usePreset` | Use style preset |
 | `tb.alignH` | `Align {v}` |
 | `tb.alignV` | `Vertical {v}` |
 | `tb.pos.left` | left |
@@ -812,6 +1054,7 @@ Registered by the editor and the theme editor (`src/ui/messages/toolbar.ts`): ke
 | `tb.moveLayer` | Move to layer |
 | `tb.hidden` | hidden |
 | `tb.newLayer` | `+ New layer` |
+| `tb.themeFont` | Theme font |
 | `tb.themeFontNamed` | `Theme font ({name})` |
 | `tb.saveLink` | Save link (Enter) |
 | `tb.removeLink` | Remove link |
@@ -871,6 +1114,13 @@ Registered by the editor and the theme editor (`src/ui/messages/toolbar.ts`): ke
 | `tb.kind.attr` | Attributes |
 | `tb.italic` | Italic |
 | `tb.underline` | Underline |
+| `tb.strike` | Strikethrough |
+| `tb.animation` | Animation |
+| `tb.anim.off` | Not animated |
+| `tb.anim.fast` | Animated — fast (Mermaid: animate: true) |
+| `tb.anim.slow` | Animated — slow (Mermaid: animation: slow) |
+| `tb.format` | Text format — bold, italic, underline, strikethrough: the selected words, or the whole text when none is selected |
+| `tb.wholeOnly` | Styles the whole text — clear the text selection to use it |
 | `tb.tableStyle` | Table style — layout and columns |
 | `tb.layout` | Layout |
 | `tb.layout.compact` | Compact |
@@ -921,12 +1171,26 @@ Registered by the editor and the theme editor (`src/ui/messages/toolbar.ts`): ke
 | `ptb.backgroundColour` | Background colour |
 | `ptb.transparent` | Transparent |
 | `ptb.themeDefault` | Theme default |
+| `tb.mediaImage` | Picture settings — fit, aspect ratio, label position |
+| `tb.mediaIcon` | Icon settings — frame, label position |
+| `tb.changeImageIcon` | `Change image — now the icon {name}` |
+| `tb.labelPos` | Label position |
+| `tb.iconForm` | Icon frame |
+| `tb.form.none` | No frame |
+| `tb.form.square` | Square |
+| `tb.form.circle` | Circle |
+| `tb.form.rounded` | Rounded |
+| `tb.fit.contain` | Contain |
+| `tb.fit.cover` | Cover |
+| `tb.fit.stretch` | Stretch |
+| `tb.labelAbove` | Above |
+| `tb.labelBelow` | Below |
 
 :::
 
-::: details Theme editor (152 keys)
+::: details Theme editor (165 keys)
 
-Registered by `<mmdx-theme-editor>` (`src/ui/messages/theme-editor.ts`): keys `te.*`.
+Registered by `<mmdx-theme-editor>` (`src/theme-editor/messages.ts`): keys `te.*`.
 
 | Key | English |
 |---|---|
@@ -1017,7 +1281,6 @@ Registered by `<mmdx-theme-editor>` (`src/ui/messages/theme-editor.ts`): keys `t
 | `te.light` | Light |
 | `te.dark` | Dark |
 | `te.font` | Font |
-| `te.inheritFont` | `inherit ({name})` |
 | `te.pageBg` | Page background |
 | `te.pageBorder` | Page border |
 | `te.grid` | Grid colour |
@@ -1055,6 +1318,8 @@ Registered by `<mmdx-theme-editor>` (`src/ui/messages/theme-editor.ts`): keys `t
 | `te.flowchart` | Flowchart |
 | `te.sequence` | Sequence |
 | `te.er` | ER |
+| `te.mindmap` | Mindmap |
+| `te.state` | State |
 | `te.code` | `</> Code` |
 | `te.codeTitle` | Edit the sample diagram in Mermaid |
 | `te.resetSample` | Reset sample |
@@ -1066,6 +1331,7 @@ Registered by `<mmdx-theme-editor>` (`src/ui/messages/theme-editor.ts`): keys `t
 | `te.section.flowchart` | Flowchart |
 | `te.section.sequence` | Sequence |
 | `te.section.er` | ER diagram |
+| `te.section.state` | State diagram |
 | `te.item.node` | Node |
 | `te.item.group` | Group (subgraph) |
 | `te.item.edge` | Connector |
@@ -1078,6 +1344,17 @@ Registered by `<mmdx-theme-editor>` (`src/ui/messages/theme-editor.ts`): keys `t
 | `te.item.activation` | Activation (process) |
 | `te.item.entity` | Table |
 | `te.item.rel` | Relationship |
+| `te.item.root` | Root |
+| `te.item.branch` | Branch |
+| `te.item.section` | Sections (branch colours) |
+| `te.item.state.node` | State |
+| `te.item.start` | Start |
+| `te.item.end` | End |
+| `te.item.choice` | Choice |
+| `te.item.fork` | Fork / join |
+| `te.item.composite` | Composite state |
+| `te.item.compositeColor` | Composite colours |
+| `te.item.transition` | Transition |
 | `te.counterpart` | Linked theme |
 | `te.counterpartNone` | None — the house theme is used |
 | `te.counterpartHint` | `Shown instead of this theme when the UI switches to {other}. Saving links it back.` |
@@ -1087,7 +1364,7 @@ Registered by `<mmdx-theme-editor>` (`src/ui/messages/theme-editor.ts`): keys `t
 
 ::: details Diff (56 keys)
 
-Registered by `<mmdx-diff>` and History (`src/ui/messages/diff.ts`): views, filters, panels, exports and keys.
+Registered by `<mmdx-diff>` and History (`src/diff/messages.ts`): views, filters, panels, exports and keys.
 
 | Key | English |
 |---|---|

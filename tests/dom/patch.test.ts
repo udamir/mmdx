@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { patchChildren } from '../../src/dom/patch.js';
-import { el, g, text } from '../../src/core/scene/build.js';
+import { el, g, image, text, title } from '../../src/core/scene/build.js';
+import type { SafeImageUrl } from '../../src/core/validate.js';
+import { safeImageUrl } from '../../src/core/media/policy.js';
 
 const svg = () => document.createElementNS('http://www.w3.org/2000/svg', 'svg');
 
@@ -59,6 +61,71 @@ describe('patchChildren', () => {
     const p = root.firstElementChild!;
     expect(p.getAttribute('marker-end')).toBe('url(#p-mk)');
     expect(p.getAttribute('fill')).toBeNull();
+  });
+  it('images: href only from the branded field, replaced when it changes, never from attrs', () => {
+    const root = svg();
+    const a = safeImageUrl('https://example.com/a.png')!, b = safeImageUrl('https://example.com/b.png')!;
+    patchChildren(root, [image(a, { x: 1, y: 2, width: 30, height: 20, href: 'javascript:alert(1)', 'xlink:href': 'https://evil', preserveAspectRatio: 'xMidYMid meet' }, 'i')]);
+    const img = root.firstElementChild!;
+    expect(img.localName).toBe('image');
+    expect(img.getAttribute('href')).toBe('https://example.com/a.png');
+    expect(img.getAttributeNames().sort()).toEqual(['height', 'href', 'preserveAspectRatio', 'width', 'x', 'y']);
+    patchChildren(root, [image(b, { x: 5, y: 2, width: 30, height: 20 }, 'i')]);
+    expect(root.firstElementChild).toBe(img);
+    expect(img.getAttribute('href')).toBe('https://example.com/b.png');
+    expect(img.getAttribute('x')).toBe('5');
+    expect(img.getAttribute('preserveAspectRatio')).toBeNull();
+  });
+  it('rich runs: bold, italic and placed chunks; a line with icons starts at its left edge', () => {
+    const root = svg();
+    const icon = { href: 'data:image/svg+xml,%3Csvg%2F%3E' as SafeImageUrl, size: 14, name: 'car' };
+    patchChildren(root, [text({ 'text-anchor': 'middle' }, [{ text: 'a b c', x: 3, y: 0, anchor: 'start', runs: [{ text: 'a ', mark: null, bold: true }, { text: '', mark: null, icon }, { text: 'b', mark: 'ins', italic: true, x: 40 }, { text: ' c', mark: null }] }], 't')]);
+    const line = root.firstElementChild!.children[0]!;
+    expect(line.getAttribute('text-anchor')).toBe('start');
+    expect([...line.children].map((c) => c.getAttributeNames().map((n) => `${n}=${c.getAttribute(n)}`).join(' '))).toEqual(['font-weight=700', 'class=dx-ins font-style=italic x=40']);
+    expect(line.textContent).toBe('a b c');
+    patchChildren(root, [text({ 'text-anchor': 'middle' }, [{ text: 'plain', x: 3, y: 0 }], 't')]);
+    expect(line.getAttribute('text-anchor')).toBeNull();
+    expect(line.childElementCount).toBe(0);
+  });
+  it('leaves a picture that did not change alone: no attribute is written, however the nodes were built', () => {
+    const root = svg();
+    const pic = (): ReturnType<typeof g>[] => [g({ class: 'el', 'data-id': 'A' }, [el('rect', { x: 1, fill: 'red' }), text({ 'font-size': 12 }, [{ text: 'a b', x: 0, y: 0, runs: [{ text: 'a ', mark: null }, { text: 'b', mark: 'ins' }] }])], { key: 'node:A' })];
+    patchChildren(root, pic());
+    const set = vi.spyOn(Element.prototype, 'setAttribute');
+    const remove = vi.spyOn(Element.prototype, 'removeAttribute');
+    try {
+      patchChildren(root, pic());
+      expect(set).not.toHaveBeenCalled();
+      expect(remove).not.toHaveBeenCalled();
+    } finally {
+      set.mockRestore();
+      remove.mockRestore();
+    }
+  });
+  it('a change only in what is not an attribute still reaches the element: an image URL, a tooltip, a run\'s mark', () => {
+    const root = svg();
+    const a = safeImageUrl('https://example.com/a.png')!, b = safeImageUrl('https://example.com/b.png')!;
+    const line = (mark: 'ins' | 'del') => [{ text: 'x', x: 0, y: 0, runs: [{ text: 'x', mark }] }];
+    const pic = (u: typeof a, tip: string, mark: 'ins' | 'del') => [g({ class: 'el' }, [image(u, { x: 1, width: 5, height: 5 }, 'i'), title(tip), text({}, line(mark), 't')], { key: 'node:A' })];
+    patchChildren(root, pic(a, 'one', 'ins'));
+    patchChildren(root, pic(b, 'two', 'del'));
+    const item = root.firstElementChild!;
+    expect(item.querySelector('image')!.getAttribute('href')).toBe('https://example.com/b.png');
+    expect(item.querySelector('title')!.textContent).toBe('two');
+    expect(item.querySelector('text tspan tspan')!.getAttribute('class')).toBe('dx-del');
+  });
+  it('a raw value set to null or false drops the attribute; one rejected by the value check is never written', () => {
+    const root = svg();
+    patchChildren(root, [el('rect', { x: 1, fill: 'red', opacity: 0.5 }, 'r')]);
+    patchChildren(root, [el('rect', { x: 1, fill: null, opacity: false }, 'r')]);
+    const r = root.firstElementChild!;
+    expect(r.getAttribute('fill')).toBeNull();
+    expect(r.getAttribute('opacity')).toBeNull();
+    patchChildren(root, [el('rect', { x: 1, fill: 'url(javascript:alert(1))' }, 'r')]);
+    expect(r.getAttribute('fill')).toBeNull();
+    patchChildren(root, [el('rect', { x: 1, fill: 'blue' }, 'r')]);
+    expect(r.getAttribute('fill')).toBe('blue');
   });
   it('replaces an element whose tag changed under the same key', () => {
     const root = svg();

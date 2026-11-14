@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
 import { DEFAULT_MODULES } from '../../src/editor/modules/index.js';
-import { panesModule } from '../../src/editor/modules/chrome/panes.js';
-import { documentModule, exportMmdx, buildExport } from '../../src/editor/modules/chrome/document.js';
+import { panelStacksModule } from '../../src/view/modules/panels.js';
+const panesModule = panelStacksModule as unknown as import('../../src/editor/module.js').EditorModule;
+import { documentModule, exportMmdx, buildExport, mmdxOnlyNote } from '../../src/editor/modules/chrome/document.js';
 import { codePanelModule } from '../../src/editor/modules/panels/code-panel.js';
 import { rightPanelsModule } from '../../src/editor/modules/panels/right-panels.js';
 import { buildSegments, mergeFilteredView, viewOf } from '../../src/editor/ops/code-filter.js';
@@ -182,6 +183,79 @@ describe('code panel', () => {
   });
 });
 
+describe('code panel: characterized before its split (5.5)', () => {
+  const codeSearch = (): HTMLInputElement => $<HTMLInputElement>('.mmdx-panel.code-edit [data-body="code"] input[type=search]');
+  const metaSearch = (): HTMLInputElement => $<HTMLInputElement>('.mmdx-panel.code-edit [data-body="meta"] input[type=search]');
+  const codeTa = (): HTMLTextAreaElement => $<HTMLTextAreaElement>('.mmdx-panel.code-edit [data-body="code"] textarea');
+  const metaTa = (): HTMLTextAreaElement => $<HTMLTextAreaElement>('.mmdx-panel.code-edit [data-body="meta"] textarea');
+  const keydown = (el: HTMLElement, key: string): void => void el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+
+  test('the selection writes its ids into the search box and filters the code; Esc clears it, the bar shows all', () => {
+    const e = mount(FLOW);
+    e.core.select([{ kind: 'node', id: 'C' }]);
+    e.core.fire('selection');
+    expect(codeSearch().value).toBe('C');
+    const bar = $('.mmdx-panel.code-edit [data-body="code"] .code-filter-bar');
+    expect(bar.hidden).toBe(false);
+    expect(codeTa().value).toContain('Gamma');
+    expect(codeTa().value).not.toContain('Alpha"] --> B');
+    keydown(codeSearch(), 'Escape');
+    expect(codeSearch().value).toBe('');
+    expect(bar.hidden).toBe(true);
+    expect(codeTa().value).toBe(e.core.code);
+    // the Show all link clears a typed filter too
+    codeSearch().value = 'Beta';
+    codeSearch().dispatchEvent(new Event('input'));
+    vi.advanceTimersByTime(200);
+    expect(bar.hidden).toBe(false);
+    bar.querySelector<HTMLButtonElement>('button.link')!.click();
+    expect(codeSearch().value).toBe('');
+    expect(bar.hidden).toBe(true);
+  });
+
+  test('the metadata filter shows the matching %%@ lines; its edits keep the hidden ones; × clears it', () => {
+    const e = mount(`${FLOW}\n%%@ node A {"fill":"#00ff00"}\n%%@ node B {"fill":"#0000ff"}\n`);
+    $('.mmdx-panel.code-edit [role=tab][data-tab="meta"]').click();
+    metaSearch().value = '0000ff';
+    metaSearch().dispatchEvent(new Event('input'));
+    expect(metaTa().value).toContain('node B');
+    expect(metaTa().value).not.toContain('#00ff00');
+    metaTa().focus();
+    type(metaTa(), metaTa().value.replace('#0000ff', '#ff0000'));
+    vi.advanceTimersByTime(260);
+    expect(e.core.meta.nodes?.['B']?.fill).toBe('#ff0000');
+    expect(e.core.meta.nodes?.['A']?.fill).toBe('#00ff00');
+    $('.mmdx-panel.code-edit [data-body="meta"] .code-search button').click();
+    expect(metaSearch().value).toBe('');
+    expect(metaTa().value).toContain('#00ff00');
+  });
+
+  test('the problems list folds and unfolds; the count is on the head', () => {
+    mount('flowchart TB\n  G["Node"]\n  subgraph G [Group]\n    X\n  end\n');
+    const head = $('.problems .pb-head');
+    expect(head.getAttribute('aria-expanded')).toBe('true');
+    expect($('.problems .pb-count').textContent).toBe('1');
+    head.click();
+    expect($('.problems .pb-head').getAttribute('aria-expanded')).toBe('false');
+    expect($$('.problems .pb-item').length).toBe(0);
+    $('.problems .pb-head').click();
+    expect($$('.problems .pb-item').length).toBe(1);
+  });
+
+  test('Enter in the search box moves to the code; an old version shown is read-only', () => {
+    const e = mount(FLOW);
+    keydown(codeSearch(), 'Enter');
+    expect(e.core.shadow.activeElement).toBe(codeTa());
+    e.core.showVersion({ id: 'v1', source: 'flowchart LR\n  X --> Y\n' });
+    e.core.draw();
+    expect(codeTa().readOnly).toBe(true);
+    expect(codeTa().value).toContain('X --> Y');
+    e.core.showVersion(null);
+    e.core.draw();
+    expect(codeTa().readOnly).toBe(false);
+  });
+});
+
 describe('right panels', () => {
   test('properties change writes metadata', async () => {
     const e = mount(FLOW);
@@ -353,6 +427,34 @@ describe('export', () => {
     await e.exportAs('mmdx');
     expect(seen).toEqual(['diagram.mmdx']);
   });
+
+  test('the portable export says which mmdx-only content it leaves out (T10.6)', async () => {
+    const e = mount('stateDiagram-v2\n  state "fa:fa-cog Running" as run\n  [*] --> run\n  run --> idle\n%%@ node run {"img":"https://example.com/a.png","shape":"hex"}\n%%@ node idle {"shape":"stadium"}\n');
+    expect(mmdxOnlyNote(e.core)).toBe('1 image and 2 shapes are mmdx-only and are not in the portable file');
+    expect(mmdxOnlyNote(e.core, { images: [], shapes: [{ kind: 'node', id: 'run' }] })).toBe('1 shape is mmdx-only and is not in the portable file');
+    expect(mmdxOnlyNote(e.core, { images: [{ kind: 'node', id: 'a' }, { kind: 'node', id: 'b' }], shapes: [] })).toBe('2 images are mmdx-only and are not in the portable file');
+    const file = await buildExport(e.core, 'mmd');
+    expect(String(file.data)).toContain('state "fa:fa-cog Running" as run');
+    expect(String(file.data)).not.toContain('example.com');
+    // on export: a toast (the download itself is stubbed)
+    const U = URL as unknown as { createObjectURL?: unknown; revokeObjectURL?: unknown };
+    const saved = { create: U.createObjectURL, revoke: U.revokeObjectURL };
+    U.createObjectURL = () => 'blob:x';
+    U.revokeObjectURL = () => undefined;
+    const toast = vi.spyOn(e.core, 'toast');
+    try {
+      await e.exportAs('mmd');
+      expect(toast).toHaveBeenCalledWith('1 image and 2 shapes are mmdx-only and are not in the portable file');
+      toast.mockClear();
+      await e.exportAs('mmdx');
+      expect(toast).not.toHaveBeenCalled();
+    } finally {
+      U.createObjectURL = saved.create;
+      U.revokeObjectURL = saved.revoke;
+    }
+    // nothing mmdx-only: no note
+    expect(mmdxOnlyNote(e.core, { images: [], shapes: [] })).toBeNull();
+  });
 });
 
 describe('open files', () => {
@@ -361,7 +463,7 @@ describe('open files', () => {
     ed = new DiagramEditor(host, { value: FLOW, modules: [documentModule], storage: memoryStorage(), features: { open: true } });
     const e = ed;
     e.core.select([{ kind: 'node', id: 'A' }]);
-    e.core.enteredGroup.set('G');
+    e.core.enterGroup('G');
     const ops: string[] = [];
     host.addEventListener('mmdx-op', (ev) => ops.push((ev as CustomEvent<{ type: string }>).detail.type));
     const file = { name: 'other.mmd', text: () => Promise.resolve('flowchart TB\n  X --> Y\n') } as unknown as File; // jsdom's File has no text()

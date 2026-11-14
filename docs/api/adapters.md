@@ -1,14 +1,14 @@
 # Adapters
 
-`@mmdx/studio/adapters` holds the host adapters: where the components keep UI preferences (`StorageAdapter`), where they read and save themes (`ThemeSource`, `ThemeStore`), how the editor loads and saves its document (`DocumentAdapter`), and where the History reads the versions of a diagram (`HistoryAdapter`). The library never talks to a backend by itself: every adapter is an object of a few async functions, and the built-in ones cover memory, `localStorage`, plain HTTP and static files. The entry defines no element and loads no diagram code.
+`@mmdx/studio/adapters` holds the host adapters: where the components keep UI preferences (`StorageAdapter`), where they read and save themes (`ThemeSource`, `ThemeStore`), how the editor loads and saves its document (`DocumentAdapter`), where the History reads the versions of a diagram (`HistoryAdapter`), where the editor's image tool finds and uploads pictures (`ImageStore`), and what the image and link URLs in a diagram point at (`UrlResolver`). The library never talks to a backend by itself: every adapter is an object of a few async functions, and the built-in ones cover memory, `localStorage`, plain HTTP and static files. The entry defines no element and loads no diagram code.
 
 ```ts
 import {
   memoryStorage, localStorageAdapter, preloadedStorage,
   memoryThemeStore, fetchThemeSource, localStorageThemeStore, isLocalEdit,
   memoryDocumentAdapter, httpDocumentAdapter,
-  staticHistory, httpHistoryAdapter, contentId,
-  type StorageAdapter, type ThemeSource, type ThemeStore, type DocumentAdapter, type HistoryAdapter,
+  staticHistory, httpHistoryAdapter, contentId, memoryImageStore, httpImageStore, relativeUrlResolver,
+  type StorageAdapter, type ThemeSource, type ThemeStore, type DocumentAdapter, type HistoryAdapter, type ImageStore, type UrlResolver,
 } from '@mmdx/studio/adapters';
 ```
 
@@ -52,7 +52,7 @@ function memoryStorage(initial?: Record<string, unknown>): StorageAdapter
 In-memory storage for tests, sandboxed iframes and hosts that persist nothing; preferences last for the page's life. Values are stored as JSON, so `get` returns a copy and a later change of a stored object is not seen. `initial` seeds the keys.
 
 ```ts
-viewer.storage = memoryStorage({ panels: { code: true } });
+viewer.storage = memoryStorage({ 'viewer.panels': { 'code-view': true } }); // the Code view panel starts open
 ```
 
 ### `localStorageAdapter()`
@@ -168,6 +168,7 @@ interface ThemeStore extends ThemeSource {
   delete?(id: string): Promise<void>;
   publish?(id: string): Promise<void>;
   usage?(id: string): Promise<number>;
+  listWithUsage?(): Promise<{ info: ThemeInfo; file: ThemeFile; usage?: number }[]>;
 }
 ```
 
@@ -178,6 +179,7 @@ interface ThemeStore extends ThemeSource {
 | `delete(id)` | Optional. Removes the theme. The theme editor's *Delete* needs it (and `can-delete`), and so does *Revert*, which deletes the store's copy of a theme that also exists in the source |
 | `publish(id)` | Optional. The theme editor shows *Publish* when it exists and `can-publish` is set; unsaved changes are saved first |
 | `usage(id)` | Optional. The number of diagrams that use the theme, when the host can tell; the theme list shows it |
+| `listWithUsage()` | Optional. The list with each theme's file and usage in one read: the theme editor's library uses it, when the store has it, instead of `list()` followed by `get(id)` and `usage(id)` per theme. When it rejects, the library falls back to `list()` |
 
 When `save` reports a conflict, the theme editor asks whether to *Load theirs* (the conflicting file replaces the draft), *Overwrite* (saves again without a version) or cancel. Before every save it fires the cancelable `mmdx-theme-save` event; see [`<mmdx-theme-editor>`](/components/theme-editor).
 
@@ -604,3 +606,118 @@ const history: HistoryAdapter = {
 };
 diff.history = history;
 ```
+
+## Images
+
+An `ImageStore` is the host's image library: `<mmdx-editor>` takes it as its `images` property (the `images` option of `DiagramEditor`). The image tool's **Library** tab lists its pictures, and the **Upload** tab and a picture pasted or dropped on the canvas put files into it; the toolbar's **Change image** and the Properties panel open the tool on either, or on **URL**. A diagram never embeds a file: an image references the picture's `url`, which the [image policy](/guide/security#image-policy) checks like any image URL. See [Images](/components/editor#images).
+
+### `ImageStore`
+
+```ts
+interface ImageStore {
+  list(o?: { cursor?: string; query?: string }): Promise<ImagePage>; // { images: ImageInfo[]; next?: string }
+  get(id: string): Promise<ImageInfo>;
+  put(file: Blob, o?: { name?: string }): Promise<ImageInfo>;
+  delete?(id: string): Promise<void>;
+  subscribe?(cb: () => void): () => void;
+}
+```
+
+| Member | Description |
+|---|---|
+| `list(o?)` | Pictures, newest first. May page: return `next`, and the library passes it back as `cursor` for **Load more**. `query` is what the library's search holds (a name); a store may ignore it |
+| `get(id)` | One picture's record |
+| `put(file, o?)` | Stores a file (`o.name`: its file name) and resolves to its record; the image then references its `url`. Throw to refuse the file: the message is shown in the tool |
+| `delete(id)` | Optional. Removes a picture from the store; diagrams that reference it keep the reference |
+| `subscribe(cb)` | Optional. Call `cb` when the store changed elsewhere; an open library reads its first page again. Returns an unsubscribe function |
+
+### `ImageInfo`
+
+```ts
+interface ImageInfo {
+  id: string;
+  url: string;
+  thumb?: string;
+  name?: string;
+  w?: number;
+  h?: number;
+  type?: string;
+  size?: number;
+  date?: string;
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | The picture's id in the store |
+| `url` | `string` | What a diagram references: a URL, or a reference of the store's own (`asset:42`) that a [`UrlResolver`](#urlresolver) maps to a URL when the diagram is drawn |
+| `thumb` | `string` | Optional. A small version for the library's grid, loaded as is (default: `url`, through the resolver) |
+| `name` | `string` | Optional. The file name or a title, shown and searched in the library |
+| `w`, `h` | `number` | Optional. The pixel size |
+| `type`, `size` | `string`, `number` | Optional. The MIME type and the size in bytes |
+| `date` | `string` | Optional. ISO date of the upload |
+
+### `memoryImageStore()`
+
+```ts
+function memoryImageStore(initial?: readonly ImageInfo[], o?: MemoryImageStoreOptions): ImageStore
+
+interface MemoryImageStoreOptions {
+  url?: (file: Blob, id: string) => string | Promise<string>;
+  pageSize?: number;
+}
+```
+
+A store held in memory, for demos and tests: `initial` pictures, newest first; files put are added in front with the ids `img-1`, `img-2`…; `list` pages by `pageSize` (default 50) and filters by name. A put file is referenced by a `data:` URL of it unless `o.url` gives another reference — allow `data:` in the image policy for the default.
+
+### `httpImageStore()`
+
+```ts
+function httpImageStore(url: string, init?: RequestInit): ImageStore
+```
+
+A store behind HTTP:
+
+| Call | Request | Response |
+|---|---|---|
+| `list` | `GET url`, with `?cursor=…` for the next page and `?query=…` to filter | `{ images: ImageInfo[], next? }`, or a plain array |
+| `get` | `GET url/<id>` | An `ImageInfo` |
+| `put` | `POST url` with a multipart form: `file`, `name` | The stored picture's `ImageInfo` |
+| `delete` | `DELETE url/<id>` | Any 2xx |
+
+`init` is merged into every request (headers, credentials; `same-origin` credentials by default). Records are untrusted: only the known fields of the right type are kept, and a record without a string `id` and `url` is dropped.
+
+## URLs
+
+### `UrlResolver`
+
+```ts
+type ContentUrlKind = 'image' | 'link';
+type UrlResolver = (url: string, kind: ContentUrlKind) => string | null | undefined;
+```
+
+What the URLs written in a diagram point at, set with [`configure({ resolveUrl })`](/api/configuration#resolveurl) or a component's `ctx`: called with each image and link URL as written, it returns the URL to use, or null / undefined to keep the written one. The image and link policies check the result; the diagram's code keeps what was written. A wrapper writes its own when its URLs mean something of its own — an issue tracker's attachments, for instance:
+
+```ts
+configure({
+  resolveUrl: (url, kind) => (kind === 'image' && !/^[a-z][a-z0-9+.-]*:|^[/#]/i.test(url) ? `${issueUrl}/attachments/${encodeURIComponent(url)}` : null),
+});
+```
+
+See [Security → Resolving URLs](/guide/security#resolving-urls).
+
+### `relativeUrlResolver()`
+
+```ts
+function relativeUrlResolver(base: string | URL): UrlResolver
+```
+
+A resolver that makes relative image and link URLs (`img/logo.png`, `../guide.md`, `/files/a.png`) absolute against `base`, the folder of the document the diagram comes from; URLs with a scheme, protocol-relative ones (`//host/…`) and fragments (`#part`) stay as written, and so does a URL the base cannot resolve.
+
+```ts
+import { configure } from '@mmdx/studio/viewer';
+import { relativeUrlResolver } from '@mmdx/studio/adapters';
+
+configure({ resolveUrl: relativeUrlResolver(new URL('./diagrams/', location.href)) });
+```
+

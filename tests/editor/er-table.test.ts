@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
-import { parseAttrLine } from '../../src/core/parse/er.js';
+import { parseAttrLine } from '../../src/core/kinds/er/parse.js';
 import type { EditorCore } from '../../src/editor/core.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
 import { CANVAS_MODULES } from '../../src/editor/modules/canvas/index.js';
@@ -64,6 +64,7 @@ function drag(core: EditorCore, target: Element, from: { x: number; y: number },
   const at = (p: { x: number; y: number }) => ({ bubbles: true, composed: true, cancelable: true, clientX: p.x, clientY: p.y, button: 0, pointerId: pid });
   target.dispatchEvent(new PointerEvent('pointerdown', at(from)));
   for (let i = 1; i <= 4; i++) core.dom.svg.dispatchEvent(new PointerEvent('pointermove', at({ x: from.x + ((to.x - from.x) * i) / 4, y: from.y + ((to.y - from.y) * i) / 4 })));
+  core.flushPreview(); // the moves draw on the next frame
   during?.();
   core.dom.svg.dispatchEvent(new PointerEvent('pointerup', at(to)));
 }
@@ -274,3 +275,58 @@ describe('parseAttrLine', () => {
     expect(parseAttrLine('two words here and more')).toBeNull();
   });
 });
+
+describe('ER attribute editing: characterized before the split (5.5)', () => {
+  it('arrow keys select the previous / next row, Shift extends', () => {
+    const core = mount();
+    enter(core);
+    key(core, 'ArrowDown');
+    expect(selected(core)).toBe(1);
+    key(core, 'ArrowDown', { shift: true });
+    expect(selected(core)).toBe(2);
+    key(core, 'ArrowUp');
+    expect(selected(core)).toBe(1);
+  });
+
+  it('leaves the table when it goes away (undo) and when the mode switches', () => {
+    const core = mount('erDiagram\n  A {\n    int x\n  }\n');
+    core.applyCode({ code: ER }, 'Replace');
+    enter(core);
+    expect(core.tableView).toBe('CUSTOMER');
+    core.undo();
+    expect(core.tableView).toBeNull();
+    expect(core.dom.root.classList.contains('table-edit')).toBe(false);
+    core.redo();
+    enter(core);
+    expect(core.tableView).toBe('CUSTOMER');
+    core.setMode('view');
+    expect(core.tableView).toBeNull();
+  });
+
+  it('a row that does not read as an attribute stays open, marked, on Enter; Esc drops it', () => {
+    const core = mount();
+    enter(core);
+    click(core, tableEl(core, 'CUSTOMER'), rowPoint(core, 'CUSTOMER', -1));
+    const inp = editorInput(core)!;
+    type(inp, '!!');
+    expect(editorInput(core)).toBe(inp);
+    expect(inp.classList.contains('bad')).toBe(true);
+    type(inp, '!!', 'Escape');
+    expect(editorInput(core)).toBeNull();
+    expect(names(core)).toEqual(['id', 'name', 'age']);
+  });
+
+  it('⌘A then Enter edits the first selected row; the selected rows keep their highlight across a reorder', () => {
+    const core = mount();
+    enter(core);
+    key(core, 'a', { mod: true });
+    expect(selected(core)).toBe(3);
+    key(core, 'Escape');
+    expect(selected(core)).toBe(0);
+    expect(core.tableView).toBe('CUSTOMER');
+    key(core, 'ArrowDown');
+    key(core, 'Enter');
+    expect(editorInput(core)?.value).toBe('string id PK');
+  });
+});
+

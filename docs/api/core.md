@@ -11,7 +11,7 @@ const md = diffReport(diffDiagrams(before, after), { format: 'markdown' });
 ```
 
 ::: tip Bundle size
-`@mmdx/studio/core` imports the parser and renderer of every diagram type (flowchart, sequence, ER) statically. Browser code that only needs to show diagrams should use the components, which load each type on first use; [`@mmdx/studio/diff`](/api/#mmdx-studio-diff) has asynchronous versions of `diffDiagrams` and `renderDiffToSvg` that do the same.
+`@mmdx/studio/core` imports the parser and renderer of every diagram type (flowchart, sequence, ER, mindmap, state) statically. Browser code that only needs to show diagrams should use the components, which load each type on first use; [`@mmdx/studio/diff`](/api/#mmdx-studio-diff) has asynchronous versions of `diffDiagrams` and `renderDiffToSvg` that do the same.
 :::
 
 ## Parsing
@@ -34,10 +34,10 @@ if (model.type === 'flowchart') console.log(model.nodes.size, model.edges.length
 ### `detectType()`
 
 ```ts
-function detectType(code: string): DiagramType | null // 'flowchart' | 'sequence' | 'er' | null
+function detectType(code: string): DiagramType | null // 'flowchart' | 'sequence' | 'er' | 'mindmap' | 'state' | null
 ```
 
-The diagram type from the header line, skipping blank lines, `%%` comments and leading front matter (`---` … `---`). `flowchart` and `graph` are flowcharts, `sequenceDiagram` is a sequence diagram, `erDiagram` an ER diagram; anything else (and a non-string) is `null`.
+The diagram type from the header line, skipping blank lines, `%%` comments and leading front matter (`---` … `---`). `flowchart` and `graph` are flowcharts, `sequenceDiagram` is a sequence diagram, `erDiagram` an ER diagram, `mindmap` (any case) a mindmap, `stateDiagram` and `stateDiagram-v2` a state diagram; anything else (and a non-string) is `null`.
 
 ### `cleanLabel()`
 
@@ -181,11 +181,15 @@ interface PageSettings {
   mirror?: boolean;
   blockSpan?: 'full' | 'touched';
   margin?: number;
+  blockTags?: boolean;         // sequence: false hides the blocks' kind tags
+  mindLayout?: 'both' | 'right' | 'down'; // mindmaps: both sides of the root (default), to the right, top down
+  composites?: 'single' | 'palette';      // state diagrams: composites in the theme's one style (default), or a colour each
 }
 
 interface CanvasMeta extends PageSettings {
   v?: number;                  // format version
   preset?: string;             // page preset name (`<type>.pagePresets`)
+  layout?: 'legacy' | 'compound'; // flowcharts with subgraphs: `legacy` keeps the earlier auto layout (one minor release)
   w?: number;
   h?: number;
   x?: number;
@@ -208,8 +212,25 @@ interface ItemMeta extends StyleProps {
   labelDx?: number;
   labelDy?: number;
   points?: [number, number][]; // bend points
-  // sequence
+  // sequence (space above); mindmap nodes (a nudge, with dx)
   dy?: number;
+  // mindmap nodes
+  dx?: number;
+  side?: 'l' | 'r';            // a first-level branch's side of the root
+  section?: number;            // 0–11: a branch colour of the theme for the node and its subtree
+  collapsed?: boolean;         // folded, with a +N badge
+  img?: string;                // a picture above the label (URL; '' = not chosen yet); also a state's, above its title
+  imgW?: number;               // its box (one of them alone keeps the picture's aspect)
+  imgH?: number;
+  imgFit?: string;             // 'contain' | 'cover' | 'stretch'
+  iconPos?: 'l' | 't' | 'b';   // where the label's icon is drawn: inline before the text, above, below
+  iconSize?: number;
+  iconColor?: string;
+  // an image or icon state (the flowchart image node's keys; `w` / `h`: the picture's or the icon's size)
+  icon?: string;               // the icon shown instead of a picture (`pack:name`)
+  form?: 'square' | 'circle' | 'rounded'; // the icon's frame
+  pos?: 't' | 'b';             // the caption above or below (default)
+  constraint?: 'on' | 'off';   // the picture keeps its aspect ratio
   // entities: per-attribute highlights (color, bold, italic, underline, fontFamily, fontSize, preset)
   attrs?: Record<string, AttrHighlight>;
   [extra: string]: unknown;
@@ -234,16 +255,18 @@ function renderToSvg(src: string, opts?: {
   ctx?: CoreContext;
   layers?: 'visible' | 'all';
   ssr?: boolean;
+  iconPacks?: readonly IconPack[];
 }): Promise<string>
 ```
 
-Build-time and server-side rendering: a source → a standalone `<svg xmlns=…>` document. It uses the static text measurer unless the context brings another one, so the output is the same on every machine.
+Build-time and server-side rendering: a source → a standalone `<svg xmlns=…>` document. It uses the static text measurer unless the context brings another one, so the output is the same on every machine. The icons the source references are loaded before it renders (see [Icons](/guide/icons#on-the-server)).
 
 | Option | Default | Meaning |
 |---|---|---|
 | `theme` | Default Light | Theme id to draw with. Diagrams do not carry a theme. An id the registry does not have falls back to Default Light |
 | `ctx` | `createContext()` | The context: theme registry (Default Light and Default Dark), measurer, link policy, id prefix |
 | `layers` | `'visible'` | `'all'` draws items on hidden layers too |
+| `iconPacks` | — | Icon packs over the context's registry for this render (the context's registry is not changed) |
 | `ssr` | `false` | Marks the SVG with `data-mmdx-ssr="1"` and `data-mmdx-measure` (`static`, `canvas` or `custom`). An `<mmdx-viewer>` that has such an SVG as a direct child shows it (and takes its aspect ratio) until its own first render |
 
 ```ts
@@ -328,10 +351,13 @@ interface RenderResult {
   pageSettings: CanvasMeta; // effective page settings (theme < page preset < diagram)
   geom: GeometryIndex;      // geometry per item (boxes, ports, edge paths) for hit testing and overlays
   presetsUsed: Partial<Record<ItemKind, Map<string, number>>>; // preset name → item count, `(none)` for no preset
+  diagnostics?: Diagnostic[]; // what the render reported (image.blocked, icon.unknown, image.size-unknown…)
+  a11y?: { title?: string; desc?: string }; // the diagram's accTitle / accDescr: the standalone SVG's <title> and <desc>
+  missing?: { shapes?: true; media?: true }; // what was drawn without because its chunk was not loaded (shape geometry, the media kit)
 }
 ```
 
-`GeometryIndex` is `FlowGeometry | SequenceGeometry | ErGeometry | { type: null }`: maps from item id to boxes (centre and size), edge geometry (ports, bend points, path data) and, for sequence diagrams, message, activation and lifeline positions. It is advanced; see `src/core/render/types.ts`.
+`GeometryIndex` is `FlowGeometry | SequenceGeometry | ErGeometry | MindmapGeometry | StateGeometry | { type: null }`: maps from item id to boxes (centre and size), edge geometry (ports, bend points, path data), for sequence diagrams message, activation and lifeline positions, for mindmaps each node's side, depth and section and the branch paths, for state diagrams the boxes of states, composites and notes and the transitions' geometry, and for ER diagrams the tables, the relationships and the subgraph frames (`groups`). It is advanced; see `src/core/render/types.ts`.
 
 ### `createContext()`
 
@@ -339,7 +365,7 @@ interface RenderResult {
 function createContext(opts?: Partial<CoreContext>): CoreContext
 ```
 
-A fresh context. Omitted fields get defaults: `themes` a registry with the built-in themes (`createDefaultRegistry()`), `measure` the static measurer, `idPrefix` a new unique prefix, `linkPolicy` `DEFAULT_LINK_POLICY`.
+A fresh context. Omitted fields get defaults: `themes` a registry with the built-in themes (`createDefaultRegistry()`), `measure` the static measurer, `idPrefix` a new unique prefix, `linkPolicy` `DEFAULT_LINK_POLICY`, `imagePolicy` `DEFAULT_IMAGE_POLICY`, `icons` an icon registry with the built-in set (its decoder loads on the first lookup: `renderToSvg` waits for it; pass `createIconRegistry(packs)` for lookups that are ready at once).
 
 ### `CoreContext`
 
@@ -350,19 +376,29 @@ interface CoreContext {
   /** Unique per instance, so SVG <defs> ids (markers, patterns) never collide between diagrams on one page. */
   idPrefix: string;
   linkPolicy: LinkPolicy;
+  /** Which image URLs diagram content may use. */
+  imagePolicy: ImagePolicy;
+  /** The host's resolver of image and link URLs, applied before the policies check them; see UrlResolver. */
+  resolveUrl?: UrlResolver;
+  /** Icon packs: `pack:name` tokens, icon nodes and mindmap icons are looked up here. */
+  icons: IconRegistry;
+  /** Natural sizes of content images, where the host can load them (the components set the browser's); see below. */
+  imageSizes?: { get(url: string): { w: number; h: number } | null | undefined };
   locale?: string;
 }
 ```
 
 Everything instance-scoped that the core needs; there are no module singletons. Each context also keeps a bounded cache of automatic layouts. The components build theirs from [`configure()`](/api/configuration#configure).
 
+`imageSizes` lets a flowchart image node without `w` and `h` be drawn at its picture's size: `get` returns the size, `undefined` while it is being loaded (render again when it arrives), or `null` when it cannot be known. Without it (Node, the render worker) such images are 96 × 96 with an `image.size-unknown` note. See [Flowchart content](/guide/flowchart#image-nodes).
+
 ### `ALL_KINDS`
 
 ```ts
-const ALL_KINDS: Kinds // { parsers, renderers } of flowchart, sequence and ER
+const ALL_KINDS: Kinds // { flowchart, sequence, er, mindmap, state }: the view kind of every diagram type
 ```
 
-The parsers and renderers of every diagram type, for the [`…With` functions](#all-kinds-and-with-variants).
+The view kind (parser, renderer and the rest of what drawing a diagram needs) of every diagram type, by type, for the [`…With` functions](#all-kinds-and-with-variants).
 
 ### `createStaticMeasurer()`
 
@@ -382,7 +418,7 @@ interface FontSpec {
 }
 ```
 
-Layout depends on text widths, so every environment measures through a `TextMeasurer`. The static one estimates advance widths from a table close to Open Sans Regular (monospace families use 0.6 em per character; bold adds about 6 %), deterministic across machines, with a bounded cache. In browsers the components use a canvas measurer. Pass your own (`kind: 'custom'`) in `createContext({ measure })` or [`configure({ measure })`](/api/configuration#configure) for exact metrics.
+Layout depends on text widths, so every environment measures through a `TextMeasurer`. The static one estimates advance widths from a table close to Open Sans Regular (monospace families use 0.6 em per character; bold adds about 6 %), deterministic across machines, with a bounded cache. It counts graphemes (`Intl.Segmenter`): an emoji is 1.15 em however many code points it is made of (a ZWJ family, a skin tone, a flag, a keycap), and joiners and variation selectors add nothing. In browsers the components use a canvas measurer. Pass your own (`kind: 'custom'`) in `createContext({ measure })` or [`configure({ measure })`](/api/configuration#configure) for exact metrics.
 
 ### `serializeNode()`
 
@@ -553,7 +589,121 @@ const DEFAULT_LINK_POLICY: LinkPolicy = { protocols: ['https:', 'http:', 'mailto
 type SafeUrl = string & { readonly [SAFE_URL]: true };
 ```
 
-A branded string: a URL that passed `safeUrl()`, the only kind the scene accepts for `href`.
+A branded string: a URL that passed `safeUrl()`, the only kind the scene accepts for a link's `href`.
+
+## Images
+
+### `UrlResolver`
+
+```ts
+type ContentUrlKind = 'image' | 'link';
+type UrlResolver = (url: string, kind: ContentUrlKind) => string | null | undefined;
+function resolveContentUrl(raw: unknown, kind: ContentUrlKind, resolve: UrlResolver | undefined): unknown;
+```
+
+The host's resolver of the URLs diagram content points at (`CoreContext.resolveUrl`, [`configure({ resolveUrl })`](/api/configuration#resolveurl)): called with each image and link URL as written (trimmed) and its kind, it returns the URL to use, or null / undefined to keep the written one. Renderers apply it before the image policy (`checkImageUrl`) and the link policy (`safeUrl`) check the URL, so the policies see the result; the code keeps what was written. `resolveContentUrl` applies a resolver the way renderers do: the written value when there is none, it declines, it throws, or the value is not a non-empty string. See [Security](/guide/security#resolving-urls).
+
+### `checkImageUrl()` / `safeImageUrl()`
+
+```ts
+function checkImageUrl(raw: unknown, policy?: ImagePolicy, resolve?: UrlResolver): { url: SafeImageUrl } | { reason: ImageBlockReason }
+function safeImageUrl(raw: unknown, policy?: ImagePolicy, resolve?: UrlResolver): SafeImageUrl | null
+
+type ImageBlockReason = 'invalid' | 'protocol' | 'data-off' | 'data-type' | 'data-size' | 'host' | 'relative';
+```
+
+Checks an image URL from a diagram against the image policy (default `DEFAULT_IMAGE_POLICY`): no control characters, whitespace or backslashes, at most 2 048 characters; the protocol in `protocols`; the host in `hosts` when the policy has them (no user info); a `data:` URL only as base64 of one of `dataTypes`, at most `maxDataBytes` decoded; a relative URL only with `relative: true`, never protocol-relative. With `resolve`, the URL the resolver returns for `raw` is the one checked (see [`UrlResolver`](#urlresolver)). `checkImageUrl` gives the reason of a refusal, which renderers report as the `reason` of an `image.blocked` warning; the image is then drawn as a placeholder.
+
+```ts
+safeImageUrl('https://example.com/logo.png');   // 'https://example.com/logo.png'
+checkImageUrl('data:image/png;base64,iVBOR…');  // { reason: 'data-off' }
+checkImageUrl('http://example.com/logo.png');   // { reason: 'protocol' }
+```
+
+### `ImagePolicy`
+
+```ts
+interface ImagePolicy {
+  /** Allowed protocols; `[]` turns content images off. */
+  protocols: readonly ('https:' | 'http:' | 'data:')[];
+  /** With `data:` enabled: the accepted MIME types (base64 only). */
+  dataTypes: readonly ImageDataType[];   // 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' | 'image/svg+xml' | 'image/avif'
+  /** With `data:` enabled: the largest decoded image in bytes. */
+  maxDataBytes: number;
+  /** Host names remote images may come from; `*.example.com` matches its subdomains. Default: any host. */
+  hosts?: readonly string[];
+  /** Relative URLs, resolved against the page that shows the diagram. Default off. */
+  relative?: boolean;
+}
+```
+
+Set it per context (`createContext({ imagePolicy })`) or for every component with [`configure({ imagePolicy })`](/api/configuration#configure). See [Security](/guide/security#image-policy).
+
+### `DEFAULT_IMAGE_POLICY`
+
+```ts
+const DEFAULT_IMAGE_POLICY: ImagePolicy = {
+  protocols: ['https:'],
+  dataTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml', 'image/avif'],
+  maxDataBytes: 256 * 1024,
+};
+```
+
+### `SafeImageUrl`
+
+```ts
+type SafeImageUrl = string & { readonly [SAFE_IMAGE_URL]: true };
+```
+
+A branded string: the only kind the scene accepts for an `<image>`'s `href` — a URL that passed `checkImageUrl()`, or an icon image mmdx built itself.
+
+## Icons
+
+See the [Icons](/guide/icons) guide for packs, names and the built-in set.
+
+### `createIconRegistry()`
+
+```ts
+function createIconRegistry(packs?: readonly IconPack[], opts?: { builtin?: boolean; now?: () => number }): IconRegistry
+```
+
+An icon registry of these packs plus the built-in Tabler subset under `tabler` (`builtin: false` leaves it out), with the code that decodes icons loaded at once, so lookups of packs given with `icons` are ready synchronously. Pass it as a context's `icons` (`createContext({ icons })`).
+
+### `IconRegistry`
+
+| Member | Meaning |
+|---|---|
+| `add(packs)` | Registers packs; a pack of a registered name replaces it |
+| `setBuiltin(on)` | Turns the built-in subset on or off |
+| `extend(packs)` | A registry with these packs over this one's, sharing its loads and change events |
+| `has(pack)` | Whether a pack of this name is registered (loaded or not): label tokens with its prefix are icons |
+| `packNames()` / `packList()` | The registered packs; `packList()` with `loaded`, `failed`, `builtin` and the pack's `info` |
+| `resolve(written, form?)` | The canonical `pack:name` of a reference, or null: `form` `'token'` (labels, the default), `'node'` (`@{ icon }`) or `'class'` (mindmap `::icon()`) |
+| `get(name)` | `{ status: 'ready', icon, fallback? }`, `{ status: 'loading' }` or `{ status: 'missing', reason }` (`pack`, `icon`, `invalid`, `failed`); starts the loads it needs |
+| `preload(names)` | Loads what these icons need; resolves when each is ready or missing |
+| `load(pack)` | Loads one pack |
+| `packData(pack)` | A loaded pack's Iconify JSON, else null |
+| `onChange(cb)` | Called with the pack names when a load finishes or packs change; returns a remover |
+
+### `iconNamesOf()`
+
+```ts
+function iconNamesOf(input: string | object | Iterable<string>, registry: { has(pack: string): boolean }): string[]
+```
+
+The icons a source text, a parsed model or a list of labels references, as canonical names (`fa:fa-car` → `fa:car`): what to `preload` before rendering.
+
+### `IconPack`
+
+```ts
+interface IconPack {
+  name: string;
+  icons?: IconifyJSON;
+  loader?: () => Promise<IconifyJSON>;
+}
+```
+
+As Mermaid's `registerIconPacks` takes it. `IconifyJSON` is the subset of Iconify's format mmdx reads: `prefix`, `icons` (`body`, `width`, `height`, `left`, `top`, `rotate`, `hFlip`, `vFlip`, `hidden`), `aliases`, the default `width` / `height` / `left` / `top`, `info`, `categories`, and mmdx's `keywords` (search words per icon).
 
 ## Layers
 
@@ -589,10 +739,10 @@ const DEFAULT_LAYER = 'default';
 
 ```ts
 function starterSource(type: StarterType): string
-// type StarterType = 'flowchart' | 'sequence' | 'er'
+// type StarterType = DiagramType
 ```
 
-The source a new, empty diagram of the type starts from, as in the studio's New menu: `'flowchart TB\n'`, `'sequenceDiagram\n'` or `'erDiagram\n'`. Throws for an unknown type.
+The source a new, empty diagram of the type starts from, as in the studio's New menu: `'flowchart TB\n'`, `'sequenceDiagram\n'`, `'erDiagram\n'`, `'mindmap\n  root((Topic))\n'` or `'stateDiagram-v2\n'`. Throws for a type no registered kind has a starter for.
 
 ### `outline()`
 
@@ -601,7 +751,7 @@ function outline(model: DiagramModel): OutlineItem[]
 // interface OutlineItem { text: string; children?: OutlineItem[] }
 ```
 
-A text alternative of the diagram, for screen readers and copying: flowchart nodes with their outgoing connections (`→ Target: label`), sequence messages, notes and blocks in order (numbered with `autonumber`), ER tables with their columns and relationships. Unsupported models give `[]`.
+A text alternative of the diagram, for screen readers and copying: flowchart nodes with their outgoing connections (`→ Target: label`), sequence messages, notes and blocks in order (numbered with `autonumber`), ER tables with their columns and relationships, a mindmap's tree of labels, a state diagram's states with their outgoing transitions (composites with their contents) and notes. Unsupported models give `[]`.
 
 ### `summarize()`
 
@@ -609,12 +759,12 @@ A text alternative of the diagram, for screen readers and copying: flowchart nod
 function summarize(model: DiagramModel): Summary
 
 interface Summary {
-  key: 'label.flowchart' | 'label.sequence' | 'label.er' | 'label.empty' | 'label.unsupported';
+  key: 'label.flowchart' | 'label.sequence' | 'label.er' | 'label.mindmap' | 'label.state' | 'label.empty' | 'label.unsupported';
   params: Record<string, number>;
 }
 ```
 
-The parts of a diagram's generated accessible name ("Flowchart: 12 nodes, 14 connections"): an i18n message key and its counts (`nodes` and `edges`, `participants` and `messages`, or `entities` and `rels`). The components translate it with their [messages](/api/configuration#i18n).
+The parts of a diagram's generated accessible name ("Flowchart: 12 nodes, 14 connections"): an i18n message key and its counts (`nodes` and `edges`, `participants` and `messages`, `entities` and `rels`, a mindmap's `nodes`, or a state diagram's `states` (states and composites, without start and end) and `transitions`). The components translate it with their [messages](/api/configuration#i18n).
 
 ## Diff
 
@@ -625,7 +775,7 @@ A semantic diff of two sources compares items, not lines. Items are matched by i
 The diff and diff-rendering functions come in two forms:
 
 - **All kinds**: `diffDiagrams`, `renderDiff` and `renderDiffToSvg` parse and render with every diagram type. They live in `src/core/diff/all.ts`, which imports every parser and renderer statically, and only `@mmdx/studio/core` exports them. Use them in Node, CI jobs and workers.
-- **`…With`**: `diffDiagramsWith`, `renderDiffWith` and `renderDiffToSvgWith` take the diagram kinds as their first argument (`{ parsers, renderers }`, as in [`ALL_KINDS`](#all-kinds)). A version whose type has no parser in the set diffs as unsupported. The components use them with the kinds they loaded on demand, so `<mmdx-diff>` and History ship no diagram type statically. From `@mmdx/studio/core` you would normally pass `ALL_KINDS`.
+- **`…With`**: `diffDiagramsWith`, `renderDiffWith` and `renderDiffToSvgWith` take the diagram kinds as their first argument (view kinds by type, as in [`ALL_KINDS`](#all-kinds)). A version whose type is not in the set diffs as unsupported. The components use them with the kinds they loaded on demand, so `<mmdx-diff>` and History ship no diagram type statically. From `@mmdx/studio/core` you would normally pass `ALL_KINDS`.
 
 In the browser, [`@mmdx/studio/diff`](/api/#mmdx-studio-diff) exports asynchronous `diffDiagrams(before, after): Promise<DiagramDiff>` and `renderDiffToSvg(before, after, options): Promise<string>`: they load the parser and renderer of both versions' types first, then behave like the functions here.
 
@@ -633,10 +783,10 @@ In the browser, [`@mmdx/studio/diff`](/api/#mmdx-studio-diff) exports asynchrono
 
 ```ts
 function diffDiagrams(before: string, after: string): DiagramDiff
-function diffDiagramsWith(kinds: { parsers: ParserSet }, before: string, after: string): DiagramDiff
+function diffDiagramsWith(kinds: Kinds, before: string, after: string, parse?: (code: string) => DiagramModel): DiagramDiff
 ```
 
-The diff of two sources (Mermaid with or without `%%@` lines). Never throws on bad input. When the two versions are different diagram types, `typeChanged` is true and the change is reported as a diagram-wide `diagram type` field.
+The diff of two sources (Mermaid with or without `%%@` lines). Never throws on bad input. When the two versions are different diagram types, `typeChanged` is true and the change is reported as a diagram-wide `diagram type` field. `diffDiagramsWith` parses with `kinds` (or with `parse` when given); when the type's diff is not loaded, the versions are not compared: the diff has a `diagram type` field and a `kind.not-loaded` error in `diagnostics`, not an empty change list.
 
 ```ts
 const diff = diffDiagrams(before, after);
@@ -655,6 +805,8 @@ interface DiagramDiff {
   /** Diagram-wide changes: page settings, local presets, palette, layers, `classDef`, direction, title, autonumber. */
   doc: FieldChange[];
   counts: Record<'added' | 'removed' | 'changed', number> & Record<ChangeFacet, number>;
+  /** Why the diff is incomplete: `kind.not-loaded` when the type's diff is not loaded. */
+  diagnostics?: Diagnostic[];
 }
 
 interface ItemChange {
@@ -845,7 +997,7 @@ Advanced: the scene layers of one view of a diff: the body with change classes a
 | `o.colors` | `DiffColors` (default `DIFF_COLORS.light`) |
 | `o.badgeScale` | Badge size factor |
 
-Returns `{ body, runs, overlay }`, each `SceneNode[]`.
+Returns `{ body, runs, overlay }`, each `SceneNode[]`. It throws an error with `code` `kind.not-loaded` when the diagram type's diff is not loaded, instead of annotating nothing.
 
 ### `FACETS`
 
@@ -861,15 +1013,15 @@ const DIFF_COLORS: Record<'light' | 'dark', DiffColors>
 // type Mark = 'added' | 'removed' | 'content' | 'layout' | 'style'
 ```
 
-The values of the `--mmdx-diff-*` tokens, for exports and server-side rendering: a line / text colour `c` and a tinted fill `bg` per mark, and the opacity of dimmed items.
+The values of the `--mmdx-diff-*` tokens (the components' stylesheet is made from them), for exports and server-side rendering: a line / text colour `c` and a tinted fill `bg` per mark, and the opacity of dimmed items.
 
 | Mark | Light `c` / `bg` | Dark `c` / `bg` |
 |---|---|---|
-| `added` | `#1a7f37` / `#dafbe1` | `#3fb950` / `#1d4428` |
-| `removed` | `#cf222e` / `#ffebe9` | `#f85149` / `#4c2124` |
-| `content` | `#b35900` / `#fff1e0` | `#e3a33b` / `#4a3a1c` |
-| `layout` | `#0969da` / `#ddf4ff` | `#58a6ff` / `#1c3a5e` |
-| `style` | `#8250df` / `#fbefff` | `#bc8cff` / `#3c2c5e` |
+| `added` | `#1a7f37` / `#dafbe1` | `#3fb950` / `rgba(46,160,67,.22)` |
+| `removed` | `#cf222e` / `#ffebe9` | `#f85149` / `rgba(248,81,73,.22)` |
+| `content` | `#b35900` / `#fff1e0` | `#e3a33b` / `rgba(227,163,59,.2)` |
+| `layout` | `#0969da` / `#ddf4ff` | `#58a6ff` / `rgba(56,139,253,.2)` |
+| `style` | `#8250df` / `#fbefff` | `#bc8cff` / `rgba(163,113,247,.2)` |
 | `dim` | `0.28` | `0.35` |
 
 ## Diff rendering
@@ -990,22 +1142,23 @@ interface CenterBox { x: number; y: number; w: number; h: number }
 ### Item references
 
 ```ts
-type DiagramType = 'flowchart' | 'sequence' | 'er';
+type BuiltinType = 'flowchart' | 'sequence' | 'er' | 'mindmap' | 'state';
+type DiagramType = BuiltinType | (string & {});                           // open: a kind plugin may register more
 type ItemKind =
-  | 'node' | 'group' | 'edge'                                               // flowchart
-  | 'participant' | 'message' | 'note' | 'block' | 'box' | 'activation'     // sequence
-  | 'entity' | 'rel';                                                       // ER
+  | 'node' | 'group' | 'edge'                                               // flowchart (mindmaps: node; state diagrams: states, composites, transitions)
+  | 'participant' | 'message' | 'note' | 'block' | 'box' | 'activation'     // sequence (note: also state diagrams)
+  | 'entity' | 'rel';                                                       // ER (subgraphs are 'group')
 interface ItemRef { kind: ItemKind; id: string }
 type ItemKey = `${ItemKind}:${string}`;                                     // 'node:a', 'edge:a->b'
 ```
 
-`ITEM_KINDS` lists every kind; `itemKey(ref)` and `parseItemKey(key)` convert between the two forms (`parseItemKey` returns null for an unknown kind).
+`DiagramType` is open as a type (any string still type-checks, while editors complete the built-in names); a value is checked against the registered kinds where it comes in, so an unknown type reads as unsupported. `BuiltinType` is the five types mmdx draws itself. `ITEM_KINDS` lists every kind; `itemKey(ref)` and `parseItemKey(key)` convert between the two forms (`parseItemKey` returns null for an unknown kind).
 
 ### Diagram models
 
 ```ts
-type DiagramModel = FlowchartModel | SequenceModel | ErModel | UnsupportedModel;
-type SupportedModel = FlowchartModel | SequenceModel | ErModel;
+type DiagramModel = FlowchartModel | SequenceModel | ErModel | MindmapModel | StateModel | UnsupportedModel;
+type SupportedModel = FlowchartModel | SequenceModel | ErModel | MindmapModel | StateModel;
 const isSupported: (m: DiagramModel) => m is SupportedModel;
 ```
 
@@ -1016,7 +1169,7 @@ interface FlowchartModel {
   type: 'flowchart';
   direction: 'TB' | 'BT' | 'LR' | 'RL';
   nodes: Map<string, FlowNode>;     // { id, label, shape, classes, style, parent, order, lines, defLine, link? }
-  groups: Map<string, FlowGroup>;   // subgraphs: { id, label, parent, children, order, line, endLine?, … }
+  groups: Map<string, FlowGroup>;   // subgraphs: { id, label, parent, children, order, line, endLine?, dir?, … }
   edges: FlowEdge[];                // { id: 'a->b' or 'a->b#2', from, to, label, line, start, end, minlen, index, src }
   classDefs: Record<string, MermaidStyle>;
   linkStyles: Record<string, MermaidStyle>; // keyed by link index, or 'default'
@@ -1027,19 +1180,54 @@ interface FlowchartModel {
 
 interface SequenceModel {
   type: 'sequence';
-  participants: Participant[];      // { id, label, kind: 'participant' | 'actor', box, shape?, created?, … }
+  participants: Participant[];      // { id, label, kind: 'participant' | 'actor', box, shape?, created?, createdBy?, destroyedBy?, links?: { label, url }[], properties?, … }
   items: SeqItem[];                 // messages, notes, block starts / else / ends, activate / deactivate, in order
   boxes: SeqBox[];
-  autonumber: boolean;
+  autonumber: boolean;              // numbered somewhere (an `autonumber` that is not `off`)
+  numbering: SeqNumbering[];        // every `autonumber` statement: { line, on, start?, step? }
   title: string;
+  accTitle?: string;
+  accDescr?: string;
   diagnostics: Diagnostic[];
 }
 
 interface ErModel {
   type: 'er';
   direction: 'TB' | 'BT' | 'LR' | 'RL';
-  entities: Map<string, Entity>;    // { id, label, attrs: { type, name, keys: ('PK'|'FK'|'UK')[], comment }[], … }
-  rels: ErRel[];                    // { id, from, to, fromCard, toCard, identifying, label, src }
+  entities: Map<string, Entity>;    // { id, label, alias?, attrs: { type, name, keys: ('PK'|'FK'|'UK')[], comment }[], classes, style, parent, stmts, … }
+  rels: ErRel[];                    // { id, from, to, fromCard, toCard, identifying, label, src, offsets of the statement and its tokens }
+  groups: Map<string, ErGroup>;     // subgraphs: { id, label, parent, children, order, line, endLine?, dir?, classes, style, … }
+  classDefs: Record<string, MermaidStyle>;
+  undefinedClasses: { cls: string; line: number }[];
+  headerLine: number;               // the `erDiagram` line (-1 when missing)
+  title?: string;                   // frontmatter title (or a `title` statement)
+  accTitle?: string;
+  accDescr?: string;
+  diagnostics: Diagnostic[];
+}
+
+interface MindmapModel {
+  type: 'mindmap';
+  root: string | null;
+  nodes: Map<string, MindNode>;     // in code order: { id, written, label, md, shape, parent, children, depth, section, icon, classes, line, endLine, … }
+  colorBy: 'branch' | 'depth';      // config.mindmap.colorBy
+  maxNodeWidth: number;             // config.mindmap.maxNodeWidth (200)
+  diagnostics: Diagnostic[];
+}
+
+interface StateModel {
+  type: 'state';
+  header: 'stateDiagram' | 'stateDiagram-v2'; // as written
+  direction: 'TB' | 'BT' | 'LR' | 'RL';      // the top-level direction (TB without one)
+  nodes: Map<string, StateNode>;    // states and pseudo-states: { id, kind, label, descriptions, texts, parent, region, classes, style, lines, defLine, order, link?, tooltip? }
+  groups: Map<string, StateGroup>;  // composites: { id, label, parent, region, children, regions, dir?, blocks, line, endLine?, classes, style, link?, … }
+  edges: StateEdge[];               // transitions: { id: 'a->b' or 'a->b#2', from, to, label, scope, region, src, … }
+  notes: StateNote[];               // { id: 'n1', target, side: 'left' | 'right', text, line, endLine, multi, scope, region }
+  classDefs: Record<string, MermaidStyle>;
+  undefinedClasses: { cls: string; line: number }[];
+  title?: string;                   // frontmatter title
+  accTitle?: string;
+  accDescr?: string;
   diagnostics: Diagnostic[];
 }
 
@@ -1050,4 +1238,4 @@ interface UnsupportedModel {
 }
 ```
 
-`NodeShape` is one of `rect`, `rounded`, `stadium`, `subroutine`, `cylinder`, `circle`, `doublecircle`, `diamond`, `hexagon`, `parallelogram`, `parallelogram-alt`, `trapezoid`, `trapezoid-alt`, `asymmetric`, `hcyl`, `document`, `card`, `queue`. `MermaidStyle` is a validated Mermaid `style` / `classDef` / `linkStyle`: `{ fill?, stroke?, text?, strokeWidth?, dash?, fontSize? }`. Sequence messages, notes and blocks get ids in source order (`m1`, `n1`, `b1`). The full definitions are in `src/core/model.ts`.
+`NodeShape` is a shape id of the [shape catalogue](/guide/shapes#the-catalogue): `rect`, `rounded`, `stadium`, `subroutine`, `cylinder`, `circle`, `doublecircle`, `diamond`, `hexagon`, `parallelogram`, `parallelogram-alt`, `trapezoid`, `trapezoid-alt`, `asymmetric`, `hcyl`, `document`, `card`, Mermaid's short names for its other flowchart shapes (`lin-rect`, `notch-pent`, `bow-rect`, …), and `choice`, `note`, the figures (`actor`, `boundary`, `control`, `entity`, `collections`, `mm-default`) and the media frames `icon` and `image`. `MermaidStyle` is a validated Mermaid `style` / `classDef` / `linkStyle`: `{ fill?, stroke?, text?, strokeWidth?, dash?, fontSize?, interpolate? }` (`interpolate`: a `linkStyle`'s curve name). Sequence messages, notes and blocks get ids in source order (`m1`, `n1`, `b1`); a message keeps its `arrow` as written (one of Mermaid's 26 tokens), with `line`, `head` and `both`, and `half`, `stick`, `reverse` for half arrows and `central` (`'from' | 'to' | 'both'`) for central connections. An ER relationship's `from` or `to` may be a subgraph's id; an entity's `parent` is the subgraph it is drawn in (Mermaid's rule: the first subgraph to close that names it). A mindmap node's id is its written id when that is unique, else `mm<k>` (its place among all nodes in code order); `MindShape` is `mm-default` (no delimiters), `rect`, `rounded`, `circle`, `bang`, `cloud` or `hexagon`. A state's `kind` (`StateKind`) is `state`, `start`, `end`, `choice`, `fork` or `join`; the start and end pseudo-states are `[*]start` / `[*]end` at the top level, `X/[*]start` inside composite X and `X/2/[*]start` in its second concurrency region; `region` is 0-based. The full definitions are in `src/core/model.ts`.

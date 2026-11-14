@@ -4,6 +4,7 @@ import { joinSource, splitSource } from '../meta/index.js';
 import type { DiagramDiff, DiffIgnore, FieldChange, ItemChange } from './types.js';
 import { withLayoutOf, withoutStyle } from './transform.js';
 import { diffLines, type LineOp } from './text.js';
+import { safeUrl } from '../validate.js';
 
 export interface VersionInfo {
   /** Commit SHA, revision id or content hash. */
@@ -55,7 +56,10 @@ const fieldLine = (f: FieldChange): string => `${md(f.field)} (${f.facet}): ${md
 const versionText = (v: VersionInfo | undefined, fallback: string): string => {
   if (!v) return fallback;
   const id = `\`${v.id.replace(/`/g, '')}\``;
-  const ref = v.url ? `[${id}](${v.url})` : id;
+  // a version's URL comes from the history adapter: only an allowed link (the link policy), with the characters that
+  // would end a Markdown link target escaped (old D7)
+  const url = safeUrl(v.url);
+  const ref = url ? `[${id}](<${url.replace(/[<>]/g, (c) => encodeURIComponent(c))}>)` : id;
   return [ref, v.message ? md(v.message) : '', v.author ? `by ${md(v.author)}` : ''].filter(Boolean).join(' ');
 };
 

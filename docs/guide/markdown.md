@@ -21,7 +21,7 @@ becomes
 </mmdx-viewer>
 ```
 
-The SVG shows until the viewer has rendered the source itself. A block may hold a `.mmdx` source with `%%@` lines; the layout and styles apply. A diagram type mmdx does not draw gets the source only, and the viewer falls back to stock Mermaid (when `mermaid` is installed). Pages need the viewer on the client:
+The SVG shows until the viewer has rendered the source itself. A block may hold a `.mmdx` source with `%%@` lines; the layout and styles apply. A diagram type mmdx does not draw gets the source only, and the viewer falls back to stock Mermaid (when it is [configured](/guide/configuration) or resolves at run time). Pages need the viewer on the client:
 
 ```ts
 import '@mmdx/studio/viewer';
@@ -51,6 +51,7 @@ Both plugins and `diagramHtml` take the same options:
 | `prerender` | `true` | Pre-render supported diagrams to SVG; `false` emits the source only |
 | `themes` | — | Extra theme files (`ThemeFile[]`) registered before rendering, for a `theme` that is not built in |
 | `ctx` | `createContext()` | The `CoreContext` to render with |
+| `iconPacks` | — | Icon packs over the context's registry, as `configure({ iconPacks })` takes them; the rehype plugin waits for the icons a page's diagrams need (see [Icons](/guide/icons#on-the-server)) |
 
 ```ts
 import githubLight from '@mmdx/studio/themes/github-light.theme.json' with { type: 'json' };

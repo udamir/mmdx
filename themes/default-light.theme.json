@@ -358,6 +358,11 @@
         "label": "Participants top & bottom",
         "background": "@paper",
         "mirror": true
+      },
+      "plain-blocks": {
+        "label": "Blocks without kind tags",
+        "background": "@paper",
+        "blockTags": false
       }
     },
     "participant": {
@@ -421,7 +426,7 @@
       "labelSize": 16,
       "labelColor": "@ink",
       "dash": "",
-      "replyDash": "",
+      "replyDash": "4 3",
       "labelOnLine": true
     },
     "messagePresets": {
@@ -468,7 +473,7 @@
       "strokeWidth": 2.6,
       "labelSize": 20,
       "labelColor": "@ink",
-      "showTag": false,
+      "showTag": true,
       "radius": 0
     },
     "blockPresets": {
@@ -598,6 +603,333 @@
       "muted": {
         "color": "@muted",
         "labelColor": "@slate"
+      }
+    }
+  },
+  "mindmap": {
+    "pagePresets": {
+      "both": {
+        "label": "Both sides",
+        "background": "@paper",
+        "mindLayout": "both"
+      },
+      "right": {
+        "label": "To the right",
+        "background": "@paper",
+        "mindLayout": "right"
+      },
+      "down": {
+        "label": "Top down",
+        "background": "@paper",
+        "mindLayout": "down"
+      }
+    },
+    "root": {
+      "fill": "@charcoal",
+      "stroke": "@charcoal",
+      "text": "@paper",
+      "strokeWidth": 0,
+      "fontSize": 20,
+      "fontWeight": 600,
+      "radius": 24,
+      "padX": 26,
+      "padY": 16,
+      "shape": "rounded"
+    },
+    "node": {
+      "text": "@ink",
+      "fontSize": 16,
+      "fontWeight": 400,
+      "strokeWidth": 1.6,
+      "radius": 10,
+      "padX": 12,
+      "padY": 8
+    },
+    "branch": {
+      "width": 11
+    },
+    "sections": {
+      "0": {
+        "fill": "@sky",
+        "text": "@ink",
+        "color": "@azure"
+      },
+      "1": {
+        "fill": "@peach",
+        "text": "@ink",
+        "color": "@rust"
+      },
+      "2": {
+        "fill": "@mint",
+        "text": "@ink",
+        "color": "@jade"
+      },
+      "3": {
+        "fill": "@lavender",
+        "text": "@ink",
+        "color": "@iris"
+      },
+      "4": {
+        "fill": "@rose",
+        "text": "@ink",
+        "color": "@coral"
+      },
+      "5": {
+        "fill": "@butter",
+        "text": "@ink",
+        "color": "@bronze"
+      },
+      "6": {
+        "fill": "@sage",
+        "text": "@ink",
+        "color": "@emerald"
+      },
+      "7": {
+        "fill": "@ice",
+        "text": "@ink",
+        "color": "@teal"
+      },
+      "8": {
+        "fill": "@pink",
+        "text": "@ink",
+        "color": "@magenta"
+      },
+      "9": {
+        "fill": "@pale-lime",
+        "text": "@ink",
+        "color": "@forest"
+      },
+      "10": {
+        "fill": "@apricot",
+        "text": "@ink",
+        "color": "@brown"
+      },
+      "11": {
+        "fill": "@violet",
+        "text": "@ink",
+        "color": "@red"
+      }
+    },
+    "nodePresets": {
+      "idea": {
+        "fill": "@cream",
+        "stroke": "@bronze"
+      },
+      "urgent": {
+        "fill": "@rose",
+        "stroke": "@red",
+        "fontWeight": 600
+      },
+      "done": {
+        "fill": "@sage",
+        "stroke": "@emerald"
+      },
+      "question": {
+        "fill": "@ice",
+        "stroke": "@teal",
+        "shape": "cloud"
+      },
+      "muted": {
+        "text": "@slate",
+        "color": "@silver"
+      },
+      "plain": {
+        "fill": "@paper",
+        "stroke": "@frame"
+      }
+    }
+  },
+  "state": {
+    "pagePresets": {
+      "whiteboard": {
+        "label": "Whiteboard",
+        "background": "@paper"
+      },
+      "grid": {
+        "label": "Grid paper",
+        "background": "@paper",
+        "grid": "rgba(0,0,0,0.05)"
+      },
+      "technical": {
+        "label": "Technical \u2014 right angles",
+        "background": "@paper",
+        "grid": "rgba(0,0,0,0.05)",
+        "routing": "orthogonal"
+      },
+      "colored": {
+        "label": "Coloured composites",
+        "background": "@paper",
+        "composites": "palette"
+      }
+    },
+    "node": {
+      "fill": "@paper",
+      "stroke": "@ink",
+      "strokeWidth": 1.4,
+      "text": "@ink",
+      "fontSize": 15,
+      "fontWeight": 400,
+      "radius": 10,
+      "stack": false,
+      "shape": "rect",
+      "minW": 64,
+      "minH": 38,
+      "padX": 14,
+      "padY": 9
+    },
+    "nodePresets": {
+      "active": {
+        "fill": "@sky",
+        "stroke": "@azure"
+      },
+      "done": {
+        "fill": "@sage",
+        "stroke": "@emerald"
+      },
+      "waiting": {
+        "fill": "@butter",
+        "stroke": "@bronze"
+      },
+      "error": {
+        "fill": "@rose",
+        "stroke": "@red"
+      },
+      "idle": {
+        "fill": "@smoke",
+        "stroke": "@silver",
+        "text": "@slate"
+      },
+      "highlight": {
+        "strokeWidth": 2.6,
+        "fontWeight": 600
+      }
+    },
+    "start": {
+      "fill": "@ink",
+      "w": 14
+    },
+    "end": {
+      "fill": "@paper",
+      "stroke": "@ink",
+      "strokeWidth": 1.6,
+      "w": 18
+    },
+    "choice": {
+      "fill": "@paper",
+      "stroke": "@ink",
+      "strokeWidth": 1.4,
+      "w": 28
+    },
+    "fork": {
+      "fill": "@ink",
+      "w": 70,
+      "h": 7
+    },
+    "composite": {
+      "fill": "@mist",
+      "stroke": "@silver",
+      "strokeWidth": 1.2,
+      "radius": 12,
+      "stack": false,
+      "titleSize": 14,
+      "titleColor": "@title",
+      "titleWeight": 600,
+      "titleAlign": "center",
+      "pad": 16,
+      "padTop": 34
+    },
+    "compositePresets": {
+      "plain": {
+        "fill": "@paper",
+        "stroke": "@ink"
+      },
+      "tinted": {
+        "fill": "@pale-blue",
+        "stroke": "@cornflower"
+      },
+      "lane": {
+        "fill": "none",
+        "stroke": "@frame",
+        "strokeWidth": 1.4,
+        "dash": "6 4",
+        "radius": 6
+      }
+    },
+    "compositeColors": {
+      "0": {
+        "fill": "@pale-blue",
+        "stroke": "@azure"
+      },
+      "1": {
+        "fill": "@peach",
+        "stroke": "@rust"
+      },
+      "2": {
+        "fill": "@sage",
+        "stroke": "@jade"
+      },
+      "3": {
+        "fill": "@lavender",
+        "stroke": "@iris"
+      },
+      "4": {
+        "fill": "@pale-rose",
+        "stroke": "@coral"
+      },
+      "5": {
+        "fill": "@butter",
+        "stroke": "@bronze"
+      },
+      "6": {
+        "fill": "@ice",
+        "stroke": "@teal"
+      },
+      "7": {
+        "fill": "@pale-lime",
+        "stroke": "@forest"
+      }
+    },
+    "note": {
+      "fill": "@cream",
+      "stroke": "@ochre",
+      "text": "@ink",
+      "strokeWidth": 1,
+      "fontSize": 13,
+      "color": "@ochre"
+    },
+    "notePresets": {
+      "info": {
+        "fill": "@ice",
+        "stroke": "@teal",
+        "color": "@teal"
+      },
+      "warning": {
+        "fill": "@pale-rose",
+        "stroke": "@red",
+        "color": "@red"
+      }
+    },
+    "transition": {
+      "color": "@line",
+      "width": 1.3,
+      "dash": "",
+      "arrow": "filled",
+      "labelSize": 12,
+      "labelColor": null,
+      "curve": 1
+    },
+    "transitionPresets": {
+      "success": {
+        "color": "@emerald"
+      },
+      "error": {
+        "color": "@red"
+      },
+      "async": {
+        "dash": "6 4"
+      },
+      "strong": {
+        "width": 2.4
       }
     }
   }

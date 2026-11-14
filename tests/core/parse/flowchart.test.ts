@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseFlowchart, renameClashingSubgraph } from '../../../src/core/parse/flowchart.js';
+import { parseFlowchart, renameClashingSubgraph } from '../../../src/core/kinds/flowchart/parse.js';
 import type { FlowchartModel } from '../../../src/core/model.js';
 
 const codes = (m: FlowchartModel): string[] => m.diagnostics.map((d) => d.code);
@@ -34,14 +34,15 @@ describe('flowchart nodes', () => {
     ['A[/t/]', 'parallelogram'], ['A[\\t\\]', 'parallelogram-alt'], ['A[/t\\]', 'trapezoid'], ['A[\\t/]', 'trapezoid-alt'],
     ['A>t]', 'asymmetric'],
     ['A@{ shape: cyl, label: "t" }', 'cylinder'], ['A@{ shape: "lean-r", label: "t" }', 'parallelogram'],
-    ['A@{ shape: notch_rect, label: "t" }', 'card'], ['A@{ shape: doc, label: "t" }', 'document'],
-    ['A@{ shape: das, label: "t" }', 'hcyl'], ['A@{ shape: constructor, label: "t" }', 'rect'],
-  ])('%s -> %s', (src, shape) => {
+    ['A@{ shape: notch_rect, label: "t" }', 'card', 'flow.shape-name'], ['A@{ shape: doc, label: "t" }', 'document'],
+    ['A@{ shape: das, label: "t" }', 'hcyl'], ['A@{ shape: constructor, label: "t" }', 'rect', 'flow.unknown-shape'],
+  ])('%s -> %s', (src, shape, warning?: string) => {
     const m = parseFlowchart(`flowchart LR\n  ${src}`);
     expect(node(m, 'A').shape).toBe(shape);
     expect(node(m, 'A').label).toBe('t');
     expect(node(m, 'A').defLine).toBe(1);
-    expect(m.diagnostics).toEqual([]);
+    // Mermaid rejects `notch_rect` (an underscore) and knows no `constructor` shape
+    expect(m.diagnostics.map((d) => d.code)).toEqual(warning ? [warning] : []);
   });
   it('reads quoted labels with <br>, #quot; and #35;', () => {
     const m = parseFlowchart('flowchart LR\n  A["a<br>b #quot;c#quot; #35;1"]\n  B("x [y] (z)")');
@@ -67,17 +68,20 @@ describe('flowchart nodes', () => {
 });
 
 describe('flowchart edges', () => {
-  // minlen is the prototype's (count of -=. minus one), which is one more than Mermaid's for open and dotted links
+  // minlen is Mermaid's (F5, T06): the link less its closing character, less one, or its dots when it is dotted
   it.each([
     ['A --> B', 'solid', 'none', 'arrow', 1],
-    ['A --- B', 'solid', 'none', 'none', 2],
+    ['A --- B', 'solid', 'none', 'none', 1],
+    ['A ---- B', 'solid', 'none', 'none', 2],
     ['A ---> B', 'solid', 'none', 'arrow', 2],
     ['A -----> B', 'solid', 'none', 'arrow', 4],
     ['A ==> B', 'thick', 'none', 'arrow', 1],
-    ['A === B', 'thick', 'none', 'none', 2],
-    ['A -.-> B', 'dotted', 'none', 'arrow', 2],
-    ['A -..-> B', 'dotted', 'none', 'arrow', 3],
-    ['A -.- B', 'dotted', 'none', 'none', 2],
+    ['A === B', 'thick', 'none', 'none', 1],
+    ['A -.-> B', 'dotted', 'none', 'arrow', 1],
+    ['A -..-> B', 'dotted', 'none', 'arrow', 2],
+    ['A -.- B', 'dotted', 'none', 'none', 1],
+    ['A ~~~ B', 'invisible', 'none', 'none', 1],
+    ['A ~~~~ B', 'invisible', 'none', 'none', 2],
     ['A --x B', 'solid', 'none', 'cross', 1],
     ['A --o B', 'solid', 'none', 'circle', 1],
     ['A <--> B', 'solid', 'arrow', 'arrow', 1],
@@ -229,31 +233,21 @@ describe('flowchart click and ignored statements', () => {
     expect(m.nodes.has('G')).toBe(false);
     expect(m.diagnostics).toEqual([]);
   });
-  it('ignores accTitle, accDescr, title and %% comments', () => {
+  it('reads accTitle, accDescr and title (T06; stock Mermaid fails on the title statement), skips %% comments', () => {
     const m = parseFlowchart('flowchart LR\n  accTitle: t\n  accDescr: d\n  title x\n  %% note\n  A');
-    expect(m.diagnostics).toEqual([]);
+    expect(m.diagnostics.map((d) => d.code)).toEqual(['flow.title-statement']);
+    expect([m.accTitle, m.accDescr, m.title]).toEqual(['t', 'd', 'x']);
     expect([...m.nodes.keys()]).toEqual(['A']);
   });
 });
 
 describe('flowchart known limits give diagnostics', () => {
-  it('markdown strings', () => {
-    const m = parseFlowchart('flowchart LR\n  A["`**bold**`"] -->|"`x`"| B');
-    expect(node(m, 'A').label).toBe('**bold**');
-    expect(codes(m)).toEqual(['flow.markdown-label', 'flow.markdown-label']);
-  });
   it('ELK hints: flowchart-elk, front matter and init directive', () => {
     const a = parseFlowchart('flowchart-elk LR\n  A');
     expect(a.direction).toBe('LR');
     expect(codes(a)).toEqual(['flow.elk']);
     expect(codes(parseFlowchart('---\nconfig:\n  layout: elk\n---\nflowchart LR\n  A'))).toEqual(['flow.elk']);
     expect(codes(parseFlowchart('%%{init: {"flowchart": {"defaultRenderer": "elk"}}}%%\nflowchart LR\n  A'))).toEqual(['flow.elk']);
-  });
-  it('edge ids and edge property lines', () => {
-    const m = parseFlowchart('flowchart LR\n  A e1@--> B\n  e1@{ animate: true }');
-    expect(m.edges.map((e) => e.id)).toEqual(['A->B']);
-    expect(m.nodes.has('e1')).toBe(false);
-    expect(m.diagnostics.map((d) => [d.code, d.range?.line])).toEqual([['flow.edge-id', 1], ['flow.edge-id', 2]]);
   });
 });
 

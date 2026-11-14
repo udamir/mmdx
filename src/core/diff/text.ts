@@ -43,7 +43,8 @@ function middle<T>(a: readonly T[], b: readonly T[], eq: (x: T, y: T) => boolean
   const trace: Int32Array[] = [];
   let found = -1;
   for (let d = 0; d <= max && found < 0; d++) {
-    trace.push(v.slice());
+    // only the diagonals round d reads back (-d-1 … d+1): the whole array per round was O(D · max) memory
+    trace.push(v.slice(off - d - 1, off + d + 2));
     for (let k = -d; k <= d; k += 2) {
       let x = k === -d || (k !== d && v[off + k - 1]! < v[off + k + 1]!) ? v[off + k + 1]! : v[off + k - 1]! + 1;
       let y = x - k;
@@ -62,10 +63,10 @@ function middle<T>(a: readonly T[], b: readonly T[], eq: (x: T, y: T) => boolean
   const out: [DiffOp, T][] = [];
   let x = n, y = m;
   for (let d = found; d >= 0; d--) {
-    const t = trace[d]!;
+    const t = trace[d]!, o = d + 1;
     const k = x - y;
-    const prevK = k === -d || (k !== d && t[off + k - 1]! < t[off + k + 1]!) ? k + 1 : k - 1;
-    const prevX = t[off + prevK]!, prevY = prevX - prevK;
+    const prevK = k === -d || (k !== d && t[o + k - 1]! < t[o + k + 1]!) ? k + 1 : k - 1;
+    const prevX = t[o + prevK]!, prevY = prevX - prevK;
     while (x > prevX && y > prevY) {
       out.push(['same', a[--x]!]);
       y--;

@@ -1,6 +1,6 @@
 // Small helpers of the theme editor: plain objects, paths into a theme, ids, and the events it dispatches.
-import type { ReadSignal } from '../ui/signal.js';
-import { untracked } from '../ui/signal.js';
+import type { ReadSignal } from '../reactive/signal.js';
+import { untracked } from '../reactive/signal.js';
 import type { ThemeEditorEventMap } from './types.js';
 
 export type Obj = Record<string, unknown>;

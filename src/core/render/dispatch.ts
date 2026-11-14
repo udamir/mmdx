@@ -1,29 +1,23 @@
 // Render dispatch (prototype render/index.js): model + meta + resolved theme → scene tree + geometry, plus the
-// page and the standalone SVG export (§7). Renderers are passed in (RendererSet), like the parsers.
+// page and the standalone SVG export (§7). The kinds are passed in, as for parsing.
 
-export type TypeRenderer<M extends SupportedModel = SupportedModel> = (model: M, env: RenderEnv) => SubResult;
-export interface RendererSet {
-  flowchart?: TypeRenderer<FlowchartModel>;
-  sequence?: TypeRenderer<SequenceModel>;
-  er?: TypeRenderer<ErModel>;
-}
 import type { DiagramMeta } from '../meta/types.js';
+import { collectMisses } from '../shapes/misses.js';
 import type { DiagramModel } from '../model.js';
-import { escAttr, fmt, serializeNodes } from '../scene/serialize.js';
+import { escAttr, escText, fmt, serializeNodes } from '../scene/serialize.js';
 import type { SceneNode } from '../scene/types.js';
 import type { ResolvedTheme } from '../theme/types.js';
 import type { Rect } from '../types.js';
 import { toNumber } from '../validate.js';
-import type { RenderEnv, SubResult } from './common.js';
-import type { ErModel, FlowchartModel, SequenceModel, SupportedModel } from '../model.js';
+import type { RenderEnv, SubResult, RenderContext, RenderOptions, RenderResult } from './types.js';
+import type { Kinds } from '../kind/types.js';
 import { effectivePage, fitPage, gridPattern, isClear, pageBounds, pageScene } from './page.js';
-import type { RenderContext, RenderOptions, RenderResult } from './types.js';
 
 
 /** What an unsupported (or empty) model renders: an empty 400×200 page (before the page minimum). */
 const empty = (): SubResult => ({ defs: [], body: [], bounds: { x: 0, y: 0, w: 400, h: 200 }, geom: { type: null }, presetsUsed: {} });
 
-export function renderWith(renderers: RendererSet, model: DiagramModel, meta: DiagramMeta, theme: ResolvedTheme, ctx: RenderContext, opts: RenderOptions = {}): RenderResult {
+export function renderWith(kinds: Kinds, model: DiagramModel, meta: DiagramMeta, theme: ResolvedTheme, ctx: RenderContext, opts: RenderOptions = {}): RenderResult {
   const canvas = effectivePage(model.type, meta, theme);
   const bg = ctx.color(canvas.background ?? theme.canvas.background);
   // renderers use this colour behind labels (halo) and inside markers: on a transparent page, the paper colour
@@ -35,19 +29,17 @@ export function renderWith(renderers: RendererSet, model: DiagramModel, meta: Di
     opts,
     paper,
     pad: toNumber(canvas.pad) ?? theme.canvas.pad,
+    diagnostics: [],
   };
-  const r =
-    model.type === 'flowchart' && renderers.flowchart ? renderers.flowchart(model, env)
-    : model.type === 'sequence' && renderers.sequence ? renderers.sequence(model, env)
-    : model.type === 'er' && renderers.er ? renderers.er(model, env)
-    : empty();
+  const kind = model.type ? kinds[model.type] : undefined;
+  const [r, missing] = collectMisses(() => (kind && model.type ? kind.render(model, env) : empty()));
   const contentBounds = r.bounds;
   const bounds = pageBounds(fitPage(r.bounds, canvas), canvas);
   const border = ctx.color(canvas.border ?? theme.canvas.border);
   const grid = ctx.color(canvas.grid ?? theme.canvas.grid);
   const defs = [...r.defs];
   if (grid) defs.push(gridPattern(ctx, grid));
-  return {
+  const out: RenderResult = {
     defs,
     body: r.body,
     bounds,
@@ -57,6 +49,10 @@ export function renderWith(renderers: RendererSet, model: DiagramModel, meta: Di
     geom: r.geom,
     presetsUsed: r.presetsUsed,
   };
+  if (env.diagnostics.length) out.diagnostics = env.diagnostics;
+  if (r.a11y && (r.a11y.title || r.a11y.desc)) out.a11y = r.a11y;
+  if (missing.shapes || missing.media) out.missing = missing;
+  return out;
 }
 
 export interface ExportScene {
@@ -82,8 +78,12 @@ export function renderSvgString(result: RenderResult, ctx: RenderContext, opts: 
   const s = exportScene(result, ctx);
   const b = s.bounds;
   const extra = opts.ssr ? ` data-mmdx-ssr="1" data-mmdx-measure="${escAttr(ctx.measure.kind)}"` : '';
+  // the diagram's own accessible title and description (`accTitle`, `accDescr`) name the document for assistive technology
+  const a = result.a11y;
+  const named = a?.title ? ` role="img" aria-label="${escAttr(a.title)}"` : '';
+  const head = (a?.title ? `<title>${escText(a.title)}</title>` : '') + (a?.desc ? `<desc>${escText(a.desc)}</desc>` : '');
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${fmt(b.x)} ${fmt(b.y)} ${fmt(b.w)} ${fmt(b.h)}" width="${fmt(b.w)}" height="${fmt(b.h)}"${extra}>` +
-    `<defs>${serializeNodes(s.defs)}</defs>${serializeNodes(s.body)}</svg>`
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${fmt(b.x)} ${fmt(b.y)} ${fmt(b.w)} ${fmt(b.h)}" width="${fmt(b.w)}" height="${fmt(b.h)}"${extra}${named}>` +
+    `${head}<defs>${serializeNodes(s.defs)}</defs>${serializeNodes(s.body)}</svg>`
   );
 }

@@ -1,21 +1,15 @@
-// Document ops of the editor (no UI): the style environment of the current render, metadata and code + metadata
-// changes applied as one history step, and the diagram-wide settings (type, direction, autonumber) the Properties
-// panel and the page toolbar share.
+// Document ops of the editor (no UI): metadata and code + metadata changes applied as one history step, and the diagram-wide settings (type, direction, autonumber) the Properties panel and the page toolbar share.
 import type { DiagramMeta } from '../../core/meta/types.js';
 import type { Direction, DiagramType } from '../../core/model.js';
-import { newDiagram, setAutonumber, setDirection } from '../../core/ops/meta-ops.js';
-import type { StyleEnv } from '../../core/ops/style-env.js';
+import { setAutonumber } from '../../core/kinds/sequence/ops.js';
+import { newDiagram, setDirection } from '../../core/ops/document.js';
+import { DIAGRAM_TYPES as TYPES, kindInfo } from '../../core/kinds/info.js';
 import type { MetaResult } from '../../core/ops/types.js';
 import type { EditorCore, Sel } from '../core.js';
 
-export const DIAGRAM_TYPES: readonly (readonly [DiagramType, string])[] = [['flowchart', 'type.flowchart'], ['sequence', 'type.sequence'], ['er', 'type.er']];
+/** The diagram types with their names' i18n keys (the type pickers; registered kinds too). */
+export const diagramTypeChoices = (): (readonly [DiagramType, string])[] => TYPES.map((t) => [t, kindInfo(t)!.label] as const);
 export const FLOW_DIRS: readonly (readonly [Direction, string])[] = [['TB', 'dir.TB'], ['LR', 'dir.LR'], ['BT', 'dir.BT'], ['RL', 'dir.RL']];
-
-/** The style environment (model, metadata, active theme, colour resolver) of the current document. */
-export function styleEnv(core: EditorCore): StyleEnv {
-  const r = core.result;
-  return { model: core.model, meta: core.meta, theme: r.theme, rawTheme: core.ctx.themes.merged(r.themeId), color: r.rctx.color };
-}
 
 /** Applies a metadata op as one history step; a refused op (reason) shows a toast and changes nothing. */
 export function applyMeta(core: EditorCore, label: string, res: MetaResult): boolean {
@@ -38,19 +32,19 @@ export function applyDoc(core: EditorCore, label: string, doc: { code: string; m
 export async function switchDiagramType(core: EditorCore, type: DiagramType): Promise<void> {
   const t = core.i18n.t;
   if (type === core.model.type) return;
-  const label = t(`type.${type}`);
+  const label = t(kindInfo(type)?.label ?? type);
   if (core.model.type && !(await core.dialogs.confirm(t('type.switchTitle', { type: label }), t('type.switchMsg', { type: label.toLowerCase() }), { ok: t('type.switchOk'), danger: true }))) return;
   const doc = newDiagram(type);
   const group = core.enteredGroup.peek(), page = core.pageSelected.peek();
-  core.enteredGroup.set(null);
-  core.pageSelected.set(false);
+  core.enterGroup(null);
+  core.selectPage(false);
   if (!core.applyCode(doc, t('history.newDiagram'), { select: [], type: 'doc.setType' })) {
     // vetoed by the host: nothing changes
-    core.enteredGroup.set(group);
-    core.pageSelected.set(page);
+    core.enterGroup(group);
+    core.selectPage(page);
     return;
   }
-  core.fileName = `untitled-${type}`;
+  core.uiState.fileName.set(`untitled-${type}`);
   core.viewport.setBounds(core.result.result.bounds, { fit: true });
   core.fire('model');
 }

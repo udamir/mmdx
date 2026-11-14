@@ -1,0 +1,280 @@
+# The built-in icon set (T04 §4.7): Tabler icons in the picker's groups, with search keywords. tools/build-icons.mjs
+# reads this list and fa-fallback.txt and writes src/icons/builtin.json. A line is `name: keyword, keyword…`; a
+# heading `## Group` starts a category. Every look-alike in fa-fallback.txt must be listed here.
+
+## People
+user: person, account, profile, member
+users: people, team, members
+users-group: team, group, organisation, department
+user-circle: avatar, account, profile
+user-plus: add user, sign up, invite
+user-check: verified, approved, member
+user-shield: admin, administrator, security
+user-cog: operator, settings, admin
+man: male, person
+woman: female, person
+id: identity, card, passport
+id-badge-2: badge, employee, identity
+robot: bot, automation, ai, agent
+mood-smile: happy, emoji, face, customer
+
+## Devices
+device-laptop: computer, notebook, client
+device-desktop: computer, monitor, workstation, pc
+device-mobile: phone, smartphone, cell
+device-tablet: ipad, tablet
+server: host, machine, backend, rack
+server-2: servers, cluster, datacenter
+server-cog: server settings, configuration
+cpu: processor, chip, compute, microchip
+printer: print, output
+router: network device, gateway
+keyboard: input, typing
+camera: photo, picture, capture
+headphones: audio, music, support
+microphone: voice, audio, recording
+plug: power, electricity, connector
+device-floppy: save, disk, storage
+
+## Documents
+file: document, page
+file-text: document, text, page
+file-code: source, script, code file
+file-spreadsheet: excel, sheet, csv
+file-invoice: bill, invoice
+file-zip: archive, compressed, zip
+file-type-pdf: pdf, document
+folder: directory, files
+folder-open: directory, open folder
+notes: note, memo, text
+clipboard: paste, board
+clipboard-list: checklist, tasks, todo
+clipboard-check: done, completed, approved
+book: manual, documentation, reading, library
+report: report, document, analytics
+bookmark: save, favourite, mark
+
+## Data and storage
+database: db, sql, storage, data
+database-export: export, backup, dump
+database-import: import, restore, load
+table: grid, rows, spreadsheet
+chart-bar: bar chart, statistics, analytics
+chart-line: line chart, trend, metrics
+chart-pie: pie chart, share, statistics
+filter: funnel, sieve
+archive: storage, box, backup
+box: package, container, product
+package: bundle, module, delivery
+cube: block, 3d, artifact
+stack-2: layers, stack
+container: container, docker, pod
+cloud: cloud, saas, internet
+cloud-upload: upload, backup
+cloud-download: download, sync
+cloud-computing: cloud, hosting, iaas
+server-bolt: serverless, function, lambda
+
+## Network
+network: connections, nodes, topology
+world: globe, internet, web, earth
+world-www: website, web, browser
+wifi: wireless, signal, internet
+antenna: signal, radio, broadcast
+topology-star-3: topology, hub, mesh
+sitemap: hierarchy, tree, structure
+hierarchy: tree, org chart, structure
+schema: schema, model, entity
+api: interface, rest, endpoint
+json: json, data, payload
+sql: sql, query, database
+lambda: lambda, function, serverless
+webhook: callback, event, hook
+link: url, hyperlink, chain
+share: share, social
+plug-connected: connected, integration, connector
+transfer: exchange, transfer, swap
+route: path, directions, routing
+
+## Security
+lock: secure, locked, private, password
+lock-open: unlocked, open, public
+key: password, secret, credential, api key
+shield: security, protection, guard
+shield-check: secure, verified, safe
+shield-lock: secure, encrypted, protected
+fingerprint: biometric, identity, auth
+eye: view, visible, watch, show
+eye-off: hidden, invisible, hide
+password: password, pin, credential
+certificate: ssl, tls, certificate
+bug: defect, error, issue, debug
+spy: incognito, anonymous, private
+
+## Status
+check: done, ok, yes, tick, success
+circle-check: success, done, approved
+x: close, cancel, no, delete
+circle-x: error, failed, rejected
+alert-triangle: warning, caution, danger
+alert-circle: alert, attention, notice
+alert-octagon: stop, critical, error
+info-circle: information, info, about
+help-circle: help, question, support, faq
+ban: forbidden, blocked, not allowed
+loader: loading, spinner, pending, wait
+circle-dashed: pending, draft, todo
+flag: milestone, report, mark
+star: favourite, rating, important
+heart: like, love, favourite
+thumb-up: like, approve, yes
+thumb-down: dislike, reject, no
+
+## Time
+clock: time, hour, schedule
+calendar: date, schedule, day
+calendar-event: event, appointment, meeting
+calendar-check: scheduled, booked, deadline
+hourglass: wait, timeout, time
+alarm: alarm, reminder, wake
+history: history, past, log, audit
+stopwatch: timer, duration, measure
+timeline: timeline, history, roadmap
+
+## Money
+currency-dollar: dollar, money, price, usd
+currency-euro: euro, money, price, eur
+coins: coins, money, payment
+cash: cash, money, bill
+credit-card: payment, card, billing
+wallet: wallet, money, payment
+receipt: receipt, bill, invoice
+shopping-cart: cart, shop, checkout, order
+building-bank: bank, finance, institution
+discount: discount, sale, percent
+tag: label, price, tag
+tags: labels, tags
+calculator: calculator, math, accounting
+briefcase: business, work, job, portfolio
+
+## Communication
+mail: email, envelope, message, letter
+mail-opened: read mail, opened email
+message: chat, comment, message
+messages: chat, conversation, comments
+message-circle: chat, bubble, talk
+phone: call, telephone, contact
+send: send, submit, paper plane
+bell: notification, alert, ring
+at: email, mention, address
+inbox: inbox, mailbox, queue
+speakerphone: announcement, megaphone, marketing
+video: video, camera, call, meeting
+rss: feed, subscribe, news
+headset: support, help desk, call centre
+
+## Arrows
+arrow-right: next, forward, right
+arrow-left: back, previous, left
+arrow-up: up, increase
+arrow-down: down, decrease
+arrows-exchange: exchange, swap, sync
+arrows-left-right: horizontal, both ways
+arrows-up-down: vertical, both ways
+refresh: refresh, reload, sync, retry
+rotate: undo, rotate
+arrow-back-up: undo, return, back
+chevron-right: next, expand
+chevron-left: previous, back
+chevron-down: down, expand, more
+external-link: open, external, new window
+login: sign in, log in, enter
+logout: sign out, log out, exit
+download: download, save, get
+upload: upload, send, put
+
+## Shapes
+circle: round, dot
+square: box, block
+square-rounded: rounded square, card
+rectangle: box, frame
+triangle: triangle, delta
+hexagon: hexagon, polygon
+diamond: decision, rhombus
+octagon: stop, polygon
+pentagon: polygon
+oval: ellipse
+point: dot, point
+circle-dot: target, radio, point
+
+## General
+home: house, start, main, homepage
+building: office, company, building
+building-factory: factory, industry, plant, manufacturing
+building-store: shop, store, retail
+building-hospital: hospital, clinic, health
+school: education, university, learning
+settings: gear, cog, configuration, options
+adjustments: settings, tune, controls
+tool: wrench, tool, maintenance
+tools: tools, build, repair
+search: find, magnifier, lookup
+plus: add, new, create
+minus: remove, subtract
+trash: delete, remove, bin, garbage
+edit: edit, modify, write
+pencil: edit, write, draw
+copy: copy, duplicate, clone
+paperclip: attachment, attach
+bolt: lightning, fast, energy, power, event
+flame: fire, hot, trending
+bulb: idea, light, insight
+rocket: launch, deploy, release, startup
+target: goal, aim, objective
+puzzle: plugin, extension, integration, module
+map-pin: location, place, marker, address
+map: map, directions, geography
+truck: delivery, shipping, logistics
+car: vehicle, automobile, transport
+plane: flight, airplane, travel
+gift: present, gift, reward
+brain: ai, intelligence, mind, ml
+code: code, development, programming, source
+terminal: console, shell, command line, cli
+git-branch: branch, git, version control
+git-merge: merge, git
+git-commit: commit, git, change
+git-pull-request: pull request, review, merge request
+list-check: checklist, tasks, todo
+layout-dashboard: dashboard, overview, panels
+sparkles: ai, magic, new
+ticket: ticket, issue, support
+photo: image, picture, photo
+player-play: play, start, run
+leaf: eco, green, nature, plant
+flask: lab, experiment, science, test
+heart-handshake: agreement, deal, partnership, handshake
+
+## Brands
+brand-github: github, git, repository
+brand-gitlab: gitlab, git, repository
+brand-git: git, version control
+brand-docker: docker, container
+brand-python: python, language
+brand-javascript: javascript, js
+brand-typescript: typescript, ts
+brand-nodejs: node, nodejs, javascript
+brand-react: react, frontend
+brand-html5: html, web
+brand-css3: css, styles, web
+brand-npm: npm, package
+brand-aws: aws, amazon, cloud
+brand-azure: azure, microsoft, cloud
+brand-google: google
+brand-windows: windows, microsoft
+brand-apple: apple, mac, ios
+brand-android: android, mobile
+brand-slack: slack, chat
+brand-jira: jira, issues, tickets
+brand-linkedin: linkedin, social
+brand-x: twitter, x, social

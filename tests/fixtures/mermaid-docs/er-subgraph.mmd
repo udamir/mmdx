@@ -1,0 +1,10 @@
+erDiagram
+    subgraph Sales [Sales domain]
+        CUSTOMER ||--o{ ORDER : places
+    end
+    subgraph Inventory
+        direction LR
+        PRODUCT
+        WAREHOUSE
+    end
+    ORDER }o--|| PRODUCT : contains

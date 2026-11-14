@@ -4,6 +4,8 @@
 
 export type ArrowType = 'none' | 'open' | 'filled' | 'arrow' | 'circle' | 'dot' | 'cross' | 'default';
 export type Routing = 'curved' | 'orthogonal' | 'straight';
+/** The connector routings, in the order the pickers show them (one list: the toolbars, the theme editor, the schema, the metadata check). */
+export const ROUTINGS: readonly Routing[] = ['curved', 'orthogonal', 'straight'];
 export type Side = 't' | 'b' | 'l' | 'r';
 export type TextAlign = 'left' | 'center' | 'right';
 export type VAlign = 'top' | 'middle' | 'bottom';
@@ -72,8 +74,6 @@ export interface StyleProps {
   /** Display name of a page preset. */
   label?: string;
 }
-
-export type StyleKey = keyof StyleProps;
 
 /** Merges style layers left → right; `undefined` / `null` / `''` do not override (prototype `mergeStyle`). */
 export function mergeLayers<T extends object>(...layers: (Partial<T> | null | undefined)[]): T {

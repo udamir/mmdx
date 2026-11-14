@@ -22,4 +22,16 @@ describe('stripMermaidStyles', () => {
     const seq = 'sequenceDiagram\n  participant A\n  A->>B: hi';
     expect(stripMermaidStyles(seq)).toBe(seq);
   });
+
+  it('leaves the types without style statements as written (B8)', () => {
+    const mind = 'mindmap\n  root\n    class notes\n    style guide\n';
+    expect(stripMermaidStyles(mind)).toBe(mind.trimEnd());
+    const seq = 'sequenceDiagram\n  A->>B: see a:::b\n';
+    expect(stripMermaidStyles(seq)).toBe(seq.trimEnd());
+  });
+
+  it('still strips flowchart, ER and state styling', () => {
+    expect(stripMermaidStyles('erDiagram\n  A:::hot\n  classDef hot fill:#f00\n')).toBe('erDiagram\n  A');
+    expect(stripMermaidStyles('stateDiagram-v2\n  A:::hot\n  classDef hot fill:#f00\n')).toBe('stateDiagram-v2\n  A');
+  });
 });

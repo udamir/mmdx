@@ -2,9 +2,10 @@
 // and callbacks, and know nothing about diagrams, editors or the kernel. A block is created by a `createX(props)`
 // function returning a handle; its CSS is a fragment the host adopts (deduplicated by identity), written against the
 // `--mmdx-*` tokens only.
-import { isMac, type I18n } from '../i18n.js';
-import { formatKeys } from '../shortcuts.js';
-import { effect, type ReadSignal } from '../signal.js';
+import { isMac, type I18n } from '../../i18n.js';
+import { Owner } from '../../reactive/owner.js';
+import { formatKeys } from '../kit/keys.js';
+import { type ReadSignal } from '../../reactive/signal.js';
 
 /** The translation function every block takes its strings through. */
 export type Translate = I18n['t'];
@@ -22,35 +23,48 @@ export interface BlockHandle<P> {
   destroy(): void;
 }
 
+/** Bookkeeping of one block instance: its listeners, effects and cleanups, all released by `dispose()` (an Owner). */
+export class Scope extends Owner {
+  private round: Scope | null = null;
+
+  /** A fresh child scope for one render: the previous render's child is disposed first, the current one goes with this scope (already disposed when this scope is). */
+  renew(): Scope {
+    if (this.round) this.round.dispose();
+    else this.add(() => this.round?.dispose());
+    const next = new Scope();
+    if (this.disposed) next.dispose();
+    return (this.round = next);
+  }
+}
+
+/** What a block's setup gives `defineBlock`: its element, how it draws its props, and the handle's other members (getters kept). */
+export type BlockParts<P, H extends BlockHandle<P>> = Omit<H, keyof BlockHandle<P>> & {
+  readonly el: HTMLElement;
+  /** Draws the props: once at creation (no argument), then after each `update` with the props it passed. */
+  render(next?: Partial<P>): void;
+};
+
 /**
- * Bookkeeping of one block instance: listeners on an AbortController, signal effects, and cleanups, all released by
- * `dispose()`.
+ * The block handle's boilerplate in one place (X16): `props` is copied into one object the setup reads (`update` merges the next props into it, so a handler reading `p.onChange` sees the current one), `scope` owns the block's listeners and effects (`scope.renew()` for a per-render child), and `destroy` disposes the scope and removes the element. The setup's members other than `render` become the handle's; the handle type `H` comes from the factory's return type.
  */
-export class Scope {
-  private readonly ac = new AbortController();
-  private readonly offs: (() => void)[] = [];
-
-  get signal(): AbortSignal {
-    return this.ac.signal;
-  }
-
-  on<K extends keyof HTMLElementEventMap>(el: EventTarget, type: K | string, f: (ev: HTMLElementEventMap[K]) => void, opts: AddEventListenerOptions = {}): void {
-    el.addEventListener(type, f as EventListener, { ...opts, signal: this.ac.signal });
-  }
-
-  /** Runs `f` now and whenever a signal it reads changes. */
-  effect(f: () => void): void {
-    this.offs.push(effect(f));
-  }
-
-  add(off: () => void): void {
-    this.offs.push(off);
-  }
-
-  dispose(): void {
-    this.ac.abort();
-    for (const off of this.offs.splice(0).reverse()) off();
-  }
+export function defineBlock<P extends object, H extends BlockHandle<P> = BlockHandle<P>>(props: P, setup: (p: P, scope: Scope) => BlockParts<P, H>): H {
+  const p = { ...props };
+  const scope = new Scope();
+  // the setup's object becomes the handle (its getters stay getters)
+  const parts: Partial<BlockParts<P, H>> & BlockHandle<P> = Object.assign(setup(p, scope), {
+    update(next?: Partial<P>) {
+      Object.assign(p, next);
+      render(next ?? {});
+    },
+    destroy() {
+      scope.dispose();
+      parts.el.remove();
+    },
+  });
+  const render = parts.render!;
+  delete parts.render;
+  render();
+  return parts as unknown as H;
 }
 
 /** Tooltip text with a shortcut hint: `Hand (H)`; `format` defaults to the registry's `formatKeys` (platform symbols). */

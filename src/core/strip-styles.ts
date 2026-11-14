@@ -1,4 +1,6 @@
 // Mermaid without styling: the structure only, for reading and copying (viewer code view) and for diff views.
+import { kindInfo } from './kinds/info.js';
+import { detectType } from './parse/dispatch.js';
 
 /** Mermaid style statements (`classDef`, `class`, `style`, `linkStyle`). */
 const STYLE_LINE = /^\s*(classDef|class|style|linkStyle)\s/;
@@ -12,9 +14,12 @@ const withoutShorthand = (line: string): string =>
 
 /**
  * Mermaid code (no `%%@` metadata) without classes and style statements. Runs of blank lines the removed
- * statements leave behind collapse to one, and trailing blank lines go.
+ * statements leave behind collapse to one, and trailing blank lines go. Only for the types that have such statements
+ * (B8): a sequence message `see a:::b` or a mindmap node named `class notes` is text, kept as written.
  */
 export function stripMermaidStyles(code: string): string {
+  const type = detectType(code);
+  if (type && !kindInfo(type)?.styleStatements) return code.trimEnd();
   return code
     .split('\n')
     .filter((l) => !STYLE_LINE.test(l))

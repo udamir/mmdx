@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHelpPopup, groupShortcuts, helpKeys } from '../../../src/ui/blocks/help-popup.js';
-import { createI18n } from '../../../src/ui/i18n.js';
-import { PopoverManager } from '../../../src/ui/popover.js';
-import type { Shortcut } from '../../../src/ui/shortcuts.js';
+import { createI18n } from '../../../src/i18n.js';
+import { PopoverManager } from '../../../src/ui/kit/popover.js';
+import type { Shortcut } from '../../../src/ui/kit/keys.js';
 
 const { t } = createI18n();
 

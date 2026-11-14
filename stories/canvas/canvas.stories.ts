@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
-import { instanceContext } from '../../src/config.js';
+import { instanceContext } from '../../src/platform/config.js';
 import { renderSource } from '../../src/core/pipeline.js';
 import { pageScene } from '../../src/core/render/page.js';
 import { CANVAS_CSS, DiagramCanvas } from '../../src/dom/canvas.js';

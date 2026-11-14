@@ -3,7 +3,7 @@
 Build-time plugins for Markdown pipelines: a rehype plugin and a markdown-it plugin turn each ` ```mermaid ` block into an `<mmdx-viewer>` with a pre-rendered SVG inside, so pages are readable and printable without JavaScript and become interactive when `@mmdx/studio/viewer` loads. The plugins run in Node, have no dependency on unified or markdown-it (they are typed structurally), and are synchronous.
 
 ```ts
-import { rehypeMmdx, markdownItMmdx, diagramHtml, scriptSafe, type MmdxMarkdownOptions } from '@mmdx/studio/markdown';
+import { rehypeMmdx, markdownItMmdx, diagramHtml, preloadIcons, scriptSafe, type MmdxMarkdownOptions } from '@mmdx/studio/markdown';
 ```
 
 The page only needs the viewer element in the browser:
@@ -17,12 +17,12 @@ import '@mmdx/studio/viewer'; // defines <mmdx-viewer>
 ### `rehypeMmdx()`
 
 ```ts
-function rehypeMmdx(opts?: MmdxMarkdownOptions): (tree: HastNode) => void;
+function rehypeMmdx(opts?: MmdxMarkdownOptions): (tree: HastNode) => void | Promise<void>;
 ```
 
 A rehype (hast) plugin: `rehypePlugins: [[rehypeMmdx, { theme: 'github-light' }]]`. It replaces every `pre` element whose `code` child has the class `language-mermaid` or `lang-mermaid` with the output of [`diagramHtml()`](#diagramhtml) for the code's text (one trailing newline removed). Other code blocks are left as they are.
 
-The replacement is a hast `raw` node, so the pipeline must let raw HTML through: serialize with `rehype-stringify` and `allowDangerousHtml: true`, or run `rehype-raw` after the plugin to parse it into elements (required for MDX, see [Docusaurus](#docusaurus)). The plugin creates its core context and registers `themes` once, when the plugin is set up; the transformer itself is synchronous.
+The replacement is a hast `raw` node, so the pipeline must let raw HTML through: serialize with `rehype-stringify` and `allowDangerousHtml: true`, or run `rehype-raw` after the plugin to parse it into elements (required for MDX, see [Docusaurus](#docusaurus)). The plugin creates its core context and registers `themes` once, when the plugin is set up. The transformer is synchronous, except when the page's diagrams reference icons that are not loaded yet: then it returns a promise (unified awaits it) and renders once they are.
 
 ### `markdownItMmdx()`
 
@@ -30,7 +30,7 @@ The replacement is a hast `raw` node, so the pipeline must let raw HTML through:
 function markdownItMmdx(md: MarkdownIt, opts?: MmdxMarkdownOptions): void;
 ```
 
-A markdown-it plugin: `md.use(markdownItMmdx, { theme: 'github-light' })`. It wraps the `fence` renderer rule: a fence whose info string starts with the word `mermaid` renders as [`diagramHtml()`](#diagramhtml) of its content (one trailing newline removed); every other fence goes to the previous `fence` rule, or to `<pre><code>…</code></pre>` with the content escaped when there is none. markdown-it renders synchronously, and so does the plugin: the SVG is laid out in Node with the static text measurer, with no browser and no worker.
+A markdown-it plugin: `md.use(markdownItMmdx, { theme: 'github-light' })`. It wraps the `fence` renderer rule: a fence whose info string starts with the word `mermaid` renders as [`diagramHtml()`](#diagramhtml) of its content (one trailing newline removed); every other fence goes to the previous `fence` rule, or to `<pre><code>…</code></pre>` with the content escaped when there is none. markdown-it renders synchronously, and so does the plugin: the SVG is laid out in Node with the static text measurer, with no browser and no worker. Icons are drawn from what is loaded: with icon packs that load through loaders, call [`preloadIcons()`](#preloadicons) with the pages' sources first and pass the same `ctx`.
 
 Register it after plugins that replace the `fence` rule themselves, so that it sees the ` ```mermaid ` fences first.
 
@@ -48,6 +48,23 @@ The HTML for one diagram, the building block of both plugins. `ctx` defaults to 
 import { diagramHtml } from '@mmdx/studio/markdown';
 
 const html = diagramHtml('flowchart LR\n  a --> b', { themeDark: 'auto', attrs: { controls: 'zoom fullscreen' } });
+```
+
+### `preloadIcons()`
+
+```ts
+function preloadIcons(ctx: CoreContext, sources: readonly string[]): Promise<void>;
+```
+
+Loads the icons these diagram sources reference into the context's icon registry (the built-in set, Font Awesome look-alikes and the packs of `ctx.icons`), for the synchronous markdown-it plugin.
+
+```js
+import { createContext, createIconRegistry } from '@mmdx/studio/core';
+import { markdownItMmdx, preloadIcons } from '@mmdx/studio/markdown';
+
+const ctx = createContext({ icons: createIconRegistry([{ name: 'logos', loader: () => import('@iconify-json/logos/icons.json').then((m) => m.default) }]) });
+await preloadIcons(ctx, mermaidSourcesOfThePages);
+md.use(markdownItMmdx, { ctx });
 ```
 
 ### `scriptSafe()`
@@ -75,7 +92,8 @@ The options of both plugins and of `diagramHtml()`.
 | `prerender` | `boolean` | `true` | Pre-render supported diagrams to SVG. With `false` the element holds only the source and draws in the browser. |
 | `themes` | `readonly ThemeFile[]` | none | Extra theme files (for example your site's, or files from `@mmdx/studio/themes/*`) registered into the context when the plugin is set up, before rendering. Read by `rehypeMmdx` and `markdownItMmdx`, not by `diagramHtml`. |
 | `attrs` | `Record<string, string>` | none | Viewer attributes added to every element (`controls`, `fit`, …). Names are reduced to letters, digits, `_` and `-`; values are escaped. `theme` and `themeDark` replace `attrs.theme` and `attrs['theme-dark']`; `style` is replaced when the diagram is pre-rendered. |
-| `ctx` | `CoreContext` | `createContext()` | The core context to render with (themes, text measurer). The plugins create one per plugin instance; `diagramHtml` one per call. Pass one to share a theme registry across calls. |
+| `ctx` | `CoreContext` | `createContext()` | The core context to render with (themes, text measurer, icon registry). The plugins create one per plugin instance; `diagramHtml` one per call. Pass one to share a theme registry across calls. |
+| `iconPacks` | `readonly IconPack[]` | none | Icon packs over the context's registry (which has the built-in set), as `configure({ iconPacks })` takes them. Read by `rehypeMmdx` and `markdownItMmdx`. See [Icons](/guide/icons#on-the-server). |
 
 See [`<mmdx-viewer>`](/components/viewer) for the attributes `attrs` can set, and [Themes](/guide/themes) for theme ids and files.
 
@@ -109,7 +127,7 @@ For a supported diagram, the output is one `<mmdx-viewer>` element (on one line;
 
 ### Unsupported and failing diagrams
 
-Only flowcharts (`flowchart`, `graph`), sequence diagrams (`sequenceDiagram`) and ER diagrams (`erDiagram`) are pre-rendered. Any other type gets the source only, and the viewer falls back to stock Mermaid in the browser (its `fallback` attribute):
+Only flowcharts (`flowchart`, `graph`), sequence diagrams (`sequenceDiagram`), ER diagrams (`erDiagram`), mindmaps (`mindmap`) and state diagrams (`stateDiagram`, `stateDiagram-v2`) are pre-rendered. Any other type gets the source only, and the viewer falls back to stock Mermaid in the browser (its `fallback` attribute):
 
 ```html
 <mmdx-viewer><script type="text/mermaid">pie title Pets

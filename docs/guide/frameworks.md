@@ -30,10 +30,10 @@ Strings, numbers and booleans have attributes (`controls`, `theme`, `fit`, `read
 | Element | Properties |
 |---|---|
 | `<mmdx-viewer>` | `source`, `loader`, `layers`, `history`, `fullscreen`, `storage`, `themeSource` |
-| `<mmdx-editor>` | `value`, `adapter`, `features`, `history`, `panels`, `storage`, `themeSource`, `modules`, `readOnly` |
+| `<mmdx-editor>` | `value`, `adapter`, `features`, `history`, `panels`, `storage`, `themeSource`, `modules`, `readOnly`, `images`, `uploadImage` |
 | `<mmdx-diff>` | `beforeSource`, `afterSource`, `history`, `features`, `panels`, `loader`, `storage`, `themeSource`, `ctx`, `actions` |
 | `<mmdx-theme-editor>` | `store`, `source`, `storage`, `samples`, `theme` |
-| `<mmdx-studio>` | `storage` |
+| `<mmdx-studio>` | `storage`, `images` |
 
 - Properties can be set before or after the element is connected: they are kept, apply to the live component, and come back when the element is connected again.
 - An attribute set later replaces a property of the same option, and the other way round. A removed attribute sets its option back to the default.
@@ -95,7 +95,7 @@ const { MmdxViewer } = createReactWrappers(React); // also MmdxEditor, MmdxTheme
 
 - `createReactWrappers(React)` takes your React, so the package has no React dependency. Import the element entries you use as well.
 - `onMmdxChange` listens to `mmdx-change`, `onMmdxThemeSaved` to `mmdx-theme-saved`, and so on.
-- `source`, `loader`, `layers`, `themeSource`, `storage`, `adapter`, `features`, `panels`, `value`, `readOnly`, `store`, `modules`, `history`, `beforeSource`, `afterSource`, `ctx`, `samples` and `actions` are set as properties. Other props are attributes, camelCase turned into kebab-case (`themeDark` → `theme-dark`, `guardUnload` → `guard-unload`); `true` is an empty attribute and `false` removes it.
+- A prop is set as a property when the element has a property of that name (the [properties](#properties-and-attributes) above: `source`, `adapter`, `history`, `features`, …); before the element is defined, any object or function prop is. Other props are attributes, camelCase turned into kebab-case (`themeDark` → `theme-dark`, `guardUnload` → `guard-unload`); `true` is an empty attribute and `false` removes it.
 - The ref is the element.
 
 The wrappers are typed loosely (the fields of `MmdxReactComponents` are `unknown`); cast them to a component type of your own in TypeScript. See [`@mmdx/studio/react`](/api/react).
@@ -207,7 +207,7 @@ The constructors take the host element and the options object (`ViewerOptions`, 
 
 The element entries add their tags to `HTMLElementTagNameMap`, so `document.querySelector('mmdx-editor')` and `document.createElement('mmdx-viewer')` are typed as `MmdxEditorElement` and `MmdxViewerElement`, with their properties and methods.
 
-The events are `CustomEvent`s that are not declared on `HTMLElementEventMap`, so a listener receives an `Event`. The entries export event maps to cast with — `ViewerEventMap` (`@mmdx/studio/viewer`), `DiffEventMap` (`@mmdx/studio/diff`), `ThemeEditorEventMap` (`@mmdx/studio/theme-editor`):
+The events are `CustomEvent`s that are not declared on `HTMLElementEventMap`, so a listener receives an `Event`. The entries export event maps to cast with — `ViewerEventMap` (`@mmdx/studio/viewer`), `EditorEventMap` (`@mmdx/studio/editor`), `DiffEventMap` (`@mmdx/studio/diff`), `ThemeEditorEventMap` (`@mmdx/studio/theme-editor`):
 
 ```ts
 import type { ViewerEventMap } from '@mmdx/studio/viewer';

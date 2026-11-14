@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { PEN_COLORS, PEN_FADES, PEN_SIZES } from '../../src/dom/pen.js';
 import { createPenOptions, PEN_OPTIONS_CSS, type PenSettings } from '../../src/ui/blocks/pen-options.js';
 import { TOOL_DOCK_CSS } from '../../src/ui/blocks/tool-dock.js';
-import { createI18n } from '../../src/ui/i18n.js';
+import { createI18n } from '../../src/i18n.js';
 import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark' };

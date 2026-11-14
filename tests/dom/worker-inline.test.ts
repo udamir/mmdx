@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BUILTIN_THEMES } from '../../src/core/theme/builtin.js';
 import type { WorkerRequest, WorkerResponse } from '../../src/dom/worker-protocol.js';
+import { DEFAULT_IMAGE_POLICY, DEFAULT_LINK_POLICY } from '../../src/core/validate.js';
 
 const load = async (): Promise<{ inline: typeof import('../../src/worker-inline.js'); client: typeof import('../../src/dom/worker-client.js') }> => {
   vi.resetModules();
@@ -23,16 +24,18 @@ describe('workerSource', () => {
   it('renders a diagram when run as a worker (its global scope faked)', async () => {
     const { inline } = await load();
     const listeners: ((ev: { data: WorkerRequest }) => void)[] = [];
-    const posted: WorkerResponse[] = [];
+    const posted: (WorkerResponse | { ready: true })[] = [];
     const scope = {
       addEventListener: (_t: string, f: (ev: { data: WorkerRequest }) => void) => void listeners.push(f),
-      postMessage: (m: WorkerResponse) => void posted.push(m),
+      postMessage: (m: WorkerResponse | { ready: true }) => void posted.push(m),
     };
     new Function('self', 'addEventListener', 'postMessage', inline.workerSource)(scope, scope.addEventListener, scope.postMessage);
     expect(listeners).toHaveLength(1);
-    listeners[0]!({ data: { id: 7, src: 'flowchart LR\n  a --> b', opts: {}, themes: BUILTIN_THEMES, themesKey: '1.0', idPrefix: 't' } });
-    expect(posted).toHaveLength(1);
-    const res = posted[0]!;
+    listeners[0]!({ data: { id: 7, src: 'flowchart LR\n  a --> b', opts: {}, themes: BUILTIN_THEMES, themesKey: '1.0', idPrefix: 't', linkPolicy: DEFAULT_LINK_POLICY, imagePolicy: DEFAULT_IMAGE_POLICY, icons: { packs: [], icons: {} } } });
+    // first its start, then the job's answer
+    expect(posted).toHaveLength(2);
+    expect(posted[0]).toEqual({ ready: true });
+    const res = posted[1]! as WorkerResponse;
     expect(res.id).toBe(7);
     expect(res.ok && res.model.type).toBe('flowchart');
   });

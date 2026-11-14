@@ -2,9 +2,9 @@ import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { diffDiagrams } from '../../src/core/diff/all.js';
 import { MENU_CSS } from '../../src/ui/blocks/menu.js';
 import { createVersionList, VERSION_LIST_CSS, type VersionCounts } from '../../src/ui/blocks/version-list.js';
-import { createI18n } from '../../src/ui/i18n.js';
-import { PopoverManager } from '../../src/ui/popover.js';
-import { DIFF_TOKENS } from '../../src/ui/styles/diff.js';
+import { createI18n } from '../../src/i18n.js';
+import { PopoverManager } from '../../src/ui/kit/popover.js';
+import { DIFF_TOKENS } from '../../src/diff/styles.js';
 import { chromeHost, exampleHistory } from '../support.js';
 
 type Args = { example: string; mode: 'compare' | 'history'; timeline: boolean; hasMore: boolean; ui: 'light' | 'dark' };

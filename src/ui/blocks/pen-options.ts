@@ -3,12 +3,12 @@
 // `editor/modules/chrome/tool-dock.ts`) and the viewer / diff popup (`penOptions` in `elements/viewer-popups.ts`).
 // Re-renders itself after each change, keeping the focus on the same choice. The choices are props (defaults: the
 // values of dom/pen.ts's MagicPen, which a test keeps in step), so the block does not import the pen.
-import { h, icon } from '../h.js';
-import { registerMessages } from '../i18n.js';
-import { I_eraser } from '../icons.js';
+import { h, icon } from '../kit/h.js';
+import { registerMessages } from '../../i18n.js';
+import { I_eraser } from '../kit/icons.js';
 import { BLOCK_MESSAGES_CHROME } from '../messages/blocks.js';
-import { Scope, type BlockHandle, type Translate } from './block.js';
-import { keepFocus, rovingKeys } from './focus.js';
+import { defineBlock, type BlockHandle, type Translate } from './block.js';
+import { keepFocus, rovingKeys } from '../kit/focus.js';
 
 /** What the pen options read and set (the editor's and viewer's MagicPen, the diff's shared ink). */
 export interface PenSettings {
@@ -71,69 +71,57 @@ export const PEN_OPTIONS_CSS = /* css */ `
 
 export function createPenOptions(props: PenOptionsProps): PenOptionsHandle {
   registerMessages(BLOCK_MESSAGES_CHROME);
-  let p = { ...props };
-  const scope = new Scope();
-  let fx = new Scope();
-  // a group (not a toolbar: it sits inside the tool dock's toolbar) with its own tab stop, the picked colour
-  const el = h('div', { class: 'mmdx-pen-opts', role: 'group' });
-  // up / down move through the choices; the keys stop here, so the surrounding toolbar does not move as well
-  const keys = rovingKeys(el, { orientation: 'vertical', selector: 'button', roving: true, current: (items) => items.find((b) => b.classList.contains('on')) });
-  scope.add(() => keys.destroy());
+  return defineBlock(props, (p, scope) => {
+    // a group (not a toolbar: it sits inside the tool dock's toolbar) with its own tab stop, the picked colour
+    const el = h('div', { class: 'mmdx-pen-opts', role: 'group' });
+    // up / down move through the choices; the keys stop here, so the surrounding toolbar does not move as well
+    const keys = rovingKeys(el, { orientation: 'vertical', selector: 'button', roving: true, current: (items) => items.find((b) => b.classList.contains('on')) });
+    scope.add(() => keys.destroy());
 
-  const render = (): void => {
-    keepFocus(el, renderNow);
-    keys.sync();
-  };
-  const renderNow = (): void => {
-    fx.dispose();
-    fx = new Scope();
-    const { pen, t } = p;
-    el.setAttribute('aria-label', t('pen.options'));
-    const choice = (cls: string, on: boolean, label: string, f: string, run: () => void, ...kids: (Node | string)[]): HTMLButtonElement => {
-      const b = h('button', { type: 'button', class: cls + (on ? ' on' : ''), title: label, 'aria-label': label, 'aria-pressed': String(on), 'data-f': f }, ...kids);
-      fx.on(b, 'click', () => {
-        run();
-        render();
-      });
-      return b;
+    const render = (): void => {
+      keepFocus(el, renderNow);
+      keys.sync();
     };
-    const sep = (): HTMLElement => h('span', { class: 'mmdx-pen-sep', 'aria-hidden': 'true' });
-    const kids: HTMLElement[] = [];
-    for (const c of p.colors ?? PEN_COLOR_CHOICES) {
-      const key = `pen.colors.${c.name}`, named = t(key);
-      const b = choice('mmdx-pen-color', c.value === pen.color, t('pen.colorNamed', { name: named === key ? c.name : named }), `color-${c.value}`, () => pen.setColor(c.value));
-      b.style.setProperty('--c', c.value);
-      kids.push(b);
-    }
-    kids.push(sep());
-    for (const sz of p.sizes ?? PEN_SIZE_CHOICES) {
-      const dot = h('i');
-      dot.style.width = dot.style.height = `${sz + 3}px`;
-      dot.style.background = pen.color;
-      kids.push(choice('mmdx-pen-size', sz === pen.size, t('pen.size', { n: sz }), `size-${sz}`, () => pen.setSize(sz), dot));
-    }
-    kids.push(sep());
-    for (const ms of p.fades ?? PEN_FADE_CHOICES)
-      kids.push(choice('mmdx-pen-fade', ms === pen.fade, ms ? t('pen.fadeAfter', { s: ms / 1000 }) : t('pen.keep'), `fade-${ms}`, () => pen.setFade(ms), ms ? `${ms / 1000}s` : '∞'));
-    kids.push(sep());
-    const clean = h('button', { type: 'button', class: 'mmdx-pen-clean', title: t('pen.erase'), 'aria-label': t('pen.erase'), 'data-f': 'erase' }, icon(I_eraser, 18));
-    fx.on(clean, 'click', () => pen.clear());
-    kids.push(clean);
-    el.replaceChildren(...kids);
-  };
-  render();
-
-  return {
-    el,
-    refresh: render,
-    update(next) {
-      p = { ...p, ...next };
-      render();
-    },
-    destroy() {
-      fx.dispose();
-      scope.dispose();
-      el.remove();
-    },
-  };
+    const renderNow = (): void => {
+      const fx = scope.renew();
+      const { pen, t } = p;
+      el.setAttribute('aria-label', t('pen.options'));
+      const choice = (cls: string, on: boolean, label: string, f: string, run: () => void, ...kids: (Node | string)[]): HTMLButtonElement => {
+        const b = h('button', { type: 'button', class: cls + (on ? ' on' : ''), title: label, 'aria-label': label, 'aria-pressed': String(on), 'data-f': f }, ...kids);
+        fx.on(b, 'click', () => {
+          run();
+          render();
+        });
+        return b;
+      };
+      const sep = (): HTMLElement => h('span', { class: 'mmdx-pen-sep', 'aria-hidden': 'true' });
+      const kids: HTMLElement[] = [];
+      for (const c of p.colors ?? PEN_COLOR_CHOICES) {
+        const key = `pen.colors.${c.name}`, named = t(key);
+        const b = choice('mmdx-pen-color', c.value === pen.color, t('pen.colorNamed', { name: named === key ? c.name : named }), `color-${c.value}`, () => pen.setColor(c.value));
+        b.style.setProperty('--c', c.value);
+        kids.push(b);
+      }
+      kids.push(sep());
+      for (const sz of p.sizes ?? PEN_SIZE_CHOICES) {
+        const dot = h('i');
+        dot.style.width = dot.style.height = `${sz + 3}px`;
+        dot.style.background = pen.color;
+        kids.push(choice('mmdx-pen-size', sz === pen.size, t('pen.size', { n: sz }), `size-${sz}`, () => pen.setSize(sz), dot));
+      }
+      kids.push(sep());
+      for (const ms of p.fades ?? PEN_FADE_CHOICES)
+        kids.push(choice('mmdx-pen-fade', ms === pen.fade, ms ? t('pen.fadeAfter', { s: ms / 1000 }) : t('pen.keep'), `fade-${ms}`, () => pen.setFade(ms), ms ? `${ms / 1000}s` : '∞'));
+      kids.push(sep());
+      const clean = h('button', { type: 'button', class: 'mmdx-pen-clean', title: t('pen.erase'), 'aria-label': t('pen.erase'), 'data-f': 'erase' }, icon(I_eraser, 18));
+      fx.on(clean, 'click', () => pen.clear());
+      kids.push(clean);
+      el.replaceChildren(...kids);
+    };
+    return {
+      el,
+      refresh: render,
+      render,
+    };
+  });
 }

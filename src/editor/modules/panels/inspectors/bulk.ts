@@ -6,10 +6,11 @@ import { cloneMeta } from '../../../../core/ops/meta-util.js';
 import { baseStyleOf, presetsFor } from '../../../../core/ops/style-env.js';
 import { STYLE_FIELDS } from '../../../../core/schema/style-fields.js';
 import type { ItemKind, ItemRef } from '../../../../core/types.js';
-import { h } from '../../../../ui/h.js';
-import { applyMeta, styleEnv } from '../../../ops/doc.js';
+import { h } from '../../../../ui/kit/h.js';
+import { applyMeta } from '../../../ops/doc.js';
 import { field } from '../fields.js';
-import { bulkTarget, layerRow, lineDefaults, lineFields, multiActions, pickerSection, roundedBox, sect, type PanelCtx } from './shared.js';
+import { bulkTarget, layerRow, lineDefaults, lineFields, multiActions, pickerSection, roundedBox } from './shared.js';
+import { sect, type PanelCtx } from '../../../lib/panel.js';
 
 export function multiInspector(p: PanelCtx, host: HTMLElement): void {
   const { core } = p;
@@ -31,7 +32,7 @@ export function multiInspector(p: PanelCtx, host: HTMLElement): void {
 export function bulkInspector(p: PanelCtx, host: HTMLElement, kind: ItemKind, sel: readonly ItemRef[]): void {
   const { core } = p;
   const t = core.i18n.t;
-  const env = styleEnv(core);
+  const env = core.styleEnv();
   const refs = sel.map(({ kind: k, id }) => ({ kind: k, id }));
   const kindName = t(`props.kinds.${kind}`);
   host.append(h('div', { class: 'insp-title' }, t('props.bulkTitle', { n: refs.length, kind: kindName.startsWith('props.') ? kind : kindName })),
@@ -42,15 +43,14 @@ export function bulkInspector(p: PanelCtx, host: HTMLElement, kind: ItemKind, se
   const style = bulkTarget(p, refs, refs.map((r) => baseStyleOf(env, kind, r.id)));
   for (const f of STYLE_FIELDS[kind] ?? []) field(core.i18n, host, f, style);
 
-  const g = core.geom;
   const geo = (fields: readonly string[], baseOf: (r: ItemRef) => Record<string, unknown>): void => {
     sect(host, t('props.geometry'));
     const target = bulkTarget(p, refs, refs.map(baseOf));
     for (const f of fields) field(core.i18n, host, f, target);
   };
-  if (kind === 'node' && g.type === 'flowchart') geo(['x', 'y', 'w', 'h'], (r) => roundedBox(g.nodes.get(r.id)));
-  else if (kind === 'entity' && g.type === 'er') geo(['x', 'y', 'w', 'h'], (r) => roundedBox(g.entities.get(r.id)));
-  else if (kind === 'participant' && g.type === 'sequence') geo(['x', 'w', 'h'], (r) => roundedBox(g.participants.get(r.id)));
+  const boxOf = (r: ItemRef): Record<string, unknown> => roundedBox(core.boxOf({ kind: r.kind, id: r.id }) ?? undefined);
+  if (kind === 'node' || kind === 'entity') geo(['x', 'y', 'w', 'h'], boxOf);
+  else if (kind === 'participant') geo(['x', 'w', 'h'], boxOf);
   else if (kind === 'edge' || kind === 'rel') {
     const defaults = lineDefaults(core, kind);
     geo(lineFields(kind), () => ({ ...defaults }));

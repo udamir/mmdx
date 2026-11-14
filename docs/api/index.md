@@ -55,6 +55,7 @@ The element classes, their options, methods and attributes are documented on the
 | Constants | `VIEWER_MODULES` (the viewer's modules, advanced) | [Viewer](/components/viewer) |
 | Types | `ViewerOptions`, `ViewerControl`, `ViewerEventMap`, `HostFullscreen` | [Viewer](/components/viewer), [Events](/api/events) |
 | | `Config` | [Configuration](/api/configuration) |
+| | `IconPack`, `IconifyJSON` (the `iconPacks` option) | [Core](/api/core#iconpack) |
 | | `HistorySession` | [History](/guide/history) |
 | | `ViewCore`, `ViewModule`, `ModuleScope`, `SceneSource`, `Stage`, `DiagramCanvas` (the component kernel, advanced) | [Components](/components/) |
 
@@ -62,16 +63,17 @@ The element classes, their options, methods and attributes are documented on the
 
 | Group | Exports | Documented in |
 |---|---|---|
-| Elements and classes | `MmdxEditorElement` (`<mmdx-editor>`), `DiagramEditor`, `EditorCore` (the editor's kernel, advanced) | [Editor](/components/editor) |
+| Elements and classes | `MmdxEditorElement` (`<mmdx-editor>`), `DiagramEditor` | [Editor](/components/editor) |
 | Functions | `defineEditor(name?)` | [Editor](/components/editor) |
 | | `configure`, `registerThemes`, `registerBuiltinThemes` | [Configuration](/api/configuration) |
 | | `memoryDocumentAdapter`, `httpDocumentAdapter` | [Adapters](/api/adapters#documents) |
 | Constants | `DEFAULT_FEATURES`, `DEFAULT_MODULES` | [Editor](/components/editor) |
-| Types | `EditorOptions`, `EditorFeatures`, `SaveOutcome`, `SetSourceOptions` | [Editor](/components/editor) |
+| Types | `EditorOptions`, `EditorFeatures`, `EditorEventMap`, `SaveOutcome`, `SetSourceOptions` | [Editor](/components/editor), [Events](/api/events) |
 | | `DocumentAdapter`, `LoadResult`, `DocumentSaveResult` | [Adapters](/api/adapters#documents) |
 | | `Config` | [Configuration](/api/configuration) |
+| | `IconPack`, `IconifyJSON` (the `iconPacks` option) | [Core](/api/core#iconpack) |
 | | `HistorySession` | [History](/guide/history) |
-| | `EditorModule`, `Gesture`, `GestureSource`, `OverlayPainter`, `ViewCore`, `ViewModule`, `ModuleScope`, `SceneSource`, `Stage`, `DiagramCanvas` (custom editor modules, advanced) | [Editor](/components/editor) |
+| | `EditorModule`, `EditorModuleApi` (the core as a module sees it), `Gesture`, `GestureSource`, `OverlayPainter`, `ViewCore`, `ViewModule`, `ModuleScope`, `SceneSource`, `Stage`, `DiagramCanvas` (custom editor modules, advanced) | [Editor](/components/editor) |
 
 The editor does not export the history adapters; import them from `@mmdx/studio/adapters` or `@mmdx/studio/diff` (History's code itself loads on first use either way).
 
@@ -109,6 +111,7 @@ The editor does not export the history adapters; import them from `@mmdx/studio/
 | | `DiffResult` (the core's `DiagramDiff` result type, renamed because `DiagramDiff` is the component class here), `ItemChange`, `FieldChange`, `ChangeFacet` | [Core](/api/core#diagramdiff) |
 | | `HistoryAdapter`, `StaticVersion`, `VersionInfo` | [Adapters](/api/adapters#history) |
 | | `Config` | [Configuration](/api/configuration) |
+| | `IconPack`, `IconifyJSON` (the `iconPacks` option) | [Core](/api/core#iconpack) |
 | | `ViewCore`, `ViewModule`, `ModuleScope`, `SceneSource`, `Stage`, `DiagramCanvas` (the component kernel, advanced) | [Components](/components/) |
 
 #### Asynchronous diff functions
@@ -133,6 +136,7 @@ The package root and `@mmdx/studio/studio` are the same entry.
 | | `configure`, `registerThemes`, `registerBuiltinThemes` | [Configuration](/api/configuration) |
 | Types | `StudioOptions`, `ExampleInfo` | [Studio](/components/studio) |
 | | `Config` | [Configuration](/api/configuration) |
+| | `IconPack`, `IconifyJSON` (the `iconPacks` option) | [Core](/api/core#iconpack) |
 
 ### `@mmdx/studio/core`
 
@@ -145,12 +149,14 @@ Every export is documented on the [core](/api/core) page.
 | Rendering | [`createContext`](/api/core#createcontext), [`renderSource`](/api/core#rendersource), [`renderDocument`](/api/core#renderdocument), [`renderToSvg`](/api/core#rendertosvg), [`standaloneSvg`](/api/core#standalonesvg), [`ALL_KINDS`](/api/core#all-kinds), [`serializeNode`, `serializeNodes`](/api/core#serializenode), [`fmt`](/api/core#fmt), [`createStaticMeasurer`](/api/core#createstaticmeasurer) |
 | Themes | [`ThemeRegistry`](/api/core#themeregistry), [`BASELINE`](/api/core#baseline), [`BUILTIN_THEMES`](/api/core#builtin-themes), [`createDefaultRegistry`](/api/core#createdefaultregistry), [`validateTheme`](/api/core#validatetheme), [`migrateTheme`](/api/core#migratetheme), [`resolveColor`](/api/core#resolvecolor), [`relativeColor`](/api/core#relativecolor), [`createColorResolver`](/api/core#createcolorresolver) |
 | Links | [`safeUrl`](/api/core#safeurl), [`DEFAULT_LINK_POLICY`](/api/core#default-link-policy) |
+| Images | [`checkImageUrl`, `safeImageUrl`](/api/core#checkimageurl-safeimageurl), [`resolveContentUrl`](/api/core#urlresolver), [`DEFAULT_IMAGE_POLICY`](/api/core#default-image-policy) |
+| Icons | [`createIconRegistry`](/api/core#createiconregistry), [`IconRegistry`](/api/core#iconregistry), [`iconNamesOf`](/api/core#iconnamesof) |
 | Layers | [`layerDefs`](/api/core#layerdefs), [`hiddenByLayers`](/api/core#hiddenbylayers), [`DEFAULT_LAYER`](/api/core#default-layer) |
 | Starters and outline | [`starterSource`](/api/core#startersource), [`outline`](/api/core#outline), [`summarize`](/api/core#summarize) |
 | Diff | [`diffDiagrams`](/api/core#diffdiagrams), `diffDiagramsWith`, [`diffModels`](/api/core#diffmodels), [`ignoreFacets`](/api/core#ignorefacets), [`withoutStyle`](/api/core#withoutstyle), [`withLayoutOf`](/api/core#withlayoutof), [`mergeDiagrams`](/api/core#mergediagrams), [`diffReport`](/api/core#diffreport), [`unifiedDiff`](/api/core#unifieddiff), [`diffWords`](/api/core#diffwords), [`diffLines`](/api/core#difflines), [`mergeText`](/api/core#mergetext), [`annotate`](/api/core#annotate), [`changeKey`](/api/core#changekey), [`FACETS`](/api/core#facets), [`DIFF_COLORS`](/api/core#diff-colors) |
 | Diff rendering | [`renderDiff`, `renderDiffWith`](/api/core#renderdiff), [`renderDiffToSvg`, `renderDiffToSvgWith`](/api/core#renderdifftosvg), [`diffSvg`](/api/core#diffsvg) |
 | Model helpers | `ITEM_KINDS`, `itemKey`, `parseItemKey`, `diagnosticText`, `diag`, `isSupported` ([model types](/api/core#model-types)) |
-| Types | [`DiagramDocument`](/api/core#diagramdocument), `DiagramMeta`, `CanvasMeta`, `ItemMeta`, `LayerMeta`, `PageSettings` ([metadata types](/api/core#metadata-types)); [`CoreContext`](/api/core#corecontext), [`PipelineOptions`](/api/core#pipelineoptions), [`Rendered`](/api/core#rendered), `Kinds`, [`RenderResult`](/api/core#renderresult), `GeometryIndex`, `SceneNode`, `TextMeasurer`, `FontSpec`; `ThemeFile`, `ThemeInfo`, `ResolvedTheme`; `StyleProps`, `ArrowType`, `Routing`, `Side` ([theme file](/api/theme-file)); [`LinkPolicy`](/api/core#linkpolicy), [`SafeUrl`](/api/core#safeurl); `StarterType`; [`DiagramDiff`, `ItemChange`, `FieldChange`](/api/core#diagramdiff), `ChangeFacet`, `ChangeStatus`, `DiffIgnore`, `DiffView`, `VersionInfo`, [`ReportOptions`](/api/core#reportoptions), `UnifiedDiffOptions`, `Merged`, [`DiffRenderOptions`](/api/core#diffrenderoptions), [`DiffSvgOptions`](/api/core#diffsvgoptions), [`DiffHide`](/api/core#diffhide), `DiffRendered`; the model types `Diagnostic`, `Rect`, `Point`, `CenterBox`, `ItemRef`, `ItemKey`, `ItemKind`, `DiagramType`, `SourceRange`, `Severity`, `DiagnosticFix`, `DiagramModel`, `SupportedModel`, `FlowchartModel`, `SequenceModel`, `ErModel`, `UnsupportedModel` and their item types ([model types](/api/core#model-types)) |
+| Types | [`DiagramDocument`](/api/core#diagramdocument), `DiagramMeta`, `CanvasMeta`, `ItemMeta`, `LayerMeta`, `PageSettings` ([metadata types](/api/core#metadata-types)); [`CoreContext`](/api/core#corecontext), [`PipelineOptions`](/api/core#pipelineoptions), [`Rendered`](/api/core#rendered), `Kinds`, [`RenderResult`](/api/core#renderresult), `GeometryIndex`, `SceneNode`, `TextMeasurer`, `FontSpec`; `ThemeFile`, `ThemeInfo`, `ResolvedTheme`; `StyleProps`, `ArrowType`, `Routing`, `Side` ([theme file](/api/theme-file)); [`LinkPolicy`](/api/core#linkpolicy), [`SafeUrl`](/api/core#safeurl); [`ImagePolicy`](/api/core#imagepolicy), `ImageBlockReason`, `ImageDataType`, [`SafeImageUrl`](/api/core#safeimageurl), [`UrlResolver`, `ContentUrlKind`](/api/core#urlresolver); [`IconPack`](/api/core#iconpack), `IconifyJSON`, `IconifyIcon`, `IconifyAlias`, `IconifyInfo`, `IconRegistryOptions`, `IconResult`, `IconData`, `IconForm`, `IconMissing`, `IconPackInfo`, `IconSnapshot`; `StarterType`; [`DiagramDiff`, `ItemChange`, `FieldChange`](/api/core#diagramdiff), `ChangeFacet`, `ChangeStatus`, `DiffIgnore`, `DiffView`, `VersionInfo`, [`ReportOptions`](/api/core#reportoptions), `UnifiedDiffOptions`, `Merged`, [`DiffRenderOptions`](/api/core#diffrenderoptions), [`DiffSvgOptions`](/api/core#diffsvgoptions), [`DiffHide`](/api/core#diffhide), `DiffRendered`; the model types `Diagnostic`, `Rect`, `Point`, `CenterBox`, `ItemRef`, `ItemKey`, `ItemKind`, `DiagramType`, `BuiltinType`, `SourceRange`, `Severity`, `DiagnosticFix`, `DiagramModel`, `SupportedModel`, `BaseModel`, `FlowchartModel`, `SequenceModel`, `ErModel`, `MindmapModel`, `StateModel`, `UnsupportedModel` and their item types (`FlowNode`, `FlowEdge`, `Participant`, `SeqItem`, `Entity`, `ErRel`, `MindNode`, `StateNode`, `MermaidStyle`, `NodeShape`, …) ([model types](/api/core#model-types)) |
 
 ### `@mmdx/studio/adapters`
 
@@ -162,6 +168,8 @@ Every export is documented on the [adapters](/api/adapters) page.
 | Themes | [`memoryThemeStore`](/api/adapters#memorythemestore), [`fetchThemeSource`](/api/adapters#fetchthemesource), [`localStorageThemeStore`](/api/adapters#localstoragethemestore), [`isLocalEdit`](/api/adapters#islocaledit); types [`ThemeSource`](/api/adapters#themesource), [`ThemeStore`](/api/adapters#themestore), [`SaveResult`](/api/adapters#saveresult) |
 | Documents | [`memoryDocumentAdapter`](/api/adapters#memorydocumentadapter), [`httpDocumentAdapter`](/api/adapters#httpdocumentadapter); types [`DocumentAdapter`](/api/adapters#documentadapter), [`LoadResult`](/api/adapters#loadresult), [`DocumentSaveResult`](/api/adapters#documentsaveresult) |
 | History | [`staticHistory`](/api/adapters#statichistory), [`httpHistoryAdapter`](/api/adapters#httphistoryadapter), [`contentId`](/api/adapters#contentid); types [`HistoryAdapter`](/api/adapters#historyadapter), [`StaticVersion`](/api/adapters#staticversion), [`VersionInfo`](/api/adapters#versioninfo) |
+| Images | [`memoryImageStore`](/api/adapters#memoryimagestore), [`httpImageStore`](/api/adapters#httpimagestore); types [`ImageStore`](/api/adapters#imagestore), [`ImageInfo`](/api/adapters#imageinfo), `ImagePage`, `MemoryImageStoreOptions` |
+| URLs | [`relativeUrlResolver`](/api/adapters#relativeurlresolver); types [`UrlResolver`](/api/adapters#urlresolver), `ContentUrlKind` |
 
 ### `@mmdx/studio/markdown`
 
@@ -169,7 +177,7 @@ Build-time plugins (Node) that turn mermaid code blocks into `<mmdx-viewer>` ele
 
 | Group | Exports |
 |---|---|
-| Functions | `rehypeMmdx`, `markdownItMmdx`, `diagramHtml`, `scriptSafe` |
+| Functions | `rehypeMmdx`, `markdownItMmdx`, `diagramHtml`, `preloadIcons`, `scriptSafe` |
 | Types | `MmdxMarkdownOptions` |
 
 The run-time helper `upgradeMermaidBlocks` comes from `@mmdx/studio/viewer`.

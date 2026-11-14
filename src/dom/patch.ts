@@ -2,9 +2,9 @@
 // touched, instead of resetting innerHTML on every pointer move as the prototype did.
 // No user string ever reaches innerHTML: elements are created with createElementNS, attributes go through the same
 // allowlist and value checks as the string serializer, text through textContent.
-import { attrValue, isAllowedAttr } from '../core/scene/serialize.js';
+import { attrValue, isAllowedAttr, runAttrs } from '../core/scene/serialize.js';
 import { fmt } from '../core/scene/serialize.js';
-import type { SceneNode, SvgAttrs, TextLine } from '../core/scene/types.js';
+import type { SceneNode, SvgAttrs, TextLine, TextRun } from '../core/scene/types.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const XLINK = 'http://www.w3.org/1999/xlink';
@@ -53,13 +53,20 @@ function create(n: SceneNode): Element {
   return el;
 }
 
+const gone = (v: unknown): boolean => v === undefined || v === null || v === false;
+
 function setAttrs(el: Element, prev: SvgAttrs | null, next: SvgAttrs): void {
+  // a drag re-renders every item and most values are the same as last time: compare the raw values first, format only
+  // what changed
   if (prev)
-    for (const k of Object.keys(prev))
-      if (!(k in next) || attrValue(k, next[k]) === null) {
-        if (isAllowedAttr(k)) el.removeAttribute(k);
-      }
-  for (const [k, v] of Object.entries(next)) {
+    for (const k in prev) {
+      const v = next[k];
+      if (v === prev[k] || gone(prev[k])) continue;
+      if ((gone(v) || attrValue(k, v) === null) && isAllowedAttr(k)) el.removeAttribute(k);
+    }
+  for (const k in next) {
+    const v = next[k];
+    if (prev && v === prev[k]) continue;
     if (!isAllowedAttr(k)) continue;
     const s = attrValue(k, v);
     if (s === null) {
@@ -71,11 +78,13 @@ function setAttrs(el: Element, prev: SvgAttrs | null, next: SvgAttrs): void {
   }
 }
 
-/** A removed or added run of words (a diff's merged picture): a styled `<tspan>`, fixed class tokens. */
-function runSpan(text: string, mark: 'ins' | 'del'): Element {
+/** A run of a line: its text, or a `<tspan>` with the run's fixed attributes (change mark, bold, italic, place). */
+function runSpan(r: TextRun): Element | string {
+  const a = runAttrs(r);
+  if (!a.length) return r.text;
   const run = document.createElementNS(NS, 'tspan');
-  run.setAttribute('class', `dx-${mark}`);
-  run.textContent = text;
+  for (const [k, v] of a) run.setAttribute(k, v);
+  run.textContent = r.text;
   return run;
 }
 
@@ -90,13 +99,36 @@ function setLines(el: Element, lines: readonly TextLine[]): void {
     const x = fmt(l.x), y = fmt(l.y), t = l.text || '\u00a0';
     if (span.getAttribute('x') !== x) span.setAttribute('x', x);
     if (span.getAttribute('y') !== y) span.setAttribute('y', y);
-    if (l.runs?.length) span.replaceChildren(...l.runs.map((r) => (r.mark ? runSpan(r.text, r.mark) : r.text)));
+    if (l.anchor) span.setAttribute('text-anchor', 'start');
+    else span.removeAttribute('text-anchor');
+    // icon runs draw nothing in the text: their image is a sibling of the <text>
+    const runs = l.runs?.filter((r) => !r.icon && r.text);
+    if (runs?.length) span.replaceChildren(...runs.map(runSpan));
     else if (span.textContent !== t || span.childElementCount) span.textContent = t;
   });
   for (let i = lines.length; i < spans.length; i++) spans[i]!.remove();
 }
 
+/**
+ * The same picture as last time: scene nodes are plain data (objects, arrays, strings, numbers), so a value compare
+ * covers every field the patcher writes, whatever the node type. No DOM reads: a drag re-renders every item, but only
+ * the dragged ones and their connectors change.
+ */
+function same(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || !a || !b || Array.isArray(a) !== Array.isArray(b)) return false;
+  const x = a as Record<string, unknown>, y = b as Record<string, unknown>;
+  let n = 0;
+  for (const k in x) {
+    if (!same(x[k], y[k])) return false;
+    n++;
+  }
+  for (const _ in y) n--;
+  return n === 0;
+}
+
 function update(el: Element, prev: SceneNode | null, n: SceneNode): void {
+  if (prev && same(prev, n)) return;
   if (n.t === 'a') {
     // href was checked by safeUrl() when the scene was built; set both forms for older engines
     if (el.getAttribute('href') !== n.href) {
@@ -108,9 +140,13 @@ function update(el: Element, prev: SceneNode | null, n: SceneNode): void {
     return;
   }
   setAttrs(el, prev && prev.t !== 'a' ? prev.attrs : null, n.attrs);
-  if (n.t === 'text') setLines(el, n.lines);
+  // an image's href passed the image policy (or is an icon mmdx built) when the scene was built; never from attrs
+  if (n.t === 'image') {
+    if (el.getAttribute('href') !== n.href) el.setAttribute('href', n.href);
+  } else if (n.t === 'text') setLines(el, n.lines);
+  else if (n.t === 'title' || n.t === 'desc') {
+    if (el.textContent !== n.text) el.textContent = n.text;
+  }
   else if (n.t === 'g' || n.t === 'marker' || n.t === 'pattern' || n.t === 'clipPath') patchChildren(el, n.children);
 }
 
-/** The scene node an element was last patched from (hit-testing reads `item` from it). */
-export const sceneOf = (el: Element): SceneNode | undefined => bound.get(el)?.node;

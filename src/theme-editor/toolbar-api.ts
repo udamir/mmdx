@@ -1,11 +1,11 @@
 // What the floating style toolbar edits: the selected tile's style in the theme being edited. A shape's default lives
 // in <type>.<shapesKey>.<shape> (flowchart.nodeShapes, sequence.participantShapes); everything else in <type>.<kind> /
 // <type>.<presets>.<name>.
-import { relativeColor } from '../core/theme/colors.js';
 import type { Rect } from '../core/types.js';
-import type { StyleToolbarHandle, ToolbarApi } from '../ui/style-toolbar.js';
+import type { StyleToolbarHandle, ToolbarApi } from '../ui/diagram/style-toolbar.js';
 import type { Env } from './env.js';
-import { fontName, isObj, obj } from './util.js';
+import { isObj, obj } from './util.js';
+import { themeStyleTarget } from '../ui/diagram/style-toolbar/theme-target.js';
 
 export function styleApi(env: Env, toolbar: () => StyleToolbarHandle): ToolbarApi {
   const { draft } = env;
@@ -56,10 +56,7 @@ export function styleApi(env: Env, toolbar: () => StyleToolbarHandle): ToolbarAp
       env.flush();
       toolbar().refresh();
     },
-    palette: () => Object.entries(pal()).map(([name, value]) => ({ name, value: String(value) })),
-    customColor: (hex) => relativeColor(hex, pal()),
-    themeFont: font,
-    themeFontName: () => fontName(font()),
+    ...themeStyleTarget(() => ({ palette: pal(), font: font() })),
     edgeEnds: () => {
       const s = sel();
       return { start: 'none', end: s && draft.effectiveFor(s)['arrow'] === 'none' ? 'none' : 'arrow' };

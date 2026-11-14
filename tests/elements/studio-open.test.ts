@@ -4,7 +4,7 @@
 // reads the editor through its public API.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
-import { extractMermaid } from '../../src/editor/modules/chrome/document.js';
+import { extractMermaid, readDocumentFiles } from '../../src/editor/lib/files.js';
 import { DiagramStudio } from '../../src/elements/studio.js';
 
 beforeAll(() => {
@@ -40,7 +40,7 @@ const mount = (o: ConstructorParameters<typeof DiagramStudio>[1] = {}): { studio
 };
 
 /** A dropped file (jsdom's File has no `text()`). */
-const file = (name: string, text: string): File => ({ name, text: async () => text }) as unknown as File;
+const file = (name: string, text: string, type = ''): File => ({ name, type, text: async () => text }) as unknown as File;
 
 /** A drop event as the browser sends it (jsdom has no DragEvent / DataTransfer). */
 const drop = (target: Element, files: File[]): Event => {
@@ -73,6 +73,30 @@ describe('studio: opening files', () => {
     expect(ed.fileName).toBe('notes');
     // opened as a new document (the studio's path), not as an undoable step of the old one
     expect(ed.store.canUndo.peek()).toBe(false);
+  });
+
+  it('an image dropped on the canvas is not opened as the document (B4)', async () => {
+    const { studio, confirms } = mount();
+    await wait(() => studio.editor?.getSource().startsWith('flowchart'));
+    const ed = studio.editor!;
+    const before = ed.getSource();
+    // the image path takes it instead: the image tool opens to insert it, or says the host has no upload
+    const runs = vi.spyOn(ed.core, 'run'), toasts = vi.spyOn(ed.core, 'toast');
+    drop(ed.core.dom.wrap, [file('photo.png', '\u0089PNG', 'image/png')]);
+    await new Promise((r) => setTimeout(r, 60));
+    const tool = runs.mock.calls.find((c) => c[0] === 'openImageTool');
+    if (tool) expect(tool[2]).toMatchObject({ insert: true, file: { name: 'photo.png' } });
+    else expect(toasts.mock.calls.map((c) => String(c[0]))).toContain(ed.core.i18n.t('media.noUpload'));
+    expect(runs.mock.calls.some((c) => c[0] === 'openFiles')).toBe(false);
+    expect(confirms()).toBe(0);
+    expect(ed.getSource().startsWith('flowchart')).toBe(true);
+    expect(ed.getSource()).not.toContain('PNG');
+    expect(before.startsWith('flowchart')).toBe(true);
+  });
+
+  it('only diagram, Markdown, text and sidecar files are read as documents', async () => {
+    expect(await readDocumentFiles([file('photo.png', 'x', 'image/png')], () => 'cur')).toBeNull();
+    expect(await readDocumentFiles([file('photo.png', 'x', 'image/png'), file('a.mmd', 'flowchart LR\n  A')], () => 'cur')).toMatchObject({ name: 'a.mmd' });
   });
 
   it('a slow example never replaces a file opened meanwhile', async () => {

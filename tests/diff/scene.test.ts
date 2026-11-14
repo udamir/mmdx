@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
 import { changeKey } from '../../src/core/diff/merge.js';
-import { DiffScene } from '../../src/diff/scene.js';
+import { DiffScene, sceneHost } from '../../src/diff/scene.js';
 import { DiffSession } from '../../src/diff/session.js';
 import { DiagramCanvas } from '../../src/dom/canvas.js';
 import { Morph } from '../../src/dom/morph.js';
@@ -40,7 +40,7 @@ function mount(): { core: ViewCore; session: DiffSession; scene: DiffScene } {
     ctx: core.ctx, t: core.i18n.t, emit: (type, detail, cancelable) => core.emit(type, detail, cancelable),
     renderOptions: () => ({ theme: core.shownTheme() }), scheme: () => 'light', name: () => 'diagram',
   });
-  const scene = new DiffScene(core, session, { reducedMotion: () => true });
+  const scene = new DiffScene(sceneHost(core), session, { reducedMotion: () => true });
   return { core, session, scene };
 }
 
@@ -96,7 +96,7 @@ describe('DiffScene', () => {
   it('marks the selection in every canvas and paints the pen strokes into the second canvas', async () => {
     const { core, session, scene } = mount();
     const store = new StrokeStore(memoryStorage());
-    core.strokes.set(store);
+    core.useModules([{ id: 'strokes', install: (s) => void s.claim(core.strokes).set(store) }]);
     const attachInk = vi.spyOn(DiagramCanvas.prototype, 'attachInk');
     core.pushScene(scene);
     await session.load({ before: sample('architecture', 'before'), after: sample('architecture', 'after') });
@@ -120,7 +120,6 @@ describe('DiffScene', () => {
     const { core, session, scene } = mount();
     core.pushScene(scene);
     await session.load({ history: versions });
-    session.setVersionsShown(true);
     session.viewVersion(versions[2].id);
     await session.refresh();
     expect(core.area.querySelector('.pane-title b')!.textContent).toBe(versions[2].id);
@@ -141,7 +140,6 @@ describe('DiffScene', () => {
     expect(core.canvas.content.querySelector('.dx-layer')).not.toBeNull();
     // the first picture has nothing to move from
     expect(replace).not.toHaveBeenCalled();
-    session.setVersionsShown(true);
     session.viewVersion(versions[2].id);
     await session.refresh();
     expect(animated()).toBe(true);

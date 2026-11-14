@@ -33,10 +33,10 @@ describe('a suspended module does not react', () => {
     const ed = mount();
     await settle();
     ed.select([{ kind: 'node', id: 'A' }]);
-    ed.core.stage.set('history');
+    ed.core.setStage('history');
     esc(ed);
     expect(ed.core.selection().map((s) => s.id)).toEqual(['A']);
-    ed.core.stage.set('document');
+    ed.core.setStage('document');
     esc(ed);
     expect(ed.core.selection()).toEqual([]);
     ed.core.useModules([]);
@@ -46,7 +46,7 @@ describe('a suspended module does not react', () => {
   it('a file dropped on the canvas in History is not loaded', async () => {
     const ed = mount({ features: { open: true } });
     const before = ed.getSource();
-    ed.core.stage.set('history');
+    ed.core.setStage('history');
     const ev = new Event('drop', { bubbles: true, composed: true, cancelable: true });
     const f = { name: 'x.mmd', text: async () => 'erDiagram\n  A ||--o{ B : has\n' } as unknown as File;
     Object.defineProperty(ev, 'dataTransfer', { value: { files: [f], types: ['Files'] } });
@@ -54,7 +54,7 @@ describe('a suspended module does not react', () => {
     expect(ev.defaultPrevented).toBe(false);
     await settle(10);
     expect(ed.getSource()).toBe(before);
-    ed.core.stage.set('document');
+    ed.core.setStage('document');
   });
 
   it('group editing marks the group\'s items, shows no bar, and does not react in History', () => {
@@ -63,12 +63,12 @@ describe('a suspended module does not react', () => {
     ed.core.run('enterGroup', 'G');
     expect(marked()).toBeGreaterThan(0);
     expect(ed.core.root.querySelector('.group-edit-bar')).toBeNull();
-    ed.core.stage.set('history');
-    ed.core.enteredGroup.set(null);
-    ed.core.enteredGroup.set('G');
+    ed.core.setStage('history');
+    ed.core.enterGroup(null);
+    ed.core.enterGroup('G');
     ed.core.fire('draw');
     expect(ed.core.root.querySelector('.group-edit-bar')).toBeNull();
-    ed.core.stage.set('document');
+    ed.core.setStage('document');
   });
 
   it('an open inline text box is cancelled when History opens', () => {
@@ -77,10 +77,10 @@ describe('a suspended module does not react', () => {
     expect(ed.core.run('inlineEdit', { kind: 'node', id: 'B' })).toBe(true);
     const ta = ed.core.dom.wrap.querySelector<HTMLTextAreaElement>('textarea.inline-edit')!;
     ta.value = 'Bravo';
-    ed.core.stage.set('history');
+    ed.core.setStage('history');
     expect(ed.core.dom.wrap.querySelector('textarea.inline-edit')).toBeNull();
     expect(ed.getSource()).toBe(before);
-    ed.core.stage.set('document');
+    ed.core.setStage('document');
   });
 
   it('the style toolbar leaves in History and comes back', async () => {
@@ -90,9 +90,9 @@ describe('a suspended module does not react', () => {
     const tb = (): Element | null => ed.core.dom.wrap.querySelector('.mtb');
     for (let i = 0; i < 100 && !tb(); i++) await settle(10);
     expect(tb()).not.toBeNull();
-    ed.core.stage.set('history');
+    ed.core.setStage('history');
     expect(tb()).toBeNull();
-    ed.core.stage.set('document');
+    ed.core.setStage('document');
     expect(tb()).not.toBeNull();
   });
 });

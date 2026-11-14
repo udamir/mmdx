@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { h } from '../../src/ui/h.js';
-import { choiceRow, createPopHost, slider, swatches } from '../../src/ui/toolbar-kit.js';
+import { h } from '../../src/ui/kit/h.js';
+import { choiceRow, createPopHost, slider, swatches } from '../../src/ui/kit/toolbar-kit.js';
 
 afterEach(() => document.body.replaceChildren());
 

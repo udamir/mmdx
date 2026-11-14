@@ -72,3 +72,34 @@ describe('preloadedStorage', () => {
     await expect(preloadedStorage(async () => Promise.reject(new Error('down')), async () => undefined)).rejects.toThrow('down');
   });
 });
+
+describe('localStorageAdapter after a failed write (B18)', () => {
+  it('reads the value kept in memory, not the older one in localStorage; remove clears both', async () => {
+    const { localStorageAdapter } = await import('../../src/adapters/storage.js');
+    const data = new Map<string, string>();
+    let full = false;
+    const ls = {
+      getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        if (full) throw new Error('QuotaExceededError');
+        data.set(k, v);
+      },
+      removeItem: (k: string) => void data.delete(k),
+    };
+    vi.stubGlobal('localStorage', ls);
+    try {
+      const s = localStorageAdapter('t.');
+      s.set('k', 'old');
+      full = true;
+      s.set('k', 'new');
+      expect(s.get('k')).toBe('new');
+      s.remove('k');
+      expect(s.get('k')).toBeUndefined();
+      full = false;
+      s.set('k', 'again');
+      expect(s.get('k')).toBe('again');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

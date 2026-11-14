@@ -1,0 +1,1 @@
+# Functions over 300 lines — baseline (2026-11-11, e726eb1): <lines>	<file › name>; each may only shrink.

@@ -102,6 +102,9 @@
       },
       "mirrored": {
         "background": "#282a36"
+      },
+      "plain-blocks": {
+        "background": "#282a36"
       }
     },
     "participant": {
@@ -141,6 +144,53 @@
     },
     "rel": {
       "color": "@line"
+    }
+  },
+  "mindmap": {
+    "pagePresets": {
+      "both": {
+        "background": "#282a36"
+      },
+      "right": {
+        "background": "#282a36"
+      },
+      "down": {
+        "background": "#282a36"
+      }
+    },
+    "nodePresets": {
+      "plain": {
+        "stroke": "@border"
+      }
+    }
+  },
+  "state": {
+    "pagePresets": {
+      "whiteboard": {
+        "background": "#282a36"
+      },
+      "grid": {
+        "background": "#282a36",
+        "grid": "rgba(255,255,255,0.06)"
+      },
+      "technical": {
+        "background": "#282a36",
+        "grid": "rgba(255,255,255,0.06)"
+      },
+      "colored": {
+        "background": "#282a36"
+      }
+    },
+    "node": {
+      "stroke": "@border"
+    },
+    "choice": {
+      "stroke": "@border"
+    },
+    "compositePresets": {
+      "plain": {
+        "stroke": "@border"
+      }
     }
   }
 }

@@ -1,0 +1,19 @@
+stateDiagram-v2
+  direction LR
+  [*] --> Red
+  Red --> Green : timer 30 s
+  Green --> Yellow : timer 25 s
+  Yellow --> Red : timer 5 s
+  Red --> Flashing : fault
+  Green --> Flashing : fault
+  Yellow --> Flashing : fault
+  Flashing --> Red : reset
+  Flashing : amber blinks
+  Flashing : until a technician resets it
+
+%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----
+%%@ canvas {"v":1}
+%%@ node Red {"preset":"error"}
+%%@ node Green {"preset":"done"}
+%%@ node Yellow {"preset":"waiting"}
+%%@ node Flashing {"preset":"idle"}

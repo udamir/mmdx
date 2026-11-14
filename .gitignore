@@ -10,4 +10,5 @@ temp
 docs/.vitepress/dist/
 docs/.vitepress/cache/
 _site/
+.serena
 *.swp

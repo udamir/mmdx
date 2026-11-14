@@ -148,13 +148,22 @@ function shell(s, palette, grid) {
       groupPresets: { wrapper: { stroke: '@border' }, proxy: { stroke: '@border' }, frame: { stroke: '@border' } },
     },
     sequence: {
-      pagePresets: { document: page, spacious: page, mirrored: page },
+      pagePresets: { document: page, spacious: page, mirrored: page, 'plain-blocks': page },
       participant: { stroke: '@border' }, activation: { stroke: '@border' }, note: { stroke: '@border' }, block: { stroke: '@border' },
       lifeline: { color: '@muted' }, message: { color: '@line' },
     },
     er: {
       pagePresets: { whiteboard: page, schema: grid, slide: page },
       entity: { stroke: '@border' }, rel: { color: '@line' },
+    },
+    mindmap: {
+      pagePresets: { both: page, right: page, down: page },
+      nodePresets: { plain: { stroke: '@border' } },
+    },
+    state: {
+      pagePresets: { whiteboard: page, grid, technical: grid, colored: page },
+      node: { stroke: '@border' }, choice: { stroke: '@border' },
+      compositePresets: { plain: { stroke: '@border' } },
     },
   };
 }

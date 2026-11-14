@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createColorPicker, openColorPicker, placeFixed } from '../../../src/ui/blocks/color-picker.js';
-import { PopoverManager } from '../../../src/ui/popover.js';
+import { PopoverManager } from '../../../src/ui/kit/popover.js';
 
 const key = (el: Element, k: string): void => void el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, composed: true }));
 const COLORS = [{ name: 'red', value: '#ff0000' }, { name: 'green', value: '#00ff00' }, { name: 'blue', value: '#0000ff' }];

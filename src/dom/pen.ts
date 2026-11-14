@@ -1,7 +1,7 @@
 // Magic pen (A.2 row 26): freehand strokes over the diagram that fade a few seconds after they are drawn.
 // Strokes live in the canvases' ink layer (never in the diagram or its metadata), in diagram coordinates, so they stay
 // on the right spot while panning or zooming.
-import type { StorageAdapter } from '../adapters/storage.js';
+import type { StorageAdapter } from '../ports.js';
 
 export const PEN_COLORS = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#007aff', '#af52de', '#1a1a1a'] as const;
 export const PEN_SIZES = [2, 4, 7] as const;
@@ -49,6 +49,7 @@ export class StrokeStore {
   private surfaces: InkSurface[] = [];
   private nextId = 1;
   private readonly timers = new Set<ReturnType<typeof setTimeout>>();
+  private readonly fadeTimers = new Map<Stroke, ReturnType<typeof setTimeout>>();
   private readonly listeners = new Set<() => void>();
 
   constructor(private readonly storage: StorageAdapter, private readonly reducedMotion: () => boolean = () => false) {
@@ -69,7 +70,8 @@ export class StrokeStore {
     this.surfaces.push(c);
     this.paint(c);
     const ac = new AbortController();
-    let cur: { stroke: Stroke; path: SVGPathElement } | null = null;
+    // the stroke being drawn, its path written as far as the points that no longer change (P22: a move appends)
+    let cur: { stroke: Stroke; path: SVGPathElement; d: string } | null = null;
     // capture phase on the canvas itself: drawing wins over panning, selecting and gestures
     c.svg.addEventListener('pointerdown', (e) => {
       if (!this.active || e.button !== 0) return;
@@ -83,14 +85,16 @@ export class StrokeStore {
       const stroke: Stroke = { id: this.nextId++, color: this.color, size: this.size, pts: [c.toDiagram(e.clientX, e.clientY)] };
       const path = this.pathEl(stroke);
       c.layer.append(path);
-      cur = { stroke, path };
+      cur = { stroke, path, d: `M${stroke.pts[0]!.x} ${stroke.pts[0]!.y}` };
     }, { capture: true, signal: ac.signal });
     c.svg.addEventListener('pointermove', (e) => {
       if (!cur) return;
       const p = c.toDiagram(e.clientX, e.clientY), l = cur.stroke.pts[cur.stroke.pts.length - 1]!;
       if (Math.hypot(p.x - l.x, p.y - l.y) * c.scale() < 1.5) return;
-      cur.stroke.pts.push(p);
-      cur.path.setAttribute('d', pathOf(cur.stroke.pts));
+      const pts = cur.stroke.pts;
+      pts.push(p);
+      cur.d += segmentTo(pts, pts.length - 1);
+      cur.path.setAttribute('d', `${cur.d}L${p.x} ${p.y}`);
     }, { signal: ac.signal });
     const end = (): void => {
       if (!cur) return;
@@ -99,7 +103,7 @@ export class StrokeStore {
       this.strokes.push(stroke);
       this.paintAll();
       this.changed();
-      if (this.fade) this.later(() => this.expire(stroke), this.fade);
+      this.countDown(stroke);
     };
     c.svg.addEventListener('pointerup', end, { signal: ac.signal });
     c.svg.addEventListener('pointercancel', end, { signal: ac.signal });
@@ -134,7 +138,8 @@ export class StrokeStore {
   setFade(ms: number): void {
     this.fade = pick<number>(PEN_FADES, ms, this.fade);
     this.persist();
-    if (this.fade) for (const s of this.strokes) this.later(() => this.expire(s), this.fade);
+    // every stroke counts down anew from the new time, or stops counting with auto erase off (B21)
+    for (const s of this.strokes) this.countDown(s);
   }
 
   hasStrokes(): boolean {
@@ -164,6 +169,7 @@ export class StrokeStore {
   destroy(): void {
     for (const t of this.timers) clearTimeout(t);
     this.timers.clear();
+    this.fadeTimers.clear();
     this.surfaces = [];
     this.listeners.clear();
   }
@@ -188,6 +194,24 @@ export class StrokeStore {
     p.setAttribute('stroke-width', String(s.size));
     p.setAttribute('data-sid', String(s.id));
     return p;
+  }
+
+  /** A stroke's auto-erase countdown, one per stroke: (re)started with the current time, or cancelled when it is off. */
+  private countDown(stroke: Stroke): void {
+    const t = this.fadeTimers.get(stroke);
+    if (t !== undefined) {
+      clearTimeout(t);
+      this.timers.delete(t);
+      this.fadeTimers.delete(stroke);
+    }
+    if (!this.fade) return;
+    const next = setTimeout(() => {
+      this.timers.delete(next);
+      this.fadeTimers.delete(stroke);
+      this.expire(stroke);
+    }, this.fade);
+    this.timers.add(next);
+    this.fadeTimers.set(stroke, next);
   }
 
   private later(f: () => void, ms: number): void {
@@ -219,13 +243,15 @@ function pathOf(pts: readonly { x: number; y: number }[]): string {
   const f = pts[0]!;
   if (pts.length === 1) return `M${f.x} ${f.y}l0.01 0`;
   let d = `M${f.x} ${f.y}`;
-  for (let i = 1; i < pts.length - 1; i++) {
-    const p = pts[i]!, q = pts[i + 1]!;
-    d += `Q${p.x} ${p.y} ${(p.x + q.x) / 2} ${(p.y + q.y) / 2}`;
-  }
+  for (let i = 2; i < pts.length; i++) d += segmentTo(pts, i);
   const l = pts[pts.length - 1]!;
   return `${d}L${l.x} ${l.y}`;
 }
 
-/** What the pen options read and set. */
-export type PenSettings = Pick<StrokeStore, 'color' | 'size' | 'fade' | 'setColor' | 'setSize' | 'setFade' | 'clear'>;
+/** The curve through the point before `i` that point `i` fixes (none while `i` is the second point). */
+function segmentTo(pts: readonly { x: number; y: number }[], i: number): string {
+  if (i < 2) return '';
+  const p = pts[i - 1]!, q = pts[i]!;
+  return `Q${p.x} ${p.y} ${(p.x + q.x) / 2} ${(p.y + q.y) / 2}`;
+}
+

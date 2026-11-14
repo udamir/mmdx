@@ -33,7 +33,7 @@ editor.storage = storage;
 editor.features = { schemeToggle: false };
 await editor.whenLoaded();
 if (draft) editor.setSource(draft, { history: 'push', markSaved: false });
-const blank = starterSource('sequence'); // 'flowchart' | 'sequence' | 'er'
+const blank = starterSource('sequence'); // 'flowchart' | 'sequence' | 'er' | 'mindmap' | 'state'
 ```
 
 `host` stands for whatever API the embedding product gives the frame.
@@ -43,6 +43,7 @@ const blank = starterSource('sequence'); // 'flowchart' | 'sequence' | 'er'
 | `allowfullscreen` | The viewer's [`fullscreen`](#full-screen) property |
 | `localStorage` | [`preloadedStorage`](#storage) or `memoryStorage` |
 | Relative `fetch` of theme files | [`registerThemes`](#themes) |
+| CDN icon packs | Bundled packs in [`configure({ iconPacks })`](#icons) |
 | Module workers from URLs | [`useInlineWorker`](#worker) |
 | Relative `fetch` of diagrams | The [`source` property and adapters](#loading-diagrams) |
 
@@ -109,6 +110,10 @@ registerThemes(await host.storage.get('themes') ?? []);
 
 See [Themes](/guide/themes#registering-themes).
 
+## Icons
+
+The built-in icon set is a chunk of the library and needs no network. Register other icon packs bundled with your app (`{ name: 'logos', icons }` from `import logos from '@iconify-json/logos/icons.json'`, or a `loader` that imports the file), not through a loader that fetches from a CDN; a host that keeps converted cloud packs can read them through its API in the loader. See [Icons](/guide/icons#registering-packs).
+
 ## Worker
 
 Diagrams over 300 lines render in a worker. `@mmdx/studio/worker-inline` exports the render worker as one classic script (`workerSource`) and `useInlineWorker()`, which starts it from a `blob:` URL through `setWorkerUrl(url, { type: 'classic' })`:
@@ -162,13 +167,13 @@ See [Saving documents](/guide/documents#drafts).
 
 ## Starters
 
-`starterSource('flowchart' | 'sequence' | 'er')` from `@mmdx/studio/core` is the source a new diagram starts from, as in the studio's New menu:
+`starterSource('flowchart' | 'sequence' | 'er' | 'mindmap' | 'state')` from `@mmdx/studio/core` is the source a new diagram starts from, as in the studio's New menu:
 
 ```ts
 import { starterSource, type StarterType } from '@mmdx/studio/core';
 
 function newDiagram(type: StarterType) {
-  editor.setSource(starterSource(type)); // 'flowchart TB\n', 'sequenceDiagram\n' or 'erDiagram\n'
+  editor.setSource(starterSource(type)); // 'flowchart TB\n', 'sequenceDiagram\n', 'erDiagram\n', 'mindmap\n  root((Topic))\n' or 'stateDiagram-v2\n'
 }
 ```
 
@@ -177,10 +182,12 @@ function newDiagram(type: StarterType) {
 The components run under this Content Security Policy (the one in [Security](/guide/security#content-security-policy)):
 
 ```http
-Content-Security-Policy: script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:
+Content-Security-Policy: script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; img-src 'self' data: blob: https://images.example.com
 ```
 
 - `script-src 'self'`: the library and its chunks are part of your bundle; nothing is evaluated from strings.
 - `worker-src 'self' blob:`: the render worker from its file or, with `useInlineWorker()`, from a `blob:` URL. Without `blob:`, `useInlineWorker()` cannot start the worker and diagrams render on the main thread.
 
-A frame that sets `default-src` or `img-src` also needs `img-src blob:` for PNG export (the SVG is drawn into a canvas through a `blob:` image), and `connect-src` for the APIs your adapters call and the font files of `configure({ fonts })`. See [Security](/guide/security).
+- `img-src 'self' data: blob:` and your image hosts: icons are drawn as `data:` images, PNG export draws the SVG into a canvas through a `blob:` image, and diagrams show remote images from the hosts the [image policy](/guide/security#image-policy) allows (`https:` by default). A frame whose CSP leaves out an image host shows the image as broken, though the policy allowed it; set the same hosts in both, or turn images off (`configure({ imagePolicy: { ...DEFAULT_IMAGE_POLICY, protocols: [] } })`), which draws placeholders instead.
+
+The frame also needs `connect-src` for the APIs your adapters call, the font files of `configure({ fonts })`, and, for PNG export of diagrams with remote images, the image hosts: the export fetches each image to put it into the PNG, and an image host must answer with CORS headers (`Access-Control-Allow-Origin`) for it to be included — a sandboxed frame without `allow-same-origin` has an opaque `null` origin, so the host must allow `*`. An image that cannot be fetched is a placeholder in the PNG, with a toast and an `export.image-missing` warning. See [Security](/guide/security).

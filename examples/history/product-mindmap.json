@@ -1,0 +1,25 @@
+{
+ "versions": [
+  {
+   "id": "7c41e0a",
+   "message": "Rename research, drop analytics",
+   "author": "Priya",
+   "date": "2026-11-02T10:15:00.000Z",
+   "source": "mindmap\n  root((Product launch))\n    Goals\n      Grow active users\n      **Faster** onboarding\n      Fewer support tickets\n    research[Research]\n      Interviews\n      Surveys\n    launch))Launch((\n      Private beta\n      Public beta\n      Press kit\n    risks{{Risks}}\n      Scope creep\n      Budget\n      Hiring\n    team(Team)\n      fa:fa-code Engineering\n      fa:fa-pen Design\n      fa:fa-bullhorn Marketing\n    Timeline\n      Q1 discovery\n      Q2 build\n      Q3 launch\n"
+  },
+  {
+   "id": "3b9d2f1",
+   "message": "Add risks and the team",
+   "author": "Damir",
+   "date": "2026-10-31T14:40:00.000Z",
+   "source": "mindmap\n  root((Product launch))\n    Goals\n      Grow usage\n      **Faster** onboarding\n      Fewer support tickets\n    research[Research]\n      Interviews\n      Surveys\n    launch))Launch((\n      Private beta\n      Public beta\n      Press kit\n    risks{{Risks}}\n      Scope creep\n      Budget\n      Hiring\n    team(Team)\n      fa:fa-code Engineering\n      fa:fa-pen Design\n"
+  },
+  {
+   "id": "e05a6c8",
+   "message": "Initial version",
+   "author": "Damir",
+   "date": "2026-10-29T09:00:00.000Z",
+   "source": "mindmap\n  root((Product launch))\n    Goals\n      Grow usage\n      Faster onboarding\n    research[Research]\n      Interviews\n      Surveys\n    launch))Launch((\n      Public beta\n"
+  }
+ ]
+}

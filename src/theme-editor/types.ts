@@ -1,6 +1,5 @@
 // Types of the theme editor: its public options and events, and the shapes its modules share.
-import type { ThemeSource, ThemeStore } from '../adapters/themes.js';
-import type { StorageAdapter } from '../adapters/storage.js';
+import type { ThemeSource, ThemeStore, StorageAdapter } from '../ports.js';
 import type { CoreContext } from '../core/context.js';
 import type { FieldDef, FieldOption } from '../core/schema/style-fields.js';
 import type { ThemeFile } from '../core/theme/types.js';

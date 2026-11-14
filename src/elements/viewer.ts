@@ -4,23 +4,26 @@
 // Component architecture §4: the viewer is the view kernel (ViewCore) with a TextScene (source text → async render)
 // and the viewer's modules — the editor's chrome (tool dock, zoom bar with help, view params), every piece behind a
 // control of the `controls` attribute.
-import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
+import { fileStem } from '../ui/kit/format.js';
+import { attr, MmdxElement, readInlineSource, warnOnce, words, type AttrSpec, type Patch } from './base.js';
+import type { HistoryEventMap } from '../view/history.js';
+import { applyKernelPatch, KERNEL_OPTION_KEYS, kernelOptions } from '../view/kernel-options.js';
 import { fetchText } from '../adapters/fetch-text.js';
-import type { ThemeSource } from '../adapters/themes.js';
-import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
-import type { StorageAdapter } from '../adapters/storage.js';
-import { getShared } from '../config.js';
+import type { ThemeSource, HistoryAdapter, StorageAdapter, HostFullscreen } from '../ports.js';
+import type { StaticVersion } from '../adapters/history.js';
+import { getShared } from '../platform/config.js';
 import type { CoreContext } from '../core/context.js';
+import type { IconPack } from '../core/icons/types.js';
 import { splitSource } from '../core/meta/index.js';
 import { standaloneSvg } from '../core/pipeline-core.js';
 import { summarize } from '../core/summary.js';
+import { effect } from '../reactive/signal.js';
 import type { Diagnostic, Rect } from '../core/types.js';
 import type { WheelMode } from '../dom/viewport.js';
-import { h } from '../ui/h.js';
-import { VIEWER_CSS } from '../ui/styles/viewer.js';
+import { h } from '../ui/kit/h.js';
+import { VIEWER_CSS } from '../view/styles.js';
 import { ViewCore } from '../view/core.js';
 import type { HistorySession } from '../view/history.js';
-import type { HostFullscreen } from '../view/types.js';
 import { lazyModule, type ViewModule } from '../view/module.js';
 import { VIEWER_MODULES } from '../view/modules/viewer.js';
 import { TextScene, type FallbackMode, type FitMode } from '../view/scenes/text.js';
@@ -50,18 +53,18 @@ export interface ViewerOptions {
   schemeToggle?: boolean;
   /** The `compact` preset (§7.6): smaller, icon-only chrome; automatic below a host size by default. */
   compact?: boolean | 'auto';
-  /** @deprecated Ignored (server-rendered SVG is always replaced by the first client render). */
-  rehydrate?: 'auto' | 'adopt';
   themeSource?: ThemeSource;
   storage?: StorageAdapter;
   ctx?: Partial<CoreContext>;
+  /** The component's own icon packs, over the shared ones of `configure({ iconPacks })`; read when it is created. */
+  iconPacks?: readonly IconPack[];
   /** The diagram's versions: with `controls` including `history`, a History button shows how it changed. */
   history?: HistoryAdapter | readonly StaticVersion[];
   /** The host page's full screen, used by the `fullscreen` control when the browser's is unavailable (sandboxed iframes). */
   fullscreen?: HostFullscreen;
 }
 
-export interface ViewerEventMap {
+export interface ViewerEventMap extends HistoryEventMap {
   'mmdx-render': CustomEvent<{ bounds: Rect; type: string | null; durationMs: number }>;
   'mmdx-error': CustomEvent<{ diagnostics: Diagnostic[] }>;
   'mmdx-link': CustomEvent<{ href: string; id: string | null }>;
@@ -69,11 +72,11 @@ export interface ViewerEventMap {
   /** Before the full-screen button enters or leaves full screen; cancelable (the host handles it, nothing changes). */
   'mmdx-fullscreen-request': CustomEvent<{ enter: boolean }>;
   'mmdx-ui': CustomEvent<{ ui: 'light' | 'dark' }>;
-  'mmdx-history-open': CustomEvent<Record<string, never>>;
-  'mmdx-history-close': CustomEvent<Record<string, never>>;
 }
 
 const DEFAULT_CONTROLS: readonly ViewerControl[] = ['zoom', 'fullscreen'];
+/** The id of the picture (`role=img`) in the viewer's shadow root, which names the root (`aria-labelledby`). */
+const PICTURE_ID = 'mmdx-picture';
 
 export class DiagramViewer {
   readonly core: ViewCore;
@@ -93,24 +96,23 @@ export class DiagramViewer {
     this.core = new ViewCore(host, {
       product: 'viewer',
       css: [VIEWER_CSS],
-      root: { class: 'root', role: 'img' },
+      // a group: it holds the controls; the picture alone is the image (BUG-023)
+      root: { class: 'root', role: 'group' },
       areaClass: 'stage',
       canvas: { interaction: o.interactive === false ? 'static' : 'pan-zoom', wheel: o.wheel ?? 'ctrl', panOnDrag: true, svgClass: 'scene', part: 'canvas' },
       feature: (name) => this.feature(name),
       loadHistory: () => import('../diff/history.js'),
-      ...(o.storage ? { storage: o.storage } : {}),
-      ...(o.ctx ? { ctx: o.ctx } : {}),
-      ...(o.themeSource ? { themeSource: o.themeSource } : {}),
-      ...(o.ui ? { ui: o.ui } : {}),
-      ...(o.theme ? { theme: o.theme } : {}),
-      ...(o.themeDark ? { themeDark: o.themeDark } : {}),
-      ...(o.compact !== undefined ? { compact: o.compact } : {}),
+      ...kernelOptions(o),
     });
     const core = this.core;
     this.ctx = core.ctx;
-    core.canvas.svg.setAttribute('aria-hidden', 'true');
-    core.display.set({ labels: o.labels !== false, hoverHighlight: o.hoverHighlight !== false });
-    if (o.layers) core.visibleLayers.set(o.layers);
+    // the picture is the image with the diagram's name and description; the root (focused for the keys) is named after it
+    const picture = core.canvas.svg;
+    picture.id = PICTURE_ID;
+    picture.setAttribute('role', 'img');
+    core.root.setAttribute('aria-labelledby', PICTURE_ID);
+    core.setDisplay({ labels: o.labels !== false, hoverHighlight: o.hoverHighlight !== false });
+    if (o.layers) core.setVisibleLayers(o.layers);
     this.msg = h('div', { class: 'msg' });
     core.area.after(this.msg);
     this.scene = new TextScene(core, {
@@ -119,14 +121,15 @@ export class DiagramViewer {
       msg: this.msg,
       stage: core.area,
       onRendered: (r, durationMs) => {
-        const s = summarize(r.model);
-        core.root.setAttribute('aria-label', this.o.label ?? core.i18n.t(s.key, s.params));
+        const a11y = r.result.a11y;
+        this.syncLabel();
+        if (a11y?.desc) core.canvas.svg.setAttribute('aria-description', a11y.desc);
+        else core.canvas.svg.removeAttribute('aria-description');
         core.root.classList.toggle('can-pan', core.canvas.interaction === 'pan-zoom');
         const warn = r.diagnostics.filter((d) => d.severity !== 'info' || d.code === 'theme.missing');
         if (warn.length) core.emit('mmdx-error', { diagnostics: warn });
         core.emit('mmdx-render', { bounds: r.result.bounds, type: r.model.type, durationMs });
       },
-      onFallback: () => undefined,
       onError: (diagnostics) => core.emit('mmdx-error', { diagnostics }),
     });
     core.provide('documentModel', () => this.scene.rendered?.model ?? null);
@@ -134,14 +137,17 @@ export class DiagramViewer {
     core.provide('documentCode', () => this.scene.rendered?.doc.code ?? (this.scene.text !== null ? splitSource(this.scene.text).doc.code : null));
     core.provide('documentSource', () => this.scene.text);
     core.provide('documentName', () => this.fileName);
-    if (o.history) core.history.set(o.history);
-    if (o.fullscreen) core.hostFullscreen.set(o.fullscreen);
+    // History's panels go in the viewer's stacks (loaded when History opens); History's scene shows a version
+    core.historyHost = { ownStacks: true };
+    if (o.history) core.setHostOptions({ history: o.history });
+    if (o.fullscreen) core.setHostOptions({ fullscreen: o.fullscreen });
 
     core.pushScene(this.scene);
     this.installModules();
-    // a picture while the diagram shows; the code panel must stay readable for screen readers
-    core.on('panels', () => this.syncRole());
-    core.panels.set({ ...core.panels.peek() });
+    // the root is a group whatever the panels show, so the code panel stays readable for screen readers (B19); it is
+    // pinned while a panel is open, however the panels change (a toggle, a set restored from storage: no `panels` event)
+    const offRole = effect(() => this.syncPinned(core.panels()));
+    this.ac.signal.addEventListener('abort', offRole);
 
     const ssr = host.querySelector(':scope > svg[data-mmdx-ssr]');
     if (ssr instanceof SVGSVGElement) this.scene.adoptSsr(ssr, host, this.ac.signal);
@@ -174,24 +180,22 @@ export class DiagramViewer {
     Object.assign(this.o, patch);
     for (const k of Object.keys(patch) as (keyof ViewerOptions)[]) if (patch[k] === undefined) delete this.o[k];
     const core = this.core;
-    if (changed('storage')) core.setStorage(this.o.storage);
+    applyKernelPatch(core, Object.fromEntries(KERNEL_OPTION_KEYS.filter(changed).map((k) => [k, this.o[k]])), { wheel: 'ctrl' });
     if (changed('themeSource')) core.setThemeSource(this.o.themeSource);
     if (changed('ctx')) warnOnce('viewer: `ctx` is read when the viewer is created');
-    if (changed('ui')) core.setUi(this.o.ui);
-    if (changed('theme')) core.themes.attr.set(this.o.theme ?? null);
-    if (changed('themeDark')) core.themes.attrDark.set(this.o.themeDark ?? null);
-    if (changed('compact')) core.setCompact(this.o.compact ?? 'auto');
-    if (changed('interactive')) core.canvas.setInteraction(this.o.interactive === false ? 'static' : 'pan-zoom');
-    if (changed('wheel')) core.canvas.setOptions({ wheel: this.o.wheel ?? 'ctrl' });
-    if (changed('labels') || changed('hoverHighlight')) core.display.set({ labels: this.o.labels !== false, hoverHighlight: this.o.hoverHighlight !== false });
-    if (changed('layers')) core.visibleLayers.set(this.o.layers);
-    if (changed('history')) core.history.set(this.o.history ?? null);
-    if (changed('fullscreen')) core.hostFullscreen.set(this.o.fullscreen ?? null);
-    if (changed('label') && this.o.label && this.scene.rendered) core.root.setAttribute('aria-label', this.o.label);
+    if (changed('interactive')) {
+      core.canvas.setInteraction(this.o.interactive === false ? 'static' : 'pan-zoom');
+      core.root.classList.toggle('can-pan', core.canvas.interaction === 'pan-zoom');
+    }
+    if (changed('labels') || changed('hoverHighlight')) core.setDisplay({ labels: this.o.labels !== false, hoverHighlight: this.o.hoverHighlight !== false });
+    if (changed('layers')) core.setVisibleLayers(this.o.layers);
+    if (changed('history')) core.setHostOptions({ history: this.o.history ?? null });
+    if (changed('fullscreen')) core.setHostOptions({ fullscreen: this.o.fullscreen ?? null });
+    if (changed('label')) this.syncLabel();
     // the modules follow the controls (each one re-evaluates what it shows)
     if (changed('controls') || changed('interactive')) core.refreshModules();
     if (changed('src') || changed('source') || changed('loader')) void this.load();
-    else if (changed('labels') || changed('layers') || changed('fit') || changed('fallback')) core.invalidate();
+    else if (changed('fit') || changed('fallback')) core.invalidate();
   }
 
   get options(): Readonly<ViewerOptions> {
@@ -219,8 +223,7 @@ export class DiagramViewer {
   setLayers(ids: readonly string[] | undefined): void {
     if (ids) this.o.layers = ids;
     else delete this.o.layers;
-    this.core.visibleLayers.set(ids);
-    this.core.invalidate();
+    this.core.setVisibleLayers(ids);
   }
 
   /** Standalone SVG document of what is shown (visible layers, label setting). */
@@ -233,9 +236,10 @@ export class DiagramViewer {
     const r = this.scene.rendered;
     if (!r) throw new Error('Nothing rendered');
     const b = r.result.bounds;
-    const { svgToPng } = await import('../dom/export.js');
+    const { fontsMissing, svgToPng, reportMissingImages } = await import('../dom/export.js');
     const res = await svgToPng(this.toSvg(), b.w, b.h, { scale: opts.scale ?? 2, fonts: getShared().fonts });
-    if (res.missingFonts.length) this.core.emit('mmdx-error', { diagnostics: [{ severity: 'info', code: 'export.font-missing', message: `Fonts not embedded (no font source): ${res.missingFonts.join(', ')}` }] });
+    if (res.missingFonts.length) this.core.emit('mmdx-error', { diagnostics: [fontsMissing(res.missingFonts)] });
+    if (res.missingImages) reportMissingImages(this.core, res.missingImages);
     return res.blob;
   }
 
@@ -250,7 +254,7 @@ export class DiagramViewer {
 
   /** The file name stem of exports. */
   get fileName(): string {
-    return (this.o.src?.split('/').pop() ?? 'diagram').replace(/\.(mmdx?|md|txt)$/i, '') || 'diagram';
+    return fileStem(this.o.src);
   }
 
   /** Opens or closes the History of the diagram; `compare` opens on the newest change compared. */
@@ -316,9 +320,16 @@ export class DiagramViewer {
     this.core.useModules(list);
   }
 
-  private syncRole(): void {
-    this.core.root.setAttribute('role', this.core.panels.peek()['code-view'] ? 'group' : 'img');
-    this.core.root.classList.toggle('pinned', Object.values(this.core.panels.peek()).some(Boolean));
+  private syncPinned(panels: Readonly<Record<string, boolean>>): void {
+    this.core.root.classList.toggle('pinned', Object.values(panels).some(Boolean));
+  }
+
+  /** The picture's accessible name (the root's too): the host's `label`, else the diagram's `accTitle`, else the generated summary (B20). */
+  private syncLabel(): void {
+    const r = this.scene.rendered;
+    if (!r) return;
+    const s = summarize(r.model);
+    this.core.canvas.svg.setAttribute('aria-label', this.o.label ?? r.result.a11y?.title ?? this.core.i18n.t(s.key, s.params));
   }
 
   private async load(): Promise<void> {
@@ -338,8 +349,7 @@ export class DiagramViewer {
         return;
       }
     } else {
-      const script = this.host.querySelector(':scope > script[type="text/mermaid"], :scope > script[type="text/x-mermaid"]');
-      text = dedent((script?.textContent ?? this.host.getAttribute('data-source') ?? '').replace(/<\\\/(script)/gi, '</$1'));
+      text = readInlineSource(this.host) ?? '';
     }
     this.scene.setText(text);
     this.core.fire('document');
@@ -348,24 +358,19 @@ export class DiagramViewer {
 
 // ---- custom element ------------------------------------------------------------------------------------------------
 
-const bool = (v: string | null): boolean | undefined => (v === null ? undefined : v !== 'false');
-const text = (v: string | null): string | undefined => v ?? undefined;
+const { text, bool } = attr;
 
 /** Attributes and the option each one sets (absent: the option's default; the element's default fit is `width`). */
 const ATTRS: Readonly<Record<string, AttrSpec<ViewerOptions>>> = {
-  src: ['src', text], theme: ['theme', text], 'theme-dark': ['themeDark', text], fit: ['fit', (v) => v ?? 'width'], wheel: ['wheel', text],
-  fallback: ['fallback', text], label: ['label', text], ui: ['ui', text], interactive: ['interactive', bool], lazy: ['lazy', bool], labels: ['labels', bool],
-  'hover-highlight': ['hoverHighlight', bool], 'scheme-toggle': ['schemeToggle', bool], compact: ['compact', (v) => (v === null ? undefined : v === 'auto' ? 'auto' : v !== 'false')],
+  src: ['src', text], theme: ['theme', text], 'theme-dark': ['themeDark', text], fit: ['fit', (v) => v ?? 'width'], wheel: ['wheel', attr.wheel],
+  fallback: ['fallback', text], label: ['label', text], ui: ['ui', attr.ui], interactive: ['interactive', bool], lazy: ['lazy', bool], labels: ['labels', bool],
+  'hover-highlight': ['hoverHighlight', bool], 'scheme-toggle': ['schemeToggle', bool], compact: ['compact', attr.compact],
   // `list` (the former text outline) now opens the code view
   controls: ['controls', (v) => (v === null ? undefined : words(v).map((c) => (c === 'list' ? 'code' : c)))],
 };
 
 export class MmdxViewerElement extends MmdxElement<ViewerOptions, DiagramViewer> {
-  static observedAttributes = Object.keys(ATTRS);
-
-  protected attrs(): typeof ATTRS {
-    return ATTRS;
-  }
+  static override readonly schema = { attrs: ATTRS };
 
   protected create(o: ViewerOptions): DiagramViewer {
     return new DiagramViewer(this, o);
@@ -461,13 +466,7 @@ function sameOption(a: unknown, b: unknown): boolean {
   return Object.is(a, b);
 }
 
-/** Removes the common indentation of an inline `<script type="text/mermaid">` block. */
-export function dedent(s: string): string {
-  const lines = s.replace(/^\s*\n/, '').replace(/\s+$/, '').split('\n');
-  let ind = Infinity;
-  for (const l of lines) if (l.trim()) ind = Math.min(ind, /^[ \t]*/.exec(l)![0].length);
-  return Number.isFinite(ind) && ind > 0 ? lines.map((l) => l.slice(ind)).join('\n') : lines.join('\n');
-}
+export { dedent } from './base.js';
 
 export function defineViewer(name = 'mmdx-viewer'): void {
   if (typeof customElements !== 'undefined' && !customElements.get(name)) customElements.define(name, class extends MmdxViewerElement {});

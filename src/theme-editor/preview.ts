@@ -11,9 +11,9 @@ import { Scope } from '../ui/blocks/block.js';
 import { createToggleButton } from '../ui/blocks/button.js';
 import { createTabs } from '../ui/blocks/tabs.js';
 import { createZoomBar } from '../ui/blocks/zoom-bar.js';
-import { h } from '../ui/h.js';
-import { signal, untracked, type ReadSignal, type Signal } from '../ui/signal.js';
-import { DEFAULT_SAMPLES, TYPES } from './constants.js';
+import { h } from '../ui/kit/h.js';
+import { signal, untracked, type ReadSignal, type Signal } from '../reactive/signal.js';
+import { defaultSample, TYPES } from './constants.js';
 import type { Env } from './env.js';
 import type { ThemeSamples } from './types.js';
 
@@ -44,7 +44,7 @@ export function createPreview(env: Env, side: HTMLElement, p: PreviewProps): Pre
   let shownType: DiagramType | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   scope.add(() => clearTimeout(timer));
-  const sample = (type: DiagramType): string => p.samples.peek()[type] ?? p.hostSamples()?.[type] ?? DEFAULT_SAMPLES[type];
+  const sample = (type: DiagramType): string => p.samples.peek()[type] ?? p.hostSamples()?.[type] ?? defaultSample(type);
 
   const box = h('div', { class: 'te-pbox' });
   const canvas = new DiagramCanvas(box, { interaction: 'pan-zoom', wheel: 'always', panOnDrag: true, svgClass: 'vw-svg' });
@@ -78,7 +78,7 @@ export function createPreview(env: Env, side: HTMLElement, p: PreviewProps): Pre
     clearTimeout(timer);
     const type = p.type.peek();
     timer = setTimeout(() => {
-      const def = p.hostSamples()?.[type] ?? DEFAULT_SAMPLES[type];
+      const def = p.hostSamples()?.[type] ?? defaultSample(type);
       store(type, ta.value.trim() === def.trim() ? undefined : ta.value);
     }, 200);
   });
@@ -106,12 +106,18 @@ export function createPreview(env: Env, side: HTMLElement, p: PreviewProps): Pre
     untracked(paint);
   });
 
+  // the sample parsed once while its text stays (P19: a theme edit repaints, the sample is the same)
+  let parsed: { text: string; doc: ReturnType<typeof splitSource>['doc']; model: ReturnType<typeof parse> } | null = null;
   function paint(): void {
     if (!draft.current()) return;
     try {
       const T = draft.resolved.peek();
-      const { doc } = splitSource(sample(p.type.peek()));
-      const model = parse(doc.code);
+      const text = sample(p.type.peek());
+      if (parsed?.text !== text) {
+        const { doc } = splitSource(text);
+        parsed = { text, doc, model: parse(doc.code) };
+      }
+      const { doc, model } = parsed;
       if (!model.type) throw new Error(model.diagnostics.find((d) => d.severity === 'error')?.message ?? t('te.notDiagram'));
       const meta = { ...doc.meta, canvas: { ...doc.meta.canvas } };
       delete meta.canvas.theme;

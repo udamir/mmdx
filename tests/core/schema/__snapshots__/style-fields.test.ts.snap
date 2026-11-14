@@ -172,6 +172,24 @@ exports[`style fields > field definitions 1`] = `
     "label": "Max width",
     "type": "number",
   },
+  "mindLayout": {
+    "label": "Layout",
+    "options": [
+      [
+        "both",
+        "both sides",
+      ],
+      [
+        "right",
+        "to the right",
+      ],
+      [
+        "down",
+        "top down",
+      ],
+    ],
+    "type": "select",
+  },
   "mirror": {
     "label": "Participants at the bottom",
     "type": "toggle",
@@ -201,10 +219,15 @@ exports[`style fields > field definitions 1`] = `
     "label": "Shape",
     "options": [
       "box",
+      "actor",
+      "boundary",
+      "control",
+      "entity",
+      "database",
+      "collections",
+      "queue",
       "rounded",
       "stadium",
-      "actor",
-      "database",
       "hcyl",
     ],
     "type": "select",
@@ -229,23 +252,226 @@ exports[`style fields > field definitions 1`] = `
   "shape": {
     "label": "Shape",
     "options": [
-      "rect",
-      "rounded",
-      "stadium",
-      "circle",
-      "doublecircle",
-      "diamond",
-      "hexagon",
-      "cylinder",
-      "hcyl",
-      "subroutine",
-      "parallelogram",
-      "parallelogram-alt",
-      "trapezoid",
-      "trapezoid-alt",
-      "asymmetric",
-      "document",
-      "card",
+      [
+        "rect",
+        "Rectangle",
+      ],
+      [
+        "rounded",
+        "Rounded rectangle",
+      ],
+      [
+        "stadium",
+        "Stadium",
+      ],
+      [
+        "circle",
+        "Circle",
+      ],
+      [
+        "doublecircle",
+        "Double circle",
+      ],
+      [
+        "diamond",
+        "Diamond",
+      ],
+      [
+        "hexagon",
+        "Hexagon",
+      ],
+      [
+        "parallelogram",
+        "Lean right",
+      ],
+      [
+        "parallelogram-alt",
+        "Lean left",
+      ],
+      [
+        "trapezoid",
+        "Trapezoid base bottom",
+      ],
+      [
+        "trapezoid-alt",
+        "Trapezoid base top",
+      ],
+      [
+        "asymmetric",
+        "Flag",
+      ],
+      [
+        "text",
+        "Text block",
+      ],
+      [
+        "tri",
+        "Triangle",
+      ],
+      [
+        "flip-tri",
+        "Flipped triangle",
+      ],
+      [
+        "notch-pent",
+        "Trapezoidal pentagon",
+      ],
+      [
+        "bolt",
+        "Lightning bolt",
+      ],
+      [
+        "sm-circ",
+        "Small circle",
+      ],
+      [
+        "fr-circ",
+        "Framed circle",
+      ],
+      [
+        "f-circ",
+        "Filled circle",
+      ],
+      [
+        "subroutine",
+        "Framed rectangle",
+      ],
+      [
+        "document",
+        "Document",
+      ],
+      [
+        "card",
+        "Notched rectangle",
+      ],
+      [
+        "lin-rect",
+        "Lined rectangle",
+      ],
+      [
+        "div-rect",
+        "Divided rectangle",
+      ],
+      [
+        "win-pane",
+        "Window pane",
+      ],
+      [
+        "delay",
+        "Half-rounded rectangle",
+      ],
+      [
+        "curv-trap",
+        "Curved trapezoid",
+      ],
+      [
+        "sl-rect",
+        "Sloped rectangle",
+      ],
+      [
+        "bow-rect",
+        "Bow tie rectangle",
+      ],
+      [
+        "docs",
+        "Stacked document",
+      ],
+      [
+        "st-rect",
+        "Stacked rectangle",
+      ],
+      [
+        "tag-doc",
+        "Tagged document",
+      ],
+      [
+        "tag-rect",
+        "Tagged rectangle",
+      ],
+      [
+        "lin-doc",
+        "Lined document",
+      ],
+      [
+        "flag",
+        "Flag",
+      ],
+      [
+        "brace",
+        "Curly brace",
+      ],
+      [
+        "brace-r",
+        "Curly brace",
+      ],
+      [
+        "braces",
+        "Curly brace",
+      ],
+      [
+        "cross-circ",
+        "Crossed circle",
+      ],
+      [
+        "fork",
+        "Filled rectangle",
+      ],
+      [
+        "hourglass",
+        "Hourglass",
+      ],
+      [
+        "cylinder",
+        "Cylinder",
+      ],
+      [
+        "hcyl",
+        "Horizontal cylinder",
+      ],
+      [
+        "lin-cyl",
+        "Lined cylinder",
+      ],
+      [
+        "datastore",
+        "Data store",
+      ],
+      [
+        "folder",
+        "Folder",
+      ],
+      [
+        "bucket",
+        "Bucket",
+      ],
+      [
+        "console",
+        "Terminal window",
+      ],
+      [
+        "browser",
+        "Browser window",
+      ],
+      [
+        "person",
+        "Person",
+      ],
+      [
+        "cloud",
+        "Cloud",
+      ],
+      [
+        "bang",
+        "Bang",
+      ],
+      [
+        "choice",
+        "Small diamond",
+      ],
+      [
+        "note",
+        "Folded corner",
+      ],
     ],
     "type": "select",
   },
@@ -560,6 +786,7 @@ exports[`style fields > theme editor sections 1`] = `
         "presets": "edgePresets",
       },
     ],
+    "routing": true,
     "title": "Flowchart",
     "type": "flowchart",
   },
@@ -657,6 +884,12 @@ exports[`style fields > theme editor sections 1`] = `
         "presets": "activationPresets",
       },
     ],
+    "pageFields": [
+      "gap",
+      "rowH",
+      "mirror",
+    ],
+    "routing": false,
     "title": "Sequence",
     "type": "sequence",
   },
@@ -699,8 +932,193 @@ exports[`style fields > theme editor sections 1`] = `
         "presets": "relPresets",
       },
     ],
+    "routing": true,
     "title": "ER diagram",
     "type": "er",
+  },
+  {
+    "items": [
+      {
+        "fields": [
+          "fill",
+          "stroke",
+          "text",
+          "strokeWidth",
+          "fontSize",
+          "fontWeight",
+          "radius",
+          "shape",
+        ],
+        "key": "root",
+        "label": "Root",
+        "preview": "mm-root",
+      },
+      {
+        "fields": [
+          "fill",
+          "stroke",
+          "text",
+          "strokeWidth",
+          "fontSize",
+          "fontWeight",
+          "radius",
+          "shape",
+        ],
+        "key": "node",
+        "label": "Node",
+        "presets": "nodePresets",
+        "preview": "mm-node",
+      },
+      {
+        "fields": [
+          "width",
+        ],
+        "key": "branch",
+        "label": "Branch",
+        "preview": "mm-branch",
+      },
+      {
+        "fields": [
+          "fill",
+          "text",
+          "color",
+        ],
+        "key": "section",
+        "label": "Sections (branch colours)",
+        "presets": "sections",
+        "preview": "mm-section",
+      },
+    ],
+    "pageFields": [
+      "mindLayout",
+    ],
+    "routing": false,
+    "title": "Mindmap",
+    "type": "mindmap",
+  },
+  {
+    "items": [
+      {
+        "fields": [
+          "fill",
+          "stroke",
+          "text",
+          "strokeWidth",
+          "fontSize",
+          "fontWeight",
+          "radius",
+          "shape",
+          "dash",
+        ],
+        "key": "node",
+        "label": "State",
+        "presets": "nodePresets",
+        "preview": "st-state",
+      },
+      {
+        "fields": [
+          "fill",
+          "w",
+        ],
+        "key": "start",
+        "label": "Start",
+        "preview": "st-start",
+      },
+      {
+        "fields": [
+          "fill",
+          "stroke",
+          "strokeWidth",
+          "w",
+        ],
+        "key": "end",
+        "label": "End",
+        "preview": "st-end",
+      },
+      {
+        "fields": [
+          "fill",
+          "stroke",
+          "strokeWidth",
+          "w",
+        ],
+        "key": "choice",
+        "label": "Choice",
+        "preview": "st-choice",
+      },
+      {
+        "fields": [
+          "fill",
+          "w",
+          "h",
+        ],
+        "key": "fork",
+        "label": "Fork / join",
+        "preview": "st-fork",
+      },
+      {
+        "fields": [
+          "fill",
+          "stroke",
+          "strokeWidth",
+          "radius",
+          "stack",
+          "titleSize",
+          "titleColor",
+          "titleWeight",
+          "titleAlign",
+          "pad",
+          "padTop",
+        ],
+        "key": "composite",
+        "label": "Composite state",
+        "presets": "compositePresets",
+        "preview": "st-composite",
+      },
+      {
+        "fields": [
+          "fill",
+          "stroke",
+        ],
+        "key": "compositeColor",
+        "label": "Composite colours",
+        "presets": "compositeColors",
+        "preview": "st-composite-color",
+      },
+      {
+        "fields": [
+          "fill",
+          "stroke",
+          "strokeWidth",
+          "dash",
+          "text",
+          "fontSize",
+          "color",
+        ],
+        "key": "note",
+        "label": "Note",
+        "presets": "notePresets",
+        "preview": "st-note",
+      },
+      {
+        "fields": [
+          "color",
+          "width",
+          "dash",
+          "arrow",
+          "labelColor",
+          "labelSize",
+          "curve",
+        ],
+        "key": "transition",
+        "label": "Transition",
+        "presets": "transitionPresets",
+        "preview": "st-transition",
+      },
+    ],
+    "routing": true,
+    "title": "State diagram",
+    "type": "state",
   },
 ]
 `;

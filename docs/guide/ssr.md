@@ -17,7 +17,10 @@ const svg = await renderToSvg(source, { theme: 'default-dark' }); // a standalon
 | `theme` | `default-light` | The theme to draw with; it must be registered in the context (see [Themes](#themes)) |
 | `layers` | `'visible'` | `'visible'`: hidden layers stay hidden; `'all'`: every item is drawn |
 | `ssr` | `false` | Mark the SVG for hydration by `<mmdx-viewer>` (`data-mmdx-ssr`, and `data-mmdx-measure` with how text was measured) |
-| `ctx` | `createContext()` | The context: theme registry, text measurer, link policy, id prefix |
+| `ctx` | `createContext()` | The context: theme registry, text measurer, link policy, icon registry, id prefix |
+| `iconPacks` | — | Icon packs for this render, over the context's registry (see [Icons](/guide/icons#on-the-server)) |
+
+The icons the source references (label tokens, icon nodes, mindmap icons) are loaded before it renders: the built-in set, Font Awesome look-alikes and the packs of `iconPacks` and `ctx.icons`. `renderSource` with your own context draws what is loaded; `ctx.icons.preload(iconNamesOf(source, ctx.icons))` loads the rest first.
 
 It never throws on bad input: a source it cannot parse renders what it can, and a source over the [limits](/guide/security#limits) renders nothing.
 
@@ -75,8 +78,9 @@ const ctx = createContext({
 | Field | Default | Meaning |
 |---|---|---|
 | `themes` | a registry with Default Light and Default Dark | The `ThemeRegistry` themes are looked up in |
-| `measure` | `createStaticMeasurer()` | How text is measured for layout |
+| `measure` | `createStaticMeasurer()` | How text is measured for layout (an emoji counts as one 1.15 em glyph, however many code points it has) |
 | `linkPolicy` | `DEFAULT_LINK_POLICY` | Allowed link protocols and the link target |
+| `imagePolicy` | `DEFAULT_IMAGE_POLICY` | Which image URLs diagrams may show (`https:` only by default). The SVG keeps the URLs as they are and the server fetches nothing; a refused image is a placeholder with an `image.blocked` warning. See [Security](/guide/security#image-policy) |
 | `idPrefix` | a unique prefix | Prefix of SVG `<defs>` ids, so ids never collide between diagrams on one page |
 | `locale` | — | The locale |
 

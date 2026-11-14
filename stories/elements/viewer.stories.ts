@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import '../../src/viewer.js';
-import type { HostFullscreen as HostFullscreenHandler } from '../../src/viewer.js';
+import { configure, type HostFullscreen as HostFullscreenHandler } from '../../src/viewer.js';
 import { example, exampleHistory, SMALL_ER, SMALL_FLOW, SMALL_SEQUENCE, THEME_IDS, uiArg } from '../support.js';
 
 type ViewerArgs = {
@@ -102,6 +102,18 @@ export const Sequence: Story = { args: { source: SMALL_SEQUENCE } };
 
 export const EntityRelationship: Story = { name: 'ER diagram', args: { source: SMALL_ER } };
 
+/** A mindmap (T08): the two-sided tidy tree, the seven shapes, branch colours, icons as label tokens, markdown. */
+export const Mindmap: Story = { args: { source: example('product-mindmap') } };
+
+/** Colour by depth (`config.mindmap.colorBy`), the right-hand layout, an `::icon()`, a quoted label and a folded branch (+N). */
+/** A state diagram (T09): composites, concurrency regions, notes, choice, fork and join, description rows, the frontmatter title. */
+export const StateDiagram: Story = { name: 'State diagram', args: { source: example('order-lifecycle') } };
+
+/** A left-to-right state diagram with presets from metadata and a cycle. */
+export const StateTrafficLight: Story = { name: 'State diagram: traffic light', args: { source: example('traffic-light') } };
+
+export const MindmapByDepth: Story = { name: 'Mindmap: colour by depth, folded branch', args: { source: example('study-notes') } };
+
 export const AllControls: Story = {
   name: 'All controls',
   args: { source: example('production-microservices'), controls: ['zoom', 'layers', 'pen', 'code', 'export', 'fullscreen'] },
@@ -181,6 +193,34 @@ export const ThemeGallery: Story = {
       }),
     ),
   args: { source: SMALL_FLOW },
+};
+
+// a host icon pack (T04): stock Mermaid receives it with the built-in Tabler subset before a fallback render
+configure({
+  iconPacks: [{
+    name: 'demo',
+    icons: {
+      prefix: 'demo', width: 24, height: 24,
+      icons: { rocket: { body: '<path fill="#e8590c" d="M12 2c3 2 5 6 5 10l-2 4H9l-2-4c0-4 2-8 5-10z"/><circle cx="12" cy="9" r="2" fill="#fff"/><path fill="#fab005" d="M9 17h6l-3 5z"/>' } },
+    },
+  }],
+});
+
+export const MermaidFallbackIcons: Story = {
+  name: 'Stock Mermaid fallback with icons',
+  parameters: {
+    docs: { description: { story: 'An architecture diagram (a type mmdx does not draw) rendered by stock Mermaid, which receives the icon packs of `configure({ iconPacks })` and the built-in Tabler subset (`tabler:`) before it renders.' } },
+  },
+  args: {
+    controls: [],
+    source: `architecture-beta
+  group api(tabler:cloud)[API]
+  service db(tabler:database)[Database] in api
+  service server(tabler:server)[Server] in api
+  service launch(demo:rocket)[Deploy] in api
+  db:L -- R:server
+  launch:T -- B:server`,
+  },
 };
 
 export const FromSrc: Story = {

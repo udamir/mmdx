@@ -5,9 +5,15 @@ export {
   ThemeEditor, MmdxThemeEditorElement, defineThemeEditor, contrastRatio,
   type ThemeEditorOptions, type ThemeEditorEventMap, type ThemeSamples,
 } from './elements/theme-editor.js';
-export { configure, registerThemes, registerBuiltinThemes, type Config } from './config.js';
-export * from './adapters/themes.js';
-export * from './adapters/storage.js';
+export { configure, type Config } from './platform/config.js';
+export { registerThemes, registerBuiltinThemes } from './platform/themes.js';
+export {
+  fetchThemeSource, isLocalEdit, localStorageThemeStore, memoryThemeStore,
+} from './adapters/themes.js';
+export {
+  localStorageAdapter, memoryStorage, preloadedStorage, type PreloadedStorageOptions,
+} from './adapters/storage.js';
+export type { SaveResult, StorageAdapter, ThemeSource, ThemeStore } from './ports.js';
 export { BUILTIN_THEMES } from './core/theme/builtin.js';
 export type { ThemeFile, ThemeInfo } from './core/theme/types.js';
 

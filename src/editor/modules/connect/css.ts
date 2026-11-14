@@ -1,5 +1,5 @@
 // Overlay handles of connections and bend points (prototype styles.css). Prototype variable names work through the
-// aliases in src/ui/styles/base.ts.
+// aliases in src/ui/kit/base.ts.
 export const CONNECT_CSS = /* css */ `
 .overlay .end-handle { fill: #fff; stroke: var(--accent); cursor: grab; }
 .overlay .end-handle.fixed { fill: var(--accent); }

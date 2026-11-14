@@ -1,0 +1,1 @@
+# Kernel and editor-core signals written from module files (tools/check-layers.mjs signalWrites; BUG-015) — none since 2026-11-13; may only shrink.

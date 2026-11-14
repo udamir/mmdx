@@ -1,10 +1,14 @@
 // DiffSession (component architecture §8.1): the model behind the diff scene and the diff modules, without a DOM —
 // loading a pair or a history, the filters, the selection, the view, History mode and the events it emits.
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
-import type { HistoryAdapter, StaticVersion } from '../../src/adapters/history.js';
+import { describe, expect, it, vi } from 'vitest';
+import type { StaticVersion } from '../../src/adapters/history.js';
+import type { HistoryAdapter } from '../../src/ports.js';
 import { createContext } from '../../src/core/context.js';
 import { changeKey } from '../../src/core/diff/merge.js';
+import type { FlowGeometry } from '../../src/core/render/types.js';
+import { registerExtendedShapes } from '../../src/core/extras.js';
+import { forgetShapes, shapeById } from '../../src/core/shapes/registry.js';
 import { DiffSession, type DiffSessionOptions } from '../../src/diff/session.js';
 
 const sample = (name: string, side: string): string => readFileSync(`apps/studio-site/diff-samples/${name}.${side}.mmd`, 'utf8');
@@ -42,6 +46,19 @@ describe('DiffSession', () => {
     expect(types(events)).toEqual(['mmdx-compare', 'mmdx-render']);
     expect((events[0]!.detail as { counts: unknown }).counts).toEqual(s.getDiff()!.counts);
     s.destroy();
+  });
+
+  it('loads the shapes beyond the 17 before it renders a version that draws one (T02.9)', async () => {
+    forgetShapes();
+    try {
+      const { s } = session();
+      await s.load({ before: 'flowchart LR\n  A --> B', after: 'flowchart LR\n  A@{ shape: bolt } --> B' });
+      expect(shapeById('bolt')).toBeDefined();
+      expect((s.rendered.peek()!.after.result.geom as FlowGeometry).nodes.get('A')?.shape).toBe('bolt');
+      s.destroy();
+    } finally {
+      registerExtendedShapes();
+    }
   });
 
   it('nothing to compare without both sources', async () => {
@@ -123,21 +140,35 @@ describe('DiffSession', () => {
     expect(s.pair.base).toBe(versions[1]!.id);
     s.setPair(versions[3]!.id, versions[0]!.id);
     expect(events.at(-1)).toEqual({ type: 'mmdx-version', detail: { base: versions[3]!.id, head: versions[0]!.id } });
-    // History mode needs the version panel shown
-    s.setMode('history');
-    expect(s.viewOnly.peek()).toBe(false);
-    s.setVersionsShown(true);
+    // History mode: the host shows one version as it is (the version panel's History tab, shown)
+    s.show({ kind: 'version', id: null });
     expect(s.viewOnly.peek()).toBe(true);
+    expect(s.pair.viewing).toBe(versions[0]!.id);
     s.viewVersion(versions[2]!.id);
     await s.refresh();
     expect(s.pair.viewing).toBe(versions[2]!.id);
     expect(s.plain.peek()!.model.type).toBe('flowchart');
     expect(s.toSvg()).toContain('<svg');
-    // per-version counts arrive lazily
+    // per-version counts arrive lazily, for the versions a row asks for (P12)
     await new Promise((r) => setTimeout(r, 400));
+    expect(s.countsRev.peek()).toBe(0);
+    expect(s.counts(versions[0]!.id)).toBeUndefined();
+    s.counts(versions.at(-1)!.id);
+    await vi.waitFor(() => expect(s.counts(versions[0]!.id)).toMatchObject({ added: expect.any(Number) }));
     expect(s.counts(versions.at(-1)!.id)).toBeNull();
-    expect(s.counts(versions[0]!.id)).toMatchObject({ added: expect.any(Number) });
-    expect(s.countsRev.peek()).toBeGreaterThan(0);
+    expect(s.countsRev.peek()).toBe(2);
+    s.destroy();
+  });
+
+  it('keeps the latest 16 sources read, and always the shown pair (P12)', async () => {
+    const versions: StaticVersion[] = Array.from({ length: 40 }, (_, i) => ({ id: `v${i}`, date: new Date(2026, 0, 40 - i).toISOString(), source: `flowchart LR\n  a${i} --> b` }) as StaticVersion);
+    const { s } = session();
+    await s.load({ history: versions });
+    for (const v of versions) await s.sourceOf(v.id);
+    const sources = s.store.sources;
+    expect(sources.size).toBe(16);
+    expect(sources.get(s.pair.head!)).toBeDefined();
+    expect(sources.get(s.pair.base!)).toBeDefined();
     s.destroy();
   });
 
@@ -155,6 +186,27 @@ describe('DiffSession', () => {
     expect(got).toHaveLength(2);
     expect(got[0]).toMatchObject({ kind: 'json', name: expect.stringMatching(/^arch-\w+\.\.\w+\.json$/) });
     expect(got[1]).toMatchObject({ kind: 'mmdx', data: sample('architecture', 'before') });
+  });
+});
+
+describe('exports name what they write (B23)', () => {
+  it('after viewing one version, an "after" export is named and filled with the after version', async () => {
+    const got: { name: string; data: unknown }[] = [];
+    const { s } = session({
+      emit: (type, detail) => {
+        if (type === 'mmdx-export') got.push(detail as { name: string; data: unknown });
+        return type !== 'mmdx-export';
+      },
+    });
+    const A = 'flowchart LR\n  a', B = 'flowchart LR\n  a --> b', C = 'flowchart LR\n  a --> c';
+    await s.load({ history: [{ id: 'v3', source: C }, { id: 'v2', source: B }, { id: 'v1', source: A }] });
+    s.setPair('v1', 'v2');
+    s.viewVersion('v3');
+    await s.exportAs('mmdx', { version: 'after' });
+    await s.exportAs('mmdx');
+    expect(got[0]).toMatchObject({ name: 'arch-v2.mmdx', data: B });
+    expect(got[1]).toMatchObject({ name: 'arch-v3.mmdx', data: C });
+    s.destroy();
   });
 });
 
@@ -194,18 +246,17 @@ const until = async (f: () => unknown): Promise<void> => {
 };
 
 describe('DiffSession: compare and History mode', () => {
-  it('setPair leaves History mode: the pair is rendered, not the viewed version (mmdx-mode)', async () => {
+  it('setPair leaves History mode: the pair is rendered, not the viewed version', async () => {
     const versions = history('production-microservices');
     const { s, events } = session();
     await s.load({ history: versions });
-    s.setVersionsShown(true);
     s.viewVersion(versions[2]!.id);
     await s.refresh();
     expect(s.viewOnly.peek()).toBe(true);
     s.setPair(versions[4]!.id, versions[3]!.id);
-    expect(s.mode.peek()).toBe('compare');
+    expect(s.shown.peek()).toEqual({ kind: 'compare', base: versions[4]!.id, head: versions[3]!.id });
     expect(s.viewOnly.peek()).toBe(false);
-    expect(events.at(-1)).toEqual({ type: 'mmdx-mode', detail: { mode: 'compare', viewOnly: false } });
+    expect(events.at(-1)).toEqual({ type: 'mmdx-version', detail: { base: versions[4]!.id, head: versions[3]!.id } });
     await s.refresh();
     expect(s.pair).toEqual({ base: versions[4]!.id, head: versions[3]!.id, viewing: null });
     expect(s.rendered.peek()!.sources.after).toBe(versions[3]!.source);
@@ -213,22 +264,39 @@ describe('DiffSession: compare and History mode', () => {
     s.destroy();
   });
 
-  it('the mode has its own event: mmdx-mode for the tab and History mode, mmdx-view only for the view', async () => {
+  it('show is the hosts\' transition: nothing, a version (the pair kept for later), the pair again; no event (the tab and mmdx-mode are the host\'s)', async () => {
+    const versions = history('production-microservices');
     const { s, events } = session();
-    await s.load({ history: history('production-microservices') });
-    s.setMode('history');
-    s.setVersionsShown(true);
-    s.setVersionsShown(false);
-    s.setView('after');
-    expect(events.filter((e) => e.type === 'mmdx-mode').map((e) => e.detail)).toEqual([
-      { mode: 'history', viewOnly: false }, { mode: 'history', viewOnly: true }, { mode: 'history', viewOnly: false },
-    ]);
-    expect(events.filter((e) => e.type === 'mmdx-view').map((e) => e.detail)).toEqual([{ view: 'after', mode: 'history' }]);
-    // host options set them without an event
+    await s.load({ history: versions });
+    const pair = { kind: 'compare' as const, base: versions[1]!.id, head: versions[0]!.id };
+    expect(s.shown.peek()).toEqual(pair);
     const n = events.length;
-    expect(s.applyMode('compare')).toBe(true);
-    expect(s.applyView('before')).toBe(true);
+    s.show({ kind: 'version', id: versions[2]!.id });
+    expect(s.shown.peek()).toEqual({ kind: 'version', id: versions[2]!.id });
+    s.show(pair);
+    expect(s.shown.peek()).toEqual(pair);
+    s.show({ kind: 'none' });
+    expect(s.shown.peek()).toEqual({ kind: 'none' });
+    expect(s.pair).toEqual({ base: null, head: null, viewing: null });
     expect(events.length).toBe(n);
+    s.setView('after');
+    expect(events.filter((e) => e.type === 'mmdx-view').map((e) => e.detail)).toEqual([{ view: 'after', mode: 'compare' }]);
+    // host options set the view without an event
+    const m = events.length;
+    expect(s.applyView('before')).toBe(true);
+    expect(events.length).toBe(m);
+    s.destroy();
+  });
+
+  it('a host that draws the viewed version itself (drawVersions: false): shown, not rendered, no loading', async () => {
+    const versions = history('production-microservices');
+    const { s } = session({ drawVersions: false });
+    await s.load({ history: versions });
+    s.show({ kind: 'version', id: versions[2]!.id });
+    await s.refresh();
+    expect(s.shown.peek()).toEqual({ kind: 'version', id: versions[2]!.id });
+    expect(s.plain.peek()).toBeNull();
+    expect(s.status.peek()).toBeNull();
     s.destroy();
   });
 
@@ -255,7 +323,6 @@ describe('DiffSession: compare and History mode', () => {
       },
     });
     await s.load({ history: paged(versions, 10, { gate: (id) => (id === versions[3]!.id ? gate.promise : undefined) }) });
-    s.setVersionsShown(true);
     s.viewVersion(versions[2]!.id);
     await s.refresh();
     const old = s.plain.peek();

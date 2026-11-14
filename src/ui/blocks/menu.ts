@@ -2,10 +2,10 @@
 // shortcut column, opened through the host's PopoverManager (one popover at a time, Esc / outside click closes, arrow
 // keys move, focus returns to the opener) and positioned against its opener, or at a point (a context menu), inside
 // the host element.
-import { h } from '../h.js';
-import type { PopoverManager } from '../popover.js';
-import { formatKeys } from '../shortcuts.js';
-import { ariaKeys, Scope, type BlockHandle } from './block.js';
+import { h } from '../kit/h.js';
+import type { PopoverManager } from '../kit/popover.js';
+import { formatKeys } from '../kit/keys.js';
+import { ariaKeys, defineBlock, Scope, type BlockHandle } from './block.js';
 
 export interface MenuItem {
   label: string;
@@ -44,42 +44,32 @@ export const MENU_CSS = /* css */ `
 `;
 
 export function createMenu(props: MenuProps): BlockHandle<MenuProps> {
-  let p = { ...props };
-  const scope = new Scope();
-  const el = h('div', { role: 'menu' });
-  const render = (): void => {
-    el.className = ['mmdx-menu', 'mmdx-bmenu', p.class].filter(Boolean).join(' ');
-    el.setAttribute('aria-label', p.label);
-    if (p.part) el.setAttribute('part', p.part);
-    else el.removeAttribute('part');
-    const radio = p.entries.some((e) => typeof e === 'object' && 'checked' in e && e.checked !== undefined);
-    el.replaceChildren(...p.entries.map((e) => {
-      if (e === 'sep') return h('hr', { role: 'separator' });
-      if ('section' in e) return h('div', { class: 'mmdx-sect', role: 'presentation' }, e.section);
-      const item = h('button', { type: 'button', role: e.checked !== undefined ? 'menuitemradio' : 'menuitem', title: e.title ?? '', tabindex: '-1', disabled: !!e.disabled, class: e.class ?? '' },
-        radio ? h('span', { class: 'mmdx-check', 'aria-hidden': 'true' }, e.checked ? '✓' : '') : null, h('span', { class: 'mmdx-menu-label' }, e.label),
-        e.keys ? h('kbd', { 'aria-hidden': 'true' }, formatKeys(e.keys)) : null);
-      if (e.checked !== undefined) item.setAttribute('aria-checked', String(e.checked));
-      if (e.keys) item.setAttribute('aria-keyshortcuts', ariaKeys(e.keys));
-      item.addEventListener('click', () => {
-        p.onPick?.(e);
-        e.run();
-      }, { signal: scope.signal });
-      return item;
-    }));
-  };
-  render();
-  return {
-    el,
-    update(next) {
-      p = { ...p, ...next };
-      render();
-    },
-    destroy() {
-      scope.dispose();
-      el.remove();
-    },
-  };
+  return defineBlock(props, (p, scope) => {
+    const el = h('div', { role: 'menu' });
+    const render = (): void => {
+      const fx = scope.renew();
+      el.className = ['mmdx-menu', 'mmdx-bmenu', p.class].filter(Boolean).join(' ');
+      el.setAttribute('aria-label', p.label);
+      if (p.part) el.setAttribute('part', p.part);
+      else el.removeAttribute('part');
+      const radio = p.entries.some((e) => typeof e === 'object' && 'checked' in e && e.checked !== undefined);
+      el.replaceChildren(...p.entries.map((e) => {
+        if (e === 'sep') return h('hr', { role: 'separator' });
+        if ('section' in e) return h('div', { class: 'mmdx-sect', role: 'presentation' }, e.section);
+        const item = h('button', { type: 'button', role: e.checked !== undefined ? 'menuitemradio' : 'menuitem', title: e.title ?? '', tabindex: '-1', disabled: !!e.disabled, class: e.class ?? '' },
+          radio ? h('span', { class: 'mmdx-check', 'aria-hidden': 'true' }, e.checked ? '✓' : '') : null, h('span', { class: 'mmdx-menu-label' }, e.label),
+          e.keys ? h('kbd', { 'aria-hidden': 'true' }, formatKeys(e.keys)) : null);
+        if (e.checked !== undefined) item.setAttribute('aria-checked', String(e.checked));
+        if (e.keys) item.setAttribute('aria-keyshortcuts', ariaKeys(e.keys));
+        item.addEventListener('click', () => {
+          p.onPick?.(e);
+          e.run();
+        }, { signal: fx.signal });
+        return item;
+      }));
+    };
+    return { el, render };
+  });
 }
 
 export interface OpenMenuOptions {

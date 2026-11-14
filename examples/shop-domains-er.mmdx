@@ -1,0 +1,53 @@
+---
+title: Online shop by domain
+---
+erDiagram
+  accTitle: Online shop data model
+  accDescr: Customers, orders and payments in the sales domain; products and stock in the catalog domain
+  direction LR
+  subgraph Sales [Sales domain]
+    CUSTOMER["**Customer**"]:::core {
+      string id PK
+      string email UK
+      string? phone
+    }
+    ORDER:::core {
+      string id PK
+      string customerId FK
+      date placedAt
+    }
+    CUSTOMER ||--o{ ORDER : places
+    ORDER |o..o| ORDER : "split from"
+    subgraph Billing
+      PAYMENT {
+        string id PK
+        string orderId FK
+        decimal amount
+      }
+      INVOICE
+    end
+    ORDER ||--|{ PAYMENT : "paid by"
+    PAYMENT only one to zero or one INVOICE : receipt
+  end
+  subgraph Catalog [Catalog domain]
+    direction TB
+    PRODUCT {
+      string sku PK
+      string name
+      decimal price
+    }
+    STOCK {
+      string sku FK
+      int quantity
+    }
+    PRODUCT ||--|| STOCK : "kept as"
+  end
+  LINE-ITEM["Line item"] {
+    string orderId FK
+    string sku FK
+    int quantity
+  }
+  ORDER ||--|{ LINE-ITEM : contains
+  LINE-ITEM }o--|| PRODUCT : "refers to"
+  classDef core fill:#e8f1ff,stroke:#3b6fd8
+  style INVOICE stroke-dasharray:4 3

@@ -75,7 +75,7 @@ Every colour, font, radius and shadow of the chrome is a `--mmdx-*` custom prope
 | `--mmdx-z-popover` | `1000` | Stacking of popovers and menus |
 | `--mmdx-focus` | `0 0 0 2px var(--mmdx-accent)` | Focus ring (a box shadow) |
 
-The dark values live in `src/ui/styles/base.ts`. A token set on the element applies to both schemes; to set a value for one scheme only, target the resolved scheme:
+The dark values live in `src/ui/kit/base.ts`. A token set on the element applies to both schemes; to set a value for one scheme only, target the resolved scheme:
 
 ```css
 mmdx-viewer { --mmdx-accent: #0b7285; }
@@ -101,7 +101,7 @@ The diff's highlight colours are tokens too, with light and dark values:
 | `--mmdx-diff-dim` | `.28` | Opacity of unchanged items while Dim is on |
 | `--mmdx-diff-tip`, `--mmdx-diff-tip-ink` | `#1d2330`, `#fff` | Tooltips over changes |
 
-They apply to `<mmdx-diff>` and to History in the editor and the viewer. Colour is never the only signal: removed items are dashed, badges carry `+ − C L S`, and text changes are struck out or bold. Exported diff SVGs (`renderDiffToSvg`, `scheme: 'light' | 'dark'`) use the same colours, from `DIFF_COLORS` in `@mmdx/studio/core`.
+They apply to `<mmdx-diff>` and to History in the editor and the viewer. Colour is never the only signal: removed items are dashed, badges carry an icon per kind of change (plus, minus, a pen for content, arrows for layout, a brush for style), and text changes are struck out or bold. Exported diff SVGs (`renderDiffToSvg`, `scheme: 'light' | 'dark'`) use the same colours, from `DIFF_COLORS` in `@mmdx/studio/core`.
 
 ## Parts
 

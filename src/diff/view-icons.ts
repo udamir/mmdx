@@ -1,8 +1,8 @@
 // The icons of the diff's views (the diff bar): the same frame for every view — Before fills its left half with the
 // removed colour, After its right half with the added colour, Merged crosses a Before and an After frame, Side by side
 // sets them apart with a line between them. The fills follow the diff tokens (`.dx-fb`, `.dx-fa` in the diff bar's CSS).
-import { s } from '../ui/h.js';
-import type { DiffViewName } from './session.js';
+import { s } from '../ui/kit/h.js';
+import type { DiffViewName } from '../view/history.js';
 
 const svg = (...children: SVGElement[]): SVGElement =>
   s('svg', { viewBox: '0 0 24 24', width: '24', height: '24', 'aria-hidden': 'true', class: 'mmdx-icon dx-view-icon', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.6', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, ...children);

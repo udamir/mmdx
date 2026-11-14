@@ -1,17 +1,7 @@
 // History adapters (diff §8.6): where <mmdx-diff> reads the versions of a diagram. The component never writes
 // history; it lists versions (newest first, optionally paged) and loads the source of the ones it shows.
-import type { VersionInfo } from '../core/diff/report.js';
-
-export type { VersionInfo };
-
-export interface HistoryAdapter {
-  /** Newest first. May page: pass `next` from the previous page as `cursor`. */
-  list(cursor?: string): Promise<{ versions: VersionInfo[]; next?: string }>;
-  /** The source of one version (untrusted: validated like any source). */
-  load(id: string): Promise<string>;
-  /** Calls `cb` when the history changed (a new version was saved); returns an unsubscribe. */
-  subscribe?(cb: () => void): () => void;
-}
+import type { HistoryAdapter, VersionInfo } from '../ports.js';
+import { okFetch, pageOf, trimBase, withQuery } from './http.js';
 
 /** A version with its source, for `staticHistory`. */
 export type StaticVersion = VersionInfo & { source: string };
@@ -43,19 +33,11 @@ export function staticHistory(versions: readonly StaticVersion[]): HistoryAdapte
  * next page, and `GET url/<id>` → the source text of one version. GitLab / GitHub recipes are in the docs.
  */
 export function httpHistoryAdapter(url: string, init: RequestInit = {}): HistoryAdapter {
-  const base = url.replace(/\/+$/, '');
-  const get = async (u: string): Promise<Response> => {
-    const r = await fetch(u, { credentials: 'same-origin', ...init });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return r;
-  };
+  const base = trimBase(url);
+  const get = (u: string): Promise<Response> => okFetch(u, { credentials: 'same-origin', ...init });
   return {
     async list(cursor) {
-      const u = cursor ? `${base}${base.includes('?') ? '&' : '?'}cursor=${encodeURIComponent(cursor)}` : base;
-      const body = (await (await get(u)).json()) as unknown;
-      const raw = Array.isArray(body) ? body : (body as { versions?: unknown }).versions;
-      const versions = (Array.isArray(raw) ? raw : []).filter(isVersion).map(cleanVersion);
-      const next = !Array.isArray(body) && typeof (body as { next?: unknown }).next === 'string' ? (body as { next: string }).next : undefined;
+      const { items: versions, next } = pageOf((await (await get(withQuery(base, { cursor }))).json()) as unknown, 'versions', isVersion, cleanVersion);
       return next ? { versions, next } : { versions };
     },
     async load(id) {

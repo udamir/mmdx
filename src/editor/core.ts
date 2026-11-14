@@ -6,35 +6,42 @@
 // Component architecture §4.1: EditorCore extends the view kernel (ViewCore) — services, theme, chrome scheme,
 // shell, module host and canvas come from it — and adds the document store, the selection, gestures and overlay
 // painters. What the canvas shows is the StoreScene (src/editor/scene.ts); `draw()` invalidates it.
-import type { StorageAdapter } from '../adapters/storage.js';
-import type { ThemeSource } from '../adapters/themes.js';
+import type { ImageStore, StorageAdapter, ThemeSource } from '../ports.js';
+import { UiState } from './services/ui-state.js';
+import { SelectionService } from './services/selection.js';
+import { InputService } from './services/input.js';
+import { KindLoader } from './services/kind-loader.js';
+import { VersionSource, type VersionView } from './services/version-source.js';
+import { HostServices } from './services/host-services.js';
+import { groupDescendants, groupTarget, insideGroup, parentOf } from './services/group-tree.js';
 import type { CoreContext } from '../core/context.js';
-import { normalizeMeta, splitSource, type DiagramDocument } from '../core/meta/index.js';
+import type { IconPack } from '../core/icons/types.js';
 import { KIND_TO_COLL, type DiagramMeta, type ItemMeta } from '../core/meta/types.js';
 import type { DiagramModel } from '../core/model.js';
 import { own, ownOr } from '../core/own.js';
-import { parse } from '../core/parse/index.js';
+import { opsKind, withOps } from '../core/kinds/registry.js';
+import { detectType } from '../core/parse/dispatch.js';
+import type { DiagramType } from '../core/types.js';
 import type { ClipboardData } from '../core/ops/clipboard.js';
-import { remapSequenceMeta } from '../core/ops/remap.js';
+import { remapMeta } from '../core/ops/document.js';
 import { currentPreset, type StyleEnv } from '../core/ops/style-env.js';
-import { renderDocument, type Rendered } from '../core/pipeline.js';
-import { pageScene } from '../core/render/index.js';
+import type { Rendered } from '../core/pipeline-core.js';
 import type { BoxGeom, GeometryIndex } from '../core/render/types.js';
-import type { SceneNode } from '../core/scene/types.js';
-import type { ItemKind, ItemRef, Rect } from '../core/types.js';
-import { itemKey } from '../core/types.js';
-import { HIGHLIGHT_CSS } from '../dom/highlight.js';
-import type { Viewport } from '../dom/viewport.js';
-import { Dialogs, DIALOG_CSS } from '../ui/dialog.js';
-import { signal, type Signal } from '../ui/signal.js';
-import { ALIASES } from '../ui/styles/base.js';
-import { EDITOR_CSS } from '../ui/styles/editor.js';
+import { itemKey, type ItemKind, type ItemRef, type Rect } from '../core/types.js';
+import type { TextFormat, TextFormats } from './ops/format.js';
+import { clearHighlight, HIGHLIGHT_CSS, highlightItems } from '../dom/highlight.js';
+import type { Viewport, WheelMode } from '../dom/viewport.js';
+import { Dialogs, DIALOG_CSS } from '../ui/kit/dialog.js';
+import { signal, untracked, type ReadSignal } from '../reactive/signal.js';
+import { ALIASES } from '../ui/kit/base.js';
+import { EDITOR_CSS } from './styles.js';
 import { ViewCore } from '../view/core.js';
-import type { Mode, Tool, ViewActions } from '../view/types.js';
-import { StoreScene } from './scene.js';
-import { itemExists, type ChangeReason, type DocStore } from './store.js';
+import { kernelOptions } from '../view/kernel-options.js';
+import type { Mode, Tool, ViewActions, ViewEvents } from '../view/types.js';
+import { StoreScene, type OverlayPainter } from './scene.js';
+import type { ChangeReason, DocStore } from './store.js';
 
-export type { Mode, Tool };
+export type { Mode, OverlayPainter, Tool, VersionView };
 
 /** Feature flags (§8.2 `features`): every group of Appendix A rows can be turned off; all on by default. */
 export interface EditorFeatures {
@@ -66,12 +73,16 @@ export const DEFAULT_FEATURES: EditorFeatures = {
   exportFormats: ['mmdx', 'mmd', 'svg', 'png'], help: true, fullscreen: true, history: true,
 };
 
-/** An old version shown read-only in the editor's canvas (History): read and drawn instead of the store's document. */
-export interface VersionView {
-  id: string;
-  source: string;
-  doc: DiagramDocument;
-  model: DiagramModel;
+/** What the inline text editor offers the toolbar: its selection's formats, and formatting it. */
+export interface TextEditSession {
+  /** The label can be rich (a markdown string): its words can be bold, italic, underlined and struck. */
+  readonly rich: boolean;
+  /** Part of the text is selected: formats act on it, and what styles only a whole label is off. */
+  partial(): boolean;
+  /** The formats of the selected words, or of the whole text when nothing is selected. */
+  formats(): TextFormats;
+  /** Toggles a format on the selected words, or on the whole text when nothing is selected. */
+  format(f: TextFormat): void;
 }
 
 /** A selected item; `foot` marks the mirrored copy of a participant at the bottom of a sequence diagram. */
@@ -117,16 +128,6 @@ export interface GestureSource {
   down(ev: PointerEvent, hit: Hit): Gesture | null;
 }
 
-/** Paints part of the overlay (handles, highlights, marquee) from the current geometry. */
-export interface OverlayPainter {
-  id: string;
-  /** Lower paints first (underneath). */
-  order: number;
-  paint(k: number): SceneNode[];
-  /** While true, only exclusive painters paint (a link or process preview hides selection boxes and handles). */
-  exclusive?(): boolean;
-}
-
 /**
  * Named actions that feature modules provide to each other (the prototype's free functions that every part called).
  * A module registers the ones it owns in install(); callers use `core.run(name, …)`, which is a no-op (returns
@@ -137,21 +138,19 @@ export interface EditorActions {
   selectAll(): void;
   deleteSelection(): void;
   groupSelection(): void | Promise<void>;
-  ungroupSelection(): void;
+  ungroupSelection(): void | Promise<void>;
+  /** "Reset positions in this group" (T07): forgets the hand-placed positions inside the selected group. */
+  resetGroupPositions(): void;
   copySelection(): void;
   pasteAt(at?: { x: number; y: number }): void;
   duplicateSelection(): void;
   arrange(op: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom' | 'hdist' | 'vdist'): void;
   enterGroup(gid: string): void;
   exitGroup(): void;
-  /** ER: edit a table's attributes in place (table view); null leaves it. */
-  editTable(id: string | null): void;
   inlineEdit(item: Sel): boolean;
   moveSelection(dir: -1 | 1): void;
-  unlockAll(): void;
   applyActivation(): void;
   copyStyle(): void;
-  pasteStyle(target: Sel): boolean;
   setPainting(on: boolean): void;
   addShape(kind: string, opts?: { preset?: string; at?: { x: number; y: number } }): void;
   /** Shapes menu of the tool dock (ER: the table presets); `anchor` = the dock button it flies out of. */
@@ -162,10 +161,7 @@ export interface EditorActions {
   fitView(): void;
   /** Opens the code panel at a real (1-based) line of the Mermaid code (clears a code filter that hides it). */
   gotoCodeLine(line: number): void;
-  /** Opens the Metadata tab at a (1-based) line of the metadata text. */
-  gotoMetaLine(line: number): void;
   setPanel(name: PanelName, open: boolean): void;
-  toggleHelp(on?: boolean): void;
   /** Opens or closes the History of the document (when the editor has a history); `compare`: on the newest change. */
   toggleHistory(on?: boolean, opts?: { compare?: boolean }): void;
   exportAs(kind: 'mmdx' | 'mmd' | 'svg' | 'png'): Promise<void>;
@@ -174,6 +170,12 @@ export interface EditorActions {
   autoLayout(): void;
   plainMermaid(): Promise<void>;
   refreshToolbar(): void;
+  // insert dock (T05)
+  /** Opens the image tool beside `anchor`: `insert` adds an image item, else it sets the selected item's image; `file` is uploaded at once. */
+  /** The image tool, on its Library, Upload, URL or Icon tab (`tab`; default: an icon node's Icon, else the library when the host has one). */
+  openImageTool(anchor?: HTMLElement | null, opts?: { insert?: boolean; file?: File; at?: { x: number; y: number }; tab?: 'library' | 'upload' | 'url' | 'icon' }): void;
+  /** Opens the emoji picker beside `anchor`; `onPick` inserts the chosen emoji (it stays open), `onClose` when it closes. */
+  pickEmoji(anchor: HTMLElement, onPick: (emoji: string) => void, onClose?: () => void): void;
 }
 
 export interface CoreDom {
@@ -191,16 +193,31 @@ export interface CoreDom {
   overlay: SVGGElement;
 }
 
+/** The editor's kinds (`editor/kinds/loader.ts`), given by the editor so the core does not import the loader (no import cycle, BUG-016). */
+export interface EditorKindSource {
+  /** The type's view, ops and edit kinds are loaded (`editorHasKind`). */
+  has(t: DiagramType): boolean;
+  /** Loads them (`loadEditorKind`). */
+  load(t: DiagramType): Promise<void>;
+  /** Parses code with the types the editor has loaded (`editorParse`). */
+  parse(code: string): DiagramModel;
+}
+
 export interface EditorCoreOptions {
   store: DocStore;
+  kinds: EditorKindSource;
   features: EditorFeatures;
   storage?: StorageAdapter;
   ctx?: Partial<CoreContext>;
+  /** The component's own icon packs, over the shared ones of `configure({ iconPacks })`; read when it is created. */
+  iconPacks?: readonly IconPack[];
   themeSource?: ThemeSource;
   ui?: 'light' | 'dark' | 'auto';
   theme?: string;
   themeDark?: string;
   compact?: boolean | 'auto';
+  /** What the mouse wheel does on the canvas (default `always`). */
+  wheel?: WheelMode;
   /** CSS of the installed modules' that is not in their `css` (adopted after the editor's own). */
   css?: readonly string[];
 }
@@ -209,55 +226,177 @@ export interface EditorCoreOptions {
 export type PanelName = 'code' | 'properties' | 'layers';
 export type EditorPanels = Readonly<Record<PanelName, boolean> & Record<string, boolean>>;
 
-export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPanels> {
+/** The kernel's events plus the editor's own: the mode and the tool, the document's model, the selection, the overlay. */
+export interface EditorEvents extends ViewEvents {
+  mode: void;
+  tool: void;
+  model: void;
+  selection: void;
+  overlay: void;
+}
+
+export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPanels, EditorEvents> {
   readonly store: DocStore;
   readonly features: EditorFeatures;
+  private readonly kindSource: EditorKindSource;
   readonly dialogs: Dialogs;
   /** The scene that draws the document (the canvas shows it unless History is open). */
   readonly storeScene: StoreScene;
 
   // ---- UI state (never saved into the document) -------------------------------------------------------------------
-  readonly enteredGroup: Signal<string | null> = signal<string | null>(null);
-  readonly pageSelected: Signal<boolean> = signal(false);
-  readonly codeFilter = signal('');
-  /** Problems in the Mermaid code and the metadata (code panel → canvas issue bar, badge on the Code tool). */
-  readonly issueCount = signal(0);
+  private readonly enteredGroupState = signal<string | null>(null);
+  private readonly pageSelectedState = signal(false);
+  private readonly codeFilterState = signal('');
+  private readonly issueCountState = signal(0);
+  /** The group being edited (Miro-like; null: none), set through `enterGroup`. */
+  readonly enteredGroup: ReadSignal<string | null> = this.enteredGroupState;
+  /** The page itself is selected (the page toolbar shows), set through `selectPage`. */
+  readonly pageSelected: ReadSignal<boolean> = this.pageSelectedState;
+  /** The code panel's filter (what the canvas dims), set through `setCodeFilter`. */
+  readonly codeFilter: ReadSignal<string> = this.codeFilterState;
+  /** Problems in the Mermaid code and the metadata (code panel → canvas issue bar, badge on the Code tool), set through `setIssueCount`. */
+  readonly issueCount: ReadSignal<number> = this.issueCountState;
+  /** Enters a group to edit inside it, or leaves group editing (null); only the state: the `enterGroup` action also clears the selection and draws. */
+  enterGroup(gid: string | null): void {
+    this.enteredGroupState.set(gid);
+  }
+  /** Selects the page itself (its toolbar) or not. */
+  selectPage(on: boolean): void {
+    this.pageSelectedState.set(on);
+  }
+  setCodeFilter(q: string): void {
+    this.codeFilterState.set(q);
+  }
+  setIssueCount(n: number): void {
+    this.issueCountState.set(n);
+  }
+  /** What the host gives the editor (A10g): its image store and its upload of pictures. */
+  readonly hostServices = new HostServices();
+  /**
+   * The host's upload of a dropped, pasted or chosen picture (T05 `uploadImage`): resolves to the URL the image item
+   * references (the editor never embeds files). Null: images are added by URL only.
+   */
+  get uploadImage(): ((file: File) => Promise<{ url: string }>) | null {
+    return this.hostServices.uploadImage.peek();
+  }
+  /**
+   * The host's image store (`EditorOptions.images`): the image tool's Library tab lists it, and uploads go to it
+   * (before `uploadImage`). Null: no library.
+   */
+  get images(): ImageStore | null {
+    return this.hostServices.images.peek();
+  }
+  /** Where an upload goes: the image store, else the host's `uploadImage` (null: images by URL only). */
+  get upload(): ((file: File) => Promise<{ url: string }>) | null {
+    return this.hostServices.upload();
+  }
   /** Base name for exports (no extension); files opened through `openFiles` set it. */
-  fileName = 'diagram';
+  get fileName(): string {
+    return this.uiState.fileName.peek();
+  }
   /** Session snap grid in diagram px (0 = off). Alt while dragging = free. */
-  snap = 5;
+  get snap(): number {
+    return this.uiState.snap.peek();
+  }
+  /** The session's UI state (A10f): signals, read through the getters below and written through `uiState.<name>.set`. */
+  readonly uiState = new UiState<Sel, TextEditSession, ClipboardData>();
+  /** The selection (A10e): the document's and a shown version's. */
+  readonly selections: SelectionService = new SelectionService(this);
   /** Primary selected item's `foot` flag (participant copy at the bottom). */
-  foot = false;
+  get foot(): boolean {
+    return this.selections.foot;
+  }
   /** An inline text editor is open over this item: no handles around it. */
-  inlineEditing: ItemRef | null = null;
+  get inlineEditing(): ItemRef | null {
+    return this.uiState.inlineEditing.peek();
+  }
+  /** The open inline text editor's formatting (the toolbar's text format menu acts on its selection); null: none open. */
+  get textEdit(): TextEditSession | null {
+    return this.uiState.textEdit.peek();
+  }
   /** ER table whose attributes are being edited: drawn as a table with an empty row for a new attribute. */
-  tableView: string | null = null;
+  get tableView(): string | null {
+    return this.uiState.tableView.peek();
+  }
   /** Item under the pointer (connection dots on hover). */
-  hover: Sel | null = null;
+  get hover(): Sel | null {
+    return this.uiState.hover.peek();
+  }
+  /** The pointer loop and Space-to-pan (A10c: what it tracks is read here, written only by it). */
+  readonly input: InputService<Hit> = new InputService<Hit>(this);
   /** A gesture is running. */
-  dragging = false;
-  /** Cancels the running pointer gesture, if any (set by the editor's pointer wiring). */
-  cancelPointer: (() => void) | null = null;
+  get dragging(): boolean {
+    return this.input.dragging;
+  }
   /** Space is held: drag pans. */
-  spaceDown = false;
+  get spaceDown(): boolean {
+    return this.input.spaceDown;
+  }
   /** Last pointer position (client coordinates), for paste-at-pointer and menus. */
-  pointer: { clientX: number; clientY: number } | null = null;
+  get pointer(): { clientX: number; clientY: number } | null {
+    return this.input.pointer;
+  }
+  /** Cancels the running pointer gesture, if any. */
+  cancelPointer(): void {
+    this.input.cancelGesture();
+  }
   /** The item clipboard (UI state, never saved): copies carry their content (§9), so History can fill it too. */
-  clipboard: ClipboardData | null = null;
+  get clipboard(): ClipboardData | null {
+    return this.uiState.clipboard.peek();
+  }
   /**
    * An old version shown read-only (History, `showVersion`): the getters, the render and the selection read it instead
    * of the store, and nothing writes (changes, transactions, undo are refused) while it shows.
    */
-  readonly version: Signal<VersionView | null> = signal<VersionView | null>(null);
-  /** The selection while a version shows (the document's own selection is kept in the store meanwhile). */
-  private versionSel: ItemRef[] = [];
-  /** What showing a version put aside (the document's entered group and layer override), given back after it. */
-  private beforeVersion: { group: string | null; layers: readonly string[] | undefined } | null = null;
+  readonly versions: VersionSource = new VersionSource({
+    enteredGroup: this.enteredGroup,
+    enterGroup: (gid) => this.enterGroup(gid),
+    selectPage: (on) => this.selectPage(on),
+    visibleLayers: this.visibleLayers,
+    setLayers: (ids) => this.visibleLayersState.set(ids),
+    stopEditing: () => {
+      this.cancelGesture();
+      this.uiState.inlineEditing.set(null);
+    },
+    needKind: (code) => this.kinds.need(code),
+    parse: (code) => untracked(() => this.kindSource.parse(code)),
+    selections: this.selections,
+    shown: () => {
+      this.storeScene.forget();
+      this.draw();
+      this.fire('model');
+      this.fire('selection');
+      this.fire('panels');
+    },
+  });
+  get version(): ReadSignal<VersionView | null> {
+    return this.versions.view;
+  }
+  /** The kinds of the shown diagram types, loaded on demand (A10g; T01). */
+  readonly kinds: KindLoader = new KindLoader({
+    has: (t) => this.kindSource.has(t),
+    load: (t) => this.kindSource.load(t),
+    live: () => this.host.isConnected,
+    loaded: (fit) => {
+      this.versions.reparse();
+      this.draw();
+      if (fit && this.scene === this.storeScene && !this.version.peek()) this.viewport.setBounds(this.result.result.bounds, { fit: true });
+      this.fire('model');
+      this.fire('panels');
+    },
+    failed: (e) => this.toast(`Could not load the editor for this diagram type: ${e instanceof Error ? e.message : String(e)}`, { error: true }),
+  });
+  /**
+   * The document's diagram type, from its code (known before its kinds load; null: not a diagram the editor knows). A
+   * module follows it instead of the `model` event, which does not fire when a kind was loaded before (B42).
+   */
+  readonly docType: ReadSignal<DiagramType | null>;
 
-  private rendered: Rendered | null = null;
   private readonly gestures: GestureSource[] = [];
-  private readonly painters: OverlayPainter[] = [];
-  private drawQueued = 0;
+  /** Applies a drag's move still waiting for its animation frame (the pointer loop's; P1). */
+  flushPreview(): void {
+    this.input.flushMove();
+  }
   private readonly domCache: CoreDom;
 
   constructor(host: HTMLElement, o: EditorCoreOptions) {
@@ -268,37 +407,94 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       areaClass: 'canvas-wrap',
       initialMode: 'edit',
       canvas: {
-        interaction: 'pan-zoom', wheel: 'always', panOnDrag: false, minK: 0.05, maxK: 6, pad: 40, svgClass: 'canvas', part: 'canvas',
-        pageClass: 'page-layer page-shadow',
-        onView: () => {
-          this.fire('view');
-          this.drawOverlay();
+        interaction: 'pan-zoom', wheel: o.wheel ?? 'always', panOnDrag: false, minK: 0.05, maxK: 6, pad: 16, svgClass: 'canvas', part: 'canvas',
+        // fit() fills the free part of the canvas: clear of the open panel stacks and the tool dock (the shell measures
+        // them), leaving room above the page for its badge
+        insets: () => {
+          const free = this.insets();
+          return { left: free.left, right: free.right, top: 28, bottom: 0 };
         },
+        pageClass: 'page-layer page-shadow',
+        // the kernel fires `view`
+        onView: () => this.drawOverlay(),
       },
       feature: (name) => this.featureOn(name),
       loadHistory: () => import('../diff/history.js'),
-      ...(o.storage ? { storage: o.storage } : {}),
-      ...(o.ctx ? { ctx: o.ctx } : {}),
-      ...(o.themeSource ? { themeSource: o.themeSource } : {}),
-      ...(o.ui ? { ui: o.ui } : {}),
-      ...(o.theme ? { theme: o.theme } : {}),
-      ...(o.themeDark ? { themeDark: o.themeDark } : {}),
-      ...(o.compact !== undefined ? { compact: o.compact } : {}),
+      ...kernelOptions(o),
     });
+    this.kindSource = o.kinds;
     this.store = o.store;
     this.features = o.features;
+    this.docType = this.owner.computed(() => detectType(this.store.code()));
+    // a kind's own modules (`when.kind`) install when the document becomes of their type, and go when it leaves it
+    this.owner.effect(() => {
+      this.docType();
+      untracked(() => this.refreshModules());
+    });
     this.dialogs = new Dialogs(this.shadow, this.i18n.t);
-    this.tool.set('pointer');
-    this.panels.set({ code: true, properties: true, layers: true });
+    this.toolState.set('pointer');
+    this.panelsState.set({ code: true, properties: true, layers: true });
     const c = this.canvas;
     this.domCache = { shadow: this.shadow, root: this.root, wrap: this.area, svg: c.svg, defs: c.defs, vp: c.vp, page: c.page, body: c.body, overlay: c.overlay };
     this.storeScene = new StoreScene(this);
     this.pushScene(this.storeScene);
+    // the document's selection reported once per real change (B11, P5): not on construction, not for the same items
+    // again, not while a version is shown (its items are picked to copy them; the net change is reported when it closes)
+    this.owner.add(this.selections.watch());
   }
 
   /** The editor's DOM (the shell's root and canvas area, the main canvas's layers). */
   get dom(): CoreDom {
     return this.domCache;
+  }
+
+  // ---- DOM services for modules (R10, BUG-016: modules do not reach into `dom`, `root`, `area` or `canvas`; eventRoot and cssVar are the kernel's) ----------------
+
+  /** Where floating UI goes (bars, menus, inline editors, hints): the canvas wrapper, their positioning context; modules place what stays into it with `scope.mount`. */
+  get overlayHost(): HTMLElement {
+    return this.area;
+  }
+
+  /** A key or paste meant for the canvas: the event's target is the editor's root itself, not a field or a panel in it. */
+  atRoot(ev: Event): boolean {
+    return (ev.composedPath()[0] ?? ev.target) === this.root;
+  }
+
+  /** Turns a state class of the whole editor on or off (`copying`, `table-edit`…: the editor's CSS follows it). */
+  rootClass(name: string, on: boolean): void {
+    this.root.classList.toggle(name, on);
+  }
+
+  /** Gives the focus back to the editor (an inline editor, a menu or a row editor closed), without scrolling. */
+  focusEditor(): void {
+    this.root.focus({ preventScroll: true });
+  }
+
+  /** The main canvas's box on screen (client px). */
+  canvasRect(): DOMRect {
+    return this.canvas.svg.getBoundingClientRect();
+  }
+
+  /** The drawn page's box on screen (client px); null: no page is drawn. */
+  pageRect(): DOMRect | null {
+    const page = this.canvas.page.querySelector('rect.page') ?? this.canvas.svg.querySelector('rect.page');
+    return page ? page.getBoundingClientRect() : null;
+  }
+
+  /** The elements drawing an item (its main element and parts, in document order; none when it is not drawn). */
+  itemElements(it: ItemRef): readonly Element[] {
+    return this.drawnItems().get(itemKey(it)) ?? [];
+  }
+
+  /** Highlights these items on the canvas (the rest fades, as on hover); null: none. */
+  highlight(items: readonly ItemRef[] | null): void {
+    if (items) highlightItems(this.canvas.svg, items);
+    else clearHighlight(this.canvas.svg);
+  }
+
+  /** The element is part of the drawn picture (not the overlay or the chrome). */
+  inPicture(el: Element | null): boolean {
+    return !!el && this.canvas.body.contains(el);
   }
 
   /** Pan and zoom of the main canvas. */
@@ -356,42 +552,12 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
    * and layer visibility are kept for when it is back; the view stays where it is.
    */
   showVersion(v: { id: string; source: string } | null): void {
-    const cur = this.version.peek();
-    if ((v?.id ?? null) === (cur?.id ?? null) && v?.source === cur?.source) return;
-    this.cancelGesture();
-    this.inlineEditing = null;
-    if (v) {
-      const split = splitSource(v.source);
-      const doc: DiagramDocument = { code: split.doc.code, meta: normalizeMeta(split.doc.meta) };
-      if (!cur) {
-        this.beforeVersion = { group: this.enteredGroup.peek(), layers: this.visibleLayers.peek() };
-        this.enteredGroup.set(null);
-        this.pageSelected.set(false);
-      }
-      // the same item stays selected from version to version while it is there
-      const model = parse(doc.code);
-      this.versionSel = cur ? this.versionSel.filter((r) => itemExists(model, r, doc.meta)) : [];
-      this.version.set({ id: v.id, source: v.source, doc, model });
-    } else {
-      this.version.set(null);
-      this.versionSel = [];
-      const back = this.beforeVersion;
-      this.beforeVersion = null;
-      if (back) {
-        this.enteredGroup.set(back.group);
-        this.visibleLayers.set(back.layers);
-      }
-    }
-    this.rendered = null;
-    this.draw();
-    this.fire('model');
-    this.fire('selection');
-    this.fire('panels');
+    this.versions.show(v);
   }
 
   /** The last render (scene, geometry, theme). */
   get result(): Rendered {
-    return this.rendered ?? this.render();
+    return this.storeScene.result;
   }
 
   get geom(): GeometryIndex {
@@ -424,8 +590,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   // ---- selection --------------------------------------------------------------------------------------------------
 
   selection(): Sel[] {
-    const sel = this.version.peek() ? this.versionSel : this.store.selection.peek();
-    return sel.map((r, i) => (i === 0 && this.foot && r.kind === 'participant' ? { ...r, foot: true } : r));
+    return this.selections.list();
   }
 
   /** The single selected item (null when nothing or several are selected). */
@@ -435,73 +600,40 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   }
 
   isSelected(r: ItemRef): boolean {
-    return (this.version.peek() ? this.versionSel : this.store.selection.peek()).some((x) => x.kind === r.kind && x.id === r.id);
+    return this.selections.has(r);
   }
 
   select(items: readonly Sel[]): void {
-    const seen = new Set<string>();
-    const list: ItemRef[] = [];
-    for (const it of items) {
-      const k = itemKey(it);
-      if (seen.has(k)) continue;
-      seen.add(k);
-      list.push({ kind: it.kind, id: it.id });
-    }
-    this.foot = !!items[0]?.foot;
-    if (list.length) this.pageSelected.set(false);
-    // a version's items are selected to copy them: the document's selection and its event stay as they are
-    if (this.version.peek()) this.versionSel = list;
-    else this.store.selection.set(list);
-    this.fire('selection');
-    this.drawOverlay();
-    if (!this.version.peek()) this.emit('mmdx-selection', { items: list });
+    this.selections.set(items);
   }
 
   toggleSelected(it: Sel): void {
-    const cur = this.selection();
-    const i = cur.findIndex((x) => x.kind === it.kind && x.id === it.id);
-    if (i >= 0) {
-      cur.splice(i, 1);
-      this.select(cur);
-    } else this.select([it, ...cur]);
+    this.selections.toggle(it);
+  }
+
+  /** The drawn items' elements by item key (`kind:id`; main element and parts), read once per paint (X17): what the marquee, the toolbars' anchors and the marks look up. */
+  drawnItems(): ReadonlyMap<string, readonly Element[]> {
+    return this.storeScene.drawnItems();
+  }
+
+  /** The drawn picture's selection marks (the picture itself does not depend on the selection, P4). */
+  decorateSelection(): void {
+    this.storeScene.decorateSelection();
   }
 
   /** Geometry box of an item (participant foot when asked), or null. */
   boxOf(it: Sel | null): (BoxGeom & { hidden?: boolean }) | null {
     const g = this.geom;
-    if (!it) return null;
-    if (g.type === 'flowchart') return it.kind === 'node' ? g.nodes.get(it.id) ?? null : it.kind === 'group' ? g.groups.get(it.id) ?? null : null;
-    if (g.type === 'er') return it.kind === 'entity' ? g.entities.get(it.id) ?? null : null;
-    if (g.type === 'sequence') {
-      if (it.kind === 'participant') return (it.foot ? g.participantFeet.get(it.id) : null) ?? g.participants.get(it.id) ?? null;
-      if (it.kind === 'box') return g.boxes.get(it.id) ?? null;
-      if (it.kind === 'block') return g.blocks.get(it.id) ?? null;
-      if (it.kind === 'note') return g.notes.get(it.id) ?? null;
-      if (it.kind === 'activation') {
-        const a = g.activations.get(it.id);
-        return a ? { x: a.x, y: (a.y0 + a.y1) / 2, w: a.w, h: a.y1 - a.y0 } : null;
-      }
-    }
-    return null;
+    if (!it || !g.type) return null;
+    return opsKind(g.type)?.box(g, it, true) ?? null;
   }
+
 
   // ---- rendering --------------------------------------------------------------------------------------------------
 
   /** Renders the current document (no DOM work). */
   render(): Rendered {
-    const v = this.version.peek();
-    const doc = v?.doc ?? this.store.doc();
-    const model = this.model;
-    const opts: Parameters<typeof renderDocument>[3] = {};
-    if (this.mode.peek() === 'view' && !this.display.peek().labels) opts.hideLabels = true;
-    opts.theme = this.shownTheme();
-    // a version's layers are a view override too (its Layers panel hides and shows them without writing)
-    const layers = this.mode.peek() === 'view' || v ? this.visibleLayers.peek() : undefined;
-    if (layers) opts.visibleLayers = layers;
-    if (this.tableView && this.mode.peek() === 'edit' && !v) opts.tableView = [this.tableView];
-    const r = renderDocument(doc, model, this.ctx, opts);
-    this.rendered = { doc, model, tooLarge: false, ...r, diagnostics: [...model.diagnostics, ...r.diagnostics] };
-    return this.rendered;
+    return this.storeScene.render();
   }
 
   /**
@@ -509,79 +641,19 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
    * scene owns the canvas (History), the store scene only becomes dirty and repaints in full when it is back.
    */
   draw(): void {
-    if (this.drawQueued) {
-      cancelAnimationFrame(this.drawQueued);
-      this.drawQueued = 0;
-    }
     this.storeScene.invalidate();
-  }
-
-  /** Paints the document into the main canvas (the store scene calls it while attached). */
-  paintDocument(): void {
-    const r = this.render();
-    const res = r.result;
-    this.canvas.show({ defs: res.defs, page: pageScene(res, r.rctx), body: res.body });
-    this.storeScene.bounds.set(res.bounds);
-    this.decorate();
-    this.drawOverlay();
-    this.fire('draw');
-  }
-
-  /** Draws on the next animation frame (coalesces bursts, e.g. typing). */
-  drawSoon(): void {
-    if (this.drawQueued) return;
-    this.drawQueued = requestAnimationFrame(() => {
-      this.drawQueued = 0;
-      this.draw();
-    });
-  }
-
-  /** Marks multi-selected items and the inline-edited item on the scene (classes only). */
-  private decorate(): void {
-    const body = this.dom.body;
-    for (const n of Array.from(body.querySelectorAll('.selected, .text-editing'))) n.classList.remove('selected', 'text-editing');
-    const mark = (r: ItemRef, cls: string): void => {
-      for (const n of Array.from(body.querySelectorAll('.el[data-id]')))
-        if (n.getAttribute('data-id') === r.id && n.getAttribute('data-kind') === r.kind) n.classList.add(cls);
-    };
-    const sel = this.selection();
-    if (sel.length > 1) for (const r of sel) mark(r, 'selected');
-    if (this.inlineEditing) mark(this.inlineEditing, 'text-editing');
-    this.dom.root.classList.toggle('group-edit', !!this.enteredGroup.peek() && this.mode.peek() === 'edit');
   }
 
   /** Adds an overlay painter; one added while a module installs is muted while the module is suspended. */
   addOverlay(p: OverlayPainter): () => void {
-    const add = (): void => {
-      if (this.painters.includes(p)) return;
-      this.painters.push(p);
-      this.painters.sort((a, b) => a.order - b.order);
-    };
-    const remove = (): void => {
-      const i = this.painters.indexOf(p);
-      if (i >= 0) this.painters.splice(i, 1);
-    };
-    add();
-    this.track({ set: (on) => (on ? add() : remove()), dispose: remove });
-    return remove;
+    let remove = this.storeScene.addPainter(p);
+    this.track({ set: (on) => void (on ? (remove = this.storeScene.addPainter(p)) : remove()), dispose: () => remove() });
+    return () => remove();
   }
 
   /** Repaints the overlay layer (handles, dots, marquee) from the current geometry. */
   drawOverlay(): void {
-    const k = this.viewport.state.k;
-    const nodes: SceneNode[] = [];
-    const exclusive = this.painters.filter((p) => p.exclusive?.());
-    if (this.mode.peek() === 'edit' && !this.inlineEditing)
-      for (const p of exclusive.length ? exclusive : this.painters) {
-        try {
-          nodes.push(...p.paint(k));
-        } catch (e) {
-          // a broken painter must not take the canvas down
-          console.error(`[mmdx] overlay painter ${p.id}`, e);
-        }
-      }
-    if (this.scene === this.storeScene) this.canvas.setOverlay(nodes);
-    this.fire('overlay');
+    this.storeScene.paintOverlay();
   }
 
   // ---- gestures ---------------------------------------------------------------------------------------------------
@@ -623,7 +695,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   /** Client point → canvas-local px. */
   toLocal(ev: { clientX: number; clientY: number }): { x: number; y: number } {
-    const r = this.dom.svg.getBoundingClientRect();
+    const r = this.canvasRect();
     return { x: ev.clientX - r.left, y: ev.clientY - r.top };
   }
 
@@ -657,7 +729,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     // a version shown read-only is never written (and the store is not what is shown)
     if (this.version.peek()) return false;
     if (!res || res.code == null || (res.code === this.code && !res.meta)) return false;
-    if (!this.emit('mmdx-op', { type: opts.type ?? label, code: res.code }, true)) return false;
+    if (!this.emit('mmdx-op', opDetail(opts.type ?? label, res.code), true)) return false;
     const oldModel = this.model, oldCode = this.code;
     this.store.begin();
     try {
@@ -665,8 +737,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       this.store.setCode(res.code, label);
       const model = this.model;
       // ops that return metadata have already carried it over to the new positional ids
-      if (!res.meta && model.type === 'sequence' && oldModel.type === 'sequence')
-        this.store.meta.set(remapSequenceMeta(this.meta, oldModel, oldCode, model, this.code));
+      if (!res.meta) this.store.meta.set(remapMeta(oldModel, oldCode, model, this.code, this.meta));
       const keep = (r: Sel): boolean => this.store.exists(r);
       if (opts.select !== undefined) this.select((opts.select ?? []).filter(keep));
       else {
@@ -691,11 +762,14 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     const before = this.store.model.peek().type;
     this.store.load(src, { history: opts.history, reason: opts.reason, markSaved: opts.markSaved !== false });
     if (opts.reason === 'load') {
-      this.enteredGroup.set(null);
-      this.pageSelected.set(false);
+      this.enterGroup(null);
+      this.selectPage(false);
     }
     this.draw();
-    if (this.scene === this.storeScene && !this.version.peek() && (opts.fit !== false || before !== this.store.model.peek().type)) this.viewport.setBounds(this.result.result.bounds, { fit: true });
+    if (this.scene === this.storeScene && !this.version.peek() && (opts.fit !== false || before !== this.store.model.peek().type)) {
+      this.viewport.setBounds(this.result.result.bounds, { fit: true });
+      this.kinds.oweFit(this.code);
+    }
     this.fire('model');
     this.fire('panels');
   }
@@ -703,6 +777,22 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
   /** Replaces the metadata as one history step (`mmdx-op`; a veto rolls it back). */
   setMeta(label: string, meta: DiagramMeta): void {
     this.change(label, () => this.store.meta.set(meta));
+  }
+
+  /**
+   * Writes the document inside the open transaction (a drag, a nudge, a live field edit; A10d: modules do not write
+   * the store themselves): its code and / or metadata. The commit records it as one step, a rollback undoes it.
+   */
+  write(doc: { code?: string; meta?: DiagramMeta }): void {
+    if (this.version.peek()) return;
+    if (doc.meta !== undefined) this.store.meta.set(doc.meta);
+    if (doc.code !== undefined) this.store.code.set(doc.code);
+  }
+
+  /** As `write`, then draws (a gesture's preview frame). */
+  preview(doc: { code?: string; meta?: DiagramMeta }): void {
+    this.write(doc);
+    this.draw();
   }
 
   /**
@@ -718,7 +808,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
       this.store.rollback();
       throw e;
     }
-    if (!this.emit('mmdx-op', { type: label }, true)) {
+    if (!this.emit('mmdx-op', opDetail(label, this.code), true)) {
       this.store.rollback();
       this.draw();
       return;
@@ -735,7 +825,7 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
 
   commit(label: string): void {
     if (!this.store.inTransaction) return;
-    if (!this.emit('mmdx-op', { type: label }, true)) {
+    if (!this.emit('mmdx-op', opDetail(label, this.code), true)) {
       this.rollback();
       return;
     }
@@ -779,95 +869,82 @@ export class EditorCore extends ViewCore<EditorActions & ViewActions, EditorPane
     this.fire('panels');
   }
 
-  setMode(m: Mode): void {
+  override setMode(m: Mode): void {
     // no Edit / View switching while History is open (§8.2)
     if (this.mode.peek() === m || this.stage.peek() !== 'document') return;
-    this.mode.set(m);
-    this.tool.set(m === 'edit' ? 'pointer' : 'hand');
+    this.modeState.set(m);
+    this.toolState.set(m === 'edit' ? 'pointer' : 'hand');
     if (m === 'view') {
       this.select([]);
-      this.enteredGroup.set(null);
-      this.pageSelected.set(false);
+      this.enterGroup(null);
+      this.selectPage(false);
     }
     this.fire('mode');
     this.draw();
     this.fire('panels');
   }
 
-  setTool(t: Tool): void {
+  override setTool(t: Tool): void {
     if (this.tool.peek() === t) return;
-    this.tool.set(t);
+    this.toolState.set(t);
     this.fire('tool');
     this.drawOverlay();
   }
 
+  /** Resolves once the kinds of the document's diagram type are loaded (at once when they are). */
+  kindsReady(): Promise<void> {
+    return this.kinds.ready(this.code);
+  }
+
   // ---- group editing (Miro-like) ------------------------------------------------------------------------------------
 
+  /** The group an item is directly in (null: none). */
   parentOf(it: ItemRef): string | null {
-    const M = this.model;
-    if (M.type !== 'flowchart') return null;
-    return (it.kind === 'node' ? M.nodes.get(it.id)?.parent : it.kind === 'group' ? M.groups.get(it.id)?.parent : null) ?? null;
+    return parentOf(this.model, it);
   }
 
   /** The outermost group around an item that a click selects (stops at lanes, locked groups and the entered group). */
   groupTarget(it: ItemRef, isLane: (gid: string) => boolean): string | null {
-    const M = this.model;
-    if (M.type !== 'flowchart' || (it.kind !== 'node' && it.kind !== 'group')) return null;
-    let best: string | null = null;
-    for (let g = this.parentOf(it), guard = 0; g && guard < 64; g = M.groups.get(g)?.parent ?? null, guard++) {
-      if (g === this.enteredGroup.peek() || isLane(g)) break;
-      if (!this.getM('group', g).locked) best = g;
-    }
-    return best;
+    return groupTarget(this.model, it, { entered: this.enteredGroup.peek(), isLane, locked: (g) => !!this.getM('group', g).locked });
   }
 
   insideGroup(it: ItemRef, gid: string): boolean {
-    if (it.kind === 'group' && it.id === gid) return true;
-    const M = this.model;
-    if (M.type !== 'flowchart') return false;
-    for (let g = this.parentOf(it), guard = 0; g && guard < 64; g = M.groups.get(g)?.parent ?? null, guard++) if (g === gid) return true;
-    return false;
+    return insideGroup(this.model, it, gid);
   }
 
-  groupDescendants(gid: string): { nodes: string[]; groups: string[] } {
-    const M = this.model;
-    const nodes: string[] = [], groups: string[] = [];
-    if (M.type !== 'flowchart') return { nodes, groups };
-    const stack = [gid];
-    const seen = new Set<string>();
-    while (stack.length) {
-      const id = stack.pop()!;
-      if (seen.has(id)) continue;
-      seen.add(id);
-      for (const c of M.groups.get(id)?.children ?? []) {
-        if (M.groups.has(c)) {
-          groups.push(c);
-          stack.push(c);
-        } else if (M.nodes.has(c)) nodes.push(c);
-      }
-    }
-    return { nodes, groups };
+  groupDescendants(gid: string): { nodes: string[]; groups: string[]; leaf?: ItemKind } {
+    return groupDescendants(this.model, gid);
   }
 
   /** The diagram has no items yet (empty-canvas hint). */
   isEmptyDiagram(): boolean {
-    const M = this.model;
-    if (M.type === 'flowchart') return !M.nodes.size;
-    if (M.type === 'sequence') return !M.participants.length;
-    if (M.type === 'er') return !M.entities.size;
-    return false;
+    return withOps(this.model, (k, m) => k.isEmpty(m)) ?? false;
   }
+
 
   // ---- style environment (canvas module, additive) -----------------------------------------------------------------
 
-  /** Model, metadata and theme of the current render, for the style ops (`src/core/ops/style-env.ts`). */
+  /**
+   * The style environment of the current document, for the style ops (`src/core/ops/style-env.ts`): its model and metadata, the active theme resolved and merged unresolved (`rawTheme`, read when asked: a preset saved from a theme preset keeps its palette references), and the render's colour resolver. The one builder (X17, BUG-009): `ops/doc.ts` had a second one, with `rawTheme`.
+   */
   styleEnv(): StyleEnv {
-    const r = this.result;
-    return { model: this.model, meta: this.meta, theme: r.theme, color: (v: unknown) => r.rctx.color(v) };
+    const r = this.result, themes = this.ctx.themes;
+    return {
+      model: this.model, meta: this.meta, theme: r.theme, color: (v: unknown) => r.rctx.color(v),
+      get rawTheme() {
+        return themes.merged(r.themeId);
+      },
+    };
   }
 
   /** A swim-lane group (preset `lane`): never selected by clicks inside it, by the marquee or by ⌘A. */
   isLane(gid: string): boolean {
-    return this.model.type === 'flowchart' && currentPreset(this.styleEnv(), { kind: 'group', id: gid }) === 'lane';
+    return this.store.exists({ kind: 'group', id: gid }) && currentPreset(this.styleEnv(), { kind: 'group', id: gid }) === 'lane';
   }
 }
+
+/**
+ * The `mmdx-op` payload, the same for every commit path (B46): the op's type and the code it leaves (a gesture's and a
+ * metadata change's too, so a host's veto policy sees one shape).
+ */
+const opDetail = (type: string, code: string): { type: string; code: string } => ({ type, code });

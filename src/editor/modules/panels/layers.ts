@@ -4,12 +4,11 @@
 // highlight).
 import { DEFAULT_LAYER, effectiveLayers, layerDefs, layerItems, layerOf } from '../../../core/layers.js';
 import type { LayerMeta } from '../../../core/meta/types.js';
-import { newLayer, setLayer } from '../../../core/ops/meta-ops.js';
+import { newLayer, setLayer } from '../../../core/ops/palette.js';
 import { cloneMeta } from '../../../core/ops/meta-util.js';
 import { ownOr } from '../../../core/own.js';
-import { clearHighlight, highlightItems } from '../../../dom/highlight.js';
 import { createLayerList, LAYER_LIST_CSS, type DisplayToggle } from '../../../ui/blocks/layer-list.js';
-import { computed } from '../../../ui/signal.js';
+import type { ModuleScope } from '../../../view/module.js';
 import type { EditorCore } from '../../core.js';
 import { applyMeta } from '../../ops/doc.js';
 
@@ -29,9 +28,9 @@ export interface LayersCard {
   destroy(): void;
 }
 
-export function layersCard(core: EditorCore): LayersCard {
+export function layersCard(scope: ModuleScope<EditorCore>): LayersCard {
+  const core = scope.core;
   const t = core.i18n.t;
-  const svg = (): SVGSVGElement => core.canvas.svg;
   let items: ReturnType<typeof layerItems> = [];
   /** Items on a layer; group / box / block contents count on their container's layer. */
   let onLayer = (_id: string): typeof items => [];
@@ -46,15 +45,15 @@ export function layersCard(core: EditorCore): LayersCard {
     if (!Object.keys(defs).length) delete meta.layers;
     applyMeta(core, label, { meta });
   };
-  const display = (key: 'labels' | 'hoverHighlight', v: boolean): void => {
-    core.display.set({ ...core.display.peek(), [key]: v });
-    if (key === 'hoverHighlight' && !v) clearHighlight(svg());
-    core.draw();
+  const display = (key: 'labels' | 'hoverHighlight' | 'animate', v: boolean): void => {
+    core.setDisplay({ [key]: v });
+    if (key === 'hoverHighlight' && !v) core.highlight(null);
   };
-  const labels = computed(() => core.display().labels), hover = computed(() => core.display().hoverHighlight);
+  const labels = scope.computed(() => core.display().labels), hover = scope.computed(() => core.display().hoverHighlight), animate = scope.computed(() => core.display().animate);
   const toggles: DisplayToggle[] = [
     { id: 'labels', label: t('layers.labels'), value: labels, onChange: (v) => display('labels', v) },
     { id: 'hover', label: t('layers.hoverConnections'), value: hover, onChange: (v) => display('hoverHighlight', v) },
+    { id: 'animate', label: t('layers.animate'), value: animate, onChange: (v) => display('animate', v) },
   ];
 
   /** The layers shown: the view override, else the document's own visibility. */
@@ -67,8 +66,7 @@ export function layersCard(core: EditorCore): LayersCard {
         const on = new Set(shownLayers());
         if (visible) on.add(id);
         else on.delete(id);
-        core.visibleLayers.set([...on]);
-        core.draw();
+        core.setVisibleLayers([...on]);
         core.fire('panels');
         return;
       }
@@ -92,7 +90,7 @@ export function layersCard(core: EditorCore): LayersCard {
       core.select(items.filter((it) => layerOf(core.meta, it.kind, it.id) === id));
       core.fire('panels');
     },
-    onCountHover: (id) => (id === null ? clearHighlight(svg()) : highlightItems(svg(), onLayer(id))),
+    onCountHover: (id) => core.highlight(id === null ? null : onLayer(id)),
   });
 
   return {
@@ -131,9 +129,8 @@ export function layersCard(core: EditorCore): LayersCard {
       queueMicrotask(() => list.focusName(res.id));
     },
     destroy() {
+      // the toggles' computeds are the scope's (disposed on uninstall)
       list.destroy();
-      labels.dispose();
-      hover.dispose();
     },
   };
 }

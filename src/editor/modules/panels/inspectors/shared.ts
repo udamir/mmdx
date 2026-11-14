@@ -2,28 +2,19 @@
 // targets over item metadata, several items and the page settings, the layer row, the preset tiles, the multi-selection
 // actions and the geometry field defaults.
 import { layerDefs, layerOf } from '../../../../core/layers.js';
-import { setLayer } from '../../../../core/ops/meta-ops.js';
+import { setStyle } from '../../../../core/ops/style-ops.js';
+import { setLayer } from '../../../../core/ops/palette.js';
 import { relativeColor } from '../../../../core/theme/colors.js';
 import type { ItemRef } from '../../../../core/types.js';
-import { h } from '../../../../ui/h.js';
+import { h } from '../../../../ui/kit/h.js';
 import type { EditorCore } from '../../../core.js';
 import { applyMeta } from '../../../ops/doc.js';
 import { canGroup } from '../../../ops/group.js';
-import type { LiveEdit } from '../../../ops/live.js';
 import { pageEff } from '../../../ops/page.js';
+import { styleWithShapes } from '../../../ops/shape.js';
 import type { FieldTarget } from '../fields.js';
-import { presetPicker } from '../presets.js';
-
-export interface PanelCtx {
-  core: EditorCore;
-  live: LiveEdit;
-}
-
-export const sect = (host: HTMLElement, text: string): void => {
-  host.append(h('div', { class: 'sect', role: 'heading', 'aria-level': '3' }, text));
-};
-const wrapCtl = (...els: (Node | string | null)[]): HTMLElement => h('div', { class: 'ctl' }, ...els);
-export const row = (label: string, ...ctl: (Node | string | null)[]): HTMLElement => h('div', { class: 'f' }, h('label', null, label), wrapCtl(...ctl), h('span'));
+import { presetPicker } from '../../../lib/presets.js';
+import { row, type PanelCtx } from '../../../lib/panel.js';
 
 /** Item metadata as a field target (writes go through the panel's live edit / one-shot changes). */
 export function itemTarget(p: PanelCtx, ref: ItemRef, base: Readonly<Record<string, unknown>>): FieldTarget {
@@ -42,6 +33,8 @@ export function itemTarget(p: PanelCtx, ref: ItemRef, base: Readonly<Record<stri
       if (isLive) live.run(t('history.style'), f);
       else {
         live.flush();
+        // a shape goes to the code where the type keeps shapes there (and one kept only in metadata moves there)
+        if (styleWithShapes(core, [ref], { [k]: v }, t('history.style'), (meta) => setStyle(meta, [ref], k === 'shape' ? {} : { [k]: v }).meta)) return;
         core.change(t('history.style'), f);
       }
     },
@@ -82,6 +75,7 @@ export function bulkTarget(p: PanelCtx, refs: readonly ItemRef[], bases: readonl
       if (isLive) live.run(t('history.style'), f);
       else {
         live.flush();
+        if (styleWithShapes(core, refs, { [k]: v }, t('history.style'), (meta) => setStyle(meta, refs, k === 'shape' ? {} : { [k]: v }).meta)) return;
         core.change(t('history.style'), f);
       }
     },

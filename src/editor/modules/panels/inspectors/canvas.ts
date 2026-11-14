@@ -5,14 +5,15 @@ import type { DiagramMeta } from '../../../../core/meta/types.js';
 import type { Direction, DiagramType } from '../../../../core/model.js';
 import { cloneMeta } from '../../../../core/ops/meta-util.js';
 import { pagePresets, ratioOf } from '../../../../core/render/page.js';
-import { h, icon } from '../../../../ui/h.js';
-import { ICONS } from '../../../../ui/icons.js';
-import { applyMeta, DIAGRAM_TYPES, FLOW_DIRS, setAutonumberOn, setFlowDirection, switchDiagramType } from '../../../ops/doc.js';
+import { h, icon } from '../../../../ui/kit/h.js';
+import { I_lock, I_unlock } from '../../../../ui/kit/icons.js';
+import { applyMeta, diagramTypeChoices, FLOW_DIRS, setAutonumberOn, setFlowDirection, switchDiagramType } from '../../../ops/doc.js';
 import { choosePagePreset, pageEff, RATIOS, setPageRatio, setPageSizeMode, setPageValue } from '../../../ops/page.js';
 import { field } from '../fields.js';
-import { canvasTarget, row, sect, type PanelCtx } from './shared.js';
+import { editKind } from '../../../kinds/registry.js';
+import { canvasTarget } from './shared.js';
+import { row, sect, type PanelCtx } from '../../../lib/panel.js';
 
-const HAS_DIRECTION = new Set<string | null>(['flowchart', 'er']);
 const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
 
 function pageSizeFields(p: PanelCtx, host: HTMLElement): void {
@@ -86,7 +87,7 @@ function pageSizeFields(p: PanelCtx, host: HTMLElement): void {
     if (hh > 0) apply(k ? hh * k : c.w ?? b.w, hh);
   });
   const lock = h('button', { type: 'button', class: 'lock-btn' + (k ? ' on' : ''), title: k ? t('page.unlock') : t('page.lock'), 'aria-label': k ? t('page.unlock') : t('page.lock'), 'aria-pressed': String(!!k) },
-    icon(k ? ICONS.lock : ICONS.unlock, 15));
+    icon(k ? I_lock : I_unlock, 15));
   lock.addEventListener('click', () => {
     if (k) {
       applyMeta(core, t('history.pageRatio'), { meta: setPageValue(core, 'ratio', '', '') });
@@ -120,27 +121,31 @@ export function canvasInspector(p: PanelCtx, host: HTMLElement): void {
     host.append(row(label, sel));
   };
   if (!M.type) return;
-  selRow(t('page.type'), DIAGRAM_TYPES.map(([v, k]) => [v, t(k)] as const), M.type, (v) => void switchDiagramType(core, v as DiagramType));
-  if (HAS_DIRECTION.has(M.type) && (M.type === 'flowchart' || M.type === 'er')) selRow(t('page.direction'), FLOW_DIRS.map(([v, k]) => [v, t(k)] as const), M.direction, (v) => setFlowDirection(core, v as Direction));
-  if (M.type === 'sequence') selRow(t('page.numbers'), [['off', t('page.numbersOff')], ['on', t('page.numbersOn')]], M.autonumber ? 'on' : 'off', (v) => setAutonumberOn(core, v === 'on'));
+  selRow(t('page.type'), diagramTypeChoices().map(([v, k]) => [v, t(k)] as const), M.type, (v) => void switchDiagramType(core, v as DiagramType));
+  const kind = editKind(M.type);
+  const dir = kind?.direction?.(M);
+  if (dir) selRow(t('page.direction'), FLOW_DIRS.map(([v, k]) => [v, t(k)] as const), dir, (v) => setFlowDirection(core, v as Direction));
+  const numbered = kind?.numbered?.(M);
+  if (numbered !== undefined) selRow(t('page.numbers'), [['off', t('page.numbersOff')], ['on', t('page.numbersOn')]], numbered ? 'on' : 'off', (v) => setAutonumberOn(core, v === 'on'));
+  for (const o of kind?.pageOptions?.(M, core) ?? []) selRow(o.label, o.options, o.value, o.set);
   const presets = Object.entries(pagePresets(T, M.type)).map(([id, pp]) => [id, pp.label || id] as const);
   if (presets.length) selRow(t('page.preset'), [['', t('page.presetNone')], ...presets], typeof core.meta.canvas.preset === 'string' ? core.meta.canvas.preset : '', (v) => choosePagePreset(core, v));
   const presetName = core.meta.canvas.preset;
   const pp = (typeof presetName === 'string' ? pagePresets(T, M.type)[presetName] : undefined) ?? {};
-  if (M.type !== 'sequence') field(core.i18n, host, 'routing', canvasTarget(p, { routing: pp.routing ?? 'curved' })); // messages are always straight
+  if (!kind?.straight) field(core.i18n, host, 'routing', canvasTarget(p, { routing: pp.routing ?? 'curved' })); // messages are always straight
   const pageBase = { ...T.canvas, ...pp };
   for (const f of ['background', 'border']) field(core.i18n, host, f, canvasTarget(p, pageBase));
   pageSizeFields(p, host);
-  if (M.type === 'sequence') {
-    sect(host, t('page.seqLayout'));
+  if (kind?.layout) {
+    sect(host, t(kind.layout.title));
     const L = T.sequence.layout;
     const base = { ...L, blockSpan: L.blockSpan || 'full', ...pp };
-    for (const f of ['gap', 'rowH', 'mirror', 'blockSpan']) field(core.i18n, host, f, canvasTarget(p, base));
+    for (const f of kind.layout.fields) field(core.i18n, host, f, canvasTarget(p, base));
   }
   sect(host, t('props.editor'));
   const si = h('input', { type: 'number', min: '0', value: String(core.snap), 'aria-label': t('props.snap') });
   si.addEventListener('input', () => {
-    core.snap = Math.max(0, Number(si.value) || 0);
+    core.uiState.snap.set(Math.max(0, Number(si.value) || 0));
   });
   host.append(row(t('props.snap'), si), h('div', { class: 'hint' }, t('props.metaHint')));
 }

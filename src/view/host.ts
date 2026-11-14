@@ -3,10 +3,13 @@
 // gives each module a Scope that records every registration — DOM, listeners, kernel events, actions, shortcuts,
 // effects, computeds, contributions — so it can be suspended, resumed and uninstalled with nothing left behind. It
 // holds the kernel's events and actions, which the kernel types per product (bus.ts).
-import type { Shortcut, ShortcutRegistry } from '../ui/shortcuts.js';
-import { computed, effect, signal, type ReadSignal } from '../ui/signal.js';
+import type { Shortcut } from '../ui/kit/keys.js';
+import type { ShortcutRegistry } from './keymap.js';
+import { Owner } from '../reactive/owner.js';
+import { computed, effect, signal, type ReadSignal } from '../reactive/signal.js';
+import { listWriter, slotWriter, type KernelList, type KernelSlot } from './kernel-lists.js';
 import { actionRegistry, eventBus } from './bus.js';
-import { matchesWhen, orderModules, type ActionsOf, type EventsOf, type ModuleScope, type Registration, type ViewModule } from './module.js';
+import { matchesWhen, orderModules, type ActionsOf, type EventsOf, type GestureOf, type ModuleScope, type PainterOf, type Registration, type ViewModule } from './module.js';
 import type { Mode, SlotName, Stage } from './types.js';
 
 /** What the module host needs from its kernel (ViewCore). */
@@ -22,6 +25,9 @@ export interface HostCore {
   readonly stage: ReadSignal<Stage>;
   readonly isDestroyed: boolean;
   addCss(css: readonly string[]): void;
+  removeCss(css: readonly string[]): void;
+  /** The document's diagram type, for modules installed by kind (`when.kind`); none: every module installs. */
+  readonly docType?: ReadSignal<string | null>;
   /** Whether a feature is on (outside install, nothing is recorded). */
   feature(name: string): boolean;
 }
@@ -50,8 +56,7 @@ export class ModuleHost<C extends HostCore> {
   }
 
   add(list: readonly ViewModule<C>[]): () => void {
-    const ids = new Set(this.available.map((m) => m.id));
-    const added = list.filter((m) => !ids.has(m.id));
+    const added = [...list];
     this.added.push(added);
     this.order();
     return () => {
@@ -60,8 +65,23 @@ export class ModuleHost<C extends HostCore> {
     };
   }
 
+  /**
+   * The modules on offer: the product's, then each added set. A module's `replaces` takes the modules of those ids
+   * out of the sets before it (History's layers-only view settings over the viewer's); otherwise an id offered twice
+   * is a mistake: the first stays and the other is reported (B43: it was dropped silently).
+   */
   private order(): void {
-    this.available = orderModules([...this.base, ...this.added.flat()]);
+    const sets = [this.base, ...this.added];
+    const out: ViewModule<C>[] = [];
+    for (const set of sets) {
+      const gone = new Set(set.flatMap((m) => m.replaces ?? []));
+      for (let i = out.length - 1; i >= 0; i--) if (gone.has(out[i]!.id)) out.splice(i, 1);
+      for (const m of set) {
+        if (out.some((x) => x.id === m.id)) console.warn(`[mmdx] module ${m.id} is offered twice: the first is kept (declare \`replaces\` to replace it)`);
+        else out.push(m);
+      }
+    }
+    this.available = orderModules(out);
     this.refresh();
   }
 
@@ -89,7 +109,9 @@ export class ModuleHost<C extends HostCore> {
 
   private refreshOnce(): void {
     const core = this.core;
+    const kind = core.docType?.peek() ?? null;
     const want = this.available.filter((m) => {
+      if (m.when?.kind && core.docType && !m.when.kind.includes(kind ?? '')) return false;
       try {
         return !m.enabled || m.enabled(core);
       } catch (e) {
@@ -112,6 +134,11 @@ export class ModuleHost<C extends HostCore> {
 
   get ids(): string[] {
     return [...this.installed.keys()];
+  }
+
+  /** Resolves once the lazy parts asked for so far have loaded (a failed one counts as done: it is reported). */
+  settled(): Promise<void> {
+    return Promise.all([...this.installed.values()].map((s) => s.loading.catch(() => undefined))).then(() => undefined);
   }
 
   private matches(m: ViewModule<C>): boolean {
@@ -142,6 +169,8 @@ export class ModuleHost<C extends HostCore> {
     if (!s) return;
     this.installed.delete(id);
     s.dispose();
+    // its sheets go with it (one another module still uses stays)
+    if (s.module.css) this.core.removeCss(s.module.css);
   }
 
   /** Uninstalls every module, last installed first. */
@@ -187,7 +216,8 @@ export class ModuleHost<C extends HostCore> {
 /** The registrations of one module: muted while suspended, removed on uninstall. */
 export class Scope<C extends HostCore> implements ModuleScope<C> {
   private readonly regs: Registration[] = [];
-  private readonly disposers: (() => void)[] = [];
+  /** What the module set up through this scope, let go on uninstall. */
+  private readonly owner: Owner;
   private readonly mounts: { el: Element; parent: Element; marker: Comment | null }[] = [];
   private readonly activeSig = signal(true);
   /** Features read while installing, with the value they had (a change installs the module again). */
@@ -199,6 +229,7 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
 
   constructor(private readonly host: ModuleHost<C>, readonly module: ViewModule<C>) {
     this.core = host.core;
+    this.owner = new Owner(`module ${module.id}`);
   }
 
   get id(): string {
@@ -234,9 +265,9 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
     this.activeSig.set(on);
   }
 
-  slot(name: SlotName): { append(...els: (Element | null | undefined | false)[]): void } {
+  slot(name: SlotName): { append(...els: (Element | null | undefined | false)[]): void; mount(el: Element): () => void } {
     const parent = this.core.slots[name];
-    return { append: (...els) => els.forEach((el) => el && void this.mount(parent, el)) };
+    return { append: (...els) => els.forEach((el) => el && void this.mount(parent, el)), mount: (el) => this.mount(parent, el) };
   }
 
   /** Takes an element the module already placed (detached while suspended, removed on uninstall). */
@@ -263,11 +294,15 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
       if (this.active) this.host.run(this, () => f(ev as never));
     };
     target.addEventListener(type, wrapped, opts);
-    this.disposers.push(() => target.removeEventListener(type, wrapped, opts));
+    this.owner.add(() => target.removeEventListener(type, wrapped, opts));
   }
 
-  canvas(type: string, f: (ev: never) => void): void {
-    this.listen(this.core.canvas.svg, type, f);
+  area(type: string, f: (ev: never) => void, opts?: AddEventListenerOptions): void {
+    this.listen(this.core.area, type, f, opts);
+  }
+
+  canvas(type: string, f: (ev: never) => void, opts?: AddEventListenerOptions): void {
+    this.listen(this.core.canvas.svg, type, f, opts);
   }
 
   on<K extends keyof EventsOf<C>>(ev: K, cb: (d: EventsOf<C>[K]) => void): void {
@@ -278,8 +313,12 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
     this.register(this.host.actions.provide(name, f, this));
   }
 
+  provideDefault<K extends keyof ActionsOf<C>>(name: K, f: ActionsOf<C>[K]): void {
+    this.register(this.host.actions.provide(name, f, this, true));
+  }
+
   effect(f: () => void | (() => void)): void {
-    this.disposers.push(effect(() => {
+    this.owner.add(effect(() => {
       if (!this.activeSig()) return;
       return this.host.run(this, f);
     }));
@@ -287,7 +326,7 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
 
   computed<T>(f: () => T): ReadSignal<T> {
     const c = computed(f);
-    this.disposers.push(c.dispose);
+    this.owner.add(c.dispose);
     return c;
   }
 
@@ -298,14 +337,15 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
   wrapShortcut(s: Shortcut, remove: () => void): Shortcut {
     const own = s.active;
     const out: Shortcut = { ...s, active: () => this.active && (!own || own()) };
-    this.disposers.push(() => {
+    this.owner.add(() => {
       remove();
       this.core.shortcuts.remove(out);
     });
     return out;
   }
 
-  contribute<T>(list: { peek(): readonly T[]; set(v: readonly T[]): void }, item: T): void {
+  contribute<T>(kernelList: KernelList<T>, item: T): void {
+    const list = listWriter(kernelList);
     const add = (): void => {
       if (!list.peek().includes(item)) list.set([...list.peek(), item]);
     };
@@ -314,6 +354,42 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
     };
     if (this.active) add();
     this.register({ set: (on) => (on ? add() : remove()), dispose: remove });
+  }
+
+  contributeAll<T>(kernelList: KernelList<T>): { set(items: readonly T[]): void } {
+    const list = listWriter(kernelList);
+    let mine: readonly T[] = [];
+    const put = (next: readonly T[]): void => {
+      const others = list.peek().filter((x) => !mine.includes(x));
+      list.set([...others, ...next]);
+    };
+    this.register({ set: (on) => put(on ? mine : []), dispose: () => put([]) });
+    return {
+      set: (items) => {
+        // the old entries out, the new ones in (only while active; a resume puts them back)
+        put(this.active ? items : []);
+        mine = items;
+      },
+    };
+  }
+
+  claim<T>(kernelSlot: KernelSlot<T>): { set(v: T | null): void } {
+    const slot = slotWriter(kernelSlot);
+    let mine: T | null = null;
+    const show = (on: boolean): void => {
+      if (on && mine !== null) slot.set(mine);
+      else if (!on && mine !== null && slot.peek() === mine) slot.set(null);
+    };
+    this.register({ set: show, dispose: () => show(false) });
+    return {
+      set: (v) => {
+        const prev = mine;
+        mine = v;
+        if (!this.active) return;
+        if (v !== null) slot.set(v);
+        else if (prev !== null && slot.peek() === prev) slot.set(null);
+      },
+    };
   }
 
   register(r: Registration): void {
@@ -326,18 +402,35 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
     if (!this.active) r.set(false);
   }
 
+  gesture(s: GestureOf<C>): void {
+    this.onDispose((this.core as unknown as { addGestureSource(s: GestureOf<C>): () => void }).addGestureSource(s));
+  }
+
+  painter(p: PainterOf<C>): void {
+    this.onDispose((this.core as unknown as { addOverlay(p: PainterOf<C>): () => void }).addOverlay(p));
+  }
+
   onDispose(f: () => void): void {
     if (this.disposed) f();
-    else this.disposers.push(f);
+    else this.owner.add(f);
   }
 
   /** Loads and activates the lazy part once; a failed load is not kept (the next call tries again). */
+  /** The module's lazy part as it loads (resolved when it has none or it has not been asked for). */
+  get loading(): Promise<void> {
+    return this.loaded ?? Promise.resolve();
+  }
+
   load(): Promise<void> {
     const load = this.module.load;
     if (!load) return Promise.resolve();
     this.loaded ??= load().then((part) => {
       if (this.disposed) return;
-      if (part.css) this.core.addCss(part.css);
+      if (part.css) {
+        const css = part.css;
+        this.core.addCss(css);
+        this.onDispose(() => this.core.removeCss(css));
+      }
       this.host.within(this, () => {
         const off = part.activate(this);
         if (typeof off === 'function') this.onDispose(off);
@@ -352,13 +445,7 @@ export class Scope<C extends HostCore> implements ModuleScope<C> {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    for (const f of this.disposers.splice(0).reverse()) {
-      try {
-        f();
-      } catch (e) {
-        console.error(`[mmdx] module ${this.id}: cleanup failed`, e);
-      }
-    }
+    this.owner.dispose();
     for (const r of this.regs.splice(0)) r.dispose();
     for (const m of this.mounts.splice(0)) {
       m.el.remove();

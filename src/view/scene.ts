@@ -4,7 +4,7 @@
 // pops it on Back.
 import { DiagramCanvas, type CanvasOptions } from '../dom/canvas.js';
 import type { Rect } from '../core/types.js';
-import { signal, type Signal } from '../ui/signal.js';
+import { signal, type Signal } from '../reactive/signal.js';
 
 /** The part of the shell scenes draw into: the main canvas, and room for more (side by side). */
 export interface CanvasArea {

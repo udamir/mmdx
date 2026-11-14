@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { VersionInfo } from '../../../src/adapters/history.js';
-import { signal } from '../../../src/ui/signal.js';
-import { ago, createVersionList, type VersionCounts, type VersionListProps } from '../../../src/ui/blocks/version-list.js';
-import { createI18n } from '../../../src/ui/i18n.js';
-import { PopoverManager } from '../../../src/ui/popover.js';
+import type { VersionInfo } from '../../../src/ports.js';
+import { signal } from '../../../src/reactive/signal.js';
+import { createVersionList, type VersionCounts, type VersionListProps } from '../../../src/ui/blocks/version-list.js';
+import { ago } from '../../../src/ui/kit/format.js';
+import { createI18n } from '../../../src/i18n.js';
+import { PopoverManager } from '../../../src/ui/kit/popover.js';
 
 const t = createI18n().t;
 const daysAgo = (n: number): string => new Date(Date.now() - n * 86400_000).toISOString();

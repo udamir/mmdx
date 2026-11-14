@@ -35,7 +35,7 @@ describe('scene structure', () => {
           const k = x.key!;
           const ref = parseItemKey(k);
           if (ref) expect(k).toBe(itemKey(x.item)); // `label:edge:…`, `foot:participant:…` are part keys
-          else expect(k).toMatch(/^(label|foot):/);
+          else expect(k).toMatch(/^(label|foot|branch|line):/);
         });
       expect(items).toBeGreaterThan(3);
       expect(svg).not.toMatch(/class="[^"]*\bselected\b/);

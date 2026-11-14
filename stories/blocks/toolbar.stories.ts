@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createIconButton } from '../../src/ui/blocks/button.js';
 import { createToolbar, TOOLBAR_CSS } from '../../src/ui/blocks/toolbar.js';
-import { I_code, I_hand, I_layers, I_pen, I_pointer } from '../../src/ui/icons.js';
-import { computed, signal } from '../../src/ui/signal.js';
+import { I_code, I_hand, I_layers, I_pen, I_pointer } from '../../src/ui/kit/icons.js';
+import { computed, signal } from '../../src/reactive/signal.js';
 import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; orientation: 'vertical' | 'horizontal'; compact: boolean };

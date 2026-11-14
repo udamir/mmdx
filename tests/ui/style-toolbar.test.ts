@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createStyleToolbar, fitPresetGrid, shapePreview, TOOLBAR_KINDS, type ToolbarApi } from '../../src/ui/style-toolbar.js';
-import { createPageToolbar, type PageToolbarApi } from '../../src/ui/page-toolbar.js';
+import { createStyleToolbar, fitPresetGrid, shapePreview, TOOLBAR_KINDS, type ToolbarApi } from '../../src/ui/diagram/style-toolbar.js';
+import { createPageToolbar, type PageToolbarApi } from '../../src/ui/diagram/page-toolbar.js';
 
-function mount(kind: string, over: Partial<ToolbarApi> = {}, opts: Parameters<typeof createStyleToolbar>[2] = {}) {
+function mount(kind: string, over: Partial<ToolbarApi> = {}, opts: Parameters<typeof createStyleToolbar>[2] = {}, without: readonly (keyof ToolbarApi)[] = []) {
   const host = document.createElement('div');
   document.body.append(host);
   const style: Record<string, unknown> = { fill: '#ffffff', stroke: '#333333', fontSize: 14, fontWeight: 400, color: '#111111' };
@@ -25,8 +25,10 @@ function mount(kind: string, over: Partial<ToolbarApi> = {}, opts: Parameters<ty
     del: vi.fn(),
     toggleLock: vi.fn(),
     isLocked: () => false,
+    linkable: () => true,
     ...over,
   };
+  for (const k of without) delete api[k];
   const tb = createStyleToolbar(host, api, opts);
   tb.refresh();
   return { host, tb, api, set, style };
@@ -47,7 +49,8 @@ describe('style toolbar', () => {
     // optional api members switch their controls off (no paint / order / layer / presets here)
     const edge = mount('edge');
     expect(controls(edge.tb.el)).toEqual(['line', 'arrows', 'routing', 'font', 'size', 'bold', 'textColor', 'more']);
-    const theme = mount('node', {}, { exclude: ['more', 'lock', 'link'], reset: true });
+    // a host with no item actions (the theme editor's tiles): no link, lock or ⋮ menu (A14: no exclude list)
+    const theme = mount('node', {}, { reset: true }, ['del', 'toggleLock', 'isLocked', 'linkable']);
     expect(controls(theme.tb.el)).toEqual(['shape', 'font', 'size', 'bold', 'align', 'textColor', 'border', 'fill', 'reset']);
     expect(TOOLBAR_KINDS['multi']!.groups.flat()).toContain('arrange');
   });
@@ -76,7 +79,7 @@ describe('style toolbar', () => {
     expect(set).toHaveBeenCalledWith('fontSize', 20);
     // shape picker
     (tb.el.querySelector('[data-c="shape"]') as HTMLButtonElement).click();
-    tb.el.querySelector<HTMLButtonElement>('.mtb-shape[aria-label="diamond"]')!.click();
+    tb.el.querySelector<HTMLButtonElement>('.sp-tile[data-key="diamond"]')!.click();
     expect(set).toHaveBeenCalledWith('shape', 'diamond');
   });
 
@@ -339,5 +342,12 @@ describe('page toolbar', () => {
     expect(pt.isOpen()).toBe(true);
     // the colour input starts at the chrome's accent
     expect(pt.el.querySelector<HTMLInputElement>('.mtb-pop input[type=color]')!.value).toBe('#4f46e5');
+  });
+});
+
+describe('toolbar CSS', () => {
+  it('the Fill swatch class has one rule', async () => {
+    const { STYLE_TOOLBAR_CSS } = await import('../../src/ui/diagram/toolbar-styles.js');
+    expect(STYLE_TOOLBAR_CSS.match(/^\.mtb-dot \{/gm)).toHaveLength(1);
   });
 });

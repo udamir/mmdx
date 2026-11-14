@@ -1,6 +1,7 @@
 // The viewer's module set: the standard view modules, every piece behind a control of `controls`.
 import type { ViewCore } from '../core.js';
 import { lazyModule, type ViewModule } from '../module.js';
+import { CODE_VIEW_STUB, HISTORY_STUB, PEN_STUB, VIEW_PARAMS_STUB, VIEW_SETTINGS_STUB } from '../module-stubs.js';
 import { hoverHighlightModule, linksModule } from './canvas.js';
 import { zoomBarModule } from './zoom-bar.js';
 
@@ -14,11 +15,12 @@ export const VIEWER_MODULES: readonly ViewModule<ViewCore>[] = [
   zoomBarModule,
   lazyModule({ id: 'tool-dock', enabled: (c) => c.feature('pen') || c.feature('code') || c.feature('layers') || c.feature('history') }, () => import('./tool-dock.js').then((m) => m.toolDockModule)),
   lazyModule({ id: 'pan', enabled: (c) => c.feature('pen') }, () => import('./tool-dock.js').then((m) => m.panModule)),
-  lazyModule({ id: 'pen', enabled: (c) => c.feature('pen') }, () => import('./pen.js').then((m) => m.penModule)),
-  lazyModule({ id: 'view-settings', after: ['panel-stacks'], when: { stage: ['document'] }, enabled: (c) => c.feature('layers') }, () => import('./side-panels.js').then((m) => m.viewSettingsModule)),
-  lazyModule({ id: 'code-view', after: ['panel-stacks'], when: { stage: ['document'] }, enabled: (c) => c.feature('code') }, () => import('./side-panels.js').then((m) => m.codeViewModule)),
-  lazyModule({ id: 'view-params', enabled: (c) => c.feature('theme') || c.feature('export') }, () => import('./view-params.js').then((m) => m.viewParamsModule)),
-  lazyModule({ id: 'history', enabled: (c) => c.feature('history') }, () => import('./history.js').then((m) => m.historyModule)),
+  lazyModule(PEN_STUB, () => import('./pen.js').then((m) => m.penModule)),
+  // the viewer's panels are the document's: History brings its own
+  lazyModule({ ...VIEW_SETTINGS_STUB, when: { stage: ['document'] } }, () => import('./side-panels.js').then((m) => m.viewSettingsModule)),
+  lazyModule({ ...CODE_VIEW_STUB, when: { stage: ['document'] } }, () => import('./side-panels.js').then((m) => m.codeViewModule)),
+  lazyModule(VIEW_PARAMS_STUB, () => import('./view-params.js').then((m) => m.viewParamsModule)),
+  lazyModule(HISTORY_STUB, () => import('./history.js').then((m) => m.historyModule)),
   linksModule,
   hoverHighlightModule,
 ];

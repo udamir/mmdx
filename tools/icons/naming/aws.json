@@ -1,0 +1,34 @@
+{
+  "$comment": "AWS Architecture Icons (https://aws.amazon.com/architecture/icons/): Architecture-Service-Icons_<date>/Arch_<Category>/<size>/Arch_<Service>_<size>.svg, Resource-Icons_<date>/Res_<Category>/Res_<Resource>_48[_Light|_Dark].svg, Category-Icons_<date>/Arch-Category_<size>/Arch-Category_<Category>_<size>.svg. The Arch_ / Res_ prefix, the size and the Light / Dark suffix go, the rest is kebab-cased: Arch_Amazon-EC2_64.svg -> amazon-ec2, Res_Amazon-EC2_Instance_48.svg -> amazon-ec2-instance, Arch-Category_Compute_64.svg -> category-compute. Of several sizes the largest is kept (64), of Light and Dark the Light one. No Mermaid Chart sample with aws: names was available (design Q-1): overrides map a file name (without .svg) to the icon name where Mermaid Chart's differs.",
+  "provider": "AWS",
+  "strip": [
+    "^Arch_",
+    "^Res_",
+    "^Arch-",
+    "_(Light|Dark)$",
+    "_(16|20|24|32|48|64)(@\\dx)?$"
+  ],
+  "camelCase": false,
+  "skip": [
+    "(^|/)\\.",
+    "__MACOSX/"
+  ],
+  "prefer": [
+    "[/_]64[/_.]",
+    "_Light\\.svg$",
+    "[/_]48[/_.]",
+    "[/_]32[/_.]",
+    "[/_]16[/_.]"
+  ],
+  "categorySkip": [
+    "^\\d+$",
+    "^(Architecture|Resource|Category|Architecture-Group)-(Service-)?Icons",
+    "^Arch-Category_\\d+$"
+  ],
+  "categoryStrip": [
+    "^Arch_",
+    "^Res_",
+    "^Arch-Category_?"
+  ],
+  "overrides": {}
+}

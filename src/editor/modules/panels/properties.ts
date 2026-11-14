@@ -2,14 +2,14 @@
 // picks the inspector for the current selection — the page and diagram settings when nothing is selected
 // (inspectors/canvas.ts), one item (inspectors/item.ts), several items (inspectors/bulk.ts). Every change is one
 // history step; the document ops live in editor/ops.
-import { h } from '../../../ui/h.js';
+import { h } from '../../../ui/kit/h.js';
 import type { Sel } from '../../core.js';
 import { bulkInspector, multiInspector } from './inspectors/bulk.js';
 import { canvasInspector } from './inspectors/canvas.js';
 import { itemInspector } from './inspectors/item.js';
-import type { PanelCtx } from './inspectors/shared.js';
+import type { PanelCtx } from '../../lib/panel.js';
 
-export type { PanelCtx } from './inspectors/shared.js';
+export type { PanelCtx } from '../../lib/panel.js';
 
 /** Builds the Properties panel for the current selection into `host`. */
 export function renderProperties(p: PanelCtx, host: HTMLElement): void {

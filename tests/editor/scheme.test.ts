@@ -3,7 +3,8 @@
 // never the document's; the light / dark chrome and the theme are independent; an unpicked theme follows the chrome.
 import { afterEach, beforeAll, describe, expect, test } from 'vitest';
 import { memoryStorage } from '../../src/adapters/storage.js';
-import { ensureBuiltinThemes, getShared } from '../../src/config.js';
+import { getShared } from '../../src/platform/config.js';
+import { ensureBuiltinThemes } from '../../src/platform/themes.js';
 import { DiagramEditor } from '../../src/editor/editor.js';
 import type { EditorModule } from '../../src/editor/module.js';
 import { editorParamsModule } from '../../src/editor/modules/chrome/view-params.js';

@@ -33,7 +33,7 @@ describe('parse', () => {
     expect(m.type).toBeNull();
     expect(m.type === null && m.keyword).toBe('gantt');
     expect(m.diagnostics).toMatchObject([{ code: 'type.unsupported', severity: 'error',
-      message: 'Unsupported diagram: start with "flowchart", "sequenceDiagram" or "erDiagram".' }]);
+      message: 'Unsupported diagram: start with "flowchart", "sequenceDiagram", "erDiagram", "mindmap" or "stateDiagram-v2".' }]);
     const empty = parse('');
     expect(empty.type === null && 'keyword' in empty).toBe(false);
   });

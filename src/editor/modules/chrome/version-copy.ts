@@ -1,11 +1,11 @@
 // The action bar of an old version shown read-only (History, the `version` stage): over the selected items, like the
 // style toolbar, with Copy only — what is copied can be pasted into the document once History is closed.
 import { copyable } from '../../../core/ops/clipboard.js';
-import { h, icon } from '../../../ui/h.js';
-import { I_copy } from '../../../ui/icons.js';
-import { TOOLBAR_CSS } from '../../../ui/styles/toolbar.js';
+import { h, icon } from '../../../ui/kit/h.js';
+import { I_copy } from '../../../ui/kit/icons.js';
+import { STYLE_TOOLBAR_CSS } from '../../../ui/diagram/toolbar-styles.js';
 import type { EditorModule } from '../../module.js';
-import { anchorRect, freeStrip } from './toolbars.js';
+import { anchorRect, freeStrip } from '../../lib/place.js';
 
 const VERSION_COPY_CSS = /* css */ `
 .mtb.ver-copy { height: 44px; }
@@ -14,11 +14,11 @@ const VERSION_COPY_CSS = /* css */ `
 
 export const versionCopyModule: EditorModule = {
   id: 'version-copy',
-  css: [TOOLBAR_CSS, VERSION_COPY_CSS],
+  css: [STYLE_TOOLBAR_CSS, VERSION_COPY_CSS],
   when: { stage: ['version'] },
   install(scope) {
     const core = scope.core;
-    const wrap = core.dom.wrap;
+    const wrap = core.overlayHost;
     const btn = h('button', { type: 'button', class: 'mtb-btn wide', 'data-f': 'version-copy', title: 'Copy (⌘C) — paste it into the diagram after History' }, icon(I_copy, 18), 'Copy');
     const bar = h('div', { class: 'mtb ver-copy', role: 'toolbar', 'aria-label': 'Selection', hidden: true }, h('div', { class: 'mtb-seg' }, btn));
     // the canvas does not start a gesture on the bar
@@ -41,11 +41,10 @@ export const versionCopyModule: EditorModule = {
       const y = r.y - hh - 12 >= 8 ? r.y - hh - 12 : r.y + r.h + 12;
       bar.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
     };
-    const offs = [core.on('draw', place), core.on('selection', place), core.on('view', place), core.on('tool', place)];
+    for (const ev of ['draw', 'selection', 'view', 'tool'] as const) scope.on(ev, place);
     scope.register({ set: (on) => void (on && place()), dispose: () => undefined });
     place();
     return () => {
-      for (const off of offs) off();
       bar.remove();
     };
   },

@@ -276,3 +276,43 @@ describe('<mmdx-diff>', () => {
     expect(el.shadowRoot!.querySelectorAll('.pane svg').length).toBe(1);
   });
 });
+
+describe('the view event in the diff element (B45)', () => {
+  it('fires on a pan of the comparison', async () => {
+    const { d } = await mount({ beforeSource: 'flowchart LR\n  A --> B', afterSource: 'flowchart LR\n  A --> C' });
+    let n = 0;
+    d.core.on('view', () => n++);
+    d.core.canvas.viewport!.panBy(10, 0);
+    expect(n).toBeGreaterThan(0);
+  });
+});
+
+describe('roles (BUG-023)', () => {
+  it('no element with role=img holds a control', async () => {
+    const { root } = await mount({ history: history('simple-flow'), panels: ['history', 'code', 'changes'] });
+    const images = [...root.querySelectorAll('[role=img]')];
+    expect(images.length).toBeGreaterThan(0);
+    for (const img of images) expect(img.querySelector('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])'), `${img.getAttribute('class')} holds a control`).toBeNull();
+  });
+});
+
+describe('History mode and the version panel\'s tab (A13: the tab is the panel\'s, not the session\'s)', () => {
+  it('the History tab with the panel shown is History mode; mmdx-mode tells the tab and the mode, options set them silently', async () => {
+    const versions = history('simple-flow');
+    const { host, d } = await mount({ history: versions, panels: ['history', 'changes'] });
+    const modes: unknown[] = [];
+    host.addEventListener('mmdx-mode', (e) => modes.push((e as CustomEvent).detail));
+    d.viewVersion(versions[1]!.id);
+    expect(d.session.shown.peek()).toEqual({ kind: 'version', id: versions[1]!.id });
+    d.core.run('setPanel', 'history', false);
+    expect(d.session.shown.peek().kind).toBe('compare');
+    d.core.run('setPanel', 'history', true);
+    expect(d.session.shown.peek()).toEqual({ kind: 'version', id: versions[1]!.id });
+    d.setPair(versions[1]!.id, versions[0]!.id);
+    expect(d.pair).toEqual({ base: versions[1]!.id, head: versions[0]!.id, viewing: null });
+    expect(modes).toEqual([{ mode: 'history', viewOnly: true }, { mode: 'history', viewOnly: false }, { mode: 'history', viewOnly: true }, { mode: 'compare', viewOnly: false }]);
+    d.set({ mode: 'history' });
+    expect(d.session.viewOnly.peek()).toBe(true);
+    expect(modes).toHaveLength(4);
+  });
+});

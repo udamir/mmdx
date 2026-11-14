@@ -65,10 +65,12 @@ Each metadata line is:
 
 | Line | Holds |
 |---|---|
-| `%%@ canvas {…}` | Format version, page size and proportions, page background, routing default, page preset |
-| `%%@ node <id>`, `group <id>`, `edge <from>-><to>` | Flowchart item position, size, preset and style overrides |
+| `%%@ canvas {…}` | Format version, page size and proportions, page background, routing default, page preset, `layout`, `mindLayout`, `composites`, `blockTags` |
+| `%%@ node <id>`, `group <id>`, `edge <from>-><to>` (or `edge <edge id>`) | Flowchart item position, size, preset and style overrides |
 | `%%@ participant <id>`, `message m1`, `note n1`, `block b1`, `box box1`, `activation B:1` | Sequence diagram items |
-| `%%@ entity <name>`, `rel <A>--<B>` | ER tables and relationships |
+| `%%@ entity <name>`, `rel <A>--<B>`, `group <id>` | ER tables, relationships and subgraphs |
+| `%%@ node <id>` | Mindmap nodes (the item kind is shared with flowcharts) |
+| `%%@ node <id>`, `group <id>`, `edge <from>-><to>`, `note n1` | State diagram states (start and end pseudo-states included), composites, transitions and notes |
 | `%%@ style.<kind> <name> {…}` | A style preset defined in this diagram (`style.node`, `style.edge`, `style.entity`, …) |
 | `%%@ layer <id> {"name":…,"hidden":…}` | A user-defined layer |
 
@@ -76,17 +78,42 @@ The keys an item line may carry:
 
 | Key | Meaning |
 |---|---|
-| `x`, `y`, `w`, `h` | Position (centre) and size |
+| `x`, `y`, `w`, `h` | Position (centre) and size. A flowchart subgraph's or a state diagram composite's `x` / `y` is its top-left: with `w` / `h` a fixed frame, without them the place "Reset positions in this group" keeps while its contents are laid out again |
 | `preset` | A preset of the theme or of the diagram (`style.<kind>`) |
 | `layer` | The layer the item belongs to |
 | `locked` | The item is locked on the canvas |
 | `link` | A link opened from the item (checked by the [link policy](/guide/security#link-policy)) |
 | `points`, `fromSide`, `toSide`, `fromAt`, `toAt`, `labelDx`, `labelDy` | Connector bend points, ports and label offset |
 | `dy` | Vertical shift of sequence items |
+| `dx`, `dy` | A mindmap node and its subtree moved by this much from the spot the layout computes |
+| `side` | A first-level mindmap branch's side of the root: `l` or `r` (the layout's split otherwise) |
+| `collapsed` | `true`: the mindmap node's subtree is folded, with a +N badge counting the hidden nodes |
+| `section` | A mindmap branch colour, 0–11 (one of the theme's `mindmap.sections`), for the node and its subtree |
+| `img` | The picture of an image state, mindmap node or participant, drawn as a flowchart image node (a URL, checked by the [image policy](/guide/security#image-policy); `""`: a picture not chosen yet, drawn as the placeholder); these types have no image syntax |
+| `imgW`, `imgH` | The picture's size where `w` / `h` are not written (one of them alone keeps the picture's aspect) |
+| `icon`, `form`, `pos`, `constraint` | An image or icon state, mindmap node or participant, drawn as a flowchart image node: `icon` the icon it shows instead of a picture, `form` the icon's frame (`square`, `circle`, `rounded`), `pos` the caption's side (`t`, `b`), `constraint: "on"` the picture's aspect kept; `w` / `h` its size |
+| `iconPos` | Where a mindmap node's or a state's label icon is drawn: `l` inline before the text (the default for a label token), `t` above it (the default for a mindmap `::icon()`), `b` below it |
+| `iconSize` | That icon's size in px, 1–512 (default: the font size inline, 1.75 em above or below); a label token with a size of its own is drawn left of the text |
+| `iconColor` | That icon's colour, a colour or palette reference (default: the text colour) |
 | `attrs` | ER attribute highlights |
+| `imgFit` | How a picture fills its box: `contain` (default), `cover` or `stretch` — a flowchart image node's (Mermaid has only the aspect lock, `constraint` in the node data), a mindmap node's or a state's |
 | Style keys | `fill`, `stroke`, `strokeWidth`, `radius`, `shape`, `fontSize`, `color`, `arrow`, `routing`, … (style overrides) |
 
-Unknown keys are kept on round-trip. A sequence diagram's real examples look like this:
+Unknown keys are kept on round-trip.
+
+`canvas` also takes `mindLayout` for mindmaps: `both` (default) puts branches on both sides of the root, `right` all of them to its right, `down` lays the tree out top down (the page presets of the same names set it). See [Mindmaps](/guide/mindmap#layout).
+
+`canvas` also takes `composites` for state diagrams: `single` (default) draws every composite in the theme's composite style, `palette` gives each composite a colour of its own from the theme's `state.compositeColors`, in turn by its place in the code (the **Coloured composites** page preset sets it). See [State diagrams](/guide/state#composites-and-concurrency).
+
+`canvas` also takes `blockTags` for sequence diagrams: `false` hides the kind tags (`loop`, `alt`…) in the corners of the blocks, which are shown by default as Mermaid shows them (the **Blocks without kind tags** page preset, `plain-blocks`, sets it); a block's own `showTag` still wins. See [Sequence diagrams](/guide/sequence#blocks-and-boxes).
+
+`canvas` also takes `layout`. Flowcharts with subgraphs are laid out with each subgraph as a container of its own (see [the editor's auto layout](/components/editor#auto-layout)); `"layout":"legacy"` keeps the automatic layout of earlier versions, where subgraph frames could overlap and subgraph `direction` was ignored, for one more minor release — it will then be removed. Diagrams whose nodes all have stored positions look the same either way. Any other value is dropped with a diagnostic.
+
+```mmdx
+%%@ canvas {"v":1,"layout":"legacy"}
+```
+
+A flowchart node's shape belongs in the Mermaid code — a bracket (`A{"…"}`) or node data (`A@{ shape: lin-cyl }`) — so the file shows the same shapes in stock Mermaid; the editor writes it there (see [Shapes](/guide/shapes)). Metadata `shape` is only for shapes Mermaid's flowchart lacks (the participant figures, the mindmap's default node) and for a node whose preset draws another shape. A mindmap node's shape is likewise its delimiters in the code (`((…))`, <code v-pre>{{…}}</code>, …); only the catalogue shapes Mermaid's mindmap has no delimiters for are kept in metadata. A state has no shape syntax: a catalogue shape for it is metadata `shape`, drawn by mmdx only. Files of mmdx 0.1–0.3 that keep Mermaid shapes in metadata still draw them; the editor's code panel offers a fix that moves them into the code. A sequence diagram's real examples look like this:
 
 ```mmdx
 %%@ canvas {"v":1,"blockSpan":"touched"}
@@ -104,19 +131,49 @@ and an ER diagram's:
 %%@ rel object--relation#2 {"routing":"curved","curve":1}
 ```
 
+and a mindmap's (no positions: the tree is laid out every time, nudged by `dx` / `dy`):
+
+```mmdx
+%%@ canvas {"v":1,"mindLayout":"right"}
+%%@ node research {"side":"l","section":3}
+%%@ node mm7 {"collapsed":true}
+%%@ node mm12 {"dy":20,"img":"https://example.com/beta.png"}
+```
+
+and a state diagram's (pseudo-state ids URI-encoded):
+
+```mmdx
+%%@ canvas {"v":1,"preset":"colored"}
+%%@ node Delivered {"preset":"done"}
+%%@ node %5B*%5Dstart {"x":40,"y":60}
+%%@ group Fulfilment {"preset":"tinted"}
+%%@ edge Validation->Cancelled {"preset":"error"}
+%%@ note n1 {"preset":"info"}
+```
+
 ## Ids
 
 Most ids come from the Mermaid code: node, group, participant and entity ids as written. The rest are derived, so they stay stable as long as the code does:
 
 | Item | Id | Example |
 |---|---|---|
-| Flowchart edge | `<from>-><to>` | `edge api->auth` |
+| Flowchart edge | its id when the code gives it one (`api e1@--> auth`), else `<from>-><to>` | `edge e1`, `edge api->auth` |
 | Repeated edge between the same nodes | `#2`, `#3`, … appended | `edge api->auth#2` |
-| ER relationship | `<A>--<B>`, repeated ones with `#2`, … | `rel object--relation#2` |
+| ER relationship | `<A>--<B>`, repeated ones with `#2`, … (an end may be a subgraph's id) | `rel object--relation#2` |
 | Sequence message, note, block, box | numbered in source order | `message m1`, `note n2`, `block b1`, `box box1` |
 | Sequence activation | participant and the activation's number on it, in the order they open | `activation B:1` |
+| State diagram start and end | `[*]start` / `[*]end` at the top level, `<composite>/[*]start` inside a composite, `<composite>/<n>/[*]start` in its n-th concurrency region (n ≥ 2); URI-encoded in the line | `node %5B*%5Dstart`, `node Busy%2F%5B*%5Dend` |
+| State diagram transition | `<from>-><to>`, repeated ones with `#2`, … (pseudo-state ends by their ids, the whole id URI-encoded) | `edge Idle->Busy`, `edge %5B*%5Dstart-%3EIdle` |
+| State diagram note | numbered in source order | `note n1` |
+| Mindmap node | its written id (`research[User research]`) when no other node has it; else `mm<k>`, k being its place among all nodes in code order (1-based), `mm<k>_2` when a written id already takes that | `node research`, `node mm7` |
 
 Items without a position are laid out automatically and keep their place once moved.
+
+A mindmap node written as a bare line (`Goals`) or with brackets only (`[User research]`) has no id of its own, and neither do nodes that repeat a written id; their `mm<k>` ids change when lines are added or moved above them. The editor carries their metadata along with every edit, on the canvas or in its Code panel: a node is matched by its path of labels from the root and its rank among siblings with the same label, else by its label. A text editor outside mmdx does not move the `%%@` lines, so there the metadata stays with the number. Give a node an id (`goals[Goals]`) to tie its metadata to it for good.
+
+A state diagram's notes are numbered in code order too; the editor carries a note's metadata along when notes are added or removed before it, matching it by its state and side, then by order.
+
+An edge that gets an id in the code (`A e1@--> B`) still reads what its line had under `A->B`; the editor moves it to `edge e1` on the next edit, and back when the id is removed. An icon or image node's size is not metadata: it is `h` / `w` in the node data, in the code (see [Flowchart content](/guide/flowchart)).
 
 ## Style resolution
 
@@ -153,7 +210,7 @@ Plain Mermaid files open too: they simply have no `%%@` lines, and every item is
 
 ## Portable export
 
-**Export → Portable Mermaid (.mmd)** writes a `.mmd` file with generated `classDef` / `linkStyle` lines instead of `%%@` lines, so stock renderers (GitHub, GitLab, Notion…) show the colours. Positions are lost there: stock Mermaid always lays the diagram out itself.
+**Export → Portable Mermaid (.mmd)** writes a `.mmd` file with generated `classDef` / `linkStyle` lines instead of `%%@` lines, so stock renderers (GitHub, GitLab, Notion…) show the colours. Positions are lost there: stock Mermaid always lays the diagram out itself. Icon tokens in labels and `::icon()` are code and stay; pictures and catalogue shapes kept in metadata (`img`, `shape`) have no Mermaid syntax and are left out, and the editor says how many after the export and in its Plain Mermaid dialog ("1 image and 2 shapes are mmdx-only and are not in the portable file"; an image not chosen yet does not count).
 
 ## Working with the format in code
 

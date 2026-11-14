@@ -4,7 +4,9 @@
 // History mode (left, C); `changeList` — the changes of the shown pair (right, L; not in History mode). Replace the
 // panel half of elements/diff.ts (`renderHistory`, `renderCode`, `renderChanges`, `applyPanels`) and the DOM
 // builders of elements/diff/panels.ts.
+import { PANEL_META, panelStub } from './panel-meta.js';
 import { changeKey } from '../../core/diff/merge.js';
+import { diffLines } from '../../core/diff/text.js';
 import { createChangeList, CHANGE_LIST_CSS } from '../../ui/blocks/change-list.js';
 import { createCodeView, CODE_VIEW_CSS, type CodeSelection } from '../../ui/blocks/code-view.js';
 import { createSidePanel } from '../../ui/blocks/side-panel.js';
@@ -13,16 +15,18 @@ import { dockButton } from '../../ui/blocks/tool-dock.js';
 import type { MenuEntry } from '../../ui/blocks/menu.js';
 import { MENU_CSS } from '../../ui/blocks/menu.js';
 import { createVersionList, VERSION_LIST_CSS } from '../../ui/blocks/version-list.js';
-import { h } from '../../ui/h.js';
-import { I_code } from '../../ui/icons.js';
-import { computed, signal, untracked, type ReadSignal, type Signal } from '../../ui/signal.js';
+import { h } from '../../ui/kit/h.js';
+import { I_code } from '../../ui/kit/icons.js';
+import { signal, untracked, type Signal } from '../../reactive/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import type { ModuleScope, ViewModule } from '../../view/module.js';
 import { metaLines, relatedLines } from '../lines.js';
 import { sourceLines, type DiffMode, type DiffSession } from '../session.js';
 import { I_HISTORY } from '../../view/icons.js';
+import { registerMessages } from '../../i18n.js';
+import { BLOCK_MESSAGES_DIFF } from '../../ui/messages/blocks-diff.js';
 
-export const DIFF_PANELS_CSS = /* css */ `
+const DIFF_PANELS_CSS = /* css */ `
 .code-diff { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 `;
 
@@ -37,17 +41,13 @@ function toggleOf(scope: ModuleScope<ViewCore>, id: string): { open: () => boole
 }
 
 /**
- * What the version panel does in History in place (src/diff/history.ts): the tab is the panel's own (switching it
- * shows nothing new), the rows mark what is shown (nothing until a version is picked), and a row or a pick goes to the
+ * What the version panel does in History in place (src/diff/history.ts): switching the tab shows nothing new, the rows
+ * mark what the session shows (the top row while nothing is picked: the document), and a row or a pick goes to the
  * host, which decides what to show.
  */
 export interface VersionControls {
-  tab: Signal<DiffMode>;
-  base: ReadSignal<string | null>;
-  head: ReadSignal<string | null>;
-  viewing: ReadSignal<string | null>;
   /** A row of the History tab (view it) or of the Compare tab (compare it). */
-  row(id: string): void;
+  row(id: string, tab: DiffMode): void;
   /** A Before / After pick of the Compare tab. */
   pick(side: 'before' | 'after', id: string): void;
   swap(): void;
@@ -56,17 +56,17 @@ export interface VersionControls {
 }
 
 /**
+ * The version panel; `tab` is its tab (the panel's state, kept by the module set so the host can turn it too).
  * `dockButton: false` when the host's History button already stands for the panel (History in place, which passes its
  * `controls`). Each row of both tabs has a "⋮" menu: the host's `rowActions` (History's Restore), then Compare with the
  * previous version.
  */
-export function versionsModule(session: DiffSession, o: { dockButton?: boolean; rowActions?: (id: string) => readonly MenuEntry[]; controls?: VersionControls } = {}): ViewModule<ViewCore> {
+export function versionsModule(session: DiffSession, tab: Signal<DiffMode>, o: { dockButton?: boolean; rowActions?: (id: string) => readonly MenuEntry[]; controls?: VersionControls } = {}): ViewModule<ViewCore> {
   return {
-    id: 'versions',
-    after: ['panel-stacks'],
+    ...panelStub(PANEL_META.versions),
     css: [VERSION_LIST_CSS, MENU_CSS, DIFF_PANELS_CSS],
-    enabled: (core) => core.feature('history'),
     install(scope) {
+      registerMessages(BLOCK_MESSAGES_DIFF); // the panels' names are the blocks' (one table)
       const core = scope.core;
       const t = core.i18n.t;
       const { open, toggle } = toggleOf(scope, 'history');
@@ -74,29 +74,36 @@ export function versionsModule(session: DiffSession, o: { dockButton?: boolean; 
       const tabs = createTabs<DiffMode>({
         label: t('diff.panel.history'),
         tabs: [{ value: 'history', label: t('diff.panel.history') }, { value: 'compare', label: t('diff.panel.compare') }],
-        value: c ? c.tab : session.mode, onChange: (m) => (c ? c.tab.set(m) : session.setMode(m)),
+        value: tab, onChange: (m) => tab.set(m),
       });
+      // in place the rows mark what is shown, the current version (the top row) while nothing is: the document
+      const shown = session.shown;
+      const marks = c ? {
+        base: scope.computed(() => { const s = shown(); return s.kind === 'compare' ? s.base : null; }),
+        head: scope.computed(() => { const s = shown(); return s.kind === 'compare' ? s.head : null; }),
+        viewing: scope.computed(() => { const s = shown(); return s.kind === 'version' ? s.id : s.kind === 'none' ? session.versions()[0]?.id ?? null : null; }),
+      } : { base: session.base, head: session.head, viewing: session.viewing };
       const loadMore = (): void => {
         session.loadMore().catch((e: unknown) => core.toast(`${t('diff.history.failed')}: ${e instanceof Error ? e.message : String(e)}`, { error: true }));
       };
       const list = createVersionList({
-        versions: [], counts: (id) => session.counts(id), mode: c?.tab ?? session.mode, base: c?.base ?? session.base, head: c?.head ?? session.head, viewing: c?.viewing ?? session.viewing,
+        versions: [], counts: (id) => session.counts(id), mode: tab, ...marks,
         locale: core.i18n.locale, hasMore: false,
         onPick: (side, id) => (c ? c.pick(side, id) : session.setPair(side === 'before' ? id : session.base.peek(), side === 'after' ? id : session.head.peek())),
-        onRow: (id) => (c ? c.row(id) : session.mode.peek() === 'compare' ? session.compareWithPrevious(id) : session.viewVersion(id)),
+        onRow: (id) => (c ? c.row(id, tab.peek()) : tab.peek() === 'compare' ? session.compareWithPrevious(id) : session.viewVersion(id)),
         onMore: loadMore, t,
         // Compare as a timeline: the pair is a range on it; After's or Before's own dot swaps them
         timeline: { onSwap: () => (c ? c.swap() : session.setPair(session.head.peek(), session.base.peek())) },
         // on both tabs' rows: in Compare, next to the Before / After picks
         menu: {
-          popovers: core.popovers, within: () => core.root,
+          popovers: core.popovers, within: () => core.eventRoot,
           entries: (id, i) => [
             ...(o.rowActions?.(id) ?? []),
             {
               label: t('diff.history.comparePrev'), disabled: i === session.versions.peek().length - 1 && !session.hasMore.peek(),
               run: () => {
+                tab.set('compare');
                 if (c) return c.comparePrevious(id);
-                session.setMode('compare');
                 void session.compareWithPrevious(id);
               },
             },
@@ -112,7 +119,7 @@ export function versionsModule(session: DiffSession, o: { dockButton?: boolean; 
       if (o.dockButton !== false) {
         const btn = dockButton({
           icon: I_HISTORY, label: t('diff.tool.history'), keys: 'v', class: 'vt-panel vt-history', f: 'panel-history',
-          pressed: computed(open), hidden: computed(() => !session.hasHistory()), onClick: toggle,
+          pressed: scope.computed(open), hidden: scope.computed(() => !session.hasHistory()), onClick: toggle,
         });
         scope.contribute(core.dockItems, { id: 'versions', section: 'panels', order: 10, el: btn.el });
         scope.onDispose(() => btn.destroy());
@@ -141,11 +148,10 @@ export function versionsModule(session: DiffSession, o: { dockButton?: boolean; 
 
 export function codeDiffModule(session: DiffSession): ViewModule<ViewCore> {
   return {
-    id: 'code-diff',
-    after: ['panel-stacks'],
+    ...panelStub(PANEL_META.codeDiff),
     css: [CODE_VIEW_CSS, DIFF_PANELS_CSS],
-    enabled: (core) => core.feature('code'),
     install(scope) {
+      registerMessages(BLOCK_MESSAGES_DIFF); // the panels' names are the blocks' (one table)
       const core = scope.core;
       const t = core.i18n.t;
       const { open, toggle } = toggleOf(scope, 'code');
@@ -164,7 +170,7 @@ export function codeDiffModule(session: DiffSession): ViewModule<ViewCore> {
         closeLabel: t('diff.panel.hide'), closeKeys: 'c', onClose: () => void core.run('setPanel', 'code', false), body,
       });
       scope.contribute(core.panelItems, { id: 'code', side: 'left', order: 10, el: panel.el });
-      const btn = dockButton({ icon: I_code, label: t('diff.tool.code'), keys: 'c', class: 'vt-panel vt-code', f: 'panel-code', pressed: computed(open), onClick: toggle });
+      const btn = dockButton({ icon: I_code, label: t('diff.tool.code'), keys: 'c', class: 'vt-panel vt-code', f: 'panel-code', pressed: scope.computed(open), onClick: toggle });
       scope.contribute(core.dockItems, { id: 'code', section: 'panels', order: 20, el: btn.el });
       scope.shortcut({ id: 'code', keys: ['c'], label: t('diff.help.code'), group: t('diff.help.panels'), run: () => toggle() });
 
@@ -205,7 +211,7 @@ export function codeDiffModule(session: DiffSession): ViewModule<ViewCore> {
           const notes: string[] = [];
           if (ignore.style) notes.push(t('diff.panel.styleRemoved'));
           if (D.layoutAligned) notes.push(t('diff.panel.layoutReplaced'));
-          view.update({ mode: 'diff', a, b, sel, notes, language, onShowAll: () => all.set(true) });
+          view.update({ mode: 'diff', a, b, ops: diffLines(a, b), sel, notes, language, onShowAll: () => all.set(true) });
         });
       });
       return () => {
@@ -220,11 +226,10 @@ export function codeDiffModule(session: DiffSession): ViewModule<ViewCore> {
 
 export function changeListModule(session: DiffSession): ViewModule<ViewCore> {
   return {
-    id: 'changes',
-    after: ['panel-stacks'],
+    ...panelStub(PANEL_META.changes),
     css: [CHANGE_LIST_CSS],
-    enabled: (core) => core.feature('changes'),
     install(scope) {
+      registerMessages(BLOCK_MESSAGES_DIFF); // the panels' names are the blocks' (one table)
       const core = scope.core;
       const t = core.i18n.t;
       const { open, toggle } = toggleOf(scope, 'changes');

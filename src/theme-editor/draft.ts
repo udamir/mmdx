@@ -8,7 +8,7 @@ import { resolveColor } from '../core/theme/colors.js';
 import { contrastRatio } from '../core/theme/contrast.js';
 import type { ResolvedTheme, ThemeFile } from '../core/theme/types.js';
 import type { DiagramType } from '../core/types.js';
-import { batch, computed, signal, type Computed, type ReadSignal } from '../ui/signal.js';
+import { batch, computed, signal, type Computed, type ReadSignal } from '../reactive/signal.js';
 import { TEXT_ON_FILL } from './constants.js';
 import type { TileSel } from './types.js';
 import { changedPaths, clone, getPath, isObj, obj, related, type Obj } from './util.js';
@@ -55,6 +55,8 @@ export class Draft {
   readonly resolved: Computed<ResolvedTheme>;
   /** The merged theme the draft extends (null for the baseline). */
   readonly parent: Computed<Obj | null>;
+  /** The draft merged onto what it extends, once per change (P19: per tile and toolbar read). Read only. */
+  readonly merged: Computed<Obj>;
 
   private file: Obj | null = null;
   private saved: Obj = {};
@@ -75,6 +77,11 @@ export class Draft {
       if (this.isBase()) return null;
       const ext = typeof this.file?.['extends'] === 'string' ? this.file['extends'] : BASELINE;
       return (reg.merged(ext) as unknown as Obj | null) ?? {};
+    });
+    this.merged = computed(() => {
+      this.version();
+      const parent = this.parent();
+      return this.isBase() ? obj(this.file) : deepMerge(parent, this.file);
     });
   }
 
@@ -236,7 +243,7 @@ export class Draft {
 
   /** The presets of `<type>.<key>`: inherited, then the draft's own. */
   allPresets(type: DiagramType, key: string): Obj {
-    return deepMerge(obj(obj(this.parent.peek()?.[type])[key]), obj(obj(this.file?.[type])[key]));
+    return { ...obj(obj(this.merged.peek()[type])[key]) };
   }
 
   /** Where the selected tile's style lives: `<type>.<shapesKey>.<shape>` for a shape's default, else `<type>.<kind>` / `<type>.<presets>.<name>`. */
@@ -246,11 +253,33 @@ export class Draft {
 
   /** The effective style of a tile: the item's style, its shape's default and the preset, inherited values included. */
   effectiveFor(s: TileSel): Obj {
-    const all = this.isBase() ? obj(this.file) : deepMerge(this.parent.peek(), this.file);
-    const tt = obj(all[s.type]);
+    const tt = obj(this.merged.peek()[s.type]);
     const shapeDef = s.shape && s.shapesKey ? obj(obj(tt[s.shapesKey])[s.shape]) : {};
     const base = { ...obj(tt[s.kind]), ...shapeDef };
     return s.preset === null ? base : { ...base, ...obj(obj(tt[s.presets ?? ''])[s.preset]) };
+  }
+
+  /** The tile's own style: what the draft itself sets at `stylePath(s)` (empty when nothing). */
+  ownFor(s: TileSel): Obj {
+    return obj(getPath(this.current(), this.stylePath(s)));
+  }
+
+  /**
+   * What the tile's empty fields fall back to (theme editor §8.3), the tile inheritance chain in one place: an item's default inherits the parent's item style; a shape's default the parent's item style and shape default (in the baseline: the baseline's item style); a preset its item style, its shape's default (the draft's own over the parent's) and the parent's preset (in the baseline: the item style and shape default as edited).
+   */
+  inheritedFor(s: TileSel): Obj {
+    const base0 = this.isBase();
+    const inh = obj(this.parent.peek()?.[s.type]);
+    const own = obj(this.current()?.[s.type]);
+    const sk = s.shapesKey ?? '';
+    if (s.preset === null) return !s.shape ? obj(inh[s.kind]) : base0 ? { ...obj(own[s.kind]) } : deepMerge(obj(inh[s.kind]), obj(obj(inh[sk])[s.shape]));
+    const shapeDef = s.shape ? (base0 ? obj(obj(own[sk])[s.shape]) : deepMerge(obj(obj(inh[sk])[s.shape]), obj(obj(own[sk])[s.shape]))) : {};
+    return base0 ? { ...obj(own[s.kind]), ...shapeDef } : deepMerge(deepMerge(obj(inh[s.kind]), shapeDef), obj(obj(inh[s.presets ?? ''])[s.preset]));
+  }
+
+  /** Whether the tile's fields can inherit: in a theme all do; in the baseline a shape's default and a preset do (from the item style), an item's default does not. */
+  inheritsFor(s: TileSel): boolean {
+    return !this.isBase() || s.preset !== null || !!s.shape;
   }
 
   /** WCAG AA: the contrast of the tile's text on its fill (or the page) when it is below 4.5:1, else null. */

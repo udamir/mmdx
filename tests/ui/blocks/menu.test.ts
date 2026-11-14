@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { attachMenu, createMenu, openMenu } from '../../../src/ui/blocks/menu.js';
-import { h } from '../../../src/ui/h.js';
-import { PopoverManager } from '../../../src/ui/popover.js';
+import { h } from '../../../src/ui/kit/h.js';
+import { PopoverManager } from '../../../src/ui/kit/popover.js';
 
 const shadow = () => {
   const host = h('div');

@@ -2,12 +2,12 @@
 // then the shortcut rows grouped under headings. Replaces the help popups of `editor/modules/chrome/zoom-bar.ts`
 // and `elements/diff.ts`, and takes over `helpKeys` from `ui/zoom-bar.ts`. The host opens it through its
 // PopoverManager (anchored above the zoom bar's `?` button) and closes it in `onClose`.
-import { h } from '../h.js';
-import { registerMessages } from '../i18n.js';
+import { h } from '../kit/h.js';
+import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_CHROME } from '../messages/blocks.js';
-import { formatKeys, type Shortcut } from '../shortcuts.js';
-import { Scope, type BlockHandle, type Translate } from './block.js';
-import { createOverlayScroll, OVERLAY_SCROLL_CSS } from './overlay-scroll.js';
+import { formatKeys, type Shortcut } from '../kit/keys.js';
+import { defineBlock, type BlockHandle, type Translate } from './block.js';
+import { createOverlayScroll, OVERLAY_SCROLL_CSS } from '../kit/overlay-scroll.js';
 
 export interface HelpGroup {
   title: string;
@@ -70,46 +70,34 @@ let seq = 0;
 
 export function createHelpPopup(props: HelpPopupProps): BlockHandle<HelpPopupProps> {
   registerMessages(BLOCK_MESSAGES_CHROME);
-  let p = { ...props };
-  const scope = new Scope();
-  const titleId = `mmdx-help-${++seq}`;
-  const heading = h('b', { id: titleId });
-  const close = h('button', { type: 'button', 'data-f': 'close' }, '×');
-  const body = h('div', { class: 'help-body' });
-  // the panels' thin scrollbar over the shortcut list (mmdx-oscroll: the native one hidden)
-  const el = h('div', { class: 'help-pop mmdx-oscroll', role: 'dialog', 'aria-labelledby': titleId }, h('div', { class: 'help-head' }, heading, close), body);
-  const scroll = createOverlayScroll(el);
-  el.append(...scroll.thumbs);
-  scope.on(close, 'click', () => p.onClose());
-  scope.on(el, 'keydown', (ev: KeyboardEvent) => {
-    if (ev.key !== 'Escape') return;
-    // the component's own Esc shortcuts (back to the default tool…) do not run as well
-    ev.preventDefault();
-    ev.stopPropagation();
-    p.onClose();
+  return defineBlock(props, (p, scope) => {
+    const titleId = `mmdx-help-${++seq}`;
+    const heading = h('b', { id: titleId });
+    const close = h('button', { type: 'button', 'data-f': 'close' }, '×');
+    const body = h('div', { class: 'help-body' });
+    // the panels' thin scrollbar over the shortcut list (mmdx-oscroll: the native one hidden)
+    const el = h('div', { class: 'help-pop mmdx-oscroll', role: 'dialog', 'aria-labelledby': titleId }, h('div', { class: 'help-head' }, heading, close), body);
+    const scroll = createOverlayScroll(el);
+    scope.add(() => scroll.destroy());
+    el.append(...scroll.thumbs);
+    scope.on(close, 'click', () => p.onClose());
+    scope.on(el, 'keydown', (ev: KeyboardEvent) => {
+      if (ev.key !== 'Escape') return;
+      // the component's own Esc shortcuts (back to the default tool…) do not run as well
+      ev.preventDefault();
+      ev.stopPropagation();
+      p.onClose();
+    });
+
+    const render = (): void => {
+      heading.textContent = p.title;
+      close.title = p.t('help.close');
+      close.setAttribute('aria-label', p.t('help.close'));
+      body.replaceChildren(...p.groups.flatMap((g) => [
+        h('div', { class: 'help-title', role: 'heading', 'aria-level': '3' }, g.title),
+        ...g.rows.map((s) => h('div', { class: 'help-row' }, helpKeys(s), h('span', null, s.label))),
+      ]));
+    };
+    return { el, render };
   });
-
-  const render = (): void => {
-    heading.textContent = p.title;
-    close.title = p.t('help.close');
-    close.setAttribute('aria-label', p.t('help.close'));
-    body.replaceChildren(...p.groups.flatMap((g) => [
-      h('div', { class: 'help-title', role: 'heading', 'aria-level': '3' }, g.title),
-      ...g.rows.map((s) => h('div', { class: 'help-row' }, helpKeys(s), h('span', null, s.label))),
-    ]));
-  };
-  render();
-
-  return {
-    el,
-    update(next) {
-      p = { ...p, ...next };
-      render();
-    },
-    destroy() {
-      scope.dispose();
-      scroll.destroy();
-      el.remove();
-    },
-  };
 }

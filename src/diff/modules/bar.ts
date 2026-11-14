@@ -5,21 +5,22 @@
 // the view keys of elements/diff.ts.
 import { createIconButton } from '../../ui/blocks/button.js';
 import { createFilterToggles, FILTER_ICONS, FILTER_TOGGLES_CSS } from '../../ui/blocks/filter-toggles.js';
-import { keepFocus } from '../../ui/blocks/focus.js';
+import { keepFocus } from '../../ui/kit/focus.js';
 import { createSegmented, SEGMENTED_CSS, type SegmentedOption } from '../../ui/blocks/segmented.js';
 import { createToolbar, TOOLBAR_CSS, type ToolbarItem } from '../../ui/blocks/toolbar.js';
-import { h } from '../../ui/h.js';
-import { I_list } from '../../ui/icons.js';
-import type { Shortcut } from '../../ui/shortcuts.js';
-import { computed, untracked } from '../../ui/signal.js';
+import { h } from '../../ui/kit/h.js';
+import { I_list } from '../../ui/kit/icons.js';
+import type { Shortcut } from '../../ui/kit/keys.js';
+import { untracked } from '../../reactive/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import type { ViewModule } from '../../view/module.js';
-import { DIFF_FILTERS, DIFF_VIEWS, type DiffSession, type DiffViewName } from '../session.js';
+import { DIFF_FILTERS, DIFF_VIEWS, type DiffSession } from '../session.js';
+import { type DiffViewName } from '../../view/history.js';
 import { VIEW_ICONS } from '../view-icons.js';
 
 const VIEW_KEYS: Record<DiffViewName, string> = { before: '1', merged: '2', after: '3', side: '4' };
 
-export const DIFF_BAR_CSS = /* css */ `
+const DIFF_BAR_CSS = /* css */ `
 .dbar { position: absolute; left: calc(var(--inset-l, 0px) + (100% - var(--inset-l, 0px) - var(--inset-r, 0px)) / 2); bottom: 12px; transform: translateX(-50%); z-index: 36;
   white-space: nowrap; max-width: calc(100% - var(--inset-l, 0px) - var(--inset-r, 0px) - 24px); gap: 2px; padding: 3px;
   background: var(--mmdx-float); border: 1px solid var(--mmdx-float-line); border-radius: var(--mmdx-radius); box-shadow: var(--mmdx-shadow); }
@@ -56,7 +57,7 @@ export function diffBarModule(session: DiffSession): ViewModule<ViewCore> {
       const parts: { destroy(): void }[] = [];
 
       // ---- views
-      const noMerged = computed(() => {
+      const noMerged = scope.computed(() => {
         const D = session.rendered();
         return !!D && !D.merged;
       });
@@ -109,7 +110,7 @@ export function diffBarModule(session: DiffSession): ViewModule<ViewCore> {
       // ---- the change list toggle, at the right end of the bar
       const toggleChanges = (): void => void core.run('setPanel', 'changes', !core.panels.peek()['changes']);
       const changes = core.feature('changes')
-        ? createIconButton({ icon: I_list, label: t('diff.tool.changes'), keys: 'l', tooltip: 'tip', class: 'changes-btn', f: 'changes', pressed: computed(() => !!core.panels()['changes']), onClick: toggleChanges })
+        ? createIconButton({ icon: I_list, label: t('diff.tool.changes'), keys: 'l', tooltip: 'tip', class: 'changes-btn', f: 'changes', pressed: scope.computed(() => !!core.panels()['changes']), onClick: toggleChanges })
         : null;
       if (changes) {
         parts.push(changes);
@@ -135,19 +136,16 @@ export function diffBarModule(session: DiffSession): ViewModule<ViewCore> {
       // the views fold into a select when the canvas between the open panels is narrow
       const NEEDS = 440;
       const syncNarrow = (): void => {
-        const st = getComputedStyle(core.root);
-        const free = core.area.clientWidth - (parseFloat(st.getPropertyValue('--inset-l')) || 0) - (parseFloat(st.getPropertyValue('--inset-r')) || 0);
+        const width = core.areaWidth();
+        const free = width - (parseFloat(core.cssVar('--inset-l')) || 0) - (parseFloat(core.cssVar('--inset-r')) || 0);
         // with no panel on the right the bar also keeps clear of the zoom bar's corner
         const room = free - (bar.el.classList.contains('right-closed') ? 220 : 24);
-        bar.el.classList.toggle('narrow', !!core.area.clientWidth && room < NEEDS);
+        bar.el.classList.toggle('narrow', !!width && room < NEEDS);
       };
-      core.on('view', syncNarrow);
-      core.on('panels', syncNarrow);
-      if (typeof ResizeObserver !== 'undefined') {
-        const ro = new ResizeObserver(syncNarrow);
-        ro.observe(core.area);
-        scope.onDispose(() => ro.disconnect());
-      }
+      // the free width does not depend on pan / zoom; the area's resize covers resizes. Through the scope, so a closed
+      // History leaves nothing on the core behind (B9)
+      scope.on('panels', syncNarrow);
+      scope.onDispose(core.onAreaResize(syncNarrow));
       syncNarrow();
 
       // ---- keys

@@ -17,7 +17,25 @@ export interface TextMeasurer {
 /** Bounded LRU used by measurers and layout caches (the prototype's caches were unbounded). */
 export class Lru<K, V> {
   private readonly map = new Map<K, V>();
-  constructor(private readonly max: number) {}
+  private max: number;
+  /**
+   * @param limit the most `reserve` grows it to
+   * @param keep entries never evicted (what is shown now); they count towards the size
+   */
+  constructor(private readonly base: number, private readonly limit = base, private readonly keep?: (k: K) => boolean) {
+    this.max = base;
+  }
+  /**
+   * Sizes the cache for the diagram being drawn: at least the base, at most the limit. A layout that walks its
+   * entries in a fixed order thrashes a smaller cache (each miss evicts the next entry it needs).
+   */
+  reserve(n: number): void {
+    this.max = Math.max(this.base, Math.min(n, this.limit));
+    for (const k of this.map.keys()) {
+      if (this.map.size <= this.max) break;
+      this.map.delete(k);
+    }
+  }
   get(k: K): V | undefined {
     const v = this.map.get(k);
     if (v !== undefined) {
@@ -29,16 +47,26 @@ export class Lru<K, V> {
   set(k: K, v: V): void {
     if (this.map.has(k)) this.map.delete(k);
     else if (this.map.size >= this.max) {
-      const first = this.map.keys().next();
-      if (!first.done) this.map.delete(first.value);
+      for (const old of this.map.keys())
+        if (!this.keep?.(old)) {
+          this.map.delete(old);
+          break;
+        }
     }
     this.map.set(k, v);
+  }
+  delete(k: K): void {
+    this.map.delete(k);
   }
   get size(): number {
     return this.map.size;
   }
   clear(): void {
     this.map.clear();
+  }
+  /** Drops the entries whose key matches. */
+  deleteWhere(f: (k: K) => boolean): void {
+    for (const k of [...this.map.keys()]) if (f(k)) this.map.delete(k);
   }
 }
 
@@ -57,9 +85,60 @@ const ADV: readonly number[] = [
 ];
 const MONO = /mono|courier|consolas|menlo/i;
 
+/** The advance of an emoji (one grapheme drawn as a colour glyph), in em. */
+export const EMOJI_EM = 1.15;
+
+/** A grapheme drawn as an emoji: an emoji-presentation character, VS16 (`❤️`) or a keycap (`1️⃣`), and no VS15. */
+const EMOJI = /\p{Emoji_Presentation}|\uFE0F|\u20E3/u;
+/**
+ * Without `Intl.Segmenter`: an emoji sequence as one piece (a flag's pair, a pictograph or keycap base with its
+ * selectors, skin tone, tags and ZWJ-joined pictographs), anything else one code point.
+ */
+const SEQUENCE = /\p{RI}\p{RI}|(?:\p{Extended_Pictographic}|[#*0-9])(?:[\uFE0E\uFE0F\u20E3\u{1F3FB}-\u{1F3FF}\u{E0020}-\u{E007F}]|\u200D\p{Extended_Pictographic})*|[^]/gu;
+
+interface GraphemeSegmenter {
+  segment(text: string): Iterable<{ segment: string }>;
+}
+let segmenter: GraphemeSegmenter | null | undefined;
+
+/** Text as graphemes: `Intl.Segmenter` where it exists (Node 16+, every supported browser), else `SEQUENCE`. */
+function graphemes(text: string): Iterable<string> {
+  if (segmenter === undefined) {
+    const S = (Intl as { Segmenter?: new (l?: string, o?: { granularity: 'grapheme' }) => GraphemeSegmenter }).Segmenter;
+    segmenter = S ? new S(undefined, { granularity: 'grapheme' }) : null;
+  }
+  return segmenter ? Array.from(segmenter.segment(text), (s) => s.segment) : text.match(SEQUENCE) ?? [];
+}
+
+/** One code point's advance in em (ASCII from the table; zero-width characters and variation selectors count nothing). */
+function charEm(c: number): number {
+  if ((c >= 0x200b && c <= 0x200d) || c === 0x2060 || (c >= 0xfe00 && c <= 0xfe0f)) return 0;
+  return c >= 32 && c <= 126 ? (ADV[c - 32] ?? 0.55) : c >= 0x0400 && c <= 0x04ff ? 0.6 : c > 0x2e80 ? 1 : 0.58;
+}
+
+/** Text's advance in em: per grapheme, an emoji (with every ZWJ, selector, skin tone or tag in it) 1.15 em. */
+function textEm(text: string): number {
+  let em = 0;
+  // ASCII has no graphemes of more than one code point that matter here (CR LF aside): the fast path
+  // eslint-disable-next-line no-control-regex
+  if (/^[\u0000-\u007f]*$/.test(text)) {
+    for (let i = 0; i < text.length; i++) em += charEm(text.charCodeAt(i));
+    return em;
+  }
+  for (const g of graphemes(text)) {
+    if (EMOJI.test(g) && !g.includes('\uFE0E')) {
+      em += EMOJI_EM;
+      continue;
+    }
+    for (const ch of g) em += charEm(ch.codePointAt(0) ?? 32);
+  }
+  return em;
+}
+
 /**
  * Advance-width estimate; deterministic across machines. Bold adds ~6 %; non-ASCII uses an average glyph; zero-width
- * characters (ZWSP, ZWNJ, ZWJ, word joiner) count as nothing.
+ * characters (ZWSP, ZWNJ, ZWJ, word joiner) and variation selectors count as nothing; an emoji counts 1.15 em
+ * however many code points it is made of (`👨‍👩‍👧`, `👍🏽`, flags).
  */
 export function createStaticMeasurer(): TextMeasurer {
   const cache = new Lru<string, number>(5000);
@@ -71,12 +150,7 @@ export function createStaticMeasurer(): TextMeasurer {
       if (hit !== undefined) return hit;
       let em = 0;
       if (MONO.test(font.family)) em = text.replace(/[\u200b\u200c\u200d\u2060]/g, '').length * 0.6;
-      else
-        for (const ch of text) {
-          const c = ch.codePointAt(0) ?? 32;
-          if ((c >= 0x200b && c <= 0x200d) || c === 0x2060) continue;
-          em += c >= 32 && c <= 126 ? (ADV[c - 32] ?? 0.55) : c >= 0x0400 && c <= 0x04ff ? 0.6 : c > 0x2e80 ? 1 : 0.58;
-        }
+      else em = textEm(text);
       const w = Number(font.weight ?? 400) >= 600 ? em * 1.06 : em;
       const px = w * font.size;
       cache.set(key, px);

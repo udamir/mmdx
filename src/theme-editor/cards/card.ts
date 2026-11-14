@@ -2,7 +2,7 @@
 // own values in it) and the theme paths it shows in `data-dirty` (marked while they have unsaved changes).
 import { THEME_SECTIONS } from '../../core/schema/style-fields.js';
 import { createDisclosure } from '../../ui/blocks/disclosure.js';
-import { h } from '../../ui/h.js';
+import { h } from '../../ui/kit/h.js';
 import type { Env } from '../env.js';
 import { obj, slug } from '../util.js';
 
@@ -18,7 +18,7 @@ export interface CardOptions {
 }
 
 /** How many of the theme's own values a card shows. */
-export function changedCount(env: Env, key: string): number {
+function changedCount(env: Env, key: string): number {
   const raw = env.draft.current() ?? {};
   if (key === 'palette') return Object.keys(obj(raw['palette'])).length;
   if (key === 'page') return ['appearance', 'font'].filter((k) => raw[k] !== undefined).length + Object.keys(obj(raw['canvas'])).length;

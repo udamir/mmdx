@@ -6,25 +6,30 @@
 // behaviour, the export formats, the host's buttons — next to the standard ones: the zoom bar with help and full
 // screen, the tool dock with Hand and the pen, the view params with the theme menu and the light / dark toggle, and
 // view settings. Views: Before, Merged, After (one canvas; switching animates) and Side by side (two linked canvases).
-import { MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
+import { sessionHost } from '../diff/session-host.js';
+import { applyKernelPatch, kernelOptions } from '../view/kernel-options.js';
+import { attr, MmdxElement, warnOnce, words, type AttrSpec, type Patch } from './base.js';
+import { Owner } from '../reactive/owner.js';
 import { fetchText } from '../adapters/fetch-text.js';
-import type { ThemeSource } from '../adapters/themes.js';
-import type { HistoryAdapter, StaticVersion } from '../adapters/history.js';
-import type { StorageAdapter } from '../adapters/storage.js';
+import type { ThemeSource, HistoryAdapter, StorageAdapter } from '../ports.js';
+import type { StaticVersion } from '../adapters/history.js';
 import type { CoreContext } from '../core/context.js';
+import type { IconPack } from '../core/icons/types.js';
 import type { DiagramDiff as DiffResult, ItemChange } from '../core/diff/index.js';
 import type { Rendered } from '../core/pipeline-core.js';
 import type { Diagnostic, Rect } from '../core/types.js';
 import { reducedMotion } from '../dom/motion.js';
 import type { WheelMode } from '../dom/viewport.js';
-import { registerMessages } from '../ui/i18n.js';
-import { DIFF_MESSAGES } from '../ui/messages/diff.js';
-import { computed, effect, signal, untracked } from '../ui/signal.js';
-import { DIFF_CSS, DIFF_HOST_CSS, DIFF_TOKENS } from '../ui/styles/diff.js';
+import { registerMessages } from '../i18n.js';
+import { DIFF_MESSAGES } from '../diff/messages.js';
+import { batch, computed, effect, signal, untracked, type Signal } from '../reactive/signal.js';
+import { DIFF_CSS, DIFF_HOST_CSS, DIFF_TOKENS } from '../diff/styles.js';
 import { ViewCore } from '../view/core.js';
-import { diffModules, type DiffAction } from '../diff/modules/index.js';
-import { DiffScene } from '../diff/scene.js';
-import { DIFF_FILTERS, DIFF_VIEWS, DiffSession, type DiffExportKind, type DiffExportOptions, type DiffFilter, type DiffMode, type DiffPair, type DiffSource, type DiffViewName } from '../diff/session.js';
+import type { DiffAction } from '../diff/modules/index.js';
+import { standaloneModuleSet } from '../diff/modules/standalone.js';
+import { DiffScene, sceneHost } from '../diff/scene.js';
+import { DIFF_FILTERS, DIFF_VIEWS, DiffSession, type DiffMode, type DiffSource } from '../diff/session.js';
+import { type DiffExportKind, type DiffExportOptions, type DiffFilter, type DiffPair, type DiffViewName } from '../view/history.js';
 
 export { DIFF_FILTERS, DIFF_VIEWS };
 export type { DiffAction, DiffExportKind, DiffExportOptions, DiffFilter, DiffMode, DiffPair, DiffViewName };
@@ -61,7 +66,7 @@ export interface DiffOptions {
   ui?: 'light' | 'dark' | 'auto';
   /** The `compact` preset (component architecture §7.6): smaller, icon-only chrome; automatic below a host size. */
   compact?: boolean | 'auto';
-  /** `always` (default): wheel pans, ⌘ / Ctrl + wheel and pinch zoom; `ctrl`: only ⌘ / Ctrl + wheel zooms; `never`. */
+  /** `always` (default): wheel pans, ⌘ / Ctrl + wheel and pinch zoom; `zoom`: wheel zooms, Shift + wheel pans; `ctrl`: only ⌘ / Ctrl + wheel zooms; `never`. */
   wheel?: WheelMode;
   /** File name stem of exports. */
   name?: string;
@@ -70,6 +75,8 @@ export interface DiffOptions {
   loader?: (url: string) => Promise<string>;
   storage?: StorageAdapter;
   ctx?: Partial<CoreContext>;
+  /** The component's own icon packs, over the shared ones of `configure({ iconPacks })`; read when it is created. */
+  iconPacks?: readonly IconPack[];
   themeSource?: ThemeSource;
   /** Host actions shown as buttons in the top right corner (e.g. the editor's Restore and Back). */
   actions?: readonly DiffAction[];
@@ -106,7 +113,12 @@ export class DiagramDiff {
   private readonly o: DiffOptions;
   private readonly actions = signal<readonly DiffAction[]>([]);
   private readonly label = signal<string | null>(null);
-  private readonly offs: (() => void)[] = [];
+  /** The version panel's tab (the module set's state). */
+  private readonly tab: Signal<DiffMode>;
+  /** The tab and History mode last announced (`mmdx-mode`); `quiet` while host options set them. */
+  private announced = '';
+  private quiet = false;
+  private readonly owner = new Owner('diff');
   private destroyed = false;
 
   constructor(host: HTMLElement, options: DiffOptions = {}) {
@@ -120,40 +132,22 @@ export class DiagramDiff {
       areaClass: 'area',
       canvas: { interaction: 'pan-zoom', wheel: o.wheel ?? 'always', panOnDrag: true, maxK: 8, insets: () => this.scene?.insets() ?? { left: 8, right: 8, top: 8, bottom: 52 } },
       feature: (name) => this.o.features?.[name as DiffFeature] !== false,
-      ...(o.storage ? { storage: o.storage } : {}),
-      ...(o.ctx ? { ctx: o.ctx } : {}),
-      ...(o.themeSource ? { themeSource: o.themeSource } : {}),
-      ...(o.ui ? { ui: o.ui } : {}),
-      ...(o.theme ? { theme: o.theme } : {}),
-      ...(o.themeDark ? { themeDark: o.themeDark } : {}),
-      ...(o.compact !== undefined ? { compact: o.compact } : {}),
+      ...kernelOptions(o),
     });
     const core = this.core;
     this.ctx = core.ctx;
     core.canvas.svg.setAttribute('aria-hidden', 'true');
     // hover highlight is a view setting the diff starts with off (unchanged items are already dimmed)
-    core.display.set({ labels: true, hoverHighlight: false });
+    core.setDisplay({ labels: true, hoverHighlight: false, animate: true });
     this.actions.set(o.actions ?? []);
     this.label.set(o.label ?? null);
 
     const session = (this.session = new DiffSession({
-      ctx: core.ctx,
-      t: core.i18n.t,
-      emit: (type, detail, cancelable) => core.emit(type, detail, cancelable),
-      renderOptions: () => {
-        const d = core.display.peek(), layers = core.visibleLayers.peek();
-        return { theme: core.shownTheme(), ...(d.labels ? {} : { hideLabels: true }), ...(layers ? { visibleLayers: layers } : {}) };
-      },
-      ensureTheme: (id) => core.ensureTheme(id),
-      scheme: () => core.scheme.peek(),
+      ...sessionHost(core),
+      // the view's event names the panel's tab
+      emit: (type, detail, cancelable) => core.emit(type, type === 'mmdx-view' ? { ...(detail as object), mode: this.tab.peek() } : detail, cancelable),
       name: () => this.o.name ?? 'diagram',
-      showVersions: () => {
-        if (!core.feature('history')) return;
-        session.versionsShown.set(true);
-        core.run('setPanel', 'history', true);
-      },
       ...(o.view ? { view: o.view } : {}),
-      ...(o.mode ? { mode: o.mode } : {}),
       ...(o.filters ? { filters: o.filters } : {}),
       ...(o.dim !== undefined ? { dim: o.dim } : {}),
     }));
@@ -165,7 +159,7 @@ export class DiagramDiff {
       const D = session.rendered();
       return D ? t('diff.label', { added: D.diff.counts.added, removed: D.diff.counts.removed, changed: D.diff.counts.changed }) : t('diff.empty.nothing');
     });
-    this.scene = new DiffScene(core, session, { reducedMotion, label, canvas: () => ({ wheel: this.o.wheel ?? 'always' }) });
+    this.scene = new DiffScene(sceneHost(core), session, { reducedMotion, label, canvas: () => ({ wheel: this.o.wheel ?? 'always' }) });
 
     // what view settings and the export of the version read
     const shown = (): Rendered | null => (session.viewOnly.peek() ? session.plain.peek() : session.rendered.peek()?.after) ?? null;
@@ -174,20 +168,24 @@ export class DiagramDiff {
     core.provide('documentCode', () => shown()?.doc.code ?? null);
     core.pushScene(this.scene);
 
-    core.panels.set({ ...core.panels.peek(), ...panelState(o.panels) });
-    core.useModules(diffModules(this.scene, { actions: this.actions }));
-    this.offs.push(
-      effect(() => core.root.setAttribute('aria-label', label())),
-      // History mode needs the version panel
-      effect(() => {
-        const on = !!core.panels()['history'] && core.feature('history');
-        untracked(() => session.setVersionsShown(on));
-      }),
-      // a type that cannot be drawn: the code diff shows the changes
-      effect(() => {
-        if (session.unsupported() && core.feature('code') && !core.panels.peek()['code']) untracked(() => core.run('setPanel', 'code', true));
-      }),
-    );
+    core.setPanels({ ...panelState(o.panels) });
+    const set = standaloneModuleSet(this.scene, { actions: this.actions, ...(o.mode ? { tab: o.mode } : {}) });
+    this.tab = set.tab;
+    core.useModules(set.modules);
+    this.owner.add(effect(() => core.root.setAttribute('aria-label', label())));
+    // History mode: the History tab of the version panel, with the panel shown, shows one version as it is
+    this.owner.add(effect(() => {
+      const on = this.tab() === 'history' && !!core.panels()['history'] && core.feature('history');
+      untracked(() => {
+        if (on) session.show({ kind: 'version', id: null });
+        else if (session.shown.peek().kind === 'version') this.showPair();
+        this.announceMode();
+      });
+    }));
+    // a type that cannot be drawn: the code diff shows the changes
+    this.owner.add(effect(() => {
+      if (session.unsupported() && core.feature('code') && !core.panels.peek()['code']) untracked(() => core.run('setPanel', 'code', true));
+    }));
     void this.load();
   }
 
@@ -205,17 +203,20 @@ export class DiagramDiff {
     const core = this.core, s = this.session;
     // options and attributes set the state without an event, as the filters do
     if ('view' in patch && patch.view) s.applyView(patch.view);
-    if ('mode' in patch && patch.mode) s.applyMode(patch.mode);
+    if ('mode' in patch && patch.mode) {
+      this.quiet = true;
+      this.tab.set(patch.mode);
+      this.quiet = false;
+      this.announceMode(true);
+    }
     if ('filters' in patch) s.applyFilters(patch.filters);
     if ('dim' in patch && patch.dim !== undefined) s.dim.set(patch.dim);
-    if ('panels' in patch) core.panels.set({ ...core.panels.peek(), ...panelState(patch.panels) });
-    if ('storage' in patch) core.setStorage(patch.storage);
+    if ('panels' in patch) core.setPanels({ ...panelState(patch.panels) });
+    // the scheme, the themes, compact, storage and the main canvas's wheel as every product applies them; the wheel
+    // reaches the second canvas of Side by side too
+    applyKernelPatch(core, patch, { wheel: 'always' });
     if ('themeSource' in patch) core.setThemeSource(patch.themeSource);
     if ('ctx' in patch && patch.ctx !== ctx) warnOnce('diff: `ctx` is read when the diff is created');
-    if ('ui' in patch) core.setUi(patch.ui);
-    if ('theme' in patch) core.themes.attr.set(patch.theme ?? null);
-    if ('themeDark' in patch) core.themes.attrDark.set(patch.themeDark ?? null);
-    if ('compact' in patch) core.setCompact(patch.compact ?? 'auto');
     if ('label' in patch) this.label.set(patch.label ?? null);
     if ('actions' in patch) this.actions.set(patch.actions ?? []);
     if ('wheel' in patch) for (const c of this.scene.canvases()) c.setOptions({ wheel: patch.wheel ?? 'always' });
@@ -225,7 +226,7 @@ export class DiagramDiff {
       return;
     }
     if (('base' in patch || 'head' in patch) && s.versions.peek().length) {
-      s.setPair(patch.base ?? s.base.peek(), patch.head ?? s.head.peek());
+      this.setPair(patch.base ?? s.base.peek() ?? '', patch.head ?? s.head.peek() ?? '');
       return;
     }
     s.scheduleRefresh();
@@ -244,14 +245,26 @@ export class DiagramDiff {
     return this.load();
   }
 
-  /** Compares two versions of the history by id. */
+  /** Compares two versions of the history by id; History mode gives way to the comparison (the Compare tab). */
   setPair(baseId: string, headId: string): void {
     this.session.setPair(baseId, headId);
+    if (this.session.shown.peek().kind !== 'compare') return;
+    this.tab.set('compare');
+    this.announceMode();
   }
 
-  /** Shows one version as it is (History mode). */
+  /** Shows one version as it is (History mode: the version panel's History tab, shown). */
   viewVersion(id: string): void {
-    this.session.viewVersion(id);
+    const s = this.session;
+    if (!s.versions.peek().some((v) => v.id === id)) return;
+    s.viewVersion(id);
+    // the tab and the panel together: History mode starts once, on the version just shown
+    if (this.core.feature('history'))
+      batch(() => {
+        this.tab.set('history');
+        this.core.run('setPanel', 'history', true);
+      });
+    this.announceMode();
   }
 
   setView(view: DiffViewName): void {
@@ -321,9 +334,27 @@ export class DiagramDiff {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
-    for (const off of this.offs.splice(0)) off();
+    this.owner.dispose();
     this.session.destroy();
     this.core.destroy();
+  }
+
+  // ---- History mode -----------------------------------------------------------------------------------------------
+
+  /** Out of History mode: the compared pair again. */
+  private showPair(): void {
+    const s = this.session, base = s.base.peek(), head = s.head.peek();
+    s.show(base && head ? { kind: 'compare', base, head } : { kind: 'none' });
+  }
+
+  /** `mmdx-mode` when the tab or History mode changed since it was last announced (`quiet`: host options, no event). */
+  private announceMode(quiet = false): void {
+    const mode = this.tab.peek(), viewOnly = this.session.viewOnly.peek();
+    const now = `${mode}|${viewOnly}`;
+    if (now === this.announced) return;
+    const first = !this.announced;
+    this.announced = now;
+    if (!quiet && !this.quiet && !first) this.core.emit('mmdx-mode', { mode, viewOnly });
   }
 
   // ---- loading ----------------------------------------------------------------------------------------------------
@@ -333,7 +364,8 @@ export class DiagramDiff {
     const src: DiffSource = o.history
       ? { history: o.history, base: o.base, head: o.head }
       : { before: this.fetchSide(o.beforeSource, o.before), after: this.fetchSide(o.afterSource, o.after), base: o.base, head: o.head };
-    return this.session.load(src);
+    // a history coming or going turns History mode on or off silently: what is announced next is a change from here
+    return this.session.load(src).then(() => this.announceMode(true));
   }
 
   private async fetchSide(source: string | undefined, url: string | undefined): Promise<string | null> {
@@ -347,28 +379,22 @@ export class DiagramDiff {
 
 const DIFF_FEATURES: readonly DiffFeature[] = ['history', 'code', 'changes', 'views', 'filters', 'pen', 'export', 'help', 'fullscreen', 'select', 'theme', 'scheme', 'layers'];
 const DIFF_PANELS: readonly DiffPanel[] = ['history', 'code', 'changes'];
-const text = (v: string | null): string | undefined => v ?? undefined;
-/** The known entries of a list attribute. */
-const listOf = <T extends string>(known: readonly T[]) => (v: string | null): T[] | undefined => (v === null ? undefined : words(v).filter((x): x is T => known.includes(x as T)));
-const panelList = listOf(DIFF_PANELS);
+const { text } = attr;
+const panelList = attr.listOf(DIFF_PANELS);
 
 /** Attributes and the option each one sets. `features` lists the parts that are on (like the viewer's `controls`). */
 const ATTRS: Readonly<Record<string, AttrSpec<DiffOptions>>> = {
   before: ['before', text], after: ['after', text], base: ['base', text], head: ['head', text],
-  mode: ['mode', (v) => (v === 'history' || v === 'compare' ? v : undefined)],
-  view: ['view', (v) => (v && (DIFF_VIEWS as readonly string[]).includes(v) ? v : undefined)],
-  filters: ['filters', listOf(DIFF_FILTERS)], dim: ['dim', (v) => (v === null ? undefined : v !== 'false')], panels: ['panels', panelList],
+  mode: ['mode', attr.oneOf<DiffMode>(['history', 'compare'])],
+  view: ['view', attr.oneOf(DIFF_VIEWS)],
+  filters: ['filters', attr.listOf(DIFF_FILTERS)], dim: ['dim', attr.bool], panels: ['panels', panelList],
   features: ['features', (v) => (v === null ? undefined : Object.fromEntries(DIFF_FEATURES.map((f) => [f, words(v).includes(f)])))],
-  theme: ['theme', text], 'theme-dark': ['themeDark', text], ui: ['ui', text], wheel: ['wheel', text], name: ['name', text], label: ['label', text],
-  compact: ['compact', (v) => (v === null ? undefined : v === 'auto' ? 'auto' : v !== 'false')],
+  theme: ['theme', text], 'theme-dark': ['themeDark', text], ui: ['ui', attr.ui], wheel: ['wheel', attr.wheel], name: ['name', text], label: ['label', text],
+  compact: ['compact', attr.compact],
 };
 
 export class MmdxDiffElement extends MmdxElement<DiffOptions, DiagramDiff> {
-  static observedAttributes = Object.keys(ATTRS);
-
-  protected attrs(): typeof ATTRS {
-    return ATTRS;
-  }
+  static override readonly schema = { attrs: ATTRS };
 
   protected create(o: DiffOptions): DiagramDiff {
     return new DiagramDiff(this, o);

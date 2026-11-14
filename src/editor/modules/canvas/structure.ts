@@ -1,71 +1,35 @@
 // Canvas structure (A.3 rows 29, 33, 35, 36, 37, 39): delete, group / ungroup, copy / paste / duplicate with the
 // clipboard of §8.2, align / distribute, unlock all, ⌘[ / ⌘] and the board's right-click menu (Paste, Unlock all,
-// disabled "Nothing to paste"). Ported from prototype app.js (`deleteSelection`, `canGroup`, `groupSelection`,
-// `ungroupSelection`, `copySelection`, `pasteable`, `pasteAt`, `duplicateSelection`, `unlockAll`,
-// `arrangeSelection`, `moveSelection`, `showContextMenu`).
+// disabled "Nothing to paste"; on a group whose type offers it, "Reset positions in this group" of T07). Ported from
+// prototype app.js (`deleteSelection`, `canGroup`, `groupSelection`, `ungroupSelection`, `copySelection`, `pasteable`,
+// `pasteAt`, `duplicateSelection`, `arrangeSelection`, `moveSelection`, `showContextMenu`).
+import { POSITIONAL_KINDS } from '../../../core/ids.js';
 import { KIND_TO_COLL } from '../../../core/meta/types.js';
 import type { DiagramModel } from '../../../core/model.js';
+import { withKind } from '../../../core/kinds/registry.js';
+import { reparse } from '../../../core/parse/dispatch.js';
 import {
-  alignItems, boxParticipants, cloneMeta, copyItems, deleteER, deleteFlow, deleteSeq, duplicateItems, edgeText, groupFlow,
-  lockedItems, moveOrder, nodeDef, pasteable, pasteItems, relabelBox, relabelGroup, relText, removeActivation, ungroupFlow,
-  unboxParticipants, unlockAll as unlockAllOp, type AlignOp,
+  alignItems, cloneMeta, copyItems, duplicateItems, groupHasPositions, lockedItems, pasteable, pasteItems, remapMeta, unlockAll as unlockAllOp, type AlignOp,
 } from '../../../core/ops/index.js';
 import type { ItemRef } from '../../../core/types.js';
 import { MENU_CSS, openMenu, type MenuItem } from '../../../ui/blocks/menu.js';
-import type { EditorActions, EditorCore, Sel } from '../../core.js';
+import type { EditorActions, Sel } from '../../core.js';
+import { withEdit } from '../../kinds/registry.js';
 import type { EditorModule } from '../../module.js';
-import { items as nItems } from './shared.js';
+import { canGroup as canGroupSel, groupResetState, resettableGroup, resetSelectedGroup } from '../../ops/group.js';
+import { moveSelection } from '../../ops/order.js';
+import { sameRef } from '../../lib/refs.js';
+import { items as nItems } from '../../lib/canvas.js';
 
 /** The board's right-click menu is the Menu block. */
-export const STRUCTURE_CSS = MENU_CSS;
+const STRUCTURE_CSS = MENU_CSS;
 
 /** Clipboard MIME type of the editor's own format (§8.2); `web ` prefix = custom format of the async clipboard API. */
-export const MMDX_CLIPBOARD_TYPE = 'web application/x-mmdx+json';
+const MMDX_CLIPBOARD_TYPE = 'web application/x-mmdx+json';
 
 /** A Mermaid fragment for the copied items, so pasting into other apps produces useful text (§8.2). */
 export function mermaidFragment(model: DiagramModel, code: string, refs: readonly ItemRef[]): string {
-  const L = code.split('\n');
-  if (model.type === 'flowchart') {
-    const out = [`flowchart ${model.direction}`];
-    const ids = new Set<string>();
-    const emitNode = (id: string, ind: string): void => {
-      const n = model.nodes.get(id);
-      if (!n || ids.has(id)) return;
-      ids.add(id);
-      out.push(ind + nodeDef(n));
-    };
-    const emitGroup = (gid: string, ind: string, guard: number): void => {
-      const g = model.groups.get(gid);
-      if (!g || ids.has(gid) || guard > 64) return;
-      ids.add(gid);
-      out.push(`${ind}subgraph ${gid}["${g.label.replace(/"/g, '#quot;')}"]`);
-      for (const c of g.children) {
-        if (model.groups.has(c)) emitGroup(c, `${ind}  `, guard + 1);
-        else emitNode(c, `${ind}  `);
-      }
-      out.push(`${ind}end`);
-    };
-    for (const r of refs) {
-      if (r.kind === 'group') emitGroup(r.id, '  ', 0);
-      else if (r.kind === 'node') emitNode(r.id, '  ');
-    }
-    for (const e of model.edges) if (ids.has(e.from) && ids.has(e.to)) out.push(`  ${edgeText(e, e.from, e.to)}`);
-    return `${out.join('\n')}\n`;
-  }
-  if (model.type === 'er') {
-    const out = ['erDiagram'];
-    const ids = new Set<string>();
-    for (const r of refs) {
-      const e = r.kind === 'entity' ? model.entities.get(r.id) : undefined;
-      if (!e || ids.has(e.id)) continue;
-      ids.add(e.id);
-      if (e.defLine !== undefined && e.endLine !== undefined && e.endLine >= e.defLine) out.push(...L.slice(e.defLine, e.endLine + 1));
-      else out.push(`  ${e.id}`);
-    }
-    for (const r of model.rels) if (ids.has(r.from) && ids.has(r.to)) out.push(`  ${relText(r, r.from, r.to)}`);
-    return `${out.join('\n')}\n`;
-  }
-  return '';
+  return withEdit(model, (k, m) => k.fragment?.(m, code, refs)) ?? '';
 }
 
 /** Best effort: the system clipboard gets plain Mermaid text and the editor's own format. */
@@ -97,7 +61,6 @@ export const canvasStructureModule: EditorModule = {
   css: [STRUCTURE_CSS],
   install(scope) {
     const core = scope.core;
-    const offs: (() => void)[] = [];
     /** The copy buffer is the core's (`core.clipboard`, UI state, never saved): the source of truth for paste. */
     const editing = (): boolean => core.mode.peek() === 'edit';
 
@@ -107,17 +70,8 @@ export const canvasStructureModule: EditorModule = {
       const sel = core.selection();
       if (!sel.length) return;
       const M = core.model;
-      if (sel.length === 1 && sel[0]!.kind === 'activation') {
-        if (M.type !== 'sequence') return;
-        const r = removeActivation(core.code, M, sel[0]!.id);
-        if (r.reason) {
-          core.toast(r.reason);
-          return;
-        }
-        if (core.applyCode(r, 'Delete', { select: null })) core.toast(`Process on ${r.participant ?? ''} removed — ⌘/Ctrl+Z to undo`);
-        return;
-      }
-      const res = M.type === 'flowchart' ? deleteFlow(core.code, M, sel) : M.type === 'er' ? deleteER(core.code, M, sel) : M.type === 'sequence' ? deleteSeq(core.code, M, sel) : null;
+      if (sel.length === 1 && withEdit(M, (k, m) => k.removeOne?.(core, m, sel[0]!))) return;
+      const res = withEdit(M, (k, m) => k.remove(core.code, m, sel));
       if (!res) return;
       const reason = (res as { reason?: string }).reason;
       if (reason) {
@@ -126,36 +80,24 @@ export const canvasStructureModule: EditorModule = {
       }
       const meta = cloneMeta(core.meta);
       const nodes = new Set(sel.filter((x) => x.kind === 'node' || x.kind === 'entity').map((x) => x.id));
-      // messages, notes, blocks and processes have positional ids: the code change carries their metadata over
-      for (const it of sel) if (it.kind !== 'message' && it.kind !== 'note' && it.kind !== 'block' && it.kind !== 'activation') delete meta[KIND_TO_COLL[it.kind]]?.[it.id];
-      if (M.type === 'flowchart') for (const e of M.edges) if (nodes.has(e.from) || nodes.has(e.to)) delete meta.edges?.[e.id];
-      if (M.type === 'er') for (const r of M.rels) if (nodes.has(r.from) || nodes.has(r.to)) delete meta.rels?.[r.id];
-      if (core.applyCode({ code: res.code, meta }, 'Delete', { select: null })) core.toast(`Deleted ${nItems(sel.length)} — ⌘/Ctrl+Z to undo`);
+      // positional ids (messages, notes, blocks, boxes, processes): the code change carries their metadata over
+      for (const it of sel) if (!POSITIONAL_KINDS.has(it.kind)) delete meta[KIND_TO_COLL[it.kind]]?.[it.id];
+      for (const c of withKind(M, (k, m) => k.connectors(m)) ?? []) if (nodes.has(c.from.id) || nodes.has(c.to.id)) delete meta[KIND_TO_COLL[c.ref.kind]]?.[c.ref.id];
+      // positional ids (mindmap nodes without a written id) move with the code: their metadata follows
+      const kept = remapMeta(M, core.code, reparse(res.code), res.code, meta);
+      if (core.applyCode({ code: res.code, meta: kept }, 'Delete', { select: null })) core.toast(`Deleted ${nItems(sel.length)} — ⌘/Ctrl+Z to undo`);
     };
 
     // ---- group / ungroup ---------------------------------------------------------------------------------------
 
-    const canGroup = (): { ok: boolean; reason: string } => {
-      const sel = core.selection(), M = core.model;
-      if (M.type === 'er') return { ok: false, reason: 'Mermaid ER diagrams have no groups' };
-      if (M.type === 'flowchart') return sel.some((x) => x.kind === 'node' || x.kind === 'group') ? { ok: true, reason: '' } : { ok: false, reason: 'Select boxes or groups to group' };
-      if (M.type === 'sequence') {
-        const ps = sel.filter((x) => x.kind === 'participant');
-        if (!ps.length) return { ok: false, reason: 'Select participants to group them into a box' };
-        if (ps.some((x) => M.participants.find((p) => p.id === x.id)?.box)) return { ok: false, reason: 'A participant is already in a box — ungroup it first' };
-        return { ok: true, reason: '' };
-      }
-      return { ok: false, reason: '' };
-    };
+    const canGroup = (): { ok: boolean; reason: string } => canGroupSel(core);
 
     /** The new group's name: typed in place on the canvas, else asked in a dialog (never a native prompt). */
     const nameGroup = async (it: Sel): Promise<void> => {
       if (core.run('inlineEdit', it)) return;
       const name = await core.dialogs.prompt('Group name', { value: 'Group', label: 'Name' });
       if (!name || name === 'Group') return;
-      const M = core.model;
-      const res = it.kind === 'group' && M.type === 'flowchart' ? relabelGroup(core.code, M, it.id, name)
-        : it.kind === 'box' && M.type === 'sequence' ? relabelBox(core.code, M, it.id, name) : null;
+      const res = withEdit(core.model, (k, m) => k.renameContainer?.(core.code, m, it, name));
       if (res) core.applyCode(res, 'Rename group', { select: [it] });
     };
 
@@ -165,34 +107,29 @@ export const canvasStructureModule: EditorModule = {
         if (g.reason) core.toast(g.reason);
         return;
       }
-      const sel = core.selection(), M = core.model;
-      const res = M.type === 'flowchart' ? groupFlow(core.code, M, sel.filter((x) => x.kind === 'node' || x.kind === 'group'), 'Group')
-        : M.type === 'sequence' ? boxParticipants(core.code, M, sel.filter((x) => x.kind === 'participant').map((x) => x.id), 'Group') : null;
+      const sel = core.selection();
+      const res = withEdit(core.model, (k, m) => k.group?.(core.code, m, sel, 'Group'));
       if (!res || !core.applyCode(res, 'Group', res.select ? { select: [res.select] } : {})) return;
       core.toast('Grouped — type a name');
       const p = core.primary();
       if (p && (p.kind === 'group' || p.kind === 'box')) await nameGroup(p);
     };
 
-    const ungroupSelection = (): void => {
+    const ungroupSelection = async (): Promise<void> => {
       const it = core.selection()[0];
       const M = core.model;
       if (!it || (it.kind !== 'group' && it.kind !== 'box')) {
         core.toast('Select a group to ungroup');
         return;
       }
+      const ask = withEdit(M, (k, m) => k.ungroupConfirm?.(m, it));
+      if (ask && !(await core.dialogs.confirm(ask.title, ask.message, { ok: ask.ok }))) return;
+      if (core.model !== M) return;
       const meta = cloneMeta(core.meta);
-      let ok = false;
-      if (it.kind === 'group' && M.type === 'flowchart') {
-        const members: Sel[] = (M.groups.get(it.id)?.children ?? []).map((c) => ({ kind: M.groups.has(c) ? 'group' : 'node', id: c }));
-        delete meta.groups?.[it.id];
-        ok = core.applyCode({ code: ungroupFlow(core.code, M, it.id).code, meta }, 'Ungroup', { select: members });
-      } else if (it.kind === 'box' && M.type === 'sequence') {
-        const members: Sel[] = (M.boxes.find((b) => b.id === it.id)?.members ?? []).map((id) => ({ kind: 'participant', id }));
-        delete meta.boxes?.[it.id];
-        ok = core.applyCode({ code: unboxParticipants(core.code, M, it.id).code, meta }, 'Ungroup', { select: members });
-      }
-      if (ok) core.toast('Ungrouped');
+      const res = withEdit(M, (k, m) => k.ungroup?.(core.code, m, it));
+      if (!res) return;
+      delete meta[KIND_TO_COLL[it.kind]]?.[it.id];
+      if (core.applyCode({ code: res.code, meta }, 'Ungroup', { select: res.members })) core.toast('Ungrouped');
     };
 
     // ---- copy / paste / duplicate (§8.2 clipboard) -------------------------------------------------------------
@@ -200,10 +137,10 @@ export const canvasStructureModule: EditorModule = {
     const copySelection = (): boolean => {
       const data = copyItems(core.model, core.meta, core.selection(), { code: core.code, geom: core.geom });
       if (!data) {
-        core.toast(core.model.type === 'sequence' ? 'Copy works for flowchart shapes / groups and ER tables' : 'Nothing to copy');
+        core.toast(withEdit(core.model, (k) => k.noCopy) ?? 'Nothing to copy');
         return false;
       }
-      core.clipboard = data;
+      core.uiState.clipboard.set(data);
       core.toast(`Copied ${nItems(data.items.length)}`);
       const json = JSON.stringify({ format: 'mmdx-items', version: 2, type: data.type, items: data.items, content: data.content, source: core.shownSource() });
       void writeSystemClipboard(mermaidFragment(core.model, core.code, data.items), json);
@@ -231,7 +168,7 @@ export const canvasStructureModule: EditorModule = {
 
     const unlockAll = (): void => {
       const res = unlockAllOp(core.meta);
-      core.change('Unlock all', () => core.store.meta.set(res.meta));
+      core.setMeta('Unlock all', res.meta);
       core.toast(`Unlocked ${nItems(res.count)}`);
     };
 
@@ -239,21 +176,7 @@ export const canvasStructureModule: EditorModule = {
       const meta = core.meta;
       const res = alignItems(core.model, meta, core.geom, core.selection(), ALIGN[op] ?? (op as AlignOp));
       if (res.meta === meta) return;
-      core.change(op.endsWith('dist') ? 'Distribute' : 'Align', () => core.store.meta.set(res.meta));
-    };
-
-    const moveSelection = (dir: -1 | 1): void => {
-      const sel = core.selection();
-      if (sel.length !== 1) {
-        core.toast('Select one item to move it');
-        return;
-      }
-      const res = moveOrder(core.code, core.meta, core.model, core.geom, sel[0]!, dir);
-      if (res.reason) {
-        core.toast(res.reason);
-        return;
-      }
-      core.applyCode({ code: res.code, meta: res.meta }, 'Move in order', { select: res.selection ?? sel });
+      core.setMeta(op.endsWith('dist') ? 'Distribute' : 'Align', res.meta);
     };
 
     // ---- right-click on the board ------------------------------------------------------------------------------
@@ -263,16 +186,32 @@ export const canvasStructureModule: EditorModule = {
       if (canPaste()) entries.push({ label: 'Paste', keys: 'mod+v', run: () => pasteAt(at) });
       const locked = lockedItems(core.meta).length;
       if (locked) entries.push({ label: `Unlock all (${locked})`, run: unlockAll });
+      // a selected group whose type offers it: "Reset positions in this group" (T07)
+      const g = resettableGroup(core);
+      if (g) entries.push({ label: core.i18n.t('history.resetGroup'), disabled: !groupHasPositions(core.model, core.meta, g), run: () => void resetSelectedGroup(core) });
       if (!entries.length) entries.push({ label: 'Nothing to paste', disabled: true, run: () => undefined });
       openMenu({
-        popovers: core.popovers, opener: null, label: 'Board', entries, within: core.area, at: { clientX, clientY }, class: 'ctx-menu',
-        onClose: () => core.root.focus({ preventScroll: true }),
+        popovers: core.popovers, opener: null, label: 'Board', entries, within: core.overlayHost, at: { clientX, clientY }, class: 'ctx-menu',
+        onClose: () => core.focusEditor(),
       });
     };
 
-    scope.listen(core.dom.svg, 'contextmenu', (ev) => {
+    /** A right-clicked group the board menu has an entry for (selected first); null for any other item. */
+    const menuGroup = (target: EventTarget | null): ItemRef | null => {
+      const el = target instanceof Element ? target.closest('.el') : null;
+      const kind = el?.getAttribute('data-kind'), id = el?.getAttribute('data-id');
+      if (kind !== 'group' || !id) return null;
+      const ref: ItemRef = { kind, id };
+      if (groupResetState(core, ref) === null) return null;
+      const sel = core.selection();
+      if (sel.length !== 1 || !sameRef(sel[0], ref)) core.select([ref]);
+      return ref;
+    };
+
+    scope.canvas('contextmenu', (ev) => {
       ev.preventDefault();
-      if (!editing() || core.version.peek() || (ev.target instanceof Element && ev.target.closest('.el'))) return;
+      if (!editing() || core.version.peek()) return;
+      if (ev.target instanceof Element && ev.target.closest('.el') && !menuGroup(ev.target)) return;
       showContextMenu(ev.clientX, ev.clientY, core.toDiagram(ev));
     });
 
@@ -281,7 +220,7 @@ export const canvasStructureModule: EditorModule = {
       if (!editing() || core.version.peek()) return false;
       const p = core.primary();
       const b = p ? core.boxOf(p) : null;
-      const sr = core.dom.svg.getBoundingClientRect();
+      const sr = core.canvasRect();
       const { w, h: hh } = core.viewport.size;
       const s = b ? core.toScreen({ x: b.x, y: b.y }) : { x: w / 2, y: hh / 2 };
       showContextMenu(sr.left + s.x, sr.top + s.y, core.toDiagram({ clientX: sr.left + s.x, clientY: sr.top + s.y }));
@@ -290,18 +229,18 @@ export const canvasStructureModule: EditorModule = {
 
     // ---- actions and shortcuts ---------------------------------------------------------------------------------
 
-    offs.push(
+    for (const off of [
       core.provide('deleteSelection', deleteSelection),
       core.provide('groupSelection', groupSelection),
       core.provide('ungroupSelection', ungroupSelection),
+      core.provide('resetGroupPositions', () => void resetSelectedGroup(core)),
       core.provide('copySelection', () => void copySelection()),
       core.provide('pasteAt', pasteAt),
       core.provide('duplicateSelection', duplicateSelection),
       core.provide('arrange', arrange),
-      core.provide('unlockAll', unlockAll),
-    );
+    ]) scope.onDispose(off);
     // ⌘[ / ⌘]: the order slider's module may provide its own; this one is the fallback.
-    if (!core.has('moveSelection')) offs.push(core.provide('moveSelection', moveSelection));
+    scope.onDispose(core.provideDefault('moveSelection', (dir) => moveSelection(core, dir)));
 
     core.shortcuts.add(
       { id: 'copy', keys: ['mod+c'], label: 'Copy', group: 'Edit', editOnly: true, readOnly: true, run: () => (core.selection().length ? copySelection() : false) },
@@ -315,15 +254,11 @@ export const canvasStructureModule: EditorModule = {
       },
       { id: 'duplicate', keys: ['mod+d'], label: 'Duplicate', group: 'Edit', editOnly: true, run: () => (core.selection().length ? duplicateSelection() : false) },
       { id: 'group', keys: ['mod+g'], label: 'Group', group: 'Edit', editOnly: true, run: () => void groupSelection() },
-      { id: 'ungroup', keys: ['mod+shift+g'], label: 'Ungroup', group: 'Edit', editOnly: true, run: () => ungroupSelection() },
+      { id: 'ungroup', keys: ['mod+shift+g'], label: 'Ungroup', group: 'Edit', editOnly: true, run: () => void ungroupSelection() },
       { id: 'delete', keys: ['delete'], label: 'Delete', group: 'Edit', editOnly: true, run: () => (core.selection().length ? deleteSelection() : false) },
       { id: 'order-back', keys: ['mod+['], label: 'Move back in the code order', group: 'Edit', editOnly: true, run: () => (core.selection().length ? void core.run('moveSelection', -1) : false) },
       { id: 'order-forward', keys: ['mod+]'], label: 'Move forward in the code order', group: 'Edit', editOnly: true, run: () => (core.selection().length ? void core.run('moveSelection', 1) : false) },
       { id: 'board-menu', keys: ['shift+f10', 'contextmenu'], label: 'Open the context menu', group: 'Edit', editOnly: true, run: () => keyboardMenu() },
     );
-
-    return () => {
-      for (const off of offs) off();
-    };
   },
 };

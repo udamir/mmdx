@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { createExportMenu, EXPORT_MENU_CSS, type ExportEntry } from '../../src/ui/blocks/export-menu.js';
 import { MENU_CSS } from '../../src/ui/blocks/menu.js';
-import { createI18n } from '../../src/ui/i18n.js';
-import { PopoverManager, Toaster } from '../../src/ui/popover.js';
+import { createI18n } from '../../src/i18n.js';
+import { PopoverManager, Toaster } from '../../src/ui/kit/popover.js';
 import { chromeHost } from '../support.js';
 
 type Args = { product: 'editor' | 'viewer' | 'diff'; compact: boolean; headers: boolean; ui: 'light' | 'dark' };

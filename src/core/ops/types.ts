@@ -2,6 +2,7 @@
 // objects; each op here returns one of these. `code` is always present: an op that cannot apply returns the input
 // code unchanged, plus a `reason` when the user should be told why (the editor shows it as a toast).
 import type { DiagramMeta } from '../meta/types.js';
+import type { DiagramModel } from '../model.js';
 import type { ItemRef } from '../types.js';
 
 /** A rewrite of the Mermaid code. */
@@ -62,6 +63,15 @@ export interface CloneResult extends CodeResult {
 export interface LineSpan {
   start: number;
   end: number;
+}
+
+/** One reachable position of the order walk (ops/order.ts): the code there, its model and the item's (possibly positional) new ref. */
+export interface OrderState {
+  code: string;
+  model: DiagramModel;
+  sel: ItemRef;
+  /** Participants: every neighbour swapped with on the way from the base (their x positions trade too). */
+  others: string[];
 }
 
 /** Result of an op that may change both the code and the metadata. */

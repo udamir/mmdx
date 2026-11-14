@@ -86,12 +86,12 @@ Each attribute sets the `ViewerOptions` option of the same name in camelCase (`t
 | `controls` | — | `ViewerControl[]` | `zoom fullscreen` | Any of `zoom layers pen code history export theme fullscreen`, space-separated, or `none`. Change it with the attribute or `setControls(list)`; the chrome is re-evaluated in place |
 | `interactive` | — | `boolean` | `true` | `false` turns off pan, zoom, the zoom bar's zoom buttons, help and the pen (thumbnails, print) |
 | `lazy` | — | `boolean` | `true` | Render when the viewer comes within 300 px of the viewport; the box keeps the diagram's aspect ratio meanwhile |
-| `wheel` | — | `'ctrl' \| 'always' \| 'never'` | `ctrl` | `ctrl`: only ⌘ / Ctrl + wheel (or a trackpad pinch) zooms, so page scroll is never trapped; `always`: the wheel pans and ⌘ / Ctrl + wheel zooms; `never`: the wheel is ignored |
-| `fallback` | — | `'mermaid' \| 'source' \| 'error'` | `mermaid` | For diagram types mmdx does not draw: stock Mermaid (needs `mermaid`), the source text, or an error card |
+| `wheel` | — | `'ctrl' \| 'always' \| 'zoom' \| 'never'` | `ctrl` | `ctrl`: only ⌘ / Ctrl + wheel (or a trackpad pinch) zooms, so page scroll is never trapped; `always`: the wheel pans and ⌘ / Ctrl + wheel zooms; `zoom`: the wheel zooms at the pointer, Shift + wheel and a sideways scroll pan; `never`: the wheel is ignored |
+| `fallback` | — | `'mermaid' \| 'source' \| 'error'` | `mermaid` | For diagram types mmdx does not draw: stock Mermaid (needs `mermaid`; a bundled app passes `configure({ mermaid: () => import('mermaid') })`), the source text, or an error card |
 | — | `layers` | `readonly string[]` | from metadata | Ids of the visible layers |
 | `labels` | — | `boolean` | `true` | Show connector labels |
 | `hover-highlight` | — | `boolean` | `true` | Highlight the connected items of the item under the pointer |
-| `label` | — | `string` | generated | Accessible name, e.g. "Flowchart: 12 nodes, 14 connections" |
+| `label` | — | `string` | generated | Accessible name of the picture (the `<svg>`, `role="img"`, which also names the viewer's `group` root): the diagram's `accTitle` when it has one, else generated, e.g. "Flowchart: 12 nodes, 14 connections", "Mindmap: 9 nodes" or "State diagram: 8 states, 11 transitions" (an `accDescr` becomes the accessible description) |
 | `ui` | — | `'light' \| 'dark' \| 'auto'` | `auto` | Chrome colour scheme |
 | `scheme-toggle` | — | `boolean` | `true` | With the `theme` control: the light / dark toggle next to the theme menu. `false` keeps the menu and hides the toggle, for hosts that set `ui` themselves |
 | `compact` | — | `boolean \| 'auto'` | `auto` | The compact chrome (smaller, icon-only); automatic on small hosts |
@@ -100,7 +100,7 @@ Each attribute sets the `ViewerOptions` option of the same name in camelCase (`t
 | — | `storage` | `StorageAdapter` | `localStorage` (`mmdx.` keys), else in memory | Where UI preferences are kept (theme pick, light / dark, panels) |
 | — | `themeSource` | `ThemeSource` | `configure({ themeSource })` | Where themes the page has not loaded come from |
 | — | — | `ctx: Partial<CoreContext>` | the shared context | `DiagramViewer` option only, read when the viewer is created |
-| — | — | `rehydrate: 'auto' \| 'adopt'` | — | `DiagramViewer` option, deprecated and ignored: server-rendered SVG is always replaced by the first client render |
+| — | — | `iconPacks: IconPack[]` | — | `DiagramViewer` option only: icon packs of this viewer over the shared ones (see [Icons](/guide/icons#registering-packs)); read when the viewer is created |
 
 Read-only properties of the element: `instance` (the `DiagramViewer`, `null` while not connected), `diagnostics` (the last render's `Diagnostic[]`) and `historySession` (while History is open).
 
@@ -114,7 +114,7 @@ Read-only properties of the element: `instance` (the `DiagramViewer`, `null` whi
 | `setControls(list: readonly ViewerControl[] \| undefined): void` | Changes the controls at run time, like the `controls` attribute; `undefined` restores the default |
 | `setLayers(ids: readonly string[] \| undefined): void` | Shows only these layers; `undefined` restores the diagram's own visibility |
 | `toSvg(): string` | A standalone SVG document of what is shown (visible layers, label setting); empty before the first render |
-| `toPng(opts?: { scale?: number }): Promise<Blob>` | A PNG of what is shown, `scale` 2 by default. Fonts not registered with `configure({ fonts })` are reported with `mmdx-error`. Rejects before the first render or while not connected |
+| `toPng(opts?: { scale?: number }): Promise<Blob>` | A PNG of what is shown, `scale` 2 by default. Fonts not registered with `configure({ fonts })` are reported with `mmdx-error` (one `export.font-missing` warning, the families in `params.fonts`). Rejects before the first render or while not connected |
 | `toggleHistory(on?: boolean, opts?: { compare?: boolean }): void` | Opens or closes History; `compare` opens it on the newest change compared |
 
 `DiagramViewer` has the same methods, and also:
@@ -138,7 +138,7 @@ All events bubble and are composed. Types: `ViewerEventMap`.
 |---|---|---|---|
 | `mmdx-render` | `{ bounds: Rect, type: string \| null, durationMs: number }` | no | After each render; `type` is `null` for a stock Mermaid fallback |
 | `mmdx-error` | `{ diagnostics: Diagnostic[] }` | no | Parse warnings and errors of a render, a failed `src` fetch, a missing theme, fonts not embedded into a PNG |
-| `mmdx-link` | `{ href: string, id: string \| null }` | yes | A link in the diagram is clicked (not after a drag, not with the pen). Cancel it to route the link yourself; otherwise it opens per the link policy |
+| `mmdx-link` | `{ href: string, id: string \| null }` | yes | A link in the diagram is clicked (not after a drag, not with the pen), or chosen from a sequence participant's link menu. Cancel it to route the link yourself; otherwise it opens per the link policy |
 | `mmdx-fullscreen-request` | `{ enter: boolean }` | yes | Before the full-screen button enters or leaves full screen. Cancel it to handle full screen yourself |
 | `mmdx-fullscreen` | `{ active: boolean }` | no | Full screen started or ended |
 | `mmdx-ui` | `{ ui: 'light' \| 'dark' }` | no | The user switched the light / dark toggle |
@@ -155,7 +155,7 @@ The viewer has the editor's chrome. Each piece is behind a control of `controls`
 |---|---|
 | `zoom` | The zoom bar (bottom right): zoom out, zoom level, zoom in, fit, and the `?` help popup |
 | `fullscreen` | The full-screen button on the zoom bar (also shows the zoom bar without the help) |
-| `layers` | The View settings panel: the diagram's layers to show or hide, connector labels and hover highlight |
+| `layers` | The View settings panel: the diagram's layers to show or hide, connector labels, hover highlight and **Animate edges** (flowchart edges with `animate`; on by default, and still while the system asks for reduced motion) |
 | `pen` | The presenting pen in the tool dock (strokes fade away), with the Hand tool next to it |
 | `code` | The code panel: the diagram's Mermaid code without the layout metadata and styles, highlighted, with a Copy button. `list` is an alias |
 | `history` | The History button in the tool dock (with a `history`) |
@@ -192,9 +192,25 @@ With `controls` including `history` and a `history` property, the tool dock gets
 - Diagrams over 300 lines render in a module worker. `setWorkerUrl(url)` (exported by `@mmdx/studio/viewer`) lets a strict-CSP host serve the worker file itself; `useInlineWorker()` from [`@mmdx/studio/worker-inline`](/api/worker-inline) starts it from a `blob:` URL where workers cannot start from URLs. Without a worker, diagrams render on the main thread.
 - A render that takes too long in the worker shows an error card instead of blocking the page.
 
+## Mindmaps
+
+The viewer draws [mindmaps](/guide/mindmap) with mmdx's own tree layout; their code loads the first time a page shows one. A branch saved folded (metadata `collapsed`) stays folded, with a +N badge counting its hidden nodes: the viewer does not fold or unfold branches itself. The accessible name is "Mindmap: N nodes", and the text outline ([`outline()`](/api/core#outline)) is the tree of labels.
+
+## Sequence diagrams
+
+The viewer draws [sequence diagrams](/guide/sequence) in the order of their code: dotted messages dashed, block kinds in a tag at the corner, created participants at their creating message's row and destroyed lifelines ending in a cross. A participant with two or more Mermaid links (`link`, `links`) opens a menu of them at the pointer when it is clicked, listing each by its label; the chosen link fires `mmdx-link` and opens per the link policy, as a single link does. The accessible name is the diagram's `accTitle` when it has one, else "Sequence diagram: N participants, M messages", and the text outline ([`outline()`](/api/core#outline)) lists the messages, notes and blocks in order, with Mermaid's numbers.
+
+## ER diagrams
+
+The viewer draws [ER diagrams](/guide/er) with their tables, crow's-foot relationships and, from Mermaid 11.17's syntax, subgraphs as frames laid out with the compound layout; the frontmatter title is drawn above the diagram. The accessible name is the diagram's `accTitle` when it has one, else "ER diagram: N tables, M relationships", and the text outline ([`outline()`](/api/core#outline)) lists the tables with their columns and relationships.
+
+## State diagrams
+
+The viewer draws [state diagrams](/guide/state) (`stateDiagram`, `stateDiagram-v2`) with the compound layout, each composite and concurrency region in its own direction; their code, with the shapes only state diagrams use, loads the first time a page shows one. `click` links go through the link policy and their tooltips show on hover, as in flowcharts. The accessible name is "State diagram: N states, M transitions" (states and composites, without the start and end pseudo-states), and the text outline ([`outline()`](/api/core#outline)) lists each state with its outgoing transitions, composites with their contents, and notes.
+
 ## Fallback and errors
 
-Flowcharts, sequence diagrams and ER diagrams are drawn by mmdx. Other Mermaid types follow `fallback`: `mermaid` renders them with stock Mermaid (an optional peer dependency, loaded lazily; configure it with `configure({ mermaid })`), `source` shows the text, `error` shows the error card. A source that cannot be parsed shows a compact error card with the diagnostics, the source with the bad lines marked, and a Copy button; it never throws into the page.
+Flowcharts, sequence diagrams, ER diagrams, mindmaps and state diagrams are drawn by mmdx. Other Mermaid types follow `fallback`: `mermaid` renders them with stock Mermaid (an optional peer dependency, loaded lazily: imported at run time where it resolves, as in Node or with an import map, and in a bundled app passed with `configure({ mermaid: () => import('mermaid') })`; version 10 to 12, with its `classic` look and `dagre` layout set explicitly, since Mermaid 12 changed their defaults), `source` shows the text, `error` shows the error card. A source that cannot be parsed shows a compact error card with the diagnostics, the source with the bad lines marked, and a Copy button; it never throws into the page.
 
 ## Keyboard shortcuts
 

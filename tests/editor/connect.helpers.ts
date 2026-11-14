@@ -39,12 +39,13 @@ export function press(core: EditorCore, target: Element, p: Pt, opts: { altKey?:
 export function drag(core: EditorCore, target: Element, from: Pt, to: Pt, opts: { altKey?: boolean } = {}): Gesture {
   const g = press(core, target, from, opts);
   if (!g) throw new Error('no gesture started');
-  core.dragging = true;
+  // as the pointer loop does once a gesture moves
+  core.input.dragging = true;
   for (const t of [0.25, 0.5, 0.75, 1]) {
     const p = { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
     g.move(p.x - from.x, p.y - from.y, pev('pointermove', p, opts));
   }
-  core.dragging = false;
+  core.input.dragging = false;
   g.end?.(pev('pointerup', to, opts));
   core.drawOverlay();
   return g;

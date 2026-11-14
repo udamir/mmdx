@@ -16,11 +16,12 @@ import { isFiniteNumber } from '../validate.js';
 import { migrate } from './migrations.js';
 import { badValueDiagnostic, sanitizeMeta, sanitizeStyleObject, setCollection } from './sanitize.js';
 import { COLLECTIONS, KIND_TO_COLL, META_VERSION, emptyMeta } from './types.js';
-import type { Collection, DiagramMeta, MetaKind } from './types.js';
+import type { Collection, DiagramMeta, MetaIds, MetaKind } from './types.js';
 
 export * from './types.js';
 export { migrate } from './migrations.js';
-export { COLOR_KEYS, cleanStyleValue, sanitizeMeta, sanitizeStyleObject } from './sanitize.js';
+export { cleanStyleValue, sanitizeMeta, sanitizeStyleObject } from './sanitize.js';
+export { COLOR_KEYS } from './keys.js';
 
 export const META_HEADER = '%% ---- diagram-studio layout (safe to keep: Mermaid ignores %% comments) ----';
 const LINE = /^\s*%%@\s+([\w.]+)(?:\s+(\S+))?\s+(\{.*\})\s*$/;
@@ -34,8 +35,9 @@ export interface DiagramDocument {
   readonly meta: DiagramMeta;
 }
 
-// Ids with whitespace or `%` are URI-encoded so the line stays `kind id {json}`.
-export const encodeId = (id: string): string => (/[\s%]/.test(id) ? encodeURIComponent(id) : id);
+// Ids with whitespace, `%` or brackets are URI-encoded so the line stays `kind id {json}` (a state diagram's
+// pseudo-states are `[*]start`, `X/[*]end`: `%5B*%5Dstart`, `X%2F%5B*%5Dend`).
+export const encodeId = (id: string): string => (/[\s%[\]]/.test(id) ? encodeURIComponent(id) : id);
 /** URI-decodes an id; null when the encoding is malformed (the prototype threw here). */
 export function decodeId(raw: string): string | null {
   try {
@@ -174,8 +176,6 @@ export function joinSource(doc: DiagramDocument): string {
   return `${doc.code.trimEnd()}\n\n${META_HEADER}\n${lines.join('\n')}\n`;
 }
 
-/** Ids that exist in the model, per collection. Collections without a set are left alone. */
-export type MetaIds = Partial<Record<Collection, ReadonlySet<string>>>;
 
 /** Drops metadata of elements that no longer exist; only known collections are touched, `unknown` lines stay. */
 export function pruneMeta(meta: DiagramMeta, ids: MetaIds): DiagramMeta {

@@ -1,0 +1,1 @@
+# Module rule violations — baseline of today's violations (2026-11-11, e726eb1); may only shrink. See tools/check-layers.mjs. Empty since 2026-11-13 (BUG-016).

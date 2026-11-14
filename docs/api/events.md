@@ -42,7 +42,7 @@ Every component reports what happens through DOM `CustomEvent`s named `mmdx-*`, 
 
 ## Typed listeners
 
-The event maps are interfaces whose values are the whole `CustomEvent` types, not the details: `ViewerEventMap` from `@mmdx/studio/viewer`, `DiffEventMap` from `@mmdx/studio/diff` and `ThemeEditorEventMap` from `@mmdx/studio/theme-editor`. The package declares the tag names (`HTMLElementTagNameMap`, so `document.querySelector('mmdx-viewer')` is an `MmdxViewerElement`) but does not add the events to `HTMLElementEventMap`; a listener gets a plain `Event` until you type it:
+The event maps are interfaces whose values are the whole `CustomEvent` types, not the details: `ViewerEventMap` from `@mmdx/studio/viewer`, `EditorEventMap` from `@mmdx/studio/editor`, `DiffEventMap` from `@mmdx/studio/diff` and `ThemeEditorEventMap` from `@mmdx/studio/theme-editor`. The package declares the tag names (`HTMLElementTagNameMap`, so `document.querySelector('mmdx-viewer')` is an `MmdxViewerElement`) but does not add the events to `HTMLElementEventMap`; a listener gets a plain `Event` until you type it:
 
 ```ts
 import type { ViewerEventMap } from '@mmdx/studio/viewer';
@@ -81,10 +81,8 @@ declare global {
 }
 ```
 
-Then `viewer.addEventListener('mmdx-render', (e) => e.detail.durationMs)` is typed without a cast.
+Then `viewer.addEventListener('mmdx-render', (e) => e.detail.durationMs)` is typed without a cast. `EditorEventMap` does not merge with `DiffEventMap` (their `mmdx-export` details differ); type the editor's listeners with it directly, e.g. `(e as EditorEventMap['mmdx-dirty']).detail.dirty`.
 :::
-
-The editor exports no event map: type its details at the listener, e.g. `(e as CustomEvent<{ dirty: boolean }>).detail.dirty`, with the shapes from the [editor table](#mmdx-editor).
 
 ## `<mmdx-viewer>`
 
@@ -93,7 +91,7 @@ Typed by `ViewerEventMap` (`@mmdx/studio/viewer`). The History events are listed
 | Event | Detail | Cancelable | Bubbles / composed | When |
 |---|---|---|---|---|
 | `mmdx-render` | `{ bounds: Rect; type: string \| null; durationMs: number }` | no | yes | After every render: the first one and each re-render (new `source` or `src`, theme, layers, labels). With the stock Mermaid fallback, `type` is `null`, `bounds` all `0` and `durationMs` `0` |
-| `mmdx-error` | `{ diagnostics: Diagnostic[] }` | no | yes | A render reports warnings or errors (`info` diagnostics are left out, except `theme.missing`); a render fails and the error panel shows (e.g. `load.failed` when `src` cannot be fetched); `toPng()` could not embed fonts (`export.font-missing`, `info`) |
+| `mmdx-error` | `{ diagnostics: Diagnostic[] }` | no | yes | A render reports warnings or errors (`info` diagnostics are left out, except `theme.missing`); a render fails and the error panel shows (e.g. `load.failed` when `src` cannot be fetched); `toPng()` drew with local fonts (`export.font-missing`, `warning`: one diagnostic, the families in `params.fonts`) or left out remote images (`export.image-missing`, `warning`) |
 | `mmdx-link` | `{ href: string; id: string \| null }` | yes | yes | A click on a link in the diagram (not the end of a pan, not with the pen). `id` is the item's id |
 | `mmdx-fullscreen-request` | `{ enter: boolean }` | yes | yes | The full-screen button is pressed, before anything happens; `enter` is `true` when it would enter full screen |
 | `mmdx-fullscreen` | `{ active: boolean }` | no | yes | Full screen started or ended (the browser's, or the host's through the `fullscreen` property) |
@@ -103,7 +101,7 @@ Typed by `ViewerEventMap` (`@mmdx/studio/viewer`). The History events are listed
 
 ## `<mmdx-editor>`
 
-The editor has no exported event map; the shapes below are the ones it dispatches. It sends no `mmdx-render`. `ItemRef` and `Diagnostic` come from `@mmdx/studio/core`.
+Typed by `EditorEventMap` (`@mmdx/studio/editor`), which also declares the History events listed [below](#history-events). It sends no `mmdx-render`. `ItemRef` and `Diagnostic` come from `@mmdx/studio/core`.
 
 | Event | Detail | Cancelable | Bubbles / composed | When |
 |---|---|---|---|---|
@@ -114,13 +112,13 @@ The editor has no exported event map; the shapes below are the ones it dispatche
 | `mmdx-saved` | `{ source: string; version: string \| undefined }` | no | yes | The adapter saved; `version` is the adapter's new version |
 | `mmdx-conflict` | `{ mine: string; theirs: string; version: string }` | no | yes | The adapter reported a conflict on save, before the dialog that offers Keep mine, Take theirs or View both |
 | `mmdx-op` | `{ type: string; code?: string }` | yes | yes | Before every edit is committed: a gesture, a metadata change (styles, positions), a code rewrite (`code` is the new Mermaid code; `type: 'code.replace'` from the code panel), an opened file (`type: 'doc.open'`). `type` is the operation's label. Not for undo, redo or `setSource()` |
-| `mmdx-selection` | `{ items: ItemRef[] }` | no | yes | The selection is set (canvas, `select(items)`); not while History shows an old version |
+| `mmdx-selection` | `{ items: ItemRef[] }` | no | yes | The document's selection changed, however it changed (canvas, `select(items)`, undo, redo, a load), once per change and not when the editor is created; not while History shows an old version |
 | `mmdx-export` | `{ kind: 'mmdx' \| 'mmd' \| 'svg' \| 'png'; name: string; data: string \| Blob; type: string }` | yes | yes | An export is built (menu or `exportAs(kind)`), before the download. `type` is the MIME type |
 | `mmdx-link` | `{ href: string; id: string \| null }` | yes | yes | A click on a link or a linked item in View mode |
 | `mmdx-fullscreen-request` | `{ enter: boolean }` | yes | yes | As on the viewer |
 | `mmdx-fullscreen` | `{ active: boolean }` | no | yes | As on the viewer |
 | `mmdx-ui` | `{ ui: 'light' \| 'dark' }` | no | yes | The user picked light or dark with the scheme toggle |
-| `mmdx-error` | `{ diagnostics: Diagnostic[] }` | no | yes | The adapter's load failed (`load.failed`), a save failed (`save.failed`), an export failed (`export.failed`), a PNG export used local fonts (`export.font-missing`, `warning`) |
+| `mmdx-error` | `{ diagnostics: Diagnostic[] }` | no | yes | The adapter's load failed (`load.failed`), a save failed (`save.failed`), an export failed (`export.failed`), a PNG export used local fonts (`export.font-missing`, `warning`: one diagnostic, the families in `params.fonts`) or left out remote images whose host does not allow CORS (`export.image-missing`, `warning`) |
 
 Saving runs `mmdx-save` → `adapter.save(source, { version })` → `mmdx-saved`, or `mmdx-conflict` and the dialog, or `mmdx-error` when the adapter throws.
 
@@ -130,7 +128,7 @@ Saving runs `mmdx-save` → `adapter.save(source, { version })` → `mmdx-saved`
 
 ## History events
 
-History runs inside `<mmdx-viewer>` (the `history` control) and `<mmdx-editor>` (the `history` property). Its version panel and diff send the `<mmdx-diff>` events under History names: `mmdx-compare` becomes `mmdx-history-compare`, and so on (the session's `mmdx-render` is not passed on). History adds `open`, `close`, `show` and `restore`. `mmdx-link` and the full-screen events keep their names. The details match `DiffEventMap` (`DiffEventMap['mmdx-compare']['detail']` types `mmdx-history-compare`); `ViewerEventMap` declares `mmdx-history-open` and `mmdx-history-close`.
+History runs inside `<mmdx-viewer>` (the `history` control) and `<mmdx-editor>` (the `history` property). Its version panel and diff send the `<mmdx-diff>` events under History names: `mmdx-compare` becomes `mmdx-history-compare`, and so on (the session's `mmdx-render` is not passed on). History adds `open`, `close`, `show`, `mode` and `restore`. `mmdx-link` and the full-screen events keep their names. The details match `DiffEventMap` (`DiffEventMap['mmdx-compare']['detail']` types `mmdx-history-compare`); `ViewerEventMap` and `EditorEventMap` declare `mmdx-history-open`, `mmdx-history-close`, `mmdx-history-show`, `mmdx-history-version`, `mmdx-history-restore` and `mmdx-history-error`.
 
 | Event | Detail | Cancelable | Bubbles / composed | When |
 |---|---|---|---|---|
@@ -138,7 +136,7 @@ History runs inside `<mmdx-viewer>` (the `history` control) and `<mmdx-editor>` 
 | `mmdx-history-close` | `Record<string, never>` | no | yes | History closed; not when the component is destroyed |
 | `mmdx-history-show` | `{ shown: 'none' \| 'version' \| 'compare' }` | no | yes | When History opens and whenever what it shows changes: nothing older, a version as it is, a comparison |
 | `mmdx-history-compare` | `{ counts: DiffResult['counts']; typeChanged: boolean; base: string \| null; head: string \| null }` | no | yes | A comparison was rendered |
-| `mmdx-history-version` | `{ base: string \| null; head: string \| null; viewing?: string }` | no | yes | The compared pair changed, or a version is shown as it is (`viewing`; in the editor `base` and `head` are `null` then) |
+| `mmdx-history-version` | `{ base: string \| null; head: string \| null; viewing?: string }` | no | yes | The compared pair changed, or a version is shown as it is (`viewing`; `base` and `head` are `null` then) |
 | `mmdx-history-select` | `{ key: string \| null; change: ItemChange \| null }` | no | yes | A change was selected or the selection cleared |
 | `mmdx-history-view` | `{ view: DiffViewName; mode: DiffMode }` | no | yes | Before, Merged, After or Side by side was picked |
 | `mmdx-history-mode` | `{ mode: DiffMode; viewOnly: boolean }` | no | yes | The version panel's tab changed, or one version as it is started or ended |
@@ -163,7 +161,7 @@ Typed by `DiffEventMap` (`@mmdx/studio/diff`, which also exports `DiffResult`, `
 | `mmdx-version` | `{ base: string \| null; head: string \| null; viewing?: string }` | no | yes | The compared pair changed (`setPair()`, the timeline) or a version is viewed as it is (`viewVersion(id)`, with `viewing`); sync your URL here |
 | `mmdx-export` | `{ kind: DiffExportKind; name: string; data: string \| Blob }` | yes | yes | An export is built (`exportAs()` or the menu), before the download |
 | `mmdx-render` | `{ bounds: Rect; type: string \| null; durationMs: number }` | no | yes | After every render; `bounds` of the diff (of the viewed version in History mode), `type` of the After version |
-| `mmdx-error` | `{ diagnostics: Diagnostic[] }` | no | yes | Render warnings or errors of either version (`info` left out, except `theme.missing`); a version or a page of the history could not be loaded (`load.failed`) |
+| `mmdx-error` | `{ diagnostics: Diagnostic[] }` | no | yes | Render warnings or errors of either version (`info` left out, except `theme.missing`); a version or a page of the history could not be loaded (`load.failed`); `toPng()` used local fonts (`export.font-missing`, `warning`) or left out remote images (`export.image-missing`, `warning`) |
 | `mmdx-fullscreen` | `{ active: boolean }` | no | yes | Full screen started or ended |
 | `mmdx-fullscreen-request` | `{ enter: boolean }` | yes | yes | The full-screen button is pressed, before anything happens (dispatched by the shared zoom bar; not declared in `DiffEventMap`) |
 | `mmdx-link` | `{ href: string; id: string \| null }` | yes | yes | ⌘ / Ctrl + click on a link in the diagram |
@@ -212,11 +210,11 @@ interface Diagnostic {
 }
 ```
 
-Besides the parser's and renderer's codes, the components send `load.failed`, `save.failed`, `export.failed`, `export.font-missing`, `doc.too-large` (a render in the worker took too long), `mermaid.failed` (the stock Mermaid fallback failed) and `theme.missing`. Switch on `code`, not on `message`.
+Besides the parser's and renderer's codes (the renderer's `image.blocked`: an image the [image policy](/guide/security#image-policy) refused, with its `reason` in `params`), the components send `load.failed`, `save.failed`, `export.failed`, `export.font-missing`, `export.image-missing`, `doc.too-large` (a render in the worker took too long), `mermaid.failed` (the stock Mermaid fallback failed) and `theme.missing`. Switch on `code`, not on `message`.
 
 ## React wrappers
 
-The wrappers of `@mmdx/studio/react` (React 18 and older) map every `onMmdx*` prop to an event listener on the element: the part after `on` goes from PascalCase to kebab case, so `onMmdxRender` listens to `mmdx-render`, `onMmdxFullscreenRequest` to `mmdx-fullscreen-request`, `onMmdxThemeSaved` to `mmdx-theme-saved` and `onMmdxHistoryOpen` to `mmdx-history-open`. Any `mmdx-*` event works this way, including the bubbling events of inner components. The listeners are attached after each render and removed on the next one or on unmount, so inline functions are fine. The handler type is `(ev: CustomEvent) => void`; cast to an event map entry for a typed `detail`:
+The wrappers of `@mmdx/studio/react` (React 18 and older) map every `onMmdx*` prop to an event listener on the element: the part after `on` goes from PascalCase to kebab case, so `onMmdxRender` listens to `mmdx-render`, `onMmdxFullscreenRequest` to `mmdx-fullscreen-request`, `onMmdxThemeSaved` to `mmdx-theme-saved` and `onMmdxHistoryOpen` to `mmdx-history-open`. Any `mmdx-*` event works this way, including the bubbling events of inner components. One listener per event type calls the handler of the latest render (it is re-attached only when the set of `onMmdx…` props changes, and removed on unmount), so inline functions are fine. The handler type is `(ev: CustomEvent) => void`; cast to an event map entry for a typed `detail`:
 
 ```tsx
 import React from 'react';

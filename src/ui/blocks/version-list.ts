@@ -5,32 +5,21 @@
 // (`role=list`), the viewed version marked `aria-current`. Counts arriving later patch only their row's badges
 // (`refreshCounts()`). Replaces `historyRows` and `ago` of
 // elements/diff/panels.ts (same DOM and classes). The pick colours come from the `--mmdx-diff-*` tokens: the host
-// adopts `DIFF_TOKENS` (ui/styles/diff.ts).
-import type { VersionInfo } from '../../adapters/history.js';
+// adopts `DIFF_TOKENS` (diff/styles.ts).
+import type { VersionInfo } from '../../ports.js';
 import type { DiagramDiff } from '../../core/diff/index.js';
-import { h, icon } from '../h.js';
-import type { PopoverManager } from '../popover.js';
-import { registerMessages } from '../i18n.js';
+import { h, icon } from '../kit/h.js';
+import type { PopoverManager } from '../kit/popover.js';
+import { registerMessages } from '../../i18n.js';
 import { BLOCK_MESSAGES_DIFF } from '../messages/blocks-diff.js';
-import { untracked } from '../signal.js';
-import { read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
-import { focusedIn, keepFocus, rovingKeys } from './focus.js';
+import { untracked } from '../../reactive/signal.js';
+import { defineBlock, read, Scope, type BlockHandle, type Translate, type Value } from './block.js';
+import { focusedIn, keepFocus, rovingKeys } from '../kit/focus.js';
+import { ago } from '../kit/format.js';
 import { openMenu, type MenuEntry } from './menu.js';
 
 /** The row menu's "⋮" (three vertical dots). */
 const I_DOTS = 'M12 5h.01M12 12h.01M12 19h.01';
-
-/** Relative age of an ISO date (`3 days ago`), or '' without a valid date. */
-export const ago = (iso: string | undefined, locale: string): string => {
-  const ms = iso ? Date.parse(iso) : NaN;
-  if (Number.isNaN(ms)) return '';
-  const s = (Date.now() - ms) / 1000;
-  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
-  if (s < 3600) return rtf.format(-Math.max(1, Math.round(s / 60)), 'minute');
-  if (s < 86400) return rtf.format(-Math.round(s / 3600), 'hour');
-  if (s < 86400 * 60) return rtf.format(-Math.round(s / 86400), 'day');
-  return rtf.format(-Math.round(s / (86400 * 30)), 'month');
-};
 
 export type VersionCounts = DiagramDiff['counts'];
 
@@ -137,175 +126,169 @@ type Counts = VersionCounts | null | undefined;
 
 export function createVersionList(props: VersionListProps): VersionListHandle {
   registerMessages(BLOCK_MESSAGES_DIFF);
-  let p = { ...props };
-  let fx = new Scope();
-  const scope = new Scope();
-  const el = h('div', { class: 'mmdx-version-list' });
-  // the last tab switch: the rows animate for a moment after it (see the CSS)
-  let shownMode = read(p.mode);
-  /** The counts each row shows (refreshCounts patches the rows whose counts changed). */
-  const shownCounts = new Map<string, Counts>();
-  let switchedAt = -Infinity;
-  const ANIM_MS = 700;
+  return defineBlock(props, (p, scope) => {
+    const el = h('div', { class: 'mmdx-version-list' });
+    // the last tab switch: the rows animate for a moment after it (see the CSS)
+    let shownMode = read(p.mode);
+    /** The counts each row shows (refreshCounts patches the rows whose counts changed). */
+    const shownCounts = new Map<string, Counts>();
+    let switchedAt = -Infinity;
+    const ANIM_MS = 700;
 
-  // up / down: the same control (row, Before, After) in the next row, else the row itself
-  const keys = rovingKeys(el, {
-    orientation: 'vertical', selector: '.version', wrap: false,
-    pick: (target, row) => {
-      const same = row.querySelector<HTMLButtonElement>(`[data-col=${(target.dataset['col'] ?? 'main') as Col}]`);
-      return same && !same.disabled ? same : row.querySelector<HTMLElement>('[data-col=main]');
-    },
-  });
-  scope.add(() => keys.destroy());
-
-  const stats = (c: Counts, t: Translate): HTMLElement => {
-    const n = c ? c.added + c.removed + c.changed : 0;
-    return c === undefined
-      ? h('span', { class: 'vstats skeleton', 'aria-hidden': 'true' })
-      : c === null
-        ? h('span', { class: 'vcount' }, t('diff.history.initial'))
-        : h('span', { class: 'vstats' },
-          c.added ? h('span', { class: 'add' }, `+${c.added}`) : null,
-          c.removed ? h('span', { class: 'del' }, `−${c.removed}`) : null,
-          c.changed ? h('span', { class: 'chg' }, `~${c.changed}`) : null,
-          n ? null : h('span', null, t('diff.history.noChanges')));
-  };
-
-  const render = (): void => {
-    fx.dispose();
-    fx = new Scope();
-    const t = p.t;
-    if (p.part) el.setAttribute('part', p.part);
-    else el.removeAttribute('part');
-    const mode = read(p.mode), base = read(p.base), head = read(p.head), viewingId = read(p.viewing);
-    const compare = mode === 'compare';
-    const tl = compare ? p.timeline : undefined;
-    if (mode !== shownMode) {
-      shownMode = mode;
-      switchedAt = performance.now();
-    }
-    shownCounts.clear();
-    const since = performance.now() - switchedAt;
-    const anim = since < ANIM_MS && !!p.timeline;
-    // the timeline's range: the rows from the newer of the pair down to the older one
-    const bi = p.versions.findIndex((v) => v.id === base), hi = p.versions.findIndex((v) => v.id === head);
-    const top = Math.min(bi, hi), bottom = Math.max(bi, hi);
-    const ranged = bi >= 0 && hi >= 0;
-    const rail = (v: VersionInfo, i: number, isBefore: boolean, isAfter: boolean): HTMLElement => {
-      const on = isBefore || isAfter;
-      const inRange = ranged && i >= top && i <= bottom;
-      // the end that a dot moves: the nearer one (above the range: the top one, below: the bottom one)
-      const topSide: 'before' | 'after' = bi === top ? 'before' : 'after';
-      const bottomSide: 'before' | 'after' = topSide === 'before' ? 'after' : 'before';
-      const side: 'before' | 'after' = !ranged ? (bi < 0 ? 'before' : 'after') : i < top ? topSide : i > bottom ? bottomSide : i - top <= bottom - i ? topSide : bottomSide;
-      const label = on ? t(isBefore ? 'diff.history.swapBefore' : 'diff.history.swapAfter', { id: v.id })
-        : t(side === 'before' ? 'diff.history.useAsBefore' : 'diff.history.useAsAfter', { id: v.id });
-      const node = h('button', {
-        type: 'button', class: `vnode${on ? ` on ${isBefore ? 'before' : 'after'}` : inRange ? ' in' : ''}`, 'data-f': `node:${v.id}`, 'data-col': 'node',
-        title: label, 'aria-label': label, ...(on ? { 'aria-pressed': 'true' } : {}),
-      }, on ? h('span', { class: 'ini', 'aria-hidden': 'true' }, t(isBefore ? 'diff.history.beforeShort' : 'diff.history.afterShort')) : null);
-      fx.on(node, 'click', () => (on ? tl!.onSwap() : p.onPick(side, v.id)));
-      const last = i === p.versions.length - 1 && !p.hasMore;
-      return h('span', { class: `vrail${i === 0 ? ' first' : ''}${last ? ' last' : ''}`, style: `--i: ${Math.min(i, 12)}` },
-        inRange && top !== bottom ? h('span', { class: `vrange${i === top ? ' top' : ''}${i === bottom ? ' bottom' : ''}` }) : null,
-        node);
-    };
-    const rows = p.versions.map((v, i) => {
-      const c = p.counts(v.id);
-      shownCounts.set(v.id, c);
-      const isAfter = compare && v.id === head, isBefore = compare && v.id === base;
-      const pick = (side: 'before' | 'after'): HTMLElement => {
-        const on = side === 'after' ? isAfter : isBefore;
-        // one version cannot be both sides
-        const taken = side === 'after' ? isBefore : isAfter;
-        const label = side === 'after' ? t('diff.history.after') : t('diff.history.before');
-        const b = h('button', {
-          type: 'button', class: `pick pick-${side}${on ? ' on' : ''}`, 'aria-pressed': String(on), disabled: taken, 'data-f': `${side}:${v.id}`, 'data-col': side,
-          title: taken ? t(side === 'after' ? 'diff.history.sameBefore' : 'diff.history.sameAfter', { id: v.id })
-            : t(side === 'after' ? 'diff.history.useAsAfter' : 'diff.history.useAsBefore', { id: v.id }),
-        }, label);
-        fx.on(b, 'click', () => p.onPick(side, v.id));
-        return b;
-      };
-      const who = [v.author, ago(v.date, p.locale)].filter(Boolean).join(' ');
-      const viewing = !compare && v.id === viewingId;
-      const main = h('button', {
-        type: 'button', class: 'version-main', 'data-f': `v:${v.id}`, 'data-col': 'main', ...(viewing ? { 'aria-current': 'true' } : {}),
-        title: compare ? t('diff.history.compareWith', { id: v.id }) : t('diff.history.view', { id: v.id }),
+    // up / down: the same control (row, Before, After) in the next row, else the row itself
+    const keys = rovingKeys(el, {
+      orientation: 'vertical', selector: '.version', wrap: false,
+      pick: (target, row) => {
+        const same = row.querySelector<HTMLButtonElement>(`[data-col=${(target.dataset['col'] ?? 'main') as Col}]`);
+        return same && !same.disabled ? same : row.querySelector<HTMLElement>('[data-col=main]');
       },
-        h('span', { class: 'vmsg' }, v.message || v.id),
-        h('span', { class: 'vmeta' },
-          h('span', { class: 'vwho' }, h('code', { class: 'vid' }, v.id), i === 0 ? h('span', { class: 'vtag' }, t('diff.history.current')) : null, who ? ` ${who}` : ''),
-          stats(c, t)));
-      fx.on(main, 'click', () => p.onRow(v.id));
-      let dots: HTMLButtonElement | null = null;
-      const m = p.menu;
-      if (m && (!m.modes || m.modes.includes(mode))) {
-        const label = t('diff.history.actions', { id: v.id });
-        const b = h('button', { type: 'button', class: 'vmenu', title: label, 'aria-label': label, 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'data-f': `menu:${v.id}`, 'data-col': 'menu' }, icon(I_DOTS, 18));
-        fx.on(b, 'click', () => {
-          const within = m.within?.();
-          openMenu({ popovers: m.popovers, opener: b, label, entries: m.entries(v.id, i), ...(within ? { within } : {}) });
-        });
-        dots = b;
-      }
-      return h('div', { class: `version${viewing ? ' viewing' : ''}${isAfter ? ' after' : ''}${isBefore ? ' before' : ''}${tl ? ' tl' : ''}`, role: 'listitem', 'data-id': v.id },
-        tl ? rail(v, i, isBefore, isAfter) : null,
-        main,
-        compare && !tl ? h('span', { class: 'vpick' }, pick('before'), pick('after')) : null,
-        dots);
     });
-    let more: HTMLElement | null = null;
-    if (p.hasMore) {
-      more = h('button', { type: 'button', class: 'more', 'data-f': 'more' }, t('diff.history.more'));
-      fx.on(more, 'click', () => p.onMore());
-    }
-    el.replaceChildren(
-      h('div', { class: `versions${tl ? ' timeline' : ''}${anim ? ' anim' : ''}`, ...(anim ? { style: `--vt: ${Math.round(since)}ms` } : {}), role: 'list', 'aria-label': compare ? t('diff.panel.compare') : t('diff.panel.history') }, ...rows),
-      ...(more ? [more] : []));
-  };
-  const rerender = (): void => {
-    const wasMore = focusedIn(el)?.dataset['f'] === 'more';
-    keepFocus(el, render);
-    // "Load more" went away with the last page: the focus goes to the oldest row instead of leaving the list
-    if (wasMore && !focusedIn(el)) [...el.querySelectorAll<HTMLElement>('.version-main')].pop()?.focus({ preventScroll: true });
-  };
-  // signals among mode / base / head / viewing re-render the rows when they change (the render itself is untracked)
-  let follow = new Scope();
-  const watch = (): void => {
-    follow.dispose();
-    follow = new Scope();
-    let first = true;
-    follow.effect(() => {
-      void [read(p.mode), read(p.base), read(p.head), read(p.viewing)];
-      if (first) first = false;
-      else untracked(rerender);
-    });
-  };
-  render();
-  watch();
+    scope.add(() => keys.destroy());
 
-  return {
-    el,
-    update(next) {
-      p = { ...p, ...next };
-      if (next && ('mode' in next || 'base' in next || 'head' in next || 'viewing' in next)) watch();
-      rerender();
-    },
-    refreshCounts() {
-      for (const row of el.querySelectorAll<HTMLElement>('.version')) {
-        const id = row.dataset['id']!;
-        const c = p.counts(id);
-        if (shownCounts.get(id) === c) continue;
-        shownCounts.set(id, c);
-        row.querySelector('.vmeta > .vstats, .vmeta > .vcount')?.replaceWith(stats(c, p.t));
+    const stats = (c: Counts, t: Translate): HTMLElement => {
+      const n = c ? c.added + c.removed + c.changed : 0;
+      return c === undefined
+        ? h('span', { class: 'vstats skeleton', 'aria-hidden': 'true' })
+        : c === null
+          ? h('span', { class: 'vcount' }, t('diff.history.initial'))
+          : h('span', { class: 'vstats' },
+            c.added ? h('span', { class: 'add' }, `+${c.added}`) : null,
+            c.removed ? h('span', { class: 'del' }, `−${c.removed}`) : null,
+            c.changed ? h('span', { class: 'chg' }, `~${c.changed}`) : null,
+            n ? null : h('span', null, t('diff.history.noChanges')));
+    };
+
+    const render = (): void => {
+      const fx = scope.renew();
+      const t = p.t;
+      if (p.part) el.setAttribute('part', p.part);
+      else el.removeAttribute('part');
+      const mode = read(p.mode), base = read(p.base), head = read(p.head), viewingId = read(p.viewing);
+      const compare = mode === 'compare';
+      const tl = compare ? p.timeline : undefined;
+      if (mode !== shownMode) {
+        shownMode = mode;
+        switchedAt = performance.now();
       }
-    },
-    destroy() {
-      follow.dispose();
-      fx.dispose();
-      scope.dispose();
-      el.remove();
-    },
-  };
+      shownCounts.clear();
+      const since = performance.now() - switchedAt;
+      const anim = since < ANIM_MS && !!p.timeline;
+      // the timeline's range: the rows from the newer of the pair down to the older one
+      const bi = p.versions.findIndex((v) => v.id === base), hi = p.versions.findIndex((v) => v.id === head);
+      const top = Math.min(bi, hi), bottom = Math.max(bi, hi);
+      const ranged = bi >= 0 && hi >= 0;
+      const rail = (v: VersionInfo, i: number, isBefore: boolean, isAfter: boolean): HTMLElement => {
+        const on = isBefore || isAfter;
+        const inRange = ranged && i >= top && i <= bottom;
+        // the end that a dot moves: the nearer one (above the range: the top one, below: the bottom one)
+        const topSide: 'before' | 'after' = bi === top ? 'before' : 'after';
+        const bottomSide: 'before' | 'after' = topSide === 'before' ? 'after' : 'before';
+        const side: 'before' | 'after' = !ranged ? (bi < 0 ? 'before' : 'after') : i < top ? topSide : i > bottom ? bottomSide : i - top <= bottom - i ? topSide : bottomSide;
+        const label = on ? t(isBefore ? 'diff.history.swapBefore' : 'diff.history.swapAfter', { id: v.id })
+          : t(side === 'before' ? 'diff.history.useAsBefore' : 'diff.history.useAsAfter', { id: v.id });
+        const node = h('button', {
+          type: 'button', class: `vnode${on ? ` on ${isBefore ? 'before' : 'after'}` : inRange ? ' in' : ''}`, 'data-f': `node:${v.id}`, 'data-col': 'node',
+          title: label, 'aria-label': label, ...(on ? { 'aria-pressed': 'true' } : {}),
+        }, on ? h('span', { class: 'ini', 'aria-hidden': 'true' }, t(isBefore ? 'diff.history.beforeShort' : 'diff.history.afterShort')) : null);
+        fx.on(node, 'click', () => (on ? tl!.onSwap() : p.onPick(side, v.id)));
+        const last = i === p.versions.length - 1 && !p.hasMore;
+        return h('span', { class: `vrail${i === 0 ? ' first' : ''}${last ? ' last' : ''}`, style: `--i: ${Math.min(i, 12)}` },
+          inRange && top !== bottom ? h('span', { class: `vrange${i === top ? ' top' : ''}${i === bottom ? ' bottom' : ''}` }) : null,
+          node);
+      };
+      const rows = p.versions.map((v, i) => {
+        const c = p.counts(v.id);
+        shownCounts.set(v.id, c);
+        const isAfter = compare && v.id === head, isBefore = compare && v.id === base;
+        const pick = (side: 'before' | 'after'): HTMLElement => {
+          const on = side === 'after' ? isAfter : isBefore;
+          // one version cannot be both sides
+          const taken = side === 'after' ? isBefore : isAfter;
+          const label = side === 'after' ? t('diff.history.after') : t('diff.history.before');
+          const b = h('button', {
+            type: 'button', class: `pick pick-${side}${on ? ' on' : ''}`, 'aria-pressed': String(on), disabled: taken, 'data-f': `${side}:${v.id}`, 'data-col': side,
+            title: taken ? t(side === 'after' ? 'diff.history.sameBefore' : 'diff.history.sameAfter', { id: v.id })
+              : t(side === 'after' ? 'diff.history.useAsAfter' : 'diff.history.useAsBefore', { id: v.id }),
+          }, label);
+          fx.on(b, 'click', () => p.onPick(side, v.id));
+          return b;
+        };
+        const who = [v.author, ago(v.date, p.locale)].filter(Boolean).join(' ');
+        const viewing = !compare && v.id === viewingId;
+        const main = h('button', {
+          type: 'button', class: 'version-main', 'data-f': `v:${v.id}`, 'data-col': 'main', ...(viewing ? { 'aria-current': 'true' } : {}),
+          title: compare ? t('diff.history.compareWith', { id: v.id }) : t('diff.history.view', { id: v.id }),
+        },
+          h('span', { class: 'vmsg' }, v.message || v.id),
+          h('span', { class: 'vmeta' },
+            h('span', { class: 'vwho' }, h('code', { class: 'vid' }, v.id), i === 0 ? h('span', { class: 'vtag' }, t('diff.history.current')) : null, who ? ` ${who}` : ''),
+            stats(c, t)));
+        fx.on(main, 'click', () => p.onRow(v.id));
+        let dots: HTMLButtonElement | null = null;
+        const m = p.menu;
+        if (m && (!m.modes || m.modes.includes(mode))) {
+          const label = t('diff.history.actions', { id: v.id });
+          const b = h('button', { type: 'button', class: 'vmenu', title: label, 'aria-label': label, 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'data-f': `menu:${v.id}`, 'data-col': 'menu' }, icon(I_DOTS, 18));
+          fx.on(b, 'click', () => {
+            const within = m.within?.();
+            openMenu({ popovers: m.popovers, opener: b, label, entries: m.entries(v.id, i), ...(within ? { within } : {}) });
+          });
+          dots = b;
+        }
+        return h('div', { class: `version${viewing ? ' viewing' : ''}${isAfter ? ' after' : ''}${isBefore ? ' before' : ''}${tl ? ' tl' : ''}`, role: 'listitem', 'data-id': v.id },
+          tl ? rail(v, i, isBefore, isAfter) : null,
+          main,
+          compare && !tl ? h('span', { class: 'vpick' }, pick('before'), pick('after')) : null,
+          dots);
+      });
+      let more: HTMLElement | null = null;
+      if (p.hasMore) {
+        more = h('button', { type: 'button', class: 'more', 'data-f': 'more' }, t('diff.history.more'));
+        fx.on(more, 'click', () => p.onMore());
+      }
+      el.replaceChildren(
+        h('div', { class: `versions${tl ? ' timeline' : ''}${anim ? ' anim' : ''}`, ...(anim ? { style: `--vt: ${Math.round(since)}ms` } : {}), role: 'list', 'aria-label': compare ? t('diff.panel.compare') : t('diff.panel.history') }, ...rows),
+        ...(more ? [more] : []));
+    };
+    const rerender = (): void => {
+      const wasMore = focusedIn(el)?.dataset['f'] === 'more';
+      keepFocus(el, render);
+      // "Load more" went away with the last page: the focus goes to the oldest row instead of leaving the list
+      if (wasMore && !focusedIn(el)) [...el.querySelectorAll<HTMLElement>('.version-main')].pop()?.focus({ preventScroll: true });
+    };
+    // signals among mode / base / head / viewing re-render the rows when they change (the render itself is untracked)
+    // a second renewed scope, disposed with the block's
+    const watching = new Scope();
+    scope.add(() => watching.dispose());
+    const watch = (): void => {
+      const follow = watching.renew();
+      let first = true;
+      follow.effect(() => {
+        void [read(p.mode), read(p.base), read(p.head), read(p.viewing)];
+        if (first) first = false;
+        else untracked(rerender);
+      });
+    };
+    return {
+      el,
+      render: (next) => {
+        if (!next) {
+          render();
+          watch();
+          return;
+        }
+        if ('mode' in next || 'base' in next || 'head' in next || 'viewing' in next) watch();
+        rerender();
+      },
+      refreshCounts() {
+        for (const row of el.querySelectorAll<HTMLElement>('.version')) {
+          const id = row.dataset['id']!;
+          const c = p.counts(id);
+          if (shownCounts.get(id) === c) continue;
+          shownCounts.set(id, c);
+          row.querySelector('.vmeta > .vstats, .vmeta > .vcount')?.replaceWith(stats(c, p.t));
+        }
+      },
+    };
+  });
 }

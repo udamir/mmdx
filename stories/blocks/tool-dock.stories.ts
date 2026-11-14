@@ -3,10 +3,10 @@ import { PEN_COLORS, PEN_FADES, PEN_SIZES } from '../../src/dom/pen.js';
 import { createIconButton } from '../../src/ui/blocks/button.js';
 import { createPenOptions, PEN_OPTIONS_CSS, type PenSettings } from '../../src/ui/blocks/pen-options.js';
 import { createToolDock, dockBadge, dockButton, TOOL_DOCK_CSS } from '../../src/ui/blocks/tool-dock.js';
-import { createI18n, registerMessages } from '../../src/ui/i18n.js';
-import { ICONS } from '../../src/ui/icons.js';
-import { EDITOR_MESSAGES } from '../../src/ui/messages/editor.js';
-import { computed, signal } from '../../src/ui/signal.js';
+import { createI18n, registerMessages } from '../../src/i18n.js';
+import { I_code, I_hand, I_layers, I_pen, I_pointer, I_props, I_redo, I_shapes, I_undo } from '../../src/ui/kit/icons.js';
+import { EDITOR_MESSAGES } from '../../src/editor/messages.js';
+import { computed, signal } from '../../src/reactive/signal.js';
 import { chromeHost } from '../support.js';
 
 type Args = { ui: 'light' | 'dark'; compact: boolean; issues: number; canUndo: boolean };
@@ -35,16 +35,16 @@ function toolDock(a: Args): HTMLElement {
   const penOpts = createPenOptions({ pen, t });
 
   const toolBtn = (id: 'pointer' | 'hand' | 'pen', label: string, keys: string): HTMLButtonElement =>
-    dockButton({ icon: ICONS[id], label, keys, f: id, pressed: computed(() => tool() === id), onClick: () => {
+    dockButton({ icon: { pointer: I_pointer, hand: I_hand, pen: I_pen }[id], label, keys, f: id, pressed: computed(() => tool() === id), onClick: () => {
       tool.set(id);
       dock.setFlyout(id === 'pen' ? penOpts.el : null);
     } }).el;
   const panelBtn = (id: keyof typeof panels, icon: string, label: string, keys: string, cls: string): HTMLButtonElement =>
     dockButton({ icon, label, keys, f: id, class: cls, pressed: panels[id], onClick: () => panels[id].set(!panels[id].peek()) }).el;
-  const code = panelBtn('code', ICONS.code, t('tools.code'), 'c', 'vt-code');
+  const code = panelBtn('code', I_code, t('tools.code'), 'c', 'vt-code');
   dockBadge(code, a.issues);
-  const undo = createIconButton({ icon: ICONS.undo, label: t('tools.undo'), keys: 'mod+z', iconSize: 19, disabled: !a.canUndo });
-  const redo = createIconButton({ icon: ICONS.redo, label: t('tools.redo'), keys: 'mod+shift+z', iconSize: 19, disabled: true });
+  const undo = createIconButton({ icon: I_undo, label: t('tools.undo'), keys: 'mod+z', iconSize: 19, disabled: !a.canUndo });
+  const redo = createIconButton({ icon: I_redo, label: t('tools.redo'), keys: 'mod+shift+z', iconSize: 19, disabled: true });
 
   const dock = createToolDock({
     label: t('tools.title'),
@@ -52,9 +52,9 @@ function toolDock(a: Args): HTMLElement {
     groups: [
       { id: 'tools', items: [
         toolBtn('pointer', t('tools.pointer'), 'v'), toolBtn('hand', t('tools.hand'), 'h'),
-        dockButton({ icon: ICONS.shapes, label: t('tools.shapes'), keys: 's', attrs: { 'aria-haspopup': 'menu' } }).el,
+        dockButton({ icon: I_shapes, label: t('tools.shapes'), keys: 's', attrs: { 'aria-haspopup': 'menu' } }).el,
         toolBtn('pen', t('tools.pen'), 'p'), 'sep',
-        code, panelBtn('props', ICONS.props, t('tools.props'), 'i', 'vt-props'), panelBtn('layers', ICONS.layers, t('tools.layers'), 'l', 'vt-layers'),
+        code, panelBtn('props', I_props, t('tools.props'), 'i', 'vt-props'), panelBtn('layers', I_layers, t('tools.layers'), 'l', 'vt-layers'),
       ] },
       { id: 'undo', label: t('tools.history'), items: [undo.el, redo.el] },
     ],

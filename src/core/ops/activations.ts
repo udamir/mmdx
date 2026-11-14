@@ -1,6 +1,6 @@
 // Activation balance of sequence code, apart from the sequence ops so that the line reordering (reorder.ts) can check it without importing them (sequence.ts imports reorder.ts).
 // Messages are read by the parser's own scan: a regex for them backtracked for seconds on a long run of spaces.
-import { splitMessage } from '../parse/sequence.js';
+import { splitMessage } from '../kinds/sequence/parse.js';
 
 /** Mermaid rejects a deactivation (`-` or `deactivate X`) of a participant that is not active. */
 export function activationsBalanced(code: string): boolean {

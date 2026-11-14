@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createExportMenu, exportMenuEntries, type ExportEntry } from '../../../src/ui/blocks/export-menu.js';
-import { h } from '../../../src/ui/h.js';
-import { createI18n } from '../../../src/ui/i18n.js';
-import { PopoverManager } from '../../../src/ui/popover.js';
-import { signal } from '../../../src/ui/signal.js';
+import { h } from '../../../src/ui/kit/h.js';
+import { createI18n } from '../../../src/i18n.js';
+import { PopoverManager } from '../../../src/ui/kit/popover.js';
+import { signal } from '../../../src/reactive/signal.js';
 
 const t = createI18n().t;
 
@@ -109,5 +109,17 @@ describe('createExportMenu', () => {
     m.destroy();
     el.click();
     expect(pops.isOpen).toBe(false);
+  });
+});
+
+describe('menus read their label and popovers when they open (B36)', () => {
+  it('update({ popovers }) applies to the next opening', () => {
+    const a = shadowHost(), b = shadowHost();
+    const m = createExportMenu({ entries: DIFF, popovers: a.pops, within: () => a.host, t });
+    b.root.append(m.el);
+    m.update({ popovers: b.pops, within: () => b.host });
+    m.el.click();
+    expect(b.root.querySelector('[role=menu]')).not.toBeNull();
+    expect(a.root.querySelector('[role=menu]')).toBeNull();
   });
 });

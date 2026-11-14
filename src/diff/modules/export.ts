@@ -3,13 +3,14 @@
 // version in History mode; Portable Mermaid), the patch and the reports (Markdown, JSON). hostActions shows the
 // host's buttons (`DiffAction`, e.g. History's Restore and Back) at the end of the view params, top right. Replace
 // `openExport` and `renderActions` of elements/diff.ts.
-import { keepFocus } from '../../ui/blocks/focus.js';
-import { h } from '../../ui/h.js';
-import { computed, untracked, type ReadSignal } from '../../ui/signal.js';
+import { keepFocus } from '../../ui/kit/focus.js';
+import { h } from '../../ui/kit/h.js';
+import { untracked, type ReadSignal } from '../../reactive/signal.js';
 import type { ViewCore } from '../../view/core.js';
 import type { ViewModule } from '../../view/module.js';
 import type { ExportFormat } from '../../view/types.js';
-import type { DiffExportKind, DiffExportOptions, DiffPair, DiffSession } from '../session.js';
+import type { DiffSession } from '../session.js';
+import type { DiffExportKind, DiffExportOptions, DiffPair } from '../../view/history.js';
 
 /** A button the host adds to the diff. */
 export interface DiffAction {
@@ -30,7 +31,7 @@ export function diffExportModule(session: DiffSession): ViewModule<ViewCore> {
       const core = scope.core;
       const t = core.i18n.t;
       const run = (kind: DiffExportKind, o?: DiffExportOptions) => (): Promise<void> => session.exportAs(kind, o);
-      const formats = computed((): ExportFormat[] => {
+      const formats = scope.computed((): ExportFormat[] => {
         const version = session.viewOnly();
         return [
           { id: 'png', label: t('diff.export.image'), section: 'image', run: run('png') },
@@ -52,22 +53,16 @@ export function diffExportModule(session: DiffSession): ViewModule<ViewCore> {
         ];
       });
       // the entries change with History mode: this module's own entries are replaced, the others' stay
-      let mine: readonly ExportFormat[] = [];
-      const put = (next: readonly ExportFormat[]): void => {
-        const others = core.exportFormats.peek().filter((f) => !mine.includes(f));
-        mine = next;
-        core.exportFormats.set([...others, ...next]);
-      };
+      const mine = scope.contributeAll(core.exportFormats);
       scope.effect(() => {
         const list = formats();
-        untracked(() => put(list));
+        untracked(() => mine.set(list));
       });
-      scope.register({ set: (on) => put(on ? formats.peek() : []), dispose: () => put([]) });
     },
   };
 }
 
-export const HOST_ACTIONS_CSS = /* css */ `
+const HOST_ACTIONS_CSS = /* css */ `
 .host-actions { display: contents; }
 .view-params .host-actions button { height: 32px; padding: 0 12px; border-radius: 8px; white-space: nowrap; }
 `;

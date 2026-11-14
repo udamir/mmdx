@@ -1,0 +1,300 @@
+// Lightweight code editor (A.1 rows 2–4, 6): a transparent <textarea> over a syntax-highlighted <pre>, with line
+// numbers, `%% - N hidden` folds (filtered views keep the real line numbers) and `!` issue markers in the gutter.
+// Ported from prototype/editor.js without innerHTML: highlighting produces tokens that become text nodes and spans.
+// The design names CodeMirror; v1 keeps this dependency-free editor behind a small API so it can be swapped later.
+
+import { HIDDEN_LINE, highlightLine, tokenNodes, type LineHighlighter } from './highlight.js';
+import { CODE_TOKENS_CSS } from './code-tokens-styles.js';
+import { maxOf } from '../../core/geom.js';
+
+export { highlightLine, highlightMetaLine, type LineHighlighter, type Token } from './highlight.js';
+
+/**
+ * Line numbers for an editor view. `%% - N hidden` lines (filtered view) get `⋯` and advance the counter by N, so
+ * visible lines keep their real line numbers from the full file.
+ */
+export function lineLabels(text: string): string[] {
+  const out: string[] = [];
+  let n = 0;
+  for (const l of text.split('\n')) {
+    const m = HIDDEN_LINE.exec(l.trim());
+    if (m) {
+      out.push('⋯');
+      n += Number(m[1]);
+    } else out.push(String(++n));
+  }
+  return out;
+}
+
+export interface CodeEditorOptions {
+  value?: string;
+  lineNumbers?: boolean;
+  highlightLine?: LineHighlighter;
+  /** Accessible name of the text area. */
+  label?: string;
+  /** Grow with the content up to `maxHeight` (theme editor snippets). */
+  autoHeight?: boolean;
+  maxHeight?: number;
+  onInput?: (value: string) => void;
+  onKeyDown?: (ev: KeyboardEvent) => void;
+  onBlur?: () => void;
+  /** Positioning context for the gutter tooltip (an absolutely / relatively positioned ancestor). */
+  tipHost?: () => HTMLElement | null;
+}
+
+export interface CodeEditor {
+  readonly el: HTMLElement;
+  readonly textarea: HTMLTextAreaElement;
+  value: string;
+  readOnly: boolean;
+  /** Re-renders the highlight and the gutter from the textarea. */
+  refresh(): void;
+  /** Issue markers: real (1-based) line number → messages. */
+  setMarkers(m: ReadonlyMap<number, readonly string[]> | null): void;
+  /** Puts the caret on real (1-based) line `n`; false when a filtered view hides it. */
+  gotoLine(n: number): boolean;
+  focus(): void;
+  destroy(): void;
+}
+
+const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] => {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+};
+
+/** Creates the editor (its root is `el`; the caller places it). */
+export function createCodeEditor(opts: CodeEditorOptions = {}): CodeEditor {
+  const hl = opts.highlightLine ?? highlightLine;
+  const ac = new AbortController();
+  const sig = { signal: ac.signal };
+  const wrap = el('div', 'cm' + (opts.autoHeight ? ' auto' : ''));
+  const pre = el('pre', 'cm-hl');
+  pre.setAttribute('aria-hidden', 'true');
+  const codeEl = el('code');
+  pre.append(codeEl);
+  const ta = el('textarea', 'cm-ta');
+  ta.spellcheck = false;
+  ta.setAttribute('autocomplete', 'off');
+  ta.setAttribute('autocapitalize', 'off');
+  ta.setAttribute('autocorrect', 'off');
+  ta.wrap = 'off';
+  if (opts.label) ta.setAttribute('aria-label', opts.label);
+  wrap.append(pre, ta);
+  let gutter: HTMLElement | null = null, gutterInner: HTMLElement | null = null;
+  if (opts.lineNumbers) {
+    wrap.classList.add('with-gutter');
+    gutter = el('div', 'cm-gutter');
+    gutter.setAttribute('aria-hidden', 'true');
+    gutterInner = el('div');
+    gutter.append(gutterInner);
+    wrap.prepend(gutter);
+  }
+  ta.value = opts.value ?? '';
+
+  // the highlighted layer and the gutter follow the textarea's scroll position (both axes)
+  const sync = (): void => {
+    codeEl.style.transform = `translate(${-ta.scrollLeft}px, ${-ta.scrollTop}px)`;
+    if (gutterInner) gutterInner.style.transform = `translateY(${-ta.scrollTop}px)`;
+  };
+
+  let markers: ReadonlyMap<number, readonly string[]> = new Map();
+  let lastLabels = '';
+  const renderGutter = (force = false): void => {
+    if (!gutter || !gutterInner) return;
+    const labels = lineLabels(ta.value);
+    const key = labels.join(',');
+    if (key === lastLabels && !force) return;
+    lastLabels = key;
+    const digits = Math.max(2, maxOf(labels.map((l) => l.length)));
+    wrap.style.setProperty('--gutter', `${digits * 7.6 + 32}px`);
+    const rows = labels.map((l) => {
+      if (l === '⋯') return el('div', 'fold', '⋯');
+      const msgs = markers.get(Number(l));
+      if (!msgs?.length) return el('div', undefined, l);
+      const row = el('div', 'has-issue');
+      const ic = el('span', 'cm-issue', '!');
+      ic.dataset['tip'] = msgs.join('\n');
+      row.append(ic, l);
+      return row;
+    });
+    gutterInner.replaceChildren(...rows);
+  };
+
+  // tooltip for the gutter icons (the gutter clips overflow, so the tip lives on the tip host)
+  let tip: HTMLElement | null = null;
+  const hideTip = (): void => {
+    tip?.remove();
+  };
+  if (gutter) {
+    gutter.addEventListener('mouseover', (ev) => {
+      const ic = (ev.target as Element | null)?.closest?.('.cm-issue') as HTMLElement | null;
+      if (!ic) return;
+      const host = opts.tipHost?.() ?? wrap.parentElement;
+      if (!host) return;
+      tip ??= el('div', 'cm-tip');
+      tip.setAttribute('role', 'tooltip');
+      tip.textContent = ic.dataset['tip'] ?? '';
+      host.append(tip);
+      const r = ic.getBoundingClientRect(), hr = host.getBoundingClientRect();
+      tip.style.left = `${r.right + 6 - hr.left}px`;
+      tip.style.top = `${r.top - 4 - hr.top}px`;
+    }, sig);
+    gutter.addEventListener('mouseout', (ev) => {
+      if ((ev.target as Element | null)?.closest?.('.cm-issue')) hideTip();
+    }, sig);
+    gutter.addEventListener('mousedown', (ev) => {
+      const ic = (ev.target as Element | null)?.closest?.('.cm-issue');
+      if (!ic || !gutterInner) return;
+      ev.preventDefault();
+      hideTip();
+      gotoView(Array.from(gutterInner.children).indexOf(ic.parentElement as Element));
+    }, sig);
+  }
+
+  // caret on view line `i` (0-based line of the textarea's text), selected and scrolled into view
+  const gotoView = (i: number): void => {
+    const lines = ta.value.split('\n');
+    i = Math.max(0, Math.min(i, lines.length - 1));
+    let start = 0;
+    for (let k = 0; k < i; k++) start += lines[k]!.length + 1;
+    ta.focus({ preventScroll: true });
+    ta.setSelectionRange(start, start + lines[i]!.length);
+    const lh = parseFloat(getComputedStyle(ta).lineHeight) || 19;
+    const top = i * lh;
+    if (top < ta.scrollTop || top + lh > ta.scrollTop + ta.clientHeight - 16) ta.scrollTop = Math.max(0, top - ta.clientHeight / 3);
+    ta.scrollLeft = 0;
+    sync();
+  };
+
+  const fit = (): void => {
+    if (!opts.autoHeight) return;
+    ta.style.height = '0px';
+    const hgt = Math.min(opts.maxHeight ?? 360, ta.scrollHeight + 2);
+    ta.style.height = `${hgt}px`;
+    wrap.style.height = `${hgt}px`;
+  };
+
+  // one element per line; a keystroke re-highlights the lines between the unchanged first and last ones (P10)
+  let shown: string[] = [];
+  const renderCode = (): void => {
+    const lines = ta.value.split('\n');
+    let pre = 0, suf = 0;
+    while (pre < lines.length && pre < shown.length && lines[pre] === shown[pre]) pre++;
+    while (suf < lines.length - pre && suf < shown.length - pre && lines[lines.length - 1 - suf] === shown[shown.length - 1 - suf]) suf++;
+    const rows = codeEl.children;
+    for (let i = shown.length - suf - 1; i >= pre; i--) rows[i]!.remove();
+    const f = document.createDocumentFragment();
+    for (let i = pre; i < lines.length - suf; i++) {
+      const row = document.createElement('span');
+      row.append(...tokenNodes(hl(lines[i]!)), '\n');
+      f.append(row);
+    }
+    codeEl.insertBefore(f, rows[pre] ?? null);
+    shown = lines;
+  };
+  const render = (full = false): void => {
+    if (full) {
+      shown = [];
+      codeEl.replaceChildren();
+    }
+    renderCode();
+    renderGutter();
+    fit();
+    sync();
+  };
+
+  ta.addEventListener('input', () => {
+    render();
+    opts.onInput?.(ta.value);
+  }, sig);
+  ta.addEventListener('scroll', sync, sig);
+  ta.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Tab' && !ev.metaKey && !ev.ctrlKey && !ev.altKey && !ta.readOnly) {
+      ev.preventDefault();
+      // execCommand keeps the browser's own undo stack; fall back where it is unavailable (jsdom, old engines)
+      let ok = false;
+      try {
+        ok = typeof document.execCommand === 'function' && document.execCommand('insertText', false, '  ');
+      } catch {
+        ok = false;
+      }
+      if (!ok) {
+        ta.setRangeText('  ', ta.selectionStart, ta.selectionEnd, 'end');
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      return;
+    }
+    opts.onKeyDown?.(ev);
+  }, sig);
+  if (opts.onBlur) ta.addEventListener('blur', opts.onBlur, sig);
+  render();
+
+  return {
+    el: wrap,
+    textarea: ta,
+    get value() {
+      return ta.value;
+    },
+    set value(v: string) {
+      ta.value = v;
+      render();
+    },
+    get readOnly() {
+      return ta.readOnly;
+    },
+    set readOnly(v: boolean) {
+      ta.readOnly = v;
+    },
+    refresh: () => render(true),
+    setMarkers(m) {
+      markers = m ?? new Map();
+      renderGutter(true);
+    },
+    gotoLine(n) {
+      const i = lineLabels(ta.value).indexOf(String(n));
+      if (i < 0) return false;
+      gotoView(i);
+      return true;
+    },
+    focus() {
+      ta.focus();
+    },
+    destroy() {
+      ac.abort();
+      hideTip();
+      wrap.remove();
+    },
+  };
+}
+
+/** Code editor CSS (scoped to the component that hosts it). Syntax colours follow the host's `data-ui` scheme. */
+const EDITOR_CSS = /* css */ `
+.cm { position: relative; flex: 1; min-height: 0; border: 1px solid var(--mmdx-border); border-radius: 6px; background: var(--mmdx-surface-2); overflow: hidden; }
+.cm:focus-within { border-color: var(--mmdx-accent); box-shadow: 0 0 0 3px var(--mmdx-accent-2); }
+.cm-hl, .cm-ta { margin: 0; padding: 8px 10px; font: 12.5px/1.55 var(--mmdx-mono); white-space: pre; tab-size: 2; letter-spacing: 0; word-wrap: normal; }
+.cm-hl { position: absolute; inset: 0; overflow: hidden; pointer-events: none; color: var(--mmdx-text); }
+.cm-hl code { font: inherit; display: block; will-change: transform; }
+.cm-ta { position: relative; display: block; width: 100%; height: 100%; resize: none; border: 0; outline: 0; background: transparent; color: transparent;
+  caret-color: var(--mmdx-text); overflow: auto; overscroll-behavior: contain; box-shadow: none !important; }
+.cm-ta::-webkit-scrollbar { width: 9px; height: 9px; }
+.cm-ta::-webkit-scrollbar-thumb { background: var(--mmdx-faint); border-radius: 6px; border: 2px solid var(--mmdx-surface-2); }
+.cm-ta::-webkit-scrollbar-corner { background: transparent; }
+.cm-ta::selection { background: color-mix(in srgb, var(--mmdx-accent) 22%, transparent); color: transparent; }
+.cm.auto { flex: none; }
+.cm.with-gutter .cm-hl, .cm.with-gutter .cm-ta { padding-left: calc(var(--gutter, 34px) + 8px); }
+.cm-gutter { position: absolute; left: 0; top: 0; bottom: 0; width: var(--gutter, 34px); overflow: hidden; pointer-events: none; z-index: 1;
+  background: var(--mmdx-surface-2); border-right: 1px solid var(--mmdx-border); color: var(--mmdx-faint); text-align: right;
+  font: 12.5px/1.55 var(--mmdx-mono); padding: 8px 8px 8px 0; box-sizing: border-box; }
+.cm-gutter > div { will-change: transform; }
+.cm-gutter .fold { color: var(--mmdx-code-fold); }
+.cm-gutter .has-issue { position: relative; color: var(--mmdx-danger); font-weight: 600; }
+.cm-issue { position: absolute; left: 4px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; border-radius: 50%; background: var(--mmdx-danger); color: var(--mmdx-on-danger);
+  font: 800 9px/13px system-ui, sans-serif; text-align: center; pointer-events: auto; cursor: pointer; }
+.cm-tip { position: absolute; z-index: var(--mmdx-z-popover); max-width: 320px; padding: 6px 9px; border-radius: 6px; background: var(--mmdx-float); color: var(--mmdx-text);
+  border: 1px solid var(--mmdx-danger); box-shadow: var(--mmdx-shadow-lg); font-size: 12px; line-height: 1.4; white-space: pre-wrap; pointer-events: none; }
+`;
+
+/** The editor's styles, highlight colours included. */
+export const CODE_EDITOR_CSS = EDITOR_CSS + CODE_TOKENS_CSS;
