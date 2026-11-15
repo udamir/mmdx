@@ -213,8 +213,6 @@ Moving an item by hand pins the auto-placed ones where they are and stores their
 
 **Auto layout** (the `autoLayout` action) forgets every position of the diagram. **Reset positions in this group** — in a subgraph's ⋮ menu on the floating toolbar, its right-click menu and its Properties — forgets the positions inside one subgraph only (its nodes, nested subgraphs and the bend points of the connectors inside), and the layout arranges its contents again; the subgraph keeps its place (its top-left is stored, as `x` / `y` without a size), and everything outside it stays as it is. It is greyed out when nothing inside the subgraph has a stored position. Both are one undo step.
 
-Files laid out before the compound layout can keep the earlier layout for one more minor release: `%%@ canvas {"layout":"legacy"}` (see [the .mmdx format](/guide/mmdx-format#line-kinds)).
-
 ## Smart guides
 
 While a node, table, state or subgraph is moved or resized, dashed lines show where its edges or centre line up with the items around it, markers show equal gaps to its neighbours in a row or column, and inside a subgraph sized by hand, equal margins to the frame (left and right, top and bottom, or the same inset from a corner). Within 6 screen pixels the item snaps there; on that axis the guide takes the place of the snap grid. Only items in view count, and an alignment line runs to the nearest match on each side. A multi-selection and an Alt-drag copy align as one block; the resize handle snaps the right and bottom edges. Hold Alt while dragging for no guides and no grid. Flowcharts, ER and state diagrams have guides; sequence diagrams and mindmaps keep their own dragging.

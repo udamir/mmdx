@@ -349,13 +349,12 @@ function groupLooks(r: FlowRun, groupsSorted: readonly FlowGroup[]): Map<string,
 }
 
 /**
- * Auto layout for the nodes without positions: subgraphs as nested containers (T07), or the earlier layout for a
- * flowchart without subgraphs and with `canvas.layout: "legacy"`. `visibleIn`: the groups holding a node not hidden by
- * a layer.
+ * Auto layout for the nodes without positions: subgraphs as nested containers (T07), or the layered layout for a
+ * flowchart without subgraphs. `visibleIn`: the groups holding a node not hidden by a layer.
  */
 function layoutFlow(r: FlowRun, nodes: ReadonlyMap<string, NodeItem>, looks: ReadonlyMap<string, GroupLook>, hiddenNodes: ReadonlySet<string>): { CR: CompoundResult | null; visibleIn: Set<string> } {
   const { model, env } = r;
-  const compound = model.groups.size > 0 && env.meta.canvas.layout !== 'legacy';
+  const compound = model.groups.size > 0;
   /** Groups holding a node (any depth), and those holding a node not hidden by a layer. */
   const holdsNode = new Set<string>(), visibleIn = new Set<string>();
   for (const n of model.nodes.values()) {
@@ -368,54 +367,15 @@ function layoutFlow(r: FlowRun, nodes: ReadonlyMap<string, NodeItem>, looks: Rea
   }
   const missing = [...nodes.values()].filter((N) => Number.isNaN(N.x) || Number.isNaN(N.y));
   if (compound) return { CR: flowCompound(model, env.ctx, nodes, looks, holdsNode, hiddenNodes), visibleIn };
-  if (missing.length) legacyLayout(model, env.ctx, nodes, missing);
+  if (missing.length) layeredLayout(model, env.ctx, nodes, missing);
   return { CR: null, visibleIn };
 }
 
-/** The earlier layered layout: nodes in nested groups by their group path, a link to a group to its first node; auto-placed nodes go below the hand-placed ones. */
-function legacyLayout(model: FlowchartModel, ctx: RenderEnv['ctx'], nodes: ReadonlyMap<string, NodeItem>, missing: readonly NodeItem[]): void {
-  const pathOf = (id: string): string[] => {
-    const p: string[] = [];
-    const seen = new Set<string>();
-    let g = model.nodes.get(id)?.parent;
-    while (g && !seen.has(g)) {
-      seen.add(g);
-      p.unshift(g);
-      g = model.groups.get(g)?.parent;
-    }
-    return p;
-  };
-  const firstNodeCache = new Map<string, string | null>();
-  const firstNode = (gid: string): string | null => {
-    // depth-first through nested groups, iteratively
-    if (firstNodeCache.has(gid)) return firstNodeCache.get(gid)!;
-    const stack: { id: string; k: number }[] = [{ id: gid, k: 0 }];
-    const seen = new Set([gid]);
-    let found: string | null = null;
-    while (stack.length && found === null) {
-      const top = stack[stack.length - 1]!;
-      const ch = model.groups.get(top.id)?.children ?? [];
-      if (top.k >= ch.length) {
-        stack.pop();
-        continue;
-      }
-      const c = ch[top.k++]!;
-      if (model.nodes.has(c)) found = c;
-      else if (model.groups.has(c) && !seen.has(c)) {
-        seen.add(c);
-        stack.push({ id: c, k: 0 });
-      }
-    }
-    firstNodeCache.set(gid, found);
-    return found;
-  };
-  const ln: LayoutNode[] = missing.map((N) => ({ id: N.n.id, w: N.w, h: N.h, path: pathOf(N.n.id) }));
-  const le: LayoutEdge[] = model.edges.map((e) => ({
-    from: model.groups.has(e.from) ? firstNode(e.from) : e.from,
-    to: model.groups.has(e.to) ? firstNode(e.to) : e.to,
-    minlen: e.minlen,
-  }));
-  const lo = { dir: model.direction, rankSep: model.groups.size ? 110 : 70, nodeSep: 46, groupGap: 60 };
+/** The layered layout of a flowchart without subgraphs; auto-placed nodes go below the hand-placed ones. */
+function layeredLayout(model: FlowchartModel, ctx: RenderEnv['ctx'], nodes: ReadonlyMap<string, NodeItem>, missing: readonly NodeItem[]): void {
+  const ln: LayoutNode[] = missing.map((N) => ({ id: N.n.id, w: N.w, h: N.h, path: [] }));
+  const le: LayoutEdge[] = model.edges.map((e) => ({ from: e.from, to: e.to, minlen: e.minlen }));
+  const lo = { dir: model.direction, rankSep: 70, nodeSep: 46, groupGap: 60 };
   const pos = cachedLayout(ctx, ln, le, lo, () => layered(ln, le, lo));
   // Offset auto-placed nodes below manually placed ones.
   let dy = 0;

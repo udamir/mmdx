@@ -42,7 +42,7 @@ BlockKind (type): = 'loop' | 'alt' | 'opt' | 'par' | 'critical' | 'break' | 'rec
 BracketSpan (type): { start, text, end, open, close }
 BUILTIN_THEMES: readonly ThemeFile[]
 BuiltinType (type): = 'flowchart' | 'sequence' | 'er' | 'mindmap' | 'state'
-CanvasMeta (type): { v?, preset?, layout?, w?, h?, x?, y?, background?, border?, grid?, pad?, routing?, ratio?, gap?, rowH?, mirror?, blockSpan?, margin?, blockTags?, mindLayout?, composites? }
+CanvasMeta (type): { v?, preset?, w?, h?, x?, y?, background?, border?, grid?, pad?, routing?, ratio?, gap?, rowH?, mirror?, blockSpan?, margin?, blockTags?, mindLayout?, composites? }
 Cardinality (type): = 'zero-one' | 'one' | 'zero-many' | 'one-many'
 CenterBox (type): { x, y, w, h }
 ChangeFacet (type): = 'content' | 'layout' | 'style'

@@ -185,7 +185,7 @@ describe('compound layout of flowchart subgraphs', () => {
     expect(onBorder(to.b, s2)).toBe(true);
   });
 
-  it('draws files whose nodes all have positions as before', () => {
+  it('keeps every stored position of files whose nodes all have one', () => {
     const placed = FLOWCHARTS.filter((ex) => {
       const { doc } = splitSource(ex.src);
       const model = parse(doc.code) as FlowchartModel;
@@ -193,8 +193,12 @@ describe('compound layout of flowchart subgraphs', () => {
     });
     expect(placed.length).toBeGreaterThanOrEqual(3);
     for (const ex of placed) {
-      const legacy = renderMeta(ex.src, (m) => ({ ...m, canvas: { ...m.canvas, layout: 'legacy' } })).svg;
-      expect(renderMeta(ex.src).svg, ex.name).toBe(legacy);
+      const { doc } = splitSource(ex.src);
+      const { geom } = renderMeta(ex.src);
+      for (const [id, b] of geom.nodes) {
+        const m = doc.meta.nodes![id]!;
+        expect([b.x, b.y], `${ex.name} ${id}`).toEqual([m.x, m.y]);
+      }
     }
   });
 
