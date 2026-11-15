@@ -94,6 +94,8 @@ export interface EditKind<M extends SupportedModel = SupportedModel, G extends G
   noCopy?: string;
   /** Alt-drag copies items. */
   altCopy?: boolean;
+  /** Item kinds that show alignment guides while moved or resized, and that others align to (absent: no guides). */
+  guides?: readonly ItemKind[];
 
   // ---- connect ----
   /** Item kinds a connection starts or ends on. */

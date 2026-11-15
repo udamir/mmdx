@@ -25,6 +25,9 @@ export const PAINT = {
   table: 11,
   /** Connector handles, connection dots and the link preview. */
   connect: 70,
+  /** Smart guides of a move or resize: alignment lines, equal gaps and margins (over the connection dots, which they
+   * would otherwise hide in part; they take no pointer events, so the dots stay clickable). */
+  guides: 75,
   /** A diagram type's own marks (sequence, mindmap). */
   kind: 80,
 } as const;

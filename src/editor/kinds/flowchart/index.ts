@@ -130,6 +130,7 @@ export const EDIT: EditKind<FlowchartModel, FlowGeometry> = {
     return `${out.join('\n')}\n`;
   },
   altCopy: true,
+  guides: ['node', 'group'],
   connectable: ['node', 'group'],
   connect: addFlowEdge,
   added(M, from, to) {

@@ -86,9 +86,14 @@ function shiftAll(meta: DiagramMeta, items: readonly MoveTarget[], ddx: number, 
   }
 }
 
+/** A grid to snap to: one for both axes, or one per axis (0 = exact; a smart guide snaps that axis instead). */
+export type GridSnap = number | { x: number; y: number };
+const gridOf = (snap: GridSnap): { x: number; y: number } => (typeof snap === 'number' ? { x: snap, y: snap } : snap);
+
 /** In-place move of one item (prototype app `moveDrag(...).apply`). */
-function moveInPlace(meta: DiagramMeta, model: DiagramModel, geom: GeometryIndex | null | undefined, { kind, id }: ItemRef, dx: number, dy: number, part: 'label' | undefined, snap: number): void {
+function moveInPlace(meta: DiagramMeta, model: DiagramModel, geom: GeometryIndex | null | undefined, { kind, id }: ItemRef, dx: number, dy: number, part: 'label' | undefined, snap: GridSnap): void {
   if (kind === 'activation') return; // resized by its top / bottom handles
+  const { x: sx, y: sy } = gridOf(snap);
   if (getM(meta, kind, id).locked && part !== 'label') return;
   if (part === 'label') {
     const m = ensure(meta, kind, id);
@@ -99,7 +104,7 @@ function moveInPlace(meta: DiagramMeta, model: DiagramModel, geom: GeometryIndex
   const moveSet = (items: MoveTarget[]): void => {
     const f = items[0];
     if (!f) return;
-    shiftAll(meta, items, snapTo(f.x + dx, snap) - f.x, snapTo(f.y + dy, snap) - f.y);
+    shiftAll(meta, items, snapTo(f.x + dx, sx) - f.x, snapTo(f.y + dy, sy) - f.y);
   };
   if (kind === 'node' || kind === 'entity') {
     const b = boxOfItem(geom, { kind, id });
@@ -124,10 +129,10 @@ function moveInPlace(meta: DiagramMeta, model: DiagramModel, geom: GeometryIndex
     if (!items.length) return;
     // snap relative to the group's top-left
     const tl = { x: self.x - self.w / 2, y: self.y - self.h / 2 };
-    shiftAll(meta, items, snapTo(tl.x + dx, snap) - tl.x, snapTo(tl.y + dy, snap) - tl.y);
+    shiftAll(meta, items, snapTo(tl.x + dx, sx) - tl.x, snapTo(tl.y + dy, sy) - tl.y);
   } else if (kind === 'participant') {
     const b = boxOfItem(geom, { kind, id });
-    if (b) ensure(meta, 'participant', id).x = snapTo(b.x + dx, snap);
+    if (b) ensure(meta, 'participant', id).x = snapTo(b.x + dx, sx);
   } else if (kind === 'message' || kind === 'note' || kind === 'block') {
     const m = ensure(meta, kind, id);
     m.dy = Math.max(-40, Math.round((typeof m.dy === 'number' ? m.dy : 0) + dy));
@@ -139,8 +144,8 @@ function moveInPlace(meta: DiagramMeta, model: DiagramModel, geom: GeometryIndex
 export interface MoveOpts {
   /** Move a connector's label (edge / rel) instead of the item. */
   part?: 'label';
-  /** Grid to snap to (0 = exact). */
-  snap?: number;
+  /** Grid to snap to (0 = exact), per axis or for both. */
+  snap?: GridSnap;
 }
 
 /**
@@ -155,7 +160,7 @@ export function moveItem(model: DiagramModel, meta: DiagramMeta, geom: GeometryI
 }
 
 /** Moves a multi-selection by the same delta (prototype `multiMoveDrag`): nodes, tables, groups with contents, and the sequence items. */
-export function moveItems(model: DiagramModel, meta: DiagramMeta, geom: GeometryIndex | null | undefined, refs: readonly ItemRef[], dx: number, dy: number, snap = 0): MetaResult {
+export function moveItems(model: DiagramModel, meta: DiagramMeta, geom: GeometryIndex | null | undefined, refs: readonly ItemRef[], dx: number, dy: number, snap: GridSnap = 0): MetaResult {
   const out = pinAutoInPlace(cloneMeta(meta), model, geom);
   const items = new Map<string, MoveTarget>();
   const add = (kind: ItemKind, id: string, x: unknown, y: unknown): void => {
@@ -184,8 +189,8 @@ export function moveItems(model: DiagramModel, meta: DiagramMeta, geom: Geometry
     }
   }
   const list = [...items.values()];
-  const f = list[0];
-  if (f) shiftAll(out, list, snapTo(f.x + dx, snap) - f.x, snapTo(f.y + dy, snap) - f.y);
+  const f = list[0], { x: sx, y: sy } = gridOf(snap);
+  if (f) shiftAll(out, list, snapTo(f.x + dx, sx) - f.x, snapTo(f.y + dy, sy) - f.y);
   // sequence items move as dragging one does: participants sideways, messages / notes / blocks up or down
   for (const it of refs)
     if ((it.kind === 'participant' || it.kind === 'message' || it.kind === 'note' || it.kind === 'block') && !getM(out, it.kind, it.id).locked)

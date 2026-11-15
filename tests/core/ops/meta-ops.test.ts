@@ -103,6 +103,19 @@ describe('positions', () => {
     expect(r.nodes!['C']!.y).toBe(Math.round(geom.nodes.get('C')!.y + 10));
   });
 
+  it('the grid can be set per axis (a smart guide snaps the other axis exactly)', () => {
+    const a = geom.nodes.get('A')!;
+    const one = moveItem(model, emptyMeta(), geom, { kind: 'node', id: 'A' }, 7.4, 7.4, { snap: { x: 0, y: 5 } }).meta.nodes!['A']!;
+    expect(one.x).toBe(Math.round(a.x + 7.4));
+    expect(Number(one.y) % 5).toBe(0);
+    const many = moveItems(model, emptyMeta(), geom, [{ kind: 'node', id: 'A' }, { kind: 'node', id: 'B' }], 7.4, 7.4, { x: 5, y: 0 }).meta.nodes!['A']!;
+    expect(Number(many.x) % 5).toBe(0);
+    expect(many.y).toBe(Math.round(a.y + 7.4));
+    // a number keeps snapping both axes
+    const both = moveItem(model, emptyMeta(), geom, { kind: 'node', id: 'A' }, 7, 7, { snap: 5 }).meta.nodes!['A']!;
+    expect([Number(both.x) % 5, Number(both.y) % 5]).toEqual([0, 0]);
+  });
+
   it('alignItems aligns and distributes; locked items stay', () => {
     const refs = [{ kind: 'node' as const, id: 'A' }, { kind: 'node' as const, id: 'B' }, { kind: 'node' as const, id: 'C' }];
     const top = alignItems(model, emptyMeta(), geom, refs, 'top').meta;

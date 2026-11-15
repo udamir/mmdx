@@ -215,6 +215,10 @@ Moving an item by hand pins the auto-placed ones where they are and stores their
 
 Files laid out before the compound layout can keep the earlier layout for one more minor release: `%%@ canvas {"layout":"legacy"}` (see [the .mmdx format](/guide/mmdx-format#line-kinds)).
 
+## Smart guides
+
+While a node, table, state or subgraph is moved or resized, dashed lines show where its edges or centre line up with the items around it, markers show equal gaps to its neighbours in a row or column, and inside a subgraph sized by hand, equal margins to the frame (left and right, top and bottom, or the same inset from a corner). Within 6 screen pixels the item snaps there; on that axis the guide takes the place of the snap grid. Only items in view count, and an alignment line runs to the nearest match on each side. A multi-selection and an Alt-drag copy align as one block; the resize handle snaps the right and bottom edges. Hold Alt while dragging for no guides and no grid. Flowcharts, ER and state diagrams have guides; sequence diagrams and mindmaps keep their own dragging.
+
 ## Insert dock
 
 The tools below Pointer add things to the diagram. Each diagram type offers what it can hold; a button it does not offer is hidden.
@@ -441,7 +445,7 @@ Shortcuts work while the focus is inside the editor; `?` lists those that apply 
 | `Enter` | Edit the selected item's text |
 | `⇧F10`, context menu key | Open the context menu |
 | Shift-click, Shift-drag | Add to the selection |
-| Alt-drag | Drag a copy; Alt while dragging: no snapping |
+| Alt-drag | Drag a copy; Alt while dragging: no snapping or [guides](#smart-guides) |
 | `Esc` | Back one level: cancel a drag, stop a tool, clear the selection, leave a group or History |
 
 In a mindmap, `Tab`, `Enter`, the arrows, `F2`, `Space`, `⇧Del`, `⌘V` and `⌘D` act on the tree instead, and `⌥` + arrows move nodes: see [Mindmaps](#mindmaps). In a state diagram the general keys apply; `S` opens the menu of states, `⌘G` / `⇧⌘G` make and unwrap composites, and `Del` on a composite with states asks first: see [State diagrams](#state-diagrams). While an ER table is edited in place: `↑` / `↓` (with `⇧` to extend) select attributes, `⌥↑` / `⌥↓` move them, `Enter` edits one (the empty row adds one), `⌘A` selects all, `Del` deletes, `Esc` clears the selection, then leaves the table. While History compares: `1`–`4` views, `J` / `K` next and previous change, `X` swaps Before and After.

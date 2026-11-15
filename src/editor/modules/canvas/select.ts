@@ -9,6 +9,7 @@ import type { ItemKind } from '../../../core/types.js';
 import type { Sel } from '../../core.js';
 import type { EditorModule } from '../../module.js';
 import { connectionCount, itemLabel, selectable, selKey } from '../../lib/canvas.js';
+import { GUIDE_CSS, installGuideOverlay } from './guide-overlay.js';
 import { installNudge } from './nudge.js';
 import { installSelectGestures } from './select-gestures.js';
 import { installSelectionOverlay, SELECT_CSS } from './select-overlay.js';
@@ -24,10 +25,10 @@ const KIND_NAME: Record<ItemKind, string> = {
 
 export const canvasSelectModule: EditorModule = {
   id: 'canvas-select',
-  css: [SELECT_CSS],
+  css: [SELECT_CSS, GUIDE_CSS],
   install(scope) {
     const core = scope.core;
-    const st: SelectState = { marquee: null, sizing: null };
+    const st: SelectState = { marquee: null, sizing: null, guides: null };
     let destroyed = false;
 
     const editing = (): boolean => core.mode.peek() === 'edit';
@@ -71,6 +72,7 @@ export const canvasSelectModule: EditorModule = {
     // ---- the overlay, the gestures, the pointer extras and the nudge (one file each) ---------------------------
 
     installSelectionOverlay(scope, st);
+    installGuideOverlay(scope, st);
     installSelectGestures(scope, st);
     installSelectPointer(scope);
     const { nudge, flush: flushNudge } = installNudge(scope);
@@ -175,7 +177,7 @@ export const canvasSelectModule: EditorModule = {
         },
       },
       { id: 'shift-click', keys: ['shift'], label: 'Shift-click / Shift-drag: add to the selection', group: 'Edit', editOnly: true, hintOnly: true },
-      { id: 'alt-drag', keys: ['alt'], label: 'Alt-drag: drag a copy · Alt while dragging: no snapping', group: 'Edit', editOnly: true, hintOnly: true },
+      { id: 'alt-drag', keys: ['alt'], label: 'Alt-drag: drag a copy · Alt while dragging: no snapping or guides', group: 'Edit', editOnly: true, hintOnly: true },
     );
     // The end of the Esc chain (A.11: help → paint → shapes menu → tool → group → selection / page) is registered
     // after every module installed, so the earlier links of the chain come first in the registry. Through the scope:

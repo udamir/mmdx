@@ -221,6 +221,7 @@ export const EDIT: EditKind<StateModel, StateGeometry> = {
   fragment: (M, _code, refs) => stateFragment(M, refs),
   noCopy: 'Copy works for states and composite states',
   altCopy: true,
+  guides: ['node', 'group'],
   connectable: ['node', 'group'],
   connect: (code, from, to) => connectState(code, parseState(code), from, to),
   added(M, from, to) {
