@@ -157,8 +157,10 @@ export class InputService<H extends { p: Point } = { p: Point }> {
     o.owner.add(() => (this.cancelGesture = () => false));
     svg.addEventListener('pointerup', (ev) => finish(ev, false), sig);
     svg.addEventListener('pointercancel', (ev) => finish(ev, true), sig);
+    // Chrome can release the capture just before the pointerup (which then goes to the element under the pointer): a
+    // drag that lost its capture ends where the pointer is, as a release does; only pointercancel and Esc roll back
     svg.addEventListener('lostpointercapture', (ev) => {
-      if (this.gesture?.id === ev.pointerId && this.gesture.moved) finish(ev, true);
+      if (this.gesture?.id === ev.pointerId && this.gesture.moved) finish(ev, false);
     }, sig);
     svg.addEventListener('dblclick', (ev) => {
       if (!dragged[0] && !dragged[1]) return;
