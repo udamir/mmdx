@@ -170,7 +170,8 @@ report('viewer (flowchart, more shapes)', v.size(v.base) + v.size(new Set([...fl
 // core 128.8, theme-editor 176, editor 205.7 and diff 96.1 kB kind registries open to plugin types: KindInfo, kind modules, extras, theme sections, KindUi (A11c)
 // core 126.9, theme-editor 176.3, editor 207.6 and diff 96.2 kB (126.5, 175.9, 207.2 and 95.8 measured) the final size pass (BUG-017): every one re-set to measured + 0.4 kB (core's tightened, the theme editor's and the diff's had 0.1 and 0.3 kB); the editor's order slider walk and the types' OrderSims load on demand (−0.7 kB), then re-set to measured + 0.4 kB (over the last budget: the BUG-003 flowchart parser phases, the BUG-008 popover host)
 // editor 208.1 and diff 97.2 kB (207.7 and 96.8 measured): the 001 view/diff stream (BUG-013–016, BUG-023: the kernel lists and services, the shared attribute parsers and kernel options, History on the session's one shown model) after the size pass, re-set to measured + 0.4 kB; then ComponentShell without the dialogs (the studio and the theme editor make their own, BUG-017: −0.8 to −1.1 kB in every viewer and diff row), tightened to measured + 0.4 kB
-for (const [entry, budget] of [['core', 126.9], ['theme-editor', 176.3], ['editor', 208.1], ['diff', 96.5]]) {
+// editor 211.1 kB (210.7 measured): 0.5.0's smart guides (task 005: the guide engine, session and overlay in the editor's first chunk, +2.8–3.1 kB; the flowchart's legacy layout removed, −0.2 kB in its chunk), re-set to measured + 0.4 kB
+for (const [entry, budget] of [['core', 126.9], ['theme-editor', 176.3], ['editor', 211.1], ['diff', 96.5]]) {
   const b = await bundle(entry);
   report(entry, b.size(b.base), budget * KB);
   if (entry === 'editor') {
@@ -206,7 +207,8 @@ for (const [entry, budget] of [['core', 126.9], ['theme-editor', 176.3], ['edito
       const kind = lazy(b, `src/editor/kinds/${k}/index.ts`, b.base);
       const mods = KIND_MODULES[k] ? lazy(b, KIND_MODULES[k], new Set([...b.base, ...kind])) : [];
       // flowchart 245.6, sequence 244.8 and ER 244.6 kB (245.2, 244.4 and 244.2 measured): the 001 view/diff stream (BUG-013–016, BUG-023: the kernel lists and services, the shared attribute parsers and kernel options, History on the session's one shown model) after the size pass, re-set to measured + 0.4 kB
-      report(`editor (first ${k})`, b.size(b.base) + b.size(kind) + b.size(mods), ({ flowchart: 245.6, sequence: 244.8, er: 244.6 })[k] * KB);
+      // flowchart 248.4, sequence 247.8 and ER 247.5 kB (248.0, 247.4 and 247.1 measured): 0.5.0's smart guides (task 005: the guide engine, session and overlay in the editor's first chunk, +2.8–3.1 kB; the flowchart's legacy layout removed, −0.2 kB in its chunk), re-set to measured + 0.4 kB
+      report(`editor (first ${k})`, b.size(b.base) + b.size(kind) + b.size(mods), ({ flowchart: 248.4, sequence: 247.8, er: 247.5 })[k] * KB);
     }
     {
       // a mindmap: its kinds and the mindmap module's gestures, both loaded with the first mindmap (T08: 228.3 kB measured; the view, ops and edit kinds with the geometry of bang and cloud and the media kit, which its edit kind registers as the flowchart's does, and the drag, handles and keys of the outline)
@@ -234,7 +236,8 @@ for (const [entry, budget] of [['core', 126.9], ['theme-editor', 176.3], ['edito
       // 239.7 kB (239.3 kB measured) shared adapter helpers (http, subscribers, base64) and ownPreset (4.12) · 240.4 kB (240.0 measured) the kernel panel stacks (A16)
       // 243.4 kB (243.0 kB measured) the final size pass (BUG-017): the order slider's walk and the types' OrderSims load on demand (−0.6 to −2.2 kB), then re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits, the BUG-008 popover host and the editor's shared helpers
       // 243.9 kB (243.5 measured): the 001 view/diff stream (BUG-013–016, BUG-023: the kernel lists and services, the shared attribute parsers and kernel options, History on the session's one shown model) after the size pass, re-set to measured + 0.4 kB
-      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 243.9 * KB);
+      // 246.9 kB (246.5 measured): 0.5.0's smart guides (task 005: the guide engine, session and overlay in the editor's first chunk, +2.8–3.1 kB; the flowchart's legacy layout removed, −0.2 kB in its chunk), re-set to measured + 0.4 kB
+      report('editor (first mindmap)', b.size(b.base) + b.size(new Set([...kind, ...gestures])), 246.9 * KB);
     }
     // a state diagram: its view, ops and edit kinds in one chunk loaded with the first state diagram (T09: 240.5 kB measured; the parser, compound layout, renderer, state shapes, ops, palette and Properties controls)
     // 249.4 kB with media in every kind and the sequence and ER fixes (T10, T11: 249 kB measured)
@@ -256,7 +259,8 @@ for (const [entry, budget] of [['core', 126.9], ['theme-editor', 176.3], ['edito
     // 253.5 kB (253.1 kB measured) shared adapter helpers (http, subscribers, base64) and ownPreset (4.12) · 254.4 kB (254.0 measured) the kernel panel stacks (A16)
     // 258.4 kB (258.0 kB measured) the final size pass (BUG-017): the order slider's walk and the types' OrderSims load on demand (−0.6 to −2.2 kB), then re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits, the BUG-008 popover host and the editor's shared helpers
     // 258.9 kB (258.5 measured): the 001 view/diff stream (BUG-013–016, BUG-023: the kernel lists and services, the shared attribute parsers and kernel options, History on the session's one shown model) after the size pass, re-set to measured + 0.4 kB
-    report('editor (first state)', b.size(b.base) + b.size(lazy(b, 'src/editor/kinds/state/index.ts', b.base)), 258.9 * KB);
+    // 261.9 kB (261.5 measured): 0.5.0's smart guides (task 005: the guide engine, session and overlay in the editor's first chunk, +2.8–3.1 kB; the flowchart's legacy layout removed, −0.2 kB in its chunk), re-set to measured + 0.4 kB
+    report('editor (first state)', b.size(b.base) + b.size(lazy(b, 'src/editor/kinds/state/index.ts', b.base)), 261.9 * KB);
     // the insert dock's lazy chunks (T05): the pickers (icon picker, image tool, emoji picker and their glue), the shape palette block, the Connector and Container tools, the English emoji data (§4.5: at most 30 kB)
     const loaded = new Set([...b.base, ...lazy(b, 'src/editor/kinds/flowchart/index.ts', b.base)]);
     // 13.2 kB with the image tool's Icon tab, the overlay scrollbars of its grids and its place by the toolbar (12.8 kB measured)
@@ -292,7 +296,8 @@ for (const [entry, budget] of [['core', 126.9], ['theme-editor', 176.3], ['edito
     // 252.1 kB (251.7 kB measured) the final size pass (BUG-017): the order slider's walk and the types' OrderSims load on demand (−0.6 to −2.2 kB), then re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits, the BUG-008 popover host and the editor's shared helpers
     // 253.2 kB (252.8 measured): the 001 view/diff stream (BUG-013–016, BUG-023: the kernel lists and services, the shared attribute parsers and kernel options, History on the session's one shown model) after the size pass, re-set to measured + 0.4 kB
     // 253.9 kB (253.5 measured): the Compare timeline's pair from the last two dots clicked and After / Before dragged to another row, measured + 0.4 kB
-    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 253.9 * KB);
+    // 256.9 kB (256.5 measured): 0.5.0's smart guides (task 005: the guide engine, session and overlay in the editor's first chunk, +2.8–3.1 kB; the flowchart's legacy layout removed, −0.2 kB in its chunk), re-set to measured + 0.4 kB
+    report('editor + History opened', b.size(b.base) + b.size(lazy(b, 'src/diff/history.ts', b.base)), 256.9 * KB);
   }
 }
 
@@ -436,7 +441,8 @@ const rows = [
   // 186.6 kB (186.2 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
   // 186.8 kB (186.4 kB measured) the final size pass (BUG-017): the order slider's walk and the types' OrderSims load on demand (−0.6 kB), then re-set to measured + 0.4 kB (it had 0.2 kB)
   // 187.4 kB (187.0 measured): the 001 view/diff stream (BUG-013–016, BUG-023: the kernel lists and services, the shared attribute parsers and kernel options, History on the session's one shown model) after the size pass, re-set to measured + 0.4 kB
-  ['editor', ['src/editor.ts'], 187.4],
+  // 190.4 kB (190.0 measured): 0.5.0's smart guides (task 005: the guide engine, session and overlay in the editor's first chunk, +2.8–3.1 kB; the flowchart's legacy layout removed, −0.2 kB in its chunk), re-set to measured + 0.4 kB
+  ['editor', ['src/editor.ts'], 190.4],
   // 184.2 kB measured; 197.8 kB with the shape catalogue (197.3 kB measured); 198.2 kB once the shapes beyond the 17 load with the flowchart's editor code (T02.9, 197.8 kB measured: the same code as before, in more chunks, each compressed on its own)
   // 199.2 kB with media in the scene (T03, 198.8 kB measured); 201.9 kB with the icon registry (T04, 201.5 kB measured)
   // 206.9 kB with the insert dock (T05, 206.5 kB measured: the editor's part, and the flowchart's icon and image node ops and palette sections)
@@ -462,7 +468,8 @@ const rows = [
   // 234.5 kB (234.1 kB measured) kind registries open to plugin types: KindInfo, kind modules, extras, theme sections, KindUi (A11c)
   // 238 kB (237.6 kB measured) the final size pass (BUG-017): the order slider's walk and the types' OrderSims load on demand (−0.6 to −2.2 kB), then re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits, the BUG-008 popover host and the editor's shared helpers
   // 238.5 kB (238.1 measured): the 001 view/diff stream (BUG-013–016, BUG-023: the kernel lists and services, the shared attribute parsers and kernel options, History on the session's one shown model) after the size pass, re-set to measured + 0.4 kB
-  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart/index.ts'], 238.5],
+  // 241.3 kB (240.9 measured): 0.5.0's smart guides (task 005: the guide engine, session and overlay in the editor's first chunk, +2.8–3.1 kB; the flowchart's legacy layout removed, −0.2 kB in its chunk), re-set to measured + 0.4 kB
+  ['editor (first flowchart)', ['src/editor.ts', 'src/editor/kinds/flowchart/index.ts'], 241.3],
   // the first mindmap (T08, 70.8 kB measured): the viewer and the mindmap's kind chunk (parser, tidy tree layout, renderer)
   // 72 kB with state diagrams (T09, 71.6 kB measured: the viewer's +0.5 kB)
   // 75.1 kB with media in every kind and the sequence and ER fixes (T10, T11, 74.7 kB measured)
@@ -497,7 +504,8 @@ const rows = [
   // 221.7 kB (221.3 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
   // 223.8 kB (223.4 kB measured) the final size pass (BUG-017): the order slider's walk and the types' OrderSims load on demand (−0.6 to −2.2 kB), then re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits, the BUG-008 popover host and the editor's shared helpers
   // 224.3 kB (223.9 measured): the 001 view/diff stream (BUG-013–016, BUG-023: the kernel lists and services, the shared attribute parsers and kernel options, History on the session's one shown model) after the size pass, re-set to measured + 0.4 kB
-  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap/index.ts', 'src/editor/modules/mindmap/gestures.ts'], 224.3],
+  // 227.4 kB (227.0 measured): 0.5.0's smart guides (task 005: the guide engine, session and overlay in the editor's first chunk, +2.8–3.1 kB; the flowchart's legacy layout removed, −0.2 kB in its chunk), re-set to measured + 0.4 kB
+  ['editor (first mindmap)', ['src/editor.ts', 'src/editor/kinds/mindmap/index.ts', 'src/editor/modules/mindmap/gestures.ts'], 227.4],
   // the first state diagram (T09, 85.6 kB measured): the viewer and the state's kind chunk (parser, compound layout, renderer, shapes)
   // 89.1 kB with media in every kind and the sequence and ER fixes (T10, T11, 88.7 kB measured)
   // 89.9 kB with rich text labels, animated connectors, an image node's source and the responsive canvas merged in (89.5 kB measured)
@@ -531,7 +539,8 @@ const rows = [
   // 236.4 kB (236.0 kB measured) kernel enterStage/leaveStage + HistoryStage class (A13d)
   // 239.4 kB (239.0 kB measured) the final size pass (BUG-017): the order slider's walk and the types' OrderSims load on demand (−0.6 to −2.2 kB), then re-set to measured + 0.4 kB; over the last budget: the BUG-003 phase splits, the BUG-008 popover host and the editor's shared helpers
   // 239.9 kB (239.5 measured): the 001 view/diff stream (BUG-013–016, BUG-023: the kernel lists and services, the shared attribute parsers and kernel options, History on the session's one shown model) after the size pass, re-set to measured + 0.4 kB
-  ['editor (first state)', ['src/editor.ts', 'src/editor/kinds/state/index.ts'], 239.9],
+  // 242.9 kB (242.5 measured): 0.5.0's smart guides (task 005: the guide engine, session and overlay in the editor's first chunk, +2.8–3.1 kB; the flowchart's legacy layout removed, −0.2 kB in its chunk), re-set to measured + 0.4 kB
+  ['editor (first state)', ['src/editor.ts', 'src/editor/kinds/state/index.ts'], 242.9],
   // the English emoji data (T05 §4.5: at most 30 kB), a lazy chunk of its own
   // 29.4 kB (29.0 kB measured) the final size pass (BUG-017): tightened to measured + 0.4 kB
   ['emoji data, English (lazy chunk)', ['src/emoji/en.ts'], 29.4],
@@ -559,7 +568,8 @@ const rows = [
   // 235.4 kB (235.0 kB measured) the final size pass (BUG-017): tightened to measured + 0.4 kB (the order slider's walk and the types' OrderSims load on demand)
   // 236.2 kB (235.8 measured): the 001 view/diff stream (BUG-013–016, BUG-023: the kernel lists and services, the shared attribute parsers and kernel options, History on the session's one shown model) after the size pass, re-set to measured + 0.4 kB
   // 237.1 kB (236.7 measured): the Compare timeline's pair from the last two dots clicked and After / Before dragged to another row, measured + 0.4 kB
-  ['editor + History opened', ['src/editor.ts', ...HISTORY], 237.1],
+  // 240.0 kB (239.6 measured): 0.5.0's smart guides (task 005: the guide engine, session and overlay in the editor's first chunk, +2.8–3.1 kB; the flowchart's legacy layout removed, −0.2 kB in its chunk), re-set to measured + 0.4 kB
+  ['editor + History opened', ['src/editor.ts', ...HISTORY], 240.0],
   // 125.2 kB while the entry re-exported the all-kinds diff
   // 92.5 kB once the per-type diffs left the entry for the diff kinds (90.9 kB measured); 94.6 kB before; 91.5 kB with the shapes on demand (T02.9, 91.1 kB measured)
   // 92.5 kB with media in the scene (T03, 92.1 kB measured); 95.1 kB with the icon registry (T04, 94.7 kB measured)
