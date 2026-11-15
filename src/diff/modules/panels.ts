@@ -50,6 +50,8 @@ export interface VersionControls {
   row(id: string, tab: DiffMode): void;
   /** A Before / After pick of the Compare tab. */
   pick(side: 'before' | 'after', id: string): void;
+  /** Both ends of the Compare tab's timeline at once (two dots picked, or After or Before dragged to another row). */
+  pair(base: string, head: string): void;
   swap(): void;
   /** "Compare with the previous version" of a row's menu. */
   comparePrevious(id: string): void;
@@ -93,7 +95,10 @@ export function versionsModule(session: DiffSession, tab: Signal<DiffMode>, o: {
         onRow: (id) => (c ? c.row(id, tab.peek()) : tab.peek() === 'compare' ? session.compareWithPrevious(id) : session.viewVersion(id)),
         onMore: loadMore, t,
         // Compare as a timeline: the pair is a range on it; After's or Before's own dot swaps them
-        timeline: { onSwap: () => (c ? c.swap() : session.setPair(session.head.peek(), session.base.peek())) },
+        timeline: {
+          onSwap: () => (c ? c.swap() : session.setPair(session.head.peek(), session.base.peek())),
+          onPair: (base, head) => (c ? c.pair(base, head) : session.setPair(base, head)),
+        },
         // on both tabs' rows: in Compare, next to the Before / After picks
         menu: {
           popovers: core.popovers, within: () => core.eventRoot,

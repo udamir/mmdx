@@ -213,7 +213,9 @@ Moving an item by hand pins the auto-placed ones where they are and stores their
 
 **Auto layout** (the `autoLayout` action) forgets every position of the diagram. **Reset positions in this group** — in a subgraph's ⋮ menu on the floating toolbar, its right-click menu and its Properties — forgets the positions inside one subgraph only (its nodes, nested subgraphs and the bend points of the connectors inside), and the layout arranges its contents again; the subgraph keeps its place (its top-left is stored, as `x` / `y` without a size), and everything outside it stays as it is. It is greyed out when nothing inside the subgraph has a stored position. Both are one undo step.
 
-Files laid out before the compound layout can keep the earlier layout for one more minor release: `%%@ canvas {"layout":"legacy"}` (see [the .mmdx format](/guide/mmdx-format#line-kinds)).
+## Smart guides
+
+While a node, table, state or subgraph is moved or resized, dashed lines show where its edges or centre line up with the items around it, markers show equal gaps to its neighbours in a row or column, and inside a subgraph sized by hand, equal margins to the frame (left and right, top and bottom, or the same inset from a corner). Within 6 screen pixels the item snaps there; on that axis the guide takes the place of the snap grid. Only items in view count, and an alignment line runs to the nearest match on each side. A multi-selection and an Alt-drag copy align as one block; the resize handle snaps the right and bottom edges. Hold Alt while dragging for no guides and no grid. Flowcharts, ER and state diagrams have guides; sequence diagrams and mindmaps keep their own dragging.
 
 ## Insert dock
 
@@ -395,7 +397,7 @@ Without an adapter, `save()` still fires `mmdx-save`; handle it, save yourself, 
 With a `history`, the History button of the tool dock (⇧H) opens the version panel next to the Code panel — the versions you give it, plus the working copy when it differs from the newest one (it follows the document). Opening it changes nothing else: the current version is selected and the diagram stays editable.
 
 - **History tab**: pick an older version and the editor shows it as it was, drawn exactly like the document (page, canvas, theme) but read-only: Shapes, Properties and Undo / Redo leave the dock, Code and Layers stay (read-only), items can be selected and the bar over them has **Copy** (⌘C; paste into the document later), and Export exports that version (its id in the file name). Picking the current version again brings editing back.
-- **Compare tab**: pick a version and it is compared with the current one (Before, Merged, After, Side by side, filters, change list, code diff in the Code panel's place), on the editor's own canvas and page; the timeline's dots and Swap (X) change the pair. Switching tabs alone shows nothing new, and the panels stay as they were.
+- **Compare tab**: pick a version and it is compared with the current one (Before, Merged, After, Side by side, filters, change list, code diff in the Code panel's place), on the editor's own canvas and page; on the timeline the next dot clicked is compared with the one clicked before it (the newer one as After), A or B can be dragged to another version (onto each other they swap), and Swap (X) changes the sides. Switching tabs alone shows nothing new, and the panels stay as they were.
 - Every switch — document, version, comparison — animates from where things are on screen.
 - **Back** (the pill at the top, or Esc) returns to the current version and keeps the panel; closing the panel only hides it while a version or comparison shows (the History button brings it back), and leaves History otherwise.
 - **Restore this version** (Edit mode, in an older version's ⋯ menu) opens it in the editor as an undoable change, after the cancelable `mmdx-history-restore`.
@@ -441,7 +443,7 @@ Shortcuts work while the focus is inside the editor; `?` lists those that apply 
 | `Enter` | Edit the selected item's text |
 | `⇧F10`, context menu key | Open the context menu |
 | Shift-click, Shift-drag | Add to the selection |
-| Alt-drag | Drag a copy; Alt while dragging: no snapping |
+| Alt-drag | Drag a copy; Alt while dragging: no snapping or [guides](#smart-guides) |
 | `Esc` | Back one level: cancel a drag, stop a tool, clear the selection, leave a group or History |
 
 In a mindmap, `Tab`, `Enter`, the arrows, `F2`, `Space`, `⇧Del`, `⌘V` and `⌘D` act on the tree instead, and `⌥` + arrows move nodes: see [Mindmaps](#mindmaps). In a state diagram the general keys apply; `S` opens the menu of states, `⌘G` / `⇧⌘G` make and unwrap composites, and `Del` on a composite with states asks first: see [State diagrams](#state-diagrams). While an ER table is edited in place: `↑` / `↓` (with `⇧` to extend) select attributes, `⌥↑` / `⌥↓` move them, `Enter` edits one (the empty row adds one), `⌘A` selects all, `Del` deletes, `Esc` clears the selection, then leaves the table. While History compares: `1`–`4` views, `J` / `K` next and previous change, `X` swaps Before and After.

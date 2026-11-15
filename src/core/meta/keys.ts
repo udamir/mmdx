@@ -118,7 +118,7 @@ export const META_KEYS = {
   background: colour(color, { page: true }), border: colour(color, { page: true }), grid: colour(color, { page: true }),
   theme: look(text(200), { page: true }), blockGapTop: look(SIZE, { page: true }), blockGapBottom: look(SIZE, { page: true }),
   blockPad: look(SIZE, { page: true }), blockSpan: look(oneOf('full', 'touched'), { page: true }), mirror: look(bool, { page: true }),
-  blockTags: look(bool, { page: true }), layout: look(oneOf('legacy', 'compound'), { page: true }),
+  blockTags: look(bool, { page: true }),
   mindLayout: look(oneOf('both', 'right', 'down'), { page: true }), composites: look(oneOf('single', 'palette'), { page: true }),
   ratio: lay(ratio, { page: true }),
 

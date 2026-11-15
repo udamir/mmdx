@@ -49,6 +49,25 @@ describe('drag preview per frame (P1)', () => {
     expect(Math.round(moved!.x - b!.x)).toBe(Math.round(offset));
   });
 
+  it('a capture lost before the pointerup keeps the move (Chrome releases it first at times)', () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const ed = new DiagramEditor(host, { value: 'flowchart TB\n  A[Alpha] --> B[Beta]\n', storage: memoryStorage() });
+    editors.push(ed);
+    const core = ed.core;
+    const el = core.dom.body.querySelector('[data-kind="node"][data-id="A"]')!;
+    const b = core.geom.type === 'flowchart' ? core.geom.nodes.get('A')! : null;
+    const s = core.toScreen({ x: b!.x, y: b!.y });
+    ptr(el, 'pointerdown', s.x, s.y);
+    ptr(core.dom.svg, 'pointermove', s.x + 40, s.y);
+    ptr(core.dom.svg, 'lostpointercapture', s.x + 60, s.y);
+    ptr(core.dom.body.querySelector('[data-kind="node"][data-id="A"]')!, 'pointerup', s.x + 60, s.y);
+    const moved = core.geom.type === 'flowchart' ? core.geom.nodes.get('A')! : null;
+    const offset = core.toDiagram({ clientX: s.x + 60, clientY: s.y } as PointerEvent).x - core.toDiagram({ clientX: s.x, clientY: s.y } as PointerEvent).x;
+    expect(Math.round(moved!.x - b!.x)).toBe(Math.round(offset));
+    expect(ed.core.store.inTransaction).toBe(false);
+  });
+
   it('Esc drops a move still waiting for its frame', () => {
     const host = document.createElement('div');
     document.body.append(host);

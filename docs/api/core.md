@@ -189,7 +189,6 @@ interface PageSettings {
 interface CanvasMeta extends PageSettings {
   v?: number;                  // format version
   preset?: string;             // page preset name (`<type>.pagePresets`)
-  layout?: 'legacy' | 'compound'; // flowcharts with subgraphs: `legacy` keeps the earlier auto layout (one minor release)
   w?: number;
   h?: number;
   x?: number;

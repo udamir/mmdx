@@ -2,6 +2,24 @@
 
 All notable changes to `@mmdx/studio` (named `mmdx` before 0.3.0). The project follows [semantic versioning](https://semver.org/); below 1.0, a minor version may change public API, listed under **Changed (breaking)**.
 
+## 0.5.0 — 2026-11-14
+
+Smart guides in the editor.
+
+### Added
+
+- Smart guides: moving or resizing a shape shows and snaps to aligned edges and centres, equal spacing and equal margins inside a subgraph; Alt turns them off.
+
+### Changed (breaking)
+
+- The `"layout":"legacy"` canvas option is removed: flowcharts with subgraphs always use the subgraph layout of 0.4. A file that still has it loads with the key kept and ignored; diagrams whose nodes all have stored positions look the same.
+- `CanvasMeta` no longer has `layout`.
+
+### Fixed
+
+- Compare: two versions can be picked on the timeline (the last two clicked), and A and B can be dragged to another version.
+- A drag in Chrome no longer snaps back when the browser releases the pointer just before the button goes up.
+
 ## 0.4.0 — 2026-11-14
 
 Mindmaps, state diagrams, icons and images.

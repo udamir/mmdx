@@ -458,6 +458,7 @@ class HistoryStage {
         if (now.kind !== 'compare') return void this.compareRow(id);
         this.compare(side === 'before' ? id : now.base, side === 'after' ? id : now.head);
       },
+      pair: (base, head) => this.compare(base, head),
       swap: () => this.swap(),
       comparePrevious: (id) => void this.previousOf(id).then((prev) => this.compare(prev, id)),
     };

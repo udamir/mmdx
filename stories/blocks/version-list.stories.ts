@@ -61,6 +61,11 @@ function versionList(a: Args): HTMLElement {
           [state.base, state.head] = [state.head, state.base];
           vl.update(props());
         },
+        onPair: (base: string, head: string) => {
+          state.base = base;
+          state.head = head;
+          vl.update(props());
+        },
       },
     } : {}),
   });

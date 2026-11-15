@@ -107,7 +107,7 @@ The editor's own sources use these priorities:
 | 50 | Items: select, move, Alt-drag copy, enter groups |
 | 10 | The empty canvas: the marquee |
 
-Overlay painters draw handles and marks over the picture, from the current geometry, every time the overlay is drawn (after each render and each pan or zoom step). A painter returns scene nodes (`{ t: 'rect', attrs: { … }, key }`); `k` is the zoom, so `1 / k` is one screen pixel. Painters paint in `order` (lowest underneath): the selection boxes are 10, the ER table 11, connector handles 70, a diagram type's own marks 80. A painter whose `exclusive()` is true hides the others while it shows (a link preview hides the selection boxes).
+Overlay painters draw handles and marks over the picture, from the current geometry, every time the overlay is drawn (after each render and each pan or zoom step). A painter returns scene nodes (`{ t: 'rect', attrs: { … }, key }`); `k` is the zoom, so `1 / k` is one screen pixel. Painters paint in `order` (lowest underneath): the selection boxes are 10, the ER table 11, connector handles 70, smart guides 75, a diagram type's own marks 80. A painter whose `exclusive()` is true hides the others while it shows (a link preview hides the selection boxes).
 
 ```ts
 scope.painter({

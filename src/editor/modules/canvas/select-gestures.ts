@@ -1,14 +1,16 @@
 // Selection gestures (A.3 rows 27, 28, 34; A.2 row 17): pressing an item selects it (an item in a group selects the
 // outermost group, Miro-like; Shift toggles) and drags it — one item, the multi-selection, or a copy with Alt — the
-// corner handle resizes, and a press on the empty canvas drags the marquee.
+// corner handle resizes, and a press on the empty canvas drags the marquee. Moves and resizes snap to smart guides
+// (task 005, guide-session.ts); Alt while dragging turns them off with the grid.
 import { withEdit } from '../../kinds/registry.js';
 import { cloneItems, cloneMeta, moveItem, moveItems, type MoveOpts } from '../../../core/ops/index.js';
-import { ensure as ensureMeta } from '../../../core/ops/meta-util.js';
+import { ensure as ensureMeta, snap as snapTo } from '../../../core/ops/meta-util.js';
 import type { ItemRef } from '../../../core/types.js';
 import type { Gesture, Hit, Sel } from '../../core.js';
 import { inArea, samePrimary, selectable, selKey } from '../../lib/canvas.js';
 import { GESTURE } from '../../lib/priorities.js';
 import { metaGesture } from '../../ops/gesture.js';
+import { guideSession } from './guide-session.js';
 import type { SelectScope, SelectState } from './select-state.js';
 
 const NOOP: Gesture = { move: () => undefined };
@@ -35,19 +37,23 @@ export function installSelectGestures(scope: SelectScope, st: SelectState): void
   const moveGesture = (ref: ItemRef, part: string | null): Gesture => {
     const model = core.model, meta = core.meta, geom = core.geom;
     if (ref.kind === 'activation') return NOOP; // resized by its top / bottom handles
+    const guides = part ? null : guideSession(core, st, [ref], 'move');
     return metaGesture(core, 'Move', (dx, dy, ev) => {
-      const opts: MoveOpts = { snap: ev.altKey ? 0 : core.snap };
+      const g = guides?.adjust(dx, dy, ev);
+      const opts: MoveOpts = { snap: g ? g.snap : ev.altKey ? 0 : core.snap };
       if (part === 'label') opts.part = 'label';
-      core.write({ meta: moveItem(model, meta, geom, ref, dx, dy, opts).meta });
-    });
+      core.write({ meta: moveItem(model, meta, geom, ref, g?.dx ?? dx, g?.dy ?? dy, opts).meta });
+    }, () => guides?.done());
   };
 
   const multiMoveGesture = (keepSnapWithAlt = false): Gesture => {
     const model = core.model, meta = core.meta, geom = core.geom, sel = core.selection();
+    const guides = guideSession(core, st, sel, 'move');
     return metaGesture(core, 'Move', (dx, dy, ev) => {
-      const snap = ev.altKey && !keepSnapWithAlt ? 0 : core.snap;
-      core.write({ meta: moveItems(model, meta, geom, sel, dx, dy, snap).meta });
-    });
+      const g = guides?.adjust(dx, dy, keepSnapWithAlt ? null : ev);
+      const snap = g ? g.snap : ev.altKey && !keepSnapWithAlt ? 0 : core.snap;
+      core.write({ meta: moveItems(model, meta, geom, sel, g?.dx ?? dx, g?.dy ?? dy, snap).meta });
+    }, () => guides?.done());
   };
 
   /** Alt/Option-drag: drag a copy, the originals stay. A click without moving copies nothing. */
@@ -64,16 +70,21 @@ export function installSelectGestures(scope: SelectScope, st: SelectState): void
     core.draw();
     core.rootClass('copying', true);
     const model = core.model, meta = core.meta, geom = core.geom, sel = core.selection();
+    // the copies align as one block, to the originals too (dragged sideways, a copy stays in line with them)
+    const guides = guideSession(core, st, sel, 'move');
     return {
       move(dx, dy) {
-        core.write({ meta: moveItems(model, meta, geom, sel, dx, dy, core.snap).meta }); // Alt means copy here: keep snapping
+        const g = guides?.adjust(dx, dy, null); // Alt means copy here: keep snapping and the guides
+        core.write({ meta: moveItems(model, meta, geom, sel, g?.dx ?? dx, g?.dy ?? dy, g ? g.snap : core.snap).meta });
         core.draw();
       },
       end() {
+        guides?.done();
         core.rootClass('copying', false);
         core.commit('Copy');
       },
       cancel() {
+        guides?.done();
         core.rootClass('copying', false);
         core.rollback();
       },
@@ -91,11 +102,16 @@ export function installSelectGestures(scope: SelectScope, st: SelectState): void
     // and the size goes to the code (`h` / `w` in its node data) when the drag ends, so stock Mermaid draws it the same
     const media = b.asset ? withEdit(core.model, (k, m) => k.media?.(m, s, core)) : null;
     const asset = media?.node ? b.asset : undefined;
-    const g = metaGesture(core, 'Resize', (dx, dy, ev) => {
+    // the right and bottom edges snap to smart guides (not an asset: its square or aspect rules decide its size)
+    const guides = asset ? null : guideSession(core, st, [s], 'resize');
+    const g = metaGesture(core, 'Resize', (dx0, dy0, ev) => {
       st.sizing = s;
       core.write({ meta: cloneMeta(meta0) });
       const m = core.ensure(kind, id);
+      const gd = guides?.adjust(dx0, dy0, ev);
+      const dx = gd?.dx ?? dx0, dy = gd?.dy ?? dy0;
       const snap = (v: number): number => core.snapV(v, ev);
+      const snapW = (v: number): number => (gd ? snapTo(v, gd.snap.x) : snap(v)), snapH = (v: number): number => (gd ? snapTo(v, gd.snap.y) : snap(v));
       if (asset && media) {
         const d = Math.abs(dx) > Math.abs(dy) ? dx : dy;
         let w = Math.max(16, snap(asset.w + dx)), hh = Math.max(16, snap(asset.h + dy));
@@ -121,17 +137,20 @@ export function installSelectGestures(scope: SelectScope, st: SelectState): void
       if (kind === 'group') {
         m.x = Math.round(x0);
         m.y = Math.round(y0);
-        m.w = Math.max(40, snap(b.w + dx));
-        m.h = Math.max(30, snap(b.h + dy));
+        m.w = Math.max(40, snapW(b.w + dx));
+        m.h = Math.max(30, snapH(b.h + dy));
       } else {
-        // keep the top-left corner fixed while resizing (positions are centres)
-        const w = Math.max(30, snap(b.w + dx)), hh = Math.max(20, snap(b.h + dy));
+        // keep the top-left corner fixed while resizing (positions are centres); with no grid on a side (a guide
+        // snapped it, or Alt) the size keeps the centre on a whole unit, so the corner does not drift by half a unit
+        const exact = (lo: number, v: number): number => Math.round(2 * Math.round(lo + v / 2) - 2 * lo);
+        const w = Math.max(30, gd && !gd.snap.x ? exact(x0, b.w + dx) : snap(b.w + dx));
+        const hh = Math.max(20, gd && !gd.snap.y ? exact(y0, b.h + dy) : snap(b.h + dy));
         m.w = w;
         m.h = hh;
         m.x = Math.round(x0 + w / 2);
         m.y = Math.round(y0 + hh / 2);
       }
-    });
+    }, () => guides?.done());
     /** The asset's new size moves from the gesture's metadata into the code (`setMedia`), in the same step. */
     let moved = false;
     const toCode = (): void => {

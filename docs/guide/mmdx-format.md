@@ -107,11 +107,7 @@ Unknown keys are kept on round-trip.
 
 `canvas` also takes `blockTags` for sequence diagrams: `false` hides the kind tags (`loop`, `alt`…) in the corners of the blocks, which are shown by default as Mermaid shows them (the **Blocks without kind tags** page preset, `plain-blocks`, sets it); a block's own `showTag` still wins. See [Sequence diagrams](/guide/sequence#blocks-and-boxes).
 
-`canvas` also takes `layout`. Flowcharts with subgraphs are laid out with each subgraph as a container of its own (see [the editor's auto layout](/components/editor#auto-layout)); `"layout":"legacy"` keeps the automatic layout of earlier versions, where subgraph frames could overlap and subgraph `direction` was ignored, for one more minor release — it will then be removed. Diagrams whose nodes all have stored positions look the same either way. Any other value is dropped with a diagnostic.
-
-```mmdx
-%%@ canvas {"v":1,"layout":"legacy"}
-```
+Flowcharts with subgraphs are laid out with each subgraph as a container of its own (see [the editor's auto layout](/components/editor#auto-layout)). The `"layout":"legacy"` option of 0.4 (the earlier layout, where subgraph frames could overlap) was removed in 0.5.0: a file that still has it keeps the key as written, and it has no effect. Diagrams whose nodes all have stored positions look the same either way.
 
 A flowchart node's shape belongs in the Mermaid code — a bracket (`A{"…"}`) or node data (`A@{ shape: lin-cyl }`) — so the file shows the same shapes in stock Mermaid; the editor writes it there (see [Shapes](/guide/shapes)). Metadata `shape` is only for shapes Mermaid's flowchart lacks (the participant figures, the mindmap's default node) and for a node whose preset draws another shape. A mindmap node's shape is likewise its delimiters in the code (`((…))`, <code v-pre>{{…}}</code>, …); only the catalogue shapes Mermaid's mindmap has no delimiters for are kept in metadata. A state has no shape syntax: a catalogue shape for it is metadata `shape`, drawn by mmdx only. Files of mmdx 0.1–0.3 that keep Mermaid shapes in metadata still draw them; the editor's code panel offers a fix that moves them into the code. A sequence diagram's real examples look like this:
 

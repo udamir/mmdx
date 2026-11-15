@@ -33,7 +33,7 @@ afterEach(() => {
 
 /** An editor with one part of the selection installed (and `extra` modules). */
 function mount(part: (scope: SelectScope, st: SelectState) => void, extra: EditorModule[] = []): { ed: DiagramEditor; core: EditorCore; st: SelectState } {
-  const st: SelectState = { marquee: null, sizing: null };
+  const st: SelectState = { marquee: null, sizing: null, guides: null };
   const host = document.createElement('div');
   document.body.append(host);
   const mod: EditorModule = { id: 'select-part', install: (scope) => part(scope, st) };

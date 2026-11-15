@@ -52,6 +52,7 @@ export const EDIT: EditKind<ErModel, ErGeometry> = {
   renameContainer: (code, M, ref, name) => (ref.kind === 'group' ? relabelErGroup(code, M, ref.id, name) : null),
   fragment: (M, code, refs) => erFragment(M, code, refs),
   altCopy: true,
+  guides: ['entity', 'group'],
   connectable: ['entity', 'group'],
   connect: addERRel,
   added(M, from, to) {
