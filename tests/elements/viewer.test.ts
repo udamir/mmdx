@@ -114,13 +114,19 @@ describe('DiagramViewer (kinds loaded)', () => {
 
 
 const hosts: HTMLElement[] = [];
+const viewers: DiagramViewer[] = [];
 const mount = (opts: ConstructorParameters<typeof DiagramViewer>[1]): { host: HTMLElement; v: DiagramViewer } => {
   const host = document.createElement('div');
   document.body.append(host);
   hosts.push(host);
-  return { host, v: new DiagramViewer(host, { lazy: false, ...opts }) };
+  const v = new DiagramViewer(host, { lazy: false, ...opts });
+  viewers.push(v);
+  return { host, v };
 };
+// a viewer left alive finishes loading its panels' modules after the file's environment is torn down (and logs that
+// it has no document): destroy each one
 afterEach(() => {
+  for (const v of viewers.splice(0)) v.destroy();
   for (const h of hosts.splice(0)) h.remove();
 });
 
@@ -189,16 +195,20 @@ afterEach(() => {
   it('setLayers() and the labels repaint; the hover highlight and the animation do not (P20)', async () => {
     const src = 'flowchart LR\n  a -- go --> b\n%%@ layer L1 {"name":"One"}\n%%@ node b {"layer":"L1"}';
     const { host, v } = mount({ source: src });
-    const core = (v as unknown as { core: { display: { peek(): object }; setDisplay(d: object): void; on(e: string, f: () => void): () => void } }).core;
+    const core = (v as unknown as { core: { display: { peek(): object }; setDisplay(d: object): void; on(e: string, f: () => void): () => void; modulesReady(): Promise<void> } }).core;
     const settle = () => new Promise((r) => setTimeout(r, 30));
     const nodes = () => host.shadowRoot!.querySelectorAll('.el[data-kind="node"]').length;
     // the first paint, and whatever it loaded on the way (a busy machine is slow), are over
     await vi.waitFor(() => expect(host.shadowRoot!.querySelectorAll('.elabel').length).toBe(1));
+    await core.modulesReady();
     await settle();
     let draws = 0;
     core.on('draw', () => draws++);
     v.setLayers(['default']);
     await vi.waitFor(() => expect(nodes()).toBe(1));
+    // what the first setLayers scheduled (and a module that finished loading meanwhile) is drawn before counting
+    await core.modulesReady();
+    await settle();
     const once = draws;
     expect(once).toBeGreaterThan(0);
     v.setLayers(['default']);
@@ -503,11 +513,17 @@ describe('inline sources round-trip (B17)', () => {
 });
 
 describe('viewer state sync (B19, B20)', () => {
+  const viewers: DiagramViewer[] = [];
   const mount = (opts: ConstructorParameters<typeof DiagramViewer>[1]): { host: HTMLElement; v: DiagramViewer } => {
     const host = document.createElement('div');
     document.body.append(host);
-    return { host, v: new DiagramViewer(host, { lazy: false, ...opts }) };
+    const v = new DiagramViewer(host, { lazy: false, ...opts });
+    viewers.push(v);
+    return { host, v };
   };
+  afterEach(() => {
+    for (const v of viewers.splice(0)) v.destroy();
+  });
   it('a code panel restored from storage makes the root a group and pinned', async () => {
     const storage = memoryStorage();
     storage.set('viewer.panels', { 'code-view': true });
