@@ -14,7 +14,11 @@ beforeAll(() => {
 });
 
 const hosts: HTMLElement[] = [];
+const diffs: DiagramDiff[] = [];
+// a diff left alive keeps counting versions in idle time, and a count that lands after the file's environment is torn
+// down re-renders the History list without a document: destroy each one (its count queue then stops)
 afterEach(() => {
+  for (const d of diffs.splice(0)) d.destroy();
   for (const h of hosts.splice(0)) h.remove();
 });
 
@@ -30,6 +34,7 @@ async function mount(opts: ConstructorParameters<typeof DiagramDiff>[1]): Promis
     host.addEventListener(t, (e) => events.push(e as CustomEvent));
   const ready = new Promise((r) => host.addEventListener('mmdx-render', r, { once: true }));
   const d = new DiagramDiff(host, { storage: memoryStorage(), ...opts });
+  diffs.push(d);
   await ready;
   // the side panels load on demand
   await import('../../src/diff/modules/panels.js');
